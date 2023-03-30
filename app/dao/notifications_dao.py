@@ -35,6 +35,7 @@ from app.models import (
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
+    NOTIFICATION_HARD_BOUNCE,
     NOTIFICATION_PENDING,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -124,11 +125,16 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None):
+def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
         notification.provider_response = provider_response
+    if bounce_response:
+        notification.feedback_type = bounce_response["feedback_type"]
+        notification.feedback_subtype = bounce_response["feedback_subtype"]
+        notification.ses_feedback_id = bounce_response["ses_feedback_id"]
+        notification.ses_feedback_date = bounce_response["ses_feedback_date"]
     dao_update_notification(notification)
     return notification
 
@@ -762,3 +768,63 @@ def send_method_stats_by_service(start_time, end_time):
         )
         .all()
     )
+
+
+@statsd(namespace="dao")
+@transactional
+def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcnow()):
+    """
+    This function returns the bounce rate for all services for the last 24 hours.
+    The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
+    The bounce rate is returned as a percentage.
+
+    :param min_emails_sent: the minimum number of emails sent to calculate the bounce rate for
+    :param default_time: the time to calculate the bounce rate for
+    :return: a list of tuple of the service_id, total number of email, # of hard bounces and the bounce rate
+    """
+    twenty_four_hours_ago = default_time - timedelta(hours=24)
+    query = (
+        db.session.query(
+            Notification.service_id.label("service_id"),
+            func.count(Notification.id).label("total_emails"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
+        .group_by(Notification.service_id)
+        .having(
+            func.count(Notification.id) >= min_emails_sent
+        )  # -- this value is the `[bounce-rate-warning-notification-volume-minimum]`
+        .subquery()
+    )
+    data = db.session.query(query, (100 * query.c.hard_bounces / query.c.total_emails).label("bounce_rate")).all()
+    return data
+
+
+@statsd(namespace="dao")
+@transactional
+def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=datetime.utcnow()):
+    """
+    This function returns the bounce rate for a single services for the last 24 hours.
+    The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
+    The bounce rate is returned as a percentage.
+
+    :param service_id: the service id to calculate the bounce rate for
+    :param min_emails_sent: the minimum number of emails sent to calculate the bounce rate for
+    :param default_time: the time to calculate the bounce rate for
+    :return: a tuple of the total number of emails sent, # of bounced emails and the bounce rate or None if not enough emails
+    """
+    twenty_four_hours_ago = default_time - timedelta(hours=24)
+    query = (
+        db.session.query(
+            func.count(Notification.id).label("total_emails"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
+        .filter(Notification.service_id == service_id)
+        .having(
+            func.count(Notification.id) >= min_emails_sent
+        )  # -- this value is the `[bounce-rate-warning-notification-volume-minimum]`
+        .subquery()
+    )
+    data = db.session.query(query, (100 * query.c.hard_bounces / query.c.total_emails).label("bounce_rate")).first()
+    return data

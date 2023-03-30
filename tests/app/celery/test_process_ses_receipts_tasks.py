@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import signer, statsd_client
+from app import signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
@@ -13,12 +13,27 @@ from app.celery.research_mode_tasks import (
     ses_soft_bounce_callback,
 )
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint, Notification
+from app.models import (
+    NOTIFICATION_HARD_BOUNCE,
+    NOTIFICATION_HARD_GENERAL,
+    NOTIFICATION_HARD_NOEMAIL,
+    NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
+    NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_SOFT_ATTACHMENTREJECTED,
+    NOTIFICATION_SOFT_BOUNCE,
+    NOTIFICATION_SOFT_CONTENTREJECTED,
+    NOTIFICATION_SOFT_GENERAL,
+    NOTIFICATION_SOFT_MAILBOXFULL,
+    NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    Complaint,
+    Notification,
+)
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
     remove_emails_from_complaint,
 )
+from celery.exceptions import MaxRetriesExceededError
 from tests.app.conftest import create_sample_notification
 from tests.app.db import (
     create_notification,
@@ -125,24 +140,21 @@ def test_ses_callback_should_retry_if_notification_is_new(notify_db, mocker):
         assert mock_retry.call_count == 1
 
 
-def test_ses_callback_should_log_if_notification_is_missing(notify_db, mocker):
+def test_ses_callback_should_retry_if_notification_is_missing(notify_db, mocker):
     mock_retry = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
+    assert process_ses_results(ses_notification_callback(reference="ref")) is None
+    assert mock_retry.call_count == 1
+
+
+def test_ses_callback_should_give_up_after_max_tries(notify_db, mocker):
+    mocker.patch(
+        "app.celery.process_ses_receipts_tasks.process_ses_results.retry",
+        side_effect=MaxRetriesExceededError,
+    )
     mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.warning")
 
-    with freeze_time("2017-11-17T12:34:03.646Z"):
-        assert process_ses_results(ses_notification_callback(reference="ref")) is None
-        assert mock_retry.call_count == 0
-        mock_logger.assert_called_once_with("notification not found for reference: ref (update to delivered)")
-
-
-def test_ses_callback_should_not_retry_if_notification_is_old(notify_db, mocker):
-    mock_retry = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
-    mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.error")
-
-    with freeze_time("2017-11-21T12:14:03.646Z"):
-        assert process_ses_results(ses_notification_callback(reference="ref")) is None
-        assert mock_logger.call_count == 0
-        assert mock_retry.call_count == 0
+    assert process_ses_results(ses_notification_callback(reference="ref")) is None
+    mock_logger.assert_called_with("notification not found for SES reference: ref (update to delivered). Giving up.")
 
 
 def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
@@ -295,7 +307,7 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
     assert process_ses_results(response)
 
     assert send_mock.call_count == 1
-    assert signer.verify(send_mock.call_args[0][0][0]) == {
+    assert signer_complaint.verify(send_mock.call_args[0][0][0]) == {
         "complaint_date": "2018-06-05T13:59:58.000000Z",
         "complaint_id": str(Complaint.query.one().id),
         "notification_id": str(notification.id),
@@ -304,3 +316,42 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
         "service_callback_api_url": "https://original_url.com",
         "to": "recipient1@example.com",
     }
+
+
+class TestBounceRates:
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_HARD_GENERAL),
+            ("NoEmail", NOTIFICATION_HARD_NOEMAIL),
+            ("Suppressed", NOTIFICATION_HARD_SUPPRESSED),
+            ("OnAccountSuppressionList", NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST),
+        ],
+    )
+    def test_ses_callback_should_update_bounce_info_new_delivery_receipt_hard_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_HARD_BOUNCE
+        assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
+
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_SOFT_GENERAL),
+            ("MailboxFull", NOTIFICATION_SOFT_MAILBOXFULL),
+            ("MessageTooLarge", NOTIFICATION_SOFT_MESSAGETOOLARGE),
+            ("ContentRejected", NOTIFICATION_SOFT_CONTENTREJECTED),
+            ("AttachmentRejected", NOTIFICATION_SOFT_ATTACHMENTREJECTED),
+        ],
+    )
+    def test_ses_callback_should_update_bounce_info_new_delivery_receipt_soft_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_SOFT_BOUNCE
+        assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype

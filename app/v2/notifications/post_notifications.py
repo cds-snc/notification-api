@@ -17,14 +17,14 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
-    email_bulk,
-    email_normal,
-    email_priority,
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
     notify_celery,
-    signer,
-    sms_bulk,
-    sms_normal,
-    sms_priority,
+    signer_notification,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
@@ -314,18 +314,18 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
     """
     if notification_type == SMS_TYPE:
         if template.process_type == PRIORITY:
-            sms_priority.publish(signed_notification_data)
+            sms_priority_publish.publish(signed_notification_data)
         elif template.process_type == NORMAL:
-            sms_normal.publish(signed_notification_data)
+            sms_normal_publish.publish(signed_notification_data)
         elif template.process_type == BULK:
-            sms_bulk.publish(signed_notification_data)
+            sms_bulk_publish.publish(signed_notification_data)
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
-            email_priority.publish(signed_notification_data)
+            email_priority_publish.publish(signed_notification_data)
         elif template.process_type == NORMAL:
-            email_normal.publish(signed_notification_data)
+            email_normal_publish.publish(signed_notification_data)
         elif template.process_type == BULK:
-            email_bulk.publish(signed_notification_data)
+            email_bulk_publish.publish(signed_notification_data)
 
 
 def process_sms_or_email_notification(
@@ -359,7 +359,7 @@ def process_sms_or_email_notification(
         "reply_to_text": reply_to_text,
     }
 
-    signed_notification_data = signer.sign_notification(_notification)
+    signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:

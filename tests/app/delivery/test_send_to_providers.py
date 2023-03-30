@@ -16,7 +16,13 @@ from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
 from app.delivery import send_to_providers
-from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
+from app.exceptions import (
+    DocumentDownloadException,
+    InvalidUrlException,
+    MalwareDetectedException,
+    MalwareScanInProgressException,
+    NotificationTechnicalFailureException,
+)
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -140,6 +146,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(db_notification)
 
@@ -230,6 +237,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
 
     sample_service.sending_domain = "foo.bar"
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(db_notification)
 
@@ -466,6 +474,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 
 def test_send_email_should_use_service_reply_to_email(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
@@ -487,6 +496,7 @@ def test_send_email_should_use_service_reply_to_email(sample_service, sample_ema
 
 def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
     create_reply_to_email(service=sample_service, email_address="foo_two@bar.com", is_default=False)
@@ -510,6 +520,7 @@ def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(s
 
 def test_send_email_should_use_non_default_service_reply_to_email_when_it_is_set(sample_service, sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     create_reply_to_email(service=sample_service, email_address="foo@bar.com")
     create_reply_to_email(service=sample_service, email_address="foo_two@bar.com", is_default=False)
@@ -785,6 +796,7 @@ def test_should_handle_sms_sender_and_prefix_message(
 
 def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com"))
 
@@ -805,6 +817,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
 
 def test_send_email_to_provider_should_format_reply_to_email_address(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="test@test.com\t"))
 
@@ -835,6 +848,7 @@ def test_send_sms_to_provider_should_format_phone_number(sample_notification, mo
 def test_send_email_to_provider_should_format_email_address(sample_email_notification, mocker):
     sample_email_notification.to = "test@example.com\t"
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     send_to_providers.send_email_to_provider(sample_email_notification)
 
@@ -868,6 +882,16 @@ def test_notification_document_with_pdf_attachment(
     expected_filename,
 ):
     template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    class mock_response:
+        status_code = 200
+
+        def json():
+            return {"av-status": "clean"}
+
+    mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+
     personalisation = {
         "file": document_download_response(
             {
@@ -895,6 +919,7 @@ def test_notification_document_with_pdf_attachment(
     cm = MagicMock()
     cm.read.return_value = "request_content"
     cm.__enter__.return_value = cm
+    cm.getcode = lambda: 200
     urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
     urlopen_mock.return_value = cm
 
@@ -998,6 +1023,7 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_email_template_with_html, mocker, notify_api):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(
         create_notification(
@@ -1016,6 +1042,7 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(sample_
 
 def test_notification_passes_if_message_contains_phone_number(sample_email_template_with_html, mocker):
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
 
     db_notification = save_notification(
         create_notification(
@@ -1041,3 +1068,111 @@ def test_is_service_allowed_html(sample_service: Service, notify_api):
         },
     ):
         assert send_to_providers.is_service_allowed_html(sample_service)
+
+
+class TestMalware:
+    def test_send_to_providers_fails_if_malware_detected(self, sample_email_template, mocker):
+        send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+        class mock_response:
+            status_code = 423
+
+            def json():
+                return {"av-status": "malicious"}
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+        personalisation = {"file": document_download_response()}
+
+        db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+        with pytest.raises(MalwareDetectedException) as e:
+            send_to_providers.send_email_to_provider(db_notification)
+            assert db_notification.id in e.value
+        send_mock.assert_not_called()
+
+        assert Notification.query.get(db_notification.id).status == "virus-scan-failed"
+
+    def test_send_to_providers_fails_if_malware_scan_in_progress(self, sample_email_template, mocker):
+        send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+        class mock_response:
+            status_code = 428
+
+            def json():
+                return {"av-status": "in_progress"}
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+        personalisation = {"file": document_download_response()}
+
+        db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+        with pytest.raises(MalwareScanInProgressException) as e:
+            send_to_providers.send_email_to_provider(db_notification)
+            assert db_notification.id in e.value
+        send_mock.assert_not_called()
+
+        assert Notification.query.get(db_notification.id).status == "created"
+
+    @pytest.mark.parametrize(
+        "status_code_returned, scan_verdict",
+        [
+            (200, "clean"),
+            (408, "scan_timed_out"),
+        ],
+    )
+    def test_send_to_providers_succeeds_if_malware_verdict_clean(
+        self, sample_email_template, mocker, status_code_returned, scan_verdict
+    ):
+        send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+        class mock_response:
+            status_code = status_code_returned
+
+            def json():
+                return {"av-status": scan_verdict}
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+        personalisation = {"file": document_download_response()}
+
+        db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+        send_to_providers.send_email_to_provider(db_notification)
+        send_mock.assert_called_once()
+
+        assert Notification.query.get(db_notification.id).status == "sending"
+
+    def test_send_to_providers_fails_if_document_download_internal_error(self, sample_email_template, mocker):
+        send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+        class mock_response:
+            status_code = 404
+
+            def json():
+                return {"av-status": "None"}
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
+        personalisation = {"file": document_download_response()}
+
+        db_notification = save_notification(create_notification(template=sample_email_template, personalisation=personalisation))
+
+        with pytest.raises(DocumentDownloadException) as e:
+            send_to_providers.send_email_to_provider(db_notification)
+            assert db_notification.id in e.value
+        send_mock.assert_not_called()
+
+        assert Notification.query.get(db_notification.id).status == "technical-failure"
+
+
+class TestBounceRate:
+    def test_send_email_should_use_service_reply_to_email(self, sample_service, sample_email_template, mocker, notify_api):
+        with set_config_values(notify_api, {"FF_BOUNCE_RATE_V1": True}):
+            mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+            mocker.patch("app.bounce_rate_client.set_total_notifications")
+            db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
+            create_reply_to_email(service=sample_service, email_address="foo@bar.com")
+
+            send_to_providers.send_email_to_provider(
+                db_notification,
+            )
+            app.bounce_rate_client.set_total_notifications.assert_called_once_with(sample_service.id)

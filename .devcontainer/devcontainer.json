@@ -4,11 +4,9 @@
 	"service": "dev",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
-
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
-
 	"settings": {
 		"[python]": {
 			"editor.formatOnSave": true
@@ -19,7 +17,6 @@
 		"python.linting.pylintPath": "/usr/local/bin/pylint",
 		"python.pythonPath": "/usr/local/bin/python",
 	},
-
 	"features": {
 		"docker-from-docker": {
 			"version": "latest",
@@ -31,25 +28,28 @@
 			"minikube": "none"
 		}
 	},
-
 	"extensions": [
+		"bungcip.better-toml",
 		"donjayamanne.python-extension-pack",
-		"ms-azuretools.vscode-docker",
-		"ms-python.vscode-pylance",
 		"eamodio.gitlens",
-		"wholroyd.jinja",
-		"pmbenjamin.vscode-snyk",
-		"visualstudioexptteam.vscodeintellicode",
-		"yzhang.markdown-all-in-one",
-		"ms-ossdata.vscode-postgresql",
-		"googlecloudtools.cloudcode",
 		"GitHub.copilot",
+		"GitHub.copilot-labs",
+		"googlecloudtools.cloudcode",
+		"matangover.mypy",
+		"ms-azuretools.vscode-docker",
+		"ms-ossdata.vscode-postgresql",
+		"ms-python.python",
+		"ms-python.vscode-pylance",
 		"ms-vsliveshare.vsliveshare",
 		"mtxr.sqltools",
 		"mtxr.sqltools-driver-pg",
+		"pmbenjamin.vscode-snyk",
+		"usernamehw.errorlens",
+		"visualstudioexptteam.vscodeintellicode",
+		"wenfangdu.jump",
+		"wholroyd.jinja",
+		"yzhang.markdown-all-in-one",
 	],
-
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-
 	"remoteUser": "vscode"
 }

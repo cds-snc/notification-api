@@ -127,6 +127,27 @@ def ses_complaint_callback():
     }
 
 
+def ses_complaint_callback_with_subtype(subtype):
+    """
+    https://docs.aws.amazon.com/ses/latest/DeveloperGuide/notification-contents.html#complaint-object
+    """
+    return {
+        "Signature": "bb",
+        "SignatureVersion": "1",
+        "MessageAttributes": {},
+        "MessageId": "98c6e927-af5d-5f3b-9522-bab736f2cbde",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com",
+        "TopicArn": "arn:ses_notifications",
+        "Type": "Notification",
+        "Timestamp": "2018-06-05T14:00:15.952Z",
+        "Subject": None,
+        "Message": '{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id", "complaintSubType":"'
+        + subtype
+        + '"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
+        "SigningCertUrl": "https://sns.pem",
+    }
+
+
 def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558", destination="+1XXX5550100"):
     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
     body = {

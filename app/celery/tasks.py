@@ -22,7 +22,7 @@ from app import (
     email_priority,
     metrics_logger,
     notify_celery,
-    signer,
+    signer_notification,
     sms_bulk,
     sms_normal,
     sms_priority,
@@ -76,6 +76,12 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import check_service_over_daily_message_limit
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows
+from app.v2.errors import (
+    LiveServiceTooManyRequestsError,
+    LiveServiceTooManySMSRequestsError,
+    TrialServiceTooManyRequestsError,
+    TrialServiceTooManySMSRequestsError,
+)
 
 
 @notify_celery.task(name="process-job")
@@ -141,17 +147,6 @@ def job_complete(job: Job, resumed=False, start=None):
         )
 
 
-def choose_database_queue(template: Any, service: Service):
-    if service.research_mode:
-        return QueueNames.RESEARCH_MODE
-    elif template.process_type == PRIORITY:
-        return QueueNames.PRIORITY_DATABASE
-    elif template.process_type == BULK:
-        return QueueNames.BULK_DATABASE
-    else:
-        return QueueNames.NORMAL_DATABASE
-
-
 def process_rows(rows: List, template: Template, job: Job, service: Service):
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
@@ -159,20 +154,22 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     encrypted_emails: List[SignedNotification] = []
     for row in rows:
         client_reference = row.get("reference", None)
-        signed_row = signer.sign_notification(
-            {
-                "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
-                "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
-                "template": str(template.id),
-                "template_version": job.template_version,
-                "job": str(job.id),
-                "to": row.recipient,
-                "row_number": row.index,
-                "personalisation": dict(row.personalisation),
-                "queue": queue_to_use(job.notification_count),
-                "sender_id": sender_id,
-                "client_reference": client_reference.data,  # will return None if missing
-            }
+        signed_row = SignedNotification(
+            signer_notification.sign(
+                {
+                    "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
+                    "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
+                    "template": str(template.id),
+                    "template_version": job.template_version,
+                    "job": str(job.id),
+                    "to": row.recipient,
+                    "row_number": row.index,
+                    "personalisation": dict(row.personalisation),
+                    "queue": choose_sending_queue(str(template.process_type), template_type, job.notification_count),
+                    "sender_id": sender_id,
+                    "client_reference": client_reference.data,  # will return None if missing
+                }
+            )
         )
         if template_type == SMS_TYPE:
             encrypted_smss.append(signed_row)
@@ -184,12 +181,12 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     if encrypted_smss:
         save_smss.apply_async(
             (str(service.id), encrypted_smss, None),
-            queue=choose_database_queue(template, service),
+            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
         )
     if encrypted_emails:
         save_emails.apply_async(
             (str(service.id), encrypted_emails, None),
-            queue=choose_database_queue(template, service),
+            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
         )
 
 
@@ -221,7 +218,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer.verify_notification(signed_notification)
+            _notification = signer_notification.verify(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -287,31 +284,32 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
                 metrics_logger,
                 1,
                 notification_type=SMS_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
-    # we should move this check inside the for loop below
-    check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
-        queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
-        send_notification_to_queue(
-            notification_obj,
-            service.research_mode,
-            queue=queue,
-        )
-
-        current_app.logger.debug(
-            "SMS {} created at {} for job {}".format(
-                notification_obj.id,
-                notification_obj.created_at,
-                notification_obj.job,
+        try:
+            check_service_over_daily_message_limit(notification_obj.key_type, service)
+            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            send_notification_to_queue(
+                notification_obj,
+                service.research_mode,
+                queue=queue,
             )
-        )
+            current_app.logger.debug(
+                "SMS {} created at {} for job {}".format(
+                    notification_obj.id,
+                    notification_obj.created_at,
+                    notification_obj.job,
+                )
+            )
+        except (LiveServiceTooManySMSRequestsError, TrialServiceTooManySMSRequestsError) as e:
+            current_app.logger.info(f"{e.message}: SMS {notification_obj.id} not created")
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -328,7 +326,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer.verify_notification(signed_notification)
+            _notification = signer_notification.verify(signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -400,21 +398,30 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                 metrics_logger,
                 1,
                 notification_type=EMAIL_TYPE,
-                priority=process_type,
+                priority=process_type,  # type: ignore
             )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
-        current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
-        # todo: fix this potential bug
-        # service is whatever it was set to last in the for loop above.
-        # at this point in the code we have a list of notifications (saved_notifications)
-        # which could be from multiple services
-        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
-        research_mode = service.research_mode  # type: ignore
-        for notification_obj in saved_notifications:
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+
+
+def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template):
+    """
+    Loop through saved_notifications, check if the service has hit their daily rate limit,
+    and if not, call send_notification_to_queue on notification
+    """
+    current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+    # todo: fix this potential bug
+    # service is whatever it was set to last in the for loop above.
+    # at this point in the code we have a list of notifications (saved_notifications)
+    # which could be from multiple services
+    research_mode = service.research_mode  # type: ignore
+    for notification_obj in saved_notifications:
+        try:
+            check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
             send_notification_to_queue(
                 notification_obj,
@@ -429,6 +436,8 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                     notification_obj.job,
                 )
             )
+        except (LiveServiceTooManyRequestsError, TrialServiceTooManyRequestsError) as e:
+            current_app.logger.info(f"{e.message}: Email {notification_obj.id} not created")
 
 
 def handle_batch_error_and_forward(
@@ -485,7 +494,7 @@ def handle_batch_error_and_forward(
                 if len(signed_and_verified) > 1:
                     save_fn.apply_async(
                         (service.id, [signed], None),
-                        queue=choose_database_queue(template, service),
+                        queue=choose_database_queue(str(template.process_type), service.research_mode, notifications_count=1),
                     )
                     current_app.logger.warning("Made a new task to retry")
                 else:
@@ -650,7 +659,29 @@ def process_incomplete_job(job_id):
     job_complete(job, resumed=True)
 
 
-def queue_to_use(notifications_count: int) -> Optional[str]:
+def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
+    # Research mode is a special case, it always goes to the research mode queue.
+    if research_mode:
+        return QueueNames.RESEARCH_MODE
+
+    # We redirect first to a queue depending on its notification' size.
+    large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
+    if notifications_count >= large_csv_threshold:
+        return QueueNames.BULK_DATABASE
+    # Don't switch to normal queue if it's already set to priority queue.
+    elif process_type == BULK:
+        return QueueNames.NORMAL_DATABASE
+    else:
+        # If the size isn't a concern, fall back to the template's process type.
+        if process_type == PRIORITY:
+            return QueueNames.PRIORITY_DATABASE
+        elif process_type == BULK:
+            return QueueNames.BULK_DATABASE
+        else:
+            return QueueNames.NORMAL_DATABASE
+
+
+def choose_sending_queue(process_type: str, notif_type: str, notifications_count: int) -> Optional[str]:
     """Determine which queue to use depending on given parameters.
 
     We only check one rule at the moment: if the CSV file is big enough,
@@ -658,12 +689,34 @@ def queue_to_use(notifications_count: int) -> Optional[str]:
     notifications that are transactional in nature.
     """
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
-    return QueueNames.BULK if notifications_count > large_csv_threshold else None
+    # Default to the pre-configured template's process type.
+    queue: Optional[str] = process_type
+
+    if notifications_count >= large_csv_threshold:
+        queue = QueueNames.BULK
+    # If priority is slow/bulk, but lower than threshold, let's make it
+    # faster by switching to normal queue.
+    elif process_type == BULK:
+        queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+    else:
+        # If the size isn't a concern, fall back to the template's process type.
+        if process_type == PRIORITY:
+            queue = QueueNames.PRIORITY
+        elif process_type == BULK:
+            queue = QueueNames.BULK
+        else:
+            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+    return queue
 
 
 @notify_celery.task(bind=True, name="send-notify-no-reply", max_retries=5)
 @statsd(namespace="tasks")
 def send_notify_no_reply(self, data):
+    """Sends no-reply emails to people replying back to GCNotify.
+
+    This task will be fed by the AWS lambda code ses_receiving_emails.
+    https://github.com/cds-snc/notification-lambdas/blob/fd508d9718cef715f9297fedd8d780bc4bae0051/sesreceivingemails/ses_receiving_emails.py
+    """
     payload = json.loads(data)
 
     service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])

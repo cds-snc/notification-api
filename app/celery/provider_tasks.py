@@ -8,7 +8,12 @@ from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
-from app.exceptions import InvalidUrlException, NotificationTechnicalFailureException
+from app.exceptions import (
+    InvalidUrlException,
+    MalwareDetectedException,
+    MalwareScanInProgressException,
+    NotificationTechnicalFailureException,
+)
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 
@@ -49,6 +54,10 @@ def deliver_sms(self, notification_id):
     _deliver_sms(self, notification_id)
 
 
+SCAN_RETRY_BACKOFF = 10
+SCAN_MAX_BACKOFF_RETRIES = 5
+
+
 @notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
@@ -59,21 +68,33 @@ def deliver_email(self, notification_id):
             raise NoResultFound()
         send_to_providers.send_email_to_provider(notification)
     except InvalidEmailError as e:
-        current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}.")
+        if not notification.to.isascii():
+            current_app.logger.info(f"Cannot send notification {notification_id} (has a non-ascii email address): {str(e)}")
+        else:
+            current_app.logger.info(f"Cannot send notification {notification_id}, got an invalid email address: {str(e)}.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         _check_and_queue_callback_task(notification)
+    except MalwareDetectedException:
+        _check_and_queue_callback_task(notification)
     except Exception as e:
+        if isinstance(e, MalwareScanInProgressException) and self.request.retries <= SCAN_MAX_BACKOFF_RETRIES:
+            countdown = SCAN_RETRY_BACKOFF * (self.request.retries + 1)  # do we need to add 1 here?
+        else:
+            countdown = None
         try:
             current_app.logger.warning(f"The exception is {repr(e)}")
             if self.request.retries <= 10:
                 current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
             else:
                 current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
-            self.retry(queue=QueueNames.RETRY)
+            if countdown is not None:
+                self.retry(queue=QueueNames.RETRY, countdown=countdown)
+            else:
+                self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. "
