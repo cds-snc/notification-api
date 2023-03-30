@@ -130,6 +130,7 @@ def create_app(application):
     twilio_sms_client.init_app(
         logger=application.logger,
         callback_notify_url_host=application.config["API_HOST_NAME"],
+        environment=notify_environment
     )
     aws_pinpoint_client.init_app(
         application.config["AWS_PINPOINT_APP_ID"],
