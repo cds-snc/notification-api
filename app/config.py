@@ -30,6 +30,8 @@ class QueueNames(object):
     # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
 
+    NORMAL = "normal-tasks"
+
     # A queue meant for database tasks but it seems to be the default for sending
     # notifications in some occasion. Need to investigate the purpose of this one
     # further.
@@ -47,14 +49,20 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
+    # For normal send of notifications. This is relatively normal volume and flushed
+    # pretty quickly.
+    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
+
     # Queue for sending all SMS, except long dedicated numbers.
+    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # The queue to send emails by default.
+    # The queue to send emails by default, normal priority.
+    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
     SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
