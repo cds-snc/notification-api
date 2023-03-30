@@ -271,7 +271,7 @@ def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exist
 
     check_and_queue_callback_task(mock_notification)
 
-    mock_create_callback_data.assert_called_once_with(mock_notification, mock_service_callback_api)
+    mock_create_callback_data.assert_called_once_with(mock_notification, mock_service_callback_api, {})
     mock_send_delivery_status.assert_called_once_with(
         [mock_service_callback_api.id, str(mock_notification.id), mock_notification_data],
         queue=QueueNames.CALLBACKS

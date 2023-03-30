@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 from __future__ import print_function
-from ddtrace import patch_all
 import os
 
 import sentry_sdk
-
+from ddtrace import patch_all
 from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix

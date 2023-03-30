@@ -25,7 +25,9 @@ from app.models import Complaint, Notification
 def send_delivery_status_to_service(
     self, service_callback_id, notification_id, encrypted_status_update
 ):
+
     service_callback = get_service_callback(service_callback_id)
+    # create_delivery_status_callback
     status_update = encryption.decrypt(encrypted_status_update)
 
     payload = {
@@ -36,16 +38,26 @@ def send_delivery_status_to_service(
         "created_at": status_update['notification_created_at'],
         "completed_at": status_update['notification_updated_at'],
         "sent_at": status_update['notification_sent_at'],
-        "notification_type": status_update['notification_type']
+        "notification_type": status_update['notification_type'],
     }
+
+    if "status_reason" in status_update:
+        payload['status_reason'] = status_update
+
+    if 'provider' in status_update:
+        payload['provider'] = status_update['provider']
+
+    # if the provider payload is found in the status_update object
+    if 'provider_payload' in status_update:
+        payload['provider_payload'] = status_update['provider_payload']
+
     logging_tags = {
         "notification_id": str(notification_id)
     }
+
     try:
-        service_callback.send(
-            payload=payload,
-            logging_tags=logging_tags
-        )
+        # calls the webhook / sqs callback to transmit message
+        service_callback.send(payload=payload, logging_tags=logging_tags)
     except RetryableException as e:
         try:
             current_app.logger.warning(
@@ -191,8 +203,16 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         raise e
 
 
-def create_delivery_status_callback_data(notification, service_callback_api):
+def create_delivery_status_callback_data(notification, service_callback_api, provider_payload=None):
     from app import DATETIME_FORMAT, encryption
+    """ Encrypt delivery status message  """
+
+    # https://peps.python.org/pep-0557/#mutable-default-values
+    # do not want to have a mutable type in definition so we set provider_payload to empty dictionary
+    # when one was not provided by the caller
+    if provider_payload is None:
+        provider_payload = {}
+
     data = {
         "notification_id": str(notification.id),
         "notification_client_reference": notification.client_reference,
@@ -205,7 +225,14 @@ def create_delivery_status_callback_data(notification, service_callback_api):
         "notification_type": notification.notification_type,
         "service_callback_api_url": service_callback_api.url,
         "service_callback_api_bearer_token": service_callback_api.bearer_token,
+        "provider": notification.sent_by,
+        "status_reason": notification.status_reason,
     }
+
+    # add the property 'provider_payload when provider payload is not an empty dictionary
+    if not provider_payload:
+        data['provider_payload'] = provider_payload
+
     return encryption.encrypt(data)
 
 
@@ -223,13 +250,23 @@ def create_complaint_callback_data(complaint, notification, service_callback_api
     return encryption.encrypt(data)
 
 
-def check_and_queue_callback_task(notification):
+def check_and_queue_callback_task(notification, payload=None):
+
+    # https://peps.python.org/pep-0557/#mutable-default-values
+    # do not want to have mutable type in definition so we set provider_payload to empty dictionary
+    # when one was not provided by the caller
+    if payload is None:
+        payload = {}
+
     # queue callback task only if the service_callback_api exists
     service_callback_api = get_service_delivery_status_callback_api_for_service(
         service_id=notification.service_id, notification_status=notification.status
     )
+
+    # if a row of info is found
     if service_callback_api:
-        notification_data = create_delivery_status_callback_data(notification, service_callback_api)
+        # build dictionary for notification
+        notification_data = create_delivery_status_callback_data(notification, service_callback_api, payload)
         send_delivery_status_to_service.apply_async([service_callback_api.id, str(notification.id), notification_data],
                                                     queue=QueueNames.CALLBACKS)
 
