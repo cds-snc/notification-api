@@ -66,8 +66,8 @@ class SalesforceClient:
         session = self.get_session()
         name_parts = salesforce_utils.get_name_parts(user.name)
         user_updates = {
-            "FirstName": name_parts["first"] if name_parts["first"] else user.name,
-            "LastName": name_parts["last"] if name_parts["last"] else "",
+            "FirstName": name_parts["first"],
+            "LastName": name_parts["last"],
             "Email": user.email_address,
         }
         salesforce_contact.update(session, user, user_updates)
