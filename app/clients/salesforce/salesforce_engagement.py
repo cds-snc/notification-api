@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from flask import current_app
 from simple_salesforce import Salesforce
 
+from .salesforce_account import ORG_NOTES_OTHER_NAME_INDEX, get_org_name_from_notes
 from .salesforce_utils import parse_result, query_one, query_param_sanitize
 
 if TYPE_CHECKING:
@@ -15,19 +16,20 @@ ENGAGEMENT_PRODUCT = "GC Notify"
 ENGAGEMENT_TEAM = "Platform"
 ENGAGEMENT_TYPE = "New Business"
 ENGAGEMENT_STAGE_ACTIVATION = "Activation"
+ENGAGEMENT_STAGE_CLOSED = "Closed"
 ENGAGEMENT_STAGE_LIVE = "Live"
 ENGAGEMENT_STAGE_TRIAL = "Trial Account"
 
 
 def create(
-    session: Salesforce, service: Service, stage_name: str, account_id: Optional[str], contact_id: Optional[str]
+    session: Salesforce, service: Service, field_updates: dict[str, str], account_id: Optional[str], contact_id: Optional[str]
 ) -> Optional[str]:
     """Create a Salesforce Engagement for the given Notify service
 
     Args:
         session (Salesforce): Salesforce session to perform the operation.
         service (Service): The service's details for the engagement.
-        stage_name (str): The service's stage name.
+        field_updates (Optional[dict[str, str]]): Custom values used to override any default values.
         account_id (Optional[str]): Salesforce Account ID to associate with the Engagement.
         contact_id (Optional[str]): Salesforce Contact ID to associate with the Engagement.
 
@@ -37,19 +39,23 @@ def create(
     engagement_id = None
     try:
         if account_id and contact_id:
+            # Default Engagement values, which can be overridden by passing in field_updates
+            field_default_values = {
+                "Name": service.name,
+                "AccountId": account_id,
+                "ContactId": contact_id,
+                "CDS_Opportunity_Number__c": str(service.id),
+                "Notify_Organization_Other__c": get_org_name_from_notes(service.organisation_notes, ORG_NOTES_OTHER_NAME_INDEX),
+                "CloseDate": datetime.today().strftime("%Y-%m-%d"),
+                "RecordTypeId": current_app.config["SALESFORCE_ENGAGEMENT_RECORD_TYPE"],
+                "StageName": ENGAGEMENT_STAGE_TRIAL,
+                "Type": ENGAGEMENT_TYPE,
+                "CDS_Lead_Team__c": ENGAGEMENT_TEAM,
+                "Product_to_Add__c": ENGAGEMENT_PRODUCT,
+            }
+            field_values = field_default_values | field_updates
             result = session.Opportunity.create(
-                {
-                    "Name": service.name,
-                    "AccountId": account_id,
-                    "ContactId": contact_id,
-                    "CDS_Opportunity_Number__c": str(service.id),
-                    "StageName": stage_name,
-                    "CloseDate": datetime.today().strftime("%Y-%m-%d"),
-                    "RecordTypeId": current_app.config["SALESFORCE_ENGAGEMENT_RECORD_TYPE"],
-                    "Type": ENGAGEMENT_TYPE,
-                    "CDS_Lead_Team__c": ENGAGEMENT_TEAM,
-                    "Product_to_Add__c": ENGAGEMENT_PRODUCT,
-                },
+                field_values,
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
             parse_result(result, f"Salesforce Engagement create for service ID {service.id}")
@@ -77,16 +83,15 @@ def create(
     return engagement_id
 
 
-def update_stage(
-    session: Salesforce, service: Service, stage_name: str, account_id: Optional[str], contact_id: Optional[str]
+def update(
+    session: Salesforce, service: Service, field_updates: dict[str, str], account_id: Optional[str], contact_id: Optional[str]
 ) -> Optional[str]:
-    """Update an Engagement's stage.  If the Engagement does not
-    exist, it is created.
+    """Update an Engagement.  If the Engagement does not exist, it is created.
 
     Args:
         session (Salesforce): Salesforce session to perform the operation.
         service (Service): The service's details for the engagement.
-        stage_name (str): The service's stage name.
+        field_updates (dict[str, str]): The engagement fields to update.
         account_id (Optional[str]): Salesforce Account ID to associate with the Engagement.
         contact_id (Optional[str]): Salesforce Contact ID to associate with the Engagement.
 
@@ -101,14 +106,14 @@ def update_stage(
         if engagement:
             result = session.Opportunity.update(
                 engagement.get("Id"),
-                {"StageName": stage_name},
+                field_updates,
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
             is_updated = parse_result(result, f"Salesforce Engagement update '{service}'")
             engagement_id = engagement.get("Id") if is_updated else None
         # Create the Engagement.  This handles Notify services that were created before Salesforce was added.
         else:
-            engagement_id = create(session, service, stage_name, account_id, contact_id)
+            engagement_id = create(session, service, field_updates, account_id, contact_id)
 
     except Exception as ex:
         current_app.logger.error(f"Salesforce Engagement update failed: {ex}")

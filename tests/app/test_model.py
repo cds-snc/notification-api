@@ -337,7 +337,7 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
 @pytest.mark.parametrize(
     "process_type, expected_queue",
     [
-        ("normal", None),
+        ("normal", "normal-tasks"),
         ("priority", "priority-tasks"),
         ("bulk", "bulk-tasks"),
     ],
