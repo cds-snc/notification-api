@@ -41,11 +41,8 @@ def send_delivery_status_to_service(
         "notification_type": status_update['notification_type'],
     }
 
-    if "status_reason" in status_update:
-        payload['status_reason'] = status_update
-
-    if 'provider' in status_update:
-        payload['provider'] = status_update['provider']
+    payload['status_reason'] = status_update.get('status_reason')
+    payload['provider'] = status_update.get('provider', 'pinpoint')
 
     # if the provider payload is found in the status_update object
     if 'provider_payload' in status_update:
@@ -61,20 +58,22 @@ def send_delivery_status_to_service(
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
-                f"exc: {e}"
+                "Retrying: %s failed for %s, url %s.", self.name, logging_tags, service_callback.url
             )
+            current_app.logger.exception(e)
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
-                f"{service_callback.url}. exc: {e}")
+                "Retry: %s has retried the max num of times for %s, url %s.",
+                self.name, logging_tags, service_callback.url
+            )
+            current_app.logger.exception(e)
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
-            f"exc: {e}"
+            "Not retrying: %s failed for %s, url: %s. ", self.name, logging_tags, service_callback.url
         )
+        current_app.logger.exception(e)
         raise e
 
 

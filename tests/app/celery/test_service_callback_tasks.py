@@ -78,7 +78,9 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
         "created_at": datestr.strftime(DATETIME_FORMAT),
         "completed_at": datestr.strftime(DATETIME_FORMAT),
         "sent_at": datestr.strftime(DATETIME_FORMAT),
-        "notification_type": notification_type
+        "notification_type": notification_type,
+        "status_reason": None,
+        "provider": "pinpoint"
     }
 
     assert request_mock.call_count == 1
