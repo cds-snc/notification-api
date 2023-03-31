@@ -2,7 +2,7 @@ import requests
 from flask import current_app
 from simple_salesforce import Salesforce
 
-SALESFORCE_TIMEOUT_SECONDS = 10
+SALESFORCE_TIMEOUT_SECONDS = 3
 
 
 class TimeoutAdapter(requests.adapters.HTTPAdapter):

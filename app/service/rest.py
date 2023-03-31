@@ -701,6 +701,11 @@ def archive_service(service_id):
 
     if service.active:
         dao_archive_service(service.id)
+        if current_app.config["FF_SALESFORCE_CONTACT"]:
+            try:
+                salesforce_client.engagement_close(service)
+            except Exception as e:
+                current_app.logger.exception(e)
 
     return "", 204
 
