@@ -16,7 +16,7 @@ from flask import current_app
 
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
-from app import notify_celery, statsd_client, clients, DATETIME_FORMAT
+from app import notify_celery, statsd_client, clients
 from app.config import QueueNames
 from app.dao.service_callback_dao import dao_get_callback_include_payload_status
 
@@ -81,7 +81,7 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
     try:
         # calculate pricing
         current_app.logger.info(
-            "Notification ID (%s) - Calculate Pricing: %s and notification_status: %s with number_of_message_parts",
+            "Notification ID (%s) - Calculate Pricing: %s and notification_status: %s with number_of_message_parts: %s",
             notification.id, provider_name, notification_status, number_of_message_parts,
         )
         _calculate_pricing(price_in_millicents_usd, notification, notification_status, number_of_message_parts)
@@ -262,7 +262,7 @@ def _increment_statsd(notification: Notification, provider_name: str, notificati
     if notification.sent_at:
         statsd_client.timing_with_dates(
             f"callback.{provider_name}.elapsed-time",
-            datetime.datetime.utcnow().strftime(DATETIME_FORMAT),
+            datetime.datetime.utcnow(),
             notification.sent_at
         )
 
