@@ -127,24 +127,28 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
 
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
-    "template_type, status, expected_status",
+    "template_type, status, feedback_subtype, expected_status",
     [
-        ("email", "failed", "Failed"),
-        ("email", "technical-failure", "Technical failure"),
-        ("email", "temporary-failure", "Inbox not accepting messages right now"),
-        ("email", "permanent-failure", "Email address doesn’t exist"),
-        ("sms", "temporary-failure", "Phone not accepting messages right now"),
-        ("sms", "permanent-failure", "Phone number doesn’t exist"),
-        ("sms", "sent", "Sent"),
-        ("letter", "created", "Accepted"),
-        ("letter", "sending", "Accepted"),
-        ("letter", "technical-failure", "Technical failure"),
-        ("letter", "delivered", "Received"),
+        ("email", "failed", None, "Failed"),
+        ("email", "technical-failure", None, "Tech issue"),
+        ("email", "temporary-failure", None, "Content or inbox issue"),
+        ("email", "permanent-failure", None, "No such address"),
+        ("email", "permanent-failure", "suppressed", "Blocked"),
+        ("email", "permanent-failure", "on-account-suppression-list", "Blocked"),
+        ("sms", "temporary-failure", None, "Carrier issue"),
+        ("sms", "permanent-failure", None, "No such number"),
+        ("sms", "sent", None, "Sent"),
+        ("letter", "created", None, "Accepted"),
+        ("letter", "sending", None, "Accepted"),
+        ("letter", "technical-failure", None, "Technical failure"),
+        ("letter", "delivered", None, "Received"),
     ],
 )
-def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
+def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, feedback_subtype, expected_status):
     template = create_template(sample_service, template_type=template_type)
     notification = save_notification(create_notification(template, status=status))
+    if feedback_subtype:
+        notification.feedback_subtype = feedback_subtype
 
     serialized = notification.serialize_for_csv()
     assert serialized["status"] == expected_status
