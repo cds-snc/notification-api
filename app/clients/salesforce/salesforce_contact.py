@@ -56,10 +56,10 @@ def update(session: Salesforce, user: User, field_updates: dict[str, Optional[st
     Args:
         session (Salesforce): Salesforce session used to perform the operation.
         user (User): Notify User object for the linked Contact to update
-        field_updates (dict[str, str]): The contact fields to update.
+        field_updates (dict[str, Optional[str]]): The contact fields to update.
 
     Returns:
-         contact_id (str): ID of the updated Contact or None if the operation failed
+        contact_id (Optional[str]): ID of the updated Contact or None if the operation failed
     """
     contact_id = None
     try:
