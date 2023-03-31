@@ -31,8 +31,8 @@ def create(session: Salesforce, user: User, field_updates: dict[str, Optional[st
     try:
         name_parts = get_name_parts(user.name)
         field_default_values = {
-            "FirstName": name_parts["first"] if name_parts["first"] else user.name,
-            "LastName": name_parts["last"] if name_parts["last"] else "",
+            "FirstName": name_parts["first"],
+            "LastName": name_parts["last"],
             "Title": "created by Notify API",
             "CDS_Contact_ID__c": str(user.id),
             "Email": user.email_address,
