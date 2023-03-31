@@ -9,6 +9,7 @@ from . import (
     salesforce_auth,
     salesforce_contact,
     salesforce_engagement,
+    salesforce_utils,
 )
 
 if TYPE_CHECKING:
@@ -46,15 +47,30 @@ class SalesforceClient:
     #
     # Contacts
     #
-    def contact_create(self, user: User, account_id: Optional[str] = None) -> None:
+    def contact_create(self, user: User) -> None:
         """Creates a Salesforce Contact for the given Notify user
 
         Args:
             user (User): The Notify user to create a Salesforce Contact for.
-            account_id (Optional[str], optional): Salesforce Account ID to use for the Contact. Defaults to None.
         """
         session = self.get_session()
-        salesforce_contact.create(session, user, account_id)
+        salesforce_contact.create(session, user, {})
+        self.end_session(session)
+
+    def contact_update(self, user: User) -> None:
+        """Updates a Salesforce Contact for the given Notify user.  If the Contact does not exist, it is created.
+
+        Args:
+            user (User): The Notify user to update the Salesforce Contact for.
+        """
+        session = self.get_session()
+        name_parts = salesforce_utils.get_name_parts(user.name)
+        user_updates = {
+            "FirstName": name_parts["first"] if name_parts["first"] else user.name,
+            "LastName": name_parts["last"] if name_parts["last"] else "",
+            "Email": user.email_address,
+        }
+        salesforce_contact.update(session, user, user_updates)
         self.end_session(session)
 
     def contact_update_account_id(self, session: Salesforce, service: Service, user: User) -> Tuple[Optional[str], Optional[str]]:
@@ -68,7 +84,7 @@ class SalesforceClient:
         """
         account_name = salesforce_account.get_org_name_from_notes(service.organisation_notes)
         account_id = salesforce_account.get_account_id_from_name(session, account_name, self.generic_account_id)
-        contact_id = salesforce_contact.update_account_id(session, user, account_id)
+        contact_id = salesforce_contact.update(session, user, {"AccountId": account_id})
         return account_id, contact_id
 
     #
