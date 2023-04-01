@@ -271,6 +271,7 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
 
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
@@ -281,6 +282,8 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     assert resp.status_code == 200
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp["data"][user_attribute] == user_value
+
+    mocked_salesforce_client.contact_update.assert_called_once_with(sample_user)
 
 
 @pytest.mark.parametrize(
@@ -301,6 +304,7 @@ def test_post_user_attribute_send_notification_email(
 
     mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
@@ -376,6 +380,7 @@ def test_post_user_attribute_with_updated_by(
     headers = [("Content-Type", "application/json"), auth_header]
     mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
         data=json.dumps(update_dict),
@@ -1024,14 +1029,18 @@ def test_update_user_password_does_not_create_LoginEvent_when_loginData_not_prov
     assert LoginEvent.query.count() == 0
 
 
-def test_activate_user(admin_request, sample_user):
+def test_activate_user(admin_request, sample_user, mocker):
     sample_user.state = "pending"
+
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = admin_request.post("user.activate_user", user_id=sample_user.id)
 
     assert resp["data"]["id"] == str(sample_user.id)
     assert resp["data"]["state"] == "active"
     assert sample_user.state == "active"
+
+    mocked_salesforce_client.contact_create.assert_called_once_with(sample_user)
 
 
 def test_activate_user_fails_if_already_active(admin_request, sample_user):
@@ -1043,6 +1052,7 @@ def test_activate_user_fails_if_already_active(admin_request, sample_user):
 def test_update_user_auth_type(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
 
     assert sample_user.auth_type == "email_auth"
     resp = admin_request.post(
@@ -1058,6 +1068,7 @@ def test_update_user_auth_type(admin_request, sample_user, account_change_templa
 def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = SMS_AUTH_TYPE
 
     admin_request.post(
@@ -1076,6 +1087,7 @@ def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample
 def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = SMS_AUTH_TYPE
 
     json_resp = admin_request.post(
@@ -1091,6 +1103,7 @@ def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user, account_ch
 def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     admin_request.post(
@@ -1105,6 +1118,7 @@ def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_cha
 def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     resp = admin_request.post(
@@ -1119,6 +1133,7 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sa
 def test_cannot_update_user_password_using_attributes_method(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = admin_request.post(
         "user.update_user_attribute",
         user_id=sample_user.id,
@@ -1468,6 +1483,7 @@ def test_list_login_events_for_a_user(client, sample_service):
 def test_update_user_blocked(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = admin_request.post(
         "user.update_user_attribute",
         user_id=sample_user.id,
