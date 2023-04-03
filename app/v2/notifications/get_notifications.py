@@ -27,7 +27,10 @@ def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
         authenticated_service.id, notification_id, key_type=None
     )
-    return jsonify(notification.serialize()), 200
+    if notification is not None:
+        return jsonify(notification.serialize()), 200
+    else:
+        return jsonify(result="error", message="No result found"), 404
 
 
 @v2_notification_blueprint.route("/<notification_id>/pdf", methods=["GET"])

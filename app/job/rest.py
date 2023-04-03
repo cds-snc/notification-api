@@ -49,12 +49,13 @@ register_errors(job_blueprint)
 @job_blueprint.route("/<job_id>", methods=["GET"])
 def get_job_by_service_and_job_id(service_id, job_id):
     job = dao_get_job_by_service_id_and_job_id(service_id, job_id)
-    statistics = dao_get_notification_outcomes_for_job(service_id, job_id)
-    data = job_schema.dump(job).data
-
-    data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
-
-    return jsonify(data=data)
+    if job is not None:
+        statistics = dao_get_notification_outcomes_for_job(service_id, job_id)
+        data = job_schema.dump(job).data
+        data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
+        return jsonify(data=data)
+    else:
+        return jsonify(result="error", message="No result found"), 404
 
 
 @job_blueprint.route("/<job_id>/cancel", methods=["POST"])
@@ -69,12 +70,15 @@ def cancel_job(service_id, job_id):
 @job_blueprint.route("/<job_id>/cancel-letter-job", methods=["POST"])
 def cancel_letter_job(service_id, job_id):
     job = dao_get_job_by_service_id_and_job_id(service_id, job_id)
-    can_we_cancel, errors = can_letter_job_be_cancelled(job)
-    if can_we_cancel:
-        data = dao_cancel_letter_job(job)
-        return jsonify(data), 200
+    if job is not None:
+        can_we_cancel, errors = can_letter_job_be_cancelled(job)
+        if can_we_cancel:
+            data = dao_cancel_letter_job(job)
+            return jsonify(data), 200
+        else:
+            return jsonify(message=errors), 400
     else:
-        return jsonify(message=errors), 400
+        return jsonify(result="error", message="No result found"), 404
 
 
 @job_blueprint.route("/<job_id>/notifications", methods=["GET"])

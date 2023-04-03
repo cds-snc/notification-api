@@ -210,6 +210,7 @@ def test_get_notification_by_reference_nonexistent_reference_returns_no_notifica
     assert len(json_response["notifications"]) == 0
 
 
+@pytest.mark.sja
 def test_get_notification_by_id_nonexistent_id(client, sample_notification):
     auth_header = create_authorization_header(service_id=sample_notification.service_id)
     response = client.get(
@@ -221,10 +222,7 @@ def test_get_notification_by_id_nonexistent_id(client, sample_notification):
     assert response.headers["Content-type"] == "application/json"
 
     json_response = json.loads(response.get_data(as_text=True))
-    assert json_response == {
-        "errors": [{"error": "NoResultFound", "message": "No result found"}],
-        "status_code": 404,
-    }
+    assert json_response == {"message": "No result found", "result": "error"}
 
 
 @pytest.mark.parametrize("id", ["1234-badly-formatted-id-7890", "0"])

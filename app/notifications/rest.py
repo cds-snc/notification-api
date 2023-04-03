@@ -49,10 +49,10 @@ def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
         str(authenticated_service.id), notification_id, key_type=None
     )
-    return (
-        jsonify(data={"notification": notification_with_personalisation_schema.dump(notification).data}),
-        200,
-    )
+    if notification is not None:
+        return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification).data}), 200
+    else:
+        return jsonify(result="error", message="No result found"), 404
 
 
 @notifications.route("/notifications", methods=["GET"])
