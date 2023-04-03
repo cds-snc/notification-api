@@ -2135,8 +2135,8 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
     )
 
     engagement_user = user_2 if set_go_live_user else user_1
-    mocked_salesforce_client.engagement_update_stage.assert_called_once_with(
-        restricted_service, engagement_user, ENGAGEMENT_STAGE_LIVE
+    mocked_salesforce_client.engagement_update.assert_called_once_with(
+        restricted_service, engagement_user, {"StageName": ENGAGEMENT_STAGE_LIVE}
     )
     if set_go_live_user:
         mocked_fetch_service_creator.assert_not_called()

@@ -8,6 +8,7 @@ from fido2 import cbor
 from flask import url_for
 from freezegun import freeze_time
 
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions
@@ -890,10 +891,13 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     data = {
         "name": sample_user.name,
         "email_address": sample_user.email_address,
+        "main_use_case": "I want to send emails",
         "support_type": "go_live_request",
         "service_id": str(sample_service.id),
     }
+    mocked_dao_fetch_service_by_id = mocker.patch("app.user.rest.dao_fetch_service_by_id", return_value=sample_service)
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -902,6 +906,10 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
+    mocked_dao_fetch_service_by_id.assert_called_once_with(str(sample_service.id))
+    mocked_salesforce_client.engagement_update.assert_called_once_with(
+        sample_service, sample_user, {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": "I want to send emails"}
+    )
 
 
 def test_send_branding_request(client, sample_service, mocker):
