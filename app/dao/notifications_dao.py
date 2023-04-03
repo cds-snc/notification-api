@@ -1,6 +1,5 @@
 import functools
 import string
-import traceback
 from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
