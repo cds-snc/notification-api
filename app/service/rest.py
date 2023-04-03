@@ -534,7 +534,7 @@ def get_notification_for_service(service_id, notification_id):
     if notification is not None:
         return jsonify(notification_with_template_schema.dump(notification).data), 200
     else:
-        return jsonify(result="error", message="No result found"), 404
+        return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel", methods=["POST"])

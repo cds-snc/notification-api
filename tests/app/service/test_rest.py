@@ -1612,7 +1612,7 @@ def test_get_notification_for_service(client, notify_db, notify_db_session):
         )
         assert service_2_response.status_code == 404
         service_2_response = json.loads(service_2_response.get_data(as_text=True))
-        assert service_2_response == {"message": "No result found", "result": "error"}
+        assert service_2_response == {"message": "Notification not found in database", "result": "error"}
 
 
 def test_get_notification_for_service_includes_created_by(admin_request, sample_notification):

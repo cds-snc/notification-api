@@ -55,7 +55,7 @@ def get_job_by_service_and_job_id(service_id, job_id):
         data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
         return jsonify(data=data)
     else:
-        return jsonify(result="error", message="No result found"), 404
+        return jsonify(result="error", message="Job not found in database"), 404
 
 
 @job_blueprint.route("/<job_id>/cancel", methods=["POST"])
@@ -78,7 +78,7 @@ def cancel_letter_job(service_id, job_id):
         else:
             return jsonify(message=errors), 400
     else:
-        return jsonify(result="error", message="No result found"), 404
+        return jsonify(result="error", message="Job not found in database"), 404
 
 
 @job_blueprint.route("/<job_id>/notifications", methods=["GET"])

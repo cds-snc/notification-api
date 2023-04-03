@@ -215,7 +215,6 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
         stack = "".join(traceback.format_stack())
         current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}\n{stack}")
         return None
-        # raise
 
 
 @statsd(namespace="dao")

@@ -68,7 +68,7 @@ def test_get_notifications_empty_result(client, sample_api_key):
 
     notification = json.loads(response.get_data(as_text=True))
     assert notification["result"] == "error"
-    assert notification["message"] == "No result found"
+    assert notification["message"] == "Notification not found in database"
     assert response.status_code == 404
 
 
