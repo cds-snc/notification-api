@@ -1757,36 +1757,71 @@ class Notification(BaseModel):
 
     @property
     def formatted_status(self):
-        def _getStatusByBounceSubtype():
-            """Return the status of a notification based on the bounce sub type"""
-            if self.feedback_subtype:
-                return {
-                    "suppressed": "Blocked",
-                    "on-account-suppression-list": "Blocked",
-                }.get(self.feedback_subtype, "No such address")
-            else:
-                return "No such address"
+        if current_app.config["FF_BOUNCE_RATE_V1"]:
+            def _getStatusByBounceSubtype():
+                """Return the status of a notification based on the bounce sub type"""
+                if self.feedback_subtype:
+                    return {
+                        "suppressed": "Blocked",
+                        "on-account-suppression-list": "Blocked",
+                    }.get(self.feedback_subtype, "No such address")
+                else:
+                    return "No such address"
 
+            return {
+                "email": {
+                    "failed": "Failed",
+                    "technical-failure": "Tech issue",
+                    "temporary-failure": "Content or inbox issue",
+                    "permanent-failure": _getStatusByBounceSubtype(),
+                    "virus-scan-failed": "Attachment has virus",
+                    "delivered": "Delivered",
+                    "sending": "In transit",
+                    "created": "In transit",
+                    "sent": "Delivered",
+                },
+                "sms": {
+                    "failed": "Failed",
+                    "technical-failure": "Tech issue",
+                    "temporary-failure": "Carrier issue",
+                    "permanent-failure": "No such number",
+                    "delivered": "Delivered",
+                    "sending": "In transit",
+                    "created": "In transit",
+                    "sent": "Sent",
+                },
+                "letter": {
+                    "technical-failure": "Technical failure",
+                    "sending": "Accepted",
+                    "created": "Accepted",
+                    "delivered": "Received",
+                    "returned-letter": "Returned",
+                },
+            }[self.template.template_type].get(self.status, self.status)
+        
+        # -----------------
+        # remove this code when FF_BOUNCE_RATE_V1 is removed
+        # -----------------
         return {
             "email": {
                 "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Content or inbox issue",
-                "permanent-failure": _getStatusByBounceSubtype(),
-                "virus-scan-failed": "Attachment has virus",
+                "technical-failure": "Technical failure",
+                "temporary-failure": "Inbox not accepting messages right now",
+                "permanent-failure": "Email address doesn’t exist",
+                "virus-scan-failed": "Attached file may contain malware",
                 "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
+                "sending": "Sending",
+                "created": "Sending",
                 "sent": "Delivered",
             },
             "sms": {
                 "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Carrier issue",
-                "permanent-failure": "No such number",
+                "technical-failure": "Technical failure",
+                "temporary-failure": "Phone not accepting messages right now",
+                "permanent-failure": "Phone number doesn’t exist",
                 "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
+                "sending": "Sending",
+                "created": "Sending",
                 "sent": "Sent",
             },
             "letter": {
@@ -1797,6 +1832,9 @@ class Notification(BaseModel):
                 "returned-letter": "Returned",
             },
         }[self.template.template_type].get(self.status, self.status)
+        # -----------------
+        # end remove
+        # -----------------
 
     def get_letter_status(self):
         """
