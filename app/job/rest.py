@@ -55,6 +55,7 @@ def get_job_by_service_and_job_id(service_id, job_id):
         data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
         return jsonify(data=data)
     else:
+        current_app.logger.warning(f"Job not found in database for service_id {service_id} job_id {job_id}")
         return jsonify(result="error", message="Job not found in database"), 404
 
 
