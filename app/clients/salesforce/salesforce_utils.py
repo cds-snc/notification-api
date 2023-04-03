@@ -4,22 +4,25 @@ from flask import current_app
 from simple_salesforce import Salesforce
 
 
-def get_name_parts(full_name: str) -> dict[str, Optional[str]]:
+def get_name_parts(full_name: str) -> dict[str, str]:
     """
     Splits a space separated fullname into first and last
-    name parts.  If the name cannot be split, the first and
-    last segments will be set to None.
+    name parts.  If the name cannot be split, the first name will
+    be blank and the last name will be set to the passed in full name.
+
+    This is because Salesforce requires a last name but allows the
+    last name to be blank.
 
     Args:
         full_name (str): The space seperated full name
 
     Returns:
-        dict[str, Optional[str]]: The first and last name parts
+        dict[str, str]: The first and last name parts
     """
     name_parts = full_name.split()
     return {
-        "first": name_parts[0] if len(name_parts) > 0 else None,
-        "last": " ".join(name_parts[1:]) if len(name_parts) > 1 else None,
+        "first": name_parts[0] if len(name_parts) > 1 else "",
+        "last": " ".join(name_parts[1:]) if len(name_parts) > 1 else full_name,
     }
 
 

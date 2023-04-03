@@ -4,7 +4,7 @@ from app.clients.salesforce import salesforce_engagement
 from app.clients.salesforce.salesforce_engagement import (
     create,
     get_engagement_by_service_id,
-    update_stage,
+    update,
 )
 from app.models import Service
 
@@ -29,7 +29,7 @@ def test_create(mocker, notify_api, service):
         notify_api.config["SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID"] = "the ring"
         notify_api.config["SALESFORCE_ENGAGEMENT_PRODUCT_ID"] = "my precious"
 
-        assert create(mock_session, service, "lambas", "123", "456") == "9"
+        assert create(mock_session, service, {}, "123", "456") == "9"
 
         mock_session.Opportunity.create.assert_called_with(
             {
@@ -37,12 +37,55 @@ def test_create(mocker, notify_api, service):
                 "AccountId": "123",
                 "ContactId": "456",
                 "CDS_Opportunity_Number__c": "3",
-                "StageName": "lambas",
+                "Notify_Organization_Other__c": None,
                 "CloseDate": "1970-01-01",
                 "RecordTypeId": "hobbitsis",
+                "StageName": salesforce_engagement.ENGAGEMENT_STAGE_TRIAL,
                 "Type": salesforce_engagement.ENGAGEMENT_TYPE,
                 "CDS_Lead_Team__c": salesforce_engagement.ENGAGEMENT_TEAM,
                 "Product_to_Add__c": salesforce_engagement.ENGAGEMENT_PRODUCT,
+            },
+            headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
+        )
+
+        mock_session.OpportunityLineItem.create.assert_called_with(
+            {
+                "OpportunityId": "9",
+                "PricebookEntryId": "the ring",
+                "Product2Id": "my precious",
+                "Quantity": 1,
+                "UnitPrice": 0,
+            },
+            headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
+        )
+
+
+def test_create_custom_fields(mocker, notify_api, service):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_session.Opportunity.create.return_value = {"success": True, "id": "9"}
+        mock_datetime = mocker.patch.object(salesforce_engagement, "datetime")
+        mock_datetime.today.return_value.strftime.return_value = "1970-01-01"
+        notify_api.config["SALESFORCE_ENGAGEMENT_RECORD_TYPE"] = "hobbitsis"
+        notify_api.config["SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID"] = "the ring"
+        notify_api.config["SALESFORCE_ENGAGEMENT_PRODUCT_ID"] = "my precious"
+
+        assert create(mock_session, service, {"StageName": "lambdas", "NewField": "Muffins"}, "123", "456") == "9"
+
+        mock_session.Opportunity.create.assert_called_with(
+            {
+                "Name": "The Fellowship",
+                "AccountId": "123",
+                "ContactId": "456",
+                "CDS_Opportunity_Number__c": "3",
+                "Notify_Organization_Other__c": None,
+                "CloseDate": "1970-01-01",
+                "RecordTypeId": "hobbitsis",
+                "StageName": "lambdas",
+                "Type": salesforce_engagement.ENGAGEMENT_TYPE,
+                "CDS_Lead_Team__c": salesforce_engagement.ENGAGEMENT_TEAM,
+                "Product_to_Add__c": salesforce_engagement.ENGAGEMENT_PRODUCT,
+                "NewField": "Muffins",
             },
             headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
         )
@@ -63,7 +106,7 @@ def test_create_no_engagement_id(mocker, notify_api, service):
     with notify_api.app_context():
         mock_session = mocker.MagicMock()
         mock_session.Opportunity.create.return_value = {"success": False}
-        assert create(mock_session, service, "lambas", "123", "456") is None
+        assert create(mock_session, service, {}, "123", "456") is None
         mock_session.Opportunity.create.assert_called_once()
         mock_session.OpportunityLineItem.create.assert_not_called()
 
@@ -71,7 +114,7 @@ def test_create_no_engagement_id(mocker, notify_api, service):
 def test_create_no_engagement(mocker, notify_api, service):
     with notify_api.app_context():
         mock_session = mocker.MagicMock()
-        assert create(mock_session, service, "lambas", None, None) is None
+        assert create(mock_session, service, {}, None, None) is None
         mock_session.Opportunity.create.assert_not_called()
         mock_session.OpportunityLineItem.create.assert_not_called()
 
@@ -84,10 +127,10 @@ def test_update_stage_existing(mocker, notify_api, service):
         )
         mock_session.Opportunity.update.return_value = {"success": True, "Id": "42"}
 
-        assert update_stage(mock_session, service, "potatoes", None, None) == "42"
+        assert update(mock_session, service, {"StageName": "potatoes", "Method": "bake em"}, None, None) == "42"
 
         mock_session.Opportunity.update.assert_called_with(
-            "42", {"StageName": "potatoes"}, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
+            "42", {"StageName": "potatoes", "Method": "bake em"}, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
         )
         mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
 
@@ -100,10 +143,10 @@ def test_update_stage_new(mocker, notify_api, service):
         )
         mock_create = mocker.patch.object(salesforce_engagement, "create", return_value="42")
 
-        assert update_stage(mock_session, service, "potatoes", "account_id", "contact_id") == "42"
+        assert update(mock_session, service, {"StageName": "potatoes"}, "account_id", "contact_id") == "42"
 
         mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
-        mock_create.assert_called_with(mock_session, service, "potatoes", "account_id", "contact_id")
+        mock_create.assert_called_with(mock_session, service, {"StageName": "potatoes"}, "account_id", "contact_id")
 
 
 def test_update_stage_failed(mocker, notify_api, service):
@@ -111,7 +154,7 @@ def test_update_stage_failed(mocker, notify_api, service):
         mock_session = mocker.MagicMock()
         mocker.patch.object(salesforce_engagement, "get_engagement_by_service_id", return_value={"Id": "42"})
         mock_session.Opportunity.update.return_value = {"success": False}
-        assert update_stage(mock_session, service, "potatoes", "account_id", "contact_id") is None
+        assert update(mock_session, service, {"StageName": "potatoes"}, "account_id", "contact_id") is None
 
 
 def test_get_engagement_by_service_id(mocker, notify_api):
