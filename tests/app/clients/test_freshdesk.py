@@ -229,16 +229,16 @@ class TestSendTicket:
 
     def test_send_ticket_freshdesk_integration_disabled(self, mocker, email_freshdesk_ticket_mock, notify_api: Flask):
         mocked_post = mocker.patch("requests.post")
-        with set_config_values(notify_api, {"FRESH_DESK_ENABLED": "False"}):
+        with set_config_values(notify_api, {"FRESH_DESK_ENABLED": False}):
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
                 mocked_post.assert_not_called()
-                email_freshdesk_ticket_mock.assert_called_once()
+                email_freshdesk_ticket_mock.assert_not_called()
                 assert response == 201
 
     def test_send_ticket_freshdesk_integration_broken(self, email_freshdesk_ticket_mock, mocker, notify_api: Flask):
         mocked_post = mocker.patch("requests.post")
-        with set_config_values(notify_api, {"FRESH_DESK_ENABLED": "True", "FRESH_DESK_API_KEY": "x"}):
+        with set_config_values(notify_api, {"FRESH_DESK_ENABLED": True, "FRESH_DESK_API_KEY": "x"}):
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
                 mocked_post.assert_not_called()
@@ -253,7 +253,7 @@ class TestEmailFreshdesk:
         freshdesk.persist_notification = mock_persist_notification
         freshdesk.send_notification_to_queue = mock_send_notification_to_queue
 
-        with set_config_values(notify_api, {"FRESH_DESK_ENABLED": "True", "CONTACT_FORM_EMAIL_ADDRESS": "contact@test.com"}):
+        with set_config_values(notify_api, {"CONTACT_FORM_EMAIL_ADDRESS": "contact@test.com"}):
             with notify_api.app_context():
                 freshdesk_object = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com"))
                 content = {"data": "data"}
