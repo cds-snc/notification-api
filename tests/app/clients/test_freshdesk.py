@@ -4,6 +4,7 @@ from typing import Any, Dict
 import pytest
 import requests_mock
 from flask import Flask
+from requests import RequestException
 
 from app.clients import freshdesk
 from app.user.contact_request import ContactRequest
@@ -11,7 +12,14 @@ from tests.conftest import set_config_values
 
 
 class TestSendTicket:
-    def test_send_ticket_demo(self, notify_api: Flask):
+    @pytest.fixture()
+    def email_freshdesk_ticket_mock(self, mocker):
+        temp = freshdesk.Freshdesk.email_freshdesk_ticket
+        freshdesk.Freshdesk.email_freshdesk_ticket = mocker.Mock()
+        yield freshdesk.Freshdesk.email_freshdesk_ticket
+        freshdesk.Freshdesk.email_freshdesk_ticket = temp
+
+    def test_send_ticket_demo(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
                 "product_id": 42,
@@ -58,8 +66,9 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**contact_request)).send_ticket()
                 assert response == 201
+                assert email_freshdesk_ticket_mock.not_called()
 
-    def test_send_ticket_go_live_request(self, notify_api: Flask):
+    def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
                 "product_id": 42,
@@ -108,8 +117,9 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
+                assert email_freshdesk_ticket_mock.not_called()
 
-    def test_send_ticket_branding_request(self, notify_api: Flask):
+    def test_send_ticket_branding_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
                 "product_id": 42,
@@ -154,8 +164,9 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
+                assert email_freshdesk_ticket_mock.not_called()
 
-    def test_send_ticket_other(self, notify_api: Flask):
+    def test_send_ticket_other(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
                 "product_id": 42,
@@ -184,8 +195,9 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
                 assert response == 201
+                assert email_freshdesk_ticket_mock.not_called()
 
-    def test_send_ticket_user_profile(self, notify_api: Flask):
+    def test_send_ticket_user_profile(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
                 "product_id": 42,
@@ -219,13 +231,7 @@ class TestSendTicket:
                     )
                 ).send_ticket()
                 assert response == 201
-
-    @pytest.fixture()
-    def email_freshdesk_ticket_mock(self, mocker):
-        temp = freshdesk.Freshdesk.email_freshdesk_ticket
-        freshdesk.Freshdesk.email_freshdesk_ticket = mocker.Mock()
-        yield freshdesk.Freshdesk.email_freshdesk_ticket
-        freshdesk.Freshdesk.email_freshdesk_ticket = temp
+                assert email_freshdesk_ticket_mock.not_called()
 
     def test_send_ticket_freshdesk_integration_disabled(self, mocker, email_freshdesk_ticket_mock, notify_api: Flask):
         mocked_post = mocker.patch("requests.post")
@@ -237,11 +243,12 @@ class TestSendTicket:
                 assert response == 201
 
     def test_send_ticket_freshdesk_integration_broken(self, email_freshdesk_ticket_mock, mocker, notify_api: Flask):
-        mocked_post = mocker.patch("requests.post")
+        mocked_post = mocker.patch("requests.post", side_effect=RequestException)
+
         with set_config_values(notify_api, {"FRESH_DESK_ENABLED": True, "FRESH_DESK_API_KEY": "x"}):
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
-                mocked_post.assert_not_called()
+                mocked_post.assert_called_once()
                 email_freshdesk_ticket_mock.assert_called_once()
                 assert response == 201
 

@@ -107,9 +107,8 @@ class Freshdesk(object):
                 return response.status_code
             else:
                 return 201
-        except requests.RequestException:
-            content = json.loads(response.content)
-            current_app.logger.error(f"Failed to create Freshdesk ticket: {content}")
+        except requests.RequestException as e:
+            current_app.logger.error(f"Failed to create Freshdesk ticket: {e}")
             self.email_freshdesk_ticket(self._generate_ticket())
             return 201
 
