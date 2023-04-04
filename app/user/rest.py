@@ -14,6 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
     create_fido2_session,
@@ -461,6 +462,19 @@ def send_contact_request(user_id):
     except NoResultFound:
         # This is perfectly normal if get_user_by_email raises
         pass
+
+    # Update the engagement stage in Salesforce for go live requests
+    if contact and contact.is_go_live_request and current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            if contact.service_id:
+                engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
+                service = dao_fetch_service_by_id(contact.service_id)
+                salesforce_client.engagement_update(service, user, engagement_updates)
+                contact.department_org_name = service.organisation_notes
+            else:
+                current_app.logger.error(f"Missing service_id for go live request with contact: {contact}")
+        except Exception as e:
+            current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204

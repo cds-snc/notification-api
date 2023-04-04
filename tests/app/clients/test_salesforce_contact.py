@@ -57,6 +57,31 @@ def test_create_custom(mocker, notify_api, user):
         )
 
 
+def test_create_one_name(mocker, notify_api):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_session.Contact.create.return_value = {"success": True, "id": "42"}
+        mock_user = User(
+            **{
+                "id": 3,
+                "name": "Gandalf",
+                "email_address": "gandalf@fellowship.ca",
+                "platform_admin": False,
+            }
+        )
+        assert create(mock_session, mock_user, {}) == "42"
+        mock_session.Contact.create.assert_called_with(
+            {
+                "FirstName": "",
+                "LastName": "Gandalf",
+                "Title": "created by Notify API",
+                "CDS_Contact_ID__c": "3",
+                "Email": "gandalf@fellowship.ca",
+            },
+            headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
+        )
+
+
 def test_create_failed(mocker, notify_api, user):
     with notify_api.app_context():
         mock_session = mocker.MagicMock()
