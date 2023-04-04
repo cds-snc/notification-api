@@ -106,7 +106,6 @@ class Freshdesk(object):
 
                 return response.status_code
             else:
-                self.email_freshdesk_ticket(self._generate_ticket())
                 return 201
         except requests.RequestException:
             content = json.loads(response.content)
