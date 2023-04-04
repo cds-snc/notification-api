@@ -1,26 +1,26 @@
-from datetime import datetime, timedelta
-import io
 import boto3
 import csv
-
-from flask import current_app
-from celery import chain
-from notifications_utils.statsd_decorators import statsd
-from notifications_utils.timezones import convert_utc_to_local_timezone
-
+import io
 from app import notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.fact_billing_dao import (
     fetch_nightly_billing_counts,
     fetch_billing_data_for_day,
-    update_fact_billing
+    update_fact_billing,
 )
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
     update_fact_notification_status,
-    fetch_notification_statuses_per_service_and_template_for_date)
+    fetch_notification_statuses_per_service_and_template_for_date,
+)
 from app.feature_flags import is_feature_enabled, FeatureFlag
+from celery import chain
+from datetime import datetime, timedelta
+from flask import current_app
+from notifications_utils.timezones import convert_utc_to_local_timezone
+from notifications_utils.statsd_decorators import statsd
+
 
 # nightly billing stats section
 @notify_celery.task(name="create-nightly-billing")
@@ -65,20 +65,20 @@ def create_nightly_billing_for_day(process_day):
     end = datetime.utcnow()
 
     current_app.logger.info(
-        'create-nightly-billing-for-day %s fetched in %s seconds' % (process_day, (end - start).seconds)
+        'create-nightly-billing-for-day %s fetched in %s seconds', process_day, (end - start).seconds
     )
 
     for data in transit_data:
         update_fact_billing(data, process_day)
 
     current_app.logger.info(
-        "create-nightly-billing-for-day task complete. %s rows updated for day: %s" % (len(transit_data), process_day)
+        "create-nightly-billing-for-day task complete. %s rows updated for day: %s", len(transit_data), process_day
     )
 
 
 @notify_celery.task(name="generate-nightly-billing-csv-report")
 @statsd(namespace="tasks")
-def generate_nightly_billing_csv_report(process_day_string):
+def generate_nightly_billing_csv_report(process_day_string: str):
     process_day = datetime.strptime(process_day_string, "%Y-%m-%d").date()
     transit_data = fetch_nightly_billing_counts(process_day)
     buff = io.StringIO()
@@ -86,10 +86,10 @@ def generate_nightly_billing_csv_report(process_day_string):
     writer = csv.writer(buff, dialect='excel', delimiter=',')
     header = [
         "date", "service name", "service id", "template name", "template id", "sender", "sender id",
-        "billing code", "count", "channel type", "total_message_parts", "total_cost"
+        "billing code", "count", "channel type", "total message parts", "total cost"
     ]
     writer.writerow(header)
-    writer.writerows((process_day,) + row for row in transit_data)
+    writer.writerows((process_day,) + tuple(map(str, row)) for row in transit_data)
 
     csv_key = f'{process_day_string}.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
@@ -97,10 +97,10 @@ def generate_nightly_billing_csv_report(process_day_string):
     buff.close()
 
     current_app.logger.info(
-        "generate-nightly-billing-csv-report complete: %s rows updated for day: %s" % (
-            len(transit_data), process_day
-        )
+        "generate-nightly-billing-csv-report complete: %s rows updated for day: %s",
+        len(transit_data), process_day
     )
+
 
 # nightly notification stats section
 @notify_celery.task(name="create-nightly-notification-status")
@@ -143,17 +143,15 @@ def create_nightly_notification_status_for_day(process_day):
     transit_data = fetch_notification_status_for_day(process_day=process_day)
     end = datetime.utcnow()
     current_app.logger.info(
-        'create-nightly-notification-status-for-day %s fetched in %s seconds' % (
-            process_day, (end - start).seconds
-        )
+        'create-nightly-notification-status-for-day %s fetched in %s seconds',
+        process_day, (end - start).seconds
     )
 
     update_fact_notification_status(transit_data, process_day)
 
     current_app.logger.info(
-        "create-nightly-notification-status-for-day task complete: %s rows updated for day: %s" % (
-            len(transit_data), process_day
-        )
+        "create-nightly-notification-status-for-day task complete: %s rows updated for day: %s",
+        len(transit_data), process_day
     )
 
 
@@ -170,7 +168,7 @@ def generate_daily_notification_status_csv_report(process_day_string):
         "channel_type"
     ]
     writer.writerow(header)
-    writer.writerows((process_day,) + row for row in transit_data)
+    writer.writerows((process_day,) + tuple(map(str, row)) for row in transit_data)
 
     csv_key = f'{process_day_string}.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
@@ -178,7 +176,6 @@ def generate_daily_notification_status_csv_report(process_day_string):
     buff.close()
 
     current_app.logger.info(
-        "generate-daily-notification-status-csv-report complete: %s rows written for day: %s" % (
-            len(transit_data), process_day
-        )
+        "generate-daily-notification-status-csv-report complete: %s rows written for day: %s",
+        len(transit_data), process_day
     )

@@ -19,7 +19,7 @@ from tests.app.db import (
 
 class TestFetchServiceCallback:
 
-    def test_fetch_service_callback_works_with_user_permisisons(self, db_session, client, sample_service):
+    def test_fetch_service_callback_works_with_user_permisisons(self, notify_db_session, client, sample_service):
         service_callback_api = create_service_callback_api(service=sample_service)
         original_user = sample_service.users[0]
         user = create_user(email='foo@bar.com')
@@ -47,7 +47,7 @@ class TestFetchServiceCallback:
             "include_provider_payload": service_callback_api.include_provider_payload
         }
 
-    def test_fetch_service_callback_works_with_platform_admin(self, db_session, client, sample_service):
+    def test_fetch_service_callback_works_with_platform_admin(self, notify_db_session, client, sample_service):
         service_callback_api = create_service_callback_api(service=sample_service)
         user = create_user(email='foo@bar.com', platform_admin=True)
         token = create_access_token(user)
@@ -76,7 +76,7 @@ class TestFetchServiceCallback:
 
 class TestFetchServiceCallbacks:
 
-    def test_fetch_service_callbacks_works_with_user_permisisons(self, db_session, client, sample_service):
+    def test_fetch_service_callbacks_works_with_user_permisisons(self, notify_db_session, client, sample_service):
         service_callbacks = [
             create_service_callback_api(service=sample_service),
             create_service_callback_api(service=sample_service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
@@ -94,7 +94,7 @@ class TestFetchServiceCallbacks:
         assert response.status_code == 200
         assert response.json["data"] == [service_callback_api_schema.dump(s).data for s in service_callbacks]
 
-    def test_fetch_service_callbacks_works_with_platform_admin(self, db_session, client, sample_service):
+    def test_fetch_service_callbacks_works_with_platform_admin(self, notify_db_session, client, sample_service):
         service_callbacks = [
             create_service_callback_api(service=sample_service),
             create_service_callback_api(service=sample_service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
@@ -114,7 +114,7 @@ class TestFetchServiceCallbacks:
 class TestCreateServiceCallback:
 
     def test_create_service_callback_raises_404_when_service_does_not_exist_for_platform_admin(
-            self, db_session, client
+            self, notify_db_session, client
     ):
         user = create_user(email='foo@bar.com', platform_admin=True)
         token = create_access_token(user)
@@ -143,7 +143,7 @@ class TestCreateServiceCallback:
             (COMPLAINT_CALLBACK_TYPE, False)
         ]
     )
-    def test_create_service_callback(self, db_session, client, sample_service, callback_type,
+    def test_create_service_callback(self, notify_db_session, client, sample_service, callback_type,
                                      has_notification_statuses):
         user = sample_service.users[0]
         data = {
@@ -178,7 +178,7 @@ class TestCreateServiceCallback:
 
     # TODO: No need to test using API calls - move that test to model?
     def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
-            self, db_session, client, sample_service
+            self, notify_db_session, client, sample_service
     ):
         user = sample_service.users[0]
         data = {
@@ -203,7 +203,7 @@ class TestCreateServiceCallback:
         'callback_type', [INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
     )
     def test_create_service_callback_returns_400_if_statuses_passed_with_incompatible_callback_type(
-            self, db_session, client, sample_service, callback_type
+            self, notify_db_session, client, sample_service, callback_type
     ):
         user = sample_service.users[0]
         data = {
@@ -228,7 +228,7 @@ class TestCreateServiceCallback:
         assert error_message == f"Callback type {callback_type} should not have notification statuses"
 
     def test_create_service_callback_returns_400_if_no_bearer_token_for_webhook(
-            self, db_session, client, sample_service
+            self, notify_db_session, client, sample_service
     ):
         user = sample_service.users[0]
         data = {
@@ -251,7 +251,7 @@ class TestCreateServiceCallback:
         assert resp_json['message']['_schema'][0] == f"Callback channel {WEBHOOK_CHANNEL_TYPE} should have bearer_token"
 
     def test_create_service_callback_returns_400_for_invalid_callback_channel(
-            self, db_session, client, sample_service
+            self, notify_db_session, client, sample_service
     ):
         user = sample_service.users[0]
         data = {
@@ -276,7 +276,7 @@ class TestCreateServiceCallback:
                                                     f"[webhook, queue]"
 
     def test_users_cannot_create_service_callbacks_with_queue_channel(
-            self, db_session, client, sample_service
+            self, notify_db_session, client, sample_service
     ):
         user = sample_service.users[0]
         data = {
@@ -298,7 +298,7 @@ class TestCreateServiceCallback:
         assert error_message == f"User does not have permissions to create callbacks of channel type queue"
 
     def test_platform_admin_can_create_queue_service_callback(
-            self, db_session, client, sample_service
+            self, notify_db_session, client, sample_service
     ):
         user = create_user(email='foo@bar.com', platform_admin=True)
         data = {
@@ -318,7 +318,7 @@ class TestCreateServiceCallback:
         assert response.status_code == 201
 
     def test_create_service_callback_raises_400_when_notification_status_validation_failed(
-            self, db_session, client
+            self, notify_db_session, client
     ):
         non_existent_status = 'nonexistent_failed'
         data = {
@@ -344,7 +344,7 @@ class TestCreateServiceCallback:
         ]
     )
     def test_create_service_callback_raises_400_when_url_validation_failed(
-            self, db_session, sample_service, client, add_url, url, expected_response
+            self, notify_db_session, sample_service, client, add_url, url, expected_response
     ):
         user = sample_service.users[0]
         data = {
@@ -373,7 +373,7 @@ class TestCreateServiceCallback:
         ]
     )
     def test_create_service_callback_raises_400_when_bearer_token_validation_failed(
-            self, db_session, client, sample_service, add_bearer_token, bearer_token, expected_response
+            self, notify_db_session, client, sample_service, add_bearer_token, bearer_token, expected_response
     ):
         user = sample_service.users[0]
         data = {

@@ -450,11 +450,11 @@ def test_archive_sms_sender_raises_an_error_if_attempting_to_archive_an_inbound_
 
 class TestGetSmsSenderByServiceIdAndNumber:
 
-    def test_returns_none_if_no_matching_service_id(self, db_session):
+    def test_returns_none_if_no_matching_service_id(self, notify_db_session):
         service_with_sms_sender = create_service(service_name="Service one")
         sms_sender = ServiceSmsSender(sms_sender='+15551234567', service_id=service_with_sms_sender.id)
-        db_session.add(sms_sender)
-        db_session.commit()
+        notify_db_session.session.add(sms_sender)
+        notify_db_session.session.commit()
 
         service_without_sms_sender = create_service(service_name="Service two")
         found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
@@ -464,11 +464,11 @@ class TestGetSmsSenderByServiceIdAndNumber:
 
         assert found_sms_sender is None
 
-    def test_returns_none_if_no_matching_number(self, db_session):
+    def test_returns_none_if_no_matching_number(self, notify_db_session):
         service = create_service()
         sms_sender = ServiceSmsSender(sms_sender='+15551234567', service_id=service.id)
-        db_session.add(sms_sender)
-        db_session.commit()
+        notify_db_session.session.add(sms_sender)
+        notify_db_session.session.commit()
 
         found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
             service_id=service.id,
@@ -477,11 +477,11 @@ class TestGetSmsSenderByServiceIdAndNumber:
 
         assert found_sms_sender is None
 
-    def test_returns_sms_sender_if_matching_service_and_number(self, db_session):
+    def test_returns_sms_sender_if_matching_service_and_number(self, notify_db_session):
         service = create_service()
         sms_sender = ServiceSmsSender(sms_sender='+15551234567', service_id=service.id)
-        db_session.add(sms_sender)
-        db_session.commit()
+        notify_db_session.session.add(sms_sender)
+        notify_db_session.session.commit()
 
         found_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
             service_id=service.id,

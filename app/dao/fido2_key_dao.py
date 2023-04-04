@@ -8,8 +8,7 @@ from app.dao.dao_utils import (
 
 from sqlalchemy import and_
 
-from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject
+from fido2.webauthn import AttestationObject, CollectedClientData
 import json
 import pickle  # nosec
 import base64
@@ -62,7 +61,7 @@ def get_fido2_session(user_id):
 
 
 def decode_and_register(data, state):
-    client_data = ClientData(data['clientDataJSON'])
+    client_data = CollectedClientData(data['clientDataJSON'])
     att_obj = AttestationObject(data['attestationObject'])
 
     auth_data = Config.FIDO2_SERVER.register_complete(

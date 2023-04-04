@@ -27,7 +27,7 @@ def _create_auth_header(service=None, platform_admin: bool = False):
 class TestGetServiceWhitelist:
 
     @pytest.mark.parametrize('platform_admin', [False, True])
-    def test_get_whitelist_returns_data(self, db_session, client, sample_service, platform_admin):
+    def test_get_whitelist_returns_data(self, notify_db_session, client, sample_service, platform_admin):
         service_whitelist = email_service_whitelist(sample_service.id)
         dao_add_and_commit_whitelisted_contacts([service_whitelist])
 
@@ -42,7 +42,7 @@ class TestGetServiceWhitelist:
         }
 
     @pytest.mark.parametrize('platform_admin', [False, True])
-    def test_get_whitelist_separates_emails_and_phones(self, db_session, client, sample_service, platform_admin):
+    def test_get_whitelist_separates_emails_and_phones(self, notify_db_session, client, sample_service, platform_admin):
         dao_add_and_commit_whitelisted_contacts([
             ServiceWhitelist.from_string(sample_service.id, EMAIL_TYPE, 'service@example.com'),
             ServiceWhitelist.from_string(sample_service.id, MOBILE_TYPE, '6502532222'),
@@ -59,7 +59,7 @@ class TestGetServiceWhitelist:
         assert sorted(json_resp['phone_numbers']) == sorted(['+1800-234-1242', '6502532222'])
 
     @pytest.mark.parametrize('platform_admin', [False, True])
-    def test_get_whitelist_returns_no_data(self, db_session, client, sample_service, platform_admin):
+    def test_get_whitelist_returns_no_data(self, notify_db_session, client, sample_service, platform_admin):
         response = client.get(
             url_for('service_whitelist.get_whitelist', service_id=sample_service.id),
             headers=[_create_auth_header(service=sample_service, platform_admin=platform_admin)]
@@ -70,7 +70,7 @@ class TestGetServiceWhitelist:
 
     # This only applies to platform admins.
     # We require users to have permissions for a given service. No service => no permissions.
-    def test_get_whitelist_404s_with_unknown_service_id(self, db_session, client):
+    def test_get_whitelist_404s_with_unknown_service_id(self, notify_db_session, client):
         response = client.get(
             url_for('service_whitelist.get_whitelist', service_id=uuid.uuid4()),
             headers=[_create_auth_header(platform_admin=True)]
@@ -80,7 +80,7 @@ class TestGetServiceWhitelist:
         assert json_resp['result'] == 'error'
         assert json_resp['message'] == 'No result found'
 
-    def test_should_return_403_if_no_permissions(self, db_session, client, sample_service):
+    def test_should_return_403_if_no_permissions(self, notify_db_session, client, sample_service):
         user = create_user(email='foo@bar.com')
         dao_add_user_to_service(sample_service, user, permissions=[])
 
@@ -142,7 +142,7 @@ class TestUpdateServiceWhitelist:
 
     # This only applies to platform admins.
     # We require users to have permissions for a given service. No service => no permissions.
-    def test_should_return_404_if_service_does_not_exist(self, db_session, client):
+    def test_should_return_404_if_service_does_not_exist(self, notify_db_session, client):
         data = {
             'email_addresses': [''],
             'phone_numbers': ['6502532222']
@@ -158,7 +158,7 @@ class TestUpdateServiceWhitelist:
         assert json_resp['result'] == 'error'
         assert json_resp['message'] == 'No result found'
 
-    def test_should_return_403_if_no_permissions(self, db_session, client, sample_service):
+    def test_should_return_403_if_no_permissions(self, notify_db_session, client, sample_service):
         user = create_user(email='foo@bar.com')
         dao_add_user_to_service(sample_service, user, permissions=[])
 
@@ -205,7 +205,7 @@ class TestUpdateServiceWhitelist:
             'Invalid whitelist: "not-a-phone" is not a valid email address or phone number'
          )
     ])
-    def test_update_whitelist_returns_json_validation_errors(self, client, db_session, sample_service,
+    def test_update_whitelist_returns_json_validation_errors(self, client, notify_db_session, sample_service,
                                                              data, error_type, error_message):
         service_whitelist = a_service_whitelist(sample_service.id)
         dao_add_and_commit_whitelisted_contacts([service_whitelist])

@@ -961,10 +961,12 @@ def mock_encryption(mocker):
 
 
 @pytest.fixture(scope='function')
-def sample_invited_user(notify_db,
-                        notify_db_session,
-                        service=None,
-                        to_email_address=None):
+def sample_invited_user(
+    notify_db,
+    notify_db_session,
+    service=None,
+    to_email_address=None
+):
     if service is None:
         service = create_service(check_if_service_exists=True)
     if to_email_address is None:
@@ -1346,11 +1348,11 @@ def notify_service(notify_db, notify_db_session):
 
 
 @pytest.fixture(scope='function')
-def sample_service_whitelist(db_session):
+def sample_service_whitelist(notify_db_session):
     service = create_service(check_if_service_exists=True)
     whitelisted_user = service_whitelist.a_service_whitelist(service_id=service.id)
-    db_session.add(whitelisted_user)
-    db_session.commit()
+    notify_db_session.session.add(whitelisted_user)
+    notify_db_session.session.commit()
     return whitelisted_user
 
 
@@ -1405,33 +1407,35 @@ def sample_login_event(notify_db, notify_db_session):
 
 
 @pytest.fixture
-def restore_provider_details(notify_db, notify_db_session):
+def restore_provider_details(notify_db_session):
     """
     We view ProviderDetails as a static in notify_db_session, since we don't modify it... except we do, we updated
     priority. This fixture is designed to be used in tests that will knowingly touch provider details, to restore them
     to previous state.
 
     Note: This doesn't technically require notify_db_session (only notify_db), but kept as a requirement to encourage
-    good usage - if you're modifying ProviderDetails' state then it's good to clear down the rest of the DB too
+    good usage.  If you're modifying ProviderDetails's state then it's good to clear down the rest of the DB too.
     """
+
     existing_provider_details = ProviderDetails.query.all()
     existing_provider_details_history = ProviderDetailsHistory.query.all()
-    # make transient removes the objects from the session - since we'll want to delete them later
+
+    # make_transient removes the objects from the session (because we will delete them later).
     for epd in existing_provider_details:
         make_transient(epd)
     for epdh in existing_provider_details_history:
         make_transient(epdh)
 
-    yield
+    yield notify_db_session
 
     # also delete these as they depend on provider_details
     ProviderRates.query.delete()
     ProviderDetails.query.delete()
     ProviderDetailsHistory.query.delete()
-    notify_db.session.commit()
-    notify_db.session.add_all(existing_provider_details)
-    notify_db.session.add_all(existing_provider_details_history)
-    notify_db.session.commit()
+    notify_db_session.session.commit()
+    notify_db_session.session.add_all(existing_provider_details)
+    notify_db_session.session.add_all(existing_provider_details_history)
+    notify_db_session.session.commit()
 
 
 @pytest.fixture

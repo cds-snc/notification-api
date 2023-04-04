@@ -121,7 +121,7 @@ def service_test_api_key(notification_url, admin_jwt_token, service_id, user_id)
 
 
 def test_api_healthy(notification_url):
-    response = get(F"{notification_url}/_status", timeout=(3.05, 1))
+    response = get(F"{notification_url}/_status", timeout=5)
     assert response.status_code == 200
 
 

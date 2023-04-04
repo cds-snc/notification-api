@@ -1,10 +1,11 @@
+"""
+TODO - This file has multiple uses of using the notify_db_session fixture only for the
+side-effect of clearing tables after the test.  See #1106.
+"""
+
 import datetime
-import uuid
-
 import pytest
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-
-from app import db
+import uuid
 from app.dao.organisation_dao import (
     dao_get_organisations,
     dao_get_organisation_by_email_address,
@@ -19,7 +20,7 @@ from app.dao.organisation_dao import (
 )
 from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
 from app.models import Organisation, OrganisationTypes, Service
-
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from tests.app.db import (
     create_domain,
     create_email_branding,
@@ -31,7 +32,7 @@ from tests.app.db import (
 
 
 def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(
-        notify_db_session
+    notify_db_session
 ):
     m_active_org = create_organisation(name='m_active_organisation')
     z_inactive_org = create_organisation(name='z_inactive_organisation', active=False)
@@ -51,9 +52,7 @@ def test_get_organisations_gets_all_organisations_alphabetically_with_active_org
 
 def test_get_organisation_by_id_gets_correct_organisation(notify_db_session):
     organisation = create_organisation()
-
     organisation_from_db = dao_get_organisation_by_id(organisation.id)
-
     assert organisation_from_db == organisation
 
 
@@ -123,12 +122,13 @@ def test_update_organisation_domains_lowercases(
 def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is_not_provided(
     sample_service,
     sample_organisation,
+    notify_db_session
 ):
     sample_service.organisation_type = 'other'
     sample_organisation.organisation_type = 'other'
 
     sample_organisation.services.append(sample_service)
-    db.session.commit()
+    notify_db_session.session.commit()
 
     assert sample_organisation.name == 'sample organisation'
 
@@ -139,16 +139,16 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
 
 
 @pytest.fixture(scope="function")
-def setup_org_type(db_session):
+def setup_org_type(notify_db_session):
     org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
-    db_session.add(org_type)
-    db_session.commit()
+    notify_db_session.session.add(org_type)
+    notify_db_session.session.commit()
     return org_type
 
 
 @pytest.fixture(scope="function")
 def setup_service(
-        db_session,
+        notify_db_session,
         service_name="Sample service",
         user=None,
         restricted=False,
@@ -188,13 +188,14 @@ def setup_service(
 def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
     setup_service,
     sample_organisation,
-    setup_org_type
+    setup_org_type,
+    notify_db_session
 ):
     setup_service.organisation_type = setup_org_type.name
     sample_organisation.organisation_type = setup_org_type.name
 
     sample_organisation.services.append(setup_service)
-    db.session.commit()
+    notify_db_session.session.commit()
 
     dao_update_organisation(sample_organisation.id, organisation_type='other')
 
@@ -260,7 +261,7 @@ def test_dao_get_invited_organisation_user(sample_invited_org_user):
     assert invited_org_user == sample_invited_org_user
 
 
-def test_dao_get_invited_organisation_user_returns_none(notify_db):
+def test_dao_get_invited_organisation_user_returns_none():
     with pytest.raises(expected_exception=SQLAlchemyError):
         dao_get_invited_organisation_user(uuid.uuid4())
 
@@ -326,7 +327,6 @@ def test_get_organisation_by_email_address(
     expected_org,
     notify_db_session
 ):
-
     org = create_organisation()
     create_domain('example.gov.uk', org.id)
     create_domain('test.gov.uk', org.id)

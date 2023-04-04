@@ -1,20 +1,19 @@
-from typing import Union
-from urllib.parse import unquote
-from datetime import datetime
 import iso8601
-from flask import jsonify, Blueprint, current_app, request, abort
-from notifications_utils.recipients import try_validate_and_format_phone_number
-from notifications_utils.timezones import convert_local_timezone_to_utc
-from twilio.twiml.messaging_response import MessagingResponse
-from twilio.request_validator import RequestValidator
-
 from app import statsd_client
 from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
-from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
-from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
+from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.errors import register_errors
+from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
+from datetime import datetime
+from flask import jsonify, Blueprint, current_app, request, abort
+from notifications_utils.recipients import try_validate_and_format_phone_number
+from notifications_utils.timezones import convert_local_timezone_to_utc
+from twilio.request_validator import RequestValidator
+from twilio.twiml.messaging_response import MessagingResponse
+from typing import Union
+from urllib.parse import unquote
 
 receive_notifications_blueprint = Blueprint('receive_notifications', __name__)
 register_errors(receive_notifications_blueprint)
@@ -28,44 +27,47 @@ def receive_mmg_sms():
         "Number": "40604",
         "Message": "some+uri+encoded+message%3A",
         "ID": "SOME-MMG-SPECIFIC-ID",
-        "DateRecieved": "2017-05-21+11%3A56%3A11"
+        "DateReceived": "2017-05-21+11%3A56%3A11"
     }
     """
-    post_data = request.get_json()
 
     auth = request.authorization
 
-    if not auth:
+    if auth is None:
         current_app.logger.warning("Inbound sms (MMG) no auth header")
         abort(401)
     elif auth.username not in current_app.config['MMG_INBOUND_SMS_USERNAME'] \
             or auth.password not in current_app.config['MMG_INBOUND_SMS_AUTH']:
-        current_app.logger.warning("Inbound sms (MMG) incorrect username ({}) or password".format(auth.username))
+        current_app.logger.warning("Inbound sms (MMG) incorrect username (%s) or password", auth.username)
         abort(403)
 
+    post_data = request.get_json()
     inbound_number = strip_leading_forty_four(post_data['Number'])
 
     try:
         service = fetch_potential_service(inbound_number, 'mmg')
     except NoSuitableServiceForInboundSms:
-        # since this is an issue with our service <-> number mapping, or no inbound_sms service permission
-        # we should still tell MMG that we received it successfully
+        # Since this is an issue with our service <-> number mapping, or no inbound_sms service permission,
+        # we should still tell MMG that we received it successfully.
         return 'RECEIVED', 200
 
     statsd_client.incr('inbound.mmg.successful')
 
-    inbound = create_inbound_sms_object(service,
-                                        content=format_mmg_message(post_data["Message"]),
-                                        notify_number=inbound_number,
-                                        from_number=post_data['MSISDN'],
-                                        provider_ref=post_data["ID"],
-                                        date_received=format_mmg_datetime(post_data.get('DateRecieved')),
-                                        provider_name="mmg")
+    inbound = create_inbound_sms_object(
+        service,
+        content=format_mmg_message(post_data["Message"]),
+        notify_number=inbound_number,
+        from_number=post_data['MSISDN'],
+        provider_ref=post_data["ID"],
+        date_received=format_mmg_datetime(post_data.get('DateReceived')),
+        provider_name="mmg"
+    )
 
     send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
 
     current_app.logger.debug(
-        '{} received inbound SMS with reference {} from MMG'.format(service.id, inbound.provider_reference))
+        '%s received inbound SMS with reference %s from MMG', service.id, inbound.provider_reference
+    )
     return jsonify({
         "status": "ok"
     }), 200
@@ -80,7 +82,7 @@ def receive_firetext_sms():
         current_app.logger.warning("Inbound sms (Firetext) no auth header")
         abort(401)
     elif auth.username != 'notify' or auth.password not in current_app.config['FIRETEXT_INBOUND_SMS_AUTH']:
-        current_app.logger.warning("Inbound sms (Firetext) incorrect username ({}) or password".format(auth.username))
+        current_app.logger.warning("Inbound sms (Firetext) incorrect username (%s) or password", auth.username)
         abort(403)
 
     inbound_number = strip_leading_forty_four(post_data['destination'])
@@ -104,7 +106,8 @@ def receive_firetext_sms():
 
     send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
     current_app.logger.debug(
-        '{} received inbound SMS with reference {} from Firetext'.format(service.id, inbound.provider_reference))
+        '%s received inbound SMS with reference %s from Firetext', service.id, inbound.provider_reference
+    )
     return jsonify({
         "status": "ok"
     }), 200
@@ -121,7 +124,7 @@ def receive_twilio_sms():
         abort(401)
     elif auth.username not in current_app.config['TWILIO_INBOUND_SMS_USERNAMES'] \
             or auth.password not in current_app.config['TWILIO_INBOUND_SMS_PASSWORDS']:
-        current_app.logger.warning("Inbound sms (Twilio) incorrect username ({}) or password".format(auth.username))
+        current_app.logger.warning("Inbound sms (Twilio) incorrect username (%s) or password", auth.username)
         abort(403)
 
     url = request.url
@@ -154,10 +157,9 @@ def receive_twilio_sms():
 
     send_inbound_sms_to_service.apply_async([str(inbound.id), str(service.id)], queue=QueueNames.NOTIFY)
 
-    current_app.logger.debug('{} received inbound SMS with reference {} from Twilio'.format(
-        service.id,
-        inbound.provider_reference,
-    ))
+    current_app.logger.debug(
+        '%s received inbound SMS with reference %s from Twilio', service.id, inbound.provider_reference
+    )
 
     return str(response), 200
 

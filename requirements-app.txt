@@ -1,9 +1,9 @@
 # This is used to create Postgres stored functions via the migrations process.
-alembic_utils>=0.7.8
+alembic_utils>=0.8.1
 
 Authlib>=1.2.0
-boto3>=1.26.95
-botocore>=1.29.95
+boto3>=1.26.102
+botocore>=1.29.102
 cachelib>=0.10.2
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -14,31 +14,30 @@ celery[sqs]>=4.4.7
 # ignored in Makefile.  The vulnerability is fixed in click>=8.0.
 click-datetime>=0.2
 
-# Feb 2022: Package for Datadog Tracer
-ddtrace==1.8.0
+# Datadog Tracer
+ddtrace~=1.8.1
 
 docopt>=0.6.2
 
 eventlet~=0.33.3
 
-# 9 June 2022: Flask raises ImportError with higher versions.
-fido2 < 1.0.0
+# This is for hardware based authentication schemes.  (i.e. 2FA)
+# https://developers.yubico.com/WebAuthn/
+fido2~=1.1.0
 
-Flask < 2.0
-Flask-Bcrypt==0.7.1
-Flask-Cors==3.0.10
-Flask-JWT-Extended==4.1.0
-flask-marshmallow==0.11.0
-Flask-Migrate==2.5.2
-git+https://github.com/department-of-veterans-affairs/notification-utils.git@1.0.68#egg=notification-utils==1.0.68
-
-# 5 May 2022: Requiring Flask-SQLAlchemy version 2.3.2, 2.5, or 3.0 causes test failures via database
-# errors about foreign key constraint violations.
-git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
+Flask~=2.2.3
+Flask-Bcrypt~=1.0.1
+Flask-Cors~=3.0.10
+Flask-JWT-Extended~=4.4.4
+flask-marshmallow~=0.14.0
+Flask-Migrate~=4.0.4
+Flask-SQLAlchemy~=3.0.3
+git+https://github.com/department-of-veterans-affairs/notification-utils.git
 
 # The production image defined by Dockerfile uses Gunicorn.  The development image defined by Dockerfile.local
 # runs the application with the Flask development server by default.
-# 20 March 2023: Used commit that fixes import errors and broke semver
+#
+# This is Gunicorn v20.1.0 with additional fixes for import errors that occur with eventlet > 0.30.2.
 gunicorn[eventlet] @ git+https://github.com/benoitc/gunicorn.git@6a8ebb4844b2f28596ffe7421eb9f7d08c8dc4d8
 
 iso8601>=1.1.0
@@ -47,11 +46,10 @@ jsonschema>=4.17.3
 
 # 5 May 2022: Celery depends on this package, and the Docker image build failed with the newest version.
 # Ignoring security vulnerability 42497 in Makefile.  The vulnerability is fixed in kombu>=5.2.1.
+# Kombu is a top-level package too.
 kombu < 5.0
 
-# 3 May 2022:  Flask 1.1.4 depends on this package but does not support more recent versions.
-MarkupSafe==2.0.1
-
+# 31 March 2023: marshmallow 2.x has not been supported since 18 August 2020.
 marshmallow==2.20.5
 marshmallow-sqlalchemy==0.22.2
 nanoid>=2.0.0
@@ -59,11 +57,7 @@ notifications-python-client~=8.0.0
 psycopg2-binary>=2.9.5
 pwnedpasswords>=2.0.0
 PyJWT>=2.6.0
-
-# 27 June 2022: Flask raises ImportError with newer versions.  notification-utils version 1.0.66 also raises
-# import errors with newer versions, but that package can be updated to version 1.1.0 if we upgrade Flask.
-PyPDF2 < 2.0.0
-
+PyPDF2~=3.0.1
 python-dotenv~=1.0.0
 python-magic>=0.4.27
 
@@ -75,8 +69,8 @@ rfc3339-validator>=0.1.4
 sentry-sdk[flask]~=1.17.0
 
 # 10 December 2022: Ignoring security vulnerability 51668 in Makefile.  It is fixed in >=2.0.0b1.
-SQLAlchemy < 1.4
+SQLAlchemy~=1.4.47
 
-twilio>=7.16.5
+twilio>=7.17.0
 Unidecode>=1.3.6
 validatesns>=0.1.1

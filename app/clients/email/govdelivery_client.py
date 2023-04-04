@@ -11,7 +11,6 @@ from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from time import monotonic
 
-
 govdelivery_status_map = {
     'sending': NOTIFICATION_SENDING,
     'sent': NOTIFICATION_DELIVERED,
@@ -27,9 +26,7 @@ class GovdeliveryClientException(EmailClientException):
 
 
 class GovdeliveryClient(EmailClient):
-    '''
-    Govdelivery email client.
-    '''
+    """ Govdelivery email client """
 
     def init_app(self, token, url, statsd_client, *args, **kwargs):
         self.name = 'govdelivery'

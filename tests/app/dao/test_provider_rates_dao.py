@@ -4,7 +4,7 @@ from app.dao.provider_rates_dao import create_provider_rates
 from app.models import ProviderRates, ProviderDetails
 
 
-def test_create_provider_rates(notify_db, notify_db_session, mmg_provider):
+def test_create_provider_rates(mmg_provider):
     now = datetime.now()
     rate = Decimal("1.00000")
 

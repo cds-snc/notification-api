@@ -80,7 +80,7 @@ def test_receive_notification_returns_received_to_mmg(client, mocker, sample_ser
         "Trigger": "Trigger?",
         "Number": sample_service_full_permissions.inbound_numbers[0].number,
         "Channel": "SMS",
-        "DateRecieved": "2012-06-27 12:33:00"
+        "DateReceived": "2012-06-27 12:33:00"
     }
     response = mmg_post(client, data)
 
@@ -189,7 +189,7 @@ def test_receive_notification_from_mmg_without_permissions_does_not_persist(
         "Trigger": "Trigger?",
         "Number": "testing",
         "Channel": "SMS",
-        "DateRecieved": "2012-06-27 12:33:00"
+        "DateReceived": "2012-06-27 12:33:00"
     }
     response = mmg_post(client, data)
 
@@ -385,7 +385,7 @@ def test_receive_notification_without_permissions_does_not_create_inbound_even_w
         "Trigger": "Trigger?",
         "Number": inbound_number.number,
         "Channel": "SMS",
-        "DateRecieved": "2012-06-27 12:33:00"
+        "DateReceived": "2012-06-27 12:33:00"
     }
 
     response = mmg_post(client, data)
@@ -452,7 +452,7 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
         'Message': 'hello+there+%F0%9F%93%A9',
         'Number': '+15551234567',
         'MSISDN': '447700900001',
-        'DateRecieved': '2017-01-02+03%3A04%3A05',
+        'DateReceived': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
     }
 
@@ -462,7 +462,7 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
         data["Number"],
         data["MSISDN"],
         data["ID"],
-        format_mmg_datetime(data["DateRecieved"]),
+        format_mmg_datetime(data["DateReceived"]),
         "mmg"
     )
 
@@ -494,7 +494,7 @@ def test_mmg_receive_notification_error_if_not_single_matching_service(client, n
         'Message': 'hello',
         'Number': notify_number,
         'MSISDN': '7700900001',
-        'DateRecieved': '2017-01-02 03:04:05',
+        'DateReceived': '2017-01-02 03:04:05',
         'ID': 'bar',
     }
     response = mmg_post(client, data)
@@ -661,7 +661,7 @@ def test_mmg_inbound_sms_auth(notify_db_session, notify_api, client, mocker, aut
         "Trigger": "Trigger?",
         "Number": "testing",
         "Channel": "SMS",
-        "DateRecieved": "2012-06-27 12:33:00"
+        "DateReceived": "2012-06-27 12:33:00"
     }
 
     with set_config(notify_api, 'MMG_INBOUND_SMS_AUTH', keys):
@@ -696,7 +696,7 @@ def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service
         'Message': 'hello',
         'Number': '+15551234567',
         'MSISDN': 'ALPHANUM3R1C',
-        'DateRecieved': '2017-01-02+03%3A04%3A05',
+        'DateReceived': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
     }
 

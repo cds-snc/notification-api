@@ -27,7 +27,7 @@ def sample_delivery_status_result_message():
 
 def test_event_message_invalid_message(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -53,7 +53,7 @@ def test_event_message_invalid_message(
 
 def test_without_provider(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -81,7 +81,7 @@ def test_without_provider(
 
 def test_attempt_get_notification_triggers_should_retry(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -108,7 +108,7 @@ def test_attempt_get_notification_triggers_should_retry(
 
 def test_attempt_to_get_notification_none(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -132,7 +132,7 @@ def test_attempt_to_get_notification_none(
 
 
 def test_missing_body_triggers_retry(
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -148,7 +148,7 @@ def test_missing_body_triggers_retry(
 
 def test_none_notification_platform_status_triggers_retry(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -169,7 +169,7 @@ def test_none_notification_platform_status_triggers_retry(
 
 
 def test_invalid_body_triggers_retry(
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,
@@ -187,7 +187,7 @@ def test_invalid_body_triggers_retry(
 
 
 def test_should_exit(
-    mocker, db_session, sample_delivery_status_result_message, sample_notification
+    mocker, notify_db_session, sample_delivery_status_result_message, sample_notification
 ):
     """Test that celery task will "exit" if multiple notifications were found"""
     mocker.patch(
@@ -203,7 +203,7 @@ def test_should_exit(
 # we want to test that celery task will succeed when correct data is given
 def test_with_correct_data(
     mocker,
-    db_session,
+    notify_db_session,
     sample_delivery_status_result_message,
     sample_translate_return_value,
     sample_notification,

@@ -134,13 +134,11 @@ def test_internal_server_error_handler(app_for_test):
 
 
 def test_bad_method(app_for_test):
-    with app_for_test.test_request_context():
-        with app_for_test.test_client() as client:
-            response = client.post(url_for("v2_under_test.raising_exception"))
+    """
+    app/__init__.py does not define an error handler for "method not allowed" (405).  The
+    body of the response, if any, will be the Flask default.
+    """
 
-            assert response.status_code == 405
-
-            assert response.json == {
-                "result": "error",
-                "message": "The method is not allowed for the requested URL."
-            }
+    with app_for_test.test_request_context(), app_for_test.test_client() as client:
+        response = client.post(url_for("v2_under_test.raising_exception"))
+        assert response.status_code == 405

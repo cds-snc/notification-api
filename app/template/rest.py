@@ -3,7 +3,7 @@ from datetime import datetime
 from io import BytesIO
 
 import botocore
-from PyPDF2.utils import PdfReadError
+from PyPDF2.errors import PdfReadError
 from flask import (
     Blueprint,
     current_app,
@@ -35,17 +35,14 @@ from app.dao.templates_dao import (
     dao_get_template_by_id,
     get_precompiled_letter_template,
 )
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
+from app.errors import InvalidRequest, register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import get_letter_pdf
 from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
 from app.notifications.validators import service_has_permission, check_reply_to, template_name_already_exists_on_service
 from app.provider_details import validate_providers
 from app.schema_validation import validate
-from app.schemas import (template_schema, template_history_schema)
+from app.schemas import template_schema, template_history_schema
 from app.template.template_schemas import post_create_template_schema, template_stats_request
 from app.utils import get_template_instance, get_public_notify_type_text
 
@@ -139,8 +136,8 @@ def update_template(service_id, template_id):
 
     data = request.get_json()
 
-    # if redacting, don't update anything else
     if data.get('redact_personalisation') is True:
+        # Don't update anything else.
         return redact_template(fetched_template, data)
 
     if "reply_to" in data:
@@ -172,7 +169,6 @@ def update_template(service_id, template_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_dict = template_schema.load(updated_template).data
-
     dao_update_template(update_dict)
     return jsonify(data=template_schema.dump(update_dict).data), 200
 

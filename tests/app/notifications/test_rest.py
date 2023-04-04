@@ -117,15 +117,19 @@ def test_get_notification_from_different_api_key_works(
     notification_key_type
 ):
     sample_notification.key_type = notification_key_type
-    api_key = ApiKey(service=sample_notification.service,
-                     name='api_key',
-                     created_by=sample_notification.service.created_by,
-                     key_type=api_key_type)
+
+    api_key = ApiKey(
+        service=sample_notification.service,
+        name='api_key',
+        created_by=sample_notification.service.created_by,
+        key_type=api_key_type
+    )
     save_model_api_key(api_key)
 
     response = client.get(
         path='/notifications/{}'.format(sample_notification.id),
-        headers=_create_auth_header_from_key(api_key))
+        headers=_create_auth_header_from_key(api_key)
+    )
 
     assert response.status_code == 200
     response_json = response.get_json()["data"]["notification"]
@@ -483,7 +487,8 @@ def test_filter_by_template_type(client, sample_template, sample_email_template)
 
     response = client.get(
         '/notifications?template_type=sms',
-        headers=[auth_header])
+        headers=[auth_header]
+    )
 
     assert response.status_code == 200
     response_json = response.get_json()["notifications"]
@@ -625,11 +630,7 @@ def test_get_notifications_for_service_returns_merged_template_content(client, s
     }
 
 
-def test_get_notification_selects_correct_template_for_personalisation(
-    client,
-    notify_db,
-    sample_template
-):
+def test_get_notification_selects_correct_template_for_personalisation(client, notify_db, sample_template):
     create_notification(sample_template)
     original_content = sample_template.content
     sample_template.content = '((name))'
@@ -657,4 +658,4 @@ def test_get_notification_selects_correct_template_for_personalisation(
 
 def _create_auth_header_from_key(api_key):
     token = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
-    return [('Authorization', 'Bearer {}'.format(token))]
+    return {"Authorization": f"Bearer {token}"}

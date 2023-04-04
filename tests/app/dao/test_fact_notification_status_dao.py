@@ -1,11 +1,5 @@
-import uuid
-from datetime import timedelta, datetime, date
-from uuid import UUID
-from unittest import mock
-
 import pytest
-from notifications_utils.timezones import convert_utc_to_local_timezone
-
+import uuid
 from app.dao.fact_notification_status_dao import (
     update_fact_notification_status,
     fetch_monthly_notification_statuses_per_service,
@@ -15,12 +9,15 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
     fetch_notification_statuses_for_job,
-    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
+    fetch_stats_for_all_services_by_date_range,
+    fetch_monthly_template_usage_for_service,
     get_total_sent_notifications_for_day_and_type,
     get_total_notifications_sent_for_api_key,
     get_last_send_for_api_key,
-    get_api_key_ranked_by_notifications_created, fetch_template_usage_for_service_with_given_template,
-    fetch_notification_statuses_per_service_and_template_for_date, fetch_delivered_notification_stats_by_month
+    get_api_key_ranked_by_notifications_created,
+    fetch_template_usage_for_service_with_given_template,
+    fetch_notification_statuses_per_service_and_template_for_date,
+    fetch_delivered_notification_stats_by_month,
 )
 from app.models import (
     FactNotificationStatus,
@@ -39,12 +36,20 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
 )
+from datetime import timedelta, datetime, date
 from freezegun import freeze_time
-
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from tests.app.db import (
-    create_notification, create_service, create_template, create_ft_notification_status,
-    create_job, create_notification_history, create_api_key
+    create_notification,
+    create_service,
+    create_template,
+    create_ft_notification_status,
+    create_job,
+    create_notification_history,
+    create_api_key,
 )
+from unittest import mock
+from uuid import UUID
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -505,8 +510,11 @@ def test_fetch_notification_statuses_for_job(sample_template):
 @freeze_time('2018-10-31 14:00')
 def test_fetch_stats_for_all_services_by_date_range(notify_db_session):
     service_1, service_2 = set_up_data()
-    results = fetch_stats_for_all_services_by_date_range(start_date=date(2018, 10, 29),
-                                                         end_date=date(2018, 10, 31))
+    results = fetch_stats_for_all_services_by_date_range(
+        start_date=date(2018, 10, 29),
+        end_date=date(2018, 10, 31)
+    )
+
     assert len(results) == 5
 
     assert results[0].service_id == service_1.id

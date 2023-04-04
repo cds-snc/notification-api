@@ -14,15 +14,15 @@ from tests.app.db import create_service, create_inbound_number
 from tests.app.factories.inbound_number import sample_inbound_number
 
 
-def test_get_inbound_numbers(db_session):
-    db_session.query(InboundNumber).delete()
+def test_get_inbound_numbers(notify_db_session):
+    notify_db_session.session.query(InboundNumber).delete()
 
     inbound_number_one = sample_inbound_number()
     inbound_number_two = sample_inbound_number()
 
-    db_session.add(inbound_number_one)
-    db_session.add(inbound_number_two)
-    db_session.commit()
+    notify_db_session.session.add(inbound_number_one)
+    notify_db_session.session.add(inbound_number_two)
+    notify_db_session.session.commit()
 
     inbound_numbers = dao_get_inbound_numbers()
 
@@ -60,10 +60,10 @@ class TestGetAvailableInboundNumbers:
 class TestSetInboundNumberActiveFlag:
 
     @pytest.mark.parametrize("active", [True, False])
-    def test_set_inbound_number_active_flag(self, db_session, active):
+    def test_set_inbound_number_active_flag(self, notify_db_session, active):
         inbound_number = sample_inbound_number()
-        db_session.add(inbound_number)
-        db_session.commit()
+        notify_db_session.session.add(inbound_number)
+        notify_db_session.session.commit()
 
         dao_set_inbound_number_active_flag(inbound_number.id, active=active)
 
@@ -72,23 +72,23 @@ class TestSetInboundNumberActiveFlag:
         assert inbound_number_from_db.active is active
 
 
-def test_create_inbound_number(db_session):
-    db_session.query(InboundNumber).delete()
+def test_create_inbound_number(notify_db_session):
+    notify_db_session.session.query(InboundNumber).delete()
 
     inbound_number = sample_inbound_number()
     dao_create_inbound_number(inbound_number)
 
-    created_in_database = db_session.query(InboundNumber).one()
+    created_in_database = notify_db_session.session.query(InboundNumber).one()
     assert created_in_database == inbound_number
 
 
 class TestUpdateInboundNumber:
 
     @pytest.fixture
-    def existing_inbound_number(self, db_session):
+    def existing_inbound_number(self, notify_db_session):
         inbound_number = sample_inbound_number()
-        db_session.add(inbound_number)
-        db_session.commit()
+        notify_db_session.session.add(inbound_number)
+        notify_db_session.session.commit()
         return inbound_number
 
     def test_updates_number(self, existing_inbound_number):
@@ -123,12 +123,12 @@ class TestUpdateInboundNumber:
 
 class TestGetInboundNumbersForService:
 
-    def test_gets_empty_list_when_no_inbound_numbers_for_service(self, db_session, sample_service):
-        db_session.query(InboundNumber).delete()
+    def test_gets_empty_list_when_no_inbound_numbers_for_service(self, notify_db_session, sample_service):
+        notify_db_session.session.query(InboundNumber).delete()
         assert dao_get_inbound_numbers_for_service(sample_service.id) == []
 
-    def test_gets_inbound_numbers_for_service(self, db_session, sample_service):
-        db_session.query(InboundNumber).delete()
+    def test_gets_inbound_numbers_for_service(self, notify_db_session, sample_service):
+        notify_db_session.session.query(InboundNumber).delete()
         inbound_number_one = sample_inbound_number(number='555', service=sample_service)
         inbound_number_two = sample_inbound_number(number='111', service=sample_service)
 

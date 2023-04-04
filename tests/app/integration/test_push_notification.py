@@ -15,7 +15,7 @@ def push_notification_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, 'True')
 
 
-def test_mobile_app_push_notification_delivered(client, db_session,
+def test_mobile_app_push_notification_delivered(client, notify_db_session,
                                                 push_notification_toggle_enabled, rmock, mocker):
     sample_service = create_service(service_permissions=[PUSH_TYPE])
     rmock.register_uri(

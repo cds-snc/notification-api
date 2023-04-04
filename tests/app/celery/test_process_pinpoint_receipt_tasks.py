@@ -18,7 +18,7 @@ from app.models import (
 from tests.app.db import create_notification
 
 
-def test_passes_if_toggle_disabled(mocker, db_session):
+def test_passes_if_toggle_disabled(mocker, notify_db_session):
     mock_toggle = mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=False)
     mock_update_notification_status_by_id = mocker.patch(
         'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
@@ -51,7 +51,7 @@ def test_passes_if_toggle_disabled(mocker, db_session):
 ])
 def test_process_pinpoint_results_notification_final_status(
         mocker,
-        db_session,
+        notify_db_session,
         sample_template,
         event_type,
         record_status,
@@ -75,7 +75,7 @@ def test_process_pinpoint_results_notification_final_status(
 
 
 def test_process_pinpoint_results_should_not_update_notification_status_if_unchanged(
-        mocker, db_session, sample_template
+        mocker, notify_db_session, sample_template
 ):
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
     mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
@@ -106,7 +106,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
 
 ])
 def test_process_pinpoint_results_should_not_update_notification_status_if_status_already_final(
-        mocker, db_session, sample_template, status
+        mocker, notify_db_session, sample_template, status
 ):
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
     mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
@@ -132,7 +132,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_statu
 
 def test_process_pinpoint_results_segments_and_price_buffered_first(
     mocker,
-    db_session,
+    notify_db_session,
     sample_template
 ):
     """
@@ -182,7 +182,7 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
 
 def test_process_pinpoint_results_segments_and_price_success_first(
     mocker,
-    db_session,
+    notify_db_session,
     sample_template
 ):
     """

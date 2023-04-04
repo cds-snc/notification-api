@@ -381,7 +381,7 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
 
 class TestRequiresUserInService:
 
-    def test_accepts_jwt_for_user_in_service(self, client, db_session):
+    def test_accepts_jwt_for_user_in_service(self, client, notify_db_session):
 
         @requires_user_in_service_or_admin()
         def endpoint_that_requires_user_in_service():
@@ -397,7 +397,7 @@ class TestRequiresUserInService:
 
         endpoint_that_requires_user_in_service()
 
-    def test_rejects_jwt_for_user_not_in_service(self, client, db_session):
+    def test_rejects_jwt_for_user_not_in_service(self, client, notify_db_session):
 
         @requires_user_in_service_or_admin()
         def endpoint_that_requires_user_in_service():
@@ -416,7 +416,7 @@ class TestRequiresUserInService:
 
         assert error.value.code == 403
 
-    def test_propagates_error_when_bearer_token_expired(self, client, db_session, mocker):
+    def test_propagates_error_when_bearer_token_expired(self, client, notify_db_session, mocker):
 
         @requires_user_in_service_or_admin()
         def endpoint_that_requires_user_in_service():
@@ -441,7 +441,7 @@ class TestRequiresUserInService:
             endpoint_that_requires_user_in_service()
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
-    def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
+    def test_accepts_jwt_with_permission_for_service(self, client, notify_db_session, required_permission):
 
         @requires_user_in_service_or_admin(required_permission=required_permission)
         def endpoint_that_requires_permission_for_service():
@@ -463,7 +463,7 @@ class TestRequiresUserInService:
 
         endpoint_that_requires_permission_for_service()
 
-    def test_rejects_jwt_without_permission_for_service(self, client, db_session):
+    def test_rejects_jwt_without_permission_for_service(self, client, notify_db_session):
 
         @requires_user_in_service_or_admin(required_permission='some-required-permission')
         def endpoint_that_requires_permission_for_service():
@@ -484,7 +484,7 @@ class TestRequiresUserInService:
 
         assert error.value.code == 403
 
-    def test_accepts_jwt_for_platform_admin(self, client, db_session):
+    def test_accepts_jwt_for_platform_admin(self, client, notify_db_session):
 
         @requires_user_in_service_or_admin()
         def endpoint_that_requires_user_in_service():
@@ -502,7 +502,7 @@ class TestRequiresUserInService:
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
     def test_accepts_jwt_for_platform_admin_even_with_required_permissions(self, client,
-                                                                           db_session, required_permission):
+                                                                           notify_db_session, required_permission):
 
         @requires_user_in_service_or_admin(required_permission=required_permission)
         def endpoint_that_requires_permission_for_service():
@@ -522,7 +522,7 @@ class TestRequiresUserInService:
 class TestRequiresAdminAuthOrUserInService:
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
-    def test_accepts_jwt_with_permission_for_service(self, client, db_session, required_permission):
+    def test_accepts_jwt_with_permission_for_service(self, client, notify_db_session, required_permission):
 
         @requires_admin_auth_or_user_in_service(required_permission=required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():
@@ -544,7 +544,7 @@ class TestRequiresAdminAuthOrUserInService:
 
         endpoint_that_requires_admin_auth_or_permission_for_service()
 
-    def test_rejects_jwt_without_permission_for_service(self, client, db_session):
+    def test_rejects_jwt_without_permission_for_service(self, client, notify_db_session):
 
         @requires_admin_auth_or_user_in_service(required_permission='some-required-permission')
         def endpoint_that_requires_admin_auth_or_permission_for_service():
@@ -566,7 +566,7 @@ class TestRequiresAdminAuthOrUserInService:
         assert error.value.code == 403
 
     @pytest.mark.parametrize('required_permission', PERMISSION_LIST)
-    def test_accepts_admin_jwt(self, client, db_session, required_permission):
+    def test_accepts_admin_jwt(self, client, notify_db_session, required_permission):
 
         @requires_admin_auth_or_user_in_service(required_permission=required_permission)
         def endpoint_that_requires_admin_auth_or_permission_for_service():

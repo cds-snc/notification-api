@@ -1,23 +1,10 @@
-from flask import (
-    Blueprint,
-    jsonify,
-    current_app
-)
-
-from itsdangerous import SignatureExpired, BadData
-
-from notifications_utils.url_safe_token import check_token
-
 from app.dao.invited_user_dao import get_invited_user_by_id
 from app.dao.organisation_dao import dao_get_invited_organisation_user
-
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
-
+from app.errors import InvalidRequest, register_errors
 from app.schemas import invited_user_schema
-
+from flask import Blueprint, current_app, jsonify
+from itsdangerous import SignatureExpired, BadData
+from notifications_utils.url_safe_token import check_token
 
 accept_invite = Blueprint('accept_invite', __name__)
 register_errors(accept_invite)
@@ -25,14 +12,15 @@ register_errors(accept_invite)
 
 @accept_invite.route('/<invitation_type>/<token>', methods=['GET'])
 def validate_invitation_token(invitation_type, token):
-
     max_age_seconds = 60 * 60 * 24 * current_app.config['INVITATION_EXPIRATION_DAYS']
 
     try:
-        invited_user_id = check_token(token,
-                                      current_app.config['SECRET_KEY'],
-                                      current_app.config['DANGEROUS_SALT'],
-                                      max_age_seconds)
+        invited_user_id = check_token(
+            token,
+            current_app.config['SECRET_KEY'],
+            current_app.config['DANGEROUS_SALT'],
+            max_age_seconds
+        )
     except SignatureExpired:
         errors = {'invitation':
                   ['Your invitation to GOV.UK Notify has expired. '
@@ -49,4 +37,4 @@ def validate_invitation_token(invitation_type, token):
         invited_user = dao_get_invited_organisation_user(invited_user_id)
         return jsonify(data=invited_user.serialize()), 200
     else:
-        raise InvalidRequest("Unrecognised invitation type: {}".format(invitation_type))
+        raise InvalidRequest(f"Unrecognised invitation type: {invitation_type}")

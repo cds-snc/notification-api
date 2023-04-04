@@ -1,8 +1,6 @@
-from app.models import (
-    TEMPLATE_PROCESS_TYPE,
-    TEMPLATE_TYPES,
-)
+from app.models import TEMPLATE_PROCESS_TYPE, TEMPLATE_TYPES
 from app.schema_validation.definitions import uuid
+
 
 post_create_template_schema = {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29,6 +27,7 @@ post_create_template_schema = {
     "then": {"required": ["subject"]},
     "required": ["name", "template_type", "content", "service", "created_by"]
 }
+
 
 template_stats_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",

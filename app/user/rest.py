@@ -1,17 +1,15 @@
+import base64
 import json
 import uuid
-from datetime import (datetime, timedelta)
-from urllib.parse import urlencode
-import base64
 import pickle  # nosec
-import requests
-from fido2 import cbor
-from fido2.client import ClientData
-from fido2.ctap2 import AuthenticatorData
 import pwnedpasswords
-
+import requests
+from datetime import (datetime, timedelta)
+from fido2 import cbor
+from fido2.webauthn import AuthenticatorData, CollectedClientData
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
+from urllib.parse import urlencode
 
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
@@ -20,11 +18,11 @@ from app.dao.fido2_key_dao import (
     delete_fido2_key,
     decode_and_register,
     create_fido2_session,
-    get_fido2_session
+    get_fido2_session,
 )
 from app.dao.login_event_dao import (
     list_login_events,
-    save_login_event
+    save_login_event,
 )
 from app.dao.users_dao import (
     get_user_by_id,
@@ -42,7 +40,7 @@ from app.dao.users_dao import (
     count_user_verify_codes,
     get_user_and_accounts,
     dao_archive_user,
-    verify_within_time
+    verify_within_time,
 )
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
@@ -50,10 +48,7 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.models import KEY_TYPE_NORMAL, Fido2Key, LoginEvent, Permission, Service, SMS_TYPE, EMAIL_TYPE
-from app.notifications.process_notifications import (
-    persist_notification,
-    send_notification_to_queue
-)
+from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schemas import (
     email_data_request_schema,
     support_email_data_schema,
@@ -63,22 +58,16 @@ from app.schemas import (
     user_update_schema_load_json,
     user_update_password_schema_load_json,
 )
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
-
-from app.utils import (update_dct_to_str)
-
-from app.utils import url_with_token
+from app.errors import InvalidRequest, register_errors
+from app.schema_validation import validate
 from app.user.users_schema import (
     post_verify_code_schema,
     post_send_user_sms_code_schema,
     post_send_user_email_code_schema,
     post_set_permissions_schema,
-    fido2_key_schema
+    fido2_key_schema,
 )
-from app.schema_validation import validate
+from app.utils import update_dct_to_str, url_with_token
 
 user_blueprint = Blueprint('user', __name__)
 register_errors(user_blueprint)
@@ -99,12 +88,13 @@ def handle_integrity_error(exc):
 
 @user_blueprint.route('', methods=['POST'])
 def create_user():
-    user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
+    user_to_create, errors = create_user_schema.load(req_json)
+    identity_provider_user_id = req_json.get("identity_provider_user_id")
+    password = req_json.get("password")
 
-    identity_provider_user_id = req_json.get('identity_provider_user_id', None)
-    password = req_json.get('password', None)
-
+    # These blocks cover instances of None and the empty string.  Not testing explicitly
+    # for "None" is intentional.
     if not password and not identity_provider_user_id:
         errors.update({'password': ['Missing data for required field.']})
         raise InvalidRequest(errors, status_code=400)
@@ -114,7 +104,7 @@ def create_user():
             errors.update({'password': ['Password is blacklisted.']})
             raise InvalidRequest(errors, status_code=400)
 
-    save_model_user(user_to_create, pwd=req_json.get('password'))
+    save_model_user(user_to_create, pwd=password)
     result = user_to_create.serialize()
     return jsonify(data=result), 201
 
@@ -499,8 +489,8 @@ def get_user(user_id=None):
 
 @user_blueprint.route('/<uuid:user_id>/service/<uuid:service_id>/permission', methods=['POST'])
 def set_permissions(user_id, service_id):
-    # TODO fix security hole, how do we verify that the user
-    # who is making this request has permission to make the request.
+    """ This route requires admin authorization.  This is setup in app/__init__.py. """
+
     service_user = dao_get_service_user(user_id, service_id)
     user = service_user.user
     service = dao_fetch_service_by_id(service_id=service_id)
@@ -678,7 +668,7 @@ def fido2_keys_user_validate(user_id):
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
 
     credential_id = cbor_data['credentialId']
-    client_data = ClientData(cbor_data['clientDataJSON'])
+    client_data = CollectedClientData(cbor_data['clientDataJSON'])
     auth_data = AuthenticatorData(cbor_data['authenticatorData'])
     signature = cbor_data['signature']
 

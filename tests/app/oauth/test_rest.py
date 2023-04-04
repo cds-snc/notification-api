@@ -618,7 +618,7 @@ class TestLoginWithPassword:
 
 class TestLogout:
 
-    def test_should_redirect_to_ui_and_clear_cookies(self, client, db_session, sample_user, mocker):
+    def test_should_redirect_to_ui_and_clear_cookies(self, client, notify_db_session, sample_user, mocker):
         mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
         client.get('/auth/authorize')
 

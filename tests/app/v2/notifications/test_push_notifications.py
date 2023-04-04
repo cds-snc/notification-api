@@ -12,7 +12,7 @@ from . import post_send_notification
 
 
 @pytest.fixture
-def service_with_push_permission(db_session):
+def service_with_push_permission(notify_db_session):
     return create_service(service_permissions=[PUSH_TYPE])
 
 
@@ -43,7 +43,7 @@ def test_returns_not_implemented_if_feature_flag_disabled(client, mocker, servic
 
 class TestValidations:
 
-    def test_checks_service_permissions(self, client, db_session):
+    def test_checks_service_permissions(self, client, notify_db_session):
         service = create_service(service_permissions=[])
         response = post_send_notification(client, service, 'push', push_request)
 

@@ -1,11 +1,11 @@
 import base64
-from monotonic import monotonic
 from app.clients.sms import SmsClient
+from monotonic import monotonic
 from twilio.rest import Client
 from urllib.parse import parse_qs
 
 
-twilio_response_map = {
+TWILIO_RESPONSE_MAP = {
     "accepted": "created",
     "queued": "sending",
     "sending": "sending",
@@ -18,7 +18,7 @@ twilio_response_map = {
 
 
 def get_twilio_responses(status):
-    return twilio_response_map[status]
+    return TWILIO_RESPONSE_MAP[status]
 
 
 class TwilioSMSClient(SmsClient):

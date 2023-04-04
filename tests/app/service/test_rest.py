@@ -2439,7 +2439,7 @@ def test_search_for_notification_by_to_field_filters_by_statuses(client, sample_
         ),
         headers=[create_authorization_header()]
     )
-    notifications = json.loads(response.get_data(as_text=True))['notifications']
+    notifications = response.get_json()['notifications']
     notification_ids = [notification['id'] for notification in notifications]
 
     assert response.status_code == 200

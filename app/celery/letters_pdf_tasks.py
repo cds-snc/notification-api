@@ -5,7 +5,7 @@ from uuid import UUID
 from hashlib import sha512
 from base64 import urlsafe_b64encode
 
-from PyPDF2.utils import PdfReadError
+from PyPDF2.errors import PdfReadError
 from botocore.exceptions import ClientError as BotoClientError
 from flask import current_app
 from requests import (

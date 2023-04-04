@@ -1,15 +1,13 @@
-from datetime import timedelta
-import os
 import json
-from dotenv import load_dotenv
-
+import os
+from app.provider_details import HighestPriorityStrategy
 from celery.schedules import crontab
-from kombu import Exchange, Queue
-
+from datetime import timedelta
+from dotenv import load_dotenv
 from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
+from kombu import Exchange, Queue
 
-from app.provider_details import HighestPriorityStrategy
 
 load_dotenv()
 

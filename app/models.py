@@ -1760,7 +1760,8 @@ class InvitedUser(db.Model):
         index=False,
         unique=False,
         nullable=False,
-        default=datetime.datetime.utcnow)
+        default=datetime.datetime.utcnow
+    )
     status = db.Column(
         db.Enum(*INVITED_USER_STATUS_TYPES, name='invited_users_status_types'), nullable=False, default=INVITE_PENDING)
     permissions = db.Column(db.String, nullable=False)
@@ -2091,6 +2092,11 @@ class Complaint(db.Model):
 
 
 class ServiceDataRetention(db.Model):
+    """
+    For a unique combination of a service and a notification type, record the number of days to retain
+    a notification.
+    """
+
     __tablename__ = 'service_data_retention'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

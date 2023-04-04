@@ -44,6 +44,10 @@
         {
           "name": "SQLALCHEMY_DATABASE_URI",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri"
+        },
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
         }
       ]
     }

@@ -88,17 +88,25 @@ api_user = LocalProxy(lambda: g.api_user)
 authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
 
-def create_app(application):
+def create_app(application, worker_id=None):
     from app.config import configs
 
     notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
 
     application.config.from_object(configs[notify_environment])
+    if notify_environment == "test":
+        assert worker_id is not None
+        application.config["SQLALCHEMY_DATABASE_URI"] += f"_{worker_id}"
+        assert "test_notification_api" in application.config["SQLALCHEMY_DATABASE_URI"], \
+            "Don't run tests against the main database."
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
     request_helper.init_app(application)
+
+    # https://flask-sqlalchemy.palletsprojects.com/en/3.0.x/api/#flask_sqlalchemy.SQLAlchemy.init_app
     db.init_app(application)
+
     migrate.init_app(application, db=db)
     ma.init_app(application)
     zendesk_client.init_app(application)
@@ -350,33 +358,23 @@ def register_blueprint(application):
 
 
 def register_v2_blueprints(application):
-    from app.v2.inbound_sms.get_inbound_sms import (
-        v2_inbound_sms_blueprint as get_inbound_sms,
-    )
-    from app.v2.notifications.post_notifications import (
-        v2_notification_blueprint as post_notifications,
-    )
-    from app.v2.notifications.get_notifications import (
-        v2_notification_blueprint as get_notifications,
-    )
-    from app.v2.template.get_template import v2_template_blueprint as get_template
+    from app.v2.inbound_sms.get_inbound_sms import v2_inbound_sms_blueprint as get_inbound_sms
+    from app.v2.notifications.post_notifications import v2_notification_blueprint as v2_notifications  # Get is the same
+    from app.v2.notifications.get_notifications import v2_notification_blueprint as get_notifications
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
-    from app.v2.template.post_template import v2_template_blueprint as post_template
+    from app.v2.template.post_template import v2_template_blueprint as post_template                   # Get is the same
+    from app.v2.template.get_template import v2_template_blueprint as get_template
     from app.authentication.auth import validate_service_api_key_auth
 
-    post_notifications.before_request(validate_service_api_key_auth)
-    application.register_blueprint(post_notifications)
-
+    v2_notifications.before_request(validate_service_api_key_auth)
     get_notifications.before_request(validate_service_api_key_auth)
-    application.register_blueprint(get_notifications)
+    application.register_blueprint(v2_notifications)
 
     get_templates.before_request(validate_service_api_key_auth)
     application.register_blueprint(get_templates)
 
-    get_template.before_request(validate_service_api_key_auth)
-    application.register_blueprint(get_template)
-
     post_template.before_request(validate_service_api_key_auth)
+    get_template.before_request(validate_service_api_key_auth)
     application.register_blueprint(post_template)
 
     get_inbound_sms.before_request(validate_service_api_key_auth)

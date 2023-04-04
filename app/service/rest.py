@@ -1,40 +1,21 @@
 import itertools
-from datetime import datetime
-
-from flask import (
-    jsonify,
-    request,
-    current_app,
-    Blueprint
-)
-from notifications_utils.letter_timings import letter_can_be_cancelled
-from notifications_utils.timezones import convert_utc_to_local_timezone
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
-
 from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
-from app.dao.date_util import get_financial_year
 from app.dao.api_key_dao import (
     save_model_api_key,
     get_model_api_keys,
     get_unsigned_secret,
-    expire_api_key)
+    expire_api_key,
+)
+from app.dao.date_util import get_financial_year
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
-    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service
+    fetch_stats_for_all_services_by_date_range, fetch_monthly_template_usage_for_service,
 )
 from app.dao.organisation_dao import dao_get_organisation_by_service_id
-from app.dao.service_data_retention_dao import (
-    fetch_service_data_retention,
-    fetch_service_data_retention_by_id,
-    fetch_service_data_retention_by_notification_type,
-    insert_service_data_retention,
-    update_service_data_retention,
-)
 from app.dao.services_dao import (
     dao_add_user_to_service,
     dao_create_service,
@@ -51,57 +32,71 @@ from app.dao.services_dao import (
     dao_update_service,
     get_services_by_partial_name,
 )
+from app.dao.service_data_retention_dao import (
+    fetch_service_data_retention,
+    fetch_service_data_retention_by_id,
+    fetch_service_data_retention_by_notification_type,
+    insert_service_data_retention,
+    update_service_data_retention,
+)
 from app.dao.service_email_reply_to_dao import (
     add_reply_to_email_address_for_service,
     archive_reply_to_email_address,
     dao_get_reply_to_by_id,
     dao_get_reply_to_by_service_id,
-    update_reply_to_email_address
+    update_reply_to_email_address,
 )
 from app.dao.service_letter_contact_dao import (
     archive_letter_contact,
     dao_get_letter_contacts_by_service_id,
     dao_get_letter_contact_by_id,
     add_letter_contact_for_service,
-    update_letter_contact
+    update_letter_contact,
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
-from app.errors import (
-    InvalidRequest,
-    register_errors
-)
+from app.errors import InvalidRequest, register_errors
 from app.letters.utils import letter_print_day
 from app.models import (
-    KEY_TYPE_NORMAL, LETTER_TYPE, NOTIFICATION_CANCELLED, Permission, Service,
-    EmailBranding, LetterBranding
+    KEY_TYPE_NORMAL,
+    LETTER_TYPE,
+    NOTIFICATION_CANCELLED,
+    Permission,
+    Service,
+    EmailBranding,
+    LetterBranding,
 )
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schema_validation import validate
 from app.service import statistics
+from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
+from app.service.sender import send_notification_to_service_users
 from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
-    update_service_data_retention_request
+    update_service_data_retention_request,
 )
 from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
-    add_service_letter_contact_block_request
+    add_service_letter_contact_block_request,
 )
-from app.service.sender import send_notification_to_service_users
-from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
 from app.schemas import (
     service_schema,
     api_key_schema,
     notification_with_template_schema,
     notifications_filter_schema,
     detailed_service_schema,
-    email_data_request_schema
+    email_data_request_schema,
 )
+from app.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
-
-from app.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
+from datetime import datetime
+from flask import current_app, Blueprint, jsonify, request
 from nanoid import generate
+from notifications_utils.letter_timings import letter_can_be_cancelled
+from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 
 CAN_T_BE_EMPTY_ERROR_MESSAGE = "Can't be empty"
 
@@ -115,6 +110,7 @@ def handle_integrity_error(exc):
     """
     Handle integrity errors caused by the unique constraint on ix_organisation_name
     """
+
     if any(
         'duplicate key value violates unique constraint "{}"'.format(constraint) in str(exc)
         for constraint in {'services_name_key', 'services_email_from_key'}

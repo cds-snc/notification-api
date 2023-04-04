@@ -19,7 +19,7 @@ from app.models import (
     Template,
 )
 from app.utils import get_local_timezone_midnight_in_utc
-from datetime import datetime, timedelta, time, date
+from datetime import date, datetime, time, timedelta
 from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy import func, case, desc, Date, Integer, and_
@@ -108,9 +108,16 @@ def fetch_sms_billing_for_all_services(start_date, end_date):
     return query.all()
 
 
-def fetch_nightly_billing_counts(process_day):
+def fetch_nightly_billing_counts(process_day: date):
+    """
+    This function can also take a datetime instance because
+    isinstance(<datetime instance>, date) is True.
+    """
+
+    # If process_day is a datetime instance, datetime.combine ignores the arguments after the first.
     start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
     end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+
     billable_type_list = {
         SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE
     }

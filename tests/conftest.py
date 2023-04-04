@@ -1,6 +1,6 @@
+import os
 import pytest
 import sqlalchemy
-import os
 from alembic.command import upgrade
 from alembic.config import Config
 from app import create_app, db, schemas
@@ -9,9 +9,16 @@ from flask import Flask
 
 
 @pytest.fixture(scope='session')
-def notify_api():
+def notify_api(worker_id):
+    """
+    Initialize a Flask application with the Flask-SQLAlchemy extension.
+
+    https://flask.palletsprojects.com/en/2.2.x/testing/
+    https://flask-sqlalchemy.palletsprojects.com/en/3.0.x/quickstart/
+    """
+
     app = Flask('test')
-    create_app(app)
+    create_app(app, worker_id)
 
     # deattach server-error error handlers - error_handler_spec looks like:
     #   {'blueprint_name': {
@@ -58,24 +65,23 @@ def create_test_db(database_uri):
         result = postgres_db.execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1])))
         result.close()
     except sqlalchemy.exc.ProgrammingError:
-        # The database "test_notification_api_master" already exists.
+        # The database "test_notification_api" already exists.
         pass
     finally:
         postgres_db.dispose()
 
 
 @pytest.fixture(scope='session')
-def notify_db(notify_api, worker_id):
+def notify_db(notify_api):
     """
     Yield an instance of flask_sqlalchemy.SQLAlchemy.
         https://flask-sqlalchemy.palletsprojects.com/en/2.x/api/#flask_sqlalchemy.SQLAlchemy
     """
 
-    assert "test_notification_api" in db.engine.url.database, "Don't run tests against main db."
+    # Import current_app only after the app has been created and initialized via the notify_api fixture.
+    from flask import current_app
 
     # Create a database for this worker thread.
-    from flask import current_app
-    current_app.config['SQLALCHEMY_DATABASE_URI'] += f"_{worker_id}"
     create_test_db(current_app.config['SQLALCHEMY_DATABASE_URI'])
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -89,13 +95,18 @@ def notify_db(notify_api, worker_id):
     yield db
 
     db.session.remove()
-    db.get_engine(notify_api).dispose()
+    db.engine.dispose()
 
-    # TODO - properly delete the database after all workers finish?
+    # TODO - Properly delete the database after all workers finish?
 
 
 @pytest.fixture(scope='function')
 def notify_db_session(notify_db):
+    """
+    This is the notify_db fixture with additional teardown code that
+    deletes a subset of tables.
+    """
+
     yield notify_db
 
     notify_db.session.remove()
@@ -136,12 +147,6 @@ def pytest_generate_tests(metafunc):
         argnames, testdata = idparametrize.args
         ids, argvalues = zip(*sorted(testdata.items()))
         metafunc.parametrize(argnames, argvalues, ids=ids)
-
-
-# this is necessary for using https://github.com/jeancochrane/pytest-flask-sqlalchemy
-@pytest.fixture(scope='session')
-def _db(notify_db):
-    return notify_db
 
 
 @contextmanager

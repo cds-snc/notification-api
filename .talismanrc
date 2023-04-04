@@ -92,15 +92,11 @@ fileignoreconfig:
     - filename: tests/app/db.py
       checksum: d70585d41f55ef8bf1beb238ab2e7237520398ac96b115f3805e4001124dabbd
     - filename: app/dao/users_dao.py
-      checksum: 125f785d08395bdb0508cf640ac51dff0500626890e387dcda9aca4bb64cbeb6
+      checksum: 7ed5f1ae556df8ea932fb2b58adda4a8b8c54809371a07aa976120ddb14a72bd
     - filename: tests/app/dao/test_users_dao.py
       checksum: 365fe1fe22c7418f9f49be963c4695a4bd0e0bc894da08e38c55ce91026202b3
-    - filename: app/dao/users_dao.py
-      checksum: e90d0f72c47dea3aa4d68948c90829a9556a8db3e9368c5c4dc02eeb1dc5de4e
     - filename: tests/app/dao/test_users_dao.py
       checksum: 0fadc7598f1dcb1b99766e6be295d07280a9fab43787f9f3db73c7f681e0d2c1
-    - filename: app/dao/users_dao.py
-      checksum: 62f1bbaa6ff7edf14fcf74576a76f4fd775b66d4b70e588959af8069f789e565
     - filename: .github/workflows/dev-ci.yaml
       checksum: f60538b9b8d488e44a54ddc62750b03fe543919949abc1ac516b98b2ef83f760
     - filename: app/celery/nightly_tasks.py
@@ -270,7 +266,7 @@ fileignoreconfig:
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: requirements.txt
-      checksum: 02ef2ab7773a3476e48fa3834cbb3d7366dd06c1e3aea05c09313cd638e03cbb
+      checksum: 4cd08981422546219b07315d07ac44e2f94aeb939772afc4c8e09b533196c183
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
@@ -292,7 +288,7 @@ fileignoreconfig:
     - filename: tests/app/oauth/test_rest.py
       checksum: 4e7acd2db507c6cbc5aeb1912a7c98bd03892f4b63970d6475cb20edbd7edc20
     - filename: tests/app/notifications/test_rest.py
-      checksum: 71627fd26309bf42955fc8f26aad5b66e07a4ec1cc11fa509d125bd18aae417c
+      checksum: ec555c89226d015256bb3186aefa7763282eac14cadbc63f37fe8ff5c9efeef0
     - filename: app/dao/fact_notification_status_dao.py
       checksum: 1503b15fb58257b12b4857659323a5ca9b97784b2344148097298c70d69d4eca
     - filename: app/celery/reporting_tasks.py
@@ -304,7 +300,7 @@ fileignoreconfig:
     - filename: app/config.py
       checksum: e4e35170dd17728f2fcdfa0d40177dcaeffe020293f5fe28f253a27688845476
     - filename: tests/app/celery/test_reporting_tasks.py
-      checksum: 4f3214bd5540d1a8a01284f6bb6c64329147b4b656490a61246d8c5cec140622
+      checksum: 9caffea8b2253d9b86c512aeff16e03487501a9b84a98737593a79dc4d8ee14d
     - filename: scripts/trigger_task.py
       checksum: a3b9e5c3722572d9fe70b1686f43a876a90be26cac752f7b1497919071e55657
     - filename: .env.example
@@ -349,3 +345,7 @@ fileignoreconfig:
       checksum: 3cef32b214b5aa8d21c47493049aed0a9cbf8340fe6dab2ffa8461f7216fce8b
     - filename: app/dao/fact_billing_dao.py
       checksum: ee78cb3f234ca6b2fb28a2941ec4a44104d6866b8bb274c195847b8f609a8c88
+    - filename: app/user/rest.py
+      checksum: d04d6378dd6ce8b0046d6dc2c106ca87cf93ee555e03821e7970570c4b132450
+    - filename: tests/app/service/test_api_key_endpoints.py
+      checksum: 1ac2f66bdf3a93a8c0c71ea97a3f464fc885f98034012b5c85de05d883b324c0

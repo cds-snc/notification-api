@@ -27,6 +27,7 @@ from datetime import datetime, timedelta, date
 from decimal import Decimal
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy.engine.row import Row
 from tests.app.db import (
     create_annual_billing,
     create_ft_billing,
@@ -187,7 +188,7 @@ def test_fetch_nightly_billing_counts_retrieves_correct_data_within_process_day(
     results = fetch_nightly_billing_counts(day_under_test)
 
     assert len(results) == 2
-    # count is total segments, not number of notifications
+    assert isinstance(results[0], Row), "fetch_nightly_billing_counts should return a cursor to SQLAchemy Row instances"
     assert results[0].count == 2
     assert results[0].total_message_parts == 9
     assert results[0].total_cost == 99.9

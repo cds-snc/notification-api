@@ -23,9 +23,9 @@ from tests.app.db import create_ft_billing, create_service, create_template
 
 
 @pytest.fixture(scope='function')
-def setup_provider_details(db_session):
-    db_session.query(ProviderRates).delete()
-    db_session.query(ProviderDetails).delete()
+def setup_provider_details(restore_provider_details):
+    restore_provider_details.session.query(ProviderRates).delete()
+    restore_provider_details.session.query(ProviderDetails).delete()
 
     prioritised_email_provider = ProviderDetails(**{
         'display_name': 'foo',
@@ -35,7 +35,7 @@ def setup_provider_details(db_session):
         'active': True,
         'supports_international': False,
     })
-    db_session.add(prioritised_email_provider)
+    restore_provider_details.session.add(prioritised_email_provider)
 
     deprioritised_email_provider = ProviderDetails(**{
         'display_name': 'bar',
@@ -45,7 +45,7 @@ def setup_provider_details(db_session):
         'active': True,
         'supports_international': False,
     })
-    db_session.add(deprioritised_email_provider)
+    restore_provider_details.session.add(deprioritised_email_provider)
 
     prioritised_sms_provider = ProviderDetails(**{
         'display_name': 'some sms provider',
@@ -55,7 +55,7 @@ def setup_provider_details(db_session):
         'active': True,
         'supports_international': False,
     })
-    db_session.add(prioritised_sms_provider)
+    restore_provider_details.session.add(prioritised_sms_provider)
 
     deprioritised_sms_provider = ProviderDetails(**{
         'display_name': 'some deprioritised sms provider',
@@ -65,7 +65,7 @@ def setup_provider_details(db_session):
         'active': True,
         'supports_international': False,
     })
-    db_session.add(deprioritised_sms_provider)
+    restore_provider_details.session.add(deprioritised_sms_provider)
 
     inactive_sms_provider = ProviderDetails(**{
         'display_name': 'some deprioritised sms provider',
@@ -75,9 +75,9 @@ def setup_provider_details(db_session):
         'active': False,
         'supports_international': False,
     })
-    db_session.add(inactive_sms_provider)
+    restore_provider_details.session.add(inactive_sms_provider)
 
-    db_session.commit()
+    restore_provider_details.session.commit()
 
     return [
         prioritised_email_provider,
@@ -89,10 +89,10 @@ def setup_provider_details(db_session):
 
 
 @pytest.fixture(scope='function')
-def setup_sms_providers(db_session):
-    db_session.query(ProviderRates).delete()
-    db_session.query(ProviderDetails).delete()
-    db_session.query(ProviderDetailsHistory).delete()
+def setup_sms_providers(restore_provider_details):
+    restore_provider_details.session.query(ProviderRates).delete()
+    restore_provider_details.session.query(ProviderDetails).delete()
+    restore_provider_details.session.query(ProviderDetailsHistory).delete()
 
     providers = [
         ProviderDetails(**{
@@ -120,22 +120,22 @@ def setup_sms_providers(db_session):
             'supports_international': False,
         })
     ]
-    db_session.add_all(providers)
+    restore_provider_details.session.add_all(providers)
     return providers
 
 
 @pytest.fixture(scope='function')
-def setup_sms_providers_with_history(db_session, setup_sms_providers):
-    db_session.query(ProviderDetailsHistory).delete()
+def setup_sms_providers_with_history(restore_provider_details, setup_sms_providers):
+    restore_provider_details.session.query(ProviderDetailsHistory).delete()
     providers_history = [ProviderDetailsHistory.from_original(provider) for provider in setup_sms_providers]
-    db_session.add_all(providers_history)
+    restore_provider_details.session.add_all(providers_history)
     return setup_sms_providers
 
 
 @pytest.fixture(scope='function')
-def setup_equal_priority_sms_providers(db_session):
-    db_session.query(ProviderRates).delete()
-    db_session.query(ProviderDetails).delete()
+def setup_equal_priority_sms_providers(restore_provider_details):
+    restore_provider_details.session.query(ProviderRates).delete()
+    restore_provider_details.session.query(ProviderDetails).delete()
 
     providers = [
         ProviderDetails(**{
@@ -155,7 +155,7 @@ def setup_equal_priority_sms_providers(db_session):
             'supports_international': False,
         })
     ]
-    db_session.add_all(providers)
+    restore_provider_details.session.add_all(providers)
     return providers
 
 
@@ -203,14 +203,14 @@ def test_can_get_email_providers(setup_provider_details):
     )
 
 
-def commit_to_db(db_session, *providers):
-    db_session.query(ProviderRates).delete()
-    db_session.query(ProviderDetails).delete()
+def commit_to_db(restore_provider_details, *providers):
+    restore_provider_details.session.query(ProviderRates).delete()
+    restore_provider_details.session.query(ProviderDetails).delete()
 
     for provider in providers:
-        db_session.add(provider)
+        restore_provider_details.session.add(provider)
 
-    db_session.commit()
+    restore_provider_details.session.commit()
 
 
 class TestGetHighestPriorityActiveProviderByNotificationType:
@@ -233,47 +233,47 @@ class TestGetHighestPriorityActiveProviderByNotificationType:
             'supports_international': supports_international,
         })
 
-    def test_gets_matching_type(self, db_session):
+    def test_gets_matching_type(self, restore_provider_details):
         email_provider = self.provider_factory(notification_type=NotificationType.EMAIL)
         sms_provider = self.provider_factory(notification_type=NotificationType.SMS)
 
-        commit_to_db(db_session, email_provider, sms_provider)
+        commit_to_db(restore_provider_details, email_provider, sms_provider)
 
         assert get_highest_priority_active_provider_by_notification_type(NotificationType.EMAIL) == email_provider
 
         assert get_highest_priority_active_provider_by_notification_type(NotificationType.SMS) == sms_provider
 
-    def test_gets_higher_priority(self, db_session):
+    def test_gets_higher_priority(self, restore_provider_details):
         low_number_priority_provider = self.provider_factory(priority=10)
         high_number_priority_provider = self.provider_factory(priority=50)
 
-        commit_to_db(db_session, low_number_priority_provider, high_number_priority_provider)
+        commit_to_db(restore_provider_details, low_number_priority_provider, high_number_priority_provider)
 
         actual_provider = get_highest_priority_active_provider_by_notification_type(self.default_type)
         assert actual_provider == low_number_priority_provider
 
-    def test_gets_active(self, db_session):
+    def test_gets_active(self, restore_provider_details):
         active_provider = self.provider_factory(active=True)
         inactive_provider = self.provider_factory(active=False)
 
-        commit_to_db(db_session, active_provider, inactive_provider)
+        commit_to_db(restore_provider_details, active_provider, inactive_provider)
 
         actual_provider = get_highest_priority_active_provider_by_notification_type(self.default_type)
         assert actual_provider == active_provider
 
-    def test_gets_international(self, db_session):
+    def test_gets_international(self, restore_provider_details):
         international_provider = self.provider_factory(supports_international=True)
         non_international_provider = self.provider_factory(supports_international=False)
 
-        commit_to_db(db_session, international_provider, non_international_provider)
+        commit_to_db(restore_provider_details, international_provider, non_international_provider)
 
         actual_provider = get_highest_priority_active_provider_by_notification_type(self.default_type, True)
         assert actual_provider == international_provider
 
-    def test_returns_none(self, db_session):
+    def test_returns_none(self, restore_provider_details):
         email_provider = self.provider_factory(notification_type=NotificationType.EMAIL)
 
-        commit_to_db(db_session, email_provider)
+        commit_to_db(restore_provider_details, email_provider)
 
         actual_provider = get_highest_priority_active_provider_by_notification_type(NotificationType.SMS, True)
         assert actual_provider is None
@@ -300,48 +300,48 @@ class TestGetActiveProvidersWithWeightsByNotificationType:
             'supports_international': supports_international,
         })
 
-    def test_gets_matching_type(self, db_session):
+    def test_gets_matching_type(self, restore_provider_details):
         email_provider = self.provider_factory(notification_type=NotificationType.EMAIL)
         sms_provider = self.provider_factory(notification_type=NotificationType.SMS)
 
-        commit_to_db(db_session, email_provider, sms_provider)
+        commit_to_db(restore_provider_details, email_provider, sms_provider)
 
         assert get_active_providers_with_weights_by_notification_type(NotificationType.EMAIL) == [email_provider]
 
         assert get_active_providers_with_weights_by_notification_type(NotificationType.SMS) == [sms_provider]
 
-    def test_gets_weighted(self, db_session):
+    def test_gets_weighted(self, restore_provider_details):
         weighted_provider = self.provider_factory(load_balancing_weight=10)
         unweighted_provider = self.provider_factory()
         unweighted_provider.load_balancing_weight = None
 
-        commit_to_db(db_session, weighted_provider, unweighted_provider)
+        commit_to_db(restore_provider_details, weighted_provider, unweighted_provider)
 
         actual_providers = get_active_providers_with_weights_by_notification_type(self.default_type)
         assert actual_providers == [weighted_provider]
 
-    def test_gets_active(self, db_session):
+    def test_gets_active(self, restore_provider_details):
         active_provider = self.provider_factory(active=True)
         inactive_provider = self.provider_factory(active=False)
 
-        commit_to_db(db_session, active_provider, inactive_provider)
+        commit_to_db(restore_provider_details, active_provider, inactive_provider)
 
         actual_providers = get_active_providers_with_weights_by_notification_type(self.default_type)
         assert actual_providers == [active_provider]
 
-    def test_gets_international(self, db_session):
+    def test_gets_international(self, restore_provider_details):
         international_provider = self.provider_factory(supports_international=True)
         non_international_provider = self.provider_factory(supports_international=False)
 
-        commit_to_db(db_session, international_provider, non_international_provider)
+        commit_to_db(restore_provider_details, international_provider, non_international_provider)
 
         actual_providers = get_active_providers_with_weights_by_notification_type(self.default_type, True)
         assert actual_providers == [international_provider]
 
-    def test_returns_empty_list(self, db_session):
+    def test_returns_empty_list(self, restore_provider_details):
         email_provider = self.provider_factory(notification_type=NotificationType.EMAIL)
 
-        commit_to_db(db_session, email_provider)
+        commit_to_db(restore_provider_details, email_provider)
 
         actual_providers = get_active_providers_with_weights_by_notification_type(NotificationType.SMS)
         assert actual_providers == []

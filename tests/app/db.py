@@ -197,7 +197,6 @@ def create_template(
         process_type='normal',
         reply_to_email=None,
         onsite_notification=False
-
 ):
     communication_item = CommunicationItem(id=uuid.uuid4(), va_profile_item_id=1, name='some name')
     dao_create_communication_item(communication_item)

@@ -1,11 +1,9 @@
-import os
 import importlib
-from unittest import mock
-
+import os
 import pytest
-
 from app import config
 from app.config import QueueNames
+from unittest import mock
 
 
 def cf_conf():

@@ -1,7 +1,25 @@
-from datetime import (
-    datetime,
-    date,
-    timedelta)
+"""
+This file declares marshmallow-sqlalchemy schemas used to serialize and deserialize objects.
+
+https://marshmallow-sqlalchemy.readthedocs.io/en/latest/index.html#generate-marshmallow-schemas
+"""
+
+from app import ma, models
+from app.dao.communication_item_dao import get_communication_item
+from app.dao.permissions_dao import permission_dao
+from app.model import User
+from app.models import (
+    ServicePermission,
+    EMAIL_TYPE,
+    SMS_TYPE,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    CALLBACK_CHANNEL_TYPES,
+    EMAIL_AUTH_TYPE
+)
+from app.provider_details import validate_providers
+from app.utils import get_template_instance
+from datetime import date, datetime, timedelta
 from flask_marshmallow.fields import fields
 from marshmallow import (
     post_load,
@@ -10,28 +28,18 @@ from marshmallow import (
     validates_schema,
     pre_load,
     pre_dump,
-    post_dump, validate
+    post_dump,
+    validate,
 )
 from marshmallow_sqlalchemy import field_for
-
 from notifications_utils.recipients import (
     validate_email_address,
     InvalidEmailError,
     validate_phone_number,
     InvalidPhoneError,
-    validate_and_format_phone_number
+    validate_and_format_phone_number,
 )
 from sqlalchemy.orm.exc import NoResultFound
-
-from app import ma
-from app import models
-from app.model import User
-from app.dao.communication_item_dao import get_communication_item
-from app.models import ServicePermission, EMAIL_TYPE, SMS_TYPE, NOTIFICATION_STATUS_TYPES_COMPLETED, \
-    DELIVERY_STATUS_CALLBACK_TYPE, CALLBACK_CHANNEL_TYPES
-from app.dao.permissions_dao import permission_dao
-from app.provider_details import validate_providers
-from app.utils import get_template_instance
 
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
@@ -70,19 +78,20 @@ def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
         raise ValidationError(msg)
 
 
-class BaseSchema(ma.ModelSchema):
-
+class BaseSchema(ma.SQLAlchemyAutoSchema):
     def __init__(self, load_json=False, *args, **kwargs):
         self.load_json = load_json
         super(BaseSchema, self).__init__(*args, **kwargs)
 
     @post_load
     def make_instance(self, data):
-        """Deserialize data to an instance of the model. Update an existing row
+        """
+        Deserialize data to an instance of the model. Update an existing row
         if specified in `self.instance` or loaded by primary key(s) in the data;
         else create a new row.
         :param data: Data to deserialize.
         """
+
         if self.load_json:
             return data
         return super(BaseSchema, self).make_instance(data)
@@ -94,15 +103,6 @@ class UserSchema(BaseSchema):
     created_at = field_for(User, 'created_at', format=DATE_FORMAT)
     auth_type = field_for(User, 'auth_type')
     identity_provider_user_id = fields.String(required=False)
-
-    def user_permissions(self, usr):
-        retval = {}
-        for x in permission_dao.get_permissions_by_user_id(usr.id):
-            service_id = str(x.service_id)
-            if service_id not in retval:
-                retval[service_id] = []
-            retval[service_id].append(x.permission)
-        return retval
 
     class Meta:
         model = User
@@ -116,6 +116,16 @@ class UserSchema(BaseSchema):
             "_identity_provider_user_id"
         )
         strict = True
+        load_instance = True
+
+    def user_permissions(self, usr):
+        retval = {}
+        for x in permission_dao.get_permissions_by_user_id(usr.id):
+            service_id = str(x.service_id)
+            if service_id not in retval:
+                retval[service_id] = []
+            retval[service_id].append(x.permission)
+        return retval
 
     @validates('name')
     def validate_name(self, value):
@@ -252,6 +262,8 @@ class ServiceSchema(BaseSchema):
             'inbound_sms'
         )
         strict = True
+        load_instance = True
+        include_relationships = True
 
     @validates('permissions')
     def validate_permissions(self, value):
@@ -306,6 +318,7 @@ class ServiceCallbackSchema(BaseSchema):
         )
         load_only = ['_bearer_token', 'bearer_token']
         strict = True
+        load_instance = True
 
     @validates_schema
     def validate_schema(self, data):
@@ -384,6 +397,7 @@ class DetailedServiceSchema(BaseSchema):
 class NotificationModelSchema(BaseSchema):
     class Meta:
         model = models.Notification
+        load_instance = True
         strict = True
         exclude = ('_personalisation', 'job', 'service', 'template', 'api_key',)
 
@@ -406,6 +420,8 @@ class BaseTemplateSchema(BaseSchema):
         model = models.Template
         exclude = ("service_id", "jobs", "service_letter_contact_id", "provider")
         strict = True
+        include_relationships = True
+        load_instance = True
 
 
 class TemplateSchema(BaseTemplateSchema):
@@ -461,6 +477,7 @@ class ApiKeySchema(BaseSchema):
         model = models.ApiKey
         exclude = ("service", "_secret")
         strict = True
+        load_instance = True
 
 
 class JobSchema(BaseSchema):
@@ -595,6 +612,7 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
             'sent_at', 'sent_by', 'updated_at', 'status', 'reference', 'personalisation', 'service', 'job', 'api_key',
             'template_history', 'sms_sender_id'
         )
+        include_relationships = True
 
     @pre_dump
     def handle_personalisation_property(self, in_data):
@@ -619,11 +637,12 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
 
 
 class InvitedUserSchema(BaseSchema):
-    auth_type = field_for(models.InvitedUser, 'auth_type')
+    auth_type = field_for(models.InvitedUser, 'auth_type', default=EMAIL_AUTH_TYPE)
 
     class Meta:
         model = models.InvitedUser
         strict = True
+        include_relationships = True
 
     @validates('email_address')
     def validate_to(self, value):
@@ -728,9 +747,9 @@ class NotificationsFilterSchema(ma.Schema):
         return out_data
 
     @post_load
-    def convert_schema_object_to_field(self, in_data):
+    def convert_schema_object_to_field(self, in_data: dict) -> dict:
         if 'template_type' in in_data:
-            in_data['template_type'] = [x.template_type for x in in_data['template_type']]
+            in_data["template_type"] = [x.template_type for x in in_data["template_type"]]
         if 'status' in in_data:
             in_data['status'] = [x.status for x in in_data['status']]
         return in_data

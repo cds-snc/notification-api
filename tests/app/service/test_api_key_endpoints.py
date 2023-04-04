@@ -59,11 +59,18 @@ def test_revoke_should_expire_api_key_for_service(notify_api, sample_api_key):
         with notify_api.test_client() as client:
             assert ApiKey.query.count() == 1
             auth_header = create_authorization_header()
-            response = client.post(url_for('service.revoke_api_key',
-                                           service_id=sample_api_key.service_id,
-                                           api_key_id=sample_api_key.id),
-                                   headers=[auth_header])
+            response = client.post(
+                url_for(
+                    'service.revoke_api_key',
+                    service_id=sample_api_key.service_id,
+                    api_key_id=sample_api_key.id
+                ),
+                headers=[auth_header]
+            )
+
+            # "Accepted" status code
             assert response.status_code == 202
+            assert response.get_json() is None
             api_keys_for_service = ApiKey.query.get(sample_api_key.id)
             assert api_keys_for_service.expiry_date is not None
 

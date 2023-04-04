@@ -3,9 +3,8 @@
 FROM python:3.8-alpine3.15
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    # With this environment variable set, the Flask development server will print
-    # debug output and automatically restart in response to code changes.
-    FLASK_ENV=development
+    # https://flask.palletsprojects.com/en/2.2.x/config/?highlight=flask_debug#DEBUG
+    FLASK_DEBUG="true"
 
 RUN adduser -h /app -D vanotify
 WORKDIR /app

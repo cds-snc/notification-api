@@ -37,7 +37,7 @@ def test_create_user_casts_idp_id_to_str():
     assert user.idp_ids[0].idp_id == '1234'
 
 
-def test_can_save_to_db(db_session):
+def test_can_save_to_db(notify_db_session):
     data = {
         'name': 'Foo Bar',
         'email_address': 'email@test.com',
@@ -55,7 +55,7 @@ def test_can_save_to_db(db_session):
     assert loaded_user.idp_ids[0].idp_id == 'some_id'
 
 
-def test_can_find_by_idp_id(db_session):
+def test_can_find_by_idp_id(notify_db_session):
     data = {
         'name': 'Foo Bar',
         'email_address': 'email@test.com',
@@ -64,13 +64,13 @@ def test_can_find_by_idp_id(db_session):
         'idp_id': 'some_id'
     }
     test_user = User(**data)
-    db_session.add(test_user)
+    notify_db_session.session.add(test_user)
 
     user = User.find_by_idp(idp_name='va_sso', idp_id='some_id')
     assert user.name == 'Foo Bar'
 
 
-def test_find_by_idp_id_casts_to_str(db_session):
+def test_find_by_idp_id_casts_to_str(notify_db_session):
     data = {
         'name': 'Foo Bar',
         'email_address': 'email@test.com',
@@ -79,13 +79,13 @@ def test_find_by_idp_id_casts_to_str(db_session):
         'idp_id': '1234'
     }
     test_user = User(**data)
-    db_session.add(test_user)
+    notify_db_session.session.add(test_user)
 
     user = User.find_by_idp(idp_name='va_sso', idp_id=1234)
     assert user.name == 'Foo Bar'
 
 
-def test_find_by_idp_id_raises_exception_if_not_found(db_session):
+def test_find_by_idp_id_raises_exception_if_not_found(notify_db_session):
     data = {
         'name': 'Foo Bar',
         'email_address': 'email@test.com',
@@ -94,13 +94,13 @@ def test_find_by_idp_id_raises_exception_if_not_found(db_session):
         'idp_id': 'some_id'
     }
     test_user = User(**data)
-    db_session.add(test_user)
+    notify_db_session.session.add(test_user)
 
     with pytest.raises(NoResultFound):
         User.find_by_idp(idp_name='va_sso', idp_id='some_other_id')
 
 
-def test_cannot_create_users_with_same_idp_id(db_session):
+def test_cannot_create_users_with_same_idp_id(notify_db_session):
     test_user_1 = User(**{
         'name': 'Foo Bar',
         'email_address': 'test@email.com',
@@ -122,7 +122,7 @@ def test_cannot_create_users_with_same_idp_id(db_session):
 
 
 class TestIdentityProviders:
-    def test_can_add_idp(self, db_session):
+    def test_can_add_idp(self, notify_db_session):
         user = create_user()
         assert len(user.idp_ids) == 0
 
@@ -131,7 +131,7 @@ class TestIdentityProviders:
         assert user.idp_ids[0].idp_name == 'va_sso'
         assert user.idp_ids[0].idp_id == 'some-id'
 
-    def test_add_idp_casts_to_str(self, db_session):
+    def test_add_idp_casts_to_str(self, notify_db_session):
         user = create_user()
         assert len(user.idp_ids) == 0
 
@@ -140,7 +140,7 @@ class TestIdentityProviders:
         assert user.idp_ids[0].idp_name == 'va_sso'
         assert user.idp_ids[0].idp_id == '1234'
 
-    def test_can_add_multiple_idps(self, db_session):
+    def test_can_add_multiple_idps(self, notify_db_session):
         user = create_user()
 
         user.add_idp(idp_name='va_sso', idp_id='some-id')
@@ -148,7 +148,7 @@ class TestIdentityProviders:
         user.save_to_db()
         assert len(user.idp_ids) == 2
 
-    def test_can_not_add_multiple_ids_for_the_same_idp(self, db_session):
+    def test_can_not_add_multiple_ids_for_the_same_idp(self, notify_db_session):
         user = create_user()
 
         user.add_idp(idp_name='va_sso', idp_id='some-id')
@@ -156,7 +156,7 @@ class TestIdentityProviders:
         with pytest.raises(IntegrityError):
             user.save_to_db()
 
-    def test_can_not_add_same_id_to_different_users(self, db_session):
+    def test_can_not_add_same_id_to_different_users(self, notify_db_session):
         user = create_user()
         another_user = create_user(email='email@test.com')
 
