@@ -176,7 +176,6 @@ def fetch_delivered_notification_stats_by_month():
 
 def fetch_notification_stats_for_trial_services():
     ServiceHistory = Service.get_history_model()
-
     return (
         db.session.query(
             Service.id.label("service_id"),
@@ -188,21 +187,20 @@ def fetch_notification_stats_for_trial_services():
             func.sum(FactNotificationStatus.notification_count).label("notification_sum"),
         )
         .join(
-            Service,
-            FactNotificationStatus.service_id == Service.id,
-        )
-        .join(
             ServiceHistory,
-            Service.id == ServiceHistory.id,
+            ServiceHistory.id == Service.id,
         )
         .join(
             User,
             User.id == ServiceHistory.created_by_id,
         )
+        .outerjoin(
+            FactNotificationStatus,
+            FactNotificationStatus.service_id == Service.id,
+        )
         .filter(
             ServiceHistory.version == 1,
             Service.restricted,
-            FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
         )
         .group_by(
             Service.id,
