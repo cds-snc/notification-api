@@ -492,9 +492,8 @@ def test_get_notification_with_personalisation_by_id(sample_template):
 
 def test_get_notification_with_personalisation_by_id_no_result(sample_template, fake_uuid, mocker):
     mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
-    with pytest.raises(NoResultFound):
-        get_notification_with_personalisation(sample_template.service.id, fake_uuid, key_type=None)
-        assert mock_logger.called
+    assert get_notification_with_personalisation(sample_template.service.id, fake_uuid, key_type=None) is None
+    assert mock_logger.called
 
 
 def test_get_notification_by_id_when_notification_exists(sample_notification):
