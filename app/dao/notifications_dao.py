@@ -1,6 +1,5 @@
 import functools
 import string
-import traceback
 from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
@@ -131,10 +130,10 @@ def _update_notification_status(notification, status, provider_response=None, bo
     if provider_response:
         notification.provider_response = provider_response
     if bounce_response:
-        notification.feedback_type = bounce_response["feedback_type"]
-        notification.feedback_subtype = bounce_response["feedback_subtype"]
-        notification.ses_feedback_id = bounce_response["ses_feedback_id"]
-        notification.ses_feedback_date = bounce_response["ses_feedback_date"]
+        notification.feedback_type = bounce_response.get("feedback_type")
+        notification.feedback_subtype = bounce_response.get("feedback_subtype")
+        notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
+        notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
     dao_update_notification(notification)
     return notification
 
@@ -212,9 +211,8 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
     try:
         return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
     except NoResultFound:
-        stack = "".join(traceback.format_stack())
-        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}\n{stack}")
-        raise
+        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
+        return None
 
 
 @statsd(namespace="dao")
