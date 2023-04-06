@@ -39,34 +39,43 @@ describe('GCA static pages', () => {
         //     },
         // });
     });
-    context('English', () => {
-        for (const page of pages) {
-            it(`can load ${page.en} page`, () => {
-                cy.visit(page.en);
-                cy.get('main').should('be.visible');
-
-                // check for a11y compliance
-                // cy.injectAxe();
-                // cy.checkA11y();
+    console.log(config.viewports)
+    for (const viewport of config.viewports) {
+        context(`Viewport: ${viewport}px x 660px`, () => {
+            context('English', () => {
+                for (const page of pages) {
+                    it(`${page.en} passes a11y checks`, () => {
+                        cy.viewport(viewport, 660);
+                        cy.visit(page.en);
+                        cy.get('main').should('be.visible');
+        
+                        // check for a11y compliance
+                        cy.injectAxe();
+                        cy.checkA11y();
+                    });
+                }
             });
-        }
-    });
-
-    context('Francais', () => {
-        // switch to french before getting french pages
-        before(() => {
-            cy.visit('/set-lang');
-        });
-
-        for (const page of pages) {
-            it(`can load ${page.fr} page`, () => {
-                cy.visit(page.fr);
-                cy.get('main').should('be.visible');
-
-                // check for a11y compliance
-                // cy.injectAxe();
-                // cy.checkA11y();
+        
+            context('Francais', () => {
+                // switch to french before getting french pages
+                before(() => {
+                    cy.visit('/set-lang');
+                });
+        
+                for (const page of pages) {
+                    it(`can load ${page.fr} page`, () => {
+                        cy.viewport(viewport, 660);
+        
+                        cy.visit(page.fr);
+                        cy.get('main').should('be.visible');
+                        // check for a11y compliance
+                        cy.injectAxe();
+                        cy.checkA11y();
+                    
+                    });
+                }
             });
-        }
-    });
+        })
+    }
+    
 });
