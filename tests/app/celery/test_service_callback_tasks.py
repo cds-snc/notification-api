@@ -232,7 +232,9 @@ def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, compl
     send_complaint_to_vanotify(complaint.id, template_name)
 
     mock_logger.assert_called_once_with(
-        f'Problem sending complaint to va-notify for notification {complaint.notification_id}: error!!!'
+        'Problem sending complaint to va-notify for notification %s: %s',
+        complaint.id,
+        'error!!!'
     )
 
 

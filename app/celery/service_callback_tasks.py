@@ -102,19 +102,29 @@ def send_complaint_to_service(self, service_callback_id, complaint_data):
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
-                f"exc: {e}"
+                "Retrying: %s failed for %s, url %s. exc: %s",
+                self.name,
+                logging_tags,
+                service_callback.url,
+                e,
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
-                f"{service_callback.url}. exc: {e}")
+                "Retry: %s has retried the max num of times for %s, url %s. exc: %s",
+                self.name,
+                logging_tags,
+                service_callback.url,
+                e,
+            )
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
-            f"exc: {e}"
+            "Not retrying: %s failed for %s, url: %s. exc: %s",
+            self.name,
+            logging_tags,
+            service_callback.url,
+            e,
         )
         raise e
 
@@ -139,12 +149,15 @@ def send_complaint_to_vanotify(self, complaint_id: str, complaint_template_name:
             },
         )
         current_app.logger.info(
-            f'Successfully sent complaint email to va-notify. notification_id: {complaint.notification_id}'
+            'Successfully sent complaint email to va-notify. notification_id: %s',
+            complaint_id
         )
 
     except Exception as e:
         current_app.logger.exception(
-            f'Problem sending complaint to va-notify for notification {complaint.notification_id}: {e}'
+            'Problem sending complaint to va-notify for notification %s: %s',
+            complaint_id,
+            str(e)
         )
 
 
@@ -154,7 +167,8 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
     service_callback = get_service_inbound_sms_callback_api_for_service(service_id=service_id)
     if not service_callback:
         current_app.logger.error(
-            f'could not send inbound sms to service "{service_id}" because it does not have a callback API configured'
+            'could not send inbound sms to service "%s" because it does not have a callback API configured',
+            service_id
         )
         return
 
@@ -185,32 +199,37 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
     except RetryableException as e:
         try:
             current_app.logger.warning(
-                f"Retrying: {self.name} failed for {logging_tags}, url {service_callback.url}. "
-                f"exc: {e}"
+                "Retrying: %s failed for %s, url %s. exc: %s",
+                self.name,
+                logging_tags,
+                service_callback.url,
+                e,
             )
             self.retry(queue=QueueNames.RETRY)
         except self.MaxRetriesExceededError:
             current_app.logger.error(
-                f"Retry: {self.name} has retried the max num of times for {logging_tags}, url "
-                f"{service_callback.url}. exc: {e}")
+                "Retry: %s has retried the max num of times for %s, url %s. exc: %s",
+                self.name,
+                logging_tags,
+                service_callback.url,
+                e,
+            )
             raise e
     except NonRetryableException as e:
         current_app.logger.error(
-            f"Not retrying: {self.name} failed for {logging_tags}, url: {service_callback.url}. "
-            f"exc: {e}"
+            "Not retrying: %s failed for %s, url: %s. exc: %s",
+            self.name,
+            logging_tags,
+            service_callback.url,
+            e,
         )
         raise e
 
 
 def create_delivery_status_callback_data(notification, service_callback_api, provider_payload=None):
-    from app import DATETIME_FORMAT, encryption
-    """ Encrypt delivery status message  """
+    """ Encrypt and return the delivery status message. """
 
-    # https://peps.python.org/pep-0557/#mutable-default-values
-    # do not want to have a mutable type in definition so we set provider_payload to empty dictionary
-    # when one was not provided by the caller
-    if provider_payload is None:
-        provider_payload = {}
+    from app import DATETIME_FORMAT, encryption
 
     data = {
         "notification_id": str(notification.id),
@@ -228,9 +247,7 @@ def create_delivery_status_callback_data(notification, service_callback_api, pro
         "status_reason": notification.status_reason,
     }
 
-    # add the property 'provider_payload when provider payload is not an empty dictionary
-    if not provider_payload:
-        data['provider_payload'] = provider_payload
+    data['provider_payload'] = {} if provider_payload is None else provider_payload
 
     return encryption.encrypt(data)
 
