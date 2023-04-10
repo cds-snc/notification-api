@@ -1,3 +1,5 @@
+
+import base64
 import pytest
 import requests_mock
 from app import twilio_sms_client
@@ -315,6 +317,20 @@ def test_error_code_mapping(event, twilio_sms_client_mock):
     assert "reference" in translation
     assert "record_status" in translation
     assert translation["record_status"] == event["twilio_status"]
+
+
+@pytest.mark.parametrize(
+    "event",
+    [
+        MESSAAGE_BODY_WITH_ACCEPTED_STATUS,
+        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30010
+    ],
+)
+def test_returned_payload_is_decoded(event, twilio_sms_client_mock):
+    translation = twilio_sms_client_mock.translate_delivery_status(event["message"])
+
+    assert "payload" in translation
+    assert translation["payload"] == base64.b64decode(event["message"]).decode()
 
 
 def test_exception_on_empty_twilio_status_message(twilio_sms_client_mock):

@@ -214,7 +214,7 @@ class TwilioSMSClient(SmsClient):
             ]
 
         translation = {
-            "payload": twilio_delivery_status_message,
+            "payload": decoded_msg,
             "reference": parsed_dict["MessageSid"][0],
             "record_status": notify_delivery_status,
         }
