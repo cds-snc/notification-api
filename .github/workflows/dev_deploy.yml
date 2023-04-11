@@ -3,9 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Deploy to dev"
+        description: "Deployment environment (dev|perf|staging|prod)"
         default: dev
-        type: environment
         required: true
       ref:
         description: "Branch or Commit"
