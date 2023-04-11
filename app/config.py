@@ -270,6 +270,7 @@ class Config(object):
     NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID = "a796568f-a89b-468e-b635-8105554301b9"
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
+    CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID = "b04beb4a-8408-4280-9a5c-6a046b6f7704"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -442,6 +443,8 @@ class Config(object):
         # },
     }
     CELERY_QUEUES: List[Any] = []
+
+    CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
 
     FROM_NUMBER = "development"
 

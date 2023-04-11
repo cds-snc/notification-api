@@ -1,6 +1,5 @@
 import functools
 import string
-import traceback
 from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
@@ -212,9 +211,8 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
     try:
         return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
     except NoResultFound:
-        stack = "".join(traceback.format_stack())
-        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}\n{stack}")
-        raise
+        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
+        return None
 
 
 @statsd(namespace="dao")
@@ -744,12 +742,12 @@ def _duplicate_update_warning(notification, status):
 def send_method_stats_by_service(start_time, end_time):
     return (
         db.session.query(
-            Service.id,
-            Service.name,
-            Organisation.name,
+            Service.id.label("service_id"),
+            Service.name.label("service_name"),
+            Organisation.name.label("organisation_name"),
             NotificationHistory.notification_type,
             case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin").label("send_method"),
-            func.count().label("nb_notifications"),
+            func.count().label("total_notifications"),
         )
         .join(Service, Service.id == NotificationHistory.service_id)
         .join(Organisation, Organisation.id == Service.organisation_id)
