@@ -114,7 +114,7 @@ def test_engagement_create(mocker, salesforce_client):
     mock_end_session.assert_called_once_with("session")
 
 
-def test_engagement_update_stage(mocker, salesforce_client):
+def test_engagement_update(mocker, salesforce_client):
     mock_get_session = mocker.patch.object(salesforce_client, "get_session", return_value="session")
     mock_contact_update_account_id = mocker.patch.object(
         salesforce_client, "contact_update_account_id", return_value=("account_id", "contact_id")
@@ -124,11 +124,13 @@ def test_engagement_update_stage(mocker, salesforce_client):
     mock_service = mocker.MagicMock()
     mock_service.organisation_notes = "account_name > service_name"
 
-    salesforce_client.engagement_update_stage(mock_service, "user", "live")
+    salesforce_client.engagement_update(mock_service, "user", {"StageName": "live", "Description": "would be oh so nice"})
 
     mock_get_session.assert_called_once()
     mock_contact_update_account_id.assert_called_once_with("session", mock_service, "user")
-    mock_update.assert_called_once_with("session", mock_service, {"StageName": "live"}, "account_id", "contact_id")
+    mock_update.assert_called_once_with(
+        "session", mock_service, {"StageName": "live", "Description": "would be oh so nice"}, "account_id", "contact_id"
+    )
     mock_end_session.assert_called_once_with("session")
 
 

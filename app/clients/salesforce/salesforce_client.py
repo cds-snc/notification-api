@@ -66,8 +66,8 @@ class SalesforceClient:
         session = self.get_session()
         name_parts = salesforce_utils.get_name_parts(user.name)
         user_updates = {
-            "FirstName": name_parts["first"] if name_parts["first"] else user.name,
-            "LastName": name_parts["last"] if name_parts["last"] else "",
+            "FirstName": name_parts["first"],
+            "LastName": name_parts["last"],
             "Email": user.email_address,
         }
         salesforce_contact.update(session, user, user_updates)
@@ -103,19 +103,18 @@ class SalesforceClient:
         salesforce_engagement.create(session, service, {}, account_id, contact_id)
         self.end_session(session)
 
-    def engagement_update_stage(self, service: Service, user: User, stage_name: str) -> None:
-        """Updates the stage of a Salesforce Engagement for the given Notify service.  The Engagement
+    def engagement_update(self, service: Service, user: User, field_updates: dict[str, str]) -> None:
+        """Updates a Salesforce Engagement for the given Notify service.  The Engagement
         will be associated with the Notify user that triggers the stage update.
 
         Args:
             service (Service): Notify Service to update an Engagement for.
             user (User): Notify User creating the service.
-            stage_name (str): New stage to set.
+            field_updates (dict[str, str]): The fields to update on the Engagement.
         """
         session = self.get_session()
         account_id, contact_id = self.contact_update_account_id(session, service, user)
-        stage_update = {"StageName": stage_name}
-        salesforce_engagement.update(session, service, stage_update, account_id, contact_id)
+        salesforce_engagement.update(session, service, field_updates, account_id, contact_id)
         self.end_session(session)
 
     def engagement_close(self, service: Service) -> None:
