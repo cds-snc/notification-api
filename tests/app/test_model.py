@@ -1,4 +1,5 @@
 import pytest
+from flask import current_app
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
@@ -125,6 +126,7 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     assert serialized["row_number"] == 1
 
 
+# This test needs to be removed when FF_BOUNCE_RATE_V1 is removed
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
     "template_type, status, expected_status",
@@ -143,11 +145,44 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     ],
 )
 def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
-    template = create_template(sample_service, template_type=template_type)
-    notification = save_notification(create_notification(template, status=status))
+    if not current_app.config["FF_BOUNCE_RATE_V1"]:
+        template = create_template(sample_service, template_type=template_type)
+        notification = save_notification(create_notification(template, status=status))
 
-    serialized = notification.serialize_for_csv()
-    assert serialized["status"] == expected_status
+        serialized = notification.serialize_for_csv()
+        assert serialized["status"] == expected_status
+
+
+@freeze_time("2016-01-30 12:39:58.321312")
+@pytest.mark.parametrize(
+    "template_type, status, feedback_subtype, expected_status",
+    [
+        ("email", "failed", None, "Failed"),
+        ("email", "technical-failure", None, "Tech issue"),
+        ("email", "temporary-failure", None, "Content or inbox issue"),
+        ("email", "permanent-failure", None, "No such address"),
+        ("email", "permanent-failure", "suppressed", "Blocked"),
+        ("email", "permanent-failure", "on-account-suppression-list", "Blocked"),
+        ("sms", "temporary-failure", None, "Carrier issue"),
+        ("sms", "permanent-failure", None, "No such number"),
+        ("sms", "sent", None, "Sent"),
+        ("letter", "created", None, "Accepted"),
+        ("letter", "sending", None, "Accepted"),
+        ("letter", "technical-failure", None, "Technical failure"),
+        ("letter", "delivered", None, "Received"),
+    ],
+)
+def test_notification_for_csv_returns_formatted_status_ff_bouncerate(
+    sample_service, template_type, status, feedback_subtype, expected_status
+):
+    if current_app.config["FF_BOUNCE_RATE_V1"]:
+        template = create_template(sample_service, template_type=template_type)
+        notification = save_notification(create_notification(template, status=status))
+        if feedback_subtype:
+            notification.feedback_subtype = feedback_subtype
+
+        serialized = notification.serialize_for_csv()
+        assert serialized["status"] == expected_status
 
 
 @freeze_time("2017-03-26 23:01:53.321312")
