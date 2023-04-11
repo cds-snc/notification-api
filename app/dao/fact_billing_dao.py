@@ -139,7 +139,8 @@ def fetch_nightly_billing_counts(process_day: date):
         Notification.key_type != KEY_TYPE_TEST,
         Notification.created_at >= start_date,
         Notification.created_at < end_date,
-        Notification.notification_type == SMS_TYPE
+        Notification.notification_type == SMS_TYPE,
+        Notification.cost_in_millicents > 0.0
     ).group_by(
         Service.name,
         Notification.service_id,

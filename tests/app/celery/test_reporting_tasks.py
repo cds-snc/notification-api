@@ -549,7 +549,8 @@ def test_generate_nightly_billing_csv_report(notify_db_session, mocker):
         status='delivered',
         created_at=process_day,
         billing_code='test_code',
-        sms_sender_id=service.service_sms_senders[0].id
+        sms_sender_id=service.service_sms_senders[0].id,
+        cost_in_millicents=25.0,
     )
 
     expected_csv = \
