@@ -948,7 +948,7 @@ def test_send_contact_request_go_live_with_org_notes(organisation_notes, departm
         headers=[("Content-Type", "application/json"), create_authorization_header()],
     )
     assert resp.status_code == 204
-    mock_contact_request.department_org_name = department_org_name
+    assert mock_contact_request.department_org_name == department_org_name
 
 
 def test_send_branding_request(client, sample_service, mocker):
