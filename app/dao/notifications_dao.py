@@ -742,12 +742,12 @@ def _duplicate_update_warning(notification, status):
 def send_method_stats_by_service(start_time, end_time):
     return (
         db.session.query(
-            Service.id,
-            Service.name,
-            Organisation.name,
+            Service.id.label("service_id"),
+            Service.name.label("service_name"),
+            Organisation.name.label("organisation_name"),
             NotificationHistory.notification_type,
             case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin").label("send_method"),
-            func.count().label("nb_notifications"),
+            func.count().label("total_notifications"),
         )
         .join(Service, Service.id == NotificationHistory.service_id)
         .join(Organisation, Organisation.id == Service.organisation_id)
