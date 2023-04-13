@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import bounce_rate_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_HARD_BOUNCE, NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_PERMANENT_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
