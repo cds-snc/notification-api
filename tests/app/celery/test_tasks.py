@@ -32,6 +32,7 @@ from app.celery.tasks import (
     s3,
     save_emails,
     save_smss,
+    seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
@@ -2214,3 +2215,41 @@ class TestSendNotifyNoReply:
             )
 
         tasks.send_notify_no_reply.retry.assert_called_with(queue=QueueNames.RETRY)
+
+
+class TestSeedBounceRateData:
+    def test_seed_bounce_rate_data(self, mocker):
+        mocker.patch(
+            "app.celery.tasks.total_notifications_grouped_by_hour",
+            return_value=[
+                (datetime(2023, 4, 18, 15, 0), 2),
+                (datetime(2023, 4, 18, 16, 0), 7),
+                (datetime(2023, 4, 18, 17, 0), 10),
+            ],
+        )
+        mocker.patch(
+            "app.celery.tasks.total_hard_bounces_grouped_by_hour",
+            return_value=[(datetime(2023, 4, 18, 15, 23), 1), (datetime(2023, 4, 18, 16, 2), 1)],
+        )
+        mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+        mocked_set_seeded_total_notifications = mocker.patch("app.celery.tasks.bounce_rate_client.set_total_notifications_seeded")
+        mocked_set_seeded_hard_bounces = mocker.patch("app.celery.tasks.bounce_rate_client.set_total_hard_bounce_seeded")
+
+        seed_bounce_rate_in_redis("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", 24)
+
+        assert mocked_set_seeded_total_notifications.call_count == 3
+        assert mocked_set_seeded_hard_bounces.call_count == 2
+
+        mocked_set_seeded_total_notifications.assert_has_calls(
+            [
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", datetime(2023, 4, 18, 15, 0), 2),
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", datetime(2023, 4, 18, 16, 0), 7),
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", datetime(2023, 4, 18, 17, 0), 10),
+            ]
+        )
+        mocked_set_seeded_hard_bounces.assert_has_calls(
+            [
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", datetime(2023, 4, 18, 15, 23), 1),
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", datetime(2023, 4, 18, 16, 2), 1),
+            ]
+        )
