@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import signer_complaint, statsd_client, bounce_rate_client
+from app import bounce_rate_client, signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
