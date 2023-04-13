@@ -161,7 +161,6 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
     with freeze_time("2001-01-01T12:00:00"):
-
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
@@ -355,9 +354,3 @@ class TestBounceRates:
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
         assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_SOFT_BOUNCE
         assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
-
-    @pytest.mark.parametrize("bounce_")
-    def test_ses_callback_should_update_redis_new_delivery_receipt_hard_bounce(
-        self, sample_email_template, bounce_subtype, expected_subtype
-    ):
-        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status=""))
