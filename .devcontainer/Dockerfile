@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10
+FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:aa9e41e39a74af80913bded477bf19d166781188fb03877c2f8fd219e56f8331
 
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
@@ -12,6 +12,7 @@ RUN apt-get update \
     2>&1 \
     && apt-get -y install \
     curl \
+    dnsutils \
     emacs \
     exa \
     fd-find \

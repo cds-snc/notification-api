@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import signer, statsd_client
+from app import signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
@@ -161,7 +161,6 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
     with freeze_time("2001-01-01T12:00:00"):
-
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
@@ -307,7 +306,7 @@ def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email
     assert process_ses_results(response)
 
     assert send_mock.call_count == 1
-    assert signer.verify(send_mock.call_args[0][0][0]) == {
+    assert signer_complaint.verify(send_mock.call_args[0][0][0]) == {
         "complaint_date": "2018-06-05T13:59:58.000000Z",
         "complaint_id": str(Complaint.query.one().id),
         "notification_id": str(notification.id),

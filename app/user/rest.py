@@ -12,8 +12,9 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
-from app.clients.zendesk_sell import ZenDeskSell
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
     create_fido2_session,
@@ -178,6 +179,13 @@ def update_user_attribute(user_id):
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            updated_user = get_user_by_id(user_id=user_id)
+            salesforce_client.contact_update(updated_user)
+        except Exception as e:
+            current_app.logger.exception(e)
+
     return jsonify(data=user_to_update.serialize()), 200
 
 
@@ -197,6 +205,10 @@ def activate_user(user_id):
 
     user.state = "active"
     save_model_user(user)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.contact_create(user)
+
     return jsonify(data=user.serialize()), 200
 
 
@@ -440,7 +452,8 @@ def send_contact_request(user_id):
     try:
         contact = ContactRequest(**request.json)
         user = get_user_by_email(contact.email_address)
-        if not any([not s.restricted for s in user.services]):
+        # If the user has no live services, don't want to escalate the ticket.
+        if all([s.restricted for s in user.services]):
             contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
     except TypeError as e:
@@ -450,14 +463,15 @@ def send_contact_request(user_id):
         # This is perfectly normal if get_user_by_email raises
         pass
 
-    try:
-        if contact.is_go_live_request():
+    # Update the engagement stage in Salesforce for go live requests
+    if contact and contact.is_go_live_request() and current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
             service = dao_fetch_service_by_id(contact.service_id)
-            ZenDeskSell().send_go_live_request(service, user, contact)
-        else:
-            ZenDeskSell().send_contact_request(contact)
-    except Exception as e:
-        current_app.logger.exception(e)
+            salesforce_client.engagement_update(service, user, engagement_updates)
+            contact.department_org_name = service.organisation_notes if service.organisation_notes else "Unknown"
+        except Exception as e:
+            current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204

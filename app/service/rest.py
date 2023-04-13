@@ -15,8 +15,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store
-from app.clients.zendesk_sell import ZenDeskSell
+from app import redis_store, salesforce_client
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -257,11 +257,11 @@ def create_service():
 
     dao_create_service(valid_service, user)
 
-    try:
-        # try-catch; just in case, we don't want to error here
-        ZenDeskSell().send_create_service(valid_service, user)
-    except Exception as e:
-        current_app.logger.exception(e)
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            salesforce_client.engagement_create(valid_service, user)
+        except Exception as e:
+            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(valid_service).data), 201
 
@@ -304,17 +304,18 @@ def update_service(service_id):
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
 
+    if service_going_live and current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
             # Two scenarios, if there is a user that has requested to go live, we will use that user
-            # to create a user-service/contact-deal pair between notify and zendesk sell
-            # If by any chance there is no tracked request to a user, notify will try to identify the user
-            # that created the service and then create a user-service/contact-deal relationship
+            # to create a Contact/Engagment pair between Notify and Salesforce.
+            # If by any chance there is no tracked request to a user, Notify will try to identify the user
+            # that created the service and then create a Contact/Engagment relationship.
             if service.go_live_user_id:
                 user = get_user_by_id(service.go_live_user_id)
             else:
                 user = dao_fetch_service_creator(service.id)
 
-            ZenDeskSell().send_go_live_service(service, user)
+            salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
         except Exception as e:
             current_app.logger.exception(e)
 
@@ -524,17 +525,11 @@ def get_all_notifications_for_service(service_id):
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_for_service(service_id, notification_id):
 
-    notification = notifications_dao.get_notification_with_personalisation(
-        service_id,
-        notification_id,
-        key_type=None,
-    )
-    return (
-        jsonify(
-            notification_with_template_schema.dump(notification).data,
-        ),
-        200,
-    )
+    notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
+    if notification is not None:
+        return jsonify(notification_with_template_schema.dump(notification).data), 200
+    else:
+        return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel", methods=["POST"])
@@ -695,6 +690,11 @@ def archive_service(service_id):
 
     if service.active:
         dao_archive_service(service.id)
+        if current_app.config["FF_SALESFORCE_CONTACT"]:
+            try:
+                salesforce_client.engagement_close(service)
+            except Exception as e:
+                current_app.logger.exception(e)
 
     return "", 204
 

@@ -14,6 +14,7 @@ from notifications_utils.clients.redis import (
     over_daily_limit_cache_key,
 )
 
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
 from app.dao.service_user_dao import dao_get_service_user
@@ -364,10 +365,10 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         "created_by": str(sample_user.id),
     }
 
-    zd_send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value=True)
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+
     json_resp = admin_request.post("service.create_service", _data=data, _expected_status=201)
 
-    zd_send_create_service_mock.assert_called()
     assert json_resp["data"]["id"]
     assert json_resp["data"]["name"] == "created service"
     assert json_resp["data"]["email_from"] == "created.service"
@@ -375,6 +376,7 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
     assert json_resp["data"]["rate_limit"] == 1000
     assert json_resp["data"]["letter_branding"] is None
     assert json_resp["data"]["count_as_live"] is expected_count_as_live
+    mocked_salesforce_client.engagement_create.assert_called_once()
 
     service_db = Service.query.get(json_resp["data"]["id"])
     assert service_db.name == "created service"
@@ -432,10 +434,8 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         "created_by": str(sample_user.id),
         "service_domain": domain,
     }
-    zd_send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value=True)
     json_resp = admin_request.post("service.create_service", _data=data, _expected_status=201)
 
-    zd_send_create_service_mock.assert_called()
     if expected_org:
         assert json_resp["data"]["organisation"] == str(org.id)
     else:
@@ -452,7 +452,6 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
     create_domain("example.gov.uk", org.id)
     sample_user.email_address = "test@example.gov.uk"
 
-    zd_send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value=True)
     json_resp = admin_request.post(
         "service.create_service",
         _data={
@@ -468,7 +467,6 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
         _expected_status=201,
     )
 
-    zd_send_create_service_mock.assert_called()
     assert json_resp["data"]["email_branding"] == str(email_branding.id)
     assert json_resp["data"]["letter_branding"] == str(letter_branding.id)
 
@@ -1100,7 +1098,6 @@ def test_default_permissions_are_added_for_user_service(
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
 
-            zd_send_create_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_create_service", return_value=True)
             data = {
                 "name": "created service",
                 "user_id": str(sample_user.id),
@@ -1115,7 +1112,6 @@ def test_default_permissions_are_added_for_user_service(
             headers = [("Content-Type", "application/json"), auth_header]
             resp = client.post("/service", data=json.dumps(data), headers=headers)
 
-            zd_send_create_service_mock.assert_called()
             json_resp = resp.json
             assert resp.status_code == 201
             assert json_resp["data"]["id"]
@@ -1580,7 +1576,11 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert not resp["notifications"][0]["row_number"]
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
-    assert resp["notifications"][0]["status"] == "Sending"
+
+    if current_app.config["FF_BOUNCE_RATE_V1"]:
+        assert resp["notifications"][0]["status"] == "In transit"
+    else:
+        assert resp["notifications"][0]["status"] == "Sending"
 
 
 def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_session):
@@ -1620,7 +1620,7 @@ def test_get_notification_for_service(client, notify_db, notify_db_session):
         )
         assert service_2_response.status_code == 404
         service_2_response = json.loads(service_2_response.get_data(as_text=True))
-        assert service_2_response == {"message": "No result found", "result": "error"}
+        assert service_2_response == {"message": "Notification not found in database", "result": "error"}
 
 
 def test_get_notification_for_service_includes_created_by(admin_request, sample_notification):
@@ -2112,9 +2112,10 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
 
     data = {"restricted": False}
 
-    zd_send_go_live_service_mock = mocker.patch("app.user.rest.ZenDeskSell.send_go_live_service", return_value=True)
-    fetch_service_creator_mock = mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user_1)
-    get_user_by_id_mock = mocker.patch("app.service.rest.get_user_by_id", return_value=user_2)
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+    mocked_fetch_service_creator = mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user_1)
+    mocked_get_user_by_id = mocker.patch("app.service.rest.get_user_by_id", return_value=user_2)
+
     auth_header = create_authorization_header()
     resp = client.post(
         "service/{}".format(restricted_service.id),
@@ -2122,14 +2123,6 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         headers=[auth_header],
         content_type="application/json",
     )
-
-    zd_send_go_live_service_mock.assert_called_once_with(restricted_service, user_2 if set_go_live_user else user_1)
-    if set_go_live_user:
-        fetch_service_creator_mock.assert_not_called()
-        get_user_by_id_mock.assert_called_once_with(restricted_service.go_live_user_id)
-    else:
-        get_user_by_id_mock.assert_not_called()
-        fetch_service_creator_mock.assert_called_once_with(restricted_service.id)
 
     assert resp.status_code == 200  # type: ignore
     send_notification_mock.assert_called_once_with(
@@ -2144,6 +2137,17 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         },
         include_user_fields=["name"],
     )
+
+    engagement_user = user_2 if set_go_live_user else user_1
+    mocked_salesforce_client.engagement_update.assert_called_once_with(
+        restricted_service, engagement_user, {"StageName": ENGAGEMENT_STAGE_LIVE}
+    )
+    if set_go_live_user:
+        mocked_fetch_service_creator.assert_not_called()
+        mocked_get_user_by_id.assert_called_once_with(restricted_service.go_live_user_id)
+    else:
+        mocked_fetch_service_creator.assert_called_once_with(restricted_service.id)
+        mocked_get_user_by_id.assert_not_called()
 
 
 @pytest.mark.parametrize(

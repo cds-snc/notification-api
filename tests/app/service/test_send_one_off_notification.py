@@ -58,7 +58,7 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
 
     assert resp == {"id": str(persist_mock.return_value.id)}
 
-    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue="normal-tasks")
 
 
 def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock, celery_mock, notify_db_session):
@@ -331,7 +331,7 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 
     notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
     assert notification.reply_to_text == reply_to_email.email_address
 
 
@@ -347,7 +347,7 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
 
     notification_id = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
 
     assert notification.reply_to_text == "Edinburgh, ED1 1AA"
 
@@ -383,7 +383,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
 
     assert notification.reply_to_text == "+16502532222"
 
@@ -401,7 +401,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
 
     assert notification.reply_to_text == "+16502532222"
 

@@ -30,6 +30,8 @@ class QueueNames(object):
     # It would get most traffic coming from the API for example.
     BULK = "bulk-tasks"
 
+    NORMAL = "normal-tasks"
+
     # A queue meant for database tasks but it seems to be the default for sending
     # notifications in some occasion. Need to investigate the purpose of this one
     # further.
@@ -47,14 +49,20 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
+    # For normal send of notifications. This is relatively normal volume and flushed
+    # pretty quickly.
+    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
+
     # Queue for sending all SMS, except long dedicated numbers.
+    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # The queue to send emails by default.
+    # The queue to send emails by default, normal priority.
+    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
     SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
@@ -124,7 +132,7 @@ class Config(object):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET")
 
     # encyption secret/salt
-    SECRET_KEY = os.getenv("SECRET_KEY")
+    SECRET_KEY = env.list("SECRET_KEY", [])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT")
 
     # API key prefix
@@ -158,15 +166,22 @@ class Config(object):
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
 
-    # Zendesk
-    ZENDESK_SELL_API_URL = os.getenv("ZENDESK_SELL_API_URL")
-    ZENDESK_SELL_API_KEY = os.getenv("ZENDESK_SELL_API_KEY")
-
     # Freshdesk
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
+
+    # Salesforce
+    SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
+    SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
+    SALESFORCE_ENGAGEMENT_PRODUCT_ID = os.getenv("SALESFORCE_ENGAGEMENT_PRODUCT_ID")
+    SALESFORCE_ENGAGEMENT_RECORD_TYPE = os.getenv("SALESFORCE_ENGAGEMENT_RECORD_TYPE")
+    SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID")
+    SALESFORCE_GENERIC_ACCOUNT_ID = os.getenv("SALESFORCE_GENERIC_ACCOUNT_ID")
+    SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
+    SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
+    SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
 
     # Logging
     DEBUG = False
@@ -255,6 +270,7 @@ class Config(object):
     NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID = "a796568f-a89b-468e-b635-8105554301b9"
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
+    CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID = "b04beb4a-8408-4280-9a5c-6a046b6f7704"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -428,6 +444,8 @@ class Config(object):
     }
     CELERY_QUEUES: List[Any] = []
 
+    CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
+
     FROM_NUMBER = "development"
 
     STATSD_HOST = os.getenv("STATSD_HOST")  # CloudWatch agent, shared with embedded metrics
@@ -490,6 +508,11 @@ class Config(object):
     FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
     FF_SMS_PARTS_UI = env.bool("FF_SMS_PARTS_UI", False)
 
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+
+    # Feature flags for bounce rate
+    FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
@@ -501,12 +524,13 @@ class Config(object):
             "SQLALCHEMY_DATABASE_READER_URI",
             "SQLALCHEMY_BINDS",
             "REDIS_URL",
-            "ZENDESK_SELL_API_KEY",
             "FRESH_DESK_API_KEY",
             "AWS_SES_ACCESS_KEY",
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
             "ROUTE_SECRET_KEY_2",
+            "SALESFORCE_PASSWORD",
+            "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
         ]
@@ -534,7 +558,7 @@ class Development(Config):
     TRANSIENT_UPLOADED_LETTERS = "development-transient-uploaded-letters"
 
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-notify-secret-key")
+    SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
 
     NOTIFY_ENVIRONMENT = "development"
