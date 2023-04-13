@@ -356,8 +356,8 @@ class TestBounceRates:
         assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_SOFT_BOUNCE
         assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
 
-    @pytest.mark.parametrize(
-        "bounce_"
-    )
-    def test_ses_callback_should_update_redis_new_delivery_receipt_hard_bounce(self, sample_email_template, bounce_subtype, expected_subtype):
+    @pytest.mark.parametrize("bounce_")
+    def test_ses_callback_should_update_redis_new_delivery_receipt_hard_bounce(
+        self, sample_email_template, bounce_subtype, expected_subtype
+    ):
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status=""))
