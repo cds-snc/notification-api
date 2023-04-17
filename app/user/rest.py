@@ -469,7 +469,7 @@ def send_contact_request(user_id):
             engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
             service = dao_fetch_service_by_id(contact.service_id)
             salesforce_client.engagement_update(service, user, engagement_updates)
-            
+
             if not service.organisation_notes:
                 # the service was created before we started requesting the organisation name at creation time
                 if contact.department_org_name:
