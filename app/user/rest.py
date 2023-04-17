@@ -472,12 +472,11 @@ def send_contact_request(user_id):
 
             if not service.organisation_notes:
                 # the service was created before we started requesting the organisation name at creation time
-                if contact.department_org_name:
-                    # If the service doesn't have an organisation name, but the contact form does, update the service
-                    service.organisation_notes = contact.department_org_name
-                else:
+                if not contact.department_org_name:
                     # this shouldn't happen, but if it does, we don't want to leave the service with no organisation name
-                    service.organisation_notes = "Unknown"
+                    contact.department_org_name = "Unknown"
+                # fall back on the organisation name collected from the go live request
+                service.organisation_notes = contact.department_org_name
                 dao_update_service(service)
             else:
                 # this is the normal case, where the service has an organisation name collected when it was created
