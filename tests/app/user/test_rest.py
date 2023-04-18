@@ -938,9 +938,11 @@ def test_send_contact_request_go_live_with_org_notes(organisation_notes, departm
     mock_contact_request = mocker.MagicMock()
     mocker.patch("app.user.rest.ContactRequest", return_value=mock_contact_request)
     mocker.patch("app.user.rest.dao_fetch_service_by_id", return_value=sample_service)
+    mocker.patch("app.user.rest.dao_update_service")
     mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
     mocker.patch("app.user.rest.get_user_by_email", return_value=sample_user)
     mocker.patch("app.user.rest.salesforce_client")
+    mock_contact_request.department_org_name = None
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
