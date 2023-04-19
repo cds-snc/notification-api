@@ -10,6 +10,10 @@ env:
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
 
+permissions:
+  id-token: write   # This is required for requesting the OIDC JWT
+  contents: read    # This is required for actions/checkout
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
