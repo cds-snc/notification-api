@@ -623,7 +623,9 @@ def test_check_service_over_bounce_rate_critical(mocker, fake_uuid):
     mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
     mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
     check_service_over_bounce_rate(fake_uuid)
-    mock_logger.assert_called_once_with("Service: {} has met or exceeded a critical bounce rate threshold of 10%".format(fake_uuid))
+    mock_logger.assert_called_once_with(
+        "Service: {} has met or exceeded a critical bounce rate threshold of 10%".format(fake_uuid)
+    )
 
 
 def test_check_service_over_bounce_rate_warning(mocker, fake_uuid):
