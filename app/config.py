@@ -512,7 +512,7 @@ class Config(object):
 
     # Feature flags for bounce rate
     FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
-    FF_BOUNCE_RATE_SEED_EPOCH_TIMESTAMP = os.getenv("FF_BOUNCE_RATE_SEED_TIMESTAMP", False)
+    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
