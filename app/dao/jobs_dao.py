@@ -22,6 +22,7 @@ from app.models import (
     NOTIFICATION_CREATED,
     Job,
     Notification,
+    NotificationHistory,
     ServiceDataRetention,
     Template,
 )
@@ -30,12 +31,18 @@ from app.utils import midnight_n_days_ago
 
 @statsd(namespace="dao")
 def dao_get_notification_outcomes_for_job(service_id, job_id):
-    return (
+    notification = (
         db.session.query(func.count(Notification.status).label("count"), Notification.status)
         .filter(Notification.service_id == service_id, Notification.job_id == job_id)
         .group_by(Notification.status)
-        .all()
     )
+    notification_history = (
+        db.session.query(func.count(NotificationHistory.status).label("count"), NotificationHistory.status)
+        .filter(NotificationHistory.service_id == service_id, NotificationHistory.job_id == job_id)
+        .group_by(NotificationHistory.status)
+    )
+
+    return notification.union(notification_history).all()
 
 
 def dao_get_job_by_service_id_and_job_id(service_id, job_id):
