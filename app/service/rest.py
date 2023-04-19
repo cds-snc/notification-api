@@ -16,10 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
-from app.clients.salesforce.salesforce_engagement import (
-    ENGAGEMENT_STAGE_ACTIVATION,
-    ENGAGEMENT_STAGE_LIVE,
-)
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -275,7 +272,6 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
-    service_requested_go_live = not service_going_live and req_json.get("go_live_user")
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     current_data = dict(service_schema.dump(fetched_service).data.items())
@@ -308,7 +304,7 @@ def update_service(service_id):
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"] and (service_going_live or service_requested_go_live):
+    if service_going_live and current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
             # Two scenarios, if there is a user that has requested to go live, we will use that user
             # to create a Contact/Engagment pair between Notify and Salesforce.
@@ -319,8 +315,7 @@ def update_service(service_id):
             else:
                 user = dao_fetch_service_creator(service.id)
 
-            stage_name = ENGAGEMENT_STAGE_LIVE if service_going_live else ENGAGEMENT_STAGE_ACTIVATION
-            salesforce_client.engagement_update_stage(service, user, stage_name)
+            salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
         except Exception as e:
             current_app.logger.exception(e)
 
@@ -530,17 +525,11 @@ def get_all_notifications_for_service(service_id):
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_for_service(service_id, notification_id):
 
-    notification = notifications_dao.get_notification_with_personalisation(
-        service_id,
-        notification_id,
-        key_type=None,
-    )
-    return (
-        jsonify(
-            notification_with_template_schema.dump(notification).data,
-        ),
-        200,
-    )
+    notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
+    if notification is not None:
+        return jsonify(notification_with_template_schema.dump(notification).data), 200
+    else:
+        return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel", methods=["POST"])
@@ -701,6 +690,11 @@ def archive_service(service_id):
 
     if service.active:
         dao_archive_service(service.id)
+        if current_app.config["FF_SALESFORCE_CONTACT"]:
+            try:
+                salesforce_client.engagement_close(service)
+            except Exception as e:
+                current_app.logger.exception(e)
 
     return "", 204
 

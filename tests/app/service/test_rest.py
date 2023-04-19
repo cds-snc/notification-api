@@ -14,6 +14,7 @@ from notifications_utils.clients.redis import (
     over_daily_limit_cache_key,
 )
 
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
 from app.dao.service_user_dao import dao_get_service_user
@@ -364,6 +365,8 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         "created_by": str(sample_user.id),
     }
 
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+
     json_resp = admin_request.post("service.create_service", _data=data, _expected_status=201)
 
     assert json_resp["data"]["id"]
@@ -373,6 +376,7 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
     assert json_resp["data"]["rate_limit"] == 1000
     assert json_resp["data"]["letter_branding"] is None
     assert json_resp["data"]["count_as_live"] is expected_count_as_live
+    mocked_salesforce_client.engagement_create.assert_called_once()
 
     service_db = Service.query.get(json_resp["data"]["id"])
     assert service_db.name == "created service"
@@ -1572,7 +1576,11 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert not resp["notifications"][0]["row_number"]
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
-    assert resp["notifications"][0]["status"] == "Sending"
+
+    if current_app.config["FF_BOUNCE_RATE_V1"]:
+        assert resp["notifications"][0]["status"] == "In transit"
+    else:
+        assert resp["notifications"][0]["status"] == "Sending"
 
 
 def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_session):
@@ -1612,7 +1620,7 @@ def test_get_notification_for_service(client, notify_db, notify_db_session):
         )
         assert service_2_response.status_code == 404
         service_2_response = json.loads(service_2_response.get_data(as_text=True))
-        assert service_2_response == {"message": "No result found", "result": "error"}
+        assert service_2_response == {"message": "Notification not found in database", "result": "error"}
 
 
 def test_get_notification_for_service_includes_created_by(admin_request, sample_notification):
@@ -2104,6 +2112,10 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
 
     data = {"restricted": False}
 
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+    mocked_fetch_service_creator = mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user_1)
+    mocked_get_user_by_id = mocker.patch("app.service.rest.get_user_by_id", return_value=user_2)
+
     auth_header = create_authorization_header()
     resp = client.post(
         "service/{}".format(restricted_service.id),
@@ -2125,6 +2137,17 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         },
         include_user_fields=["name"],
     )
+
+    engagement_user = user_2 if set_go_live_user else user_1
+    mocked_salesforce_client.engagement_update.assert_called_once_with(
+        restricted_service, engagement_user, {"StageName": ENGAGEMENT_STAGE_LIVE}
+    )
+    if set_go_live_user:
+        mocked_fetch_service_creator.assert_not_called()
+        mocked_get_user_by_id.assert_called_once_with(restricted_service.go_live_user_id)
+    else:
+        mocked_fetch_service_creator.assert_called_once_with(restricted_service.id)
+        mocked_get_user_by_id.assert_not_called()
 
 
 @pytest.mark.parametrize(
