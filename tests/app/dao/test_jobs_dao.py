@@ -21,6 +21,7 @@ from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Job
 from tests.app.db import (
     create_job,
     create_notification,
+    create_notification_history,
     create_service,
     create_template,
     save_notification,
@@ -59,6 +60,26 @@ def test_should_return_notifications_only_for_this_job(sample_template):
 
     results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
     assert {row.status: row.count for row in results} == {"created": 1}
+
+
+def test_get_notification_outcomes_should_return_history_rows(sample_template):
+    job_1 = create_job(sample_template)
+
+    save_notification(create_notification_history(sample_template, job=job_1, status="created"))
+    save_notification(create_notification_history(sample_template, job=job_1, status="sent"))
+
+    results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
+    assert {row.status: row.count for row in results} == {"created": 1, "sent": 1}
+
+
+def test_get_notification_outcomes_should_return_history_and_non_history_rows(sample_template):
+    job_1 = create_job(sample_template)
+
+    save_notification(create_notification_history(sample_template, job=job_1, status="sent"))
+    save_notification(create_notification(sample_template, job=job_1, status="created"))
+
+    results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
+    assert {row.status: row.count for row in results} == {"created": 1, "sent": 1}
 
 
 def test_should_return_notifications_only_for_this_service(
