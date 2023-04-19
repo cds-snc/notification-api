@@ -32,7 +32,6 @@ from app.models import (
     User,
 )
 from app.utils import (
-    get_local_timezone_midnight,
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
     midnight_n_days_ago,
@@ -241,7 +240,6 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
     start_date = midnight_n_days_ago(limit_days)
-    now = datetime.now()
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
