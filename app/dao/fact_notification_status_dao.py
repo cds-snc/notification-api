@@ -283,7 +283,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             ),
         )
         .filter(
-            Notification.created_at >= get_local_timezone_midnight(now),
+            Notification.created_at >= midnight_n_days_ago(limit_days),
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
