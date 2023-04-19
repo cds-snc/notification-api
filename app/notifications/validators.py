@@ -20,7 +20,7 @@ from notifications_utils.recipients import (
 from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store
+from app import bounce_rate_client, redis_store
 from app.dao import services_dao, templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
@@ -279,6 +279,16 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
                 "Can’t send to this recipient when service is in trial mode " f'– see {get_document_url("en", "keys.html#live")}'
             )
         raise BadRequestError(message=message, status_code=400)
+
+
+def check_service_over_bounce_rate(service_id: str):
+    if current_app.config["FF_BOUNCE_RATE_V1"]:
+        bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
+        if bounce_rate >= current_app.config["BR_CRITICAL_PERCENTAGE"]:
+            # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
+            current_app.logger.info(f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%")
+        elif bounce_rate >= current_app.config["BR_WARNING_PERCENTAGE"]:
+            current_app.logger.info(f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%")
 
 
 def service_has_permission(notify_type, permissions: list[Permission]):
