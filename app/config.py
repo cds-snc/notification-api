@@ -499,14 +499,14 @@ class Config(object):
     CSV_MAX_ROWS_BULK_SEND = os.getenv("CSV_MAX_ROWS_BULK_SEND", 100_000)
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
-    # Bounce Rate parameters
-    BR_WARNING_PERCENTAGE = 5
-    BR_CRITICAL_PERCENTAGE = 10
-
     # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
+
+    # Bounce Rate parameters
+    BR_WARNING_PERCENTAGE = 5
+    BR_CRITICAL_PERCENTAGE = 10
 
     # add and use sms_daily_limit
     FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
@@ -573,6 +573,8 @@ class Development(Config):
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
 
+    FF_BOUNCE_RATE_V1 = True
+
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
     for queue in QueueNames.all_queues():
@@ -612,6 +614,8 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
+
+    FF_BOUNCE_RATE_V1 = True
 
 
 class Production(Config):
