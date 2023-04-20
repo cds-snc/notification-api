@@ -5,7 +5,6 @@ services:
       context: ..
       dockerfile: ci/Dockerfile.datadog
     volumes:
-      - ./datadog/datadog.yml:/etc/datadog-agent/datadog.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
@@ -24,11 +23,6 @@ services:
       - localstack
       - app
       - db
-    command:
-    - "agent"
-    - "run"
-    - "-c"
-    - "/etc/datadog-agent/datadog.yaml"
 
   app:
     build:
