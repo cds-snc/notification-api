@@ -214,58 +214,83 @@
           "name": "VA_ONSITE_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/onsite/notification-priv"
         }
-      ],
-      "command": [
-        "sh",
-        "-c",
-        "/app/scripts/run_celery_beat.sh"
       ]
     },
     {
-      "name": "datadog-agent",
-      "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
-      "essential": true,
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "dev-notification-api-datadog-log-group",
-          "awslogs-region": "us-gov-west-1",
-          "awslogs-stream-prefix": "ecs"
-        }
-      },
-      "portMappings": [
-        {
-          "containerPort": 8125,
-          "hostPort": 8125,
-          "protocol": "udp"
-        },
-        {
-          "containerPort": 8126,
-          "hostPort": 8126,
-          "protocol": "tcp"
-        }
-      ],
-      "environment": [
-        {
-          "name": "ECS_FARGATE",
-          "value": "true"
-        },
-        {
-          "name": "DD_SITE",
-          "value": "ddog-gov.com"
-        },
-        {
-          "name": "DD_APM_ENABLED",
-          "value": "true"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DD_API_KEY",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog-gov/apikey"
-        }
-      ]
-    }
+	  "name": "datadog-agent",
+	  "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
+	  "essential": true,
+	  "logConfiguration": {
+		"logDriver": "awslogs",
+		"options": {
+		  "awslogs-group": "dev-notification-api-datadog-log-group",
+		  "awslogs-region": "us-gov-west-1",
+		  "awslogs-stream-prefix": "ecs"
+		}
+	  },
+	  "portMappings": [
+		{
+		  "containerPort": 8125,
+		  "hostPort": 8125,
+		  "protocol": "udp"
+		},
+		{
+		  "containerPort": 8126,
+		  "hostPort": 8126,
+		  "protocol": "tcp"
+		}
+	  ],
+	  "environment": [
+		{
+		  "name": "ECS_FARGATE",
+		  "value": "true"
+		},
+		{
+		  "name": "DD_SITE",
+		  "value": "ddog-gov.com"
+		},
+		{
+		  "name": "DD_APM_ENABLED",
+		  "value": "true"
+		},
+		{
+		  "name": "DD_LOGS_ENABLED",
+		  "value": "true"
+		},
+		{
+		  "name": "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL",
+		  "value": "true"
+		},
+		{
+		  "name": "DD_PROCESS_AGENT_ENABLED",
+		  "value": "true"
+		},
+		{
+		  "name": "DD_DOCKER_LABELS_AS_TAGS",
+		  "value": "{\"my.custom.label.team\":\"team\"}"
+		},
+		{
+		  "name": "DD_TAGS",
+		  "value": "env:dd101-dev"
+		},
+		{
+		  "name": "DD_HOSTNAME",
+		  "value": "dd101-dev-host"
+		},
+		{
+		  "name": "DD_ENV",
+		  "value": "local"
+		}
+	  ],
+	  "secrets": [
+		{
+		  "name": "DD_API_KEY",
+		  "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog-gov/apikey"
+		}
+	  ],
+	  "command": ["agent", "run", "-c", "/etc/datadog-agent/datadog.yaml"]
+	}
+
   ],
   "requiresCompatibilities": [
     "FARGATE"
