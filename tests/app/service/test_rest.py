@@ -1576,7 +1576,11 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert not resp["notifications"][0]["row_number"]
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
-    assert resp["notifications"][0]["status"] == "Sending"
+
+    if current_app.config["FF_BOUNCE_RATE_V1"]:
+        assert resp["notifications"][0]["status"] == "In transit"
+    else:
+        assert resp["notifications"][0]["status"] == "Sending"
 
 
 def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_session):
@@ -1616,7 +1620,7 @@ def test_get_notification_for_service(client, notify_db, notify_db_session):
         )
         assert service_2_response.status_code == 404
         service_2_response = json.loads(service_2_response.get_data(as_text=True))
-        assert service_2_response == {"message": "No result found", "result": "error"}
+        assert service_2_response == {"message": "Notification not found in database", "result": "error"}
 
 
 def test_get_notification_for_service_includes_created_by(admin_request, sample_notification):

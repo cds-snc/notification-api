@@ -27,7 +27,7 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -464,15 +464,24 @@ def send_contact_request(user_id):
         pass
 
     # Update the engagement stage in Salesforce for go live requests
-    if contact and contact.is_go_live_request and current_app.config["FF_SALESFORCE_CONTACT"]:
+    if contact and contact.is_go_live_request() and current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
-            if contact.service_id:
-                engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
-                service = dao_fetch_service_by_id(contact.service_id)
-                salesforce_client.engagement_update(service, user, engagement_updates)
-                contact.department_org_name = service.organisation_notes
+            engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
+            service = dao_fetch_service_by_id(contact.service_id)
+            salesforce_client.engagement_update(service, user, engagement_updates)
+
+            if not service.organisation_notes:
+                # the service was created before we started requesting the organisation name at creation time
+                if not contact.department_org_name:
+                    # this shouldn't happen, but if it does, we don't want to leave the service with no organisation name
+                    contact.department_org_name = "Unknown"
+                # fall back on the organisation name collected from the go live request
+                service.organisation_notes = contact.department_org_name
+                dao_update_service(service)
             else:
-                current_app.logger.error(f"Missing service_id for go live request with contact: {contact}")
+                # this is the normal case, where the service has an organisation name collected when it was created
+                contact.department_org_name = service.organisation_notes
+
         except Exception as e:
             current_app.logger.exception(e)
 

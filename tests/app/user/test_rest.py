@@ -834,6 +834,7 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     }
 
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -843,6 +844,7 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     assert resp.status_code == 204
 
     mocked_freshdesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
 
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
@@ -856,6 +858,7 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
         "support_type": "ask_question",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -864,6 +867,7 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
 
 
 def test_send_contact_request_demo(client, sample_user, mocker):
@@ -873,6 +877,7 @@ def test_send_contact_request_demo(client, sample_user, mocker):
         "support_type": "demo",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -882,6 +887,7 @@ def test_send_contact_request_demo(client, sample_user, mocker):
     assert resp.status_code == 204
 
     mocked_freshdesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
@@ -912,6 +918,41 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     )
 
 
+@pytest.mark.parametrize(
+    "organisation_notes, department_org_name",
+    [
+        ("TBS > CDS", "TBS > CDS"),
+        (None, "Unknown"),
+    ],
+)
+def test_send_contact_request_go_live_with_org_notes(organisation_notes, department_org_name, client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    sample_service.organisation_notes = organisation_notes
+    data = {
+        "name": sample_user.name,
+        "email_address": sample_user.email_address,
+        "main_use_case": "I want to send emails",
+        "support_type": "go_live_request",
+        "service_id": str(sample_service.id),
+    }
+    mock_contact_request = mocker.MagicMock()
+    mocker.patch("app.user.rest.ContactRequest", return_value=mock_contact_request)
+    mocker.patch("app.user.rest.dao_fetch_service_by_id", return_value=sample_service)
+    mocker.patch("app.user.rest.dao_update_service")
+    mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocker.patch("app.user.rest.get_user_by_email", return_value=sample_user)
+    mocker.patch("app.user.rest.salesforce_client")
+    mock_contact_request.department_org_name = None
+
+    resp = client.post(
+        url_for("user.send_contact_request", user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+    assert resp.status_code == 204
+    assert mock_contact_request.department_org_name == department_org_name
+
+
 def test_send_branding_request(client, sample_service, mocker):
     sample_user = sample_service.users[0]
     post_data = {
@@ -921,6 +962,7 @@ def test_send_branding_request(client, sample_service, mocker):
         "filename": "branding_url",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_branding_request", user_id=str(sample_user.id)),
@@ -929,6 +971,7 @@ def test_send_branding_request(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):

@@ -6,6 +6,14 @@ import requests
 from flask import current_app
 from requests.auth import HTTPBasicAuth
 
+from app.config import QueueNames
+from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.templates_dao import dao_get_template_by_id
+from app.models import KEY_TYPE_NORMAL
+from app.notifications.process_notifications import (
+    persist_notification,
+    send_notification_to_queue,
+)
 from app.user.contact_request import ContactRequest
 
 __all__ = ["Freshdesk"]
@@ -30,12 +38,13 @@ class Freshdesk(object):
             )
         elif self.contact.is_go_live_request():
             # the ">" character breaks rendering for the freshdesk preview in slack
-            department_org_name = self.contact.department_org_name.replace(">", "/")
+            if self.contact.department_org_name:
+                self.contact.department_org_name = self.contact.department_org_name.replace(">", "/")
             message = "<br>".join(
                 [
                     f"{self.contact.service_name} just requested to go live.",
                     "",
-                    f"- Department/org: {department_org_name}",
+                    f"- Department/org: {self.contact.department_org_name}",
                     f"- Intended recipients: {self.contact.intended_recipients}",
                     f"- Purpose: {self.contact.main_use_case}",
                     f"- Notification types: {self.contact.notification_types}",
@@ -100,6 +109,34 @@ class Freshdesk(object):
             else:
                 return 201
         except requests.RequestException as e:
-            content = json.loads(response.content)
-            current_app.logger.error(f"Failed to create Freshdesk ticket: {content['errors']}")
-            raise e
+            current_app.logger.error(f"Failed to create Freshdesk ticket: {e}")
+            self.email_freshdesk_ticket(self._generate_ticket())
+            return 201
+
+    def email_freshdesk_ticket(self, content: dict) -> None:
+        try:
+            template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
+            if isinstance(template, tuple):
+                template = template[0]
+            notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
+
+            if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
+                current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
+            else:
+                current_app.logger.info("Emailing contact us form to {}".format(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"]))
+                saved_notification = persist_notification(
+                    template_id=template.id,
+                    template_version=template.version,
+                    recipient=current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
+                    service=notify_service,
+                    personalisation={
+                        "contact_us_content": json.dumps(content, indent=4),
+                    },
+                    notification_type=template.template_type,
+                    api_key_id=None,
+                    key_type=KEY_TYPE_NORMAL,
+                    reply_to_text=notify_service.get_default_reply_to_email_address(),
+                )
+                send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+        except Exception as e:
+            current_app.logger.exception(f"Failed to email contact form {json.dumps(content, indent=4)}, error: {e}")

@@ -46,7 +46,7 @@ def test_get_job_with_unknown_id_returns404(client, sample_template, fake_uuid):
     response = client.get(path, headers=[auth_header])
     assert response.status_code == 404
     resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json == {"message": "No result found", "result": "error"}
+    assert resp_json == {"message": "Job not found in database", "result": "error"}
 
 
 def test_cancel_job(client, sample_scheduled_job):
