@@ -3,7 +3,9 @@ from __future__ import print_function
 import os
 
 import sentry_sdk
-from ddtrace import patch_all
+# from ddtrace import patch_all
+from ddtrace import config, patch_all, tracer
+from ddtrace.profiling import Profiler
 from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -34,3 +36,9 @@ tracer.configure(
 
 # this starts the ddtrace tracer and configures it to the right port and URL
 patch_all()
+
+tracer.configure(service="my-service-name", hostname="datadog-agent", port=8126)
+
+config.profiling.enabled = True
+profiler = Profiler()
+profiler.start()
