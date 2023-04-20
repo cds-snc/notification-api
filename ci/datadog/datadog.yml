@@ -1,0 +1,12 @@
+# APM configuration
+apm_config:
+  enabled: true
+  env: production
+  global_tags:
+    env: production
+    service: my-python-app
+  distributed_tracing:
+    enabled: true
+    propagatation_style: Datadog
+  settings:
+    profiling_enabled: true

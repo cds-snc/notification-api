@@ -1,5 +1,14 @@
 version: "3"
 services:
+  datadog-agent:
+    build: 
+      context: ..
+      dockerfile: ci/Dockerfile.datadog
+    volumes:
+      - ./datadog/datadog.yml:/etc/datadog-agent/datadog.yaml
+      #- ./path/to/your/datadog.yaml:/etc/datadog-agent/datadog.yaml
+    environment:
+      - DD_API_KEY=$GOV_DATADOG_API_KEY
   app:
     build:
       context: ..
@@ -79,5 +88,13 @@ services:
     image: redis
     ports:
       - "6379:6379"
+
+volumes:
+  datadog_config:
+    driver: local
+    driver_opts:
+      type: none
+      device: datadog/datadog.yaml
+      o: bind
 
 
