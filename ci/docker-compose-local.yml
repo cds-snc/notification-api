@@ -6,9 +6,30 @@ services:
       dockerfile: ci/Dockerfile.datadog
     volumes:
       - ./datadog/datadog.yml:/etc/datadog-agent/datadog.yaml
-      #- ./path/to/your/datadog.yaml:/etc/datadog-agent/datadog.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     environment:
       - DD_API_KEY=$GOV_DATADOG_API_KEY
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_DOCKER_LABELS_AS_TAGS={"my.custom.label.team":"team"}
+      - DD_TAGS='env:dd101-dev'
+      - DD_HOSTNAME=dd101-dev-host
+      - DD_ENV=local
+      - DD_SITE=ddog-gov.com
+    depends_on:
+      - migrations
+      - localstack
+      - app
+      - db
+    command:
+    - "agent"
+    - "run"
+    - "-c"
+    - "/etc/datadog-agent/datadog.yaml"
+
   app:
     build:
       context: ..
@@ -89,12 +110,10 @@ services:
     ports:
       - "6379:6379"
 
-volumes:
-  datadog_config:
-    driver: local
-    driver_opts:
-      type: none
-      device: datadog/datadog.yaml
-      o: bind
-
-
+#volumes:
+  #datadog_config:
+    #driver: local
+    #driver_opts:
+      #type: none
+      #device: datadog/datadog.yaml
+      #o: bind

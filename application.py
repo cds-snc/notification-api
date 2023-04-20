@@ -25,5 +25,12 @@ application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
 
 
+from ddtrace import tracer
+
+tracer.configure(
+    hostname='datadog-agent',
+    port=8126,
+)
+
 # this starts the ddtrace tracer and configures it to the right port and URL
 patch_all()
