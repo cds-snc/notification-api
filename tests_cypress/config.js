@@ -22,7 +22,8 @@ let STAGING = {
     ReplyTos: {
         Default: '24e5288d-8bfa-4ad4-93aa-592c11a694cd',
         Second: '797865c4-788b-4184-91ae-8e45eb07e40b'
-    }
+    },
+    viewports: [320,375,640,768]
 };
 
 let LOCAL = {
@@ -56,8 +57,5 @@ const config = {
 
 // choose which config to use here
 const ConfigToUse = config.STAGING;
-
-// some global test settings
-Cypress.config('baseUrl', ConfigToUse.API.HostName); // use hostname for this environment
 
 export default ConfigToUse;
