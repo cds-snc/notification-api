@@ -26,12 +26,6 @@ describe('GCA static pages', () => {
     before(() => {
         Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
     });
-
-    // preserve cookie to keep langauge setting between tests
-    beforeEach(() => {
-        Cypress.Cookies.preserveOnce(ADMIN_COOKIE);
-
-    });
     afterEach(() => {
         // cy.get('main').htmlvalidate({
         //     rules: {
