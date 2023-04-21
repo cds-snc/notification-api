@@ -21,7 +21,6 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import (
     check_rate_limiting,
-    check_service_over_bounce_rate,
     check_template_is_active,
     check_template_is_for_notification_type,
     service_has_permission,
@@ -100,7 +99,6 @@ def send_notification(notification_type: NotificationType):
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
-    check_service_over_bounce_rate(authenticated_service.id)
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
