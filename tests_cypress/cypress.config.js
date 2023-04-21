@@ -28,5 +28,6 @@ module.exports = defineConfig({
     watchForFileChanges: false,
     blockHosts: ['*google-analytics.com', 'stats.g.doubleclick.net', 'bam.nr-data.net'],
     viewportWidth: 1280,
+    testIsolation: false
   },
 });
