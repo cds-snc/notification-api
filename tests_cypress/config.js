@@ -4,7 +4,6 @@ let STAGING = {
     },
     Admin: {
         HostName: "https://staging.notification.cdssandbox.xyz",
-        AdminUser: "alexcampbell1861@gmail.com",
     },
     Services: {
         Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553'
@@ -32,7 +31,6 @@ let LOCAL = {
     },
     Admin: {
         HostName: "http://localhost:6012",
-        AdminUser: "alexcampbell1861@gmail.com",
     },
     Templates: {
         "FILE_ATTACH_TEMPLATE_ID": "7246c71e-3d60-458b-96af-af17a5b07659",
