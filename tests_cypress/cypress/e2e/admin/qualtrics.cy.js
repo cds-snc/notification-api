@@ -1,20 +1,20 @@
 /// <reference types="cypress" />
 
 import config from "../../../config";
+import { LoginPage, TwoFactorPage } from "../../Notify/Admin/Pages/all";
 
 const { recurse } = require('cypress-recurse')
 
-const ADMIN_COOKIE = 'notify_admin_session';
+const ADMIN_COOKIE = 'notify_admin_session3';
 describe('Qualtrics', () => {
 
     // Login to notify before the test suite starts
     before(() => {
-        Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
+        // Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
     });
 
     // Before each test, persist the auth cookie so we don't have to login again
     beforeEach(() => {
-        Cypress.Cookies.preserveOnce(ADMIN_COOKIE);
         // stop the recurring dashboard fetch requests
         cy.intercept('GET', '**/dashboard.json', {});
     });
