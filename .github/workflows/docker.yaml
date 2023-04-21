@@ -10,12 +10,16 @@ env:
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
 
+permissions:
+  id-token: write   # This is required for requesting the OIDC JWT
+  contents: read    # This is required for actions/checkout
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8 # v3.1.0
+    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -29,14 +33,20 @@ jobs:
         sudo mv ./kubectl /usr/local/bin/kubectl
         kubectl version --client
         mkdir -p $HOME/.kube
-    - name: AWS auth with ECR
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
-      run: |
-        aws ecr-public get-login-password --region us-east-1 > /tmp/aws
-        cat /tmp/aws | docker login --username AWS --password-stdin $DOCKER_ORG
-        rm /tmp/aws
+
+    - name: Configure credentials to CDS public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "us-east-1"
+
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@2f9f10ea3fa2eed41ac443fee8bfbd059af2d0a4 # v1.6.0
+      with:
+        registry-type: public
+
     - name: Build
       run: |
         docker pull $DOCKER_SLUG:latest
@@ -49,16 +59,18 @@ jobs:
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
+
+    - name: Configure credentials to Notify account using OIDC
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::239043911459:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "ca-central-1"
+
     - name: Get Kubernetes configuration
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
     - name: Update images in staging
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
@@ -67,7 +79,7 @@ jobs:
 
     - name: my-app-install token
       id: notify-pr-bot
-      uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # tag=v1
+      uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # v1.0.6
       with:
         app_id: ${{ secrets.PRBOT_APP_ID }}
         private_key: ${{ secrets.PRBOT_PRIVATE_KEY }}
@@ -77,7 +89,7 @@ jobs:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
     - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@a38917b147dfc8f086abcf81529e3c12f26529b8 # v2.1.0
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@cfec0943e40dbb78cee115bbbe89dc17f07b7a0f # v2.1.3
       with:
         docker_image: "${{ env.DOCKER_SLUG }}:latest"
         dockerfile_path: "ci/Dockerfile"

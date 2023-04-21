@@ -4,23 +4,31 @@ from simple_salesforce import Salesforce
 
 from .salesforce_utils import query_one, query_param_sanitize
 
+ORG_NOTES_ORG_NAME_INDEX = 0
+ORG_NOTES_OTHER_NAME_INDEX = 1
 
-def get_account_name_from_org(organisation_notes: str) -> str:
-    """Given a service's organisation notes, returns the Account name
-    which is the first segment of the organisation notes before the `>` character.
-    If the notes do not contain a `>` character, the entire notes are returned.
+
+def get_org_name_from_notes(organisation_notes: str, name_index: int = ORG_NOTES_ORG_NAME_INDEX) -> str:
+    """Given a service's organisation notes, returns either the organisation name or
+    organisation other name.  The organisation notes structure is as follows:
+
+    ORG_NAME > ORG_OTHER_NAME
+
+    If the `>` character is not found, the entire organisation notes is returned.
 
     TODO: This could be improved by explicitly passing the selected Account name
     to the API from Admin rather than parsing it out of the organisation notes.
 
     Args:
         organisation_notes (str): The service's organisation notes
+        name_index (int): The index of the name to return.  Defaults to 0 (organisation name).
 
     Returns:
-        str: The Account name
+        str: The organisation name or organisation other name.
     """
-    if isinstance(organisation_notes, str) and ">" in organisation_notes:
-        return organisation_notes.split(">")[0].strip()
+    note_parts = organisation_notes.split(">") if isinstance(organisation_notes, str) else []
+    if len(note_parts) > name_index:
+        return note_parts[name_index].strip()
     return organisation_notes
 
 
