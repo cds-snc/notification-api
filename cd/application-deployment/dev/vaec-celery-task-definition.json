@@ -348,8 +348,6 @@
 		  "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/datadog-gov/apikey"
 		}
 	  ]
-	]
-
     }
   ],
   "requiresCompatibilities": [
