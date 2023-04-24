@@ -144,7 +144,7 @@ def _seed_bounce_data(epoch_timestamp: int, service_id: str):
     current_time_ms = int(1000.0 * datetime.now().timestamp())
     time_difference_ms = current_time_ms - epoch_timestamp
 
-    twenty_four_hours_ms = 86400000
+    TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
     if 0 <= time_difference_ms <= twenty_four_hours_ms:
         # We are in the 24 hour window to seed bounce rate data
@@ -154,7 +154,8 @@ def _seed_bounce_data(epoch_timestamp: int, service_id: str):
             current_app.logger.info("Seeding bounce rate for service_id {}".format(service_id))
         else:
             current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
-    current_app.logger.info("Not in the time period to seed bounce rate {}".format(service_id))
+    else:
+        current_app.logger.info("Not in the time period to seed bounce rate {}".format(service_id))
 
 
 # flake8: noqa: C901
