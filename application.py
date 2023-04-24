@@ -26,9 +26,6 @@ application = Flask("app")
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
 
-
-from ddtrace import tracer
-
 tracer.configure(
     hostname='datadog-agent',
     port=8126,
