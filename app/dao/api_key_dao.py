@@ -16,8 +16,8 @@ def resign_api_keys():
     # This allows us to rotate the secret key used to sign the api key secret
     rows = ApiKey.query.all()  # noqa
     for row in rows:
-        unsigned_secret = getattr(row, "secret") # unsign the secret
-        setattr(row, "secret", unsigned_secret) # resigns the api key secret with (potentially) a new signing secret
+        unsigned_secret = getattr(row, "secret")  # unsign the secret
+        setattr(row, "secret", unsigned_secret)  # resigns the api key secret with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 

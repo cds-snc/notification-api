@@ -16,8 +16,8 @@ def resign_service_callbacks():
     rows = ServiceCallbackApi.query.all()  # noqa
     for row in rows:
         if row.bearer_token:
-            unsigned_token = getattr(row, "bearer_token") # unsign the token
-            setattr(row, "bearer_token", unsigned_token) # resigns the token with (potentially) a new signing secret
+            unsigned_token = getattr(row, "bearer_token")  # unsign the token
+            setattr(row, "bearer_token", unsigned_token)  # resigns the token with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 

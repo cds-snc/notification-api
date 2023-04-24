@@ -15,8 +15,8 @@ def resign_inbound_sms():
     # This allows us to rotate the secret key used to sign the content
     rows = InboundSms.query.all()  # noqa
     for row in rows:
-        unsigned_content = getattr(row, "content") # unsign the content
-        setattr(row, "content", unsigned_content) # resigns the content with (potentially) a new signing secret
+        unsigned_content = getattr(row, "content")  # unsign the content
+        setattr(row, "content", unsigned_content)  # resigns the content with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 

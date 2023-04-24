@@ -17,7 +17,7 @@ env.read_env()
 load_dotenv()
 
 
-def resign_tasks_schedule(offset_minutes:int) -> str:
+def resign_tasks_schedule(offset_minutes: int) -> str:
     match os.getenv("RESIGN_TASK_FREQUENCY", "monthly"):
         case "daily":
             return f"{offset_minutes} 2 * * *"  # daily 2 am
