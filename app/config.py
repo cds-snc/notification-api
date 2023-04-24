@@ -20,11 +20,14 @@ load_dotenv()
 def resign_tasks_schedule(offset_minutes: int) -> str:
     match os.getenv("RESIGN_TASK_FREQUENCY", "monthly"):
         case "daily":
-            return f"{offset_minutes} 2 * * *"  # daily 2 am
+            return f"{offset_minutes} 2 * * *"  # daily after 2 am
         case "hourly":
             return f"{offset_minutes} * * * *"  # hourly
-        case _:
-            return f"{offset_minutes} 2 3 * *"  # monthly 2 am on the 3rd day of the month
+        case "monthly":
+            return f"{offset_minutes} 2 3 * *"  # monthly after 2 am on the 3rd day of the month
+
+    logging.error("RESIGN_TASK_FREQUENCY must be one of daily, hourly or monthly")
+    return "0 0 29 2 1"  # 2044 - probably have removed the feature flag and cleaned up the code by then
 
 
 class QueueNames(object):

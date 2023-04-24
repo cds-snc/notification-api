@@ -42,7 +42,6 @@ class TestResigning:
         assert callback.bearer_token == bearer_token
         assert callback._bearer_token == _bearer_token
 
-
     def test_resign_api_keys_FF_true(self, client, sample_service):
         from app import signer_api_key
 
@@ -73,7 +72,7 @@ class TestResigning:
         api_key = ApiKey.query.get(initial_key.id)
         assert api_key.secret == secret
         assert api_key._secret == _secret
-        
+
     def test_resign_inbound_sms_FF_true(self, client, sample_service):
         from app import signer_inbound_sms
 
