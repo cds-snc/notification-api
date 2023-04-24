@@ -17,6 +17,16 @@ env.read_env()
 load_dotenv()
 
 
+def resign_tasks_schedule(offset_minutes:int) -> str:
+    match os.getenv("RESIGN_TASK_FREQUENCY", "monthly"):
+        case "daily":
+            return f"{offset_minutes} 2 * * *"  # daily 2 am
+        case "hourly":
+            return f"{offset_minutes} * * * *"  # hourly
+        case _:
+            return f"{offset_minutes} 2 3 * *"  # monthly 2 am on the 3rd day of the month
+
+
 class QueueNames(object):
 
     # Periodic tasks executed by Notify.
@@ -411,23 +421,17 @@ class Config(object):
         # app/celery/monthly_tasks.py
         "resign-service-callbacks": {
             "task": "resign-service-callbacks",
-            "schedule": crontab(minute=0)
-            if os.getenv("NOTIFY_ENVIRONMENT", "development") == "staging"
-            else crontab(day_of_month=3, hour=5, minute=0),
+            "schedule": resign_tasks_schedule(0),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "resign-api-keys": {
             "task": "resign-api-keys",
-            "schedule": crontab(minute=5)
-            if os.getenv("NOTIFY_ENVIRONMENT", "development") == "staging"
-            else crontab(day_of_month=3, hour=5, minute=15),
+            "schedule": resign_tasks_schedule(5),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "resign-inbound-sms": {
             "task": "resign-inbound-sms",
-            "schedule": crontab(minute=10)
-            if os.getenv("NOTIFY_ENVIRONMENT", "development") == "staging"
-            else crontab(day_of_month=3, hour=5, minute=30),
+            "schedule": resign_tasks_schedule(10),
             "options": {"queue": QueueNames.PERIODIC},
         },
         # 'remove_letter_jobs': {
@@ -537,6 +541,7 @@ class Config(object):
 
     # Feature flags for resigning tasks
     FF_RESIGN_TASKS_ENABLED = env.bool("FF_RESIGN_TASKS_ENABLED", False)
+    RESIGN_TASK_FREQUENCY = os.getenv("RESIGN_TASK_FREQUENCY", "monthly")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
