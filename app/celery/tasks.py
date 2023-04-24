@@ -819,15 +819,32 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         service_id (str): The service id to seed bounce rate for
         interval: The number of hours to seed bounce rate for
     """
+    # TODO: uncomment once this method is implemented in notification-utils
+    # if bounce_rate_client.get_seeding_complete(service_id):
+    #     current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
+    #     return
+
+    current_app.logger.info("Seeding bounce rate for service_id {}".format(service_id))
     total_seeded_notifications = total_notifications_grouped_by_hour(service_id, interval=interval)
     total_seeded_hard_bounces = total_hard_bounces_grouped_by_hour(service_id, interval=interval)
 
     for hour, total_notifications in total_seeded_notifications:
-        bounce_rate_client.set_total_notifications_seeded(service_id, hour, total_notifications)
-    keys = len(total_seeded_notifications)
-    current_app.logger.info(f"Seeded {keys} keys total notifications for service {service_id} in Redis")
+        hour_timestamp_ms = int(hour.timestamp() * 1000.)
+        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
+        email_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_notifications)]
+        email_data_dict = dict(email_data)
+        bounce_rate_client.set_notifications_seeded(service_id, email_data_dict)
+    current_app.logger.info(f"Seeded total notification data for service {service_id} in Redis")
 
     for hour, total_hard_bounces in total_seeded_hard_bounces:
-        bounce_rate_client.set_total_hard_bounce_seeded(service_id, hour, total_hard_bounces)
-    keys = len(total_seeded_hard_bounces)
-    current_app.logger.info(f"Seeded {keys} keys total hard bounces for service {service_id} in Redis")
+        hour_timestamp_ms = int(hour.timestamp() * 1000.)
+        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
+        bounce_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_hard_bounces)]
+        bounce_data_dict = dict(bounce_data)
+        bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
+    
+    current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
+
+    # TODO: uncomment once this method is implemented in notification-utils
+    # set the seeding complete flag to True for this service
+    # bounce_rate_client.set_seeding_complete(service_id)

@@ -7,9 +7,6 @@ from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
-from notifications_utils.clients.redis.bounce_rate import (
-    _total_notifications_seeded_key,
-)
 from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
@@ -104,6 +101,7 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request,
 )
 
+TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
@@ -144,16 +142,9 @@ def _seed_bounce_data(epoch_timestamp: int, service_id: str):
     current_time_ms = int(1000.0 * datetime.now().timestamp())
     time_difference_ms = current_time_ms - epoch_timestamp
 
-    TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
-
-    if 0 <= time_difference_ms <= twenty_four_hours_ms:
+    if 0 <= time_difference_ms <= TWENTY_FOUR_HOURS_MS:
         # We are in the 24 hour window to seed bounce rate data
-        # Check if the seeded data key exists in redis
-        if not redis_store.get(_total_notifications_seeded_key(service_id)):
-            seed_bounce_rate_in_redis.apply_async(service_id)
-            current_app.logger.info("Seeding bounce rate for service_id {}".format(service_id))
-        else:
-            current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
+        seed_bounce_rate_in_redis.apply_async(service_id)
     else:
         current_app.logger.info("Not in the time period to seed bounce rate {}".format(service_id))
 
