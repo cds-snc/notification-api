@@ -535,6 +535,9 @@ class Config(object):
     # Feature flags for bounce rate
     FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
 
+    # Feature flags for resigning tasks
+    FF_RESIGN_TASKS_ENABLED = env.bool("FF_RESIGN_TASKS_ENABLED", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
