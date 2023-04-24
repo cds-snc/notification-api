@@ -11,10 +11,13 @@ from app.models import (
 
 @transactional
 def resign_service_callbacks():
+    # Resign the bearer_token column of the service_callback_api table
+    # This allows us to rotate the secret key used to sign the token
     rows = ServiceCallbackApi.query.all()  # noqa
     for row in rows:
         if row.bearer_token:
-            row.bearer_token = row.bearer_token  # verifies with the getter and resigns with the setter
+            unsigned_token = getattr(row, "bearer_token") # unsign the token
+            setattr(row, "bearer_token", unsigned_token) # resigns the token with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 

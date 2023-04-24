@@ -12,9 +12,12 @@ from app.models import ApiKey
 
 @transactional
 def resign_api_keys():
+    # Resign the secret column of the api_keys table
+    # This allows us to rotate the secret key used to sign the api key secret
     rows = ApiKey.query.all()  # noqa
     for row in rows:
-        row.secret = row.secret  # verifies with the getter and resigns with the setter
+        unsigned_secret = getattr(row, "secret") # unsign the secret
+        setattr(row, "secret", unsigned_secret) # resigns the api key secret with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 

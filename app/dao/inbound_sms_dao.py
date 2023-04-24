@@ -11,9 +11,12 @@ from app.utils import midnight_n_days_ago
 
 @transactional
 def resign_inbound_sms():
+    # Resign the content column of the inbound_sms table
+    # This allows us to rotate the secret key used to sign the content
     rows = InboundSms.query.all()  # noqa
     for row in rows:
-        row.content = row.content  # verifies with the getter and resigns with the setter
+        unsigned_content = getattr(row, "content") # unsign the content
+        setattr(row, "content", unsigned_content) # resigns the content with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 
 
