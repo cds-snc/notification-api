@@ -103,6 +103,7 @@ from app.v2.notifications.notification_schemas import (
 
 TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
+
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
     if "content" not in (request.get_json() or {}):
