@@ -573,8 +573,6 @@ class Development(Config):
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
 
-    FF_BOUNCE_RATE_V1 = True
-
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
     for queue in QueueNames.all_queues():
