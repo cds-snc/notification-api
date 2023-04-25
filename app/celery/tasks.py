@@ -820,9 +820,14 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         interval: The number of hours to seed bounce rate for
     """
     # TODO: uncomment once this method is implemented in notification-utils
-    # if bounce_rate_client.get_seeding_complete(service_id):
-    #     current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
-    #     return
+    if bounce_rate_client.get_seeding_started(service_id) is False:
+        current_app.logger.info("Clear all data for current service {}".format(service_id))
+        bounce_rate_client.clear_bounce_rate_data(service_id)
+        current_app.logger.info("Set seeding flag to True for service {}".format(service_id))
+        bounce_rate_client.set_seeding_started(service_id)
+    else:
+        current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
+        return
 
     current_app.logger.info("Seeding bounce rate for service_id {}".format(service_id))
     total_seeded_notifications = total_notifications_grouped_by_hour(service_id, interval=interval)
@@ -844,7 +849,3 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
     current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
-
-    # TODO: uncomment once this method is implemented in notification-utils
-    # set the seeding complete flag to True for this service
-    # bounce_rate_client.set_seeding_complete(service_id)
