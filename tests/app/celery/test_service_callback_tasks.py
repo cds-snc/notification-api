@@ -15,12 +15,22 @@ from app.celery.service_callback_tasks import (
     send_complaint_to_vanotify,
     check_and_queue_callback_task,
     publish_complaint,
-    send_inbound_sms_to_service
+    send_inbound_sms_to_service,
+    create_delivery_status_callback_data
 )
 
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, ServiceCallback, Complaint, Service, Template, INBOUND_SMS_CALLBACK_TYPE
+from app.models import (
+    Notification,
+    ServiceCallback,
+    Complaint,
+    Service,
+    Template,
+    INBOUND_SMS_CALLBACK_TYPE,
+    NOTIFICATION_STATUS_TYPES
+)
+
 from app.model import User
 from tests.app.db import (
     create_complaint,
@@ -240,7 +250,6 @@ def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, compl
 
 def test_check_and_queue_callback_task_does_not_queue_task_if_service_callback_api_does_not_exist(mocker):
     mock_notification = create_mock_notification(mocker)
-
     mocker.patch(
         'app.celery.service_callback_tasks.get_service_delivery_status_callback_api_for_service',
         return_value=None
@@ -251,7 +260,6 @@ def test_check_and_queue_callback_task_does_not_queue_task_if_service_callback_a
     )
 
     check_and_queue_callback_task(mock_notification)
-
     mock_send_delivery_status.assert_not_called()
 
 
@@ -444,3 +452,22 @@ class TestSendInboundSmsToService:
             send_inbound_sms_to_service(inbound_sms_id=uuid.uuid4(), service_id=sample_service.id)
 
         assert mock_send.call_count == 0
+
+
+@pytest.mark.parametrize("payload", [None, {}, {'key': 'value'}])
+def test_create_delivery_status_callback_provider_payload(sample_notification, payload):
+    # callback_api
+    callback_api = create_service_callback_api(
+        service=sample_notification.service,
+        url="https://original_url.com",
+        notification_statuses=NOTIFICATION_STATUS_TYPES
+    )
+
+    encrypted_message = create_delivery_status_callback_data(sample_notification, callback_api, payload)
+    decrypted_message = encryption.decrypt(encrypted_message)
+
+    # check if payload is dictionary with at least one entry
+    if payload:
+        assert 'provider_payload' in decrypted_message
+    else:
+        assert 'provider_payload' not in decrypted_message
