@@ -264,7 +264,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
     save_notification(
         create_notification(
             service_1.templates[0],
-            created_at=datetime(2018, 10, 30, 12, 0, 0),
+            created_at=datetime(2018, 10, 23, 12, 0, 0),
             status="delivered",
         )
     )
@@ -320,7 +320,7 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     save_notification(
         create_notification(
             service_1.templates[0],
-            created_at=datetime(2018, 10, 30, 12, 0, 0),
+            created_at=datetime(2018, 10, 23, 12, 0, 0),
             status="delivered",
         )
     )
