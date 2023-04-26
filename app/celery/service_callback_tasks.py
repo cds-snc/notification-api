@@ -247,7 +247,9 @@ def create_delivery_status_callback_data(notification, service_callback_api, pro
         "status_reason": notification.status_reason,
     }
 
-    data['provider_payload'] = {} if provider_payload is None else provider_payload
+    # do not update data[] when provider_payload is None or empty dictionary
+    if provider_payload:
+        data['provider_payload'] = provider_payload
 
     return encryption.encrypt(data)
 
