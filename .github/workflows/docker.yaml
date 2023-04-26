@@ -10,6 +10,10 @@ env:
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
 
+permissions:
+  id-token: write   # This is required for requesting the OIDC JWT
+  contents: read    # This is required for actions/checkout
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -29,14 +33,20 @@ jobs:
         sudo mv ./kubectl /usr/local/bin/kubectl
         kubectl version --client
         mkdir -p $HOME/.kube
-    - name: AWS auth with ECR
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
-      run: |
-        aws ecr-public get-login-password --region us-east-1 > /tmp/aws
-        cat /tmp/aws | docker login --username AWS --password-stdin $DOCKER_ORG
-        rm /tmp/aws
+
+    - name: Configure credentials to CDS public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "us-east-1"
+
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@2f9f10ea3fa2eed41ac443fee8bfbd059af2d0a4 # v1.6.0
+      with:
+        registry-type: public
+
     - name: Build
       run: |
         docker pull $DOCKER_SLUG:latest
@@ -49,16 +59,18 @@ jobs:
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
+
+    - name: Configure credentials to Notify account using OIDC
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::239043911459:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "ca-central-1"
+
     - name: Get Kubernetes configuration
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
     - name: Update images in staging
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
         kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
