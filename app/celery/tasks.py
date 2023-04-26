@@ -819,7 +819,6 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         service_id (str): The service id to seed bounce rate for
         interval: The number of hours to seed bounce rate for
     """
-    # TODO: uncomment once this method is implemented in notification-utils
     if bounce_rate_client.get_seeding_started(service_id) is False:
         current_app.logger.info("Clear all data for current service {}".format(service_id))
         bounce_rate_client.clear_bounce_rate_data(service_id)
