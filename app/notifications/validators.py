@@ -284,11 +284,12 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
 def check_service_over_bounce_rate(service_id: str):
     if current_app.config["FF_BOUNCE_RATE_V1"]:
         bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
+        bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id, volume_threshold= BR_VOLUME_MINIMUM)
         if bounce_rate >= current_app.config["BR_CRITICAL_PERCENTAGE"]:
             # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
-            current_app.logger.info(f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%")
+            current_app.logger.info(f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}")
         elif bounce_rate >= current_app.config["BR_WARNING_PERCENTAGE"]:
-            current_app.logger.info(f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%")
+            current_app.logger.info(f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}")
 
 
 def service_has_permission(notify_type, permissions: list[Permission]):
