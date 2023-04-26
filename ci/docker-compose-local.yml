@@ -6,14 +6,14 @@ services:
       dockerfile: ci/Dockerfile.datadog
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /proc/:/host/proc/:ro
+      #- /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     environment:
       - DD_API_KEY=$GOV_DATADOG_API_KEY
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_PROCESS_AGENT_ENABLED=true
-      - DD_DOCKER_LABELS_AS_TAGS={"my.custom.label.team":"team"}
+      #- DD_DOCKER_LABELS_AS_TAGS={"my.custom.label.team":"team"}
       - DD_TAGS='env:dd101-dev'
       - DD_HOSTNAME=dd101-dev-host
       - DD_ENV=local
@@ -104,10 +104,10 @@ services:
     ports:
       - "6379:6379"
 
-#volumes:
-  #datadog_config:
-    #driver: local
-    #driver_opts:
-      #type: none
-      #device: datadog/datadog.yaml
-      #o: bind
+volumes:
+  datadog_config:
+    driver: local
+    driver_opts:
+      type: none
+      device: datadog/datadog.yaml
+      o: bind
