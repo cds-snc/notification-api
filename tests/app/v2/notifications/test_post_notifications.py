@@ -11,6 +11,7 @@ from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
 from app import signer_notification
+from app.celery.tasks import seed_bounce_rate_in_redis
 from app.dao.api_key_dao import get_unsigned_secret, save_model_api_key
 from app.dao.jobs_dao import dao_get_job_by_id
 from app.models import (
@@ -33,6 +34,7 @@ from app.v2.notifications.notification_schemas import (
     post_email_response,
     post_sms_response,
 )
+from app.v2.notifications.post_notifications import _seed_bounce_data
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_notification,
@@ -2961,3 +2963,31 @@ class TestBatchPriorityLanes:
             assert mock_redisQueue_EMAIL_NORMAL.called
         elif process_type == "priority":
             assert mock_redisQueue_EMAIL_PRIORITY.called
+
+
+class TestSeedingBounceRateData:
+    @freeze_time("2019-01-01 12:00:00.000000")
+    @pytest.mark.parametrize(
+        "epoch_time, redis_result, result",
+        [
+            ("2019-01-01 15:00:00.000000", True, False),
+            ("2019-01-01 00:00:00.000000", False, True),
+            ("2018-12-31 12:00:00.000000", False, True),
+            ("2018-12-31 12:00:00.000000", False, False),
+            ("2019-01-01 00:00:00.000000", True, False),
+        ],
+    )
+    def test_seed_bounce_rate(self, notify_api, sample_email_template, mocker, epoch_time, redis_result, result):
+        service_id = str(sample_email_template.service_id)
+        mocker.patch("app.v2.notifications.post_notifications.seed_bounce_rate_in_redis.apply_async")
+        mocker.patch("app.v2.notifications.post_notifications.redis_store.get", return_value=redis_result)
+        # Convert string to datetime object
+        date_object = datetime.strptime(epoch_time, "%Y-%m-%d %H:%M:%S.%f")
+
+        # Convert datetime object to epoch timestamp in milliseconds
+        epoch_timestamp_ms = int(date_object.timestamp() * 1000)
+
+        _seed_bounce_data(epoch_timestamp_ms, service_id)
+
+        if result:
+            seed_bounce_rate_in_redis.apply_async.assert_called_once_with(service_id)

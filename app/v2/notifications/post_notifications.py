@@ -2,6 +2,7 @@ import base64
 import csv
 import functools
 import uuid
+from datetime import datetime
 from io import StringIO
 
 import werkzeug
@@ -21,6 +22,7 @@ from app import (
     email_normal_publish,
     email_priority_publish,
     notify_celery,
+    redis_store,
     signer_notification,
     sms_bulk_publish,
     sms_normal_publish,
@@ -30,7 +32,7 @@ from app import (
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.celery.tasks import process_job
+from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
@@ -100,6 +102,8 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request,
 )
 
+TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
@@ -136,6 +140,18 @@ def post_precompiled_letter_notification():
     return jsonify(resp), 201
 
 
+def _seed_bounce_data(epoch_timestamp: int, service_id: str):
+    current_time_ms = int(1000.0 * datetime.now().timestamp())
+    time_difference_ms = current_time_ms - epoch_timestamp
+
+    if 0 <= time_difference_ms <= TWENTY_FOUR_HOURS_MS:
+        # We are in the 24 hour window to seed bounce rate data
+        seed_bounce_rate_in_redis.apply_async(service_id)
+    else:
+        current_app.logger.info("Not in the time period to seed bounce rate {}".format(service_id))
+
+
+# flake8: noqa: C901
 @v2_notification_blueprint.route("/bulk", methods=["POST"])
 def post_bulk():
     try:
@@ -145,6 +161,11 @@ def post_bulk():
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     check_sms_limit = current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
+    epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
+    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_V1"]
+    if bounce_rate_v1 and epoch_seeding_bounce:
+        _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
+
     form = validate(request_json, post_bulk_request(max_rows))
 
     if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
@@ -233,6 +254,12 @@ def post_notification(notification_type: NotificationType):
         form = validate(request_json, post_letter_request)
     else:
         abort(404)
+
+    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_V1"]
+    epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
+    if bounce_rate_v1 and epoch_seeding_bounce:
+        _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
+
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)
