@@ -27,7 +27,7 @@ application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)
 
 tracer.configure(
-    hostname='datadog-agent',
+    hostname='localhost',
     port=8126,
 )
 
