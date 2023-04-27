@@ -326,6 +326,10 @@
         {
           "name": "DD_ENV",
           "value": "dev"
+        },
+        {
+          "name": "DD_PROFILING_MAX_EVENTS",
+          "value": "10000"
         }
       ],
       "secrets": [
