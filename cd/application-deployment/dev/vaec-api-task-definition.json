@@ -316,28 +316,8 @@
           "value": "true"
         },
         {
-          "name": "DD_LOGS_ENABLED",
-          "value": "true"
-        },
-        {
-          "name": "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL",
-          "value": "true"
-        },
-        {
           "name": "DD_PROCESS_AGENT_ENABLED",
           "value": "true"
-        },
-        {
-          "name": "DD_DOCKER_LABELS_AS_TAGS",
-          "value": "{\"my.custom.label.team\":\"team\"}"
-        },
-        {
-          "name": "DD_TAGS",
-          "value": "env:dd101-dev"
-        },
-        {
-          "name": "DD_HOSTNAME",
-          "value": "dd101-dev-host"
         },
         {
           "name": "DD_ENV",
@@ -388,3 +368,4 @@
     }
   ]
 }
+
