@@ -312,6 +312,18 @@
         {
           "name": "DD_APM_ENABLED",
           "value": "true"
+        },
+        {
+          "name": "DD_APM_NON_LOCAL_TRAFFIC",
+          "value": "true"
+        },
+        {
+          "name": "DD_PROCESS_AGENT_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_ENV",
+          "value": "dev"
         }
       ],
       "secrets": [
