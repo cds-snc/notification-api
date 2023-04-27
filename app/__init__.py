@@ -57,7 +57,7 @@ statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
 flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
-bounce_rate_client = RedisBounceRate(redis_store)
+bounce_rate_client = RedisBounceRate(RedisClient())
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
