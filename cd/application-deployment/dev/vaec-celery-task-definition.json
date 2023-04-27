@@ -325,7 +325,7 @@
           "name": "DD_ENV",
           "value": "dev"
         },
-		        {
+        {
           "name": "DD_PROFILING_MAX_EVENTS",
           "value": "10000"
         }
@@ -342,7 +342,7 @@
     "FARGATE"
   ],
   "cpu": "512",
-  "memory": "1024",
+  "memory": "4096",
   "tags": [
     {
       "key": "Stack",
