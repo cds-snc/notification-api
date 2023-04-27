@@ -34,10 +34,6 @@ tracer.configure(
 # this starts the ddtrace tracer and configures it to the right port and URL
 patch_all()
 
-# tracer.configure(service="my-service-name", hostname="datadog-agent", port=8126)
-# tracer.configure(env="my-service-name", hostname="datadog-agent", port=8126)
-tracer.configure(hostname="datadog-agent", port=8126)
-
 config.profiling.enabled = True
 profiler = Profiler()
 profiler.start()
