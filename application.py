@@ -14,18 +14,6 @@ from app import create_app
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
-sentry_sdk.init(
-    dsn=os.environ.get("SENTRY_URL", ""),
-    integrations=[FlaskIntegration()],
-    release=os.environ.get("GIT_SHA", ""),
-)
-
-application = Flask("app")
-application.wsgi_app = ProxyFix(application.wsgi_app)
-create_app(application)
-
 tracer.configure(
     hostname='localhost',
     port=8126,
@@ -37,3 +25,15 @@ patch_all()
 config.profiling.enabled = True
 profiler = Profiler()
 profiler.start()
+
+load_dotenv()
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_URL", ""),
+    integrations=[FlaskIntegration()],
+    release=os.environ.get("GIT_SHA", ""),
+)
+
+application = Flask("app")
+application.wsgi_app = ProxyFix(application.wsgi_app)
+create_app(application)
