@@ -17,7 +17,7 @@ from app.dao.service_callback_api_dao import (
     get_service_inbound_sms_callback_api_for_service, get_service_callback
 )
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_service_id_and_number
-from app.models import Complaint, Notification
+from app.models import Complaint, Notification, ServiceCallback
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -226,7 +226,8 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
         raise e
 
 
-def create_delivery_status_callback_data(notification, service_callback_api, provider_payload=None):
+def create_delivery_status_callback_data(
+        notification: Notification, service_callback: ServiceCallback, provider_payload=None):
     """ Encrypt and return the delivery status message. """
 
     from app import DATETIME_FORMAT, encryption
@@ -241,15 +242,15 @@ def create_delivery_status_callback_data(notification, service_callback_api, pro
             notification.updated_at.strftime(DATETIME_FORMAT) if notification.updated_at else None,
         "notification_sent_at": notification.sent_at.strftime(DATETIME_FORMAT) if notification.sent_at else None,
         "notification_type": notification.notification_type,
-        "service_callback_api_url": service_callback_api.url,
-        "service_callback_api_bearer_token": service_callback_api.bearer_token,
+        "service_callback_api_url": service_callback.url,
+        "service_callback_api_bearer_token": service_callback.bearer_token,
         "provider": notification.sent_by,
         "status_reason": notification.status_reason,
     }
 
     # do not update data[] when provider_payload is None or empty dictionary
-    if provider_payload:
-        data['provider_payload'] = provider_payload
+    if service_callback.include_provider_payload:
+        data['provider_payload'] = provider_payload if provider_payload else {}
 
     return encryption.encrypt(data)
 

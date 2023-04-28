@@ -168,35 +168,10 @@ def test_update_service_callback_api(sample_service):
         assert encryption.decrypt(x._bearer_token) == "some_unique_string"
 
 
-def test_get_service_callback_api(sample_service):
-    notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallback(  # nosec
-        service_id=sample_service.id,
-        url="https://some_service/callback_endpoint",
-        bearer_token="some_unique_string",
-        updated_by_id=sample_service.users[0].id,
-        notification_statuses=notification_statuses,
-        callback_channel=WEBHOOK_CHANNEL_TYPE
-    )
-    save_service_callback_api(service_callback_api)
-
-    callback_api = get_service_callback(service_callback_api.id)
-    assert callback_api.id is not None
-    assert callback_api.service_id == sample_service.id
-    assert callback_api.updated_by_id == sample_service.users[0].id
-    assert callback_api.url == "https://some_service/callback_endpoint"
-    assert callback_api.bearer_token == "some_unique_string"
-    assert callback_api._bearer_token != "some_unique_string"
-    assert callback_api.updated_at is None
-
-    # include provider payload should default to False
-    assert callback_api.include_provider_payload is False
-
-
 @pytest.mark.parametrize('payload_included', [True, False])
-def test_get_service_callback_api_with_include_provider_payload(sample_service, payload_included):
+def test_get_service_callback(sample_service, payload_included):
     notification_statuses = [NOTIFICATION_FAILED]
-    service_callback_api = ServiceCallback(  # nosec
+    service_callback = ServiceCallback(  # nosec
         service_id=sample_service.id,
         url="https://some_service/callback_endpoint",
         bearer_token="some_unique_string",
@@ -206,22 +181,21 @@ def test_get_service_callback_api_with_include_provider_payload(sample_service, 
         include_provider_payload=payload_included
     )
 
-    save_service_callback_api(service_callback_api)
+    save_service_callback_api(service_callback)
+    service_callback = get_service_callback(service_callback.id)
 
-    callback_api = get_service_callback(service_callback_api.id)
-    assert callback_api.id is not None
-    assert callback_api.service_id == sample_service.id
-    assert callback_api.updated_by_id == sample_service.users[0].id
-    assert callback_api.url == "https://some_service/callback_endpoint"
-    assert callback_api.bearer_token == "some_unique_string"
-    assert callback_api._bearer_token != "some_unique_string"
-    assert callback_api.updated_at is None
+    assert service_callback.id is not None
+    assert service_callback.service_id == sample_service.id
+    assert service_callback.updated_by_id == sample_service.users[0].id
+    assert service_callback.url == "https://some_service/callback_endpoint"
+    assert service_callback.bearer_token == "some_unique_string"
+    assert service_callback._bearer_token != "some_unique_string"
+    assert service_callback.updated_at is None
 
-    # if-else logic because "callback_api.include_provider_payload == payload_included" is not PEP8 compliant
     if payload_included:
-        assert callback_api.include_provider_payload
+        assert service_callback.include_provider_payload
     else:
-        assert not callback_api.include_provider_payload
+        assert not service_callback.include_provider_payload
 
 
 def test_get_service_delivery_status_callback_api_for_service(sample_service):
