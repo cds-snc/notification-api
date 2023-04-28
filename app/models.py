@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import uuid
-from typing import Any, Iterable, Literal, Optional
+from typing import cast, Any, Iterable, Literal, Optional
 
 from flask import current_app, url_for
 from flask_sqlalchemy.model import DefaultMeta
@@ -23,7 +23,8 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from sqlalchemy import CheckConstraint, Index, UniqueConstraint
+import sqlalchemy
+from sqlalchemy import CheckConstraint, Index, UniqueConstraint, orm
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
@@ -49,6 +50,11 @@ LETTER_TYPE = "letter"
 
 TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
 
+class stub():  # type: ignore
+    relationship: orm.relationship
+
+db = cast(sqlalchemy, db)  # type: ignore
+# db.relationship = cast(orm.relationship, db.relationship)  # type: ignore
 template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
 
 NORMAL = "normal"
@@ -199,7 +205,6 @@ class User(BaseModel):
             "email_address": self.email_address,
             "mobile_number": self.mobile_number,
         }
-
 
 class ServiceUser(BaseModel):
     __tablename__ = "user_to_service"
