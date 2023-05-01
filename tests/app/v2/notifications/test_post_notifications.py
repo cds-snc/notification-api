@@ -1013,6 +1013,7 @@ class TestSendingDocuments:
         template = create_template(service=service, template_type="email", content=content)
 
         statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        mocker.patch("app.notifications.validators.check_service_over_bounce_rate")
         mock_publish = mocker.patch("app.email_normal_publish.publish")
         document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
         document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
@@ -1086,6 +1087,7 @@ class TestSendingDocuments:
         template = create_template(service=service, template_type="email", content=content)
 
         mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        mocker.patch("app.notifications.validators.check_service_over_bounce_rate")
         document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
         document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
         document_download_mock.return_value = document_response
@@ -1146,6 +1148,7 @@ class TestSendingDocuments:
         template = create_template(service=service, template_type="email", content=template_content)
 
         mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        mocker.patch("app.notifications.validators.check_service_over_bounce_rate")
         document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
         document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
         document_download_mock.return_value = document_response
