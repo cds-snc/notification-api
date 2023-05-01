@@ -1443,6 +1443,13 @@ def app_statsd(mocker):
     return current_app
 
 
+@pytest.fixture(scope="function")
+def app_bounce_rate_client(mocker):
+    current_app.config["FF_BOUNCE_RATE_V1"] = True
+    current_app.bounce_rate_client = mocker.Mock()
+    return current_app
+
+
 def datetime_in_past(days=0, seconds=0):
     return datetime.now(tz=pytz.utc) - timedelta(days=days, seconds=seconds)
 
