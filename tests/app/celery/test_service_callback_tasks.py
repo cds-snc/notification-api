@@ -454,20 +454,24 @@ class TestSendInboundSmsToService:
         assert mock_send.call_count == 0
 
 
-@pytest.mark.parametrize("payload", [None, {}, {'key': 'value'}])
-def test_create_delivery_status_callback_provider_payload(sample_notification, payload):
+@pytest.mark.parametrize("payload", [None, {}, {'key': 'value'}, 'Hello%20G%C3%BCnter', '!@##$%^&*(){}:"?><'])
+@pytest.mark.parametrize("include_provider_payload", [True, False])
+def test_create_delivery_status_callback_data(sample_notification, payload, include_provider_payload):
     # callback_api
-    callback_api = create_service_callback_api(
+    service_callback = create_service_callback_api(
         service=sample_notification.service,
         url="https://original_url.com",
-        notification_statuses=NOTIFICATION_STATUS_TYPES
+        notification_statuses=NOTIFICATION_STATUS_TYPES,
+        include_provider_payload=include_provider_payload
     )
 
-    encrypted_message = create_delivery_status_callback_data(sample_notification, callback_api, payload)
+    encrypted_message = create_delivery_status_callback_data(sample_notification, service_callback, payload)
     decrypted_message = encryption.decrypt(encrypted_message)
 
     # check if payload is dictionary with at least one entry
-    if payload:
+    if include_provider_payload:
         assert 'provider_payload' in decrypted_message
+        assert decrypted_message['provider_payload'] == (payload if payload else {}), \
+            decrypted_message['provider_payload']
     else:
         assert 'provider_payload' not in decrypted_message
