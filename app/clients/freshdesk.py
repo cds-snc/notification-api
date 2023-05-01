@@ -104,7 +104,8 @@ class Freshdesk(object):
                     timeout=5,
                 )
                 response.raise_for_status()
-
+                if response.status_code == 201:
+                    current_app.logger.info(f"Created Freshdesk ticket for service: {self.contact.service_id} type: {self.contact.support_type}")
                 return response.status_code
             else:
                 return 201
