@@ -5,7 +5,8 @@ import os
 import sentry_sdk
 # from ddtrace import patch_all
 from ddtrace import config, patch_all, tracer
-from ddtrace.profiling import auto
+from ddtrace.profiling import Profiler
+import ddtrace.profiling.auto
 from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -22,9 +23,9 @@ tracer.configure(
 # this starts the ddtrace tracer and configures it to the right port and URL
 patch_all()
 
-# config.profiling.enabled = True
-# profiler = Profiler()
-# profiler.start()
+config.profiling.enabled = True
+profiler = Profiler()
+profiler.start()
 
 load_dotenv()
 
