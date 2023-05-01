@@ -4,9 +4,10 @@ from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery, statsd_client
+from app import bounce_rate_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
+from app.models import NOTIFICATION_PERMANENT_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
@@ -76,6 +77,18 @@ def process_ses_results(self, response):
             )
 
         statsd_client.incr("callback.ses.{}".format(notification_status))
+
+        # Record bounces and notifications in Redis
+        if current_app.config["FF_BOUNCE_RATE_V1"]:
+            if notification_status == NOTIFICATION_PERMANENT_FAILURE:
+                bounce_rate_client.set_sliding_hard_bounce(notification.service_id)
+                current_app.logger.info(
+                    f"Setting total hard bounce notifications for service {notification.service.id} with notification {notification.id} in REDIS"
+                )
+            bounce_rate_client.set_sliding_notifications(notification.service_id)
+            current_app.logger.info(
+                f"Setting total notifications for service {notification.service.id} with notification {notification.id} in REDIS"
+            )
 
         if notification.sent_at:
             statsd_client.timing_with_dates("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
