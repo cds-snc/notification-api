@@ -610,6 +610,7 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
+    FF_BOUNCE_RATE_V1 = True
 
 
 class Production(Config):
