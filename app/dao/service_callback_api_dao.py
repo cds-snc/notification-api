@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from flask import current_app
+
 from app import create_uuid, db
 from app.dao.dao_utils import transactional, version_class
 from app.models import (
@@ -14,6 +16,8 @@ def resign_service_callbacks():
     # Resign the bearer_token column of the service_callback_api table
     # This allows us to rotate the secret key used to sign the token
     rows = ServiceCallbackApi.query.all()  # noqa
+    current_app.logger.info(f"Resigning {len(rows)} service_callbacks")
+
     for row in rows:
         if row.bearer_token:
             unsigned_token = getattr(row, "bearer_token")  # unsign the token
