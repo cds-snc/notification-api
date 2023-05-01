@@ -22,7 +22,7 @@ def resign_tasks_schedule(offset_minutes: int) -> crontab:
     if task_frequency == "daily":
         return crontab(minute=offset_minutes, hour=2)  # daily after 2 am
     elif task_frequency == "hourly":
-        return crontab(minute=offset_minutes) # hourly
+        return crontab(minute=offset_minutes)  # hourly
     elif task_frequency == "monthly":
         return crontab(minute=offset_minutes, hour=2, day_of_month=3)  # monthly after 2 am on the 3rd day of the month
     else:

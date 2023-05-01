@@ -50,6 +50,10 @@ class CryptoSigner:
         except BadSignature:
             return self.serializer.loads(to_verify, salt=self.dangerous_salt)
 
+    # This ignores the signature so should be used with caution
+    def verify_unsafe(self, to_verify: str | bytes) -> Any:
+        return self.serializer.loads_unsafe(to_verify, salt=self.dangerous_salt)[1]
+
 
 def hashpw(password):
     return generate_password_hash(password.encode("UTF-8"), 10).decode("utf-8")

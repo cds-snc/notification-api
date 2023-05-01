@@ -1,8 +1,9 @@
 from datetime import datetime
 
 from flask import current_app
+from itsdangerous import BadSignature
 
-from app import create_uuid, db
+from app import create_uuid, db, signer_bearer_token
 from app.dao.dao_utils import transactional, version_class
 from app.models import (
     COMPLAINT_CALLBACK_TYPE,
@@ -12,15 +13,22 @@ from app.models import (
 
 
 @transactional
-def resign_service_callbacks():
+def resign_service_callbacks(unsafe: bool = False):
     # Resign the bearer_token column of the service_callback_api table
     # This allows us to rotate the secret key used to sign the token
     rows = ServiceCallbackApi.query.all()  # noqa
     current_app.logger.info(f"Resigning {len(rows)} service_callbacks")
 
     for row in rows:
-        if row.bearer_token:
-            unsigned_token = getattr(row, "bearer_token")  # unsign the token
+        if row._bearer_token:
+            try:
+                unsigned_token = getattr(row, "bearer_token")  # unsign the token
+            except BadSignature as e:
+                if unsafe:
+                    unsigned_token = signer_bearer_token.verify_unsafe(row._bearer_token)
+                else:
+                    current_app.logger.error(f"BadSignature for service_callback {row.id}")
+                    raise e
             setattr(row, "bearer_token", unsigned_token)  # resigns the token with (potentially) a new signing secret
     db.session.bulk_save_objects(rows)
 

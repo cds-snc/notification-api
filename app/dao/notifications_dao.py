@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
 from flask import current_app
+from itsdangerous import BadSignature
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
 from notifications_utils.recipients import (
     InvalidEmailError,
@@ -23,7 +24,7 @@ from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
-from app import create_uuid, db
+from app import create_uuid, db, signer_personalisation
 from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
@@ -55,6 +56,29 @@ from app.utils import (
     get_local_timezone_midnight_in_utc,
     midnight_n_days_ago,
 )
+
+
+@transactional
+def resign_notifications(unsafe: bool = False):
+    # Resign the personalisation column of the notifications table
+    # This allows us to rotate the secret key used to sign the personalisation
+    rows = Notification.query.all()  # noqa
+    current_app.logger.info(f"Resigning {len(rows)} notifications")
+
+    for row in rows:
+        if row._personalisation:
+            try:
+                unsigned_personalisation = getattr(row, "personalisation")  # unsign the personalisation
+            except BadSignature as e:
+                if unsafe:
+                    unsigned_personalisation = signer_personalisation.verify_unsafe(row._personalisation)
+                else:
+                    current_app.logger.warning(f"BadSignature for notification {row.id}: {e}")
+                    raise e
+        setattr(
+            row, "personalisation", unsigned_personalisation
+        )  # resigns the personalisation with (potentially) a new signing secret
+    db.session.bulk_save_objects(rows)
 
 
 @statsd(namespace="dao")
