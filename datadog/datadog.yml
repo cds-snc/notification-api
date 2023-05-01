@@ -7,11 +7,11 @@ apm_config:
   #global_tags:
     #env: local
     #service: notification_api
-  distributed_tracing:
-    enabled: true
-    propagatation_style: Datadog
-  settings:
-    profiling_enabled: true
+  #distributed_tracing:
+    #enabled: true
+    #propagatation_style: Datadog
+  #settings:
+    #profiling_enabled: true
 
 # Configure the profiler
 profiling:
@@ -19,33 +19,22 @@ profiling:
   service: notification_api
 
 # Configure the logs agent
-logs_enabled: true
-logs_config:
-  processing_rules:
-    - type: multi_line
-      name: new_log_start_with_date
-      pattern: \d{4}\-\d{2}\-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}
+#logs_enabled: true
+#logs_config:
+  #processing_rules:
+    #- type: multi_line
+      #name: new_log_start_with_date
+      #pattern: \d{4}\-\d{2}\-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}
 
 # Configure logs collection
-logs:
-  - type: file
-    path: "/var/log/containers/notification_api.log"
-    service: notification_api
-    source: python
-    sourcecategory: notification_api
+#logs:
+  #- type: file
+    #path: "/var/log/containers/notification_api.log"
+    #service: notification_api
+    #source: python
+    #sourcecategory: notification_api
 
 # Configure the agent to forward traces and profiles to Datadog
-process_config:
-  enabled: "true"
-  process_collection: "false"
-
-# Enable container integrations
-init_config:
-  instances: []
-
-# Configure the main agent
-instances:
-  - prometheus_url: "http://app:6011/metrics"
-    namespace: "notification_api"
-    metrics:
-      - "*"
+#process_config:
+  #enabled: "true"
+  #process_collection: "false"

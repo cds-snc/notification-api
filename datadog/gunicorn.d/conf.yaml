@@ -1,5 +1,5 @@
-init_config:
+#init_config:
 
-instances:
-  - name: my_gunicorn_app
+#instances:
+  #- name: my_gunicorn_app
     #status_url: http://your_gunicorn_server:8000
