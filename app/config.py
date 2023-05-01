@@ -17,17 +17,17 @@ env.read_env()
 load_dotenv()
 
 
-def resign_tasks_schedule(offset_minutes: int) -> str:
+def resign_tasks_schedule(offset_minutes: int) -> crontab:
     task_frequency = os.getenv("RESIGN_TASK_FREQUENCY", "monthly")
     if task_frequency == "daily":
-        return f"{offset_minutes} 2 * * *"  # daily after 2 am
+        return crontab(minute=offset_minutes, hour=2)  # daily after 2 am
     elif task_frequency == "hourly":
-        return f"{offset_minutes} * * * *"  # hourly
+        return crontab(minute=offset_minutes) # hourly
     elif task_frequency == "monthly":
-        return f"{offset_minutes} 2 3 * *"  # monthly after 2 am on the 3rd day of the month
+        return crontab(minute=offset_minutes, hour=2, day_of_month=3)  # monthly after 2 am on the 3rd day of the month
     else:
         logging.error("RESIGN_TASK_FREQUENCY must be one of daily, hourly or monthly")
-        return "0 0 29 2 1"  # 2044 - probably have removed the feature flag and cleaned up the code by then
+        return crontab(minute=0, hour=0, day_of_month=29, month_of_year=2)  # not till 2024
 
 
 class QueueNames(object):
