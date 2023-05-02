@@ -850,3 +850,40 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
     )
     data = db.session.query(query, (100 * query.c.hard_bounces / query.c.total_emails).label("bounce_rate")).first()
     return data
+
+
+@statsd(namespace="dao")
+@transactional
+def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+    twenty_four_hours_ago = default_time - timedelta(hours=interval)
+    query = (
+        db.session.query(
+            func.date_trunc("hour", Notification.created_at).label("hour"),
+            func.count(Notification.id).label("total_notifications"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))
+        .filter(Notification.service_id == service_id)
+        .filter(Notification.notification_type == EMAIL_TYPE)
+        .group_by(func.date_trunc("hour", Notification.created_at))
+        .order_by(func.date_trunc("hour", Notification.created_at))
+    )
+    return query.all()
+
+
+@statsd(namespace="dao")
+@transactional
+def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+    twenty_four_hours_ago = default_time - timedelta(hours=interval)
+    query = (
+        db.session.query(
+            func.date_trunc("hour", Notification.created_at).label("hour"),
+            func.count(Notification.id).label("total_notifications"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))
+        .filter(Notification.service_id == service_id)
+        .filter(Notification.notification_type == EMAIL_TYPE)
+        .filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE)
+        .group_by(func.date_trunc("hour", Notification.created_at))
+        .order_by(func.date_trunc("hour", Notification.created_at))
+    )
+    return query.all()

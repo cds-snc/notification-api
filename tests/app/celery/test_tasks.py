@@ -32,6 +32,7 @@ from app.celery.tasks import (
     s3,
     save_emails,
     save_smss,
+    seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
 )
@@ -2214,3 +2215,100 @@ class TestSendNotifyNoReply:
             )
 
         tasks.send_notify_no_reply.retry.assert_called_with(queue=QueueNames.RETRY)
+
+
+class TestSeedBounceRateData:
+    def test_seed_bounce_rate_data(self, mocker):
+        # mock_logger = mocker.patch("app.celery.tasks.current_app.logger.info")
+
+        hour_15 = datetime(2023, 4, 18, 15, 0)
+        hour_16 = datetime(2023, 4, 18, 16, 0)
+        hour_17 = datetime(2023, 4, 18, 17, 0)
+        mocker.patch(
+            "app.celery.tasks.total_notifications_grouped_by_hour",
+            return_value=[
+                (hour_15, 2),
+                (hour_16, 3),
+                (hour_17, 5),
+            ],
+        )
+        mocker.patch(
+            "app.celery.tasks.total_hard_bounces_grouped_by_hour",
+            return_value=[(hour_15, 1), (hour_16, 1)],
+        )
+        mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+        mocked_set_seeded_total_notifications = mocker.patch("app.celery.tasks.bounce_rate_client.set_notifications_seeded")
+        mocked_set_seeded_hard_bounces = mocker.patch("app.celery.tasks.bounce_rate_client.set_hard_bounce_seeded")
+        mocker.patch("app.celery.tasks.bounce_rate_client.get_seeding_started", return_value=False)
+        mocker.patch("app.celery.tasks.bounce_rate_client.clear_bounce_rate_data")
+        mocker.patch("app.celery.tasks.bounce_rate_client.set_seeding_started")
+
+        seed_bounce_rate_in_redis("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
+
+        assert mocked_set_seeded_total_notifications.call_count == 3
+        assert mocked_set_seeded_hard_bounces.call_count == 2
+
+        hour_15_timestamp = int(hour_15.timestamp() * 1000.0)
+        hour_16_timestamp = int(hour_16.timestamp() * 1000.0)
+        hour_17_timestamp = int(hour_17.timestamp() * 1000.0)
+
+        mocked_set_seeded_total_notifications.assert_has_calls(
+            [
+                call(
+                    "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6",
+                    {hour_15_timestamp: hour_15_timestamp, (hour_15_timestamp + 1): (hour_15_timestamp + 1)},
+                ),
+                call(
+                    "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6",
+                    {
+                        hour_16_timestamp: hour_16_timestamp,
+                        (hour_16_timestamp + 1): (hour_16_timestamp + 1),
+                        (hour_16_timestamp + 2): (hour_16_timestamp + 2),
+                    },
+                ),
+                call(
+                    "6ce466d0-fd6a-11e5-82f5-e0accb9d11a6",
+                    {
+                        hour_17_timestamp: hour_17_timestamp,
+                        (hour_17_timestamp + 1): (hour_17_timestamp + 1),
+                        (hour_17_timestamp + 2): (hour_17_timestamp + 2),
+                        (hour_17_timestamp + 3): (hour_17_timestamp + 3),
+                        (hour_17_timestamp + 4): (hour_17_timestamp + 4),
+                    },
+                ),
+            ]
+        )
+        mocked_set_seeded_hard_bounces.assert_has_calls(
+            [
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", {hour_15_timestamp: hour_15_timestamp}),
+                call("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6", {hour_16_timestamp: hour_16_timestamp}),
+            ]
+        )
+
+    def test_seed_bounce_rate_data_isnt_called(self, mocker):
+        # mock_logger = mocker.patch("app.celery.tasks.current_app.logger.info")
+
+        hour_15 = datetime(2023, 4, 18, 15, 0)
+        hour_16 = datetime(2023, 4, 18, 16, 0)
+        hour_17 = datetime(2023, 4, 18, 17, 0)
+        mocker.patch(
+            "app.celery.tasks.total_notifications_grouped_by_hour",
+            return_value=[
+                (hour_15, 2),
+                (hour_16, 3),
+                (hour_17, 5),
+            ],
+        )
+        mocker.patch(
+            "app.celery.tasks.total_hard_bounces_grouped_by_hour",
+            return_value=[(hour_15, 1), (hour_16, 1)],
+        )
+        mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
+        mocked_set_seeded_total_notifications = mocker.patch("app.celery.tasks.bounce_rate_client.set_notifications_seeded")
+        mocked_set_seeded_hard_bounces = mocker.patch("app.celery.tasks.bounce_rate_client.set_hard_bounce_seeded")
+        mocker.patch("app.celery.tasks.bounce_rate_client.get_seeding_started", return_value=True)
+
+        seed_bounce_rate_in_redis("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
+
+        mocked_set_seeded_total_notifications.assert_not_called()
+        mocked_set_seeded_hard_bounces.assert_not_called()

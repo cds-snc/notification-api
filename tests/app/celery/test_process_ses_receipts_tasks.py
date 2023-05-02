@@ -4,7 +4,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import signer_complaint, statsd_client
+from app import bounce_rate_client, signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
@@ -161,6 +161,7 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
     with freeze_time("2001-01-01T12:00:00"):
+
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
@@ -354,3 +355,48 @@ class TestBounceRates:
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
         assert get_notification_by_id(notification.id).feedback_type == NOTIFICATION_SOFT_BOUNCE
         assert get_notification_by_id(notification.id).feedback_subtype == expected_subtype
+
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_HARD_GENERAL),
+            ("NoEmail", NOTIFICATION_HARD_NOEMAIL),
+            ("Suppressed", NOTIFICATION_HARD_SUPPRESSED),
+            ("OnAccountSuppressionList", NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST),
+        ],
+    )
+    def test_ses_callback_should_add_two_redis_keys_when_delivery_receipt_is_hard_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
+        mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+
+        bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id)
+        bounce_rate_client.set_sliding_notifications.assert_called_with(notification.service_id)
+
+    @pytest.mark.parametrize(
+        "bounce_subtype, expected_subtype",
+        [
+            ("General", NOTIFICATION_SOFT_GENERAL),
+            ("MailboxFull", NOTIFICATION_SOFT_MAILBOXFULL),
+            ("MessageTooLarge", NOTIFICATION_SOFT_MESSAGETOOLARGE),
+            ("ContentRejected", NOTIFICATION_SOFT_CONTENTREJECTED),
+            ("AttachmentRejected", NOTIFICATION_SOFT_ATTACHMENTREJECTED),
+        ],
+    )
+    def test_ses_callback_should_add_one_redis_key_when_delivery_receipt_is_soft_bounce(
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+    ):
+        mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
+        mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+
+        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+
+        assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+
+        bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
+        bounce_rate_client.set_sliding_notifications.assert_called_with(notification.service_id)
