@@ -1,41 +1,6 @@
 version: "3"
 services:
-  datadog-agent:
-    build: 
-      context: ..
-      dockerfile: ci/Dockerfile.datadog
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      #- /proc/:/host/proc/:ro
-      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
-    environment:
-      - DD_PROFILING_ENABLED=True
-      - DD_ENV=local
-      - DD_SERVICE=notification-api
-      - DD_SITE=ddog-gov.com
-      - DD_LOG_LEVEL=debug
-      - DD_API_KEY=$GOV_DATADOG_API_KEY
-      - DD_PROFILING_ENABLE_CODE_PROVENANCE=1.
-      #- DATADOG_AGENT_HOSTNAME='datadog-agent'
-      #- DATADOG_AGENT_PORT=8126
-
-      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
-      - DD_PROCESS_AGENT_ENABLED=true
-      - DD_LOGS_ENABLED=true
-      - DD_DOCKER_LABELS_AS_TAGS={"my.custom.label.team":"team"}
-      - DD_TAGS='env:dd101-dev'
-      - DD_HOSTNAME=dd101-dev-host
-    depends_on:
-      - migrations
-      - localstack
-      - app
-      - db
-
   app:
-    environment:
-      - DD_PROFILING_ENABLED=True
-      - DATADOG_AGENT_HOSTNAME='datadog-agent'
-      - DATADOG_AGENT_PORT=8126
     build:
       context: ..
       dockerfile: ci/Dockerfile.local
@@ -115,10 +80,4 @@ services:
     ports:
       - "6379:6379"
 
-volumes:
-  datadog_config:
-    driver: local
-    driver_opts:
-      type: none
-      device: datadog/datadog.yaml
-      o: bind
+
