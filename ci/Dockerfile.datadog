@@ -1,6 +1,5 @@
 FROM datadog/agent:latest
 
-
 RUN \
   DEBIAN_FRONTEND=noninteractive apt-get update \
   && apt-get install -y --no-install-recommends -o Dpkg::Options::="--force-confnew" \
@@ -10,10 +9,7 @@ RUN \
 COPY ./certs/VA-Internal-S2-RCA1-v1.crt /usr/local/share/ca-certificates/VA-Internal-S2-RCA1-v1.crt
 RUN /usr/sbin/update-ca-certificates
 
-COPY datadog/gunicorn.d /etc/datadog-agent/conf.d/gunicorn.d
-COPY datadog/datadog.yml /etc/datadog-agent/datadog.yaml
 COPY ./scripts/datadog_expose_task_arn.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["agent", "run", "-c", "/etc/datadog-agent/datadog.yaml"]
