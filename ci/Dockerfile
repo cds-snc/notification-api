@@ -4,6 +4,8 @@ FROM python:3.8-alpine3.15
 
 ARG GIT_SHA
 
+# REQUESTS_CA_BUNDLE is for the "requests" Python package.
+#   https://requests.readthedocs.io/en/latest/user/advanced/#ssl-cert-verification
 ENV PYTHONDONTWRITEBYTECODE=1 \
   REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
   PORT=6011 \
