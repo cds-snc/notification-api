@@ -17,19 +17,6 @@ env.read_env()
 load_dotenv()
 
 
-def resign_tasks_schedule(offset_minutes: int) -> crontab:
-    task_frequency = os.getenv("RESIGN_TASK_FREQUENCY", "monthly")
-    if task_frequency == "daily":
-        return crontab(minute=offset_minutes, hour=2)  # daily after 2 am
-    elif task_frequency == "hourly":
-        return crontab(minute=offset_minutes)  # hourly
-    elif task_frequency == "monthly":
-        return crontab(minute=offset_minutes, hour=2, day_of_month=3)  # monthly after 2 am on the 3rd day of the month
-    else:
-        logging.error("RESIGN_TASK_FREQUENCY must be one of daily, hourly or monthly")
-        return crontab(minute=0, hour=0, day_of_month=29, month_of_year=2)  # not till 2024
-
-
 class QueueNames(object):
 
     # Periodic tasks executed by Notify.
@@ -306,7 +293,6 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
-        "app.celery.monthly_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -421,22 +407,6 @@ class Config(object):
             "schedule": crontab(hour=4, minute=0),
             "options": {"queue": QueueNames.PERIODIC},
         },
-        # app/celery/monthly_tasks.py
-        "resign-service-callbacks": {
-            "task": "resign-service-callbacks",
-            "schedule": resign_tasks_schedule(0),
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "resign-api-keys": {
-            "task": "resign-api-keys",
-            "schedule": resign_tasks_schedule(5),
-            "options": {"queue": QueueNames.PERIODIC},
-        },
-        "resign-inbound-sms": {
-            "task": "resign-inbound-sms",
-            "schedule": resign_tasks_schedule(10),
-            "options": {"queue": QueueNames.PERIODIC},
-        },
         # 'remove_letter_jobs': {
         # 'task': 'remove_letter_jobs',
         # 'schedule': crontab(hour=4, minute=20),
@@ -541,10 +511,6 @@ class Config(object):
 
     # Feature flags for bounce rate
     FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
-
-    # Feature flags for resigning tasks
-    FF_RESIGN_TASKS_ENABLED = env.bool("FF_RESIGN_TASKS_ENABLED", False)
-    RESIGN_TASK_FREQUENCY = os.getenv("RESIGN_TASK_FREQUENCY", "monthly")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
