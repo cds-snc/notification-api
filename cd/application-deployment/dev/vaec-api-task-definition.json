@@ -35,6 +35,10 @@
           "value": "True"
         },
         {
+          "name": "DD_APM_FEATURES",
+          "value": "enable_cid_stats"
+        },
+        {
           "name": "ECS_FARGATE",
           "value": "true"
         },
@@ -354,6 +358,10 @@
         {
           "name": "DD_SERVICE",
           "value": "notification-api"
+        },
+        {
+          "name": "DD_APM_FEATURES",
+          "value": "enable_cid_stats"
         },
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
