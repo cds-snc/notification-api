@@ -11,7 +11,6 @@ echo "Are you sure you want to continue?"
 read -p "If so, type 'purge'> " check
     case $check in
         purge ) echo "purging!"; celery -A run_celery.notify_celery purge -f; break;;
-        [Nn]* ) exit;;
         * ) echo "\nNot purging\n";;
     esac
 
