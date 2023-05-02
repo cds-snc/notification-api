@@ -295,7 +295,7 @@
     "FARGATE"
   ],
   "cpu": "512",
-  "memory": "4096",
+  "memory": "1024",
   "tags": [
     {
       "key": "Stack",
