@@ -5,7 +5,7 @@ import os
 import sentry_sdk
 # from ddtrace import patch_all
 from ddtrace import config, patch_all, tracer
-from ddtrace.profiling import Profiler, auto
+from ddtrace.profiling import Profiler
 from flask import Flask
 from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
