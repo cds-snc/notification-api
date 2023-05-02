@@ -15,7 +15,7 @@ from app import create_app
 from dotenv import load_dotenv
 
 tracer.configure(
-    hostname='localhost',
+    hostname='datadog-agent',
     port=8126,
 )
 

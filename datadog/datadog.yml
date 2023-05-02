@@ -1,8 +1,8 @@
 #api_key: $GOV_DATADOG_API_KEY
 
 # Enable the APM Agent to receive traces
-apm_config:
-  enabled: true
+#apm_config:
+  #enabled: true
   #env: local
   #global_tags:
     #env: local
@@ -14,9 +14,9 @@ apm_config:
     #profiling_enabled: true
 
 # Configure the profiler
-profiling:
-  enabled: true
-  service: notification_api
+#profiling:
+  #enabled: true
+  #service: notification_api
 
 # Configure the logs agent
 #logs_enabled: true

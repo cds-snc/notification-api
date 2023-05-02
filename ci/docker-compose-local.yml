@@ -11,8 +11,7 @@ services:
     environment:
       - DD_PROFILING_ENABLED=True
       - DD_ENV=local
-      - DD_SERVICE=my-web-app
-      - DD_VERSION=1.0.3
+      - DD_SERVICE=notification-api
       - DD_SITE=ddog-gov.com
       - DD_LOG_LEVEL=debug
       - DD_API_KEY=$GOV_DATADOG_API_KEY
@@ -33,13 +32,6 @@ services:
   app:
     environment:
       - DD_PROFILING_ENABLED=True
-      - DD_ENV=local
-      - DD_SERVICE=my-web-app
-      - DD_VERSION=1.0.3
-      - DD_SITE=ddog-gov.com
-      - DD_LOG_LEVEL=debug
-      - DD_API_KEY=$GOV_DATADOG_API_KEY
-      - DD_PROFILING_ENABLE_CODE_PROVENANCE=1.
     build:
       context: ..
       dockerfile: ci/Dockerfile.local
