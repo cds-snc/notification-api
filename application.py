@@ -14,13 +14,10 @@ from app import create_app
 
 from dotenv import load_dotenv
 
-datadog_agent_hostname = os.environ.get('DATADOG_AGENT_HOSTNAME', 'localhost')
-datadog_agent_port = os.environ.get('DATADOG_AGENT_PORT', 8126)
-
-# Configure tracer
+# Configure tracer (also necessary for profiler)
 tracer.configure(
-    hostname=datadog_agent_hostname,
-    port=datadog_agent_port,
+    hostname='localhost',
+    port=8126,
 )
 
 # this starts the ddtrace tracer and configures it to the right port and URL
