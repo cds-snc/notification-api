@@ -35,6 +35,34 @@
           "value": "True"
         },
         {
+          "name": "ECS_FARGATE",
+          "value": "true"
+        },
+        {
+          "name": "DD_SITE",
+          "value": "ddog-gov.com"
+        },
+        {
+          "name": "DD_APM_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_PROCESS_AGENT_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_ENV",
+          "value": "dev"
+        },
+        {
+          "name": "DD_SERVICE",
+          "value": "notification-api"
+        },
+        {
+          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
+          "value": "true"
+        },
+        {
           "name": "API_MESSAGE_LIMIT_ENABLED",
           "value": "True"
         },
@@ -376,4 +404,3 @@
     }
   ]
 }
-
