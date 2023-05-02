@@ -322,10 +322,6 @@
           "value": "true"
         },
         {
-          "name": "DD_APM_NON_LOCAL_TRAFFIC",
-          "value": "true"
-        },
-        {
           "name": "DD_PROCESS_AGENT_ENABLED",
           "value": "true"
         },
@@ -334,8 +330,12 @@
           "value": "dev"
         },
         {
-          "name": "DD_PROFILING_MAX_EVENTS",
-          "value": "10000"
+          "name": "DD_SERVICE",
+          "value": "notification-celery"
+        },
+        {
+          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
+          "value": "true"
         }
       ],
       "secrets": [
