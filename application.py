@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 # Read environment variables
 datadog_agent_hostname = os.environ['DATADOG_AGENT_HOSTNAME']
-datadog_agent_hostname = os.environ['DATADOG_AGENT_PORT']
+datadog_agent_port = os.environ['DATADOG_AGENT_PORT']
 
 # Configure tracer
 tracer.configure(
