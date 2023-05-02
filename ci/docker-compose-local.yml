@@ -16,6 +16,8 @@ services:
       - DD_LOG_LEVEL=debug
       - DD_API_KEY=$GOV_DATADOG_API_KEY
       - DD_PROFILING_ENABLE_CODE_PROVENANCE=1.
+      #- DATADOG_AGENT_HOSTNAME='datadog-agent'
+      #- DATADOG_AGENT_PORT=8126
 
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_PROCESS_AGENT_ENABLED=true
@@ -32,6 +34,8 @@ services:
   app:
     environment:
       - DD_PROFILING_ENABLED=True
+      - DATADOG_AGENT_HOSTNAME='datadog-agent'
+      - DATADOG_AGENT_PORT=8126
     build:
       context: ..
       dockerfile: ci/Dockerfile.local

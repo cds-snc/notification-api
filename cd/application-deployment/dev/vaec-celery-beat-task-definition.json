@@ -61,6 +61,14 @@
           "value": "True"
         },
         {
+          "name": "DATADOG_AGENT_HOSTNAME",
+          "value": "localhost"
+        },
+        {
+          "name": "DATADOG_AGENT_PORT",
+          "value": "8126"
+        },
+        {
           "name": "EMAIL_ATTACHMENTS_ENABLED",
           "value": "True"
         },
