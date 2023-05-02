@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import (
     DATETIME_FORMAT,
+    bounce_rate_client,
     create_uuid,
     email_bulk,
     email_normal,
@@ -40,6 +41,8 @@ from app.dao.notifications_dao import (
     dao_get_last_notification_added_for_job_id,
     dao_get_notification_history_by_reference,
     get_notification_by_id,
+    total_hard_bounces_grouped_by_hour,
+    total_notifications_grouped_by_hour,
 )
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
@@ -803,3 +806,45 @@ def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID
         return
     else:
         current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")
+
+
+@notify_celery.task(name="seed-bounce-rate-in-redis")
+@statsd(namespace="tasks")
+def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
+    """
+    Function to seed both the total_notifications and total_hard_bounces in Redis for a given service
+    over a given interval (default 24 hours)
+
+    Args:
+        service_id (str): The service id to seed bounce rate for
+        interval: The number of hours to seed bounce rate for
+    """
+    if bounce_rate_client.get_seeding_started(service_id) is False:
+        current_app.logger.info("Clear all data for current service {}".format(service_id))
+        bounce_rate_client.clear_bounce_rate_data(service_id)
+        current_app.logger.info("Set seeding flag to True for service {}".format(service_id))
+        bounce_rate_client.set_seeding_started(service_id)
+    else:
+        current_app.logger.info("Bounce rate already seeded for service_id {}".format(service_id))
+        return
+
+    current_app.logger.info("Seeding bounce rate for service_id {}".format(service_id))
+    total_seeded_notifications = total_notifications_grouped_by_hour(service_id, interval=interval)
+    total_seeded_hard_bounces = total_hard_bounces_grouped_by_hour(service_id, interval=interval)
+
+    for hour, total_notifications in total_seeded_notifications:
+        hour_timestamp_ms = int(hour.timestamp() * 1000.0)
+        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
+        email_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_notifications)]
+        email_data_dict = dict(email_data)
+        bounce_rate_client.set_notifications_seeded(service_id, email_data_dict)
+    current_app.logger.info(f"Seeded total notification data for service {service_id} in Redis")
+
+    for hour, total_hard_bounces in total_seeded_hard_bounces:
+        hour_timestamp_ms = int(hour.timestamp() * 1000.0)
+        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
+        bounce_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_hard_bounces)]
+        bounce_data_dict = dict(bounce_data)
+        bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
+
+    current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")

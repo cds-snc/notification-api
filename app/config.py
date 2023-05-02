@@ -504,6 +504,11 @@ class Config(object):
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
+    # Bounce Rate parameters
+    BR_VOLUME_MINIMUM = 1000
+    BR_WARNING_PERCENTAGE = 0.05
+    BR_CRITICAL_PERCENTAGE = 0.1
+
     # add and use sms_daily_limit
     FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
     FF_SMS_PARTS_UI = env.bool("FF_SMS_PARTS_UI", False)
@@ -512,6 +517,8 @@ class Config(object):
 
     # Feature flags for bounce rate
     FF_BOUNCE_RATE_V1 = env.bool("FF_BOUNCE_RATE_V1", False)
+    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
+    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -608,6 +615,7 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
+    FF_BOUNCE_RATE_V1 = True
 
 
 class Production(Config):
