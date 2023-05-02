@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import signer_bearer_token
@@ -8,6 +9,7 @@ from app.dao.service_callback_api_dao import (
     get_service_callback_api,
     get_service_delivery_status_callback_api_for_service,
     reset_service_callback_api,
+    resign_service_callbacks,
     save_service_callback_api,
 )
 from app.models import ServiceCallbackApi
@@ -174,3 +176,45 @@ def test_get_service_delivery_status_callback_api_for_service(sample_service):
     assert result.created_at == service_callback_api.created_at
     assert result.updated_at == service_callback_api.updated_at
     assert result.updated_by_id == service_callback_api.updated_by_id
+
+
+class TestResigning:
+    def test_resign_callbacks(self, sample_service):
+        from app import signer_bearer_token
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k1", "k2"])
+        initial_callback = create_service_callback_api(service=sample_service)
+        bearer_token = initial_callback.bearer_token
+        _bearer_token = initial_callback._bearer_token
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k2", "k3"])
+        resign_service_callbacks()
+
+        callback = ServiceCallbackApi.query.get(initial_callback.id)
+        assert callback.bearer_token == bearer_token
+        assert callback._bearer_token != _bearer_token
+
+    def test_resign_callbacks_bad_signature(self, sample_service):
+        from app import signer_bearer_token
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k1", "k2"])
+        create_service_callback_api(service=sample_service)
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k3"])
+        with pytest.raises(BadSignature):
+            resign_service_callbacks()
+
+    def test_resign_callbacks_unsafe_bad_signature(self, sample_service):
+        from app import signer_bearer_token
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k1", "k2"])
+        initial_callback = create_service_callback_api(service=sample_service)
+        bearer_token = initial_callback.bearer_token
+        _bearer_token = initial_callback._bearer_token
+
+        signer_bearer_token.serializer = URLSafeSerializer(["k3"])
+        resign_service_callbacks(unsafe=True)
+
+        callback = ServiceCallbackApi.query.get(initial_callback.id)
+        assert callback.bearer_token == bearer_token
+        assert callback._bearer_token != _bearer_token

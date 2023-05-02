@@ -37,10 +37,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--unsafe", default=False, action='store_true', help="resign notifications that have a bad signature")
     args = parser.parse_args()
-    
+
     load_dotenv()
     application = Flask("resign_database")
     create_app(application)
-    application.app_context().push()    
-    
+    application.app_context().push()
+
     resign_all(args.unsafe)

@@ -1,7 +1,9 @@
 from datetime import datetime
 from itertools import product
 
+import pytest
 from freezegun import freeze_time
+from itsdangerous import BadSignature, URLSafeSerializer
 
 from app.dao.inbound_sms_dao import (
     dao_count_inbound_sms_for_service,
@@ -10,7 +12,9 @@ from app.dao.inbound_sms_dao import (
     dao_get_paginated_inbound_sms_for_service_for_public_api,
     dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service,
     delete_inbound_sms_older_than_retention,
+    resign_inbound_sms,
 )
+from app.models import InboundSms
 from tests.app.db import (
     create_inbound_sms,
     create_service,
@@ -373,3 +377,45 @@ def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_servic
 
     assert len(res.items) == 1
     assert res.items[0].content == "new"
+
+
+class TestResigning:
+    def test_resign_inbound_sms(self, sample_service):
+        from app import signer_inbound_sms
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
+        initial_sms = create_inbound_sms(service=sample_service)
+        content = initial_sms.content
+        _content = initial_sms._content
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k2", "k3"])
+        resign_inbound_sms()
+
+        sms = InboundSms.query.get(initial_sms.id)
+        assert sms.content == content
+        assert sms._content != _content
+
+    def test_resign_inbound_sms_bad_signature(self, sample_service):
+        from app import signer_inbound_sms
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
+        create_inbound_sms(service=sample_service)
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k3"])
+        with pytest.raises(BadSignature):
+            resign_inbound_sms()
+
+    def test_resign_inbound_sms_unsafe_bad_signature(self, sample_service):
+        from app import signer_inbound_sms
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
+        initial_sms = create_inbound_sms(service=sample_service)
+        content = initial_sms.content
+        _content = initial_sms._content
+
+        signer_inbound_sms.serializer = URLSafeSerializer(["k3"])
+        resign_inbound_sms(unsafe=True)
+
+        sms = InboundSms.query.get(initial_sms.id)
+        assert sms.content == content
+        assert sms._content != _content
