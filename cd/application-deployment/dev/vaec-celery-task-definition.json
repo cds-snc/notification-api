@@ -21,6 +21,14 @@
           "value": "True"
         },
         {
+          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "API_HOST_NAME",
+          "value": "https://dev.api.notifications.va.gov"
+        },
+        {
           "name": "DD_ENV",
           "value": "dev"
         },
@@ -39,14 +47,6 @@
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
           "value": "True"
-        },
-        {
-          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_HOST_NAME",
-          "value": "https://dev.api.notifications.va.gov"
         },
         {
           "name": "API_MESSAGE_LIMIT_ENABLED",
