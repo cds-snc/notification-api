@@ -23,40 +23,16 @@
       ],
       "environment": [
         {
-          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_HOST_NAME",
-          "value": "https://dev.api.notifications.va.gov"
-        },
-        {
-          "name": "DD_PROFILING_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "DD_APM_FEATURES",
-          "value": "enable_cid_stats"
-        },
-        {
-          "name": "ECS_FARGATE",
-          "value": "true"
+          "name": "DD_ENV",
+          "value": "dev"
         },
         {
           "name": "DD_SITE",
           "value": "ddog-gov.com"
         },
         {
-          "name": "DD_APM_ENABLED",
-          "value": "true"
-        },
-        {
-          "name": "DD_PROCESS_AGENT_ENABLED",
-          "value": "true"
-        },
-        {
-          "name": "DD_ENV",
-          "value": "dev"
+          "name": "DD_PROFILING_ENABLED",
+          "value": "True"
         },
         {
           "name": "DD_SERVICE",
@@ -64,7 +40,15 @@
         },
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
-          "value": "true"
+          "value": "True"
+        },
+        {
+          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "API_HOST_NAME",
+          "value": "https://dev.api.notifications.va.gov"
         },
         {
           "name": "API_MESSAGE_LIMIT_ENABLED",
@@ -336,6 +320,18 @@
       ],
       "environment": [
         {
+          "name": "DD_APM_NON_LOCAL_TRAFFIC",
+          "value": "true"
+        },
+        {
+          "name": "DD_LOGS_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_PROCESS_AGENT_ENABLED",
+          "value": "true"
+        },
+        {
           "name": "ECS_FARGATE",
           "value": "true"
         },
@@ -345,10 +341,6 @@
         },
         {
           "name": "DD_APM_ENABLED",
-          "value": "true"
-        },
-        {
-          "name": "DD_PROCESS_AGENT_ENABLED",
           "value": "true"
         },
         {
@@ -412,3 +404,4 @@
     }
   ]
 }
+
