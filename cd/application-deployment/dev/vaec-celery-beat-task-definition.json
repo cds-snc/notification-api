@@ -33,15 +33,15 @@
           "value": "ddog-gov.com"
         },
         {
-          "name": "DD_PROFILING_ENABLED",
-          "value": "true"
-        },
-        {
           "name": "DD_SERVICE",
           "value": "notification-api"
         },
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
+          "value": "True"
+        },
+        {
+          "name": "DD_PROFILING_ENABLED",
           "value": "True"
         },
         {
