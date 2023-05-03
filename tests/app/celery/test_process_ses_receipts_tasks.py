@@ -394,7 +394,7 @@ class TestBounceRates:
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
 
-        notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+        save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
