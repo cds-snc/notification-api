@@ -49,20 +49,22 @@ def expire_api_key(service_id, api_key_id):
     db.session.add(api_key)
 
 
-# TODO: get rid of the exception handling once we've removed DANGEROUS_SALT and resigned the api keys
+# TODO: get rid of the sign_dangerously section once we've removed DANGEROUS_SALT and resigned the api keys
 def get_api_key_by_secret(secret):
-    try:
-        return (
-            db.on_reader().query(ApiKey).filter_by(_secret=signer_api_key.sign(str(secret))).options(joinedload("service")).one()
-        )
-    except NoResultFound:
-        return (
-            db.on_reader()
-            .query(ApiKey)
-            .filter_by(_secret=signer_api_key.sign_dangerous(str(secret)))
-            .options(joinedload("service"))
-            .one()
-        )
+    signed_with_all_keys = signer_api_key.sign_with_all_keys(str(secret))
+    for signed_secret in signed_with_all_keys:
+        try:
+            return db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
+        except NoResultFound:
+            pass
+
+    signed_dangerous_with_all_keys = signer_api_key.sign_dangerous_with_all_keys(str(secret))
+    for signed_secret in signed_dangerous_with_all_keys:
+        try:
+            return db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
+        except NoResultFound:
+            pass
+    raise NoResultFound()
 
 
 def get_model_api_keys(service_id, id=None):
