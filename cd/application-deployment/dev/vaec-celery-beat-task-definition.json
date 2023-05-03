@@ -57,6 +57,22 @@
           "value": "True"
         },
         {
+          "name": "DD_ENV",
+          "value": "dev"
+        },
+        {
+          "name": "DD_SITE",
+          "value": "ddog-gov.com"
+        },
+        {
+          "name": "DD_SERVICE",
+          "value": "notification-api"
+        },
+        {
+          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
+          "value": "True"
+        },
+        {
           "name": "DD_PROFILING_ENABLED",
           "value": "True"
         },
@@ -247,6 +263,18 @@
       ],
       "environment": [
         {
+          "name": "DD_APM_NON_LOCAL_TRAFFIC",
+          "value": "true"
+        },
+        {
+          "name": "DD_LOGS_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_PROCESS_AGENT_ENABLED",
+          "value": "true"
+        },
+        {
           "name": "ECS_FARGATE",
           "value": "true"
         },
@@ -256,6 +284,22 @@
         },
         {
           "name": "DD_APM_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "DD_ENV",
+          "value": "dev"
+        },
+        {
+          "name": "DD_SERVICE",
+          "value": "notification-api"
+        },
+        {
+          "name": "DD_APM_FEATURES",
+          "value": "enable_cid_stats"
+        },
+        {
+          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
           "value": "true"
         }
       ],
@@ -303,4 +347,3 @@
     }
   ]
 }
-
