@@ -365,7 +365,7 @@ class TestBounceRates:
             ("OnAccountSuppressionList", NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST),
         ],
     )
-    def test_ses_callback_should_add_two_redis_keys_when_delivery_receipt_is_hard_bounce(
+    def test_ses_callback_should_add_redis_key_when_delivery_receipt_is_hard_bounce(
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
@@ -376,7 +376,7 @@ class TestBounceRates:
         assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
         bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id)
-        bounce_rate_client.set_sliding_notifications.assert_called_with(notification.service_id)
+        bounce_rate_client.set_sliding_notifications.assert_not_called()
 
     @pytest.mark.parametrize(
         "bounce_subtype, expected_subtype",
@@ -388,7 +388,7 @@ class TestBounceRates:
             ("AttachmentRejected", NOTIFICATION_SOFT_ATTACHMENTREJECTED),
         ],
     )
-    def test_ses_callback_should_add_one_redis_key_when_delivery_receipt_is_soft_bounce(
+    def test_ses_callback_should_not_add_redis_keys_when_delivery_receipt_is_soft_bounce(
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
@@ -399,4 +399,4 @@ class TestBounceRates:
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
         bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
-        bounce_rate_client.set_sliding_notifications.assert_called_with(notification.service_id)
+        bounce_rate_client.set_sliding_notifications.assert_not_called()

@@ -85,10 +85,6 @@ def process_ses_results(self, response):
                 current_app.logger.info(
                     f"Setting total hard bounce notifications for service {notification.service.id} with notification {notification.id} in REDIS"
                 )
-            bounce_rate_client.set_sliding_notifications(notification.service_id)
-            current_app.logger.info(
-                f"Setting total notifications for service {notification.service.id} with notification {notification.id} in REDIS"
-            )
 
         if notification.sent_at:
             statsd_client.timing_with_dates("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
