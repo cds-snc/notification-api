@@ -3,7 +3,6 @@ from __future__ import print_function
 import os
 
 import sentry_sdk
-# from ddtrace import patch_all
 from ddtrace import config, patch_all, tracer
 from ddtrace.profiling import Profiler
 from flask import Flask
