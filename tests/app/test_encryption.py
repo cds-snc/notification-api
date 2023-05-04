@@ -58,7 +58,7 @@ class TestEncryption:
         signer2 = CryptoSigner()
         signer2.init_app(notify_api, "s2", "salt")
         signer12 = CryptoSigner()
-        signer12.init_app(notify_api, "s1,s2", "salt")
+        signer12.init_app(notify_api, ["s1", "s2"], "salt")
         assert signer12.sign_with_all_keys("this") == [signer2.sign("this"), signer1.sign("this")]
 
     def test_sign_dangerous_with_all_keys(self, notify_api):
@@ -67,5 +67,5 @@ class TestEncryption:
         signer2 = CryptoSigner()
         signer2.init_app(notify_api, "s2", "salt2")
         signer12 = CryptoSigner()
-        signer12.init_app(notify_api, "s1,s2", "salt3")
+        signer12.init_app(notify_api, ["s1", "s2"], "salt3")
         assert signer12.sign_dangerous_with_all_keys("this") == [signer2.sign_dangerous("this"), signer1.sign_dangerous("this")]

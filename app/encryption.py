@@ -28,8 +28,8 @@ class NotificationDictToSign(TypedDict):
 
 
 class CryptoSigner:
-    def init_app(self, app: Any, secret_key: List[str], salt: str) -> None:
-        self.secret_key = secret_key
+    def init_app(self, app: Any, secret_key: str | List[str], salt: str) -> None:
+        self.secret_key = [secret_key] if type(secret_key) is str else secret_key
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
         self.dangerous_salt = app.config.get("DANGEROUS_SALT")
