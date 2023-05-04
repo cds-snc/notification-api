@@ -2248,9 +2248,9 @@ class TestSeedBounceRateData:
         assert mocked_set_seeded_total_notifications.call_count == 3
         assert mocked_set_seeded_hard_bounces.call_count == 2
 
-        hour_15_timestamp = int(hour_15.timestamp() * 1000.0)
-        hour_16_timestamp = int(hour_16.timestamp() * 1000.0)
-        hour_17_timestamp = int(hour_17.timestamp() * 1000.0)
+        hour_15_timestamp = int(hour_15.timestamp())
+        hour_16_timestamp = int(hour_16.timestamp())
+        hour_17_timestamp = int(hour_17.timestamp())
 
         mocked_set_seeded_total_notifications.assert_has_calls(
             [

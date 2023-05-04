@@ -102,7 +102,7 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request,
 )
 
-TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
+TWENTY_FOUR_HOURS_S = 24 * 60 * 60
 
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
@@ -141,10 +141,10 @@ def post_precompiled_letter_notification():
 
 
 def _seed_bounce_data(epoch_timestamp: int, service_id: str):
-    current_time_ms = int(1000.0 * datetime.now().timestamp())
-    time_difference_ms = current_time_ms - epoch_timestamp
+    current_time_s = int(datetime.utcnow().timestamp())
+    time_difference_s = current_time_s - epoch_timestamp
 
-    if 0 <= time_difference_ms <= TWENTY_FOUR_HOURS_MS:
+    if 0 <= time_difference_s <= TWENTY_FOUR_HOURS_S:
         # We are in the 24 hour window to seed bounce rate data
         seed_bounce_rate_in_redis.apply_async(service_id)
     else:
