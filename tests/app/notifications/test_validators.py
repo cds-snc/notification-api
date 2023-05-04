@@ -622,7 +622,7 @@ def test_check_service_sms_sender_id_where_sms_sender_is_not_found(sample_servic
 
 @pytest.mark.skip(reason="Disable temporarily to test logging")
 def test_check_service_over_bounce_rate_critical(mocker, fake_uuid):
-    mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value="critical")
+    mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
     mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
     mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
     check_service_over_bounce_rate(fake_uuid)
