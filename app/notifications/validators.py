@@ -289,9 +289,11 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
 
 
 def check_service_over_bounce_rate(service_id: str):
+    current_app.logger.info(f"Entered check_service_over_bounce_rate with service_id {service_id}")
     if current_app.config["FF_BOUNCE_RATE_V1"]:
         bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
         bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
+        current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}")
         if bounce_rate_status == BounceRateStatus.CRITICAL.value:
             # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
             current_app.logger.info(
