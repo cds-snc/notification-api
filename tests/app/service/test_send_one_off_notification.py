@@ -188,7 +188,9 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
 
 
 @pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority"), ("bulk", "normal"), ("normal", "normal")])
-def test_send_one_off_notification_honors_process_type(notify_db_session, persist_mock, celery_mock, process_type, expected_queue):
+def test_send_one_off_notification_honors_process_type(
+    notify_db_session, persist_mock, celery_mock, process_type, expected_queue
+):
     service = create_service()
     template = create_template(service=service)
     template.process_type = process_type
