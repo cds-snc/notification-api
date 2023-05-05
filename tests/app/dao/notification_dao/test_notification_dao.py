@@ -65,7 +65,7 @@ from tests.app.db import (
     save_notification,
     save_scheduled_notification,
 )
-
+from tests.conftest import set_signer_secret_key
 
 def test_should_have_decorated_notifications_dao_functions():
     assert dao_get_last_template_usage.__wrapped__.__name__ == "dao_get_last_template_usage"  # noqa
@@ -1805,42 +1805,40 @@ class TestResigning:
     def test_resign_notifications(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
-        signer_personalisation.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
-        save_notification(initial_notification)
-        personalisation = initial_notification.personalisation
-        _personalisation = initial_notification._personalisation
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+            personalisation = initial_notification.personalisation
+            _personalisation = initial_notification._personalisation
 
-        signer_personalisation.serializer = URLSafeSerializer(["k2", "k3"])
-        resign_notifications()
-
-        notification = Notification.query.get(initial_notification.id)
-        assert notification.personalisation == personalisation
-        assert notification._personalisation != _personalisation
+        with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
+            resign_notifications()
+            notification = Notification.query.get(initial_notification.id)
+            assert notification.personalisation == personalisation
+            assert notification._personalisation != _personalisation
 
     def test_resign_notifications_bad_signature(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
-        signer_personalisation.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
-        save_notification(initial_notification)
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
 
-        signer_personalisation.serializer = URLSafeSerializer(["k3"])
-        with pytest.raises(BadSignature):
-            resign_notifications()
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            with pytest.raises(BadSignature):
+                resign_notifications()
 
     def test_resign_notifications_unsafe_bad_signature(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
-        signer_personalisation.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
-        save_notification(initial_notification)
-        personalisation = initial_notification.personalisation
-        _personalisation = initial_notification._personalisation
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+            personalisation = initial_notification.personalisation
+            _personalisation = initial_notification._personalisation
 
-        signer_personalisation.serializer = URLSafeSerializer(["k3"])
-        resign_notifications(unsafe=True)
-
-        notification = Notification.query.get(initial_notification.id)
-        assert notification.personalisation == personalisation
-        assert notification._personalisation != _personalisation
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            resign_notifications(unsafe=True)
+            notification = Notification.query.get(initial_notification.id)
+            assert notification.personalisation == personalisation
+            assert notification._personalisation != _personalisation

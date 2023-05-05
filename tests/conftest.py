@@ -1,12 +1,14 @@
 import os
 from contextlib import contextmanager
 from urllib.parse import urlparse
+from itsdangerous import URLSafeSerializer
 
 import pytest
 import sqlalchemy
 from alembic.command import upgrade
 from alembic.config import Config
 from flask import Flask
+from app.encryption import CryptoSigner
 
 from app import create_app, db
 
@@ -195,6 +197,17 @@ def set_config_values(app, dict):
         for key in dict:
             app.config[key] = old_values[key]
 
+
+@contextmanager
+def set_signer_secret_key(signer: CryptoSigner, secret_key):
+    old_secret_key = signer.secret_key
+    signer.secret_key = secret_key
+    signer.serializer = URLSafeSerializer(secret_key)
+    try:
+        yield
+    finally:
+        signer.secret_key = old_secret_key
+        signer.serializer = URLSafeSerializer(old_secret_key)
 
 class Matcher:
     def __init__(self, description, key):

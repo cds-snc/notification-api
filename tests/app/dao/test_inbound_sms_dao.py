@@ -20,7 +20,7 @@ from tests.app.db import (
     create_service,
     create_service_data_retention,
 )
-from tests.conftest import set_config
+from tests.conftest import set_config, set_signer_secret_key
 
 
 def test_get_all_inbound_sms(sample_service):
@@ -383,39 +383,37 @@ class TestResigning:
     def test_resign_inbound_sms(self, sample_service):
         from app import signer_inbound_sms
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_sms = create_inbound_sms(service=sample_service)
-        content = initial_sms.content
-        _content = initial_sms._content
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            initial_sms = create_inbound_sms(service=sample_service)
+            content = initial_sms.content
+            _content = initial_sms._content
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k2", "k3"])
-        resign_inbound_sms()
-
-        sms = InboundSms.query.get(initial_sms.id)
-        assert sms.content == content
-        assert sms._content != _content
+        with set_signer_secret_key(signer_inbound_sms, ["k2", "k3"]):
+            resign_inbound_sms()
+            sms = InboundSms.query.get(initial_sms.id)
+            assert sms.content == content
+            assert sms._content != _content
 
     def test_resign_inbound_sms_bad_signature(self, sample_service):
         from app import signer_inbound_sms
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
-        create_inbound_sms(service=sample_service)
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            create_inbound_sms(service=sample_service)
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k3"])
-        with pytest.raises(BadSignature):
-            resign_inbound_sms()
+        with set_signer_secret_key(signer_inbound_sms, "k3"):
+            with pytest.raises(BadSignature):
+                resign_inbound_sms()
 
     def test_resign_inbound_sms_unsafe_bad_signature(self, sample_service):
         from app import signer_inbound_sms
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_sms = create_inbound_sms(service=sample_service)
-        content = initial_sms.content
-        _content = initial_sms._content
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            initial_sms = create_inbound_sms(service=sample_service)
+            content = initial_sms.content
+            _content = initial_sms._content
 
-        signer_inbound_sms.serializer = URLSafeSerializer(["k3"])
-        resign_inbound_sms(unsafe=True)
-
-        sms = InboundSms.query.get(initial_sms.id)
-        assert sms.content == content
-        assert sms._content != _content
+        with set_signer_secret_key(signer_inbound_sms, ["k3"]):
+            resign_inbound_sms(unsafe=True)
+            sms = InboundSms.query.get(initial_sms.id)
+            assert sms.content == content
+            assert sms._content != _content

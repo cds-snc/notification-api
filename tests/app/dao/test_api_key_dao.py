@@ -16,7 +16,7 @@ from app.dao.api_key_dao import (
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests.app.db import create_api_key
-
+from tests.conftest import set_signer_secret_key
 
 def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     api_key = ApiKey(
@@ -168,39 +168,37 @@ class TestResigning:
     def test_resign_api_keys(self, sample_service):
         from app import signer_api_key
 
-        signer_api_key.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_key = create_api_key(service=sample_service)
-        secret = initial_key.secret
-        _secret = initial_key._secret
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
 
-        signer_api_key.serializer = URLSafeSerializer(["k2", "k3"])
-        resign_api_keys()
-
-        api_key = ApiKey.query.get(initial_key.id)
-        assert api_key.secret == secret
-        assert api_key._secret != _secret
+        with set_signer_secret_key(signer_api_key, ["k2", "k3"]):
+            resign_api_keys()
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret
+            assert api_key._secret != _secret
 
     def test_resign_api_keys_bad_signature(self, sample_service):
         from app import signer_api_key
 
-        signer_api_key.serializer = URLSafeSerializer(["k1", "k2"])
-        create_api_key(service=sample_service)
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            create_api_key(service=sample_service)
 
-        signer_api_key.serializer = URLSafeSerializer(["k3"])
-        with pytest.raises(BadSignature):
-            resign_api_keys()
+        with set_signer_secret_key(signer_api_key, "k3"):
+            with pytest.raises(BadSignature):
+                resign_api_keys()
 
     def test_resign_api_keys_unsafe_bad_signature(self, sample_service):
         from app import signer_api_key
 
-        signer_api_key.serializer = URLSafeSerializer(["k1", "k2"])
-        initial_key = create_api_key(service=sample_service)
-        secret = initial_key.secret
-        _secret = initial_key._secret
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
 
-        signer_api_key.serializer = URLSafeSerializer(["k3"])
-        resign_api_keys(unsafe=True)
-
-        api_key = ApiKey.query.get(initial_key.id)
-        assert api_key.secret == secret
-        assert api_key._secret != _secret
+        with set_signer_secret_key(signer_api_key, ["k3"]):
+            resign_api_keys(unsafe=True)
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret
+            assert api_key._secret != _secret
