@@ -4,7 +4,7 @@ from functools import partial
 
 import pytest
 from freezegun import freeze_time
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -66,6 +66,7 @@ from tests.app.db import (
     save_scheduled_notification,
 )
 from tests.conftest import set_signer_secret_key
+
 
 def test_should_have_decorated_notifications_dao_functions():
     assert dao_get_last_template_usage.__wrapped__.__name__ == "dao_get_last_template_usage"  # noqa

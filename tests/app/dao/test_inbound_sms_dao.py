@@ -3,7 +3,7 @@ from itertools import product
 
 import pytest
 from freezegun import freeze_time
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature
 
 from app.dao.inbound_sms_dao import (
     dao_count_inbound_sms_for_service,

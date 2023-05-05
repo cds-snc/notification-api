@@ -1,16 +1,16 @@
 import os
 from contextlib import contextmanager
+from typing import List
 from urllib.parse import urlparse
-from itsdangerous import URLSafeSerializer
 
 import pytest
 import sqlalchemy
 from alembic.command import upgrade
 from alembic.config import Config
 from flask import Flask
-from app.encryption import CryptoSigner
 
 from app import create_app, db
+from app.encryption import CryptoSigner
 
 
 def pytest_configure(config):
@@ -199,15 +199,14 @@ def set_config_values(app, dict):
 
 
 @contextmanager
-def set_signer_secret_key(signer: CryptoSigner, secret_key):
+def set_signer_secret_key(signer: CryptoSigner, secret_key: str | List[str]):
     old_secret_key = signer.secret_key
-    signer.secret_key = secret_key
-    signer.serializer = URLSafeSerializer(secret_key)
+    signer.init_app(signer.app, secret_key, signer.salt)
     try:
         yield
     finally:
-        signer.secret_key = old_secret_key
-        signer.serializer = URLSafeSerializer(old_secret_key)
+        signer.init_app(signer.app, old_secret_key, signer.salt)
+
 
 class Matcher:
     def __init__(self, description, key):

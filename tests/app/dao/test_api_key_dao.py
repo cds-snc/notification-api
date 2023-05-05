@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytest
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -17,6 +17,7 @@ from app.dao.api_key_dao import (
 from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests.app.db import create_api_key
 from tests.conftest import set_signer_secret_key
+
 
 def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     api_key = ApiKey(

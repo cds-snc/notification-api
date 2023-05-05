@@ -1,7 +1,7 @@
 import uuid
 
 import pytest
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import BadSignature
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import signer_bearer_token
@@ -15,6 +15,7 @@ from app.dao.service_callback_api_dao import (
 from app.models import ServiceCallbackApi
 from tests.app.db import create_service_callback_api
 from tests.conftest import set_signer_secret_key
+
 
 def test_save_service_callback_api(sample_service):
     service_callback_api = ServiceCallbackApi(
