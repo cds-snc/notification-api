@@ -187,8 +187,8 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     assert celery_mock.call_args[1]["research_mode"] is True
 
 
-@pytest.mark.parametrize("process_type", ["priority", "bulk"])
-def test_send_one_off_notification_honors_process_type(notify_db_session, persist_mock, celery_mock, process_type):
+@pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority"), ("bulk", "normal"), ("normal", "normal")])
+def test_send_one_off_notification_honors_process_type(notify_db_session, persist_mock, celery_mock, process_type, expected_queue):
     service = create_service()
     template = create_template(service=service)
     template.process_type = process_type
@@ -201,7 +201,7 @@ def test_send_one_off_notification_honors_process_type(notify_db_session, persis
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]["queue"] == f"{process_type}-tasks"
+    assert celery_mock.call_args[1]["queue"] == f"{expected_queue}-tasks"
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session):
