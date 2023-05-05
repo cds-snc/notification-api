@@ -1175,4 +1175,4 @@ class TestBounceRate:
             send_to_providers.send_email_to_provider(
                 db_notification,
             )
-            app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id)
+            app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
