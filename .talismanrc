@@ -266,7 +266,7 @@ fileignoreconfig:
     - filename: tests/app/notifications/test_validators.py
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: requirements.txt
-      checksum: 4cd08981422546219b07315d07ac44e2f94aeb939772afc4c8e09b533196c183
+      checksum: 267c1396636dd30d55f9440e1a55446216355fcfa1e7b865754fc91c4cd422b2
     - filename: app/va/va_profile/va_profile_client.py
       checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
