@@ -177,6 +177,7 @@ def post_bulk():
         fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
+        current_app.logger.info(f"[post_notifications.post_bulk()] Checking bounce rate for service: {authenticated_service.id}")
         check_service_over_bounce_rate(authenticated_service.id)
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
@@ -246,6 +247,9 @@ def post_notification(notification_type: NotificationType):
         )
 
     if notification_type == EMAIL_TYPE:
+        current_app.logger.info(
+            f"[post_notifications.post_notification()]Checking bounce rate for service: {authenticated_service.id}"
+        )
         check_service_over_bounce_rate(authenticated_service.id)
         form = validate(request_json, post_email_request)
     elif notification_type == SMS_TYPE:

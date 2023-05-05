@@ -62,7 +62,13 @@ from app.v2.errors import (
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
 
 
-def check_service_over_api_rate_limit(service: Service, api_key: ApiKey):
+def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key: ApiKey):
+    """This function:
+    - adds the current timestamp to the api rate limit key in Redis
+    - expires old data from outside the `interval`
+    - checks if the service is over the api rate limit in the `interval`
+    - raises an error if the service is over the api rate limit
+    """
     if current_app.config["API_RATE_LIMIT_ENABLED"] and current_app.config["REDIS_ENABLED"]:
         cache_key = rate_limit_cache_key(service.id, api_key.key_type)
         rate_limit = service.rate_limit
@@ -163,7 +169,7 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, re
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):
-    check_service_over_api_rate_limit(service, api_key)
+    check_service_over_api_rate_limit_and_update_rate(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
 
 
@@ -283,9 +289,11 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
 
 
 def check_service_over_bounce_rate(service_id: str):
+    current_app.logger.info(f"Entered check_service_over_bounce_rate with service_id {service_id}")
     if current_app.config["FF_BOUNCE_RATE_V1"]:
         bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
         bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
+        current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}")
         if bounce_rate_status == BounceRateStatus.CRITICAL.value:
             # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
             current_app.logger.info(
