@@ -1,5 +1,3 @@
-import math
-import time
 import datetime
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE
 from app.celery.service_callback_tasks import check_and_queue_callback_task
@@ -68,7 +66,9 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
      number_of_message_parts, price_in_millicents_usd) = _get_notification_parameters(notification_platform_status)
 
     # retrieves the inbound message for this provider we are updating the status of the outbound message
-    notification, should_retry, should_exit = attempt_to_get_notification(reference, notification_status)
+    notification, should_retry, should_exit = attempt_to_get_notification(
+        reference, notification_status, self.request.retries * self.default_retry_delay
+    )
 
     # the race condition scenario if we got the delivery status before we actually record the sms
     if should_retry or (notification is None):
@@ -112,9 +112,13 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
     return True
 
 
-def attempt_to_get_notification(reference: str, notification_status: str) -> Tuple[Notification, bool, bool]:
-    """ Attempt to get the notification object and determine whether the Celery Event should be retry or exit"""
-    event_timestamp_in_ms = str(time.time() * 1000)
+def attempt_to_get_notification(
+    reference: str, notification_status: str, event_duration_in_seconds: int
+) -> Tuple[Notification, bool, bool]:
+    """
+    Attempt to get the Notification object, and determine whether the Celery Event should be retried or exit.
+    """
+
     should_retry = False
     notification = None
     should_exit = False
@@ -127,8 +131,9 @@ def attempt_to_get_notification(reference: str, notification_status: str) -> Tup
             notification.id
         )
     except NoResultFound:
-        message_time = datetime.datetime.fromtimestamp(math.floor(float(event_timestamp_in_ms) / 1000))
-        if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
+        # A race condition exists wherein a callback might be received before a notification
+        # persists in the database.  Continue retrying for up to 5 minutes (300 seconds).
+        if event_duration_in_seconds < 300:
             current_app.logger.info(
                 "Delivery Status callback event for reference %s was received less than five minutes ago.", reference)
             should_retry = True

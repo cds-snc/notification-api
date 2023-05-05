@@ -1,20 +1,17 @@
+import datetime
 import pytest
 from app.celery.process_delivery_status_result_tasks import (
-    process_delivery_status,
-    attempt_to_get_notification,
     _get_provider_info,
-    _get_notification_parameters
+    _get_notification_parameters,
+    attempt_to_get_notification,
+    process_delivery_status,
 )
-
+from app.models import Notification
 from celery.exceptions import Retry
 from tests.app.db import create_notification
-import datetime
-from app.models import Notification
 
 
 class MockCeleryTask:
-    """A class to represent a CeleryTask """
-
     def retry(self, queue=None):
         raise Retry()
 
@@ -177,7 +174,7 @@ def test_attempt_to_get_notification_with_good_data(
 
     # attempt to get the notification object that we created from the database
     notification, should_retry, should_exit = attempt_to_get_notification(
-        reference, notification_status
+        reference, notification_status, 0
     )
 
     # check the values that attempt_to_get_notification() return against what we sent
@@ -219,7 +216,7 @@ def test_attempt_to_get_notification_duplicate_notification(
 
     # should trigger a "MultipleResultsFound" when we attempt to get the notification object
     notification, should_retry, should_exit = attempt_to_get_notification(
-        reference, notification_status
+        reference, notification_status, 0
     )
 
     # Remember: celery task will trigger a retry when notification = None
@@ -253,16 +250,24 @@ def test_none_notification_platform_status_triggers_retry(
         process_delivery_status(event=sample_delivery_status_result_message)
 
 
-@pytest.mark.xfail(reason="#1217: Celery Task cannot determine time the message was originally received", run=False)
-def test_attempt_to_get_notification_older_than_five_minutes(
-        notify_db_session
-):
-    """Celery Task should retry whenever attempt_to_get_notification() could not find a matching notification"""
+@pytest.mark.parametrize("event_duration_in_seconds", [0, 100, 200, 300, 400])
+def test_attempt_to_get_notification_NoResultFound(notify_db_session, event_duration_in_seconds):
+    """
+    The Celery Task should retry whenever attempt_to_get_notification could not find a matching notification
+    and less than 300 seconds (5 minutes) has elapsed since sending the notification.  (This is a race
+    condition.)  There won't be a matching notification because this test doesn't create a Notification.
+    """
 
-    notification, should_retry, should_exit = attempt_to_get_notification('SMyyy', 'delivered')
+    notification, should_retry, should_exit = attempt_to_get_notification(
+        "bad_reference", "delivered", event_duration_in_seconds
+    )
     assert notification is None
-    assert not should_retry
     assert should_exit
+
+    if event_duration_in_seconds < 300:
+        assert should_retry
+    else:
+        assert not should_retry
 
 
 def test_process_delivery_status_should_retry_preempts_exit(
