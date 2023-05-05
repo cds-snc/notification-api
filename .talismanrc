@@ -349,3 +349,7 @@ fileignoreconfig:
       checksum: d04d6378dd6ce8b0046d6dc2c106ca87cf93ee555e03821e7970570c4b132450
     - filename: tests/app/service/test_api_key_endpoints.py
       checksum: 1ac2f66bdf3a93a8c0c71ea97a3f464fc885f98034012b5c85de05d883b324c0
+    - filename: certs/DigiCert-Global-Root-G2.cer
+      checksum: ae4a406af9f5ccd0c8b7d2439076327fb131760d29043f8488a22f6eff26a27e
+    - filename: certs/DigiCert-Global-G2-TLS-RSA-SHA256-2020-CA1.cer
+      checksum: 120ea4457eac8216580853c44751a329b74cc29fafc9064105ee73d9a9c2bdc8
