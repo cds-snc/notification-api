@@ -5,6 +5,7 @@ from typing import cast, Any, Iterable, Literal, Optional
 
 from flask import current_app, url_for
 from flask_sqlalchemy.model import DefaultMeta
+import flask_sqlalchemy
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -24,6 +25,7 @@ from notifications_utils.timezones import (
     convert_utc_to_local_timezone,
 )
 import sqlalchemy
+import db_type
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint, orm
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -50,11 +52,7 @@ LETTER_TYPE = "letter"
 
 TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
 
-class stub():  # type: ignore
-    relationship: orm.relationship
-
-db = cast(sqlalchemy, db)  # type: ignore
-# db.relationship = cast(orm.relationship, db.relationship)  # type: ignore
+db = cast(db_type, db)  # type: ignore
 template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
 
 NORMAL = "normal"
@@ -93,7 +91,7 @@ class HistoryModel:
                 current_app.logger.debug("{} has no column {} to copy from".format(original, c.name))
 
 
-BaseModel: DefaultMeta = db.Model
+BaseModel = db.Model
 
 
 class User(BaseModel):
