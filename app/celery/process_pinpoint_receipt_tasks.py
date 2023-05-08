@@ -163,6 +163,8 @@ def attempt_to_get_notification(
         notification = dao_get_notification_by_reference(reference)
         should_exit = check_notification_status(notification, notification_status)
     except NoResultFound:
+        # A race condition exists wherein a callback might be received before a notification
+        # persists in the database.  Continue retrying for up to 5 minutes (300 seconds).
         message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
             current_app.logger.info(
@@ -170,7 +172,7 @@ def attempt_to_get_notification(
             )
             should_retry = True
         else:
-            current_app.logger.warning(
+            current_app.logger.critical(
                 'notification not found for reference: %s (update to %s)', reference, notification_status
             )
         statsd_client.incr('callback.pinpoint.no_notification_found')

@@ -138,7 +138,7 @@ def attempt_to_get_notification(
                 "Delivery Status callback event for reference %s was received less than five minutes ago.", reference)
             should_retry = True
         else:
-            current_app.logger.warning(
+            current_app.logger.critical(
                 "notification not found for reference: %s (update to %s)", reference, notification_status)
         statsd_client.incr("callback.delivery_status.no_notification_found")
         should_exit = True
