@@ -110,6 +110,7 @@ def send_one_off_notification(service_id, post_data):
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
+            # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
             queue=QueueNames.NORMAL if template.queue_to_use() == QueueNames.BULK else template.queue_to_use(),
         )
 
