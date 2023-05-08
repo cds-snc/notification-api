@@ -323,10 +323,11 @@ def _sanitise_precompiled_pdf(self, notification, precompiled_pdf):
         return response
     except RequestException as e:
         current_app.logger.exception(e)
+
         if e.response is not None and e.response.status_code == 400:
-            message = f"sanitise_precompiled_pdf validation error for notification: {notification.id}. "
+            message = f"sanitise_precompiled_pdf validation error for notification: {notification.id}."
             if "message" in response.json():
-                message += response.json()["message"]
+                message += ' ' + response.json()["message"]
 
             current_app.logger.error(message)
             return None

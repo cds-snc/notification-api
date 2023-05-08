@@ -78,7 +78,7 @@ class VAProfileClient:
     ) -> bool:
         from app.models import VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES
 
-        self.logger.info(f'Called get_is_communication_allowed for notification {notification_id}')
+        self.logger.info("Called get_is_communication_allowed for notification %s", notification_id)
         recipient_id = transform_to_fhir_format(recipient_identifier)
         identifier_type = IdentifierType(recipient_identifier.id_type)
         oid = OIDS.get(identifier_type)
@@ -88,24 +88,37 @@ class VAProfileClient:
             f'{oid}/{recipient_id}/communication-permissions?communicationItemId={communication_item_id}'
         )
         self.logger.info(
-            f'VA Profile URL used for making request to get communication-permissions for notification '
-            f'{notification_id}: {url}'
+            "VA Profile URL used for making request to get communication-permissions for notification %s: %s",
+            notification_id,
+            url
         )
         response = self._make_request(url, recipient_id)
-        self.logger.info('Made request to communication-permissions VAProfile endpoint for'
-                         f'recipient {recipient_identifier} for notification {notification_id}')
+        self.logger.info(
+            "Made request to communication-permissions VAProfile endpoint for recipient %s for notification %s",
+            recipient_identifier,
+            notification_id
+        )
 
         all_bios = response.get('bios', [])
         for bio in all_bios:
-            self.logger.info(f'Found communication item id {communication_item_id} on recipient {recipient_id} for '
-                             f'notification {notification_id}')
+            self.logger.info(
+                "Found communication item id %s on recipient %s for notification %s",
+                communication_item_id,
+                recipient_id,
+                notification_id
+            )
             if bio['communicationChannelName'] == VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type]:
-                self.logger.info(f'Value of allowed is {bio["allowed"]} for notification {notification_id}')
+                self.logger.info("Value of allowed is %s for notification %s", bio["allowed"], notification_id)
                 self.statsd_client.incr("clients.va-profile.get-communication-item-permission.success")
                 return bio['allowed'] is True
 
-        self.logger.info(f'Recipient {recipient_id} did not have permission for communication item '
-                         f'{communication_item_id} and channel {notification_type} for notification {notification_id}')
+        self.logger.info(
+            "Recipient %s did not have permission for communication item %s and channel %s for notification %s",
+            recipient_id,
+            communication_item_id,
+            notification_type,
+            notification_id
+        )
         # TODO: use default communication item settings when that has been implemented
         self.statsd_client.incr("clients.va-profile.get-communication-item-permission.no-permissions")
         raise CommunicationItemNotFoundException
@@ -113,7 +126,7 @@ class VAProfileClient:
     def _make_request(self, url: str, va_profile_id: str, bio_type: str = None):
         start_time = monotonic()
 
-        self.logger.info(f"Querying VA Profile with ID {va_profile_id}")
+        self.logger.info("Querying VA Profile with ID %s", va_profile_id)
 
         try:
             response = requests.get(url, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=(3.05, 1))

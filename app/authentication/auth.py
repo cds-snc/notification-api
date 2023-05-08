@@ -179,11 +179,12 @@ def validate_service_api_key_auth():
         g.service_id = api_key.service_id
         g.api_user = api_key
         g.authenticated_service = service
-        current_app.logger.info('API authorised for service {} with api key {}, using client {}'.format(
+        current_app.logger.info(
+            "API authorised for service %s with api key %s, using client %s",
             service.id,
             api_key.id,
             request.headers.get('User-Agent')
-        ))
+        )
         return
     else:
         # service has API keys, but none matching the one the user provided

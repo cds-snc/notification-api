@@ -57,7 +57,11 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(AuthError)
     def authentication_error(error):
-        current_app.logger.info('API AuthError, client: {} error: {}'.format(request.headers.get('User-Agent'), error))
+        current_app.logger.info(
+            "API AuthError, client: %s error: %s",
+            request.headers.get('User-Agent'),
+            error
+        )
         return jsonify(result='error', message=error.message), error.code
 
     @blueprint.errorhandler(ValidationError)

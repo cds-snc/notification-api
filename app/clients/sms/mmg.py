@@ -45,8 +45,7 @@ class MMGClient(SmsClient):
 
     def record_outcome(self, success, response):
         status_code = response.status_code if response else 503
-        log_message = "API {} request {} on {} response status_code {}".format(
-            "POST",
+        log_message = "API POST request {} on {} response status_code {}".format(
             "succeeded" if success else "failed",
             self.mmg_url,
             status_code
@@ -98,6 +97,6 @@ class MMGClient(SmsClient):
         finally:
             elapsed_time = monotonic() - start_time
             self.statsd_client.timing("clients.mmg.request-time", elapsed_time)
-            self.current_app.logger.info("MMG request for {} finished in {}".format(reference, elapsed_time))
+            self.current_app.logger.info("MMG request for %s finished in %f", reference, elapsed_time)
 
         return response

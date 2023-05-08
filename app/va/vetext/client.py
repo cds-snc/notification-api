@@ -36,7 +36,7 @@ class VETextClient:
             "templateSid": template_id,
             "personalization": formatted_personalization
         }
-        self.logger.info(f'VEText Payload information: {payload}')
+        self.logger.info("VEText Payload information: %s", payload)
 
         try:
             start_time = monotonic()
@@ -46,7 +46,7 @@ class VETextClient:
                 json=payload,
                 timeout=self.TIMEOUT
             )
-            self.logger.info(f'VEText response: {response.json() if response.ok else response.status_code }')
+            self.logger.info("VEText response: %s", response.json() if response.ok else response.status_code)
             response.raise_for_status()
         except requests.HTTPError as e:
             self.logger.exception(e)

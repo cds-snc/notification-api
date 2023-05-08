@@ -253,7 +253,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     else:
         if simulated:
-            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+            current_app.logger.debug("POST simulated notification for id: %s", notification.id)
         else:
             queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
             recipient_id_type = recipient_identifier.get('id_type') if recipient_identifier else None
@@ -401,7 +401,7 @@ def process_precompiled_letter_notifications(*, letter_data, api_key, template, 
 
     filename = upload_letter_pdf(notification, letter_content, precompiled=True)
 
-    current_app.logger.info('Calling task scan-file for {}'.format(filename))
+    current_app.logger.info("Calling task scan-file for %s.", filename)
 
     # call task to add the filename to anti virus queue
     if current_app.config['ANTIVIRUS_ENABLED']:

@@ -71,8 +71,8 @@ class PDFNotReadyError(BadRequestError):
 def register_errors(blueprint):
     @blueprint.errorhandler(InvalidEmailError)
     def invalid_format(error):
-        # Please not that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone,
-        # work should be done in the utils app to tidy up these errors.
+        # Note that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone.
+        # Work should be done in the utils app to tidy up these errors.
         current_app.logger.info(error)
         return jsonify(status_code=400,
                        errors=[{"error": error.__class__.__name__, "message": str(error)}]), 400
@@ -80,8 +80,7 @@ def register_errors(blueprint):
     @blueprint.errorhandler(InvalidRequest)
     def invalid_data(error):
         current_app.logger.info(error)
-        response = jsonify(error.to_dict_v2()), error.status_code
-        return response
+        return jsonify(error.to_dict_v2()), error.status_code
 
     @blueprint.errorhandler(ValidationError)
     def validation_error(error):
@@ -107,7 +106,7 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(AuthError)
     def auth_error(error):
-        current_app.logger.info('API AuthError, client: {} error: {}'.format(request.headers.get('User-Agent'), error))
+        current_app.logger.info("API AuthError, client: %s error: %s", request.headers.get("User-Agent"), error)
         return jsonify(error.to_dict_v2()), error.code
 
     @blueprint.errorhandler(NotImplementedError)

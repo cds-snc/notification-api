@@ -29,8 +29,11 @@ def process_mmg_response():
     safe_to_log = data.copy()
     safe_to_log.pop("MSISDN")
     current_app.logger.debug(
-        "Full delivery response from {} for notification: {}\n{}".format(client_name, request.form.get('CID'),
-                                                                         safe_to_log))
+        "Full delivery response from %s for notification: %s\n%s",
+        client_name,
+        request.form.get("CID"),
+        safe_to_log
+    )
     if errors:
         raise InvalidRequest(errors, status_code=400)
     else:
@@ -48,8 +51,11 @@ def process_firetext_response():
     safe_to_log = dict(request.form).copy()
     safe_to_log.pop('mobile')
     current_app.logger.debug(
-        "Full delivery response from {} for notification: {}\n{}".format(client_name, request.form.get('reference'),
-                                                                         safe_to_log))
+        "Full delivery response from %s for notification: %s\n%s",
+        client_name,
+        request.form.get("reference"),
+        safe_to_log
+    )
     success, errors = process_sms_client_response(status=request.form.get('status'),
                                                   provider_reference=request.form.get('reference'),
                                                   client_name=client_name)
@@ -82,7 +88,11 @@ def process_twilio_response(notification_id):
     redacted_data = dict(data.items())
     redacted_data.pop('To', None)
     current_app.logger.debug(
-        "Full delivery response from {} for notification: {}\n{}".format(client_name, notification_id, redacted_data))
+        "Full delivery response from %s for notification: %s\n%s",
+        client_name,
+        notification_id,
+        redacted_data
+    )
     if errors:
         raise InvalidRequest(errors, status_code=400)
     else:
@@ -93,7 +103,7 @@ def process_twilio_response(notification_id):
 def process_twilio_reply():
     client_name = 'Twilio'
 
-    current_app.logger.info('reply is called ')
+    current_app.logger.info("reply is called")
     data = request.values
     errors = validate_callback_data(
         data=data,
@@ -106,7 +116,11 @@ def process_twilio_reply():
         raise InvalidRequest(errors, status_code=400)
 
     current_app.logger.info(
-        "Full {} body from {}: {}".format(client_name, data.get('From'), data.get('Body')))
+        "Full %s body from %s: %s",
+        client_name,
+        data.get("From"),
+        data.get('Body')
+    )
     if errors:
         raise InvalidRequest(errors, status_code=400)
     else:

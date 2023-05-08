@@ -56,7 +56,10 @@ def login_with_password():
     try:
         fetched_user = get_user_by_email(request_json['email_address'])
     except NoResultFound:
-        current_app.logger.info(f"No user was found with email address: {request_json['email_address']}")
+        current_app.logger.info(
+            "No user was found with email address: %s",
+            request_json['email_address']
+        )
     else:
         if fetched_user.check_password(request_json['password']):
             jwt_token = create_access_token(
@@ -64,7 +67,10 @@ def login_with_password():
             )
             return jsonify(result='success', token=jwt_token), 200
         else:
-            current_app.logger.info(f"wrong password for: {request_json['email_address']}")
+            current_app.logger.info(
+                "wrong password for %s",
+                request_json['email_address']
+            )
 
     return jsonify(result='error', message='Failed to login'), 401
 
@@ -79,11 +85,11 @@ def authorize():
         user_resp = make_github_get_request('/user', github_token)
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
     except OAuthError as e:
-        current_app.logger.error(f'User denied authorization: {e}')
+        current_app.logger.error("User denied authorization: %s", e)
         statsd_client.incr('oauth.authorization.denied')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure?denied_authorization"))
     except (OAuthException, HTTPError) as e:
-        current_app.logger.error(f"Authorization exception raised:\n{e}\n")
+        current_app.logger.error("Authorization exception raised:\n%s\n", e)
         statsd_client.incr('oauth.authorization.failure')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     except InsufficientGithubScopesException as e:
@@ -189,7 +195,7 @@ def _successful_sso_login_response(user: User) -> Response:
         samesite=current_app.config['SESSION_COOKIE_SAMESITE']
     )
     statsd_client.incr('oauth.authorization.success')
-    current_app.logger.info(f"Successful SSO authorization for {user.id}")
+    current_app.logger.info("Successful SSO authorization for %s", user.id)
     return response
 
 

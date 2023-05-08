@@ -1,4 +1,3 @@
-
 from flask import request, jsonify
 
 from app import authenticated_service, vetext_client

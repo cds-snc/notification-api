@@ -27,7 +27,12 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
                 },
                 timeout=60
             )
-            current_app.logger.info(f"Callback sent to {callback.url}, response {response.status_code}, {tags}")
+            current_app.logger.info(
+                "Callback sent to %s, response %d, %s",
+                callback.url,
+                response.status_code,
+                tags
+            )
             response.raise_for_status()
 
         except RequestException as e:

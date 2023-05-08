@@ -57,8 +57,7 @@ class FiretextClient(SmsClient):
     def record_outcome(self, success, response):
         status_code = response.status_code if response else 503
 
-        log_message = "API {} request {} on {} response status_code {}".format(
-            "POST",
+        log_message = "API POST request {} on {} response status_code {}".format(
             "succeeded" if success else "failed",
             self.url,
             status_code
@@ -103,6 +102,6 @@ class FiretextClient(SmsClient):
             raise FiretextClientResponseException(response=e.response, exception=e)
         finally:
             elapsed_time = monotonic() - start_time
-            self.current_app.logger.info("Firetext request for {} finished in {}".format(reference, elapsed_time))
+            self.current_app.logger.info("Firetext request for %s finished in %f", reference, elapsed_time)
             self.statsd_client.timing("clients.firetext.request-time", elapsed_time)
         return response
