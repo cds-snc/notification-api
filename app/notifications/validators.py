@@ -35,7 +35,6 @@ from app.models import (
     SMS_TYPE,
     ApiKey,
     ApiKeyType,
-    BounceRateStatus,
     NotificationType,
     Permission,
     Service,
@@ -286,24 +285,6 @@ def service_can_send_to_recipient(send_to, key_type: ApiKeyType, service: Servic
                 "Can’t send to this recipient when service is in trial mode " f'– see {get_document_url("en", "keys.html#live")}'
             )
         raise BadRequestError(message=message, status_code=400)
-
-
-def check_service_over_bounce_rate(service_id: str):
-    current_app.logger.info(f"Entered check_service_over_bounce_rate with service_id {service_id}")
-    if current_app.config["FF_BOUNCE_RATE_V1"]:
-        bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
-        bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
-        debug_data = bounce_rate_client.get_debug_data(service_id)
-        current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}")
-        if bounce_rate_status == BounceRateStatus.CRITICAL.value:
-            # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
-            current_app.logger.info(
-                f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
-            )
-        elif bounce_rate_status == BounceRateStatus.WARNING.value:
-            current_app.logger.info(
-                f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
-            )
 
 
 def service_has_permission(notify_type, permissions: list[Permission]):

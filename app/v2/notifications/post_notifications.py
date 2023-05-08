@@ -76,7 +76,6 @@ from app.notifications.validators import (
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
-    check_service_over_bounce_rate,
     check_service_sms_sender_id,
     check_sms_limit_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
@@ -178,7 +177,6 @@ def post_bulk():
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
         current_app.logger.info(f"[post_notifications.post_bulk()] Checking bounce rate for service: {authenticated_service.id}")
-        check_service_over_bounce_rate(authenticated_service.id)
         remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
     form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
@@ -247,10 +245,6 @@ def post_notification(notification_type: NotificationType):
         )
 
     if notification_type == EMAIL_TYPE:
-        current_app.logger.info(
-            f"[post_notifications.post_notification()]Checking bounce rate for service: {authenticated_service.id}"
-        )
-        check_service_over_bounce_rate(authenticated_service.id)
         form = validate(request_json, post_email_request)
     elif notification_type == SMS_TYPE:
         form = validate(request_json, post_sms_request)

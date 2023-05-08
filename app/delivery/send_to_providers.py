@@ -44,6 +44,7 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     SMS_TYPE,
+    BounceRateStatus,
     Notification,
     Service,
 )
@@ -165,6 +166,26 @@ def check_for_malware_errors(document_download_response_code, notification):
         document_download_internal_error(notification=notification)
 
 
+def check_service_over_bounce_rate(service_id: str):
+    current_app.logger.info(f"Entered check_service_over_bounce_rate with service_id {service_id}")
+    if not current_app.config["FF_BOUNCE_RATE_V1"]:
+        return
+
+    bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
+    bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
+    debug_data = bounce_rate_client.get_debug_data(service_id)
+    current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}")
+    if bounce_rate_status == BounceRateStatus.CRITICAL.value:
+        # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
+        current_app.logger.info(
+            f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
+        )
+    elif bounce_rate_status == BounceRateStatus.WARNING.value:
+        current_app.logger.info(
+            f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
+        )
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -257,6 +278,7 @@ def send_email_to_provider(notification: Notification):
                 attachments=attachments,
             )
             if current_app.config["FF_BOUNCE_RATE_V1"]:
+                check_service_over_bounce_rate(service.id)
                 bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
                 current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
             current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
