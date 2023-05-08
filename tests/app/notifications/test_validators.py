@@ -14,7 +14,6 @@ from app.models import (
     LETTER_TYPE,
     SMS_TYPE,
     ApiKeyType,
-    BounceRateStatus,
 )
 from app.notifications.validators import (
     check_reply_to,

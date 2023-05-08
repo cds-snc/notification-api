@@ -20,7 +20,7 @@ from notifications_utils.recipients import (
 from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import bounce_rate_client, redis_store
+from app import redis_store
 from app.dao import services_dao, templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
