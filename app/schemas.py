@@ -1,8 +1,10 @@
 from datetime import date, datetime, timedelta
 
 from flask import current_app
+from dateutil.parser import parse
 from flask_marshmallow.fields import fields
 from marshmallow import (
+    EXCLUDE,
     Schema,
     ValidationError,
     post_dump,
@@ -63,18 +65,49 @@ def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
         raise ValidationError(msg)
 
 
+class FlexibleDateTime(fields.DateTime):
+    """
+    Allows input data to not contain tz info.
+    Outputs data using the output format that marshmallow version 2 used to use, OLD_MARSHMALLOW_FORMAT
+    """
+
+    DEFAULT_FORMAT = 'flexible'
+    OLD_MARSHMALLOW_FORMAT = "%Y-%m-%dT%H:%M:%S+00:00"
+
+    def __init__(self, *args, allow_none=True, **kwargs):
+        super().__init__(*args, allow_none=allow_none, **kwargs)
+        self.DESERIALIZATION_FUNCS['flexible'] = parse
+        self.SERIALIZATION_FUNCS['flexible'] = lambda x: x.strftime(self.OLD_MARSHMALLOW_FORMAT)
+
+
+class UUIDsAsStringsMixin:
+    @post_dump()
+    def __post_dump(self, data, **kwargs):
+        for key, value in data.items():
+
+            if isinstance(value, UUID):
+                data[key] = str(value)
+            if isinstance(value, list):
+                data[key] = [
+                    (str(item) if isinstance(item, UUID) else item)
+                    for item in value
+                ]
+        return data
+
+
 class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
     class Meta:
         sqla_session = db.session
         load_instance = True
         include_relationships = True
+        unknown = EXCLUDE
 
     def __init__(self, load_json=False, *args, **kwargs):
         self.load_json = load_json
         super(BaseSchema, self).__init__(*args, **kwargs)
 
     @post_load
-    def make_instance(self, data):
+    def make_instance(self, data, **kwargs):
         """Deserialize data to an instance of the model. Update an existing row
         if specified in `self.instance` or loaded by primary key(s) in the data;
         else create a new row.
@@ -90,7 +123,10 @@ class UserSchema(BaseSchema):
     permissions = fields.Method("user_permissions", dump_only=True)
     password_changed_at = field_for(models.User, "password_changed_at", format="%Y-%m-%d %H:%M:%S.%f")
     created_at = field_for(models.User, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
+    updated_at = FlexibleDateTime()
+    logged_in_at = FlexibleDateTime()
     auth_type = field_for(models.User, "auth_type")
+    password = fields.String(required=True, load_only=True)
 
     def user_permissions(self, usr):
         retval = {}
@@ -104,14 +140,13 @@ class UserSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.User
         exclude = (
-            "updated_at",
+            "_password",
             "created_at",
+            "updated_at",
             "user_to_service",
             "user_to_organisation",
-            "_password",
             "verify_codes",
         )
-        strict = True
 
     @validates("name")
     def validate_name(self, value):
@@ -152,7 +187,6 @@ class UserUpdateAttributeSchema(BaseSchema):
             "state",
             "platform_admin",
         )
-        strict = True
 
     @validates("name")
     def validate_name(self, value):
@@ -175,7 +209,7 @@ class UserUpdateAttributeSchema(BaseSchema):
             raise ValidationError("Invalid phone number: {}".format(error))
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(self, data, original_data, **kwargs):
         for key in original_data:
             if key not in self.fields:
                 raise ValidationError("Unknown field name {}".format(key))
@@ -185,10 +219,9 @@ class UserUpdatePasswordSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.User
         only = "password"
-        strict = True
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(self, data, original_data, **kwargs):
         for key in original_data:
             if key not in self.fields:
                 raise ValidationError("Unknown field name {}".format(key))
@@ -196,28 +229,28 @@ class UserUpdatePasswordSchema(BaseSchema):
 
 class ProviderDetailsSchema(BaseSchema):
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
+    updated_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
         model = models.ProviderDetails
         exclude = ("provider_rates", "provider_stats")
-        strict = True
 
 
 class ProviderDetailsHistorySchema(BaseSchema):
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
+    updated_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
         model = models.ProviderDetailsHistory
         exclude = ("provider_rates", "provider_stats")
-        strict = True
 
 
-class ServiceSchema(BaseSchema):
+class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
 
     created_by = field_for(models.Service, "created_by", required=True)
     organisation_type = field_for(models.Service, "organisation_type")
     letter_logo_filename = fields.Method(dump_only=True, serialize="get_letter_logo_filename")
-    permissions = fields.Method("service_permissions")
+    permissions = fields.Method("serialize_service_permissions", "deserialize_service_permissions")
     email_branding = field_for(models.Service, "email_branding")
     default_branding_is_french = field_for(models.Service, "default_branding_is_french")
     organisation = field_for(models.Service, "organisation")
@@ -229,8 +262,20 @@ class ServiceSchema(BaseSchema):
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
 
-    def service_permissions(self, service):
+    def serialize_service_permissions(self, service):
         return [p.permission for p in service.permissions]
+
+    def deserialize_service_permissions(self, in_data):
+        if isinstance(in_data, dict) and 'permissions' in in_data:
+            str_permissions = in_data['permissions']
+            permissions = []
+            for p in str_permissions:
+                permission = ServicePermission(service_id=in_data["id"], permission=p)
+                permissions.append(permission)
+
+            in_data['permissions'] = permissions
+
+        return in_data
 
     def get_letter_contact(self, service):
         return service.get_default_letter_contact()
@@ -253,7 +298,6 @@ class ServiceSchema(BaseSchema):
             "letter_contacts",
             "complaints",
         )
-        strict = True
 
     @validates("permissions")
     def validate_permissions(self, value):
@@ -267,7 +311,7 @@ class ServiceSchema(BaseSchema):
             raise ValidationError("Duplicate Service Permission: {}".format(duplicates))
 
     @pre_load()
-    def format_for_data_model(self, in_data):
+    def format_for_data_model(self, in_data, **kwargs):
         if isinstance(in_data, dict) and "permissions" in in_data:
             str_permissions = in_data["permissions"]
             permissions = []
@@ -276,6 +320,7 @@ class ServiceSchema(BaseSchema):
                 permissions.append(permission)
 
             in_data["permissions"] = permissions
+        return in_data
 
 
 class DetailedServiceSchema(BaseSchema):
