@@ -4,6 +4,8 @@ import config from "../../../config";
 
 const pages = [
     { en: "/accessibility", fr: "/accessibilite" },
+    { en: "/keep-accurate-contact-information", fr: "/maintenez-a-jour-les-coordonnees"},
+    { en: "/delivery-and-failure", fr: "/livraison-reussie-et-echec"},
     { en: "/features", fr: "/fonctionnalites" },
     { en: "/formatting-guide", fr: "/guide-mise-en-forme" },
     { en: "/guidance", fr: "/guides-reference" },
