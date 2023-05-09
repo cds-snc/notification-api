@@ -81,7 +81,7 @@ def process_ses_results(self, response):
         # Record bounces and notifications in Redis
         if current_app.config["FF_BOUNCE_RATE_V1"]:
             if notification_status == NOTIFICATION_PERMANENT_FAILURE:
-                bounce_rate_client.set_sliding_hard_bounce(notification.service_id)
+                bounce_rate_client.set_sliding_hard_bounce(notification.service_id, str(notification.id))
                 current_app.logger.info(
                     f"Setting total hard bounce notifications for service {notification.service.id} with notification {notification.id} in REDIS"
                 )

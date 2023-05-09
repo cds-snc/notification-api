@@ -293,7 +293,8 @@ def check_service_over_bounce_rate(service_id: str):
     if current_app.config["FF_BOUNCE_RATE_V1"]:
         bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
         bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
-        current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}")
+        debug_data = bounce_rate_client.get_debug_data(service_id)
+        current_app.logger.info(f"Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}")
         if bounce_rate_status == BounceRateStatus.CRITICAL.value:
             # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
             current_app.logger.info(
