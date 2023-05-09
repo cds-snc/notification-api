@@ -2985,9 +2985,9 @@ class TestSeedingBounceRateData:
         date_object = datetime.strptime(epoch_time, "%Y-%m-%d %H:%M:%S.%f")
 
         # Convert datetime object to epoch timestamp in milliseconds
-        epoch_timestamp_ms = int(date_object.timestamp() * 1000)
+        epoch_timestamp_s = int(date_object.timestamp())
 
-        _seed_bounce_data(epoch_timestamp_ms, service_id)
+        _seed_bounce_data(epoch_timestamp_s, service_id)
 
         if result:
             seed_bounce_rate_in_redis.apply_async.assert_called_once_with(service_id)
