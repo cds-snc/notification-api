@@ -4,6 +4,7 @@ from notifications_utils.s3 import s3download as utils_s3download
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import create_random_identifier
+from app.config import QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -109,7 +110,8 @@ def send_one_off_notification(service_id, post_data):
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
-            queue=template.queue_to_use(),
+            # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
+            queue=QueueNames.NORMAL if template.queue_to_use() == QueueNames.BULK else template.queue_to_use(),
         )
 
     return {"id": str(notification.id)}
