@@ -38,7 +38,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "staging"
         },
         {
           "name": "DD_SITE",
@@ -323,7 +323,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "staging"
         },
         {
           "name": "DD_SERVICE",

@@ -42,7 +42,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "prod"
         },
         {
           "name": "DD_SITE",
@@ -307,7 +307,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "prod"
         },
         {
           "name": "DD_SERVICE",

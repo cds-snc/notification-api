@@ -44,7 +44,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "perf"
         },
         {
           "name": "DD_SITE",
@@ -293,7 +293,7 @@
         },
         {
           "name": "DD_ENV",
-          "value": "dev"
+          "value": "perf"
         },
         {
           "name": "DD_SERVICE",
