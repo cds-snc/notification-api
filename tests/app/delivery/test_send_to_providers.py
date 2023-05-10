@@ -6,6 +6,7 @@ from unittest.mock import ANY, MagicMock, call
 import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
+from pytest_mock import MockFixture
 from requests import HTTPError
 
 import app
@@ -31,6 +32,7 @@ from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
+    BounceRateStatus,
     EmailBranding,
     Notification,
     Service,
@@ -1176,3 +1178,31 @@ class TestBounceRate:
                 db_notification,
             )
             app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
+
+    def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
+        with notify_api.app_context():
+            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
+            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
+            mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
+            send_to_providers.check_service_over_bounce_rate(fake_uuid)
+            mock_logger.assert_called_once_with(
+                f"Service: {fake_uuid} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {current_app.config['BR_CRITICAL_PERCENTAGE']}"
+            )
+
+    def test_check_service_over_bounce_rate_warning(self, mocker: MockFixture, notify_api, fake_uuid):
+        with notify_api.app_context():
+            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.WARNING.value)
+            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_WARNING_PERCENTAGE"])
+            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
+            send_to_providers.check_service_over_bounce_rate(fake_uuid)
+            mock_logger.assert_called_once_with(
+                f"Service: {fake_uuid} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {current_app.config['BR_WARNING_PERCENTAGE']}"
+            )
+
+    def test_check_service_over_bounce_rate_normal(self, mocker: MockFixture, notify_api, fake_uuid):
+        with notify_api.app_context():
+            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.NORMAL.value)
+            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=0.0)
+            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
+            assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
+            mock_logger.assert_not_called()
