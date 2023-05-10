@@ -375,7 +375,7 @@ class TestBounceRates:
 
         assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-        bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id)
+        bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id, str(notification.id))
         bounce_rate_client.set_sliding_notifications.assert_not_called()
 
     @pytest.mark.parametrize(

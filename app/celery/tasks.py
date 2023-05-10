@@ -2,7 +2,7 @@ import json
 from collections import namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from flask import current_app
 from itsdangerous import BadSignature
@@ -833,17 +833,21 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
     total_seeded_hard_bounces = total_hard_bounces_grouped_by_hour(service_id, interval=interval)
 
     for hour, total_notifications in total_seeded_notifications:
-        hour_timestamp_ms = int(hour.timestamp() * 1000.0)
-        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
-        email_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_notifications)]
+        # set the timestamp to the start of the hour + 1 second to ensure the notification
+        # will be counted in the correct hour
+        hour_timestamp_s = int(hour.timestamp()) + 1
+        # generate a list of tuples of (UUID, timestamp) that will be used to seed Redis
+        email_data = [(str(uuid4()), hour_timestamp_s) for _ in range(total_notifications)]
         email_data_dict = dict(email_data)
         bounce_rate_client.set_notifications_seeded(service_id, email_data_dict)
     current_app.logger.info(f"Seeded total notification data for service {service_id} in Redis")
 
     for hour, total_hard_bounces in total_seeded_hard_bounces:
-        hour_timestamp_ms = int(hour.timestamp() * 1000.0)
-        # generate a list of tuples of (timestamp, timestamp) that will be used to seed Redis
-        bounce_data = [(hour_timestamp_ms + n, hour_timestamp_ms + n) for n in range(total_hard_bounces)]
+        # set the timestamp to the start of the hour + 1 second to ensure the notification
+        # will be counted in the correct hour
+        hour_timestamp_s = int(hour.timestamp()) + 1
+        # generate a list of tuples of (UUID, timestamp) that will be used to seed Redis
+        bounce_data = [(str(uuid4()), hour_timestamp_s) for _ in range(total_hard_bounces)]
         bounce_data_dict = dict(bounce_data)
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
