@@ -14,8 +14,15 @@ from app.models import (
 
 @transactional
 def resign_service_callbacks(unsafe: bool = False):
-    # Resign the bearer_token column of the service_callback_api table
-    # This allows us to rotate the secret key used to sign the token
+    """Resign the _bearer_token column of the service_callbacks table with (potentially) a new key.
+
+    Args:
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
+        Defaults to False.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
     rows = ServiceCallbackApi.query.all()  # noqa
     current_app.logger.info(f"Resigning {len(rows)} service_callbacks")
 

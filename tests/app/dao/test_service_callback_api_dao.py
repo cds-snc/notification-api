@@ -180,7 +180,7 @@ def test_get_service_delivery_status_callback_api_for_service(sample_service):
 
 
 class TestResigning:
-    def test_resign_callbacks(self, sample_service):
+    def test_resign_callbacks_resigns_with_new_key(self, sample_service):
         from app import signer_bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
@@ -191,10 +191,10 @@ class TestResigning:
         with set_signer_secret_key(signer_bearer_token, ["k2", "k3"]):
             resign_service_callbacks()
             callback = ServiceCallbackApi.query.get(initial_callback.id)
-            assert callback.bearer_token == bearer_token
-            assert callback._bearer_token != _bearer_token
+            assert callback.bearer_token == bearer_token  # unsigned value is the same
+            assert callback._bearer_token != _bearer_token  # signature is different
 
-    def test_resign_callbacks_bad_signature(self, sample_service):
+    def test_resign_callbacks_fails_if_cannot_verify_signatures(self, sample_service):
         from app import signer_bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
@@ -204,7 +204,7 @@ class TestResigning:
             with pytest.raises(BadSignature):
                 resign_service_callbacks()
 
-    def test_resign_callbacks_unsafe_bad_signature(self, sample_service):
+    def test_resign_callbacks_unsafe_resigns_with_new_key(self, sample_service):
         from app import signer_bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
@@ -215,5 +215,5 @@ class TestResigning:
         with set_signer_secret_key(signer_bearer_token, ["k3"]):
             resign_service_callbacks(unsafe=True)
             callback = ServiceCallbackApi.query.get(initial_callback.id)
-            assert callback.bearer_token == bearer_token
-            assert callback._bearer_token != _bearer_token
+            assert callback.bearer_token == bearer_token  # unsigned value is the same
+            assert callback._bearer_token != _bearer_token  # signature is different

@@ -12,8 +12,15 @@ from app.utils import midnight_n_days_ago
 
 @transactional
 def resign_inbound_sms(unsafe: bool = False):
-    # Resign the content column of the inbound_sms table
-    # This allows us to rotate the secret key used to sign the content
+    """Resign the _content column of the inbound_sms table with (potentially) a new key.
+
+    Args:
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
+        Defaults to False.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
     rows = InboundSms.query.all()  # noqa
     current_app.logger.info(f"Resigning {len(rows)} inbound sms")
 

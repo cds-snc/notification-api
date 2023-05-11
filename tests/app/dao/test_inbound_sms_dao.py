@@ -380,7 +380,7 @@ def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_servic
 
 
 class TestResigning:
-    def test_resign_inbound_sms(self, sample_service):
+    def test_resign_inbound_sms_resigns_with_new_key(self, sample_service):
         from app import signer_inbound_sms
 
         with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
@@ -391,10 +391,10 @@ class TestResigning:
         with set_signer_secret_key(signer_inbound_sms, ["k2", "k3"]):
             resign_inbound_sms()
             sms = InboundSms.query.get(initial_sms.id)
-            assert sms.content == content
-            assert sms._content != _content
+            assert sms.content == content  # unsigned value is the same
+            assert sms._content != _content  # signature is different
 
-    def test_resign_inbound_sms_bad_signature(self, sample_service):
+    def test_resign_inbound_sms_fails_if_cannot_verify_signatures(self, sample_service):
         from app import signer_inbound_sms
 
         with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
@@ -404,7 +404,7 @@ class TestResigning:
             with pytest.raises(BadSignature):
                 resign_inbound_sms()
 
-    def test_resign_inbound_sms_unsafe_bad_signature(self, sample_service):
+    def test_resign_inbound_sms_unsafe_resigns_with_new_key(self, sample_service):
         from app import signer_inbound_sms
 
         with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
@@ -415,5 +415,5 @@ class TestResigning:
         with set_signer_secret_key(signer_inbound_sms, ["k3"]):
             resign_inbound_sms(unsafe=True)
             sms = InboundSms.query.get(initial_sms.id)
-            assert sms.content == content
-            assert sms._content != _content
+            assert sms.content == content  # unsigned value is the same
+            assert sms._content != _content  # signature is different

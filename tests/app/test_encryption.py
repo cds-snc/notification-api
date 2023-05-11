@@ -15,7 +15,9 @@ class TestEncryption:
     def test_should_verify_content_signed_with_DANGEROUS_SALT(self, notify_api):
         signer = CryptoSigner()
         signer.init_app(notify_api, "secret", "salt")
-        assert signer.verify(signer.sign_dangerous("this")) == "this"
+        signer_dangerous = CryptoSigner()
+        signer_dangerous.init_app(notify_api, "secret", notify_api.config.get("DANGEROUS_SALT"))
+        assert signer.verify(signer_dangerous.sign("this")) == "this"
 
     def test_should_not_verify_content_signed_with_different_secrets(self, notify_api):
         signer1 = CryptoSigner()
@@ -60,12 +62,3 @@ class TestEncryption:
         signer12 = CryptoSigner()
         signer12.init_app(notify_api, ["s1", "s2"], "salt")
         assert signer12.sign_with_all_keys("this") == [signer2.sign("this"), signer1.sign("this")]
-
-    def test_sign_dangerous_with_all_keys(self, notify_api):
-        signer1 = CryptoSigner()
-        signer1.init_app(notify_api, "s1", "salt1")
-        signer2 = CryptoSigner()
-        signer2.init_app(notify_api, "s2", "salt2")
-        signer12 = CryptoSigner()
-        signer12.init_app(notify_api, ["s1", "s2"], "salt3")
-        assert signer12.sign_dangerous_with_all_keys("this") == [signer2.sign_dangerous("this"), signer1.sign_dangerous("this")]

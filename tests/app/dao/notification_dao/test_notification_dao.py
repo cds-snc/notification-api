@@ -1803,7 +1803,7 @@ class TestBulkInsertNotifications:
 
 
 class TestResigning:
-    def test_resign_notifications(self, sample_template_with_placeholders):
+    def test_resign_notifications_resigns_with_new_key(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
         with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
@@ -1815,10 +1815,10 @@ class TestResigning:
         with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
             resign_notifications()
             notification = Notification.query.get(initial_notification.id)
-            assert notification.personalisation == personalisation
-            assert notification._personalisation != _personalisation
+            assert notification.personalisation == personalisation  # unsigned value is the same
+            assert notification._personalisation != _personalisation  # signature is different
 
-    def test_resign_notifications_bad_signature(self, sample_template_with_placeholders):
+    def test_resign_notifications_fails_if_cannot_verify_signatures(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
         with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
@@ -1829,7 +1829,7 @@ class TestResigning:
             with pytest.raises(BadSignature):
                 resign_notifications()
 
-    def test_resign_notifications_unsafe_bad_signature(self, sample_template_with_placeholders):
+    def test_resign_notifications_unsafe_resigns_with_new_key(self, sample_template_with_placeholders):
         from app import signer_personalisation
 
         with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
@@ -1841,5 +1841,5 @@ class TestResigning:
         with set_signer_secret_key(signer_personalisation, ["k3"]):
             resign_notifications(unsafe=True)
             notification = Notification.query.get(initial_notification.id)
-            assert notification.personalisation == personalisation
-            assert notification._personalisation != _personalisation
+            assert notification.personalisation == personalisation  # unsigned value is the same
+            assert notification._personalisation != _personalisation  # signature is different

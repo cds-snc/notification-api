@@ -166,7 +166,7 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(sample_service, da
 
 
 class TestResigning:
-    def test_resign_api_keys(self, sample_service):
+    def test_resign_api_keys_resigns_with_new_key(self, sample_service):
         from app import signer_api_key
 
         with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
@@ -177,10 +177,10 @@ class TestResigning:
         with set_signer_secret_key(signer_api_key, ["k2", "k3"]):
             resign_api_keys()
             api_key = ApiKey.query.get(initial_key.id)
-            assert api_key.secret == secret
-            assert api_key._secret != _secret
+            assert api_key.secret == secret  # unsigned value is the same
+            assert api_key._secret != _secret  # signature is different
 
-    def test_resign_api_keys_bad_signature(self, sample_service):
+    def test_resign_api_keys_fails_if_cannot_verify_signatures(self, sample_service):
         from app import signer_api_key
 
         with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
@@ -190,7 +190,7 @@ class TestResigning:
             with pytest.raises(BadSignature):
                 resign_api_keys()
 
-    def test_resign_api_keys_unsafe_bad_signature(self, sample_service):
+    def test_resign_api_keys_unsafe_resigns_with_new_key(self, sample_service):
         from app import signer_api_key
 
         with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
@@ -201,5 +201,5 @@ class TestResigning:
         with set_signer_secret_key(signer_api_key, ["k3"]):
             resign_api_keys(unsafe=True)
             api_key = ApiKey.query.get(initial_key.id)
-            assert api_key.secret == secret
-            assert api_key._secret != _secret
+            assert api_key.secret == secret  # unsigned value is the same
+            assert api_key._secret != _secret  # signature is different

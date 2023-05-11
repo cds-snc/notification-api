@@ -14,8 +14,15 @@ from app.models import ApiKey
 
 @transactional
 def resign_api_keys(unsafe: bool = False):
-    # Resign the secret column of the api_keys table
-    # This allows us to rotate the secret key used to sign the api key secret
+    """Resign the _secret column of the api_keys table with (potentially) a new key.
+
+    Args:
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
+        Defaults to False.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
     rows = ApiKey.query.all()  # noqa
     current_app.logger.info(f"Resigning {len(rows)} api keys")
 
@@ -58,7 +65,7 @@ def get_api_key_by_secret(secret):
         except NoResultFound:
             pass
 
-    signed_dangerous_with_all_keys = signer_api_key.sign_dangerous_with_all_keys(str(secret))
+    signed_dangerous_with_all_keys = signer_api_key.sign_with_all_dangerously_salted_keys(str(secret))
     for signed_secret in signed_dangerous_with_all_keys:
         try:
             return db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
