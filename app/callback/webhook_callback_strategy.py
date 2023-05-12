@@ -25,7 +25,7 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer {}'.format(callback.bearer_token)
                 },
-                timeout=60
+                timeout=(3.05, 1)
             )
             current_app.logger.info(
                 "Callback sent to %s, response %d, %s",
