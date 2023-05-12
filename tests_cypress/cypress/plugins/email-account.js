@@ -1,15 +1,17 @@
 // used to check the email inbox
 const imaps = require('imap-simple')
+const nodemailer = require("nodemailer");
 // used to parse emails from the inbox
 const simpleParser = require('mailparser').simpleParser
 const env = require('../../cypress.env.json');
+const _ = require('lodash');
 
 const emailAccount = async () => {
 
     const emailConfig = {
         imap: {
-            user: env.UI_TEST_USER,
-            password: env.UI_TEST_PASSWORD,//'atvk ybkc lleh yzcd',//'a5RPvvaGEEKd46KvjA',
+            user:  env.UI_TEST_USER,
+            password: env.UI_TEST_PASSWORD,
             host: 'imap.gmail.com',
             port: 993,
             tls: true,
@@ -26,8 +28,7 @@ const emailAccount = async () => {
          * for the Ethereal email account
          */
         async deleteAllEmails() {
-            console.log('purging the inbox')
-            console.log(emailConfig)
+            console.log('Purging the inbox...')
 
             try {
                 const connection = await imaps.connect(emailConfig)
@@ -41,12 +42,12 @@ const emailAccount = async () => {
                 const messages = await connection.search(searchCriteria, fetchOptions)
 
                 if (!messages.length) {
-                    console.log('cannot find any emails')
+                    console.log('Cannot find any emails')
                     // and close the connection to avoid it hanging
                     connection.end()
                     return null
                 } else {
-                    console.log('there are %d messages', messages.length)
+                    console.log('There are %d messages, deleting them...', messages.length)
                     // delete all messages
                     const uidsToDelete = messages
                         .filter(message => {
@@ -54,7 +55,6 @@ const emailAccount = async () => {
                         })
                         .map(message => message.attributes.uid);
 
-                    console.log('del', uidsToDelete);
                     if (uidsToDelete.length > 0) {
                         await connection.deleteMessage(uidsToDelete);
                     }
@@ -62,11 +62,7 @@ const emailAccount = async () => {
                     connection.end()
 
                     // and returns the main fields
-                    return {
-                        subject: mail.subject,
-                        text: mail.text,
-                        html: mail.html,
-                    }
+                    return {}
                 }
             } catch (e) {
                 // and close the connection to avoid it hanging
@@ -81,8 +77,7 @@ const emailAccount = async () => {
          */
         async getLastEmail() {
             // makes debugging very simple
-            console.log('getting the last email')
-            console.log(emailConfig)
+            console.log('Getting the last email')
 
             try {
                 const connection = await imaps.connect(emailConfig)
@@ -98,10 +93,10 @@ const emailAccount = async () => {
                 connection.end()
 
                 if (!messages.length) {
-                    console.log('cannot find any emails')
+                    console.log('Cannot find any emails')
                     return null
                 } else {
-                    console.log('there are %d messages', messages.length)
+                    console.log('There are %d messages', messages.length)
                     // grab the last email
                     const mail = await simpleParser(
                         messages[messages.length - 1].parts[0].body,
@@ -125,6 +120,76 @@ const emailAccount = async () => {
                 return null
             }
         },
+        async fetchEmail(acct) {
+            const _config = {
+                imap: {
+                    user: acct.user, 
+                    password: acct.pass,
+                    host: "imap.ethereal.email", //'imap.gmail.com',
+                    port: 993,
+                    tls: true,
+                    authTimeout: 10000,
+                    tlsOptions: {
+                        rejectUnauthorized: false
+                    }
+                },
+            }
+            try {
+                const connection = await imaps.connect(_config)
+
+                // grab up to 50 emails from the inbox
+                await connection.openBox('INBOX')
+                const searchCriteria = ['1:50', 'UNDELETED']
+                const fetchOptions = {
+                    bodies: [''],
+                }
+                const messages = await connection.search(searchCriteria, fetchOptions)
+                // and close the connection to avoid it hanging
+                connection.end()
+
+                if (!messages.length) {
+                    console.log('Cannot find any emails')
+                    return null
+                } else {
+                    console.log('There are %d messages', messages.length)
+                    // messages.forEach(function (item) {
+                    //     var all = _.find(item.parts, { "which": "" })
+                    //     var id = item.attributes.uid;
+                    //     var idHeader = "Imap-Id: "+id+"\r\n";
+                    //     simpleParser(idHeader+all.body, (err, mail) => {
+                    //         // access to the whole mail object
+                    //         console.log(mail.subject)
+                    //         console.log(mail.html)
+                    //     });
+                    // });
+
+                    // grab the last email
+                    const mail = await simpleParser(
+                        messages[messages.length - 1].parts[0].body,
+                    )
+                    console.log(mail.subject)
+
+
+                    // and returns the main fields
+                    return {
+                        subject: mail.subject,
+                        text: mail.text,
+                        html: mail.html,
+                    }
+                }
+            } catch (e) {
+                // and close the connection to avoid it hanging
+                // connection.end()
+
+                console.error(e)
+                return null
+            }
+        },
+        async createEmailAccount() {
+            let testAccount = await nodemailer.createTestAccount();
+
+            return testAccount;
+        }
     }
 
     return userEmail

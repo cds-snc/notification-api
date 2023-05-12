@@ -14,6 +14,12 @@ module.exports = defineConfig({
         },
         deleteAllEmails() {
           return emailAccount.deleteAllEmails()
+        },
+        fetchEmail(acct) {
+          return emailAccount.fetchEmail(acct)
+        },
+        createEmailAccount() {
+          return emailAccount.createEmailAccount();
         }
       });
 
