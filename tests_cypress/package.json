@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "smoke": "npx cypress run --spec cypress/e2e/smoke/smoke.cy.js"
+  },
   "dependencies": {
     "cypress-axe": "^1.4.0",
     "cypress-html-validate": "^5.1.2",
