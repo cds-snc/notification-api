@@ -1,12 +1,40 @@
 from flask import current_app
+from itsdangerous import BadSignature
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import aliased
 
-from app import db
+from app import db, signer_inbound_sms
 from app.dao.dao_utils import transactional
 from app.models import SMS_TYPE, InboundSms, Service, ServiceDataRetention
 from app.utils import midnight_n_days_ago
+
+
+@transactional
+def resign_inbound_sms(unsafe: bool = False):
+    """Resign the _content column of the inbound_sms table with (potentially) a new key.
+
+    Args:
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
+        Defaults to False.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
+    rows = InboundSms.query.all()  # noqa
+    current_app.logger.info(f"Resigning {len(rows)} inbound sms")
+
+    for row in rows:
+        try:
+            unsigned_content = getattr(row, "content")  # unsign the content
+        except BadSignature as e:
+            if unsafe:
+                unsigned_content = signer_inbound_sms.verify_unsafe(row._content)
+            else:
+                current_app.logger.error(f"BadSignature for inbound_sms {row.id}")
+                raise e
+        setattr(row, "content", unsigned_content)  # resigns the content with (potentially) a new signing secret
+    db.session.bulk_save_objects(rows)
 
 
 @transactional
