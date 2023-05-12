@@ -148,7 +148,7 @@ const emailAccount = async () => {
                 connection.end()
 
                 if (!messages.length) {
-                    console.log('Cannot find any emails')
+                    console.log('Cannot find any emails, retrying...')
                     return null
                 } else {
                     console.log('There are %d messages', messages.length)
