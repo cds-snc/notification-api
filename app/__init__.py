@@ -128,6 +128,7 @@ def create_app(application, config=None):
     flask_redis.init_app(application)
     flask_redis_publish.init_app(application)
     redis_store.init_app(application)
+    bounce_rate_client.init_app(application)
 
     sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
     sms_normal_publish.init_app(flask_redis_publish, metrics_logger)

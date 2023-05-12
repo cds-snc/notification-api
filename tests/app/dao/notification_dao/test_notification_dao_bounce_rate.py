@@ -4,6 +4,8 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     overall_bounce_rate_for_day,
     service_bounce_rate_for_day,
+    total_hard_bounces_grouped_by_hour,
+    total_notifications_grouped_by_hour,
 )
 from app.models import KEY_TYPE_NORMAL, NOTIFICATION_HARD_BOUNCE, Notification
 
@@ -90,3 +92,54 @@ class TestBounceRate:
         assert sample_email_template.service_id != sample_service_full_permissions.id
         result = service_bounce_rate_for_day(sample_service_full_permissions.id, 2, datetime.utcnow() + timedelta(minutes=1))
         assert result is None
+
+    def test_total_notifications(self, sample_email_template, sample_job):
+        assert Notification.query.count() == 0
+
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
+        data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
+
+        notification_1 = Notification(**data_1)
+        notification_2 = Notification(**data_2)
+        dao_create_notification(notification_1)
+        dao_create_notification(notification_2)
+
+        assert Notification.query.count() == 2
+        result = total_notifications_grouped_by_hour(sample_email_template.service_id, datetime.utcnow() + timedelta(minutes=1))
+        assert result[0].total_notifications == 2
+        assert isinstance(result[0].hour, datetime)
+
+    def test_total_hard_bounces(self, sample_email_template, sample_job):
+        assert Notification.query.count() == 0
+
+        data_1 = _notification_json(
+            sample_email_template, job_id=sample_job.id, status="permanent-failure", feedback_type=NOTIFICATION_HARD_BOUNCE
+        )
+        data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
+
+        notification_1 = Notification(**data_1)
+        notification_2 = Notification(**data_2)
+        dao_create_notification(notification_1)
+        dao_create_notification(notification_2)
+
+        assert Notification.query.count() == 2
+        result = total_hard_bounces_grouped_by_hour(sample_email_template.service_id, datetime.utcnow() + timedelta(minutes=1))
+        assert result[0].total_notifications == 1
+        assert isinstance(result[0].hour, datetime)
+
+    def test_total_hard_bounces_empty(self, sample_email_template, sample_job):
+        assert Notification.query.count() == 0
+
+        data_1 = _notification_json(sample_email_template, job_id=sample_job.id, status="delivered")
+        data_2 = _notification_json(sample_email_template, job_id=sample_job.id, status="created")
+
+        notification_1 = Notification(**data_1)
+        notification_2 = Notification(**data_2)
+        dao_create_notification(notification_1)
+        dao_create_notification(notification_2)
+
+        assert Notification.query.count() == 2
+        result = total_hard_bounces_grouped_by_hour(sample_email_template.service_id, datetime.utcnow() + timedelta(minutes=1))
+        assert result == []

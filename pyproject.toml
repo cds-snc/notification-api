@@ -65,7 +65,7 @@ Werkzeug = "2.2.3"
 MarkupSafe = "2.1.2"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "50.2.0"}
+notifications-utils = {git = "https://github.com/cds-snc/notifier-utils.git", rev = "50.3.2"}
 
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.5.0"
@@ -75,7 +75,7 @@ simple-salesforce = "^1.12.3"
 [tool.poetry.group.test.dependencies]
 flake8 = "4.0.1"
 isort = "5.12.0"
-moto = "4.1.6"
+moto = "4.1.8"
 idna = "2.10"
 pytest = "7.2.2"
 pytest-env = "0.8.1"
@@ -94,7 +94,7 @@ black = "22.12.0"
 locust = "2.15.1"
 mypy = "0.812"
 sqlalchemy-stubs = "0.4"
-sqlalchemy2-stubs = "0.0.2a33"
+sqlalchemy2-stubs = "0.0.2a34"
 networkx = "2.8.8" # not directly required, pinned by Snyk to avoid a vulnerability
 pytest-mock-resources = { extras = ["redis"], version = "2.6.11" }
 types-boto = "2.49.18.7"
@@ -103,4 +103,3 @@ types-python-dateutil = "2.8.19.12"
 types-pytz = "2022.7.1.2"
 types-requests = "2.28.11.17"
 types-redis = "4.5.4.1"
-
