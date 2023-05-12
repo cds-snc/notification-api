@@ -11,7 +11,8 @@ let STAGING = {
     Templates: {
         "FILE_ATTACH_TEMPLATE_ID": "7246c71e-3d60-458b-96af-af17a5b07659",
         "SIMPLE_EMAIL_TEMPLATE_ID": "939dafde-1b60-47f0-a6d5-c9080d92a4a8",
-        "VARIABLES_EMAIL_TEMPLATE_ID": "1101a00a-11b7-4036-865c-add43fcff7c9"
+        "VARIABLES_EMAIL_TEMPLATE_ID": "1101a00a-11b7-4036-865c-add43fcff7c9",
+        "SMOKE_TEST": "5e26fae6-3565-44d5-bfed-b18680b6bd39"
     },
     Users: {
         Team: ['andrew.leith+bannertest@cds-snc.ca'],
