@@ -52,7 +52,6 @@ def _remove_csv_files(job_types):
     jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types)
     for job in jobs:
         dao_archive_job(job)
-        current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
 
 
 @notify_celery.task(name="delete-sms-notifications")
