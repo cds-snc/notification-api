@@ -356,7 +356,6 @@ class Config(object):
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
-        ""
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
