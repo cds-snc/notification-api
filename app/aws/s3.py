@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 
 import botocore
 import pytz
@@ -38,7 +39,7 @@ def get_job_location(service_id, job_id):
     )
 
 
-def upload_job_to_s3(service_id, file_data):
+def upload_job_to_s3(service_id, file_data, expiry: Optional[datetime]=None):
     upload_id = str(uuid.uuid4())
     bucket, location = get_job_location(service_id, upload_id)
     utils_s3upload(
@@ -46,6 +47,7 @@ def upload_job_to_s3(service_id, file_data):
         region=current_app.config["AWS_REGION"],
         bucket_name=bucket,
         file_location=location,
+        expiry=expiry
     )
     return upload_id
 

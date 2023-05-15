@@ -1,8 +1,9 @@
 import base64
 import csv
 import functools
+from typing import Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import StringIO
 
 import werkzeug
@@ -37,6 +38,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
+from app.dao.service_data_retention_dao import fetch_service_data_retention_by_notification_type
 from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.encryption import NotificationDictToSign
@@ -102,7 +104,7 @@ from app.v2.notifications.notification_schemas import (
 )
 
 TWENTY_FOUR_HOURS_S = 24 * 60 * 60
-
+DEFAULT_RETENTION_DAYS = 7
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
 def post_precompiled_letter_notification():
@@ -692,12 +694,23 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
         #     raise NotImplementedError("Got errors but code did not handle")
 
 
-def create_bulk_job(service, api_key, template, form, recipient_csv):
-    upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
+def get_expiry_for_csv(service_id, notification_type, scheduled_for: Optional[datetime] = None) -> datetime:
+    """Returns a datetime for when the bulk csv should expire. If it is for a scheduled notification, the 
+    expiry will be the scheduled_for date plus the retention period, to avoid expiring the csv before the
+    send occurs.
+    """
+    data_retention = fetch_service_data_retention_by_notification_type(service_id, notification_type)
+    retention_days = data_retention.days_of_retention if data_retention else DEFAULT_RETENTION_DAYS
+    retention_timedelta = timedelta(days=retention_days)
+    if not scheduled_for:
+        return datetime.utcnow() + retention_timedelta
+    return scheduled_for + retention_timedelta
+
+
+def create_bulk_job(service: Service, api_key, template: Template, form, recipient_csv):
     sender_id = form["validated_sender_id"]
 
     data = {
-        "id": upload_id,
         "service": service.id,
         "template": template.id,
         "notification_count": len(recipient_csv),
@@ -711,7 +724,10 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
     if form.get("scheduled_for"):
         data["job_status"] = JOB_STATUS_SCHEDULED
         data["scheduled_for"] = form.get("scheduled_for")
-
+    
+    expiry = get_expiry_for_csv(service.id, template.template_type, form.get("scheduled_for"))
+    upload_id = upload_job_to_s3(service.id, recipient_csv.file_data, expiry=expiry)
+    data["id"] = upload_id
     job = job_schema.load(data).data
     dao_create_job(job)
 
