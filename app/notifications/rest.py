@@ -50,14 +50,14 @@ def get_notification_by_id(notification_id):
         str(authenticated_service.id), notification_id, key_type=None
     )
     if notification is not None:
-        return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification).data}), 200
+        return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification)}), 200
     else:
         return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @notifications.route("/notifications", methods=["GET"])
 def get_all_notifications():
-    data = notifications_filter_schema.load(request.args).data
+    data = notifications_filter_schema.load(request.args)
     include_jobs = data.get("include_jobs", False)
     page = data.get("page", 1)
     page_size = data.get("page_size", current_app.config.get("API_PAGE_SIZE"))
@@ -75,7 +75,7 @@ def get_all_notifications():
     )
     return (
         jsonify(
-            notifications=notification_with_personalisation_schema.dump(pagination.items, many=True).data,
+            notifications=notification_with_personalisation_schema.dump(pagination.items, many=True),
             page_size=page_size,
             total=pagination.total,
             links=pagination_links(pagination, ".get_all_notifications", **request.args.to_dict()),
@@ -92,12 +92,9 @@ def send_notification(notification_type: NotificationType):
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form, errors = (  # type: ignore
+    notification_form = (  # type: ignore
         sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
     ).load(request.get_json())
-
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
 
     check_rate_limiting(authenticated_service, api_user)
 
