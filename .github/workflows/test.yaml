@@ -35,6 +35,8 @@ jobs:
       env:
         POETRY_VERSION: "1.3.2"
       run: pip install poetry==${POETRY_VERSION} && poetry --version
+    - name: Check poetry.lock aligns with pyproject.toml
+      run: poetry lock --check
     - name: Install requirements
       run: poetry install --with test
     - name: Run tests
