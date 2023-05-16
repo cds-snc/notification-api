@@ -4,6 +4,7 @@ from functools import partial
 
 import pytest
 from freezegun import freeze_time
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -30,6 +31,7 @@ from app.dao.notifications_dao import (
     get_notifications_for_service,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
+    resign_notifications,
     send_method_stats_by_service,
     set_scheduled_notification_to_processed,
     update_notification_status_by_id,
@@ -63,6 +65,7 @@ from tests.app.db import (
     save_notification,
     save_scheduled_notification,
 )
+from tests.conftest import set_signer_secret_key
 
 
 def test_should_have_decorated_notifications_dao_functions():
@@ -1798,3 +1801,46 @@ class TestBulkInsertNotifications:
         with pytest.raises(Exception):
             bulk_insert_notifications([n1, n2, n3])
         assert len(get_notifications_for_service(sample_template.service_id).items) == 0
+
+
+class TestResigning:
+    def test_resign_notifications_resigns_with_new_key(self, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+            personalisation = initial_notification.personalisation
+            _personalisation = initial_notification._personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
+            resign_notifications()
+            notification = Notification.query.get(initial_notification.id)
+            assert notification.personalisation == personalisation  # unsigned value is the same
+            assert notification._personalisation != _personalisation  # signature is different
+
+    def test_resign_notifications_fails_if_cannot_verify_signatures(self, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            with pytest.raises(BadSignature):
+                resign_notifications()
+
+    def test_resign_notifications_unsafe_resigns_with_new_key(self, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+            personalisation = initial_notification.personalisation
+            _personalisation = initial_notification._personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            resign_notifications(unsafe=True)
+            notification = Notification.query.get(initial_notification.id)
+            assert notification.personalisation == personalisation  # unsigned value is the same
+            assert notification._personalisation != _personalisation  # signature is different
