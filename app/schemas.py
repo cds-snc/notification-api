@@ -326,6 +326,9 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
 class DetailedServiceSchema(BaseSchema):
     statistics = fields.Dict()
     organisation_type = field_for(models.Service, "organisation_type")
+    go_live_at = FlexibleDateTime()
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
         model = models.Service
@@ -359,7 +362,6 @@ class DetailedServiceSchema(BaseSchema):
 class NotificationModelSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Notification
-        strict = True
         exclude = (
             "_personalisation",
             "job",
@@ -369,6 +371,9 @@ class NotificationModelSchema(BaseSchema):
         )
 
     status = fields.String(required=False)
+    created_at = FlexibleDateTime()
+    sent_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
 
 
 class BaseTemplateSchema(BaseSchema):
@@ -384,7 +389,6 @@ class BaseTemplateSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Template
         exclude = ("service_id", "jobs", "service_letter_contact_id")
-        strict = True
 
 
 class TemplateSchema(BaseTemplateSchema):
@@ -392,12 +396,14 @@ class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
     process_type = field_for(models.Template, "process_type")
     redact_personalisation = fields.Method("redact")
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
 
     def redact(self, template):
         return template.redact_personalisation
 
     @validates_schema
-    def validate_type(self, data):
+    def validate_type(self, data, **kwargs):
         if data.get("template_type") in [models.EMAIL_TYPE, models.LETTER_TYPE]:
             subject = data.get("subject")
             if not subject or subject.strip() == "":
@@ -411,6 +417,7 @@ class TemplateHistorySchema(BaseSchema):
     process_type = field_for(models.Template, "process_type")
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
     created_at = field_for(models.Template, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
+    updated_at = FlexibleDateTime()
 
     def get_reply_to(self, template):
         return template.reply_to
@@ -426,26 +433,32 @@ class ApiKeySchema(BaseSchema):
 
     created_by = field_for(models.ApiKey, "created_by", required=True)
     key_type = field_for(models.ApiKey, "key_type", required=True)
+    expiry_date = FlexibleDateTime()
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
         model = models.ApiKey
         exclude = ("service", "_secret")
-        strict = True
 
 
 class JobSchema(BaseSchema):
     created_by_user = fields.Nested(
         UserSchema,
         attribute="created_by",
-        dump_to="created_by",
+        data_key="created_by",
         only=["id", "name"],
         dump_only=True,
     )
     created_by = field_for(models.Job, "created_by", required=True, load_only=True)
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
+    processing_started = FlexibleDateTime()
+    processing_finished = FlexibleDateTime()
     api_key_details = fields.Nested(
         ApiKeySchema,
         attribute="api_key",
-        dump_to="api_key",
+        data_key="api_key",
         only=["id", "name", "key_type"],
         dump_only=True,
     )
@@ -453,11 +466,11 @@ class JobSchema(BaseSchema):
 
     job_status = field_for(models.JobStatus, "name", required=False)
 
-    scheduled_for = fields.DateTime()
+    scheduled_for = FlexibleDateTime()
     service_name = fields.Nested(
         ServiceSchema,
         attribute="service",
-        dump_to="service_name",
+        data_key="service_name",
         only=["name"],
         dump_only=True,
     )
@@ -476,12 +489,11 @@ class JobSchema(BaseSchema):
             "notifications_delivered",
             "notifications_failed",
         )
-        strict = True
 
 
 class NotificationSchema(Schema):
     class Meta(BaseSchema.Meta):
-        strict = True
+        unknown = EXCLUDE
 
     status = fields.String(required=False)
     personalisation = fields.Dict(required=False)
@@ -498,7 +510,7 @@ class SmsNotificationSchema(NotificationSchema):
             raise ValidationError("Invalid phone number: {}".format(error))
 
     @post_load
-    def format_phone_number(self, item):
+    def format_phone_number(self, item, **kwargs):
         item["to"] = validate_and_format_phone_number(item["to"], international=True)
         return item
 
@@ -537,7 +549,6 @@ class SmsAdminNotificationSchema(SmsNotificationSchema):
 class NotificationWithTemplateSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Notification
-        strict = True
         exclude = ("_personalisation", "scheduled_notification")
 
     template = fields.Nested(
@@ -560,9 +571,12 @@ class NotificationWithTemplateSchema(BaseSchema):
     personalisation = fields.Dict(required=False)
     key_type = field_for(models.Notification, "key_type", required=True)
     key_name = fields.String()
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
+    sent_at = FlexibleDateTime()
 
     @pre_dump
-    def add_api_key_name(self, in_data):
+    def add_api_key_name(self, in_data, **kwargs):
         if in_data.api_key:
             in_data.key_name = in_data.api_key.name
         else:
@@ -606,12 +620,12 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
         )
 
     @pre_dump
-    def handle_personalisation_property(self, in_data):
+    def handle_personalisation_property(self, in_data, **kwargs):
         self.personalisation = in_data.personalisation
         return in_data
 
     @post_dump
-    def handle_template_merge(self, in_data):
+    def handle_template_merge(self, in_data, **kwargs):
         in_data["template"] = in_data.pop("template_history")
         template = get_template_instance(in_data["template"], in_data["personalisation"])
         in_data["body"] = str(template)
@@ -629,10 +643,10 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
 
 class InvitedUserSchema(BaseSchema):
     auth_type = field_for(models.InvitedUser, "auth_type")
+    created_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
         model = models.InvitedUser
-        strict = True
 
     @validates("email_address")
     def validate_to(self, value):
@@ -644,9 +658,11 @@ class InvitedUserSchema(BaseSchema):
 
 class EmailDataSchema(Schema):
     class Meta(BaseSchema.Meta):
-        strict = True
+        unknown = EXCLUDE
 
     email = fields.Str(required=True)
+    next = fields.Str(required=False)
+    admin_base_url = fields.Str(required=False)
 
     def __init__(self, partial_email=False):
         super().__init__()
@@ -664,7 +680,7 @@ class EmailDataSchema(Schema):
 
 class SupportEmailDataSchema(Schema):
     class Meta(BaseSchema.Meta):
-        strict = True
+        unknown = EXCLUDE
 
     name = fields.Str(required=True)
     email = fields.Str(required=True)
@@ -687,7 +703,7 @@ class SupportEmailDataSchema(Schema):
 
 class NotificationsFilterSchema(Schema):
     class Meta(BaseSchema.Meta):
-        strict = True
+        unknown = EXCLUDE
 
     template_type = fields.Nested(BaseTemplateSchema, only=["template_type"], many=True)
     status = fields.Nested(NotificationModelSchema, only=["status"], many=True)
@@ -703,7 +719,7 @@ class NotificationsFilterSchema(Schema):
     count_pages = fields.Boolean(required=False)
 
     @pre_load
-    def handle_multidict(self, in_data):
+    def handle_multidict(self, in_data, **kwargs):
         if isinstance(in_data, dict) and hasattr(in_data, "getlist"):
             out_data = dict([(k, in_data.get(k)) for k in in_data.keys()])
             if "template_type" in in_data:
@@ -714,7 +730,7 @@ class NotificationsFilterSchema(Schema):
         return out_data
 
     @post_load
-    def convert_schema_object_to_field(self, in_data):
+    def convert_schema_object_to_field(self, in_data, **kwargs):
         if "template_type" in in_data:
             in_data["template_type"] = [x.template_type for x in in_data["template_type"]]
         if "status" in in_data:
@@ -731,10 +747,13 @@ class NotificationsFilterSchema(Schema):
 
 
 class ServiceHistorySchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     id = fields.UUID()
     name = fields.String()
-    created_at = fields.DateTime()
-    updated_at = fields.DateTime()
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
     active = fields.Boolean()
     message_limit = fields.Integer()
     sms_daily_limit = fields.Integer()
@@ -745,24 +764,28 @@ class ServiceHistorySchema(Schema):
 
 
 class ApiKeyHistorySchema(Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     id = fields.UUID()
     name = fields.String()
     service_id = fields.UUID()
-    expiry_date = fields.DateTime()
-    created_at = fields.DateTime()
-    updated_at = fields.DateTime()
+    expiry_date = FlexibleDateTime()
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
     created_by_id = fields.UUID()
 
 
 class EventSchema(BaseSchema):
+    created_at = FlexibleDateTime()
+
     class Meta(BaseSchema.Meta):
         model = models.Event
-        strict = True
 
 
 class DaySchema(Schema):
     class Meta(BaseSchema.Meta):
-        strict = True
+        unknown = EXCLUDE
 
     day = fields.Date(required=True)
 
@@ -775,7 +798,7 @@ class UnarchivedTemplateSchema(BaseSchema):
     archived = fields.Boolean(required=True)
 
     @validates_schema
-    def validate_archived(self, data):
+    def validate_archived(self, data, **kwargs):
         if data["archived"]:
             raise ValidationError("Template has been deleted", "template")
 
