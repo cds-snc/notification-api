@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from uuid import UUID
 
 from dateutil.parser import parse
 from flask import current_app
@@ -84,7 +85,6 @@ class UUIDsAsStringsMixin:
     @post_dump()
     def __post_dump(self, data, **kwargs):
         for key, value in data.items():
-
             if isinstance(value, UUID):
                 data[key] = str(value)
             if isinstance(value, list):
