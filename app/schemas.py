@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 
-from flask import current_app
 from dateutil.parser import parse
+from flask import current_app
 from flask_marshmallow.fields import fields
 from marshmallow import (
     EXCLUDE,
@@ -71,13 +71,13 @@ class FlexibleDateTime(fields.DateTime):
     Outputs data using the output format that marshmallow version 2 used to use, OLD_MARSHMALLOW_FORMAT
     """
 
-    DEFAULT_FORMAT = 'flexible'
+    DEFAULT_FORMAT = "flexible"
     OLD_MARSHMALLOW_FORMAT = "%Y-%m-%dT%H:%M:%S+00:00"
 
     def __init__(self, *args, allow_none=True, **kwargs):
         super().__init__(*args, allow_none=allow_none, **kwargs)
-        self.DESERIALIZATION_FUNCS['flexible'] = parse
-        self.SERIALIZATION_FUNCS['flexible'] = lambda x: x.strftime(self.OLD_MARSHMALLOW_FORMAT)
+        self.DESERIALIZATION_FUNCS["flexible"] = parse
+        self.SERIALIZATION_FUNCS["flexible"] = lambda x: x.strftime(self.OLD_MARSHMALLOW_FORMAT)
 
 
 class UUIDsAsStringsMixin:
@@ -88,10 +88,7 @@ class UUIDsAsStringsMixin:
             if isinstance(value, UUID):
                 data[key] = str(value)
             if isinstance(value, list):
-                data[key] = [
-                    (str(item) if isinstance(item, UUID) else item)
-                    for item in value
-                ]
+                data[key] = [(str(item) if isinstance(item, UUID) else item) for item in value]
         return data
 
 
@@ -266,14 +263,14 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
         return [p.permission for p in service.permissions]
 
     def deserialize_service_permissions(self, in_data):
-        if isinstance(in_data, dict) and 'permissions' in in_data:
-            str_permissions = in_data['permissions']
+        if isinstance(in_data, dict) and "permissions" in in_data:
+            str_permissions = in_data["permissions"]
             permissions = []
             for p in str_permissions:
                 permission = ServicePermission(service_id=in_data["id"], permission=p)
                 permissions.append(permission)
 
-            in_data['permissions'] = permissions
+            in_data["permissions"] = permissions
 
         return in_data
 
