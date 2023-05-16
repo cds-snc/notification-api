@@ -140,8 +140,6 @@ class UserSchema(BaseSchema):
             "_password",
             "created_at",
             "updated_at",
-            "user_to_service",
-            "user_to_organisation",
             "verify_codes",
         )
 
