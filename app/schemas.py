@@ -173,7 +173,6 @@ class UserUpdateAttributeSchema(BaseSchema):
             "id",
             "updated_at",
             "created_at",
-            "user_to_service",
             "_password",
             "verify_codes",
             "logged_in_at",
