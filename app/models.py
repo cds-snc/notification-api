@@ -1364,9 +1364,9 @@ class JobStatus(BaseModel):
 class Job(BaseModel):
     __tablename__ = "jobs"
 
-    id: UUID = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    original_file_name: str = db.Column(db.String, nullable=False)
-    service_id: UUID = db.Column(
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    original_file_name = db.Column(db.String, nullable=False)
+    service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
         index=True,
@@ -1374,44 +1374,44 @@ class Job(BaseModel):
         nullable=False,
     )
     service = db.relationship("Service", backref=db.backref("jobs", lazy="dynamic"))
-    template_id: UUID = db.Column(UUID(as_uuid=True), db.ForeignKey("templates.id"), index=True, unique=False)
+    template_id = db.Column(UUID(as_uuid=True), db.ForeignKey("templates.id"), index=True, unique=False)
     template = db.relationship("Template", backref=db.backref("jobs", lazy="dynamic"))
-    template_version: int = db.Column(db.Integer, nullable=False)
-    created_at: datetime.datetime = db.Column(
+    template_version = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(
         db.DateTime,
         index=False,
         unique=False,
         nullable=False,
         default=datetime.datetime.utcnow,
     )
-    updated_at: Optional[datetime.datetime] = db.Column(
+    updated_at = db.Column(
         db.DateTime,
         index=False,
         unique=False,
         nullable=True,
         onupdate=datetime.datetime.utcnow,
     )
-    notification_count: int = db.Column(db.Integer, nullable=False)
-    notifications_sent: int = db.Column(db.Integer, nullable=False, default=0)
-    notifications_delivered: int = db.Column(db.Integer, nullable=False, default=0)
-    notifications_failed: int = db.Column(db.Integer, nullable=False, default=0)
+    notification_count = db.Column(db.Integer, nullable=False)
+    notifications_sent = db.Column(db.Integer, nullable=False, default=0)
+    notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
+    notifications_failed = db.Column(db.Integer, nullable=False, default=0)
 
-    processing_started: Optional[datetime.datetime] = db.Column(db.DateTime, index=False, unique=False, nullable=True)
-    processing_finished: Optional[datetime.datetime] = db.Column(db.DateTime, index=False, unique=False, nullable=True)
+    processing_started = db.Column(db.DateTime, index=False, unique=False, nullable=True)
+    processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     created_by = db.relationship("User")
-    created_by_id: Optional[UUID] = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
-    api_key_id: Optional[UUID] = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True)
     api_key = db.relationship("ApiKey")
-    scheduled_for: Optional[datetime.datetime] = db.Column(db.DateTime, index=True, unique=False, nullable=True)
-    job_status: str = db.Column(
+    scheduled_for = db.Column(db.DateTime, index=True, unique=False, nullable=True)
+    job_status = db.Column(
         db.String(255),
         db.ForeignKey("job_status.name"),
         index=True,
         nullable=False,
         default="pending",
     )
-    archived: bool = db.Column(db.Boolean, nullable=False, default=False)
-    sender_id: Optional[UUID] = db.Column(UUID(as_uuid=True), index=False, unique=False, nullable=True)
+    archived = db.Column(db.Boolean, nullable=False, default=False)
+    sender_id = db.Column(UUID(as_uuid=True), index=False, unique=False, nullable=True)
 
 
 VERIFY_CODE_TYPES = [EMAIL_TYPE, SMS_TYPE]
@@ -1593,12 +1593,12 @@ class Notification(BaseModel):
     job = db.relationship("Job", backref=db.backref("notifications", lazy="dynamic"))
     job_row_number = db.Column(db.Integer, nullable=True)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, unique=False)
-    service: Service = db.relationship("Service")
+    service = db.relationship("Service")
     template_id = db.Column(UUID(as_uuid=True), index=True, unique=False)
     template_version = db.Column(db.Integer, nullable=False)
     template = db.relationship("TemplateHistory")
     api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, unique=False)
-    api_key: ApiKey = db.relationship("ApiKey")
+    api_key = db.relationship("ApiKey")
     key_type = db.Column(
         db.String,
         db.ForeignKey("key_types.name"),
@@ -1606,7 +1606,7 @@ class Notification(BaseModel):
         unique=False,
         nullable=False,
     )
-    billable_units: int = db.Column(db.Integer, nullable=False, default=0)
+    billable_units = db.Column(db.Integer, nullable=False, default=0)
     notification_type = db.Column(notification_types, index=True, nullable=False)
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
