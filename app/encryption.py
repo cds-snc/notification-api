@@ -1,4 +1,4 @@
-from typing import Any, Iterator, NewType, Optional, TypedDict
+from typing import Any, List, NewType, Optional, TypedDict, cast
 
 from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -28,27 +28,86 @@ class NotificationDictToSign(TypedDict):
 
 
 class CryptoSigner:
-    def init_app(self, app: Any, secret_key: str | Iterator[str], salt: str) -> None:
+    def init_app(self, app: Any, secret_key: str | List[str], salt: str) -> None:
+        """Initialise the CryptoSigner class.
+
+        Args:
+            app (Any): The Flask app.
+            secret_key (str | List[str]): The secret key or list of secret keys to use for signing.
+            salt (str): The salt to use for signing.
+        """
+        self.app = app
+        self.secret_key = cast(List[str], [secret_key] if type(secret_key) is str else secret_key)
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
         self.dangerous_salt = app.config.get("DANGEROUS_SALT")
 
     def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
+        """Sign a string or dict with the class secret key and salt.
+
+        Args:
+            to_sign (str | NotificationDictToSign): The string or dict to sign.
+
+        Returns:
+            str | bytes: The signed string or bytes.
+        """
         return self.serializer.dumps(to_sign, salt=self.salt)
 
-    # TODO: get rid of this after everything is signed with the new salts
-    # This is only needed where we look things up by the signed value:
-    #     - get_api_key_by_secret()
-    def sign_dangerous(self, to_sign: str) -> str | bytes:
-        return self.serializer.dumps(to_sign, salt=self.dangerous_salt)
+    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
+        """Sign a string or dict with all the individual keys in the class secret key list, and the class salt.
 
-    # NOTE: currently the verify checks against the default salt as well as the dangerous salt
-    # TODO: remove this double check once we've removed DANGEROUS_SALT
+        Args:
+            to_sign (str | NotificationDictToSign): The string or dict to sign.
+
+        Returns:
+            List[str | bytes]: A list of signed values.
+        """
+        signed = []
+        for k in reversed(self.secret_key):  # reversed so that the default key is last
+            signed.append(URLSafeSerializer(k).dumps(to_sign, salt=self.salt))
+        return signed
+
+    def sign_with_all_dangerously_salted_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
+        """Sign a string or dict with all the individual keys in the class secret key list, and the DANGEROUS_SALT.
+
+        Args:
+            to_sign (str | NotificationDictToSign): The string or dict to sign.
+
+        Returns:
+            List[str | bytes]: A list of signed values.
+        """
+        signed = []
+        for k in reversed(self.secret_key):  # reversed so that the default key is last
+            signed.append(URLSafeSerializer(k).dumps(to_sign, salt=self.dangerous_salt))
+        return signed
+
     def verify(self, to_verify: str | bytes) -> Any:
+        """Checks the signature of a signed value and returns the original value.
+        Currently checks against both self.salt and self.dangerous_salt.
+        After everything is signed with the new salts, this will only check against self.salt.
+
+        Args:
+            to_verify (str | bytes): The signed value to check
+
+        Returns:
+            Original value if signature is valid, raises BadSignature otherwise
+        """
         try:
             return self.serializer.loads(to_verify, salt=self.salt)
         except BadSignature:
             return self.serializer.loads(to_verify, salt=self.dangerous_salt)
+
+    def verify_unsafe(self, to_verify: str | bytes) -> Any:
+        """Ignore the signature and return the original value that has been signed.
+        Since this ignores the signature it should be used with caution.
+
+        Args:
+            to_verify (str | bytes): The signed value to unsign
+
+        Returns:
+            Any: Original value that has been signed
+        """
+        return self.serializer.loads_unsafe(to_verify, salt=self.dangerous_salt)[1]
 
 
 def hashpw(password):

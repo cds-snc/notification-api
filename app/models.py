@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import uuid
+from enum import Enum
 from typing import cast, Any, Iterable, Literal, Optional
 
 from flask import current_app, url_for
@@ -2546,3 +2547,9 @@ class LoginEvent(BaseModel):
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
         }
+
+
+class BounceRateStatus(Enum):
+    NORMAL = "normal"
+    WARNING = "warning"
+    CRITICAL = "critical"

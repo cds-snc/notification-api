@@ -61,7 +61,13 @@ from app.v2.errors import (
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
 
 
-def check_service_over_api_rate_limit(service: Service, api_key: ApiKey):
+def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key: ApiKey):
+    """This function:
+    - adds the current timestamp to the api rate limit key in Redis
+    - expires old data from outside the `interval`
+    - checks if the service is over the api rate limit in the `interval`
+    - raises an error if the service is over the api rate limit
+    """
     if current_app.config["API_RATE_LIMIT_ENABLED"] and current_app.config["REDIS_ENABLED"]:
         cache_key = rate_limit_cache_key(service.id, api_key.key_type)
         rate_limit = service.rate_limit
@@ -162,7 +168,7 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, re
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):
-    check_service_over_api_rate_limit(service, api_key)
+    check_service_over_api_rate_limit_and_update_rate(service, api_key)
     check_service_over_daily_message_limit(api_key.key_type, service)
 
 

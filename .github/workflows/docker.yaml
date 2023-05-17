@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
+    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -81,8 +81,8 @@ jobs:
       id: notify-pr-bot
       uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # v1.0.6
       with:
-        app_id: ${{ secrets.PRBOT_APP_ID }}
-        private_key: ${{ secrets.PRBOT_PRIVATE_KEY }}
+        app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
+        private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
 
     - uses: cds-snc/notification-pr-bot@main
       env:
