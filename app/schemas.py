@@ -170,16 +170,16 @@ class UserUpdateAttributeSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.User
         exclude = (
-            "id",
-            "updated_at",
-            "created_at",
             "_password",
-            "verify_codes",
+            "created_at",
+            "failed_login_count",
+            "id",
             "logged_in_at",
             "password_changed_at",
-            "failed_login_count",
-            "state",
             "platform_admin",
+            "state",
+            "updated_at",
+            "verify_codes",
         )
 
     @validates("name")
@@ -278,15 +278,15 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
         model = models.Service
         dump_only = ["letter_contact_block"]
         exclude = (
-            "updated_at",
+            "complaints",
             "created_at",
             "api_keys",
-            "templates",
-            "jobs",
-            "service_sms_senders",
-            "reply_to_email_addresses",
             "letter_contacts",
-            "complaints",
+            "jobs",
+            "reply_to_email_addresses",
+            "service_sms_senders",
+            "templates",
+            "updated_at",
         )
 
     @validates("permissions")
@@ -323,29 +323,25 @@ class DetailedServiceSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Service
         exclude = (
+            "all_template_folders",
+            "annual_billing",
             "api_keys",
-            "templates",
-            "users",
             "created_by",
-            "jobs",
-            "template_statistics",
-            "service_provider_stats",
-            "service_notification_stats",
             "email_branding",
-            "service_sms_senders",
-            "monthly_billing",
-            "reply_to_email_addresses",
-            "letter_contact_block",
-            "message_limit",
-            "sms_daily_limit",
             "email_from",
             "inbound_api",
-            "safelist",
-            "reply_to_email_address",
-            "sms_sender",
-            "permissions",
             "inbound_number",
             "inbound_sms",
+            "jobs",
+            "message_limit",
+            "permissions",
+            "reply_to_email_address",
+            "safelist",
+            "service_sms_senders",
+            "sms_daily_limit",
+            "templates",
+            "users",
+            "version",
         )
 
 
@@ -354,10 +350,10 @@ class NotificationModelSchema(BaseSchema):
         model = models.Notification
         exclude = (
             "_personalisation",
+            "api_key",
             "job",
             "service",
             "template",
-            "api_key",
         )
 
     status = fields.String(required=False)
@@ -378,7 +374,7 @@ class BaseTemplateSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = models.Template
-        exclude = ("service_id", "jobs", "service_letter_contact_id")
+        exclude = ("jobs", "service_id", "service_letter_contact_id")
 
 
 class TemplateSchema(BaseTemplateSchema):
@@ -429,7 +425,7 @@ class ApiKeySchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = models.ApiKey
-        exclude = ("service", "_secret")
+        exclude = ("_secret", "service")
 
 
 class JobSchema(BaseSchema):
@@ -475,9 +471,9 @@ class JobSchema(BaseSchema):
         model = models.Job
         exclude = (
             "notifications",
-            "notifications_sent",
             "notifications_delivered",
             "notifications_failed",
+            "notifications_sent",
         )
 
 
