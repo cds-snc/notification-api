@@ -126,7 +126,7 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     assert serialized["row_number"] == 1
 
 
-# This test needs to be removed when FF_BOUNCE_RATE_V1 is removed
+# This test needs to be removed when FF_BOUNCE_RATE_BACKEND is removed
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
     "template_type, status, expected_status",
@@ -145,7 +145,7 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     ],
 )
 def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
-    if not current_app.config["FF_BOUNCE_RATE_V1"]:
+    if not current_app.config["FF_BOUNCE_RATE_BACKEND"]:
         template = create_template(sample_service, template_type=template_type)
         notification = save_notification(create_notification(template, status=status))
 
@@ -175,7 +175,7 @@ def test_notification_for_csv_returns_formatted_status(sample_service, template_
 def test_notification_for_csv_returns_formatted_status_ff_bouncerate(
     sample_service, template_type, status, feedback_subtype, expected_status
 ):
-    if current_app.config["FF_BOUNCE_RATE_V1"]:
+    if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
         template = create_template(sample_service, template_type=template_type)
         notification = save_notification(create_notification(template, status=status))
         if feedback_subtype:

@@ -167,7 +167,7 @@ def check_for_malware_errors(document_download_response_code, notification):
 
 
 def check_service_over_bounce_rate(service_id: str):
-    if not current_app.config["FF_BOUNCE_RATE_V1"]:
+    if not current_app.config["FF_BOUNCE_RATE_BACKEND"]:
         return
 
     bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
@@ -278,7 +278,7 @@ def send_email_to_provider(notification: Notification):
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
                 attachments=attachments,
             )
-            if current_app.config["FF_BOUNCE_RATE_V1"]:
+            if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
                 check_service_over_bounce_rate(service.id)
                 bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
                 current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")

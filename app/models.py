@@ -1758,7 +1758,7 @@ class Notification(BaseModel):
 
     @property
     def formatted_status(self):
-        if current_app.config["FF_BOUNCE_RATE_V1"]:
+        if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
 
             def _getStatusByBounceSubtype():
                 """Return the status of a notification based on the bounce sub type"""
@@ -1802,7 +1802,7 @@ class Notification(BaseModel):
             }[self.template.template_type].get(self.status, self.status)
 
         # -----------------
-        # remove this code when FF_BOUNCE_RATE_V1 is removed
+        # remove this code when FF_BOUNCE_RATE_BACKEND is removed
         # -----------------
         return {
             "email": {
