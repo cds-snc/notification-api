@@ -1445,7 +1445,7 @@ def app_statsd(mocker):
 
 @pytest.fixture(scope="function")
 def app_bounce_rate_client(mocker):
-    current_app.config["FF_BOUNCE_RATE_V1"] = True
+    current_app.config["FF_BOUNCE_RATE_BACKEND"] = True
     current_app.bounce_rate_client = mocker.Mock()
     return current_app
 
