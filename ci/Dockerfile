@@ -1,6 +1,9 @@
 # Python 3.8 is supported until 14 October 2024.
-# Alpine Linux 3.17 is supported until 22 November 2024.
-FROM python:3.8-alpine3.17
+# Alpine Linux 3.16 is supported until 23 May 2024 and packages OpenSSL v1.1.1.  Newer versions of Alpine package
+# OpenSSL v3.x, which will not work with notification-api until the Python "requests" package is upgrade to
+# >=2.30.0 and "urllib3" to >=2.0.0.  As of 18 May 2023, the notification-api top level dependency "botocore"
+# does not support urllib3>=2.0.0.
+FROM python:3.8-alpine3.16
 
 ARG GIT_SHA
 
