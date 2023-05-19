@@ -2,11 +2,10 @@ import datetime
 import itertools
 import uuid
 from enum import Enum
-from typing import cast, Any, Iterable, Literal
+from typing import Any, Iterable, Literal, cast
 
 from flask import current_app, url_for
 from flask_sqlalchemy.model import DefaultMeta
-import flask_sqlalchemy
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -25,9 +24,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-import sqlalchemy
-import db_type
-from sqlalchemy import CheckConstraint, Index, UniqueConstraint, orm
+from sqlalchemy import CheckConstraint, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
@@ -36,6 +33,7 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from app import (
     DATETIME_FORMAT,
     db,
+    db_type,
     signer_api_key,
     signer_bearer_token,
     signer_inbound_sms,
@@ -92,7 +90,7 @@ class HistoryModel:
                 current_app.logger.debug("{} has no column {} to copy from".format(original, c.name))
 
 
-BaseModel = db.Model
+BaseModel: DefaultMeta = db.Model
 
 
 class User(BaseModel):
@@ -204,6 +202,7 @@ class User(BaseModel):
             "email_address": self.email_address,
             "mobile_number": self.mobile_number,
         }
+
 
 class ServiceUser(BaseModel):
     __tablename__ = "user_to_service"
