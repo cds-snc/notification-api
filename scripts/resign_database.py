@@ -19,12 +19,13 @@ from flask import Flask
 
 sys.path.append('..')  # needed so we can find app (as run from scripts/ folder)
 
+from flask import current_app
+
 from app import create_app  # noqa: E402
 from app.dao.api_key_dao import resign_api_keys  # noqa: E402
 from app.dao.inbound_sms_dao import resign_inbound_sms  # noqa: E402
 from app.dao.notifications_dao import resign_notifications  # noqa: E402
 from app.dao.service_callback_api_dao import resign_service_callbacks  # noqa: E402
-from flask import current_app
 
 
 def resign_all(chunk: int, resign: bool, unsafe: bool):
