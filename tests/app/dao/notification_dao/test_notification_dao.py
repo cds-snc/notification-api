@@ -1803,20 +1803,52 @@ class TestBulkInsertNotifications:
 
 
 class TestResigning:
-    def test_resign_notifications_resigns_with_new_key(self, sample_template_with_placeholders):
+    # @pytest.mark.parametrize("resign", [True, False])
+    # def test_resign_notifications_resigns_or_previews(self, resign, sample_template_with_placeholders):
+    #     from app import signer_personalisation
+
+    #     with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+    #         initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+    #         save_notification(initial_notification)
+    #         personalisation = initial_notification.personalisation
+    #         _personalisation = initial_notification._personalisation
+
+    #     with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
+    #         resign_notifications(chunk_size=10, resign=resign)
+    #         notification = Notification.query.get(initial_notification.id)
+    #         assert notification.personalisation == personalisation  # unsigned value is the same
+    #         if resign:
+    #             assert notification._personalisation != _personalisation  # signature is different
+    #         else:
+    #             assert notification._personalisation == _personalisation  # signature is the same
+
+    @pytest.mark.parametrize("resign,chunk_size", [(True, 2), (False, 2), (True, 10), (False, 10)])
+    def test_resign_notifications_resigns_or_previews(self, resign, chunk_size, sample_template_with_placeholders):
         from app import signer_personalisation
 
         with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
-            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
-            save_notification(initial_notification)
-            personalisation = initial_notification.personalisation
-            _personalisation = initial_notification._personalisation
+
+            initial_notifications = [
+                create_notification(sample_template_with_placeholders, personalisation={"Name": "test"}) for _ in range(5)
+            ]
+            personalisations = [n.personalisation for n in initial_notifications]
+            _personalisations = [n._personalisation for n in initial_notifications]
+            for notification in initial_notifications:
+                save_notification(notification)
 
         with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
-            resign_notifications()
-            notification = Notification.query.get(initial_notification.id)
-            assert notification.personalisation == personalisation  # unsigned value is the same
-            assert notification._personalisation != _personalisation  # signature is different
+            resign_notifications(chunk_size=chunk_size, resign=resign)
+
+            notifications = [Notification.query.get(n.id) for n in initial_notifications]
+            assert [n.personalisation for n in notifications] == personalisations  # unsigned values are the same
+            if resign:
+                for (
+                    notification,
+                    _personalisation,
+                ) in zip(notifications, _personalisations):
+                    assert notification._personalisation != _personalisation  # signature is different
+            else:
+                assert [n._personalisation for n in notifications] == _personalisations  # signatures are the same
 
     def test_resign_notifications_fails_if_cannot_verify_signatures(self, sample_template_with_placeholders):
         from app import signer_personalisation
@@ -1827,7 +1859,7 @@ class TestResigning:
 
         with set_signer_secret_key(signer_personalisation, ["k3"]):
             with pytest.raises(BadSignature):
-                resign_notifications()
+                resign_notifications(chunk_size=10, resign=True)
 
     def test_resign_notifications_unsafe_resigns_with_new_key(self, sample_template_with_placeholders):
         from app import signer_personalisation
@@ -1839,7 +1871,7 @@ class TestResigning:
             _personalisation = initial_notification._personalisation
 
         with set_signer_secret_key(signer_personalisation, ["k3"]):
-            resign_notifications(unsafe=True)
+            resign_notifications(chunk_size=10, resign=True, unsafe=True)
             notification = Notification.query.get(initial_notification.id)
             assert notification.personalisation == personalisation  # unsigned value is the same
             assert notification._personalisation != _personalisation  # signature is different

@@ -26,8 +26,8 @@ def resign_api_keys(resign: bool, unsafe: bool = False):
     """
     rows = ApiKey.query.all()  # noqa
     current_app.logger.info(f"Total of {len(rows)} api keys")
-
     rows_to_update = []
+
     for row in rows:
         try:
             old_signature = row._secret
@@ -43,7 +43,7 @@ def resign_api_keys(resign: bool, unsafe: bool = False):
             rows_to_update.append(row)
         if not resign:
             row._secret = old_signature  # reset the signature to the old value
-    
+
     if resign:
         current_app.logger.info(f"Resigning {len(rows_to_update)} api keys")
         db.session.bulk_save_objects(rows)
