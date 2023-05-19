@@ -24,7 +24,7 @@ def resign_inbound_sms(resign: bool, unsafe: bool = False):
         e: BadSignature if the unsign step fails and unsafe is False.
     """
     rows = InboundSms.query.all()  # noqa
-    current_app.logger.info(f"Total of {len(rows)} api keys")
+    current_app.logger.info(f"Total of {len(rows)} inbound sms")
     rows_to_update = []
 
     for row in rows:

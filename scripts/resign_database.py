@@ -24,6 +24,7 @@ from app.dao.api_key_dao import resign_api_keys  # noqa: E402
 from app.dao.inbound_sms_dao import resign_inbound_sms  # noqa: E402
 from app.dao.notifications_dao import resign_notifications  # noqa: E402
 from app.dao.service_callback_api_dao import resign_service_callbacks  # noqa: E402
+from flask import current_app
 
 
 def resign_all(chunk: int, resign: bool, unsafe: bool):
@@ -32,7 +33,7 @@ def resign_all(chunk: int, resign: bool, unsafe: bool):
     resign_service_callbacks(resign, unsafe)
     resign_notifications(chunk, resign, unsafe)
     if not resign:
-        print("This is a preview, fields have not been changed. To resign fields, run with --resign flag")
+        current_app.logger.info("NOTE: this is a preview, fields have not been changed. To resign fields, run with --resign flag")
 
 
 if __name__ == "__main__":
