@@ -52,6 +52,7 @@ jobs:
         with:
           python-version: "3.8"
 
+        # TODO notification-api#1286 - Use lambda layers for user-flows dependencies.
       - name: Package and deploy user-flows lambda function
         if: ${{ (inputs.lambdaName == 'UserFlows') || (inputs.lambdaName == 'All') }}
         run: |
@@ -68,43 +69,50 @@ jobs:
           zip -ugj user_flows_lambda.zip conftest.py steps.py test_retrieve_everything.py user_flows_lambda.py
           aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
 
+        # This function does not have any dependencies.
       - name: Package and deploy SES Callback lambda function
         if: ${{ (inputs.lambdaName == 'SESCallback') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy Two Way SMS lambda function v1
         if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy Two Way SMS lambda function v2
         if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j two_way_sms two_way_sms/two_way_sms_v2.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-notify-incoming-sms-lambda --zip-file fileb://two_way_sms.zip
 
+        # This function does not have any dependencies.
       - name: Package and deploy pinpoint callback lambda function
         if: ${{ (inputs.lambdaName == 'PinPointCallback') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j pinpoint_callback_lambda pinpoint_callback/pinpoint_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
 
+        # This function does not have any dependencies.
       - name: Package and deploy pinpoint inbound sms lambda function
         if: ${{ (inputs.lambdaName == 'PinPointInboundSMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy VA Profile opt-in/out lambda function
         if: ${{ (inputs.lambdaName == 'ProfileOptInOut') || (inputs.lambdaName == 'All') }}
         run: |
           cd va_profile/
           python3 -m venv venv_va_profile_opt_in_out
           source venv_va_profile_opt_in_out/bin/activate
-          pip install -r requirements-lambda.txt
+          pip install PyJWT~=2.6.0
+          pip install cryptography~=37.0.4
           deactivate
           cd venv_va_profile_opt_in_out/lib/python3.8/site-packages
           zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
@@ -112,54 +120,35 @@ jobs:
           zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy VA Profile remove old opt-outs lambda function
         if: ${{ (inputs.lambdaName == 'ProfileRemoveOldOptOuts') || (inputs.lambdaName == 'All') }}
         run: |
-          cd va_profile_remove_old_opt_outs/
-          python3 -m venv venv_va_profile_remove_old_opt_outs
-          source venv_va_profile_remove_old_opt_outs/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv_va_profile_remove_old_opt_outs/lib/python3.8/site-packages
-          zip -r9 ../../../../va_profile_remove_old_opt_outs_lambda.zip .
-          cd ../../../../
-          zip -ugj va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs_lambda.py
+          zip -j va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs/va_profile_remove_old_opt_outs_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy nightly stats bigquery upload lambda function
         if: ${{ (inputs.lambdaName == 'NightBigQueryUpload') || (inputs.lambdaName == 'All') }}
         run: |
-          cd nightly_stats_bigquery_upload/
-          python3 -m venv venv_nightly_stats_bigquery_upload
-          source venv_nightly_stats_bigquery_upload/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv_nightly_stats_bigquery_upload/lib/python3.8/site-packages
-          zip -r9 ../../../../nightly_stats_bigquery_upload_lambda.zip .
-          cd ../../../../
-          zip -ugj nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload_lambda.py
+          zip -j nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload/nightly_stats_bigquery_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy nightly billing stats upload lambda function
         if: ${{ (inputs.lambdaName == 'NightBillingBQUpload') || (inputs.lambdaName == 'All') }}
         run: |
-          cd nightly_billing_bigquery_upload/
-          python3 -m venv venv_nightly_billing_bigquery_upload
-          source venv_nightly_billing_bigquery_upload/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cd venv_nightly_billing_bigquery_upload/lib/python3.8/site-packages
-          zip -r9 ../../../../nightly_billing_stats_upload_lambda.zip .
-          cd ../../../../
-          zip -ugj nightly_billing_stats_upload_lambda nightly_billing_stats_upload_lambda.py
+          zip -j nightly_billing_stats_upload_lambda nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-billing-stats-upload-lambda --zip-file fileb://nightly_billing_stats_upload_lambda.zip
 
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy vetext incoming forwarder lambda
         if: ${{ (inputs.lambdaName == 'VetTextIncomingForwarder') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda/vetext_incoming_forwarder_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
 
+        # This function does not have any dependencies.
       - name: Package and deploy delivery status processing lambda
         if: ${{ (inputs.lambdaName == 'DeliveryStatusProcessor') || (inputs.lambdaName == 'All') }}
         run: |

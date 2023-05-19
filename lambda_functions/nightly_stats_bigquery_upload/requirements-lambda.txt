@@ -1,4 +1,2 @@
 # https://github.com/googleapis/python-bigquery/blob/main/CHANGELOG.md
 google-cloud-bigquery==3.10.0
-# urllib3 v2.0 only supports OpenSSL 1.1.1+, lambdas are compiled with ssl v1.0.x currently - ImportError
-urllib3==1.26.15
