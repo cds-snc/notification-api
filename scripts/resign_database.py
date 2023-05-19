@@ -19,7 +19,7 @@ from flask import Flask
 
 sys.path.append('..')  # needed so we can find app (as run from scripts/ folder)
 
-from flask import current_app
+from flask import current_app  # noqa: E402
 
 from app import create_app  # noqa: E402
 from app.dao.api_key_dao import resign_api_keys  # noqa: E402
