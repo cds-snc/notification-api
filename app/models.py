@@ -90,7 +90,7 @@ class HistoryModel:
                 current_app.logger.debug("{} has no column {} to copy from".format(original, c.name))
 
 
-BaseModel: DefaultMeta = db.Model
+BaseModel: DefaultMeta = db.Model  # type: ignore
 
 
 class User(BaseModel):
