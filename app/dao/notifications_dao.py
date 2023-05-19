@@ -60,6 +60,20 @@ from app.utils import (
 
 @transactional
 def _resign_notifications_chunk(chunk_offset: int, chunk_size: int, resign: bool, unsafe: bool) -> int:
+    """Resign the _personalisation column of the notifications in a chunk of notifications with (potentially) a new key.
+
+    Args:
+        chunk_offset (int): start index of the chunk
+        chunk_size (int): size of the chunk
+        resign (bool): resign the personalisation
+        unsafe (bool): ignore bad signatures
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+
+    Returns:
+        int: number of notifications resigned or needing to be resigned
+    """
     rows = Notification.query.order_by(Notification.created_at).slice(chunk_offset, chunk_offset + chunk_size).all()
     current_app.logger.info(f"Processing chunk {chunk_offset} to {chunk_offset + len(rows) - 1}")
 

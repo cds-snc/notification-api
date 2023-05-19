@@ -15,7 +15,6 @@ def resign_inbound_sms(resign: bool, unsafe: bool = False):
     """Resign the _content column of the inbound_sms table with (potentially) a new key.
 
     Args:
-
         resign (bool): whether to resign the inbound sms
         unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
         Defaults to False.
