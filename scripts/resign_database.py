@@ -27,10 +27,12 @@ from app.dao.service_callback_api_dao import resign_service_callbacks  # noqa: E
 
 
 def resign_all(chunk:int, resign: bool, unsafe: bool):
-    resign_api_keys(unsafe)
-    resign_inbound_sms(unsafe)
-    resign_service_callbacks(unsafe)
+    resign_api_keys(resign, unsafe)
+    resign_inbound_sms(resign, unsafe)
+    resign_service_callbacks(resign, unsafe)
     resign_notifications(chunk, resign, unsafe)
+    if not resign:
+        print(f"This is a preview, fields have not been changed. To resign fields, run with --resign flag")
 
 
 if __name__ == "__main__":
