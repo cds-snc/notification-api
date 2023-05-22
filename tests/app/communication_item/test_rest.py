@@ -1,23 +1,30 @@
-from app.models import CommunicationItem
+import logging
+from uuid import UUID
 
 
-class TestGetCommunicationItems:
+def test_get_communication_items(mocker, admin_request, sample_email_template):
+    """
+    The fixture "sample_email_template" has the side-effect of creating and
+    persisting a CommunicationItem instance that uses the default value for
+    default_send_indicator, which is True.
+    """
 
-    def test_get_communication_items(self, mocker, admin_request):
-        communication_item = CommunicationItem(name='some name', va_profile_item_id=1)
+    response = admin_request.get(
+        'communication_item.get_communication_items'
+    )
 
-        mock_get_communication_items = mocker.Mock(return_value=[communication_item])
-        mock_communication_item_dao = mocker.Mock(get_communication_items=mock_get_communication_items)
-        mocker.patch('app.communication_item.rest.communication_item_dao', new=mock_communication_item_dao)
+    assert isinstance(response["data"], list)
 
-        response = admin_request.get(
-            'communication_item.get_communication_items'
-        )
+    for communication_item in response["data"]:
+        assert isinstance(communication_item, dict)
+        assert isinstance(communication_item["default_send_indicator"], bool) and \
+            communication_item["default_send_indicator"], "Should be True by default."
+        assert isinstance(communication_item["name"], str) and communication_item["name"]
+        assert isinstance(communication_item["va_profile_item_id"], int)
+        assert isinstance(communication_item["id"], str)
 
-        assert response['data'] == [
-            {
-                'id': communication_item.id,
-                'name': 'some name',
-                'va_profile_item_id': 1
-            }
-        ]
+        try:
+            assert isinstance(UUID(communication_item["id"]), UUID)
+        except ValueError as e:
+            logging.exception(e)
+            raise
