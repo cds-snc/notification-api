@@ -31,6 +31,7 @@ COPY --chown=vanotify requirements.txt .
 RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
   && python -m pip install --upgrade pip \
   && python -m pip install wheel \
+  && pip install --upgrade setuptools==65.5.1 \
   && pip install --no-cache-dir -r requirements.txt \
   # Remove build dependencies.
   && apk del --no-cache .build-deps

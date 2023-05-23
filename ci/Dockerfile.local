@@ -19,6 +19,7 @@ RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcur
   # Install Python dependencies.
   && python -m pip install --upgrade pip \
   && python -m pip install wheel \
+  &&  pip install --upgrade setuptools==65.5.1 \
   && pip install --no-cache-dir -r requirements-app.txt \
   # Remove build dependencies.
   && rm requirements-app.txt \
