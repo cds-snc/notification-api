@@ -8,12 +8,12 @@ import { Navigation, LoginPage, TemplatesPage, AddRecipientsPage  } from "../../
 
 const ADMIN_COOKIE = 'notify_admin_session';
 
-describe('Smoke tests', () => {
+describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
     before(() => {
         Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
     });
 
-    context('API tests', () => {
+    context.only('API tests', () => {
         context('Email', () => {
             it('can send/receive a one-off email', () => {
                 // create an ethereal email account to use for this test
@@ -22,7 +22,7 @@ describe('Smoke tests', () => {
 
                     // send an email using the Notify API
                     Notify.API.SendEmail({
-                        api_key: Cypress.env('API_KEY_LIVE'),
+                        api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                         to: acct.user,
                         template_id: config.Templates.SMOKE_TEST_EMAIL,
                         personalisation: {},
@@ -69,7 +69,7 @@ describe('Smoke tests', () => {
 
                     // send an email using the Notify API
                     Notify.API.SendBulkEmail({
-                        api_key: Cypress.env('API_KEY_LIVE'),
+                        api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                         to: [[acct.user],[acct.user],[acct.user],[acct.user],[acct.user]],
                         bulk_name: "Smoke Test",
                         template_id: config.Templates.SMOKE_TEST_EMAIL_BULK,
@@ -107,7 +107,7 @@ describe('Smoke tests', () => {
                     // send an email using the Notify API
                     cy.fixture('payloads/file_attachment_1').then(file_payload => {
                         Notify.API.SendEmail({
-                          api_key: Cypress.env('API_KEY_LIVE'),
+                          api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                           to: acct.user,
                           template_id: config.Templates.SMOKE_TEST_EMAIL_ATTACH,
                           personalisation: file_payload,
@@ -145,7 +145,7 @@ describe('Smoke tests', () => {
                     // send an email using the Notify API
                     cy.fixture('payloads/file_link').then(file_payload => {
                         Notify.API.SendEmail({
-                          api_key: Cypress.env('API_KEY_LIVE'),
+                          api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                           to: acct.user,
                           template_id: config.Templates.SMOKE_TEST_EMAIL_LINK,
                           personalisation: file_payload,
@@ -182,7 +182,7 @@ describe('Smoke tests', () => {
             it('can send a one-off SMS', () => {
                 // send an email using the Notify API
                 Notify.API.SendSMS({
-                    api_key: Cypress.env('API_KEY_LIVE'),
+                    api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                     to: config.Users.SimulatedPhone[0],
                     template_id: config.Templates.SMOKE_TEST_SMS,
                     personalisation: {},
@@ -197,7 +197,7 @@ describe('Smoke tests', () => {
                 // send an email using the Notify API
                 Notify.API.SendBulkSMS({
                     bulk_name: "Smoke Test",
-                    api_key: Cypress.env('API_KEY_LIVE'),
+                    api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
                     to: [[config.Users.SimulatedPhone[0]],[config.Users.SimulatedPhone[1]]],
                     template_id: config.Templates.SMOKE_TEST_SMS,
                     personalisation: {},
@@ -211,7 +211,7 @@ describe('Smoke tests', () => {
         });
     });
 
-    context.only('ADMIN tests', () => {
+    context('ADMIN tests', () => {
         // Login to notify before the test suite starts
         before(() => {
             Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
