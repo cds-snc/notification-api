@@ -27,8 +27,10 @@ let Actions = {
             () => cy.task('getLastEmail', {} ), // Cypress commands to retry
             Cypress._.isObject, // keep retrying until the task returns an object
             {
-                timeout: 60000, // retry up to 1 minute
-                delay: 5000, // wait 5 seconds between attempts
+                log: true,
+                limit: 50, // max number of iterations
+                timeout: 30000, // time limit in ms
+                delay: 500, // delay before next iteration, ms
             },
         )
             .its('html')

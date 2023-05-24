@@ -103,6 +103,60 @@ const API = {
             }
         });
     },
+    SendBulkEmail: ({ api_key, to, bulk_name, template_id, personalisation, failOnStatusCode = true }) => {
+        return cy.request({
+            failOnStatusCode: failOnStatusCode,
+            url: '/v2/notifications/bulk',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'ApiKey-v1 ' + api_key,
+            },
+            body: {
+                "name": bulk_name,
+                "template_id": template_id,
+                "rows": [
+                    ["email address"],
+                    ...to
+                ],
+            }
+        });
+    },
+    SendSMS: ({ api_key, to, template_id, personalisation, failOnStatusCode = true }) => {
+        return cy.request({
+            failOnStatusCode: failOnStatusCode,
+            url: '/v2/notifications/sms',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'ApiKey-v1 ' + api_key,
+            },
+            body: {
+                "phone_number": to,
+                "template_id": template_id,
+                "personalisation": personalisation,
+            }
+        });
+    },
+    SendBulkSMS: ({ api_key, to, bulk_name, template_id, personalisation, failOnStatusCode = true }) => {
+        return cy.request({
+            failOnStatusCode: failOnStatusCode,
+            url: '/v2/notifications/bulk',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'ApiKey-v1 ' + api_key,
+            },
+            body: {
+                "name": bulk_name,
+                "template_id": template_id,
+                "rows": [
+                    ["phone number"],
+                    ...to
+                ],
+            }
+        });
+    },
 
 }
 
