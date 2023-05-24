@@ -26,6 +26,9 @@
 			"version": "latest",
 			"helm": "latest",
 			"minikube": "none"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "14.17.4"
 		}
 	},
 	"extensions": [
@@ -51,5 +54,6 @@
 		"yzhang.markdown-all-in-one",
 	],
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-	"remoteUser": "vscode"
+	"remoteUser": "vscode",
+	
 }
