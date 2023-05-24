@@ -335,7 +335,7 @@ class DetailedServiceSchema(BaseSchema):
             "jobs",
             "message_limit",
             "permissions",
-            "reply_to_email_address",
+            "reply_to_email_addresses",
             "safelist",
             "service_sms_senders",
             "sms_daily_limit",
@@ -584,24 +584,24 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
         # 'body', 'subject' [for emails], and 'content_char_count'
         fields = (
             # db rows
-            "id",
-            "to",
-            "job_row_number",
-            "template_version",
             "billable_units",
-            "notification_type",
             "created_at",
+            "id",
+            "job_row_number",
+            "notification_type",
+            "reference",
             "sent_at",
             "sent_by",
-            "updated_at",
             "status",
-            "reference",
+            "template_version",
+            "to",
+            "updated_at",
             # computed fields
             "personalisation",
             # relationships
-            "service",
-            "job",
             "api_key",
+            "job",
+            "service",
             "template_history",
         )
 
