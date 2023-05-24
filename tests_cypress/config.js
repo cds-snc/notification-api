@@ -1,4 +1,5 @@
 let STAGING = {
+    CONFIG_NAME: "STAGING",
     API: {
         HostName: 'https://api.staging.notification.cdssandbox.xyz',
     },
@@ -37,6 +38,7 @@ let STAGING = {
 };
 
 let LOCAL = {
+    CONFIG_NAME: "LOCAL",
     API: {
         HostName: 'http://localhost:6011',
     },
