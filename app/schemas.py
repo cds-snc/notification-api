@@ -227,7 +227,7 @@ class ProviderDetailsSchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = models.ProviderDetails
-        exclude = ("provider_rates", "provider_stats")
+        exclude = ["provider_rates"]
 
 
 class ProviderDetailsHistorySchema(BaseSchema):
@@ -236,7 +236,7 @@ class ProviderDetailsHistorySchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = models.ProviderDetailsHistory
-        exclude = ("provider_rates", "provider_stats")
+        # exclude = ("provider_rates", "provider_stats")
 
 
 class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
@@ -535,7 +535,7 @@ class SmsAdminNotificationSchema(SmsNotificationSchema):
 class NotificationWithTemplateSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Notification
-        exclude = ("_personalisation", "scheduled_notification")
+        # exclude = ("_personalisation", "scheduled_notification")
 
     template = fields.Nested(
         TemplateSchema,
