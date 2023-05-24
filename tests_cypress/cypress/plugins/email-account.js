@@ -28,7 +28,7 @@ const emailAccount = async () => {
          * for the Ethereal email account
          */
         async deleteAllEmails() {
-            console.log('Purging the inbox...')
+            // console.debug('Purging the inbox...')
 
             try {
                 const connection = await imaps.connect(emailConfig)
@@ -42,12 +42,12 @@ const emailAccount = async () => {
                 const messages = await connection.search(searchCriteria, fetchOptions)
 
                 if (!messages.length) {
-                    console.log('Cannot find any emails')
+                    // console.log('Cannot find any emails')
                     // and close the connection to avoid it hanging
                     connection.end()
                     return null
                 } else {
-                    console.log('There are %d messages, deleting them...', messages.length)
+                    // console.log('There are %d messages, deleting them...', messages.length)
                     // delete all messages
                     const uidsToDelete = messages
                         .filter(message => {
@@ -77,7 +77,7 @@ const emailAccount = async () => {
          */
         async getLastEmail() {
             // makes debugging very simple
-            console.log('Getting the last email')
+            // console.log('Getting the last email')
 
             try {
                 const connection = await imaps.connect(emailConfig)
@@ -93,16 +93,16 @@ const emailAccount = async () => {
                 connection.end()
 
                 if (!messages.length) {
-                    console.log('Cannot find any emails')
+                    // console.log('Cannot find any emails')
                     return null
                 } else {
-                    console.log('There are %d messages', messages.length)
+                    // console.log('There are %d messages', messages.length)
                     // grab the last email
                     const mail = await simpleParser(
                         messages[messages.length - 1].parts[0].body,
                     )
-                    console.log(mail.subject)
-                    console.log(mail.text)
+                    // console.log(mail.subject)
+                    // console.log(mail.text)
 
 
                     // and returns the main fields
@@ -148,10 +148,10 @@ const emailAccount = async () => {
                 connection.end()
 
                 if (!messages.length) {
-                    console.log('Cannot find any emails, retrying...')
+                    // console.log('Cannot find any emails, retrying...')
                     return null
                 } else {
-                    console.log('There are %d messages', messages.length)
+                    // console.log('There are %d messages', messages.length)
                     // messages.forEach(function (item) {
                     //     var all = _.find(item.parts, { "which": "" })
                     //     var id = item.attributes.uid;
@@ -167,14 +167,15 @@ const emailAccount = async () => {
                     const mail = await simpleParser(
                         messages[messages.length - 1].parts[0].body,
                     )
-                    console.log(mail.subject)
-
-
+                    console.log('m', mail)
                     // and returns the main fields
                     return {
                         subject: mail.subject,
-                        text: mail.text,
+                        to: mail.to.text,
+                        from: mail.from.text.replace(/<|>/g, ''),
                         html: mail.html,
+                        totalEmails: messages.length,
+                        attachments: mail.attachments
                     }
                 }
             } catch (e) {
@@ -187,7 +188,7 @@ const emailAccount = async () => {
         },
         async createEmailAccount() {
             let testAccount = await nodemailer.createTestAccount();
-
+            // console.log("test account created: ", testAccount);
             return testAccount;
         }
     }
