@@ -547,7 +547,6 @@ class NotificationWithTemplateSchema(BaseSchema):
             "content",
             "subject",
             "redact_personalisation",
-            "is_precompiled_letter",
         ],
         dump_only=True,
     )
