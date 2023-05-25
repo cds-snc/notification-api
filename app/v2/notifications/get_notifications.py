@@ -10,7 +10,6 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
-    Notification,
 )
 from app.schema_validation import validate
 from app.v2.errors import BadRequestError, PDFNotReadyError
