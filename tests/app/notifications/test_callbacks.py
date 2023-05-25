@@ -30,6 +30,7 @@ def test_create_delivery_status_callback_data(
         "notification_provider_response": notification.provider_response,
         "notification_sent_at": notification.sent_at.strftime(DATETIME_FORMAT),
         "notification_status": notification.status,
+        "notification_formatted_status": notification.formatted_status,
         "notification_to": notification.to,
         "notification_type": notification.notification_type,
         "notification_updated_at": notification.updated_at,

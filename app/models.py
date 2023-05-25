@@ -1782,7 +1782,7 @@ class Notification(BaseModel):
                     "created": "In transit",
                     "sent": "Delivered",
                     "pending": "In transit",
-                    "pending-virus-check": "In Transit",
+                    "pending-virus-check": "In transit",
                     "pii-check-failed": "Exceeds Protected A",
                 },
                 "sms": {
@@ -1909,7 +1909,8 @@ class Notification(BaseModel):
             "line_6": None,
             "postcode": None,
             "type": self.notification_type,
-            "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.formatted_status,
+            "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.status,
+            "formatted_status": self.formatted_status,
             "provider_response": self.provider_response,
             "template": template_dict,
             "body": self.content,

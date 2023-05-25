@@ -62,6 +62,7 @@ def test_get_notification_by_id_returns_200(client, billable_units, provider, sa
         "postcode": None,
         "type": "{}".format(sample_notification.notification_type),
         "status": "{}".format(sample_notification.status),
+        "formatted_status": f"{sample_notification.formatted_status}",
         "provider_response": sample_notification.provider_response,
         "template": expected_template_response,
         "created_at": sample_notification.created_at.strftime(DATETIME_FORMAT),
@@ -116,6 +117,7 @@ def test_get_notification_by_id_with_placeholders_returns_200(client, sample_ema
         "postcode": None,
         "type": "{}".format(sample_notification.notification_type),
         "status": "{}".format(sample_notification.status),
+        "formatted_status": "{}".format(sample_notification.formatted_status),
         "provider_response": sample_notification.provider_response,
         "template": expected_template_response,
         "created_at": sample_notification.created_at.strftime(DATETIME_FORMAT),
@@ -318,6 +320,7 @@ def test_get_all_notifications_except_job_notifications_returns_200(client, samp
 
     assert json_response["notifications"][0]["id"] == str(notification.id)
     assert json_response["notifications"][0]["status"] == "created"
+    assert json_response["notifications"][0]["formatted_status"] == "In transit"
     assert json_response["notifications"][0]["template"] == {
         "id": str(notification.template.id),
         "uri": notification.template.get_link(),
@@ -394,6 +397,7 @@ def test_get_all_notifications_filter_by_template_type(client, sample_service):
 
     assert json_response["notifications"][0]["id"] == str(notification.id)
     assert json_response["notifications"][0]["status"] == "created"
+    assert json_response["notifications"][0]["formatted_status"] == "In transit"
     assert json_response["notifications"][0]["template"] == {
         "id": str(email_template.id),
         "uri": notification.template.get_link(),
