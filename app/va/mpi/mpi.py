@@ -85,7 +85,7 @@ class MpiClient:
                 f"{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}",
                 params={'-sender': self.SYSTEM_IDENTIFIER},
                 cert=(self.ssl_cert_path, self.ssl_key_path),
-                timeout=(3.05, 1)
+                timeout=(3.05, 2)
             )
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -106,7 +106,7 @@ class MpiClient:
                 exception.failure_reason = failure_reason
                 raise exception from e
         except requests.RequestException as e:
-            self.statsd_client.incr(f"clients.mpi.error.request_exception")
+            self.statsd_client.incr("clients.mpi.error.request_exception")
             message = f"MPI returned RequestException while querying for FHIR identifier: {str(e)}"
             exception = MpiRetryableException(message)
             exception.failure_reason = exception
