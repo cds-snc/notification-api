@@ -73,7 +73,8 @@ class FlexibleDateTime(fields.DateTime):
     """
 
     DEFAULT_FORMAT = "flexible"
-    OLD_MARSHMALLOW_FORMAT = "%Y-%m-%dT%H:%M:%S+00:00"
+    # OLD_MARSHMALLOW_FORMAT = "%Y-%m-%dT%H:%M:%S+00:00"
+    OLD_MARSHMALLOW_FORMAT = "%Y-%m-%dT%H:%M:%S.%f+00:00"
 
     def __init__(self, *args, allow_none=True, **kwargs):
         super().__init__(*args, allow_none=allow_none, **kwargs)
