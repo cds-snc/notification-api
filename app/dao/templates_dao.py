@@ -24,7 +24,7 @@ from app.models import (
 def dao_create_template(template, template_id: Optional[uuid.UUID] = None):
     # must be set now so version history model can use same id
     template.id = uuid.uuid4() if not template_id else template_id
-    
+
     redacted_dict = {
         "template": template,
         "redact_personalisation": False,

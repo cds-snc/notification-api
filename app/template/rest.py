@@ -1,6 +1,6 @@
 import base64
-from io import BytesIO
 import uuid
+from io import BytesIO
 
 import botocore
 from flask import Blueprint, current_app, jsonify, request
