@@ -25,4 +25,3 @@ class NotifyApiUser(HttpUser):
         reference_id = self.environment.parsed_options.ref
         json = {"email_address": self.email_address, "template_id": self.email_template, "reference": reference_id}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
-
