@@ -20,9 +20,6 @@ class NotifyApiUser(HttpUser):
         self.email_address = "success@simulator.amazonses.com"
         self.email_template = os.getenv("EMAIL_TEMPLATE_ID")
 
-        print("headers", self.headers)
-        print("email_address", self.email_address)
-        print("email_template", self.email_template)
     @task(1)
     def send_email(self):
         reference_id = self.environment.parsed_options.ref
