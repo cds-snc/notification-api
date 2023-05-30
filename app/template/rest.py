@@ -62,7 +62,11 @@ def validate_parent_folder(template_json):
 
 def service_owned_by_a_province_or_territory(service_id: str) -> bool:
     organisation = dao_get_organisation_by_service_id(service_id=service_id)
-    return organisation.organisation_type == "province_or_territory"
+    try:
+        return organisation.organisation_type == "province_or_territory"
+    except AttributeError:
+        # service has no organisation
+        return False
 
 
 @template_blueprint.route("", methods=["POST"])
