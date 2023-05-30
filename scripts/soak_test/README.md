@@ -28,7 +28,7 @@ There are two ways to run Locust, with the UI or headless.
 Locally, simply run:
 
 ```shell
-poetry run locust -f ./soak-test.py --ref=soak-2023-05-30-A
+locust -f ./soak-test.py --ref=soak-2023-05-30-A
 ```
 
 Follow the localhost address that the console will display to get to the UI. It will ask you how many total users and spawned users you want configured. Once setup, you can manually start the tests via the UI and follow the summary data and charts visually.
@@ -38,7 +38,7 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-poetry run locust -f ./soak-test.py --headless --ref=soak-2023-05-30-A
+locust -f ./soak-test.py --headless --ref=soak-2023-05-30-A
 ```
 
 The defaults in `locust.conf` may be overridden by command line options
@@ -55,9 +55,7 @@ data as (
 ),
 munged as (
     select *,
-    EXTRACT(epoch FROM updated_at - created_at) as total_time,
-    EXTRACT(epoch FROM sent_at - created_at) as processing_time,
-    EXTRACT(epoch FROM updated_at - sent_at) as delivery_time
+    EXTRACT(epoch FROM updated_at - created_at) as total_time
     from data
 ),
 stats as (
