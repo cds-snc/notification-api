@@ -11,6 +11,7 @@ from alembic import op
 revision = "0431_add_pt_organisation_type"
 down_revision = "0430_add_contact_form_email"
 
+
 def upgrade():
     op.execute(
         f"""
