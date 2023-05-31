@@ -22,6 +22,7 @@ def create_delivery_status_callback_data(notification, service_callback_api):
         "notification_client_reference": notification.client_reference,
         "notification_to": notification.to,
         "notification_status": notification.status,
+        "notification_status_description": notification.formatted_status,
         "notification_provider_response": notification.provider_response,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_updated_at": notification.updated_at.strftime(DATETIME_FORMAT) if notification.updated_at else None,
