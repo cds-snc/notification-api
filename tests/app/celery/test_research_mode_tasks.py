@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from unittest.mock import ANY, call
+from unittest.mock import ANY
 
 import pytest
 from freezegun import freeze_time
