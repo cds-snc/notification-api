@@ -13,6 +13,11 @@ from app.dao.organisation_dao import (
     dao_get_users_for_organisation,
     dao_update_organisation,
 )
+from app.dao.service_data_retention_dao import (
+    fetch_service_data_retention_by_notification_type,
+    insert_service_data_retention,
+    update_service_data_retention,
+)
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
@@ -103,6 +108,26 @@ def update_organisation(organisation_id):
         raise InvalidRequest("Organisation not found", 404)
 
 
+def set_pt_data_retention(service_id):
+    PT_DATA_RETENTION_DAYS = 3
+
+    for notification_type in ["email", "sms"]:
+        data_retention = fetch_service_data_retention_by_notification_type(service_id, notification_type)
+
+        if data_retention:
+            update_service_data_retention(
+                service_data_retention_id=data_retention.id,
+                service_id=service_id,
+                days_of_retention=PT_DATA_RETENTION_DAYS,
+            )
+        else:
+            insert_service_data_retention(
+                service_id=service_id,
+                notification_type=notification_type,
+                days_of_retention=PT_DATA_RETENTION_DAYS,
+            )
+
+
 @organisation_blueprint.route("/<uuid:organisation_id>/service", methods=["POST"])
 def link_service_to_organisation(organisation_id):
     data = request.get_json()
@@ -111,6 +136,11 @@ def link_service_to_organisation(organisation_id):
     service.organisation = None
 
     dao_add_service_to_organisation(service, organisation_id)
+
+    # if organisation is P/T, set data retention to 3 days
+    org = dao_get_organisation_by_id(organisation_id)
+    if org.organisation_type == "province_or_territory":
+        set_pt_data_retention(service.id)
 
     return "", 204
 
