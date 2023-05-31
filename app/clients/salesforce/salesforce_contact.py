@@ -46,7 +46,7 @@ def create(session: Salesforce, user: User, field_updates: dict[str, Optional[st
         contact_id = result.get("id")
 
     except Exception as ex:
-        current_app.logger.error(f"Salesforce Contact create failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce Contact create failed: {ex}")
     return contact_id
 
 
@@ -77,7 +77,7 @@ def update(session: Salesforce, user: User, field_updates: dict[str, Optional[st
             contact_id = create(session, user, field_updates)
 
     except Exception as ex:
-        current_app.logger.error(f"Salesforce Contact update failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce Contact update failed: {ex}")
     return contact_id
 
 

@@ -42,7 +42,7 @@ def get_session(client_id: str, username: str, password: str, security_token: st
             session=requests_session,
         )
     except Exception as ex:
-        current_app.logger.error(f"Salesforce login failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce login failed: {ex}")
     return session
 
 
@@ -56,4 +56,4 @@ def end_session(session: Salesforce):
         if session and session.session_id:
             session.oauth2("revoke", {"token": session.session_id}, method="POST")
     except Exception as ex:
-        current_app.logger.error(f"Salesforce logout failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce logout failed: {ex}")

@@ -1,4 +1,5 @@
 import base64
+import uuid
 from io import BytesIO
 
 import botocore
@@ -11,6 +12,7 @@ from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.notifications_dao import get_notification_by_id
+from app.dao.organisation_dao import dao_get_organisation_by_service_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import (
@@ -58,6 +60,15 @@ def validate_parent_folder(template_json):
         return None
 
 
+def service_owned_by_a_province_or_territory(service_id: str) -> bool:
+    organisation = dao_get_organisation_by_service_id(service_id=service_id)
+    try:
+        return organisation.organisation_type == "province_or_territory"
+    except AttributeError:
+        # service has no organisation
+        return False
+
+
 @template_blueprint.route("", methods=["POST"])
 def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
@@ -85,7 +96,15 @@ def create_template(service_id):
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
-    dao_create_template(new_template)
+    template_id = uuid.uuid4()
+    dao_create_template(new_template, template_id=template_id)
+
+    if service_owned_by_a_province_or_territory(service_id):
+        try:
+            fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
+            dao_redact_template(fetched_template, template_json["created_by"])
+        except NoResultFound:
+            current_app.logger.error(f"Template not found for redaction. service_id: {service_id}, template_id: {template_id}")
 
     return jsonify(data=template_schema.dump(new_template).data), 201
 
