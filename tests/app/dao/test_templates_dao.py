@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from freezegun import freeze_time
@@ -24,14 +24,16 @@ from tests.app.db import create_letter_contact, create_template
 
 
 @pytest.mark.parametrize(
-    "template_type, subject",
+    "template_type, subject, template_id",
     [
-        ("sms", None),
-        ("email", "subject"),
-        ("letter", "subject"),
+        ("sms", None, None),
+        ("email", "subject", None),
+        ("letter", "subject", None),
+        ("sms", None, uuid4()),
+        ("email", "subject", uuid4()),
     ],
 )
-def test_create_template(sample_service, sample_user, template_type, subject):
+def test_create_template(sample_service, sample_user, template_type, subject, template_id):
     data = {
         "name": "Sample Template",
         "template_type": template_type,
@@ -44,12 +46,17 @@ def test_create_template(sample_service, sample_user, template_type, subject):
     if subject:
         data.update({"subject": subject})
     template = Template(**data)
-    dao_create_template(template)
+    if template_id:
+        dao_create_template(template, template_id)
+    else:
+        dao_create_template(template)
 
     assert Template.query.count() == 1
     assert len(dao_get_all_templates_for_service(sample_service.id)) == 1
     assert dao_get_all_templates_for_service(sample_service.id)[0].name == "Sample Template"
     assert dao_get_all_templates_for_service(sample_service.id)[0].process_type == "normal"
+    if template_id:
+        assert dao_get_all_templates_for_service(sample_service.id)[0].id == template_id
 
 
 def test_create_template_creates_redact_entry(sample_service):
