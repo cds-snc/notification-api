@@ -389,6 +389,7 @@ class Domain(BaseModel):
 
 ORGANISATION_TYPES = [
     "central",
+    "province_or_territory",
     "local",
     "nhs_central",
     "nhs_local",
