@@ -1,12 +1,10 @@
 from datetime import datetime, timedelta
 
-import pytz
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import notify_celery, performance_platform_client, zendesk_client
+from app import notify_celery, performance_platform_client
 from app.aws import s3
 from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
@@ -21,14 +19,7 @@ from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
 )
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import (
-    EMAIL_TYPE,
-    KEY_TYPE_NORMAL,
-    LETTER_TYPE,
-    NOTIFICATION_SENDING,
-    SMS_TYPE,
-    Notification,
-)
+from app.models import EMAIL_TYPE, SMS_TYPE
 from app.notifications.callbacks import create_delivery_status_callback_data
 from app.performance_platform import processing_time, total_sent_notifications
 from app.utils import get_local_timezone_midnight_in_utc
@@ -39,13 +30,6 @@ from app.utils import get_local_timezone_midnight_in_utc
 @statsd(namespace="tasks")
 def remove_sms_email_csv_files():
     _remove_csv_files([EMAIL_TYPE, SMS_TYPE])
-
-
-@notify_celery.task(name="remove_letter_jobs")
-@cronitor("remove_letter_jobs")
-@statsd(namespace="tasks")
-def remove_letter_csv_files():
-    _remove_csv_files([LETTER_TYPE])
 
 
 def _remove_csv_files(job_types):
@@ -85,23 +69,6 @@ def delete_email_notifications_older_than_retention():
         )
     except SQLAlchemyError:
         current_app.logger.exception("Failed to delete email notifications")
-        raise
-
-
-@notify_celery.task(name="delete-letter-notifications")
-@cronitor("delete-letter-notifications")
-@statsd(namespace="tasks")
-def delete_letter_notifications_older_than_retention():
-    try:
-        start = datetime.utcnow()
-        deleted = delete_notifications_older_than_retention_by_type("letter")
-        current_app.logger.info(
-            "Delete {} job started {} finished {} deleted {} letter notifications".format(
-                "letter", start, datetime.utcnow(), deleted
-            )
-        )
-    except SQLAlchemyError:
-        current_app.logger.exception("Failed to delete letter notifications")
         raise
 
 
@@ -159,19 +126,16 @@ def send_total_sent_notifications_to_performance_platform(bst_date):
 
     email_sent_count = count_dict["email"]
     sms_sent_count = count_dict["sms"]
-    letter_sent_count = count_dict["letter"]
 
     current_app.logger.info(
-        "Attempting to update Performance Platform for {} with {} emails, {} text messages and {} letters".format(
-            bst_date, email_sent_count, sms_sent_count, letter_sent_count
+        "Attempting to update Performance Platform for {} with {} emails, {} text messages".format(
+            bst_date, email_sent_count, sms_sent_count
         )
     )
 
     total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "sms", sms_sent_count)
 
     total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "email", email_sent_count)
-
-    total_sent_notifications.send_total_notifications_sent_for_day_stats(start_time, "letter", letter_sent_count)
 
 
 @notify_celery.task(name="delete-inbound-sms")
@@ -189,16 +153,6 @@ def delete_inbound_sms():
     except SQLAlchemyError:
         current_app.logger.exception("Failed to delete inbound sms notifications")
         raise
-
-
-@notify_celery.task(name="remove_transformed_dvla_files")
-@cronitor("remove_transformed_dvla_files")
-@statsd(namespace="tasks")
-def remove_transformed_dvla_files():
-    jobs = dao_get_jobs_older_than_data_retention(notification_types=[LETTER_TYPE])
-    for job in jobs:
-        s3.remove_transformed_dvla_file(job.id)
-        current_app.logger.info("Transformed dvla file for job {} has been removed from s3.".format(job.id))
 
 
 # TODO: remove me, i'm not being run by anything
@@ -221,95 +175,3 @@ def delete_dvla_response_files_older_than_seven_days():
     except SQLAlchemyError:
         current_app.logger.exception("Failed to delete dvla response files")
         raise
-
-
-@notify_celery.task(name="raise-alert-if-letter-notifications-still-sending")
-@cronitor("raise-alert-if-letter-notifications-still-sending")
-@statsd(namespace="tasks")
-def raise_alert_if_letter_notifications_still_sending():
-    today = datetime.utcnow().date()
-
-    # Do nothing on the weekend
-    if today.isoweekday() in [6, 7]:
-        return
-
-    if today.isoweekday() in [1, 2]:
-        offset_days = 4
-    else:
-        offset_days = 2
-    still_sending = Notification.query.filter(
-        Notification.notification_type == LETTER_TYPE,
-        Notification.status == NOTIFICATION_SENDING,
-        Notification.key_type == KEY_TYPE_NORMAL,
-        func.date(Notification.sent_at) <= today - timedelta(days=offset_days),
-    ).count()
-
-    if still_sending:
-        message = "There are {} letters in the 'sending' state from {}".format(
-            still_sending, (today - timedelta(days=offset_days)).strftime("%A %d %B")
-        )
-        # Only send alerts in production
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
-            zendesk_client.create_ticket(
-                subject="[{}] Letters still sending".format(current_app.config["NOTIFY_ENVIRONMENT"]),
-                message=message,
-                ticket_type=zendesk_client.TYPE_INCIDENT,
-            )
-        else:
-            current_app.logger.info(message)
-
-
-@notify_celery.task(name="raise-alert-if-no-letter-ack-file")
-@cronitor("raise-alert-if-no-letter-ack-file")
-@statsd(namespace="tasks")
-def letter_raise_alert_if_no_ack_file_for_zip():
-    # get a list of zip files since yesterday
-    zip_file_set = set()
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
-    yesterday = datetime.now(tz=pytz.utc) - timedelta(days=1)  # AWS datetime format
-
-    for key in s3.get_list_of_files_by_suffix(
-        bucket_name=current_app.config["LETTERS_PDF_BUCKET_NAME"],
-        subfolder=today_str + "/zips_sent",
-        suffix=".TXT",
-    ):
-        subname = key.split("/")[-1]  # strip subfolder in name
-        zip_file_set.add(subname.upper().replace(".ZIP.TXT", ""))
-
-    # get acknowledgement file
-    ack_file_set = set()
-
-    for key in s3.get_list_of_files_by_suffix(
-        bucket_name=current_app.config["DVLA_RESPONSE_BUCKET_NAME"],
-        subfolder="root/dispatch",
-        suffix=".ACK.txt",
-        last_modified=yesterday,
-    ):
-        ack_file_set.add(key.lstrip("root/dispatch").upper().replace(".ACK.TXT", ""))
-
-    message = (
-        "Letter ack file does not contain all zip files sent. "
-        "Missing ack for zip files: {}, "
-        "pdf bucket: {}, subfolder: {}, "
-        "ack bucket: {}"
-    ).format(
-        str(sorted(zip_file_set - ack_file_set)),
-        current_app.config["LETTERS_PDF_BUCKET_NAME"],
-        datetime.utcnow().strftime("%Y-%m-%d") + "/zips_sent",
-        current_app.config["DVLA_RESPONSE_BUCKET_NAME"],
-    )
-    # strip empty element before comparison
-    ack_file_set.discard("")
-    zip_file_set.discard("")
-
-    if len(zip_file_set - ack_file_set) > 0:
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
-            zendesk_client.create_ticket(
-                subject="Letter acknowledge error",
-                message=message,
-                ticket_type=zendesk_client.TYPE_INCIDENT,
-            )
-        current_app.logger.error(message)
-
-    if len(ack_file_set - zip_file_set) > 0:
-        current_app.logger.info("letter ack contains zip that is not for today: {}".format(ack_file_set - zip_file_set))

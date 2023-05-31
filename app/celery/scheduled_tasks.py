@@ -14,7 +14,6 @@ from app import (
     sms_bulk,
     sms_normal,
     sms_priority,
-    zendesk_client,
 )
 from app.celery.tasks import process_job, save_emails, save_smss
 from app.config import QueueNames, TaskNames
@@ -25,8 +24,6 @@ from app.dao.invited_user_dao import delete_invitations_created_more_than_two_da
 from app.dao.jobs_dao import dao_set_scheduled_jobs_to_pending, dao_update_job
 from app.dao.notifications_dao import (
     dao_get_scheduled_notifications,
-    dao_old_letters_with_created_status,
-    dao_precompiled_letters_still_pending_virus_check,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
     set_scheduled_notification_to_processed,
@@ -186,50 +183,6 @@ def replay_created_notifications():
 
         for n in notifications_to_resend:
             send_notification_to_queue(notification=n, research_mode=n.service.research_mode)
-
-
-@notify_celery.task(name="check-precompiled-letter-state")
-@statsd(namespace="tasks")
-def check_precompiled_letter_state():
-    letters = dao_precompiled_letters_still_pending_virus_check()
-
-    if len(letters) > 0:
-        letter_ids = [str(letter.id) for letter in letters]
-
-        msg = "{} precompiled letters have been pending-virus-check for over 90 minutes. " "Notifications: {}".format(
-            len(letters), letter_ids
-        )
-
-        current_app.logger.exception(msg)
-
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
-            zendesk_client.create_ticket(
-                subject="[{}] Letters still pending virus check".format(current_app.config["NOTIFY_ENVIRONMENT"]),
-                message=msg,
-                ticket_type=zendesk_client.TYPE_INCIDENT,
-            )
-
-
-@notify_celery.task(name="check-templated-letter-state")
-@statsd(namespace="tasks")
-def check_templated_letter_state():
-    letters = dao_old_letters_with_created_status()
-
-    if len(letters) > 0:
-        letter_ids = [str(letter.id) for letter in letters]
-
-        msg = "{} letters were created before 17.30 yesterday and still have 'created' status. " "Notifications: {}".format(
-            len(letters), letter_ids
-        )
-
-        current_app.logger.exception(msg)
-
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
-            zendesk_client.create_ticket(
-                subject="[{}] Letters still in 'created' status".format(current_app.config["NOTIFY_ENVIRONMENT"]),
-                message=msg,
-                ticket_type=zendesk_client.TYPE_INCIDENT,
-            )
 
 
 @notify_celery.task(name="in-flight-to-inbox")

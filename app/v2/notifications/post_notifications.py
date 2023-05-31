@@ -30,7 +30,6 @@ from app import (
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
-from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
@@ -491,85 +490,6 @@ def save_stats_for_attachments(files_data, service_id, template_id):
         nb_mb = document["file_size"] // (1_024 * 1_024)
         file_size_bucket = f"{nb_mb}-{nb_mb + 1}mb"
         statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
-
-
-def process_letter_notification(*, letter_data, api_key, template, reply_to_text, precompiled=False):
-    if api_key.key_type == KEY_TYPE_TEAM:
-        raise BadRequestError(message="Cannot send letters with a team api key", status_code=403)
-
-    if not api_key.service.research_mode and api_key.service.restricted and api_key.key_type != KEY_TYPE_TEST:
-        raise BadRequestError(message="Cannot send letters when service is in trial mode", status_code=403)
-
-    if precompiled:
-        return process_precompiled_letter_notifications(
-            letter_data=letter_data,
-            api_key=api_key,
-            template=template,
-            reply_to_text=reply_to_text,
-        )
-
-    test_key = api_key.key_type == KEY_TYPE_TEST
-
-    # if we don't want to actually send the letter, then start it off in SENDING so we don't pick it up
-    status = NOTIFICATION_CREATED if not test_key else NOTIFICATION_SENDING
-    queue = QueueNames.CREATE_LETTERS_PDF if not test_key else QueueNames.RESEARCH_MODE
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    create_letters_pdf.apply_async([str(notification.id)], queue=queue)
-
-    if test_key:
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["preview", "development"]:
-            create_fake_letter_response_file.apply_async((notification.reference,), queue=queue)
-        else:
-            update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
-
-    return notification
-
-
-def process_precompiled_letter_notifications(*, letter_data, api_key, template, reply_to_text):
-    try:
-        status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data["content"])
-    except ValueError:
-        raise BadRequestError(
-            message="Cannot decode letter content (invalid base64 encoding)",
-            status_code=400,
-        )
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    filename = upload_letter_pdf(notification, letter_content, precompiled=True)
-
-    current_app.logger.info("Calling task scan-file for {}".format(filename))
-
-    # call task to add the filename to anti virus queue
-    if current_app.config["ANTIVIRUS_ENABLED"]:
-        notify_celery.send_task(
-            name=TaskNames.SCAN_FILE,
-            kwargs={"filename": filename},
-            queue=QueueNames.ANTIVIRUS,
-        )
-    else:
-        # stub out antivirus in dev
-        process_virus_scan_passed.apply_async(
-            kwargs={"filename": filename},
-            queue=QueueNames.LETTERS,
-        )
-
-    return notification
 
 
 def validate_sender_id(template, reply_to_id):

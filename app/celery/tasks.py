@@ -63,7 +63,6 @@ from app.models import (
     JOB_STATUS_PENDING,
     JOB_STATUS_SENDING_LIMITS_EXCEEDED,
     KEY_TYPE_NORMAL,
-    LETTER_TYPE,
     NORMAL,
     PRIORITY,
     SMS_TYPE,
@@ -515,9 +514,9 @@ def handle_batch_error_and_forward(
 def get_template_class(template_type):
     if template_type == SMS_TYPE:
         return SMSMessageTemplate
-    elif template_type in (EMAIL_TYPE, LETTER_TYPE):
-        # since we don't need rendering capabilities (we only need to extract placeholders) both email and letter can
-        # use the same base template
+    if template_type == EMAIL_TYPE:
+        # since we don't need rendering capabilities (we only need to extract placeholders) both emails can
+        # use the base template
         return WithSubjectTemplate
 
 

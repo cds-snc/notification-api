@@ -3,11 +3,7 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from app.dao.date_util import get_financial_year_for_datetime
-from app.dao.fact_billing_dao import (
-    fetch_letter_costs_for_all_services,
-    fetch_letter_line_items_for_all_services,
-    fetch_sms_billing_for_all_services,
-)
+from app.dao.fact_billing_dao import fetch_sms_billing_for_all_services
 from app.dao.fact_notification_status_dao import (
     fetch_notification_stats_for_trial_services,
     fetch_notification_status_totals_for_all_services,
@@ -71,16 +67,7 @@ def get_usage_for_all_services():
     start_date, end_date = validate_date_range_is_within_a_financial_year(start_date, end_date)
 
     sms_costs = fetch_sms_billing_for_all_services(start_date, end_date)
-    letter_costs = fetch_letter_costs_for_all_services(start_date, end_date)
-    letter_breakdown = fetch_letter_line_items_for_all_services(start_date, end_date)
 
-    lb_by_service = [
-        (
-            lb.service_id,
-            "{} {} class letters at {}p".format(lb.letters_sent, lb.postage, int(lb.letter_rate * 100)),
-        )
-        for lb in letter_breakdown
-    ]
     combined = {}
     for s in sms_costs:
         entry = {
@@ -90,28 +77,8 @@ def get_usage_for_all_services():
             "service_name": s.service_name,
             "sms_cost": float(s.sms_cost),
             "sms_fragments": s.chargeable_billable_sms,
-            "letter_cost": 0,
-            "letter_breakdown": "",
         }
         combined[s.service_id] = entry
-
-    for letter_cost in letter_costs:
-        if letter_cost.service_id in combined:
-            combined[letter_cost.service_id].update({"letter_cost": float(letter_cost.letter_cost)})
-        else:
-            letter_entry = {
-                "organisation_id": str(letter_cost.organisation_id) if letter_cost.organisation_id else "",
-                "organisation_name": letter_cost.organisation_name or "",
-                "service_id": str(letter_cost.service_id),
-                "service_name": letter_cost.service_name,
-                "sms_cost": 0,
-                "sms_fragments": 0,
-                "letter_cost": float(letter_cost.letter_cost),
-                "letter_breakdown": "",
-            }
-            combined[letter_cost.service_id] = letter_entry
-    for service_id, breakdown in lb_by_service:
-        combined[service_id]["letter_breakdown"] += breakdown + "\n"
 
     # sorting first by name == '' means that blank orgs will be sorted last.
     return jsonify(

@@ -13,7 +13,6 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
-from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
@@ -26,7 +25,6 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
-    LETTER_TYPE,
     NOTIFICATION_CREATED,
     SMS_TYPE,
     ApiKeyType,
@@ -128,8 +126,6 @@ def persist_notification(
         notification.rate_multiplier = recipient_info.billable_units
     elif notification_type == EMAIL_TYPE:
         notification.normalised_to = format_email_address(notification.to)
-    elif notification_type == LETTER_TYPE:
-        notification.postage = postage or template_postage
 
     # if simulated create a Notification model to return but do not persist the Notification to the dB
     if not simulated:
@@ -198,8 +194,6 @@ def transform_notification(
     elif notification_type == EMAIL_TYPE:
         notification.normalised_to = format_email_address(notification.to)
         notification.international = False
-    elif notification_type == LETTER_TYPE:
-        notification.postage = postage or template_postage
 
     return notification
 
@@ -236,9 +230,6 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
             queue = QueueNames.SEND_EMAIL
-    if notification.notification_type == LETTER_TYPE:
-        if not queue:
-            queue = QueueNames.CREATE_LETTERS_PDF
 
     return queue
 
@@ -250,8 +241,6 @@ def choose_deliver_task(notification):
             deliver_task = provider_tasks.deliver_throttled_sms
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
-        deliver_task = create_letters_pdf
 
     return deliver_task
 
@@ -271,10 +260,6 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL
         deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
-        if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.CREATE_LETTERS_PDF
-        deliver_task = create_letters_pdf
 
     try:
         deliver_task.apply_async([str(notification.id)], queue=queue)
@@ -348,8 +333,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             notification_obj.rate_multiplier = recipient_info.billable_units
         elif notification.get("notification_type") == EMAIL_TYPE:
             notification_obj.normalised_to = format_email_address(notification_recipient)
-        elif notification.get("notification_type") == LETTER_TYPE:
-            notification_obj.postage = notification.get("postage") or notification.get("template_postage")  # type: ignore
 
         lofnotifications.append(notification_obj)
         if notification.get("key_type") != KEY_TYPE_TEST:

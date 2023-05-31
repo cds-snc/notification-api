@@ -480,15 +480,6 @@ class TestSendNotificationQueue:
             (
                 True,
                 None,
-                "letter",
-                "normal",
-                None,
-                "research-mode-tasks",
-                "letters_pdf_tasks.create_letters_pdf",
-            ),
-            (
-                True,
-                None,
                 "sms",
                 "normal",
                 "+14383898585",
@@ -498,15 +489,6 @@ class TestSendNotificationQueue:
             (False, None, "sms", "normal", None, "send-sms-tasks", "deliver_sms"),
             (False, None, "email", "normal", None, "send-email-tasks", "deliver_email"),
             (False, None, "sms", "team", None, "send-sms-tasks", "deliver_sms"),
-            (
-                False,
-                None,
-                "letter",
-                "normal",
-                None,
-                "create-letters-pdf-tasks",
-                "letters_pdf_tasks.create_letters_pdf",
-            ),
             (False, None, "sms", "test", None, "research-mode-tasks", "deliver_sms"),
             (
                 False,
