@@ -42,9 +42,9 @@ def query_one(session: Salesforce, query: str) -> Optional[dict[str, Any]]:
         if results.get("totalSize") == 1:
             result = results.get("records")[0]
         else:
-            current_app.logger.warn(f"Salesforce no results found for query {query}")
+            current_app.logger.warn(f"SF_WARN Salesforce no results found for query {query}")
     except Exception as ex:
-        current_app.logger.error(f"Salesforce query {query} failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce query {query} failed: {ex}")
     return result
 
 
@@ -75,5 +75,5 @@ def parse_result(result: int | dict[str, Any], op: str) -> bool:
     if is_success:
         current_app.logger.info(f"{op} succeeded")
     else:
-        current_app.logger.error(f"{op} failed: {result}")
+        current_app.logger.error(f"SF_ERR {op} failed: {result}")
     return is_success
