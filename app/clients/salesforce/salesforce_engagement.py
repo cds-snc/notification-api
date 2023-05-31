@@ -76,10 +76,10 @@ def create(
                 parse_result(result, f"Salesforce Engagement OpportunityLineItem create for service ID {service.id}")
         else:
             current_app.logger.error(
-                f"Salesforce Engagement create failed: missing Account ID '{account_id}' or Contact ID '{contact_id}' for service ID {service.id}"
+                f"SF_ERR Salesforce Engagement create failed: missing Account ID '{account_id}' or Contact ID '{contact_id}' for service ID {service.id}"
             )
     except Exception as ex:
-        current_app.logger.error(f"Salesforce Engagement create failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce Engagement create failed: {ex}")
     return engagement_id
 
 
@@ -116,7 +116,7 @@ def update(
             engagement_id = create(session, service, field_updates, account_id, contact_id)
 
     except Exception as ex:
-        current_app.logger.error(f"Salesforce Engagement update failed: {ex}")
+        current_app.logger.error(f"SF_ERR Salesforce Engagement update failed: {ex}")
     return engagement_id
 
 

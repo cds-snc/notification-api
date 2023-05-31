@@ -12,9 +12,14 @@ from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
+from app.dao.organisation_dao import (
+    dao_add_service_to_organisation,
+    dao_update_organisation,
+)
 from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
+from app.template.rest import service_owned_by_a_province_or_territory
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_template,
@@ -25,6 +30,7 @@ from tests.app.conftest import (
 from tests.app.db import (
     create_letter_contact,
     create_notification,
+    create_organisation,
     create_service,
     create_template,
     create_template_folder,
@@ -1485,3 +1491,15 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
             ] == "Error extracting requested page from PDF file for notification_id {} type " "{} {}".format(
                 notification.id, type(PdfReadError()), error_message
             )
+
+
+def test_service_owned_by_a_province_or_territory():
+    some_service = create_service(service_name="service 2")
+    assert not service_owned_by_a_province_or_territory(some_service.id)
+
+    some_org = create_organisation()
+    dao_add_service_to_organisation(some_service, some_org.id)
+    assert not service_owned_by_a_province_or_territory(some_service.id)
+
+    dao_update_organisation(some_org.id, organisation_type="province_or_territory")
+    assert service_owned_by_a_province_or_territory(some_service.id)
