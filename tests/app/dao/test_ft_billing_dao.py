@@ -2,7 +2,6 @@ from calendar import monthrange
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
@@ -11,8 +10,6 @@ from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
     fetch_billing_totals_for_year,
-    fetch_letter_costs_for_all_services,
-    fetch_letter_line_items_for_all_services,
     fetch_monthly_billing_for_year,
     fetch_sms_billing_for_all_services,
     fetch_sms_free_allowance_remainder,
@@ -24,7 +21,6 @@ from app.models import NOTIFICATION_STATUS_TYPES, FactBilling, Notification
 from tests.app.db import (
     create_annual_billing,
     create_ft_billing,
-    create_letter_rate,
     create_notification,
     create_notification_history,
     create_organisation,
@@ -40,7 +36,6 @@ def set_up_yearly_data():
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
-    letter_template = create_template(service=service, template_type="letter")
     for year in (2016, 2017):
         for month in range(1, 13):
             mon = str(month).zfill(2)
@@ -59,22 +54,6 @@ def set_up_yearly_data():
                     template=email_template,
                     notification_type="email",
                     rate=0,
-                )
-                create_ft_billing(
-                    utc_date="{}-{}-{}".format(year, mon, d),
-                    service=service,
-                    template=letter_template,
-                    notification_type="letter",
-                    rate=0.33,
-                    postage="second",
-                )
-                create_ft_billing(
-                    utc_date="{}-{}-{}".format(year, mon, d),
-                    service=service,
-                    template=letter_template,
-                    notification_type="letter",
-                    rate=0.30,
-                    postage="second",
                 )
     return service
 
@@ -217,28 +196,22 @@ def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_se
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
-    letter_template = create_template(service=service, template_type="letter")
     save_notification(create_notification(template=sms_template, status="delivered"))
     save_notification(create_notification(template=sms_template, status="delivered"))
     save_notification(create_notification(template=sms_template, status="delivered"))
     save_notification(create_notification(template=email_template, status="delivered"))
     save_notification(create_notification(template=email_template, status="delivered"))
-    save_notification(create_notification(template=letter_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(today)
     assert len(results) == 3
-    notification_types = [x[2] for x in results if x[2] in ["email", "sms", "letter"]]
-    assert len(notification_types) == 3
+    notification_types = [x[2] for x in results if x[2] in ["email", "sms"]]
+    assert len(notification_types) == 2
 
 
 def test_fetch_billing_data_for_day_groups_by_postage(notify_db_session):
     service = create_service()
-    letter_template = create_template(service=service, template_type="letter")
     email_template = create_template(service=service, template_type="email")
-    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
-    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
-    save_notification(create_notification(template=letter_template, status="delivered", postage="second"))
     save_notification(create_notification(template=email_template, status="delivered"))
 
     today = convert_utc_to_local_timezone(datetime.utcnow())
@@ -308,32 +281,26 @@ def test_fetch_billing_data_for_day_bills_correctly_for_status(notify_db_session
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     email_template = create_template(service=service, template_type="email")
-    letter_template = create_template(service=service, template_type="letter")
     for status in NOTIFICATION_STATUS_TYPES:
         save_notification(create_notification(template=sms_template, status=status))
         save_notification(create_notification(template=email_template, status=status))
-        save_notification(create_notification(template=letter_template, status=status))
     today = convert_utc_to_local_timezone(datetime.utcnow())
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
 
     sms_results = [x for x in results if x[2] == "sms"]
     email_results = [x for x in results if x[2] == "email"]
-    letter_results = [x for x in results if x[2] == "letter"]
     assert 7 == sms_results[0][7]
     assert 7 == email_results[0][7]
-    assert 3 == letter_results[0][7]
 
 
 def test_get_rates_for_billing(notify_db_session):
     create_rate(start_date=datetime.utcnow(), value=12, notification_type="email")
     create_rate(start_date=datetime.utcnow(), value=22, notification_type="sms")
     create_rate(start_date=datetime.utcnow(), value=33, notification_type="email")
-    create_letter_rate(start_date=datetime.utcnow(), rate=0.66, post_class="first")
-    create_letter_rate(start_date=datetime.utcnow(), rate=0.33, post_class="second")
     non_letter_rates, letter_rates = get_rates_for_billing()
 
     assert len(non_letter_rates) == 3
-    assert len(letter_rates) == 2
+    assert len(letter_rates) == 0
 
 
 @freeze_time("2017-06-01 12:00")
@@ -341,8 +308,6 @@ def test_get_rate(notify_db_session):
     create_rate(start_date=datetime(2017, 5, 30, 23, 0), value=1.2, notification_type="email")
     create_rate(start_date=datetime(2017, 5, 30, 23, 0), value=2.2, notification_type="sms")
     create_rate(start_date=datetime(2017, 5, 30, 23, 0), value=3.3, notification_type="email")
-    create_letter_rate(start_date=datetime(2017, 5, 30, 23, 0), rate=0.66, post_class="first")
-    create_letter_rate(start_date=datetime(2017, 5, 30, 23, 0), rate=0.3, post_class="second")
 
     non_letter_rates, letter_rates = get_rates_for_billing()
     rate = get_rate(
@@ -351,81 +316,7 @@ def test_get_rate(notify_db_session):
         notification_type="sms",
         date=date(2017, 6, 1),
     )
-    letter_rate = get_rate(
-        non_letter_rates=non_letter_rates,
-        letter_rates=letter_rates,
-        notification_type="letter",
-        crown=True,
-        letter_page_count=1,
-        date=date(2017, 6, 1),
-    )
-
     assert rate == 2.2
-    assert letter_rate == Decimal("0.3")
-
-
-@pytest.mark.parametrize("letter_post_class,expected_rate", [("first", "0.61"), ("second", "0.35")])
-def test_get_rate_filters_letters_by_post_class(notify_db_session, letter_post_class, expected_rate):
-    create_letter_rate(
-        start_date=datetime(2017, 5, 30, 23, 0),
-        sheet_count=2,
-        rate=0.61,
-        post_class="first",
-    )
-    create_letter_rate(
-        start_date=datetime(2017, 5, 30, 23, 0),
-        sheet_count=2,
-        rate=0.35,
-        post_class="second",
-    )
-
-    non_letter_rates, letter_rates = get_rates_for_billing()
-    rate = get_rate(
-        non_letter_rates,
-        letter_rates,
-        "letter",
-        datetime(2018, 10, 1),
-        True,
-        2,
-        letter_post_class,
-    )
-    assert rate == Decimal(expected_rate)
-
-
-@pytest.mark.parametrize(
-    "date,expected_rate",
-    [(datetime(2018, 9, 30), "0.33"), (datetime(2018, 10, 1), "0.35")],
-)
-def test_get_rate_chooses_right_rate_depending_on_date(notify_db_session, date, expected_rate):
-    create_letter_rate(
-        start_date=datetime(2016, 1, 1, 0, 0),
-        sheet_count=2,
-        rate=0.33,
-        post_class="second",
-    )
-    create_letter_rate(
-        start_date=datetime(2018, 9, 30, 23, 0),
-        sheet_count=2,
-        rate=0.35,
-        post_class="second",
-    )
-
-    non_letter_rates, letter_rates = get_rates_for_billing()
-    rate = get_rate(non_letter_rates, letter_rates, "letter", date, True, 2, "second")
-    assert rate == Decimal(expected_rate)
-
-
-def test_get_rate_for_letters_when_page_count_is_zero(notify_db_session):
-    non_letter_rates, letter_rates = get_rates_for_billing()
-    letter_rate = get_rate(
-        non_letter_rates=non_letter_rates,
-        letter_rates=letter_rates,
-        notification_type="letter",
-        crown=True,
-        letter_page_count=0,
-        date=datetime.utcnow(),
-    )
-    assert letter_rate == 0
 
 
 def test_fetch_monthly_billing_for_year(notify_db_session):
@@ -501,16 +392,6 @@ def test_fetch_monthly_billing_for_year_return_financial_year(notify_db_session)
     assert results[0].notifications_sent == 30
     assert results[0].billable_units == 30
     assert results[0].rate == Decimal("0")
-    assert str(results[1].month) == "2016-04-01"
-    assert results[1].notification_type == "letter"
-    assert results[1].notifications_sent == 30
-    assert results[1].billable_units == 30
-    assert results[1].rate == Decimal("0.30")
-    assert str(results[1].month) == "2016-04-01"
-    assert results[2].notification_type == "letter"
-    assert results[2].notifications_sent == 30
-    assert results[2].billable_units == 30
-    assert results[2].rate == Decimal("0.33")
     assert str(results[3].month) == "2016-04-01"
     assert results[3].notification_type == "sms"
     assert results[3].notifications_sent == 30
@@ -529,16 +410,6 @@ def test_fetch_billing_totals_for_year(notify_db_session):
     assert results[0].notifications_sent == 365
     assert results[0].billable_units == 365
     assert results[0].rate == Decimal("0")
-
-    assert results[1].notification_type == "letter"
-    assert results[1].notifications_sent == 365
-    assert results[1].billable_units == 365
-    assert results[1].rate == Decimal("0.3")
-
-    assert results[2].notification_type == "letter"
-    assert results[2].notifications_sent == 365
-    assert results[2].billable_units == 365
-    assert results[2].rate == Decimal("0.33")
 
     assert results[3].notification_type == "sms"
     assert results[3].notifications_sent == 365
@@ -820,74 +691,4 @@ def test_fetch_sms_billing_for_all_services_without_an_organisation_appears(
         3,
         3,
         Decimal("0.33"),
-    )
-
-
-def test_fetch_letter_costs_for_all_services(notify_db_session):
-    org, org_2, service, service_2, service_3, service_sms_only = set_up_usage_data(datetime(2019, 6, 1))
-
-    results = fetch_letter_costs_for_all_services(datetime(2019, 6, 1), datetime(2019, 9, 30))
-
-    assert len(results) == 3
-    assert results[0] == (org.name, org.id, service.name, service.id, Decimal("3.40"))
-    assert results[1] == (
-        org_2.name,
-        org_2.id,
-        service_2.name,
-        service_2.id,
-        Decimal("14.00"),
-    )
-    assert results[2] == (None, None, service_3.name, service_3.id, Decimal("8.25"))
-
-
-def test_fetch_letter_line_items_for_all_service(notify_db_session):
-    org_1, org_2, service_1, service_2, service_3, service_sms_only = set_up_usage_data(datetime(2019, 6, 1))
-
-    results = fetch_letter_line_items_for_all_services(datetime(2019, 6, 1), datetime(2019, 9, 30))
-
-    assert len(results) == 5
-    assert results[0] == (
-        org_1.name,
-        org_1.id,
-        service_1.name,
-        service_1.id,
-        Decimal("0.45"),
-        "second",
-        6,
-    )
-    assert results[1] == (
-        org_1.name,
-        org_1.id,
-        service_1.name,
-        service_1.id,
-        Decimal("0.35"),
-        "first",
-        2,
-    )
-    assert results[2] == (
-        org_2.name,
-        org_2.id,
-        service_2.name,
-        service_2.id,
-        Decimal("0.65"),
-        "second",
-        20,
-    )
-    assert results[3] == (
-        org_2.name,
-        org_2.id,
-        service_2.name,
-        service_2.id,
-        Decimal("0.50"),
-        "first",
-        2,
-    )
-    assert results[4] == (
-        None,
-        None,
-        service_3.name,
-        service_3.id,
-        Decimal("0.55"),
-        "second",
-        15,
     )
