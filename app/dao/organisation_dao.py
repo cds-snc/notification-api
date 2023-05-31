@@ -43,7 +43,7 @@ def dao_get_organisation_by_email_address(email_address):
     return None
 
 
-def dao_get_organisation_by_service_id(service_id):
+def dao_get_organisation_by_service_id(service_id) -> Organisation:
     return Organisation.query.join(Organisation.services).filter_by(id=service_id).first()
 
 
