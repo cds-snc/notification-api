@@ -1,15 +1,5 @@
-from app.models import (
-    NOTIFICATION_STATUS_LETTER_ACCEPTED,
-    NOTIFICATION_STATUS_LETTER_RECEIVED,
-    NOTIFICATION_STATUS_TYPES,
-    TEMPLATE_TYPES,
-)
-from app.schema_validation.definitions import (
-    letter_personalisation,
-    nullable_uuid,
-    personalisation,
-    uuid,
-)
+from app.models import NOTIFICATION_STATUS_TYPES, TEMPLATE_TYPES
+from app.schema_validation.definitions import nullable_uuid, personalisation, uuid
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -92,10 +82,7 @@ get_notifications_request = {
         "reference": {"type": "string"},
         "status": {
             "type": "array",
-            "items": {
-                "enum": NOTIFICATION_STATUS_TYPES
-                + [NOTIFICATION_STATUS_LETTER_ACCEPTED + ", " + NOTIFICATION_STATUS_LETTER_RECEIVED]
-            },
+            "items": {"enum": NOTIFICATION_STATUS_TYPES},
         },
         "template_type": {"type": "array", "items": {"enum": TEMPLATE_TYPES}},
         "include_jobs": {"enum": ["true", "True"]},
@@ -216,60 +203,6 @@ post_email_response = {
         "uri": {"type": "string", "format": "uri"},
         "template": template,
         "scheduled_for": {"type": ["string", "null"]},
-    },
-    "required": ["id", "content", "uri", "template"],
-}
-
-post_letter_request = {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "POST letter notification schema",
-    "type": "object",
-    "title": "POST v2/notifications/letter",
-    "properties": {
-        "reference": {"type": "string"},
-        "template_id": uuid,
-        "personalisation": letter_personalisation,
-    },
-    "required": ["template_id", "personalisation"],
-    "additionalProperties": False,
-}
-
-post_precompiled_letter_request = {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "POST precompiled letter notification schema",
-    "type": "object",
-    "title": "POST v2/notifications/letter",
-    "properties": {
-        "reference": {"type": "string"},
-        "content": {"type": "string"},
-        "postage": {"type": "string", "format": "postage"},
-    },
-    "required": ["reference", "content"],
-    "additionalProperties": False,
-}
-
-letter_content = {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "Letter content for POST letter notification",
-    "type": "object",
-    "title": "notification letter content",
-    "properties": {"body": {"type": "string"}, "subject": {"type": "string"}},
-    "required": ["body", "subject"],
-}
-
-post_letter_response = {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "POST sms notification response schema",
-    "type": "object",
-    "title": "response v2/notifications/letter",
-    "properties": {
-        "id": uuid,
-        "reference": {"type": ["string", "null"]},
-        "content": letter_content,
-        "uri": {"type": "string", "format": "uri"},
-        "template": template,
-        # letters cannot be scheduled
-        "scheduled_for": {"type": "null"},
     },
     "required": ["id", "content", "uri", "template"],
 }
