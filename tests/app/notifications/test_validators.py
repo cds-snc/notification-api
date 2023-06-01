@@ -41,10 +41,7 @@ from tests.app.conftest import (
     create_sample_service,
     create_sample_service_safelist,
 )
-from tests.app.db import (
-    create_reply_to_email,
-    create_service_sms_sender,
-)
+from tests.app.db import create_reply_to_email, create_service_sms_sender
 from tests.conftest import set_config
 
 

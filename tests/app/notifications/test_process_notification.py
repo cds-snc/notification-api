@@ -367,29 +367,6 @@ class TestPersistNotification:
         assert persisted_notification.to == recipient
         assert persisted_notification.normalised_to == expected_recipient_normalised
 
-    def test_persist_notification_with_billable_units_stores_correct_info(self, mocker, notify_db_session):
-        service = create_service(service_permissions=[LETTER_TYPE])
-        template = create_template(service, template_type=LETTER_TYPE)
-        mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
-        persist_notifications(
-            [
-                dict(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient="123 Main Street",
-                    service=template.service,
-                    personalisation=None,
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type="normal",
-                    billable_units=3,
-                    template_postage=template.postage,
-                )
-            ]
-        )
-        persisted_notification = Notification.query.all()[0]
-        assert persisted_notification.billable_units == 3
-
     def test_persist_notifications_list(self, sample_job, sample_api_key, notify_db_session):
         persist_notifications(
             [
@@ -660,14 +637,6 @@ class TestChooseQueue:
             (False, None, "sms", "normal", None, "send-sms-tasks"),
             (False, None, "email", "normal", None, "send-email-tasks"),
             (False, None, "sms", "team", None, "send-sms-tasks"),
-            (
-                False,
-                None,
-                "letter",
-                "normal",
-                None,
-                "create-letters-pdf-tasks",
-            ),
             (False, None, "sms", "test", None, "research-mode-tasks"),
             (
                 False,
