@@ -138,9 +138,12 @@ def link_service_to_organisation(organisation_id):
     dao_add_service_to_organisation(service, organisation_id)
 
     # if organisation is P/T, set data retention to 3 days
-    org = dao_get_organisation_by_id(organisation_id)
-    if org.organisation_type == "province_or_territory":
-        set_pt_data_retention(service.id)
+    try:
+        org = dao_get_organisation_by_id(organisation_id)
+        if org.organisation_type == "province_or_territory":
+            set_pt_data_retention(service.id)
+    except Exception as e:
+        current_app.logger.error(f"Error setting data retention for service: {service.id}, Error: {e}")
 
     return "", 204
 
