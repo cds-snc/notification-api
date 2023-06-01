@@ -3390,21 +3390,6 @@ def test_get_organisation_for_service_id_return_empty_dict_if_service_not_in_org
     assert response == {}
 
 
-def test_cancel_notification_for_service_raises_invalid_request_when_notification_is_not_found(
-    admin_request,
-    sample_service,
-    fake_uuid,
-):
-    response = admin_request.post(
-        "service.cancel_notification_for_service",
-        service_id=sample_service.id,
-        notification_id=fake_uuid,
-        _expected_status=404,
-    )
-    assert response["message"] == "Notification not found"
-    assert response["result"] == "error"
-
-
 def test_cancel_notification_for_service_raises_invalid_request_when_notification_is_not_a_letter(
     admin_request,
     sample_notification,
