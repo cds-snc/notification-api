@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
@@ -21,8 +21,9 @@ from app.models import (
 
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_create_template(template):
-    template.id = uuid.uuid4()  # must be set now so version history model can use same id
+def dao_create_template(template, template_id: Optional[uuid.UUID] = None):
+    # must be set now so version history model can use same id
+    template.id = uuid.uuid4() if not template_id else template_id
 
     redacted_dict = {
         "template": template,

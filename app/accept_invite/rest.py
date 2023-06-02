@@ -17,12 +17,7 @@ def validate_invitation_token(invitation_type, token):
     max_age_seconds = 60 * 60 * 24 * current_app.config["INVITATION_EXPIRATION_DAYS"]
 
     try:
-        invited_user_id = check_token(
-            token,
-            current_app.config["SECRET_KEY"],
-            current_app.config["DANGEROUS_SALT"],
-            max_age_seconds,
-        )
+        invited_user_id = check_token(token=token, secret=current_app.config["SECRET_KEY"], max_age_seconds=max_age_seconds)
     except SignatureExpired:
         errors = {"invitation": "invitation expired"}
         raise InvalidRequest(errors, status_code=400)

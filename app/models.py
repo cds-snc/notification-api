@@ -391,6 +391,7 @@ class Domain(BaseModel):
 
 ORGANISATION_TYPES = [
     "central",
+    "province_or_territory",
     "local",
     "nhs_central",
     "nhs_local",
@@ -1760,7 +1761,7 @@ class Notification(BaseModel):
 
     @property
     def formatted_status(self):
-        if current_app.config["FF_BOUNCE_RATE_V1"]:
+        if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
 
             def _getStatusByBounceSubtype():
                 """Return the status of a notification based on the bounce sub type"""
@@ -1783,6 +1784,9 @@ class Notification(BaseModel):
                     "sending": "In transit",
                     "created": "In transit",
                     "sent": "Delivered",
+                    "pending": "In transit",
+                    "pending-virus-check": "In transit",
+                    "pii-check-failed": "Exceeds Protected A",
                 },
                 "sms": {
                     "failed": "Failed",
@@ -1792,6 +1796,7 @@ class Notification(BaseModel):
                     "delivered": "Delivered",
                     "sending": "In transit",
                     "created": "In transit",
+                    "pending": "In transit",
                     "sent": "Sent",
                 },
                 "letter": {
@@ -1804,7 +1809,7 @@ class Notification(BaseModel):
             }[self.template.template_type].get(self.status, self.status)
 
         # -----------------
-        # remove this code when FF_BOUNCE_RATE_V1 is removed
+        # remove this code when FF_BOUNCE_RATE_BACKEND is removed
         # -----------------
         return {
             "email": {
@@ -1908,6 +1913,7 @@ class Notification(BaseModel):
             "postcode": None,
             "type": self.notification_type,
             "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.status,
+            "status_description": self.formatted_status,
             "provider_response": self.provider_response,
             "template": template_dict,
             "body": self.content,
