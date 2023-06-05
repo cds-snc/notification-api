@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--chunk", default=25000, type=int, help="size of chunks of notifications to resign at a time (default 25000)")
     parser.add_argument("-r", "--resign", default=False, action='store_true', help="resign columns (default false)")
     parser.add_argument("-u", "--unsafe", default=False, action='store_true', help="ignore bad signatures (default false)")
-    
+
     args = parser.parse_args()
 
     load_dotenv()
