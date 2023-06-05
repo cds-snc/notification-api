@@ -68,13 +68,15 @@ class CryptoSigner:
 
     def verify(self, to_verify: str | bytes) -> Any:
         """Checks the signature of a signed value and returns the original value.
-        Raises BadSignature if the signature is invalid.
 
         Args:
             to_verify (str | bytes): The signed value to check
 
         Returns:
             Original value if signature is valid, raises BadSignature otherwise
+            
+        Raises:
+            BadSignature: If the signature is invalid
         """
         return self.serializer.loads(to_verify, salt=self.salt)
 
