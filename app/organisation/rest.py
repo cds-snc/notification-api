@@ -16,7 +16,6 @@ from app.dao.organisation_dao import (
 from app.dao.service_data_retention_dao import (
     fetch_service_data_retention_by_notification_type,
     insert_service_data_retention,
-    update_service_data_retention,
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
@@ -114,13 +113,7 @@ def set_pt_data_retention(service_id):
     for notification_type in ["email", "sms"]:
         data_retention = fetch_service_data_retention_by_notification_type(service_id, notification_type)
 
-        if data_retention:
-            update_service_data_retention(
-                service_data_retention_id=data_retention.id,
-                service_id=service_id,
-                days_of_retention=PT_DATA_RETENTION_DAYS,
-            )
-        else:
+        if not data_retention:
             insert_service_data_retention(
                 service_id=service_id,
                 notification_type=notification_type,

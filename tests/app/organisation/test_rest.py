@@ -8,7 +8,6 @@ from app.dao.organisation_dao import (
 )
 from app.dao.service_data_retention_dao import (
     fetch_service_data_retention_by_notification_type,
-    insert_service_data_retention,
 )
 from app.models import Organisation
 from tests.app.db import (
@@ -577,40 +576,6 @@ def test_link_service_to_pt_organisation(admin_request, sample_service, sample_o
     email_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "email")
     sms_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "sms")
 
-    assert email_retention.days_of_retention == 3
-    assert sms_retention.days_of_retention == 3
-
-
-@pytest.mark.parametrize(
-    "notification_type",
-    [
-        ("email"),
-        ("sms"),
-    ],
-)
-def test_link_service_to_pt_organisation_with_existing_data_retention(
-    admin_request, sample_service, sample_organisation, notification_type
-):
-    data = {"service_id": str(sample_service.id)}
-    sample_organisation.organisation_type = "province_or_territory"
-
-    insert_service_data_retention(
-        service_id=sample_service.id,
-        notification_type=notification_type,
-        days_of_retention=5,
-    )
-
-    admin_request.post(
-        "organisation.link_service_to_organisation",
-        _data=data,
-        organisation_id=sample_organisation.id,
-        _expected_status=204,
-    )
-
-    assert len(sample_organisation.services) == 1
-
-    email_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "email")
-    sms_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "sms")
     assert email_retention.days_of_retention == 3
     assert sms_retention.days_of_retention == 3
 
