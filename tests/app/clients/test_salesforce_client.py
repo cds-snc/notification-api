@@ -170,3 +170,39 @@ def test_engagement_close_no_engagement(mocker, salesforce_client):
     mock_get_engagement_by_service_id.assert_called_once_with("session", mock_service.id)
     mock_update.assert_not_called()
     mock_end_session.assert_called_once_with("session")
+
+
+def test_engagement_add_contact_role(mocker, salesforce_client):
+    mock_get_session = mocker.patch.object(salesforce_client, "get_session", return_value="session")
+    mock_contact_update_account_id = mocker.patch.object(
+        salesforce_client, "contact_update_account_id", return_value=("account_id", "contact_id")
+    )
+    mock_contact_role_add = mocker.patch.object(salesforce_engagement, "contact_role_add")
+    mock_end_session = mocker.patch.object(salesforce_client, "end_session")
+    mock_service = mocker.MagicMock()
+    mock_service.organisation_notes = "account_name > service_name"
+
+    salesforce_client.engagement_add_contact_role(mock_service, "user")
+
+    mock_get_session.assert_called_once()
+    mock_contact_update_account_id.assert_called_once_with("session", mock_service, "user")
+    mock_contact_role_add.assert_called_once_with("session", mock_service, "account_id", "contact_id")
+    mock_end_session.assert_called_once_with("session")
+
+
+def test_engagement_delete_contact_role(mocker, salesforce_client):
+    mock_get_session = mocker.patch.object(salesforce_client, "get_session", return_value="session")
+    mock_contact_update_account_id = mocker.patch.object(
+        salesforce_client, "contact_update_account_id", return_value=("account_id", "contact_id")
+    )
+    mock_contact_role_delete = mocker.patch.object(salesforce_engagement, "contact_role_delete")
+    mock_end_session = mocker.patch.object(salesforce_client, "end_session")
+    mock_service = mocker.MagicMock()
+    mock_service.organisation_notes = "account_name > service_name"
+
+    salesforce_client.engagement_delete_contact_role(mock_service, "user")
+
+    mock_get_session.assert_called_once()
+    mock_contact_update_account_id.assert_called_once_with("session", mock_service, "user")
+    mock_contact_role_delete.assert_called_once_with("session", mock_service, "account_id", "contact_id")
+    mock_end_session.assert_called_once_with("session")
