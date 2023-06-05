@@ -12,14 +12,11 @@ from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
-from app.dao.organisation_dao import (
-    dao_add_service_to_organisation,
-    dao_update_organisation,
-)
+from app.dao.organisation_dao import dao_update_organisation
 from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
-from app.template.rest import service_owned_by_a_province_or_territory
+from app.template.rest import should_template_be_redacted
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_template,
@@ -94,8 +91,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
     assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
 
 
-def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service, mocker):
-    # mocker.patch("app.template.rest.service_owned_by_a_province_or_territory", return_value=False)
+def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
 
     parent_folder = create_template_folder(service=sample_service, name="parent folder")
 
@@ -1495,13 +1491,10 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
             )
 
 
-def test_service_owned_by_a_province_or_territory():
-    some_service = create_service(service_name="service 2")
-    assert not service_owned_by_a_province_or_territory(some_service.id)
+def test_should_template_be_redacted():
 
     some_org = create_organisation()
-    dao_add_service_to_organisation(some_service, some_org.id)
-    assert not service_owned_by_a_province_or_territory(some_service.id)
+    assert not should_template_be_redacted(some_org)
 
     dao_update_organisation(some_org.id, organisation_type="province_or_territory")
-    assert service_owned_by_a_province_or_territory(some_service.id)
+    assert should_template_be_redacted(some_org)
