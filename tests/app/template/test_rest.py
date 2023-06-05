@@ -113,7 +113,7 @@ def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sa
     )
     assert response.status_code == 201
     template = Template.query.filter(Template.name == "my template").first()
-    # assert template.folder == parent_folder
+    assert template.folder == parent_folder
 
 
 @pytest.mark.parametrize(
