@@ -21,13 +21,13 @@ from app.models import (
 
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_create_template(template, template_id: Optional[uuid.UUID] = None):
+def dao_create_template(template, redact_personalisation=False):
     # must be set now so version history model can use same id
-    template.id = uuid.uuid4() if not template_id else template_id
+    template.id = uuid.uuid4()
 
     redacted_dict = {
         "template": template,
-        "redact_personalisation": False,
+        "redact_personalisation": redact_personalisation,
     }
     if template.created_by:
         redacted_dict.update({"updated_by": template.created_by})

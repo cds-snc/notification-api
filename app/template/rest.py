@@ -60,8 +60,7 @@ def validate_parent_folder(template_json):
         return None
 
 
-def service_owned_by_a_province_or_territory(service_id: str) -> bool:
-    organisation = dao_get_organisation_by_service_id(service_id=service_id)
+def is_org_a_province_or_territory(organisation) -> bool:
     try:
         return organisation.organisation_type == "province_or_territory"
     except AttributeError:
@@ -74,6 +73,7 @@ def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
     permissions = fetched_service.permissions
+    org = fetched_service.organisation
     template_json = validate(request.get_json(), post_create_template_schema)
     folder = validate_parent_folder(template_json=template_json)
     new_template = Template.from_json(template_json, folder)
@@ -96,15 +96,8 @@ def create_template(service_id):
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
-    template_id = uuid.uuid4()
-    dao_create_template(new_template, template_id=template_id)
-
-    if service_owned_by_a_province_or_territory(service_id):
-        try:
-            fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-            dao_redact_template(fetched_template, template_json["created_by"])
-        except NoResultFound:
-            current_app.logger.error(f"Template not found for redaction. service_id: {service_id}, template_id: {template_id}")
+    redact_personalisation = is_org_a_province_or_territory(org)
+    dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
     return jsonify(data=template_schema.dump(new_template).data), 201
 
