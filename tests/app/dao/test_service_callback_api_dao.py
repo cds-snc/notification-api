@@ -180,7 +180,8 @@ def test_get_service_delivery_status_callback_api_for_service(sample_service):
 
 
 class TestResigning:
-    def test_resign_callbacks_resigns_with_new_key(self, sample_service):
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_callbacks_resigns_or_previews(self, resign, sample_service):
         from app import signer_bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
@@ -189,10 +190,13 @@ class TestResigning:
             _bearer_token = initial_callback._bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k2", "k3"]):
-            resign_service_callbacks()
+            resign_service_callbacks(resign=resign)
             callback = ServiceCallbackApi.query.get(initial_callback.id)
             assert callback.bearer_token == bearer_token  # unsigned value is the same
-            assert callback._bearer_token != _bearer_token  # signature is different
+            if resign:
+                assert callback._bearer_token != _bearer_token  # signature is different
+            else:
+                assert callback._bearer_token == _bearer_token  # signature is the same
 
     def test_resign_callbacks_fails_if_cannot_verify_signatures(self, sample_service):
         from app import signer_bearer_token
@@ -202,7 +206,7 @@ class TestResigning:
 
         with set_signer_secret_key(signer_bearer_token, ["k3"]):
             with pytest.raises(BadSignature):
-                resign_service_callbacks()
+                resign_service_callbacks(resign=True)
 
     def test_resign_callbacks_unsafe_resigns_with_new_key(self, sample_service):
         from app import signer_bearer_token
@@ -213,7 +217,7 @@ class TestResigning:
             _bearer_token = initial_callback._bearer_token
 
         with set_signer_secret_key(signer_bearer_token, ["k3"]):
-            resign_service_callbacks(unsafe=True)
+            resign_service_callbacks(resign=True, unsafe=True)
             callback = ServiceCallbackApi.query.get(initial_callback.id)
             assert callback.bearer_token == bearer_token  # unsigned value is the same
             assert callback._bearer_token != _bearer_token  # signature is different
