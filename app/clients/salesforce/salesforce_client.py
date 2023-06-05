@@ -132,3 +132,27 @@ class SalesforceClient:
             }
             salesforce_engagement.update(session, service, close_update, None, None)
         self.end_session(session)
+
+    def engagement_add_contact_role(self, service: Service, user: User) -> None:
+        """Adds a Salesforce ContactRole to an Engagement.
+
+        Args:
+            service (Service): Notify Service that will have its Engagement's ContactRoles updated.
+            user (User): Notify User being added as a ContactRole.
+        """
+        session = self.get_session()
+        account_id, contact_id = self.contact_update_account_id(session, service, user)
+        salesforce_engagement.contact_role_add(session, service, account_id, contact_id)
+        self.end_session(session)
+
+    def engagement_delete_contact_role(self, service: Service, user: User) -> None:
+        """Deletes a Salesforce ContactRole from an Engagement.
+
+        Args:
+            service (Service): Notify Service that will have its Engagement's ContactRoles updated.
+            user (User): Notify User being deleted as a ContactRole.
+        """
+        session = self.get_session()
+        account_id, contact_id = self.contact_update_account_id(session, service, user)
+        salesforce_engagement.contact_role_delete(session, service, account_id, contact_id)
+        self.end_session(session)
