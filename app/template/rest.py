@@ -96,15 +96,8 @@ def create_template(service_id):
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
-    template_id = uuid.uuid4()
-    dao_create_template(new_template, template_id=template_id)
-
-    if service_owned_by_a_province_or_territory(service_id):
-        try:
-            fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-            dao_redact_template(fetched_template, template_json["created_by"])
-        except NoResultFound:
-            current_app.logger.error(f"Template not found for redaction. service_id: {service_id}, template_id: {template_id}")
+    redact_personalisation = service_owned_by_a_province_or_territory(service_id)
+    dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
     return jsonify(data=template_schema.dump(new_template).data), 201
 
