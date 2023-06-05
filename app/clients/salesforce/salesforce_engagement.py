@@ -120,6 +120,59 @@ def update(
     return engagement_id
 
 
+def contact_role_add(session: Salesforce, service: Service, account_id: Optional[str], contact_id: Optional[str]) -> None:
+    """Adds an Engagement ContactRole based on the provided Notify service and Contact.  If the
+    Engagement does not exist, it is created.
+
+    Args:
+        session (Salesforce): Salesforce session to perform the operation.
+        service (Service): The service's details for the engagement.
+        account_id (Optional[str]): Salesforce Account ID to associate with the Engagement.
+        contact_id (Optional[str]): Salesforce Contact ID for the Engagement's ContactRole.
+
+    Returns:
+        None
+    """
+    try:
+        engagement = get_engagement_by_service_id(session, str(service.id))
+        if engagement:
+            result = session.OpportunityContactRole.create(
+                {"ContactId": contact_id, "OpportunityId": engagement.get("Id")},
+                headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
+            )
+        else:
+            result = create(session, service, {}, account_id, contact_id)  # This implicitly creates the ContactRole
+        parse_result(result, f"Salesforce ContactRole add for {contact_id} with '{service.id}'")
+    except Exception as ex:
+        current_app.logger.error(f"SF_ERR Salesforce ContactRole add for {contact_id} with '{service.id}' failed: {ex}")
+
+
+def contact_role_delete(session: Salesforce, service: Service, account_id: Optional[str], contact_id: Optional[str]) -> None:
+    """Deletes an Engagement ContactRole based on the provided Notify service and Salesforce Contact.
+    If the Engagement does not exist, it is created.
+
+    Args:
+        session (Salesforce): Salesforce session to perform the operation.
+        service (Service): The service's details for the engagement.
+        account_id (Optional[str]): Salesforce Account ID to associate with the Engagement.
+        contact_id (Optional[str]): Salesforce Contact ID to remove as a ContactRole.
+
+    Returns:
+        None
+    """
+    try:
+        result = {}
+        engagement = get_engagement_by_service_id(session, str(service.id))
+        engagement_id = engagement.get("Id") if engagement else create(session, service, {}, account_id, contact_id)
+        engagement_contact_role = get_engagement_contact_role(session, engagement_id, contact_id)
+
+        if engagement_contact_role:
+            result = session.OpportunityContactRole.delete(engagement_contact_role.get("Id"))
+        parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
+    except Exception as ex:
+        current_app.logger.error(f"SF_ERR Salesforce ContactRole delete for {contact_id} with '{service.id}' failed: {ex}")
+
+
 def get_engagement_by_service_id(session: Salesforce, service_id: str) -> Optional[dict[str, Any]]:
     """Retrieve a Salesforce Engagement by a Notify service ID
 
@@ -133,5 +186,25 @@ def get_engagement_by_service_id(session: Salesforce, service_id: str) -> Option
     result = None
     if isinstance(service_id, str) and service_id.strip():
         query = f"SELECT Id, Name, ContactId, AccountId FROM Opportunity where CDS_Opportunity_Number__c = '{query_param_sanitize(service_id)}' LIMIT 1"
+        result = query_one(session, query)
+    return result
+
+
+def get_engagement_contact_role(
+    session: Salesforce, engagement_id: Optional[str], contact_id: Optional[str]
+) -> Optional[dict[str, Any]]:
+    """Retrieve a Salesforce Engagement ContactRole.
+
+    Args:
+        session (Salesforce): Salesforce session to perform the operation.
+        engagement_id (str): Salesforce Engagement ID
+        contact_id (str): Salesforce Contact ID
+
+    Returns:
+        Optional[dict[str, str]]: Salesforce Engagement ContactRole details or None if can't be found
+    """
+    result = None
+    if isinstance(engagement_id, str) and engagement_id.strip() and isinstance(contact_id, str) and contact_id.strip():
+        query = f"SELECT Id, OpportunityId, ContactId FROM OpportunityContactRole WHERE OpportunityId = '{query_param_sanitize(engagement_id)}' AND ContactId = '{query_param_sanitize(contact_id)}' LIMIT 1"
         result = query_one(session, query)
     return result
