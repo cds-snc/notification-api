@@ -27,7 +27,7 @@ from app.dao.templates_dao import (
 )
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import get_letter_pdf
-from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Template
+from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Service, Template
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
 from app.schemas import template_history_schema, template_schema
@@ -59,12 +59,12 @@ def validate_parent_folder(template_json):
         return None
 
 
-def service_owned_by_a_province_or_territory(service_id: str) -> bool:
-    organisation = dao_get_organisation_by_service_id(service_id=service_id)
+def service_owned_by_a_province_or_territory(service: Service) -> bool:
     try:
-        return organisation.organisation_type == "province_or_territory"
-    except AttributeError:
+        return service.organisation.organisation_type == "province_or_territory"
+    except Exception as e:
         # service has no organisation
+        current_app.logger.error(f"Can't get organisation: {e}")
         return False
 
 
@@ -95,7 +95,7 @@ def create_template(service_id):
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
-    redact_personalisation = service_owned_by_a_province_or_territory(service_id)
+    redact_personalisation = service_owned_by_a_province_or_territory(fetched_service)
     dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
     return jsonify(data=template_schema.dump(new_template).data), 201

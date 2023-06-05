@@ -52,11 +52,10 @@ def test_create_template(sample_service, sample_user, template_type, subject, re
     assert len(dao_get_all_templates_for_service(sample_service.id)) == 1
     assert dao_get_all_templates_for_service(sample_service.id)[0].name == "Sample Template"
     assert dao_get_all_templates_for_service(sample_service.id)[0].process_type == "normal"
-    if redact_personalisation:
-        assert (
-            dao_get_all_templates_for_service(sample_service.id)[0].template_redacted.redact_personalisation
-            == redact_personalisation
-        )
+    assert (
+        dao_get_all_templates_for_service(sample_service.id)[0].template_redacted.redact_personalisation
+        == redact_personalisation
+    )
 
 
 def test_create_template_creates_redact_entry(sample_service):
