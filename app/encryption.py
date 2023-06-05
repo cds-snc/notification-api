@@ -74,7 +74,7 @@ class CryptoSigner:
 
         Returns:
             Original value if signature is valid, raises BadSignature otherwise
-            
+
         Raises:
             BadSignature: If the signature is invalid
         """
