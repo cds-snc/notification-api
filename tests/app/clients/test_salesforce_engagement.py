@@ -2,8 +2,11 @@ import pytest
 
 from app.clients.salesforce import salesforce_engagement
 from app.clients.salesforce.salesforce_engagement import (
+    contact_role_add,
+    contact_role_delete,
     create,
     get_engagement_by_service_id,
+    get_engagement_contact_role,
     update,
 )
 from app.models import Service
@@ -157,6 +160,69 @@ def test_update_stage_failed(mocker, notify_api, service):
         assert update(mock_session, service, {"StageName": "potatoes"}, "account_id", "contact_id") is None
 
 
+def test_contact_role_add(mocker, notify_api, service):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_get_engagement_by_service_id = mocker.patch.object(
+            salesforce_engagement, "get_engagement_by_service_id", return_value={"Id": "42"}
+        )
+        mock_session.OpportunityContactRole.create.return_value = {"success": True, "Id": "42"}
+
+        assert contact_role_add(mock_session, service, "1", "2") is None
+        mock_session.OpportunityContactRole.create.assert_called_with(
+            {"ContactId": "2", "OpportunityId": "42"}, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
+        )
+        mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
+
+
+def test_contact_role_add_create_engagement(mocker, notify_api, service):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_get_engagement_by_service_id = mocker.patch.object(
+            salesforce_engagement, "get_engagement_by_service_id", return_value=None
+        )
+        mock_create = mocker.patch.object(salesforce_engagement, "create", return_value=None)
+        mock_session.OpportunityContactRole.create.return_value = {"success": True, "Id": "42"}
+
+        assert contact_role_add(mock_session, service, "1", "2") is None
+        mock_session.OpportunityContactRole.create.assert_not_called()
+        mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
+        mock_create.assert_called_with(mock_session, service, {}, "1", "2")
+
+
+def test_contact_role_delete(mocker, notify_api, service):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_get_engagement_by_service_id = mocker.patch.object(
+            salesforce_engagement, "get_engagement_by_service_id", return_value={"Id": "42"}
+        )
+        mock_get_engagement_contact_role = mocker.patch.object(
+            salesforce_engagement, "get_engagement_contact_role", return_value={"Id": "1024"}
+        )
+        mock_session.OpportunityContactRole.delete.return_value = {"success": True}
+
+        assert contact_role_delete(mock_session, service, "1", "2") is None
+        mock_session.OpportunityContactRole.delete.assert_called_with("1024")
+        mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
+        mock_get_engagement_contact_role.assert_called_with(mock_session, "42", "2")
+
+
+def test_contact_role_delete_no_contact_role(mocker, notify_api, service):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_get_engagement_by_service_id = mocker.patch.object(
+            salesforce_engagement, "get_engagement_by_service_id", return_value={"Id": "42"}
+        )
+        mock_get_engagement_contact_role = mocker.patch.object(
+            salesforce_engagement, "get_engagement_contact_role", return_value=None
+        )
+
+        assert contact_role_delete(mock_session, service, "1", "2") is None
+        mock_session.OpportunityContactRole.delete.assert_not_called()
+        mock_get_engagement_by_service_id.assert_called_with(mock_session, "3")
+        mock_get_engagement_contact_role.assert_called_with(mock_session, "42", "2")
+
+
 def test_get_engagement_by_service_id(mocker, notify_api):
     with notify_api.app_context():
         mock_session = mocker.MagicMock()
@@ -174,3 +240,28 @@ def test_get_engagement_by_service_id_blank(mocker, notify_api):
         assert get_engagement_by_service_id(mock_session, None) is None
         assert get_engagement_by_service_id(mock_session, "") is None
         assert get_engagement_by_service_id(mock_session, "       ") is None
+
+
+def test_get_engagement_contact_role(mocker, notify_api):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        mock_query_one = mocker.patch.object(
+            salesforce_engagement, "query_one", return_value={"Id": "42", "OpportunityId": "1", "ContactId": "2"}
+        )
+
+        assert get_engagement_contact_role(mock_session, "1", "2") == {"Id": "42", "OpportunityId": "1", "ContactId": "2"}
+        mock_query_one.assert_called_with(
+            mock_session,
+            "SELECT Id, OpportunityId, ContactId FROM OpportunityContactRole WHERE OpportunityId = '1' AND ContactId = '2' LIMIT 1",
+        )
+
+
+def test_get_engagement_contact_role_blank(mocker, notify_api):
+    with notify_api.app_context():
+        mock_session = mocker.MagicMock()
+        assert get_engagement_contact_role(mock_session, None, None) is None
+        assert get_engagement_contact_role(mock_session, "", "") is None
+        assert get_engagement_contact_role(mock_session, "       ", "       ") is None
+        assert get_engagement_contact_role(mock_session, "1", None) is None
+        assert get_engagement_contact_role(mock_session, "", "2") is None
+        assert get_engagement_contact_role(mock_session, "3", "       ") is None
