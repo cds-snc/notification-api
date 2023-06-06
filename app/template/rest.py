@@ -26,7 +26,7 @@ from app.dao.templates_dao import (
 )
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import get_letter_pdf
-from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Template
+from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Organisation, Template
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
 from app.schemas import template_history_schema, template_schema
@@ -58,11 +58,20 @@ def validate_parent_folder(template_json):
         return None
 
 
+def should_template_be_redacted(organisation: Organisation) -> bool:
+    try:
+        return organisation.organisation_type == "province_or_territory"
+    except AttributeError:
+        current_app.logger.info("Service has no linked organisation")
+        return False
+
+
 @template_blueprint.route("", methods=["POST"])
 def create_template(service_id):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
     # permissions needs to be placed here otherwise marshmallow will interfere with versioning
     permissions = fetched_service.permissions
+    organisation = fetched_service.organisation
     template_json = validate(request.get_json(), post_create_template_schema)
     folder = validate_parent_folder(template_json=template_json)
     new_template = Template.from_json(template_json, folder)
@@ -85,7 +94,8 @@ def create_template(service_id):
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
-    dao_create_template(new_template)
+    redact_personalisation = should_template_be_redacted(organisation)
+    dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
     return jsonify(data=template_schema.dump(new_template).data), 201
 

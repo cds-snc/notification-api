@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from boto.exception import BotoClientError
 from flask import current_app
+from itsdangerous import BadSignature
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
 from notifications_utils.recipients import (
     InvalidEmailError,
@@ -23,7 +24,7 @@ from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
-from app import create_uuid, db
+from app import create_uuid, db, signer_personalisation
 from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
@@ -55,6 +56,85 @@ from app.utils import (
     get_local_timezone_midnight_in_utc,
     midnight_n_days_ago,
 )
+
+
+@transactional
+def _resign_notifications_chunk(chunk_offset: int, chunk_size: int, resign: bool, unsafe: bool) -> int:
+    """Resign the _personalisation column of the notifications in a chunk of notifications with (potentially) a new key.
+
+    Args:
+        chunk_offset (int): start index of the chunk
+        chunk_size (int): size of the chunk
+        resign (bool): resign the personalisation
+        unsafe (bool): ignore bad signatures
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+
+    Returns:
+        int: number of notifications resigned or needing to be resigned
+    """
+    rows = Notification.query.order_by(Notification.created_at).slice(chunk_offset, chunk_offset + chunk_size).all()
+    current_app.logger.info(f"Processing chunk {chunk_offset} to {chunk_offset + len(rows) - 1}")
+
+    rows_to_update = []
+    for row in rows:
+        old_signature = row._personalisation
+        if old_signature:
+            try:
+                unsigned_personalisation = getattr(row, "personalisation")  # unsign the personalisation
+            except BadSignature as e:
+                if unsafe:
+                    unsigned_personalisation = signer_personalisation.verify_unsafe(row._personalisation)
+                else:
+                    current_app.logger.warning(f"BadSignature for notification {row.id}: {e}")
+                    raise e
+        setattr(
+            row, "personalisation", unsigned_personalisation
+        )  # resigns the personalisation with (potentially) a new signing secret
+        if old_signature != row._personalisation:
+            rows_to_update.append(row)
+        if not resign:
+            row._personalisation = old_signature  # reset the signature to the old value
+
+    if resign and len(rows_to_update) > 0:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} notifications")
+        db.session.bulk_save_objects(rows)
+    elif len(rows_to_update) > 0:
+        current_app.logger.info(f"{len(rows_to_update)} notifications need resigning")
+
+    return len(rows_to_update)
+
+
+def resign_notifications(chunk_size: int, resign: bool, unsafe: bool = False) -> int:
+    """Resign the _personalisation column of the notifications table with (potentially) a new key.
+
+    Args:
+        chunk_size (int): number of rows to update at once.
+        resign (bool): resign the notifications.
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature. Defaults to False.
+        max_update_size(int, -1): max number of rows to update at once, -1 for no limit. Defautls to -1.
+
+    Returns:
+        int: number of notifications that were resigned or need to be resigned.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
+
+    total_notifications = Notification.query.count()
+    current_app.logger.info(f"Total of {total_notifications} notifications")
+    num_old_signatures = 0
+
+    for chunk_offset in range(0, total_notifications, chunk_size):
+        num_old_signatures_in_chunk = _resign_notifications_chunk(chunk_offset, chunk_size, resign, unsafe)
+        num_old_signatures += num_old_signatures_in_chunk
+
+    if resign:
+        current_app.logger.info(f"Overall, {num_old_signatures} notifications were resigned")
+    else:
+        current_app.logger.info(f"Overall, {num_old_signatures} notifications need resigning")
+    return num_old_signatures
 
 
 @statsd(namespace="dao")

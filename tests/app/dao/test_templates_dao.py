@@ -24,14 +24,16 @@ from tests.app.db import create_letter_contact, create_template
 
 
 @pytest.mark.parametrize(
-    "template_type, subject",
+    "template_type, subject, redact_personalisation",
     [
-        ("sms", None),
-        ("email", "subject"),
-        ("letter", "subject"),
+        ("sms", None, False),
+        ("email", "subject", False),
+        ("letter", "subject", False),
+        ("sms", None, True),
+        ("email", "subject", True),
     ],
 )
-def test_create_template(sample_service, sample_user, template_type, subject):
+def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation):
     data = {
         "name": "Sample Template",
         "template_type": template_type,
@@ -44,12 +46,15 @@ def test_create_template(sample_service, sample_user, template_type, subject):
     if subject:
         data.update({"subject": subject})
     template = Template(**data)
-    dao_create_template(template)
+    dao_create_template(template, redact_personalisation=redact_personalisation)
 
     assert Template.query.count() == 1
     assert len(dao_get_all_templates_for_service(sample_service.id)) == 1
     assert dao_get_all_templates_for_service(sample_service.id)[0].name == "Sample Template"
     assert dao_get_all_templates_for_service(sample_service.id)[0].process_type == "normal"
+    assert (
+        dao_get_all_templates_for_service(sample_service.id)[0].template_redacted.redact_personalisation == redact_personalisation
+    )
 
 
 def test_create_template_creates_redact_entry(sample_service):

@@ -1,12 +1,52 @@
 from flask import current_app
+from itsdangerous import BadSignature
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import aliased
 
-from app import db
+from app import db, signer_inbound_sms
 from app.dao.dao_utils import transactional
 from app.models import SMS_TYPE, InboundSms, Service, ServiceDataRetention
 from app.utils import midnight_n_days_ago
+
+
+@transactional
+def resign_inbound_sms(resign: bool, unsafe: bool = False):
+    """Resign the _content column of the inbound_sms table with (potentially) a new key.
+
+    Args:
+        resign (bool): whether to resign the inbound sms
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
+        Defaults to False.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
+    rows = InboundSms.query.all()  # noqa
+    current_app.logger.info(f"Total of {len(rows)} inbound sms")
+    rows_to_update = []
+
+    for row in rows:
+        try:
+            old_signature = row._content
+            unsigned_content = getattr(row, "content")  # unsign the content
+        except BadSignature as e:
+            if unsafe:
+                unsigned_content = signer_inbound_sms.verify_unsafe(row._content)
+            else:
+                current_app.logger.error(f"BadSignature for inbound_sms {row.id}")
+                raise e
+        setattr(row, "content", unsigned_content)  # resigns the content with (potentially) a new signing secret
+        if old_signature != row._content:
+            rows_to_update.append(row)
+        if not resign:
+            row._content = old_signature  # reset the signature to the old value
+
+    if resign:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} inbound sms")
+        db.session.bulk_save_objects(rows)
+    elif not resign:
+        current_app.logger.info(f"{len(rows_to_update)} inbound sms need resigning")
 
 
 @transactional

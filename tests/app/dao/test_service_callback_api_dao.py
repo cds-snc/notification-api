@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from itsdangerous import BadSignature
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import signer_bearer_token
@@ -8,10 +9,12 @@ from app.dao.service_callback_api_dao import (
     get_service_callback_api,
     get_service_delivery_status_callback_api_for_service,
     reset_service_callback_api,
+    resign_service_callbacks,
     save_service_callback_api,
 )
 from app.models import ServiceCallbackApi
 from tests.app.db import create_service_callback_api
+from tests.conftest import set_signer_secret_key
 
 
 def test_save_service_callback_api(sample_service):
@@ -174,3 +177,47 @@ def test_get_service_delivery_status_callback_api_for_service(sample_service):
     assert result.created_at == service_callback_api.created_at
     assert result.updated_at == service_callback_api.updated_at
     assert result.updated_by_id == service_callback_api.updated_by_id
+
+
+class TestResigning:
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_callbacks_resigns_or_previews(self, resign, sample_service):
+        from app import signer_bearer_token
+
+        with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
+            initial_callback = create_service_callback_api(service=sample_service)
+            bearer_token = initial_callback.bearer_token
+            _bearer_token = initial_callback._bearer_token
+
+        with set_signer_secret_key(signer_bearer_token, ["k2", "k3"]):
+            resign_service_callbacks(resign=resign)
+            callback = ServiceCallbackApi.query.get(initial_callback.id)
+            assert callback.bearer_token == bearer_token  # unsigned value is the same
+            if resign:
+                assert callback._bearer_token != _bearer_token  # signature is different
+            else:
+                assert callback._bearer_token == _bearer_token  # signature is the same
+
+    def test_resign_callbacks_fails_if_cannot_verify_signatures(self, sample_service):
+        from app import signer_bearer_token
+
+        with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
+            create_service_callback_api(service=sample_service)
+
+        with set_signer_secret_key(signer_bearer_token, ["k3"]):
+            with pytest.raises(BadSignature):
+                resign_service_callbacks(resign=True)
+
+    def test_resign_callbacks_unsafe_resigns_with_new_key(self, sample_service):
+        from app import signer_bearer_token
+
+        with set_signer_secret_key(signer_bearer_token, ["k1", "k2"]):
+            initial_callback = create_service_callback_api(service=sample_service)
+            bearer_token = initial_callback.bearer_token
+            _bearer_token = initial_callback._bearer_token
+
+        with set_signer_secret_key(signer_bearer_token, ["k3"]):
+            resign_service_callbacks(resign=True, unsafe=True)
+            callback = ServiceCallbackApi.query.get(initial_callback.id)
+            assert callback.bearer_token == bearer_token  # unsigned value is the same
+            assert callback._bearer_token != _bearer_token  # signature is different

@@ -1,7 +1,9 @@
 from datetime import datetime
 from itertools import product
 
+import pytest
 from freezegun import freeze_time
+from itsdangerous import BadSignature
 
 from app.dao.inbound_sms_dao import (
     dao_count_inbound_sms_for_service,
@@ -10,13 +12,15 @@ from app.dao.inbound_sms_dao import (
     dao_get_paginated_inbound_sms_for_service_for_public_api,
     dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service,
     delete_inbound_sms_older_than_retention,
+    resign_inbound_sms,
 )
+from app.models import InboundSms
 from tests.app.db import (
     create_inbound_sms,
     create_service,
     create_service_data_retention,
 )
-from tests.conftest import set_config
+from tests.conftest import set_config, set_signer_secret_key
 
 
 def test_get_all_inbound_sms(sample_service):
@@ -373,3 +377,47 @@ def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_servic
 
     assert len(res.items) == 1
     assert res.items[0].content == "new"
+
+
+class TestResigning:
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_inbound_sms_resigns_or_previews(self, resign, sample_service):
+        from app import signer_inbound_sms
+
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            initial_sms = create_inbound_sms(service=sample_service)
+            content = initial_sms.content
+            _content = initial_sms._content
+
+        with set_signer_secret_key(signer_inbound_sms, ["k2", "k3"]):
+            resign_inbound_sms(resign=resign)
+            sms = InboundSms.query.get(initial_sms.id)
+            assert sms.content == content  # unsigned value is the same
+            if resign:
+                assert sms._content != _content  # signature is different
+            else:
+                assert sms._content == _content  # signature is the same
+
+    def test_resign_inbound_sms_fails_if_cannot_verify_signatures(self, sample_service):
+        from app import signer_inbound_sms
+
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            create_inbound_sms(service=sample_service)
+
+        with set_signer_secret_key(signer_inbound_sms, "k3"):
+            with pytest.raises(BadSignature):
+                resign_inbound_sms(resign=True)
+
+    def test_resign_inbound_sms_unsafe_resigns_with_new_key(self, sample_service):
+        from app import signer_inbound_sms
+
+        with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
+            initial_sms = create_inbound_sms(service=sample_service)
+            content = initial_sms.content
+            _content = initial_sms._content
+
+        with set_signer_secret_key(signer_inbound_sms, ["k3"]):
+            resign_inbound_sms(resign=True, unsafe=True)
+            sms = InboundSms.query.get(initial_sms.id)
+            assert sms.content == content  # unsigned value is the same
+            assert sms._content != _content  # signature is different

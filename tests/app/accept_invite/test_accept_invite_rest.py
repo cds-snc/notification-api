@@ -14,7 +14,6 @@ def test_validate_invitation_token_for_expired_token_returns_400(client, invitat
         token = generate_token(
             str(uuid.uuid4()),
             current_app.config["SECRET_KEY"],
-            current_app.config["DANGEROUS_SALT"],
         )
     url = "/invite/{}/{}".format(invitation_type, token)
     auth_header = create_authorization_header()
@@ -35,7 +34,6 @@ def test_validate_invitation_token_returns_200_when_token_valid(
     token = generate_token(
         str(invited_user.id),
         current_app.config["SECRET_KEY"],
-        current_app.config["DANGEROUS_SALT"],
     )
     url = "/invite/{}/{}".format(invitation_type, token)
     auth_header = create_authorization_header()
@@ -60,7 +58,6 @@ def test_validate_invitation_token_returns_400_when_invited_user_does_not_exist(
     token = generate_token(
         str(uuid.uuid4()),
         current_app.config["SECRET_KEY"],
-        current_app.config["DANGEROUS_SALT"],
     )
     url = "/invite/{}/{}".format(invitation_type, token)
     auth_header = create_authorization_header()
@@ -77,7 +74,6 @@ def test_validate_invitation_token_returns_400_when_token_is_malformed(client, i
     token = generate_token(
         str(uuid.uuid4()),
         current_app.config["SECRET_KEY"],
-        current_app.config["DANGEROUS_SALT"],
     )[:-2]
 
     url = "/invite/{}/{}".format(invitation_type, token)

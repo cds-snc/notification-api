@@ -12,9 +12,11 @@ from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
+from app.dao.organisation_dao import dao_update_organisation
 from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
+from app.template.rest import should_template_be_redacted
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_template,
@@ -25,6 +27,7 @@ from tests.app.conftest import (
 from tests.app.db import (
     create_letter_contact,
     create_notification,
+    create_organisation,
     create_service,
     create_template,
     create_template_folder,
@@ -89,6 +92,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
 
 
 def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
+
     parent_folder = create_template_folder(service=sample_service, name="parent folder")
 
     data = {
@@ -1485,3 +1489,12 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
             ] == "Error extracting requested page from PDF file for notification_id {} type " "{} {}".format(
                 notification.id, type(PdfReadError()), error_message
             )
+
+
+def test_should_template_be_redacted():
+
+    some_org = create_organisation()
+    assert not should_template_be_redacted(some_org)
+
+    dao_update_organisation(some_org.id, organisation_type="province_or_territory")
+    assert should_template_be_redacted(some_org)

@@ -1475,7 +1475,8 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
             assert result["message"] == expected_message
 
 
-def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission):
+def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission, mocker):
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
     second_user = create_user(email="new@digital.cabinet-office.gov.uk")
     # Simulates successfully adding a user to the service
     second_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=second_user)
@@ -1487,6 +1488,7 @@ def test_remove_user_from_service(notify_db, notify_db_session, client, sample_u
     auth_header = create_authorization_header()
     resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])
     assert resp.status_code == 204
+    mocked_salesforce_client.engagement_delete_contact_role.assert_called_with(second_permission.service, second_permission.user)
 
 
 def test_remove_non_existant_user_from_service(client, sample_user_service_permission):
@@ -1577,7 +1579,7 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
 
-    if current_app.config["FF_BOUNCE_RATE_V1"]:
+    if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
         assert resp["notifications"][0]["status"] == "In transit"
     else:
         assert resp["notifications"][0]["status"] == "Sending"

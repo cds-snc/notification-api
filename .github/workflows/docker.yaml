@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
+    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -99,5 +99,5 @@ jobs:
     - name: Notify Slack channel if this job failed
       if: ${{ failure() }}
       run: |
-        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

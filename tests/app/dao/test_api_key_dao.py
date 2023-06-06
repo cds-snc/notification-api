@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -10,9 +11,12 @@ from app.dao.api_key_dao import (
     get_model_api_keys,
     get_unsigned_secret,
     get_unsigned_secrets,
+    resign_api_keys,
     save_model_api_key,
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
+from tests.app.db import create_api_key
+from tests.conftest import set_signer_secret_key
 
 
 def test_save_api_key_should_create_new_api_key_and_history(sample_service):
@@ -159,3 +163,47 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(sample_service, da
     all_api_keys = get_model_api_keys(service_id=sample_service.id)
 
     assert len(all_api_keys) == expected_length
+
+
+class TestResigning:
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_api_keys_resigns_or_previews(self, resign, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
+
+        with set_signer_secret_key(signer_api_key, ["k2", "k3"]):
+            resign_api_keys(resign=resign)
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret  # unsigned value is the same
+            if resign:
+                assert api_key._secret != _secret  # signature is different
+            else:
+                assert api_key._secret == _secret  # signature is the same
+
+    def test_resign_api_keys_fails_if_cannot_verify_signatures(self, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            create_api_key(service=sample_service)
+
+        with set_signer_secret_key(signer_api_key, "k3"):
+            with pytest.raises(BadSignature):
+                resign_api_keys(resign=True)
+
+    def test_resign_api_keys_unsafe_resigns_with_new_key(self, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
+
+        with set_signer_secret_key(signer_api_key, ["k3"]):
+            resign_api_keys(resign=True, unsafe=True)
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret  # unsigned value is the same
+            assert api_key._secret != _secret  # signature is different
