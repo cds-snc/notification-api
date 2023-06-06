@@ -1,6 +1,6 @@
 /// <reference types="cypress" />
 
-import config from "../../../config";
+import config from "../../../../config";
 
 const pages = [
     { en: "/accessibility", fr: "/accessibilite" },
