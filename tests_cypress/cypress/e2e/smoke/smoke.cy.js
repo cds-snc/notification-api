@@ -13,7 +13,7 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
         Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
     });
 
-    context.only('API tests', () => {
+    context('API tests', () => {
         context('Email', () => {
             it('can send/receive a one-off email', () => {
                 // create an ethereal email account to use for this test
