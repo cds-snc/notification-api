@@ -9,9 +9,9 @@ describe('Email notifications test', () => {
   });
 
   var keys = {
-    LIVE: Cypress.env('API_KEY_LIVE'),
-    TEAM: Cypress.env('API_KEY_TEAM'),
-    TEST: Cypress.env('API_KEY_TEST')
+    LIVE: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
+    TEAM: Cypress.env(config.CONFIG_NAME).API_KEY_TEAM,
+    TEST: Cypress.env(config.CONFIG_NAME).API_KEY_TEST,
   };
 
 
