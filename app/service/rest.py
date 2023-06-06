@@ -423,6 +423,13 @@ def add_user_to_service(service_id, user_id):
 
     dao_add_user_to_service(service, user, permissions, folder_permissions)
     data = service_schema.dump(service)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            salesforce_client.engagement_add_contact_role(service, user)
+        except Exception as e:
+            current_app.logger.exception(e)
+
     return jsonify(data=data), 201
 
 
@@ -439,6 +446,13 @@ def remove_user_from_service(service_id, user_id):
         raise InvalidRequest(error, status_code=400)
 
     dao_remove_user_from_service(service, user)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            salesforce_client.engagement_delete_contact_role(service, user)
+        except Exception as e:
+            current_app.logger.exception(e)
+
     return jsonify({}), 204
 
 

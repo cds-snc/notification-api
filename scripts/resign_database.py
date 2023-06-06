@@ -19,6 +19,8 @@ from flask import Flask
 
 sys.path.append('..')  # needed so we can find app (as run from scripts/ folder)
 
+from flask import current_app  # noqa: E402
+
 from app import create_app  # noqa: E402
 from app.dao.api_key_dao import resign_api_keys  # noqa: E402
 from app.dao.inbound_sms_dao import resign_inbound_sms  # noqa: E402
@@ -26,16 +28,20 @@ from app.dao.notifications_dao import resign_notifications  # noqa: E402
 from app.dao.service_callback_api_dao import resign_service_callbacks  # noqa: E402
 
 
-def resign_all(unsafe: bool = False):
-    resign_api_keys(unsafe)
-    resign_inbound_sms(unsafe)
-    resign_service_callbacks(unsafe)
-    resign_notifications(unsafe)
+def resign_all(chunk: int, resign: bool, unsafe: bool):
+    resign_api_keys(resign, unsafe)
+    resign_inbound_sms(resign, unsafe)
+    resign_service_callbacks(resign, unsafe)
+    resign_notifications(chunk, resign, unsafe)
+    if not resign:
+        current_app.logger.info("NOTE: this is a preview, fields have not been changed. To resign fields, run with --resign flag")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--unsafe", default=False, action='store_true', help="resign notifications that have a bad signature")
+    parser.add_argument("--chunk", default=25000, type=int, help="size of chunks of notifications to resign at a time (default 25000)")
+    parser.add_argument("--resign", default=False, action='store_true', help="resign columns (default false)")
+    parser.add_argument("--unsafe", default=False, action='store_true', help="ignore bad signatures (default false)")
     args = parser.parse_args()
 
     load_dotenv()
@@ -43,4 +49,4 @@ if __name__ == "__main__":
     create_app(application)
     application.app_context().push()
 
-    resign_all(args.unsafe)
+    resign_all(args.chunk, args.resign, args.unsafe)

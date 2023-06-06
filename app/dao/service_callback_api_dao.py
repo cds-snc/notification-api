@@ -13,10 +13,11 @@ from app.models import (
 
 
 @transactional
-def resign_service_callbacks(unsafe: bool = False):
+def resign_service_callbacks(resign: bool, unsafe: bool = False):
     """Resign the _bearer_token column of the service_callbacks table with (potentially) a new key.
 
     Args:
+        resign (bool): whether to resign the service_callbacks
         unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
         Defaults to False.
 
@@ -24,11 +25,13 @@ def resign_service_callbacks(unsafe: bool = False):
         e: BadSignature if the unsign step fails and unsafe is False.
     """
     rows = ServiceCallbackApi.query.all()  # noqa
-    current_app.logger.info(f"Resigning {len(rows)} service_callbacks")
+    current_app.logger.info(f"Total of {len(rows)} service callbacks")
+    rows_to_update = []
 
     for row in rows:
         if row._bearer_token:
             try:
+                old_signature = row._bearer_token
                 unsigned_token = getattr(row, "bearer_token")  # unsign the token
             except BadSignature as e:
                 if unsafe:
@@ -37,7 +40,16 @@ def resign_service_callbacks(unsafe: bool = False):
                     current_app.logger.error(f"BadSignature for service_callback {row.id}")
                     raise e
             setattr(row, "bearer_token", unsigned_token)  # resigns the token with (potentially) a new signing secret
-    db.session.bulk_save_objects(rows)
+            if old_signature != row._bearer_token:
+                rows_to_update.append(row)
+            if not resign:
+                row._bearer_token = old_signature  # reset the signature to the old value
+
+    if resign:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} service callbacks")
+        db.session.bulk_save_objects(rows)
+    elif not resign:
+        current_app.logger.info(f"{len(rows_to_update)} service callbacks need resigning")
 
 
 @transactional

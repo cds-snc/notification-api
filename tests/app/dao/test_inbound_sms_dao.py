@@ -380,7 +380,8 @@ def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_servic
 
 
 class TestResigning:
-    def test_resign_inbound_sms_resigns_with_new_key(self, sample_service):
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_inbound_sms_resigns_or_previews(self, resign, sample_service):
         from app import signer_inbound_sms
 
         with set_signer_secret_key(signer_inbound_sms, ["k1", "k2"]):
@@ -389,10 +390,13 @@ class TestResigning:
             _content = initial_sms._content
 
         with set_signer_secret_key(signer_inbound_sms, ["k2", "k3"]):
-            resign_inbound_sms()
+            resign_inbound_sms(resign=resign)
             sms = InboundSms.query.get(initial_sms.id)
             assert sms.content == content  # unsigned value is the same
-            assert sms._content != _content  # signature is different
+            if resign:
+                assert sms._content != _content  # signature is different
+            else:
+                assert sms._content == _content  # signature is the same
 
     def test_resign_inbound_sms_fails_if_cannot_verify_signatures(self, sample_service):
         from app import signer_inbound_sms
@@ -402,7 +406,7 @@ class TestResigning:
 
         with set_signer_secret_key(signer_inbound_sms, "k3"):
             with pytest.raises(BadSignature):
-                resign_inbound_sms()
+                resign_inbound_sms(resign=True)
 
     def test_resign_inbound_sms_unsafe_resigns_with_new_key(self, sample_service):
         from app import signer_inbound_sms
@@ -413,7 +417,7 @@ class TestResigning:
             _content = initial_sms._content
 
         with set_signer_secret_key(signer_inbound_sms, ["k3"]):
-            resign_inbound_sms(unsafe=True)
+            resign_inbound_sms(resign=True, unsafe=True)
             sms = InboundSms.query.get(initial_sms.id)
             assert sms.content == content  # unsigned value is the same
             assert sms._content != _content  # signature is different
