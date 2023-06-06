@@ -2222,8 +2222,8 @@ class TestSeedBounceRateData:
     def test_seed_bounce_rate_data(self, mocker, notify_api):
         now = datetime.utcnow()
         current_hour = datetime(now.year, now.month, now.day, now.hour, 0)
-        current_hour_minus_1 = datetime(now.year, now.month, now.day, now.hour - 1, 0)
-        current_hour_minus_2 = datetime(now.year, now.month, now.day, now.hour - 2, 0)
+        current_hour_minus_1 = current_hour - timedelta(hours=1)
+        current_hour_minus_2 = current_hour - timedelta(hours=2)
         mocker.patch(
             "app.celery.tasks.total_notifications_grouped_by_hour",
             return_value=[
