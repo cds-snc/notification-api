@@ -1,5 +1,5 @@
 const { recurse } = require('cypress-recurse')
-
+const ADMIN_COOKIE = "notify_admin_session";
 
 // Parts of the page a user can interact with
 let Components = {
@@ -16,6 +16,9 @@ let Actions = {
         Components.SubmitButton().click();
     },
     Login: (email, password) => {
+        cy.clearCookie(ADMIN_COOKIE); // clear auth cookie
+        cy.task('deleteAllEmails'); // purge email inbox to make getting the 2fa code easier
+
         // login with username and password
         cy.visit(LoginPage.URL);
         Components.EmailAddress().type(email);
@@ -46,6 +49,9 @@ let Actions = {
             cy.visit('/two-factor-email-sent');
             Actions.EnterCode(code);
         });
+    
+        // ensure we logged in correctly
+        cy.contains('h1', 'Sign-in history').should('be.visible');
     }
 };
 
