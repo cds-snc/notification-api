@@ -13,10 +13,11 @@ from app.models import ApiKey
 
 
 @transactional
-def resign_api_keys(unsafe: bool = False):
+def resign_api_keys(resign: bool, unsafe: bool = False):
     """Resign the _secret column of the api_keys table with (potentially) a new key.
 
     Args:
+        resign (bool): whether to resign the api keys
         unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
         Defaults to False.
 
@@ -24,10 +25,12 @@ def resign_api_keys(unsafe: bool = False):
         e: BadSignature if the unsign step fails and unsafe is False.
     """
     rows = ApiKey.query.all()  # noqa
-    current_app.logger.info(f"Resigning {len(rows)} api keys")
+    current_app.logger.info(f"Total of {len(rows)} api keys")
+    rows_to_update = []
 
     for row in rows:
         try:
+            old_signature = row._secret
             unsigned_secret = getattr(row, "secret")  # unsign the secret
         except BadSignature as e:
             if unsafe:
@@ -36,7 +39,16 @@ def resign_api_keys(unsafe: bool = False):
                 current_app.logger.error(f"BadSignature for api_key {row.id}, using verify_unsafe instead")
                 raise e
         setattr(row, "secret", unsigned_secret)  # resigns the api key secret with (potentially) a new signing secret
-    db.session.bulk_save_objects(rows)
+        if old_signature != row._secret:
+            rows_to_update.append(row)
+        if not resign:
+            row._secret = old_signature  # reset the signature to the old value
+
+    if resign:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} api keys")
+        db.session.bulk_save_objects(rows)
+    elif not resign:
+        current_app.logger.info(f"{len(rows_to_update)} api keys need resigning")
 
 
 @transactional
