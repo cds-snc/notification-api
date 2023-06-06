@@ -167,7 +167,7 @@ const emailAccount = async () => {
                     const mail = await simpleParser(
                         messages[messages.length - 1].parts[0].body,
                     )
-                    console.log('m', mail)
+                    // console.log('m', mail)
                     // and returns the main fields
                     return {
                         subject: mail.subject,
