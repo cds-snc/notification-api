@@ -61,8 +61,8 @@ def validate_parent_folder(template_json):
 def should_template_be_redacted(organisation: Organisation) -> bool:
     try:
         return organisation.organisation_type == "province_or_territory"
-    except Exception as e:
-        current_app.logger.error(f"Error checking organisation_type: {e}")
+    except AttributeError:
+        current_app.logger.info(f"Service has no linked organisation")
         return False
 
 
