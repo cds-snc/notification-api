@@ -11,10 +11,11 @@ from app.utils import midnight_n_days_ago
 
 
 @transactional
-def resign_inbound_sms(unsafe: bool = False):
+def resign_inbound_sms(resign: bool, unsafe: bool = False):
     """Resign the _content column of the inbound_sms table with (potentially) a new key.
 
     Args:
+        resign (bool): whether to resign the inbound sms
         unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature.
         Defaults to False.
 
@@ -22,10 +23,12 @@ def resign_inbound_sms(unsafe: bool = False):
         e: BadSignature if the unsign step fails and unsafe is False.
     """
     rows = InboundSms.query.all()  # noqa
-    current_app.logger.info(f"Resigning {len(rows)} inbound sms")
+    current_app.logger.info(f"Total of {len(rows)} inbound sms")
+    rows_to_update = []
 
     for row in rows:
         try:
+            old_signature = row._content
             unsigned_content = getattr(row, "content")  # unsign the content
         except BadSignature as e:
             if unsafe:
@@ -34,7 +37,16 @@ def resign_inbound_sms(unsafe: bool = False):
                 current_app.logger.error(f"BadSignature for inbound_sms {row.id}")
                 raise e
         setattr(row, "content", unsigned_content)  # resigns the content with (potentially) a new signing secret
-    db.session.bulk_save_objects(rows)
+        if old_signature != row._content:
+            rows_to_update.append(row)
+        if not resign:
+            row._content = old_signature  # reset the signature to the old value
+
+    if resign:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} inbound sms")
+        db.session.bulk_save_objects(rows)
+    elif not resign:
+        current_app.logger.info(f"{len(rows_to_update)} inbound sms need resigning")
 
 
 @transactional
