@@ -22,7 +22,6 @@ let STAGING = {
         'SMOKE_TEST_EMAIL_ATTACH': 'bf85def8-01b4-4c72-98a8-86f2bc10f2a4',
         'SMOKE_TEST_EMAIL_LINK': '37924e87-038d-48b8-b122-f6dddefd56d5',
         'SMOKE_TEST_SMS': '16cae0b3-1d44-47ad-a537-fd12cc0646b6'
-        
     },
     Users: {
         Team: ['andrew.leith+bannertest@cds-snc.ca'],
@@ -45,15 +44,28 @@ let LOCAL = {
     Admin: {
         HostName: 'http://localhost:6012',
     },
+    DDAPI: {
+        HostName: 'http://localhost:7000'
+    },
+    Services: {
+        Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553',
+        Cypress: '4049c2d0-0cab-455c-8f4c-f356dff51810'
+    },
     Templates: {
         'FILE_ATTACH_TEMPLATE_ID': '7246c71e-3d60-458b-96af-af17a5b07659',
         'SIMPLE_EMAIL_TEMPLATE_ID': '939dafde-1b60-47f0-a6d5-c9080d92a4a8',
-        'VARIABLES_EMAIL_TEMPLATE_ID': '1101a00a-11b7-4036-865c-add43fcff7c9'
+        'VARIABLES_EMAIL_TEMPLATE_ID': '1101a00a-11b7-4036-865c-add43fcff7c9',
+        'SMOKE_TEST_EMAIL': '136e951e-05c8-4db4-bc50-fe122d72fcaa',
+        'SMOKE_TEST_EMAIL_BULK': '48207d93-144d-4ebb-92c5-99ff1f1baead',
+        'SMOKE_TEST_EMAIL_ATTACH': '58db03d6-a9d8-4482-8621-26f473f3980a',
+        'SMOKE_TEST_EMAIL_LINK': '2d52d997-42d3-4ac0-a597-7afc94d4339a',
+        'SMOKE_TEST_SMS': '5945e2f0-3e37-4813-9a60-e0665e02e9c8'
     },
     Users: {
         Team: ['andrew.leith+bannertest@cds-snc.ca'],
         NonTeam: ['person@example.com'],
-        Simulated: ['simulate-delivered@notification.canada.ca', 'simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca']
+        Simulated: ['success@simulator.amazonses.com', 'simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca'],
+        SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
     },
     ReplyTos: {
         Default: '24e5288d-8bfa-4ad4-93aa-592c11a694cd',
