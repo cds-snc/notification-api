@@ -62,7 +62,7 @@ def should_template_be_redacted(organisation: Organisation) -> bool:
     try:
         return organisation.organisation_type == "province_or_territory"
     except AttributeError:
-        current_app.logger.info(f"Service has no linked organisation")
+        current_app.logger.info("Service has no linked organisation")
         return False
 
 
