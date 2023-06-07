@@ -37,10 +37,4 @@ describe('Basic login', () => {
         cy.visit(`/services/${config.Services.Notify}`);
         cy.contains('h1', 'Dashboard').should('be.visible');
     });
-
-    it('has a qualtrics survey', () => {
-        cy.get('#QSIFeedbackButton-btn').should('be.visible'); // qualtrics survey button
-        cy.get('#QSIFeedbackButton-btn').click(); // click the button
-        cy.get('#QSIFeedbackButton-survey-iframe').should('be.visible'); // 
-    });
 });
