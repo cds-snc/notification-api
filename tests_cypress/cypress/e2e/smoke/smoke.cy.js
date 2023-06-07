@@ -230,7 +230,7 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
             Navigation.Templates();
             TemplatesPage.SelectTemplate("SMOKE_TEST_EMAIL");
             TemplatesPage.GotoAddRecipients();
-            AddRecipientsPage.SendOneOffEmail(config.Users.Simulated[0]);
+            AddRecipientsPage.SendOneOffEmail(config.Users.Simulated[2]);
 
             cy.contains('.notification-status', 'Delivered').should('be.visible');
         });
