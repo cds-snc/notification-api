@@ -6,7 +6,7 @@ The goal of this code is to do a soak test of api while we make significant appl
 
 ## How to configure
 
-Run the setup.sh to install the python pre-requisites
+Run the setup.sh to install the python pre-requisites or run in the repo devcontainer.
 
 Default configuration is in the `locust.conf` file.
 
