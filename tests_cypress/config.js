@@ -26,7 +26,7 @@ let STAGING = {
     Users: {
         Team: ['andrew.leith+bannertest@cds-snc.ca'],
         NonTeam: ['person@example.com'],
-        Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca'],
+        Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
         SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
     },
     ReplyTos: {
