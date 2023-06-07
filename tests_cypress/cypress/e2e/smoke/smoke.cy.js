@@ -211,7 +211,7 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
         });
     });
 
-    context.only('ADMIN tests', () => {
+    context('ADMIN tests', () => {
         // Login to notify before the test suite starts
         before(() => {
             Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
