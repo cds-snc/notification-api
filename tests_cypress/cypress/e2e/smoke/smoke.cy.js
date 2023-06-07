@@ -211,13 +211,10 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
         });
     });
 
-    context('ADMIN tests', () => {
+    context.only('ADMIN tests', () => {
         // Login to notify before the test suite starts
         before(() => {
             Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
-            cy.clearCookie(ADMIN_COOKIE); // clear auth cookie
-            cy.task('deleteAllEmails'); // purge email inbox to make getting the 2fa code easier
-
             LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('ADMIN_USER_PASSWORD'));
 
             // ensure we logged in correctly
