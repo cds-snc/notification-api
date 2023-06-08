@@ -50,9 +50,7 @@ def process_ses_results(self, response):
                 )
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
-                current_app.logger.warning(
-                    f"notification not found for SES reference: {reference}. Giving up."
-                )
+                current_app.logger.warning(f"notification not found for SES reference: {reference}. Giving up.")
             return
 
         aws_response_dict = get_aws_responses(ses_message)
