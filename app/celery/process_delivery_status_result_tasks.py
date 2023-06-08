@@ -212,7 +212,12 @@ def _calculate_pricing(price_in_millicents_usd: float, notification: Notificatio
     else:
         # notification_id -  is the UID in the database for the notification
         # status - is the notification platform status generated earlier
-        update_notification_status_by_id(notification_id=notification.id, status=notification_status)
+        # current_status - is the notification.status
+        update_notification_status_by_id(
+            notification_id=notification.id,
+            status=notification_status,
+            current_status=notification.status
+        )
 
 
 def _get_notification_platform_status(self, provider: any, body: str, sqs_message: dict) -> dict:

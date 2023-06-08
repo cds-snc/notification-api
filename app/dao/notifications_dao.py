@@ -114,11 +114,21 @@ def _update_notification_status(notification, status):
 @statsd(namespace="dao")
 @transactional
 def update_notification_status_by_id(
-        notification_id: uuid, status: str, sent_by: str = None, status_reason: str = None
+        notification_id: uuid,
+        status: str,
+        sent_by: str = None,
+        status_reason: str = None,
+        current_status: str = None
 ) -> Notification:
-    notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
-    if not notification:
+    # the order of notification status that must be maintained
+    order_matrix = (NOTIFICATION_SENDING, NOTIFICATION_SENT, NOTIFICATION_DELIVERED)
+    notification_query = Notification.query.with_for_update().filter(Notification.id == notification_id)
+    if current_status is not None:
+        notification_query.filter(Notification.status == current_status)
+
+    notification = notification_query.first()
+    if notification is None:
         current_app.logger.info(
             'notification not found for id %s (update to status %s)',
             notification_id,
@@ -137,6 +147,32 @@ def update_notification_status_by_id(
 
     if is_feature_enabled(FeatureFlag.NOTIFICATION_FAILURE_REASON_ENABLED) and status_reason:
         notification.status_reason = status_reason
+
+    # prevents sent -> sending
+    if (notification.status == NOTIFICATION_SENT) and (status == NOTIFICATION_SENDING):
+        current_app.logger.warning(
+            'attempt was made to transition notification id %s from %s to %s',
+            notification_id,
+            notification.status,
+            status
+        )
+        return None
+
+    # the new and current status must both be in the order matrix
+    if (current_status in order_matrix) and (status in order_matrix):
+        # get the order of the statuses
+        current_status_index = order_matrix.index(notification.status)
+        new_status_index = order_matrix.index(status)
+
+        # do not update the database if the new status happens before the current status in the database
+        if new_status_index < current_status_index:
+            current_app.logger.warning(
+                'attempt was made to transition notification id %s from %s to %s',
+                notification_id,
+                notification.status,
+                status
+            )
+            return None
 
     return _update_notification_status(
         notification=notification,
