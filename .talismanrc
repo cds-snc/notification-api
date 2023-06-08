@@ -3,10 +3,6 @@ fileignoreconfig:
       checksum: 92acfa31554b7ea857d6e901b6c10a3833d96f63b3b96e17e13c7a33b4aab6b7
     - filename: .github/workflows/deployment-tw.yaml
       checksum: c1078dacbed33c89a46462d290465902e267f9fb6f44218654406a4072a0a37b
-    - filename: scripts/postman/development.postman_environment.json
-      checksum: 8c45546e8fdf3bd3e2185e1f37c1a6eda6bec75b78f10913e4408641ffbd9e2c
-    - filename: scripts/postman/staging.postman_environment.json
-      checksum: 61421aaa6298a36f7f8a65a573b216be3b23e68655958ee1a4da24ebc30782f8
     - filename: certs/VA-Internal-S2-RCA1-v1.crt
       checksum: b3cdaa6e2a9961ba935379fc4d21dcdd70478b027b9efadbd20a4ae9faaf13a0
     - filename: certs/VA-Internal-S2-RCA2.cer
@@ -21,8 +17,6 @@ fileignoreconfig:
       checksum: cdd8fc418af65b72fa3c770bd949aea93960432dbf423e91bd347d9dbfda4c55
     - filename: ci/docker-compose-local.yml
       checksum: bfa2ed19d0b33d303b96e29cb925c2b0dccd5efcdaa988b6c5ddc163ae812d1a
-    - filename: scripts/postman/notification-api.postman_collection.json
-      checksum: 32ab98203b010a45ced5b99588795ed1f542bb350c2a90fb8eee4c4bd2b11535
     - filename: README.md
       checksum: 32935f617721f8cf06be7cd4f36d35cc303ba19dd6b6e025bf0660f628e4a55a
     - filename: ci/docker-compose-local.yml
@@ -69,12 +63,6 @@ fileignoreconfig:
       checksum: b39ef7a0044d1e2ab82f622133b06eb62ac69caf4d0462e0bd8b7ebf61be6c28
     - filename: lambda_functions/two_way_sms/two_way_sms_lambda.py
       checksum: 7197ce16e4fab1bcfac696a586650ad98635796734c727040471662c32623550
-    - filename: scripts/postman/development.postman_environment.json
-      checksum: 9b843c8a5f3b8e46b9bd1579eced2f20101cf02fe57d1b00cfcb3124b7638e19
-    - filename: scripts/postman/staging.postman_environment.json
-      checksum: a6516139f1f50cc6be42e3b46aae3a8fa92ca91e3ff684eabc1b1e5df4a17372
-    - filename: scripts/postman/development.postman_environment.json
-      checksum: e8241f0b65159a875f285f288be114bf0933c5e44c4cafaf3e1ea08c9683e5ca
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
       checksum: fcf1951af4ebff100eaaac98a756f4871afa9a2196cc7d43036302eaa11478eb
     - filename: cd/application-deployment/perf/vaec-api-task-definition.json
@@ -235,24 +223,14 @@ fileignoreconfig:
       checksum: 469f814f2ba74fab665e05ac7a9a3da235a991e0403e8c62d4c692a42ac9cff0
     - filename: app/template/rest.py
       checksum: 4f300f5136873066acede094b788ccca6707c05f14c22979adb64ea2e60569eb
-    - filename: scripts/postman/development.postman_environment.json
-      checksum: a1debc4234ef557d8dc130fb366b542b195c4344e309172485ea4e74c6627507
-    - filename: scripts/postman/performance.postman_environment.json
-      checksum: 58ff1624306779c58e8fa9fbc4320f3a27f84b380cbbd9dffb3381448ed8d1b6
-    - filename: scripts/postman/staging.postman_environment.json
-      checksum: d17fbba8b74445cc2cbc6e1e73bd0888d235aa010d13614a7138f40dbe299333
     - filename: scripts/postman/notification-api.postman_collection.json
-      checksum: 2d814aacc0f4025c92ccc7aa512d4db7d2136d038fc01c1b294c657ab5293c7a
-    - filename: scripts/postman/development.postman_environment.json
-      checksum: 430f84dec469ac7dba882cb836815a6bbdb4234615afccac37169345b56d42c8
-    - filename: scripts/postman/performance.postman_environment.json
-      checksum: 7d8ed1eb0bb17c7f72f30bdfce8150c20d75f3d570d4df65f45ed4ed307c5201
-    - filename: scripts/postman/staging.postman_environment.json
-      checksum: eee906c2ae08f8ea152af26d655364785493d0d3a743f684dd06649793dc43df
+      checksum: b92b55a7835796a97a71be623282911b3e4fb65dfe2e9eb831625a5d236a2800
     - filename: scripts/postman/development.postman_environment.json
       checksum: 750e0712ccb3fe0e07f9ba73dbe83998ec71d70b88d852100cc27ca8e6fcd58e
     - filename: scripts/postman/performance.postman_environment.json
       checksum: da23e04452219ad6a3c968fa851702068c7cb5873aa8765370817c035503d080
+    - filename: scripts/postman/staging.postman_environment.json
+      checksum: eee906c2ae08f8ea152af26d655364785493d0d3a743f684dd06649793dc43df
     - filename: app/models.py
       checksum: 633be5f925209c984dcd89d6b6267986b0f30f385a22d1afb56de74a18ac2970
     - filename: app/models.py
@@ -353,3 +331,5 @@ fileignoreconfig:
       checksum: ae4a406af9f5ccd0c8b7d2439076327fb131760d29043f8488a22f6eff26a27e
     - filename: certs/DigiCert-Global-G2-TLS-RSA-SHA256-2020-CA1.cer
       checksum: 120ea4457eac8216580853c44751a329b74cc29fafc9064105ee73d9a9c2bdc8
+    - filename: migrations/versions/0359_communication_items_unique.py
+      checksum: 1c963f08a88caf7de46e27f89fdc7af37b38a61bb62b10498bfca26bc29d792e

@@ -198,7 +198,14 @@ def create_template(
         reply_to_email=None,
         onsite_notification=False
 ):
-    communication_item = CommunicationItem(id=uuid.uuid4(), va_profile_item_id=1, name='some name')
+    # The CommunicationItem fields "va_profile_item_id" and "name" must be unique.  Using a UUID for
+    # "name" is very unlikely to cause a collision.  If a test fails with a duplicate "va_profile_item_id",
+    # rerun the test.  See #1106 for a more elegant solution.
+    communication_item = CommunicationItem(
+        id=uuid.uuid4(),
+        va_profile_item_id=random.randint(1, 100000),
+        name=uuid.uuid4()
+    )
     dao_create_communication_item(communication_item)
 
     data = {

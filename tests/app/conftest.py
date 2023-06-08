@@ -1449,9 +1449,9 @@ def admin_request(client):
                 url_for(endpoint, **(endpoint_kwargs or {})),
                 headers=[create_authorization_header()]
             )
-            json_resp = resp.json
+
             assert resp.status_code == _expected_status
-            return json_resp
+            return resp.json
 
         @staticmethod
         def post(endpoint, _data=None, _expected_status=200, **endpoint_kwargs):
@@ -1460,12 +1460,20 @@ def admin_request(client):
                 data=json.dumps(_data),
                 headers=[('Content-Type', 'application/json'), create_authorization_header()]
             )
-            if resp.get_data():
-                json_resp = resp.json
-            else:
-                json_resp = None
+
             assert resp.status_code == _expected_status
-            return json_resp
+            return resp.json if resp.get_data() else None
+
+        @staticmethod
+        def patch(endpoint, _data=None, _expected_status=200, **endpoint_kwargs):
+            resp = client.patch(
+                url_for(endpoint, **(endpoint_kwargs or {})),
+                data=json.dumps(_data),
+                headers=[('Content-Type', 'application/json'), create_authorization_header()]
+            )
+
+            assert resp.status_code == _expected_status
+            return resp.json if resp.get_data() else None
 
         @staticmethod
         def delete(endpoint, _expected_status=204, **endpoint_kwargs):
@@ -1473,12 +1481,9 @@ def admin_request(client):
                 url_for(endpoint, **(endpoint_kwargs or {})),
                 headers=[create_authorization_header()]
             )
-            if resp.get_data():
-                json_resp = resp.json
-            else:
-                json_resp = None
-            assert resp.status_code == _expected_status, json_resp
-            return json_resp
+
+            assert resp.status_code == _expected_status
+            return resp.json if resp.get_data() else None
 
     return AdminRequest
 
