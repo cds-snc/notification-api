@@ -38,9 +38,6 @@ def process_ses_results(self, response):
             _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
             return True
 
-        aws_response_dict = get_aws_responses(ses_message)
-
-        notification_status = aws_response_dict["notification_status"]
         reference = ses_message["mail"]["messageId"]
 
         try:
@@ -58,6 +55,8 @@ def process_ses_results(self, response):
                 )
             return
 
+        aws_response_dict = get_aws_responses(ses_message)
+        notification_status = aws_response_dict["notification_status"]
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
