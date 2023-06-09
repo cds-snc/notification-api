@@ -140,9 +140,9 @@ def contact_role_add(session: Salesforce, service: Service, account_id: Optional
                 {"ContactId": contact_id, "OpportunityId": engagement.get("Id")},
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
+            parse_result(result, f"Salesforce ContactRole add for {contact_id} with '{service.id}'")
         else:
-            result = create(session, service, {}, account_id, contact_id)  # This implicitly creates the ContactRole
-        parse_result(result, f"Salesforce ContactRole add for {contact_id} with '{service.id}'")
+            create(session, service, {}, account_id, contact_id)  # This implicitly creates the ContactRole
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce ContactRole add for {contact_id} with '{service.id}' failed: {ex}")
 
@@ -168,7 +168,7 @@ def contact_role_delete(session: Salesforce, service: Service, account_id: Optio
 
         if engagement_contact_role:
             result = session.OpportunityContactRole.delete(engagement_contact_role.get("Id"))
-        parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
+            parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce ContactRole delete for {contact_id} with '{service.id}' failed: {ex}")
 
