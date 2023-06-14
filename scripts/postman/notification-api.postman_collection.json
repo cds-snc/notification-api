@@ -5477,7 +5477,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"default_send_indicator\": true,\n    \"name\": \"\",\n    \"va_profile_item_id\": \n}"
+							"raw": "{\n    \"default_send_indicator\": true,\n    \"name\": \"\",\n    \"va_profile_item_id\": <positive integer>\n}"
 						},
 						"url": {
 							"raw": "{{notification-api-url}}/communication-item",
@@ -5773,7 +5773,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"default_send_indicator\": true,\n    \"name\": \"\",\n    \"va_profile_item_id\": \n}"
+							"raw": "{\n    \"default_send_indicator\": true,\n    \"name\": \"\",\n    \"va_profile_item_id\": <positive integer>\n}"
 						},
 						"url": {
 							"raw": "{{notification-api-url}}/communication-item/{{communication-item-id}}",

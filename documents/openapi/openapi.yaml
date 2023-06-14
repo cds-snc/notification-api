@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.1
+  version: 1.0.2
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -843,13 +843,14 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+
   /communication-item:
     get:
-      summary: Get a list of all communication items
+      summary: Retrieve a list of all communication items
       tags:
         - communication-item
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -860,6 +861,85 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CommunicationItem'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a new communication item
+      tags:
+        - communication-item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunicationItemCreate"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunicationItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /communication-item/{communication_item_id}:
+    parameters:
+      - $ref: "#/components/parameters/CommunicationItemId"
+    get:
+      summary: Retrieve a communication item by ID
+      tags:
+        - communication-item
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunicationItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      summary: Update a communication item by ID
+      tags:
+        - communication-item
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommunicationItemUpdate"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunicationItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete a communication item by ID
+      tags:
+        - communication-item
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /service/{service_id}/api-key:
     post:
@@ -1390,6 +1470,14 @@ components:
         $ref: '#/components/schemas/Id'
       required: true
       description: Service SMS sender identifier
+    CommunicationItemId:
+      name: communication_item_id
+      in: path
+      schema:
+        $ref: '#/components/schemas/Id'
+      required: true
+      description: CommunicationItem identifier
+      example: e925b547-8195-4ed2-83c5-0633a74d780a
   responses:
     BadRequest:
       description: Bad Request
@@ -2041,12 +2129,52 @@ components:
     CommunicationItem:
       type: object
       properties:
+        default_send_indicator:
+          type: boolean
+          nullable: false
         id:
-          type: string
+          $ref: "#/components/schemas/Id"
         name:
           type: string
+          minLength: 1
+          nullable: false
         va_profile_item_id:
-          type: number
+          type: integer
+          minimum: 1
+          nullable: false
+      additionalProperties: false
+    CommunicationItemUpdate:
+      type: object
+      properties:
+        default_send_indicator:
+          type: boolean
+          nullable: false
+        name:
+          type: string
+          minLength: 1
+          nullable: false
+        va_profile_item_id:
+          type: integer
+          minimum: 1
+          nullable: false
+      additionalProperties: false
+      minProperties: 1
+    CommunicationItemCreate:
+      type: object
+      properties:
+        default_send_indicator:
+          type: boolean
+          nullable: false
+        name:
+          type: string
+          minLength: 1
+          nullable: false
+        va_profile_item_id:
+          type: integer
+          minimum: 1
+          nullable: false
+      additionalProperties: false
+      required: [name, va_profile_item_id]
     NotificationRequest:
       type: object
       properties:
