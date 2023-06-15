@@ -3,9 +3,9 @@ from io import BytesIO
 
 import botocore
 from flask import Blueprint, current_app, jsonify, request
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from notifications_utils.pdf import extract_page_from_pdf
-from notifications_utils.template import SMSMessageTemplate
+from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate
 from PyPDF2.utils import PdfReadError
 from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
@@ -26,7 +26,7 @@ from app.dao.templates_dao import (
 )
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import get_letter_pdf
-from app.models import LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Organisation, Template
+from app.models import EMAIL_TYPE, LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Organisation, Template
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
 from app.schemas import template_history_schema, template_schema
@@ -39,11 +39,13 @@ register_errors(template_blueprint)
 
 
 def _content_count_greater_than_limit(content, template_type):
-    if template_type != SMS_TYPE:
-        return False
-    template = SMSMessageTemplate({"content": content, "template_type": template_type})
-    return template.content_count > SMS_CHAR_COUNT_LIMIT
-
+    if template_type == EMAIL_TYPE:
+        template = HTMLEmailTemplate({"content": content, "template_type": template_type})
+        return template.content_count > EMAIL_CHAR_COUNT_LIMIT
+    if template_type == SMS_TYPE:
+        template = SMSMessageTemplate({"content": content, "template_type": template_type})
+        return template.content_count > SMS_CHAR_COUNT_LIMIT
+    return False
 
 def validate_parent_folder(template_json):
     if template_json.get("parent_folder_id"):
