@@ -1,0 +1,3 @@
+ excluded_languages:
+   - name: ruby
+     reason: "Some ruby was accidently commited early on in the project. No longer any ruby code in this repository."
