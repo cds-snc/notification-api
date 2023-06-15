@@ -90,7 +90,8 @@ def create_template(service_id):
 
     over_limit = _content_count_greater_than_limit(new_template.content, new_template.template_type)
     if over_limit:
-        message = "Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
+        char_limit = SMS_CHAR_COUNT_LIMIT if new_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
+        message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
 
@@ -133,7 +134,8 @@ def update_template(service_id, template_id):
 
     over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
     if over_limit:
-        message = "Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
+        char_limit = SMS_CHAR_COUNT_LIMIT if updated_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
+        message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
 
