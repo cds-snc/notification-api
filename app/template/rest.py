@@ -26,7 +26,14 @@ from app.dao.templates_dao import (
 )
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import get_letter_pdf
-from app.models import EMAIL_TYPE, LETTER_TYPE, SECOND_CLASS, SMS_TYPE, Organisation, Template
+from app.models import (
+    EMAIL_TYPE,
+    LETTER_TYPE,
+    SECOND_CLASS,
+    SMS_TYPE,
+    Organisation,
+    Template,
+)
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
 from app.schemas import template_history_schema, template_schema
@@ -46,6 +53,7 @@ def _content_count_greater_than_limit(content, template_type):
         template = SMSMessageTemplate({"content": content, "template_type": template_type})
         return template.content_count > SMS_CHAR_COUNT_LIMIT
     return False
+
 
 def validate_parent_folder(template_json):
     if template_json.get("parent_folder_id"):
