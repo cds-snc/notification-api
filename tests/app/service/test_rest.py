@@ -2273,6 +2273,24 @@ def test_update_service_does_not_call_send_notification_when_restricted_not_chan
     assert not send_notification_mock.called
 
 
+def test_update_service_name_updates_salesforce_engagement(sample_service, client, mocker):
+    user = create_user(email="active1@foo.com", state="active")
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+    mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user)
+
+    data = {"name": "New service name"}
+
+    auth_header = create_authorization_header()
+    resp = client.post(
+        "service/{}".format(sample_service.id),
+        data=json.dumps(data),
+        headers=[auth_header],
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    mocked_salesforce_client.engagement_update.assert_called_once_with(sample_service, user, {"Name": "New service name"})
+
+
 def test_search_for_notification_by_to_field_filters_by_status(client, notify_db, notify_db_session):
     create_notification = partial(
         create_sample_notification,

@@ -272,6 +272,7 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
+    service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     current_data = dict(service_schema.dump(fetched_service).data.items())
@@ -304,18 +305,21 @@ def update_service(service_id):
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
 
-    if service_going_live and current_app.config["FF_SALESFORCE_CONTACT"]:
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
-            # Two scenarios, if there is a user that has requested to go live, we will use that user
-            # to create a Contact/Engagment pair between Notify and Salesforce.
-            # If by any chance there is no tracked request to a user, Notify will try to identify the user
-            # that created the service and then create a Contact/Engagment relationship.
-            if service.go_live_user_id:
-                user = get_user_by_id(service.go_live_user_id)
-            else:
+            if service_going_live:
+                # Two scenarios, if there is a user that has requested to go live, we will use that user
+                # to create a Contact/Engagment pair between Notify and Salesforce.
+                # If by any chance there is no tracked request to a user, Notify will try to identify the user
+                # that created the service and then create a Contact/Engagment relationship.
+                if service.go_live_user_id:
+                    user = get_user_by_id(service.go_live_user_id)
+                else:
+                    user = dao_fetch_service_creator(service.id)
+                salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
+            elif service_name_changed:
                 user = dao_fetch_service_creator(service.id)
-
-            salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
+                salesforce_client.engagement_update(service, user, {"Name": service.name})
         except Exception as e:
             current_app.logger.exception(e)
 
