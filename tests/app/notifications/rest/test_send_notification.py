@@ -961,8 +961,12 @@ def test_create_template_doesnt_raise_with_too_much_personalisation(
     create_template_object_for_notification(template, {"name": "Jo", "extra": "stuff"})
 
 
-@pytest.mark.parametrize("template_type, char_count_limit", [(SMS_TYPE, SMS_CHAR_COUNT_LIMIT), (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT)])
-def test_create_template_raises_invalid_request_when_content_too_large(notify_db, notify_db_session, template_type, char_count_limit):
+@pytest.mark.parametrize(
+    "template_type, char_count_limit", [(SMS_TYPE, SMS_CHAR_COUNT_LIMIT), (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT)]
+)
+def test_create_template_raises_invalid_request_when_content_too_large(
+    notify_db, notify_db_session, template_type, char_count_limit
+):
     sample = create_sample_template(
         notify_db,
         notify_db_session,
@@ -975,16 +979,10 @@ def test_create_template_raises_invalid_request_when_content_too_large(notify_db
     try:
         create_template_object_for_notification(
             template,
-            {
-                "long_text": "".join(
-                    random.choice(string.ascii_uppercase + string.digits) for _ in range(char_count_limit + 1)
-                )
-            },
+            {"long_text": "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(char_count_limit + 1))},
         )
     except InvalidRequest as e:
-        assert e.message == {
-            "content": ["Content has a character count greater than the limit of {}".format(char_count_limit)]
-        }
+        assert e.message == {"content": ["Content has a character count greater than the limit of {}".format(char_count_limit)]}
 
 
 @pytest.mark.parametrize("notification_type, send_to", [("sms", "6502532222"), ("email", "sample@email.com")])

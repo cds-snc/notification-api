@@ -8,11 +8,9 @@ from notifications_python_client.authentication import create_jwt_token
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_update_template
-from app.errors import InvalidRequest
-from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
-from app.notifications.rest import create_template_object_for_notification
+from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_notification, create_sample_template
+from tests.app.conftest import create_sample_notification
 from tests.app.db import create_api_key, create_notification, save_notification
 
 
