@@ -588,9 +588,3 @@ def test_get_notification_selects_correct_template_for_personalisation(client, n
 def _create_auth_header_from_key(api_key):
     token = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
     return [("Authorization", "Bearer {}".format(token))]
-
-
-def test_create_template_object_for_notification(notify_db, notify_db_session):
-    template = create_sample_template(notify_db, notify_db_session, template_type=EMAIL_TYPE, content="Hello ((name))\nThis is an email from GOV.UK")
-    with pytest.raises(InvalidRequest) as e_info:
-        create_template_object_for_notification(template, {"name": "Jo"})

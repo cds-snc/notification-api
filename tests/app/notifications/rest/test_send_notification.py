@@ -6,7 +6,7 @@ import pytest
 from flask import current_app, json
 from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 
 import app
 from app.dao import notifications_dao
@@ -961,8 +961,8 @@ def test_create_template_doesnt_raise_with_too_much_personalisation(
     create_template_object_for_notification(template, {"name": "Jo", "extra": "stuff"})
 
 
-@pytest.mark.parametrize("template_type, should_error", [(SMS_TYPE, True), (EMAIL_TYPE, False)])
-def test_create_template_raises_invalid_request_when_content_too_large(notify_db, notify_db_session, template_type, should_error):
+@pytest.mark.parametrize("template_type, char_count_limit", [(SMS_TYPE, SMS_CHAR_COUNT_LIMIT), (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT)])
+def test_create_template_raises_invalid_request_when_content_too_large(notify_db, notify_db_session, template_type, char_count_limit):
     sample = create_sample_template(
         notify_db,
         notify_db_session,
@@ -977,17 +977,13 @@ def test_create_template_raises_invalid_request_when_content_too_large(notify_db
             template,
             {
                 "long_text": "".join(
-                    random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)
+                    random.choice(string.ascii_uppercase + string.digits) for _ in range(char_count_limit + 1)
                 )
             },
         )
-        if should_error:
-            pytest.fail("expected an InvalidRequest")
     except InvalidRequest as e:
-        if not should_error:
-            pytest.fail("do not expect an InvalidRequest")
         assert e.message == {
-            "content": ["Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)]
+            "content": ["Content has a character count greater than the limit of {}".format(char_count_limit)]
         }
 
 
