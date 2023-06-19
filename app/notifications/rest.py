@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import get_international_phone_info
 
 from app import api_user, authenticated_service
@@ -193,10 +194,8 @@ def create_template_object_for_notification(template, personalisation) -> Templa
         errors = {"template": [message]}
         raise InvalidRequest(errors, status_code=400)
 
-    if template_object.template_type not in [SMS_TYPE, EMAIL_TYPE]:
-        return template_object
-    if template_object.is_message_too_long():
-        message = f"Content has a character count greater than the limit of {template_object.CHAR_COUNT_LIMIT}"
+    if template_object.template_type == SMS_TYPE and template_object.content_count > SMS_CHAR_COUNT_LIMIT:
+        message = "Content has a character count greater than the limit of {}".format(SMS_CHAR_COUNT_LIMIT)
         errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
     return template_object
