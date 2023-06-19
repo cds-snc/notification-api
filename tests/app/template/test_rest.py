@@ -9,14 +9,14 @@ import botocore
 import pytest
 import requests_mock
 from freezegun import freeze_time
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
 from app.dao.organisation_dao import dao_update_organisation
 from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
-from app.template.rest import should_template_be_redacted
+from app.template.rest import _content_count_greater_than_limit, should_template_be_redacted
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_template,
@@ -679,15 +679,25 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
     assert json_resp["message"] == "No result found"
 
 
-def test_create_400_for_over_limit_content(client, notify_api, sample_user, sample_service, fake_uuid):
-    content = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1))
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ]
+)
+def test_create_400_for_over_limit_content(client, notify_api, sample_user, sample_service, fake_uuid, template_type, char_count_limit):
+    content = "x" * (char_count_limit + 1)
     data = {
         "name": "too big template",
-        "template_type": SMS_TYPE,
+        "template_type": template_type,
         "content": content,
         "service": str(sample_service.id),
         "created_by": str(sample_user.id),
     }
+    
+    if template_type == EMAIL_TYPE:
+        data.update({"subject": "subject"})
     data = json.dumps(data)
     auth_header = create_authorization_header()
 
@@ -698,7 +708,7 @@ def test_create_400_for_over_limit_content(client, notify_api, sample_user, samp
     )
     assert response.status_code == 400
     json_resp = json.loads(response.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
+    assert ("Content has a character count greater than the limit of {}").format(char_count_limit) in json_resp["message"][
         "content"
     ]
 

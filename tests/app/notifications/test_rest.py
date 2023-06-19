@@ -8,9 +8,11 @@ from notifications_python_client.authentication import create_jwt_token
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_update_template
-from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
+from app.errors import InvalidRequest
+from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
+from app.notifications.rest import create_template_object_for_notification
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_notification
+from tests.app.conftest import create_sample_notification, create_sample_template
 from tests.app.db import create_api_key, create_notification, save_notification
 
 
@@ -586,3 +588,9 @@ def test_get_notification_selects_correct_template_for_personalisation(client, n
 def _create_auth_header_from_key(api_key):
     token = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
     return [("Authorization", "Bearer {}".format(token))]
+
+
+def test_create_template_object_for_notification(notify_db, notify_db_session):
+    template = create_sample_template(notify_db, notify_db_session, template_type=EMAIL_TYPE, content="Hello ((name))\nThis is an email from GOV.UK")
+    with pytest.raises(InvalidRequest) as e_info:
+        create_template_object_for_notification(template, {"name": "Jo"})
