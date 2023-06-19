@@ -2457,7 +2457,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "51.0.3"
+version = "51.0.4"
 description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
