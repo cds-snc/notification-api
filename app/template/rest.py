@@ -48,10 +48,10 @@ register_errors(template_blueprint)
 def _content_count_greater_than_limit(content, template_type):
     if template_type == EMAIL_TYPE:
         template = HTMLEmailTemplate({"content": content, "subject": "placeholder", "template_type": template_type})
-        return template.content_count > EMAIL_CHAR_COUNT_LIMIT
+        return template.is_message_too_long()
     if template_type == SMS_TYPE:
         template = SMSMessageTemplate({"content": content, "template_type": template_type})
-        return template.content_count > SMS_CHAR_COUNT_LIMIT
+        return template.is_message_too_long()
     return False
 
 
