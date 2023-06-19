@@ -219,18 +219,18 @@ aiohttp = "*"
 
 [[package]]
 name = "awscli"
-version = "1.27.147"
+version = "1.27.152"
 description = "Universal Command Line Environment for AWS."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "awscli-1.27.147-py3-none-any.whl", hash = "sha256:dd7144c44c5e2703f69a25069c68935081a1d8fe5990d3687b3c408099860cfa"},
-    {file = "awscli-1.27.147.tar.gz", hash = "sha256:34a66bb60bf9f225124daaf77e15be8f0aa0985b3f5ba60efbcc3630d67c7dbc"},
+    {file = "awscli-1.27.152-py3-none-any.whl", hash = "sha256:2b6040312cdc06212dfe3417b1db6b1493e36dfec312cd850d32cfada236b61b"},
+    {file = "awscli-1.27.152.tar.gz", hash = "sha256:0b14964b1f1a2f67524b76c8505c4b0eb50397b127479e6557e97d7d0207c71b"},
 ]
 
 [package.dependencies]
-botocore = "1.29.147"
+botocore = "1.29.152"
 colorama = ">=0.2.5,<0.4.5"
 docutils = ">=0.10,<0.17"
 PyYAML = ">=3.10,<5.5"
@@ -367,18 +367,18 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.26.147"
+version = "1.26.152"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.147-py3-none-any.whl", hash = "sha256:45ed158defbf554d051c4f3eae9a1ca3c1039dd29a528e884f47a06ad0ac17a1"},
-    {file = "boto3-1.26.147.tar.gz", hash = "sha256:ccfbdb6e9ebdf943e222c88c9a8f161a8a607f3dbdbf3b1b0eed25c1d8cb215e"},
+    {file = "boto3-1.26.152-py3-none-any.whl", hash = "sha256:a2778c5729d3dc0b3688c9f0d103543d7ec5ff44a4fd0e84d0d542e2dff05e62"},
+    {file = "boto3-1.26.152.tar.gz", hash = "sha256:ee0b8f8d238d4e1cf50fa6a185e4e066955b6105e9838a80b1b6582cd327dfdf"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.147,<1.30.0"
+botocore = ">=1.29.152,<1.30.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -387,14 +387,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.147"
+version = "1.29.152"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.147-py3-none-any.whl", hash = "sha256:67a7ce69fc6d44a881b01964a76edb00b4e87723a8cc596339d306d8eb321fec"},
-    {file = "botocore-1.29.147.tar.gz", hash = "sha256:f7433bcce5ef7baad2fdd29f97c9fdcf8de4ec1cf577ae308901caf778ed48c2"},
+    {file = "botocore-1.29.152-py3-none-any.whl", hash = "sha256:02a3205cc8579d4be6d537e63d72aebbf3f70f3aedcf40b3cae9dc2e24c774d0"},
+    {file = "botocore-1.29.152.tar.gz", hash = "sha256:f6319ecdbe3d325878f837cac2874e461b4d90691bb2d2186f980bce3b3cfcc8"},
 ]
 
 [package.dependencies]
@@ -2457,7 +2457,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "51.0.2"
+version = "51.0.3"
 description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
@@ -2466,9 +2466,9 @@ files = []
 develop = false
 
 [package.dependencies]
-awscli = "1.27.147"
+awscli = "1.27.152"
 bleach = "3.3.1"
-boto3 = "1.26.147"
+boto3 = "1.26.152"
 cachetools = "4.2.4"
 Flask = "2.2.3"
 Flask-Redis = "0.4.0"
@@ -2491,8 +2491,8 @@ werkzeug = "2.2.3"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "51.0.2"
-resolved_reference = "ce01b35e822c0b2bad62cc4899360e1c54fd8dfd"
+reference = "51.0.4"
+resolved_reference = "211836e5b85428462ce6ae5460f4f5bbd56c1af3"
 
 [[package]]
 name = "ordered-set"
@@ -4184,4 +4184,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "449640dc3dade8ab50df676c03fc45aa6a90b5db72166bb07be0fe747f374a79"
+content-hash = "d8eb5b654661880d83e03d42a4da7b85f88267ed5f3f03cefa5d644c423be702"
