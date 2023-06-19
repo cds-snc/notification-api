@@ -47,7 +47,7 @@ register_errors(template_blueprint)
 
 def _content_count_greater_than_limit(content, template_type):
     if template_type == EMAIL_TYPE:
-        template = HTMLEmailTemplate({"content": content, "template_type": template_type})
+        template = HTMLEmailTemplate({"content": content, "subject": "placeholder", "template_type": template_type})
         return template.content_count > EMAIL_CHAR_COUNT_LIMIT
     if template_type == SMS_TYPE:
         template = SMSMessageTemplate({"content": content, "template_type": template_type})
@@ -142,7 +142,7 @@ def update_template(service_id, template_id):
 
     over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
     if over_limit:
-        char_limit = SMS_CHAR_COUNT_LIMIT if updated_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
+        char_limit = SMS_CHAR_COUNT_LIMIT if fetched_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
         message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
         raise InvalidRequest(errors, status_code=400)
