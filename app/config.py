@@ -18,7 +18,6 @@ load_dotenv()
 
 
 class QueueNames(object):
-
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
 
@@ -636,6 +635,7 @@ class Production(Config):
 
 class Staging(Production):
     NOTIFY_ENVIRONMENT = "staging"
+
 
 class Scratch(Production):
     NOTIFY_ENVIRONMENT = "scratch"
