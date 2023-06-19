@@ -5,6 +5,7 @@ from app.clients.salesforce.salesforce_engagement import (
     contact_role_add,
     contact_role_delete,
     create,
+    engagement_maxlengths,
     get_engagement_by_service_id,
     get_engagement_contact_role,
     update,
@@ -265,3 +266,12 @@ def test_get_engagement_contact_role_blank(mocker, notify_api):
         assert get_engagement_contact_role(mock_session, "1", None) is None
         assert get_engagement_contact_role(mock_session, "", "2") is None
         assert get_engagement_contact_role(mock_session, "3", "       ") is None
+
+
+def test_engagement_maxlengths():
+    assert engagement_maxlengths({"foo": "bar"}) == {"foo": "bar"}
+    assert engagement_maxlengths({"foo": "bar", "bam": "baz"}) == {"foo": "bar", "bam": "baz"}
+    assert engagement_maxlengths({"Name": "this name is short enough"}) == {"Name": "this name is short enough"}
+    assert engagement_maxlengths({"Name": f"this name is not short enough {150 * 'x'}"}) == {
+        "Name": f"this name is not short enough {90 * 'x'}"
+    }
