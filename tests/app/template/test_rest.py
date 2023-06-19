@@ -16,7 +16,10 @@ from app.dao.organisation_dao import dao_update_organisation
 from app.dao.service_permissions_dao import dao_add_service_permission
 from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Template, TemplateHistory
-from app.template.rest import _content_count_greater_than_limit, should_template_be_redacted
+from app.template.rest import (
+    _content_count_greater_than_limit,
+    should_template_be_redacted,
+)
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_template,
@@ -708,27 +711,36 @@ def test_create_400_for_over_limit_content(client, notify_api, sample_user, samp
     )
     assert response.status_code == 400
     json_resp = json.loads(response.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(char_count_limit) in json_resp["message"][
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"][
         "content"
     ]
 
 
-def test_update_400_for_over_limit_content(client, notify_api, sample_user, sample_template):
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ]
+)
+def test_update_400_for_over_limit_content(client, notify_db, notify_db_session, notify_api, sample_user, template_type, char_count_limit):
     json_data = json.dumps(
         {
-            "content": "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)),
+            "content": "x" * (char_count_limit + 1),
             "created_by": str(sample_user.id),
         }
     )
     auth_header = create_authorization_header()
+    
+    sample_template = create_sample_template(notify_db, notify_db_session, template_type=template_type)
     resp = client.post(
-        "/service/{}/template/{}".format(sample_template.service.id, sample_template.id),
+        f"/service/{sample_template.service.id}/template/{sample_template.id}",
         headers=[("Content-Type", "application/json"), auth_header],
         data=json_data,
     )
     assert resp.status_code == 400
     json_resp = json.loads(resp.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"][
         "content"
     ]
 
