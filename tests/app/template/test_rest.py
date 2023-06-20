@@ -1,7 +1,5 @@
 import base64
 import json
-import random
-import string
 import uuid
 from datetime import datetime, timedelta
 
@@ -9,7 +7,7 @@ import botocore
 import pytest
 import requests_mock
 from freezegun import freeze_time
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
 from app.dao.organisation_dao import dao_update_organisation
@@ -679,15 +677,27 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
     assert json_resp["message"] == "No result found"
 
 
-def test_create_400_for_over_limit_content(client, notify_api, sample_user, sample_service, fake_uuid):
-    content = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1))
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ],
+)
+def test_create_400_for_over_limit_content(
+    client, notify_api, sample_user, sample_service, fake_uuid, template_type, char_count_limit
+):
+    content = "x" * (char_count_limit + 1)
     data = {
         "name": "too big template",
-        "template_type": SMS_TYPE,
+        "template_type": template_type,
         "content": content,
         "service": str(sample_service.id),
         "created_by": str(sample_user.id),
     }
+
+    if template_type == EMAIL_TYPE:
+        data.update({"subject": "subject"})
     data = json.dumps(data)
     auth_header = create_authorization_header()
 
@@ -698,29 +708,36 @@ def test_create_400_for_over_limit_content(client, notify_api, sample_user, samp
     )
     assert response.status_code == 400
     json_resp = json.loads(response.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
-        "content"
-    ]
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"]["content"]
 
 
-def test_update_400_for_over_limit_content(client, notify_api, sample_user, sample_template):
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ],
+)
+def test_update_400_for_over_limit_content(
+    client, notify_db, notify_db_session, notify_api, sample_user, template_type, char_count_limit
+):
     json_data = json.dumps(
         {
-            "content": "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)),
+            "content": "x" * (char_count_limit + 1),
             "created_by": str(sample_user.id),
         }
     )
     auth_header = create_authorization_header()
+
+    sample_template = create_sample_template(notify_db, notify_db_session, template_type=template_type)
     resp = client.post(
-        "/service/{}/template/{}".format(sample_template.service.id, sample_template.id),
+        f"/service/{sample_template.service.id}/template/{sample_template.id}",
         headers=[("Content-Type", "application/json"), auth_header],
         data=json_data,
     )
     assert resp.status_code == 400
     json_resp = json.loads(resp.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
-        "content"
-    ]
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"]["content"]
 
 
 def test_should_return_all_template_versions_for_service_and_template_id(client, sample_template):
