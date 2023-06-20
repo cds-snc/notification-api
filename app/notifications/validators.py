@@ -17,6 +17,7 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
+from notifications_utils.template import HTMLEmailTemplate
 from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -333,6 +334,12 @@ def check_sms_content_char_count(content_count, service_name, prefix_sms: bool):
         raise BadRequestError(message=message)
 
 
+def check_email_content_char_count(template_with_content: HTMLEmailTemplate):
+    if template_with_content.is_message_too_long():
+        message = f"Content for template has a character count greater than the limit of {template_with_content.CHAR_COUNT_LIMIT}"
+        raise BadRequestError(message=message)
+
+
 def check_content_is_not_blank(content):
     if is_blank(content):
         message = "Message is empty or just whitespace"
@@ -351,10 +358,11 @@ def validate_template(template_id, personalisation, service: Service, notificati
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
 
-    template_with_content: Template = create_content_for_notification(template, personalisation)
+    template_with_content = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count, service.name, service.prefix_sms)
-
+    if template.template_type == EMAIL_TYPE:
+        check_email_content_char_count(template_with_content)
     check_content_is_not_blank(template_with_content)
 
     return template, template_with_content
