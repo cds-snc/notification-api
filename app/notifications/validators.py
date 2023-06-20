@@ -17,8 +17,8 @@ from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
-from notifications_utils.template import HTMLEmailTemplate
 from notifications_utils.statsd_decorators import statsd_catch
+from notifications_utils.template import HTMLEmailTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
