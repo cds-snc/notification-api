@@ -3,7 +3,7 @@ import functools
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
@@ -18,7 +18,7 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 from notifications_utils.statsd_decorators import statsd_catch
-from notifications_utils.template import HTMLEmailTemplate
+from notifications_utils.template import WithSubjectTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store
@@ -334,9 +334,10 @@ def check_sms_content_char_count(content_count, service_name, prefix_sms: bool):
         raise BadRequestError(message=message)
 
 
-def check_email_content_char_count(template_with_content: HTMLEmailTemplate):
-    if template_with_content.is_message_too_long():
-        message = f"Content for template has a character count greater than the limit of {template_with_content.CHAR_COUNT_LIMIT}"
+def check_email_content_char_count(template_with_content: WithSubjectTemplate):
+    char_count = len(str(template_with_content))
+    if char_count > EMAIL_CHAR_COUNT_LIMIT:
+        message = f"Content for template has a character count greater than the limit of {EMAIL_CHAR_COUNT_LIMIT}"
         raise BadRequestError(message=message)
 
 

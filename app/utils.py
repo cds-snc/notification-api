@@ -5,7 +5,6 @@ from typing import Any
 import pytz
 from flask import current_app, url_for
 from notifications_utils.template import (
-    HTMLEmailTemplate,
     SMSMessageTemplate,
     WithSubjectTemplate,
     get_html_email_body,
@@ -38,14 +37,9 @@ def url_with_token(data, url, config, base_url=None):
 def get_template_instance(template, values):
     from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 
-    if template["template_type"] == SMS_TYPE:
-        return SMSMessageTemplate(template, values)
-    elif template["template_type"] == EMAIL_TYPE:
-        return HTMLEmailTemplate(template, values)
-    elif template["template_type"] == LETTER_TYPE:
-        return WithSubjectTemplate(template, values)
-    else:
-        raise Exception(f"Template type: {template['template_type']} not implemented")
+    return {SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate}[
+        template["template_type"]
+    ](template, values)
 
 
 def get_html_email_body_from_template(template_instance):
