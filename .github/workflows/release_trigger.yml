@@ -32,7 +32,7 @@ jobs:
 
   release:
     needs: [setup-release]
-    if: github.event.action == 'released'
+    if: github.event.release.prerelease == false
     uses: ./.github/workflows/release.yml
     with:
       environment: "prod"
