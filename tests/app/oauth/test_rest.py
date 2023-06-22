@@ -351,7 +351,7 @@ class TestSsoCommon:
         assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
 
         cookie = list(client.cookie_jar)[0]
-        assert cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+        assert cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME']
         assert cookie.secure is True
         user = decode_token(cookie.value)
         assert user['sub']['id'] == str(sample_user.id)
@@ -378,7 +378,7 @@ class TestAuthorize:
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
         assert not any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
         mock_logger.assert_called_once()
 
@@ -393,7 +393,7 @@ class TestAuthorize:
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure?denied_authorization" in response.location
         assert not any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
         mock_logger.assert_called_once()
 
@@ -429,7 +429,7 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
         assert response.status_code == 302
         assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
         assert not any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar
         )
         mock_logger.assert_called_once()
 
@@ -448,7 +448,7 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
         assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
 
         assert any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME']
             and cookie.value == 'some-access-token-value'
             for cookie in client.cookie_jar
         )
@@ -508,20 +508,16 @@ class TestRedeemToken:
 
         assert response.status_code == 401
 
-    def test_should_return_cookie_in_body(
+    def test_should_return_cookie_value_in_body(
             self, client, mocker, notify_api
     ):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=None)
 
-        expected_cookie_value = 'some-cookie-value'
-        client.set_cookie('test',
-                          cookie_config['JWT_ACCESS_COOKIE_NAME'],
-                          expected_cookie_value)
-
+        client.set_cookie(cookie_config['JWT_ACCESS_COOKIE_NAME'], "some value")
         response = client.get('/auth/redeem-token')
 
         assert response.status_code == 200
-        assert response.json.get('data') == expected_cookie_value
+        assert response.get_json()["data"] == "some value"
 
     def test_should_set_cors_headers(self, client, mocker, notify_api):
         mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=None)
@@ -621,9 +617,8 @@ class TestLogout:
     def test_should_redirect_to_ui_and_clear_cookies(self, client, notify_db_session, sample_user, mocker):
         mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
         client.get('/auth/authorize')
-
         assert any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME']
             for cookie in client.cookie_jar
         )
 
@@ -633,7 +628,7 @@ class TestLogout:
         assert cookie_config['UI_HOST_NAME'] in response.location
 
         assert not any(
-            cookie.name == cookie_config['JWT_ACCESS_COOKIE_NAME']
+            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME']
             for cookie in client.cookie_jar
         )
 

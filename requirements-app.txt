@@ -2,8 +2,8 @@
 alembic_utils >= 0.8.1
 
 Authlib >= 1.2.0
-boto3 >= 1.26.115
-botocore >= 1.29.115
+boto3 >= 1.26.158
+botocore >= 1.29.158
 cachelib >= 0.10.2
 
 # 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
@@ -12,8 +12,8 @@ celery[sqs] >= 4.4.7
 
 click-datetime >= 0.2
 
-# Datadog Tracer and Profiler, 1.12.1 patch needed to remove profiler memory error
-ddtrace >= 1.12.1
+# Datadog Tracer and Profiler
+ddtrace >= 1.15.0
 
 docopt >= 0.6.2
 eventlet ~= 0.33.3
@@ -22,16 +22,16 @@ eventlet ~= 0.33.3
 # https://developers.yubico.com/WebAuthn/
 fido2 >= 1.1.1
 
-Flask >= 2.2.5
+Flask >= 2.3.2
 Flask-Bcrypt >= 1.0.1
 Flask-Cors >= 3.0.10
-Flask-JWT-Extended >= 4.4.4
+Flask-JWT-Extended >= 4.5.2
 
 # 19 April 2023: v0.15.0 depends on marshmallow >= 3.0.0.
 flask-marshmallow ~= 0.14.0
 
 Flask-Migrate >= 4.0.4
-Flask-SQLAlchemy >= 3.0.3
+Flask-SQLAlchemy >= 3.0.5
 git+https://github.com/department-of-veterans-affairs/notification-utils.git
 
 # The production image defined by Dockerfile uses Gunicorn.  The development image defined by Dockerfile.local
@@ -40,7 +40,7 @@ git+https://github.com/department-of-veterans-affairs/notification-utils.git
 # This is Gunicorn v20.1.0 with additional fixes for import errors that occur with eventlet > 0.30.2.
 gunicorn[eventlet] @ git+https://github.com/benoitc/gunicorn.git@6a8ebb4844b2f28596ffe7421eb9f7d08c8dc4d8
 
-iso8601 >= 1.1.0
+iso8601 >= 2.0.0
 itsdangerous >= 1.1.0
 jsonschema >= 4.17.3
 
@@ -53,10 +53,10 @@ kombu < 5.0
 marshmallow ~= 2.20.5
 marshmallow-sqlalchemy ~= 0.22.3
 nanoid >= 2.0.0
-notifications-python-client >= 8.0.0
+notifications-python-client >= 8.0.1
 psycopg2-binary >= 2.9.6
 pwnedpasswords >= 2.0.0
-PyJWT >= 2.6.0
+PyJWT >= 2.7.0
 
 # 19 April 2023: This package is deprecated.  See #1221.
 PyPDF2 ~= 3.0.1
@@ -69,11 +69,11 @@ python-magic >= 0.4.27
 # https://python-jsonschema.readthedocs.io/en/latest/validate/?highlight=date-time#validating-formats
 rfc3339-validator >= 0.1.4
 
-sentry-sdk[flask] >= 1.20.0
+sentry-sdk[flask] >= 1.25.1
 
 # 10 December 2022: Ignoring security vulnerability 51668 in Makefile.  It is fixed in  >= 2.0.0b1.
-SQLAlchemy ~= 1.4.47
+SQLAlchemy ~= 1.4.48
 
-twilio >= 8.0.0
+twilio >= 8.3.0
 Unidecode >= 1.3.6
 validatesns >= 0.1.1
