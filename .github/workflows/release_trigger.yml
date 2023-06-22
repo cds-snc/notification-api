@@ -8,51 +8,33 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       git-tag: ${{ steps.tag.outputs.version }}
-      env: ${{ steps.setup.outputs.environment }}
     steps:
-      - name: Setup Environment
-        id: setup
-        uses: actions/github-script@v6
-        with:
-          script: |
-            if ('${{ github.event.action }}' === 'prereleased') {
-              core.setOutput('environment', 'staging')
-            }
-            if ('${{ github.event.action }}' === 'released') {
-              core.setOutput('environment', 'prod')
-            }
-
-      - name: Get the version
-        id: tag
+      - name: Init
         run: |
-          echo "version=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_OUTPUT
-
-      - name: Env Values
+          echo Deploy starting
+          # this allows for blame
+          echo ${{ github.actor }}
+      - name: Check release and env values
         run: |
-          echo "The environment is ${{ steps.setup.outputs.environment }}"
-          echo "The tag is ${{ steps.tag.outputs.version }}"
+          echo "Release tag: ${{ github.event.release.tag_name }}"	          
+          echo "Release name: ${{ github.event.release.name }}"
+          echo "is a prerelease? (github.event.release.prerelease): ${{ github.event.release.prerelease }}"
+          echo "is a regular release? (will say release if true)(github.event.action): ${{ github.event.action }}"
 
-  run-build:
+  pre-release:
     needs: [setup-release]
-    uses: ./.github/workflows/build.yml
+    if: github.event.release.prerelease == true
+    uses: ./.github/workflows/release.yml
     with:
-      environment: "${{ needs.setup-release.outputs.env }}"
-      ref: "${{ needs.setup-release.outputs.git-tag }}"
+      environment: "staging"
+      git-tag: "${{ github.event.release.tag_name }}"
     secrets: inherit
 
-  run-lambda-deploy:
+  release:
     needs: [setup-release]
-    uses: ./.github/workflows/lambda-functions.yml
+    if: github.event.action == 'released'
+    uses: ./.github/workflows/release.yml
     with:
-      environment: "${{ needs.setup-release.outputs.env }}"
-      ref: "${{ needs.setup-release.outputs.git-tag }}"
-      lambdaName: "All"
-    secrets: inherit
-
-  run-deployment:
-    needs: [setup-release, run-build]
-    uses: ./.github/workflows/deployment.yml
-    with:
-      environment: "${{ needs.setup-release.outputs.env }}"
-      ref: "${{ needs.setup-release.outputs.git-tag }}"
+      environment: "prod"
+      git-tag: "${{ github.event.release.tag_name }}"
     secrets: inherit
