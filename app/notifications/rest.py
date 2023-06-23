@@ -99,6 +99,7 @@ def send_notification(notification_type: NotificationType):
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
+    current_app.logger.info(f"POST to V1 API: send_notification, service_id: {authenticated_service.id}")
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(

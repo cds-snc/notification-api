@@ -224,8 +224,8 @@ def send_email_to_provider(notification: Notification):
                                 "mime_type": mime_type,
                             }
                         )
-                except Exception:
-                    current_app.logger.error(f"Could not download and attach {direct_file_url}")
+                except Exception as e:
+                    current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
                 del personalisation_data[key]
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]

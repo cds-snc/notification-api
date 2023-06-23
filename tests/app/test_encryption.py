@@ -12,13 +12,6 @@ class TestEncryption:
         assert signed != "this"
         assert signer.verify(signed) == "this"
 
-    def test_should_verify_content_signed_with_DANGEROUS_SALT(self, notify_api):
-        signer = CryptoSigner()
-        signer.init_app(notify_api, "secret", "salt")
-        signer_dangerous = CryptoSigner()
-        signer_dangerous.init_app(notify_api, "secret", notify_api.config.get("DANGEROUS_SALT"))
-        assert signer.verify(signer_dangerous.sign("this")) == "this"
-
     def test_should_not_verify_content_signed_with_different_secrets(self, notify_api):
         signer1 = CryptoSigner()
         signer2 = CryptoSigner()

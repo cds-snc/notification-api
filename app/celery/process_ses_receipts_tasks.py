@@ -38,9 +38,6 @@ def process_ses_results(self, response):
             _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
             return True
 
-        aws_response_dict = get_aws_responses(ses_message)
-
-        notification_status = aws_response_dict["notification_status"]
         reference = ses_message["mail"]["messageId"]
 
         try:
@@ -48,16 +45,16 @@ def process_ses_results(self, response):
         except NoResultFound:
             try:
                 current_app.logger.warning(
-                    f"RETRY {self.request.retries}: notification not found for SES reference {reference} (update to {notification_status}). "
+                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
                     f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
                 )
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
-                current_app.logger.warning(
-                    f"notification not found for SES reference: {reference} (update to {notification_status}). Giving up."
-                )
+                current_app.logger.warning(f"notification not found for SES reference: {reference}. Giving up.")
             return
 
+        aws_response_dict = get_aws_responses(ses_message)
+        notification_status = aws_response_dict["notification_status"]
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
