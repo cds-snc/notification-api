@@ -6,7 +6,7 @@ from locust import HttpUser, constant_pacing, events, task
 
 load_dotenv()
 
-## Match with app/config.py
+# Match with app/config.py
 INTERNAL_TEST_NUMBER = "+16135550123"
 INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
@@ -40,4 +40,3 @@ class NotifyApiUser(HttpUser):
         else:
             json = {"phone_number": self.phone_number, "template_id": self.sms_template}
             self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
-   

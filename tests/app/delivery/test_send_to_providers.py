@@ -817,9 +817,8 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
     )
 
 
-
 def test_should_not_send_email_message_to_internal_test_address(sample_service, sample_email_template, mocker):
-    
+
     notification = save_notification(
         create_notification(
             template=sample_email_template,
