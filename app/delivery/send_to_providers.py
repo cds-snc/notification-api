@@ -259,6 +259,10 @@ def send_email_to_provider(notification: Notification):
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
             notification.reference = send_email_response(notification.to)
             update_notification_to_sending(notification, provider)
+        elif notification.to == Config.INTERNAL_TEST_EMAIL_ADDRESS:
+            current_app.logger.info(f"notification {notification.id} sending to internal test email address. Not sending to AWS")
+            notification.reference = send_email_response(notification.to)
+            update_notification_to_sending(notification, provider)
         else:
             if service.sending_domain is None or service.sending_domain.strip() == "":
                 sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
