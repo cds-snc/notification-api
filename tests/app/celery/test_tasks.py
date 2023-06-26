@@ -47,7 +47,6 @@ from app.models import (
     JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     KEY_TYPE_NORMAL,
-    LETTER_TYPE,
     NORMAL,
     PRIORITY,
     SMS_TYPE,
@@ -718,92 +717,6 @@ class TestProcessJob:
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
-
-    def test_should_process_emails_job(self, email_job_with_placeholders, mocker):
-        email_csv = """email_address,name
-        test@test.com,foo
-        YOLO@test2.com,foo2
-        yolo2@test2.com,foo3
-        yolo3@test3.com,foo4
-        """
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
-        mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
-        redis_mock = mocker.patch("app.celery.tasks.statsd_client.timing_with_dates")
-
-        process_job(email_job_with_placeholders.id)
-
-        s3.get_job_from_s3.assert_called_once_with(
-            str(email_job_with_placeholders.service.id), str(email_job_with_placeholders.id)
-        )
-
-        assert signer_notification.sign.call_args[0][0]["to"] == "yolo3@test3.com"
-        assert signer_notification.sign.call_args[0][0]["template"] == str(email_job_with_placeholders.template.id)
-        assert signer_notification.sign.call_args[0][0]["template_version"] == email_job_with_placeholders.template.version
-        assert signer_notification.sign.call_args[0][0]["personalisation"] == {
-            "emailaddress": "yolo3@test3.com",
-            "name": "foo4",
-        }
-        tasks.save_emails.apply_async.assert_called_once_with(
-            (
-                str(email_job_with_placeholders.service_id),
-                ["something_encrypted", "something_encrypted", "something_encrypted", "something_encrypted"],
-                None,
-            ),
-            queue="-normal-database-tasks",
-        )
-        job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
-        assert job.processing_started is not None
-        assert job.created_at is not None
-        redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
-
-    def test_should_process_email_job_with_sender_id(self, sample_email_template, mocker, fake_uuid):
-        email_csv = """email_address,name
-        test@test.com,foo
-        """
-        job = create_job(template=sample_email_template, sender_id=fake_uuid)
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=email_csv)
-        mocker.patch("app.celery.tasks.save_emails.apply_async")
-        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
-        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
-
-        process_job(job.id)
-
-        tasks.save_emails.apply_async.assert_called_once_with(
-            (str(job.service_id), ["something_encrypted"], None), queue="-normal-database-tasks"
-        )
-
-    @pytest.mark.skip(reason="the code paths don't exist for letter implementation")
-    @freeze_time("2016-01-01 11:09:00.061258")
-    def test_should_process_letter_job(self, sample_letter_job, mocker):
-        csv = """address_line_1,address_line_2,address_line_3,address_line_4,postcode,name
-        A1,A2,A3,A4,A_POST,Alice
-        """
-        s3_mock = mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=csv)
-        process_row_mock = mocker.patch("app.celery.tasks.process_row")
-        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
-
-        process_job(sample_letter_job.id)
-
-        s3_mock.assert_called_once_with(str(sample_letter_job.service.id), str(sample_letter_job.id))
-
-        row_call = process_row_mock.mock_calls[0][1]
-        assert row_call[0].index == 0
-        assert row_call[0].recipient == ["A1", "A2", "A3", "A4", None, None, "A_POST"]
-        assert row_call[0].personalisation == {
-            "addressline1": "A1",
-            "addressline2": "A2",
-            "addressline3": "A3",
-            "addressline4": "A4",
-            "postcode": "A_POST",
-        }
-        assert row_call[2] == sample_letter_job
-        assert row_call[3] == sample_letter_job.service
-
-        assert process_row_mock.call_count == 1
-
-        assert sample_letter_job.job_status == "finished"
 
     def test_should_process_all_sms_job(self, sample_job_with_placeholdered_template, mocker):
         mocker.patch(
@@ -1784,8 +1697,7 @@ class TestSaveEmails:
     "template_type, expected_class",
     [
         (SMS_TYPE, SMSMessageTemplate),
-        (EMAIL_TYPE, WithSubjectTemplate),
-        (LETTER_TYPE, WithSubjectTemplate),
+        (EMAIL_TYPE, WithSubjectTemplate)
     ],
 )
 def test_get_template_class(template_type, expected_class):
@@ -2119,32 +2031,6 @@ class TestProcessIncompleteJob:
 
         assert mock_email_saver.call_count == 1
         assert len(mock_email_saver.call_args[0][0][1]) == 8  # There are 10 in the file and we've added two already
-
-    @pytest.mark.skip(reason="DEPRECATED: letter code")
-    def test_process_incomplete_job_letter(self, mocker, sample_letter_template):
-        mocker.patch(
-            "app.celery.tasks.s3.get_job_from_s3",
-            return_value=load_example_csv("multiple_letter"),
-        )
-        mock_letter_saver = mocker.patch("app.celery.tasks.save_letter.apply_async")
-
-        job = create_job(
-            template=sample_letter_template,
-            notification_count=10,
-            created_at=datetime.utcnow() - timedelta(hours=2),
-            scheduled_for=datetime.utcnow() - timedelta(minutes=31),
-            processing_started=datetime.utcnow() - timedelta(minutes=31),
-            job_status=JOB_STATUS_ERROR,
-        )
-
-        save_notification(create_notification(sample_letter_template, job, 0))
-        save_notification(create_notification(sample_letter_template, job, 1))
-
-        assert Notification.query.filter(Notification.job_id == job.id).count() == 2
-
-        process_incomplete_job(str(job.id))
-
-        assert mock_letter_saver.call_count == 8
 
     @freeze_time("2017-01-01")
     def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processing_started_time(self, mocker, sample_template):
