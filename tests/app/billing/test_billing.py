@@ -35,7 +35,6 @@ def _assert_dict_equals(actual, expected_dict):
 
 
 def test_create_update_free_sms_fragment_limit_invalid_schema(client, sample_service):
-
     response = client.post(
         "service/{}/billing/free-sms-fragment-limit".format(sample_service.id),
         data={},
@@ -100,7 +99,6 @@ def test_create_free_sms_fragment_limit_updates_existing_year(admin_request, sam
 
 
 def test_get_free_sms_fragment_limit_current_year_creates_new_row(client, sample_service):
-
     current_year = get_current_financial_year_start_year()
     create_annual_billing(sample_service.id, 9999, current_year - 1)
 

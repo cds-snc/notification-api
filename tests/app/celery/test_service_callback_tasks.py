@@ -22,7 +22,6 @@ from tests.app.db import (
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_signed_data(notify_db_session, notification_type):
-
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
 

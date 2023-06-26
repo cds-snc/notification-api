@@ -160,7 +160,6 @@ def test_get_api_keys_should_return_one_key_for_service(notify_api, sample_api_k
 
 
 def test_create_api_key_expected_format_by_admin(notify_api, sample_service):
-
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             assert ApiKey.query.count() == 0
@@ -184,7 +183,6 @@ def test_create_api_key_expected_format_by_admin(notify_api, sample_service):
 
 
 def test_create_api_key_ensure_key_is_prefixed(notify_api, sample_service):
-
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             assert ApiKey.query.count() == 0

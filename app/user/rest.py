@@ -445,7 +445,6 @@ def send_already_registered_email(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/contact-request", methods=["POST"])
 def send_contact_request(user_id):
-
     contact = None
     user = None
 
@@ -491,7 +490,6 @@ def send_contact_request(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
-
     contact = None
     data = request.json
     try:

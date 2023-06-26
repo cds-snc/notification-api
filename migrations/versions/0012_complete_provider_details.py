@@ -17,7 +17,6 @@ from sqlalchemy.dialects.postgresql import ENUM
 
 
 def upgrade():
-
     op.alter_column("provider_rates", "provider_id", existing_type=postgresql.UUID(), nullable=False)
     op.drop_column("provider_rates", "provider")
     op.alter_column(
@@ -31,7 +30,6 @@ def upgrade():
 
 
 def downgrade():
-
     provider_enum = ENUM(
         "loadtesting",
         "firetext",
