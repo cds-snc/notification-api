@@ -89,6 +89,7 @@ def send_sms_to_provider(notification):
         ):
             current_app.logger.info(f"notification {notification.id} sending to internal test number. Not sending to AWS")
             notification.reference = send_sms_response(provider.get_name(), notification.to)
+            notification.billable_units = template.fragment_count
             update_notification_to_sending(notification, provider)
 
         else:
