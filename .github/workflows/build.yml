@@ -34,7 +34,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Docker Build
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           file: ci/Dockerfile
           context: .
