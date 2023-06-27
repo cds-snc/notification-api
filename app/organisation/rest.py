@@ -65,7 +65,6 @@ def get_organisation_by_id(organisation_id):
 
 @organisation_blueprint.route("/by-domain", methods=["GET"])
 def get_organisation_by_domain():
-
     domain = request.args.get("domain")
 
     if not domain or "@" in domain:

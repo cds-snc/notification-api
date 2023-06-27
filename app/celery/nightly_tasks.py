@@ -148,7 +148,6 @@ def send_daily_performance_platform_stats(date=None):
         date = datetime.strptime(date, "%Y-%m-%d").date()
 
     if performance_platform_client.active:
-
         send_total_sent_notifications_to_performance_platform(bst_date=date)
         processing_time.send_processing_time_to_performance_platform(bst_date=date)
 

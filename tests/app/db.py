@@ -641,7 +641,6 @@ def create_annual_billing(service_id, free_sms_fragment_limit, financial_year_st
 
 
 def create_domain(domain, organisation_id):
-
     domain = Domain(domain=domain, organisation_id=organisation_id)
 
     db.session.add(domain)
@@ -800,7 +799,6 @@ def create_service_data_retention(service, notification_type="sms", days_of_rete
 
 
 def create_invited_user(service=None, to_email_address=None):
-
     if service is None:
         service = create_service()
     if to_email_address is None:

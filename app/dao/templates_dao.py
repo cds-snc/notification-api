@@ -95,7 +95,6 @@ def dao_get_template_by_id_and_service_id(template_id, service_id, version=None)
 def dao_get_template_by_id(
     template_id, version=None, use_cache=False
 ) -> Union[Union[Template, TemplateHistory], Tuple[Union[Template, TemplateHistory], dict]]:
-
     if use_cache:
         # When loading a SQLAlchemy object from cache it is in the transient state.
         # We do not add it to the session. This would defeat the purpose of using the cache.

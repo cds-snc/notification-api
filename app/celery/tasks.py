@@ -468,7 +468,7 @@ def handle_batch_error_and_forward(
     process_type = template.process_type if template else None
 
     notifications_in_job: List[str] = []
-    for (signed, notification) in signed_and_verified:
+    for signed, notification in signed_and_verified:
         notification_id = notification["notification_id"]
         notifications_in_job.append(notification_id)
         service = notification["service"]

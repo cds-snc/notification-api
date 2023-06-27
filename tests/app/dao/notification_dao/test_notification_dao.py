@@ -1105,7 +1105,6 @@ def test_delivery_is_delivery_slow_for_provider_filters_out_notifications_it_sho
 
 
 def test_dao_get_notifications_by_to_field(sample_template):
-
     recipient_to_search_for = {
         "to_field": "+16502532222",
         "normalised_to": "+16502532222",
@@ -1203,7 +1202,6 @@ def test_dao_get_notifications_by_to_field_escapes(
     search_term,
     expected_result_count,
 ):
-
     for email_address in {
         "foo%_@example.com",
         "%%bar@example.com",
@@ -1257,7 +1255,6 @@ def test_dao_get_notifications_by_to_field_matches_partial_phone_numbers(
     sample_template,
     search_term,
 ):
-
     notification_1 = save_notification(
         create_notification(
             template=sample_template,
@@ -1368,7 +1365,6 @@ def test_dao_get_notifications_by_to_field_only_searches_one_notification_type(
 
 
 def test_dao_created_scheduled_notification(sample_notification):
-
     scheduled_notification = ScheduledNotification(
         notification_id=sample_notification.id,
         scheduled_for=datetime.strptime("2017-01-05 14:15", "%Y-%m-%d %H:%M"),
@@ -1549,7 +1545,6 @@ def test_dao_get_last_notification_added_for_job_id_no_notifications(sample_temp
 
 
 def test_dao_get_last_notification_added_for_job_id_no_job(sample_template, fake_uuid):
-
     assert dao_get_last_notification_added_for_job_id(fake_uuid) is None
 
 
@@ -1773,7 +1768,10 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
 
     assert NotificationHistory.query.count() == 5
 
-    assert send_method_stats_by_service(datetime.utcnow() - timedelta(days=7), datetime.utcnow(),) == [
+    assert send_method_stats_by_service(
+        datetime.utcnow() - timedelta(days=7),
+        datetime.utcnow(),
+    ) == [
         (
             sample_service.id,
             sample_service.name,
