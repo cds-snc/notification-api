@@ -101,6 +101,9 @@ def create_template(service_id):
         char_limit = SMS_CHAR_COUNT_LIMIT if new_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
         message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
+        current_app.logger.warning(
+            {"error": f"{new_template.template_type}_char_count_exceeded", "message": message, "service_id": service_id}
+        )
         raise InvalidRequest(errors, status_code=400)
 
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
@@ -145,6 +148,9 @@ def update_template(service_id, template_id):
         char_limit = SMS_CHAR_COUNT_LIMIT if fetched_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
         message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
+        current_app.logger.warning(
+            {"error": f"{fetched_template.template_type}_char_count_exceeded", "message": message, "template_id": template_id}
+        )
         raise InvalidRequest(errors, status_code=400)
 
     update_dict = template_schema.load(updated_template).data
