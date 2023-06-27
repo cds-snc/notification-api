@@ -253,7 +253,6 @@ def backfill_performance_platform_totals(start_date, end_date):
     print("Sending total messages sent for all days between {} and {}".format(start_date, end_date))
 
     for i in range(delta.days + 1):
-
         process_date = start_date + timedelta(days=i)
 
         print("Sending total messages sent for {}".format(process_date.isoformat()))
@@ -459,7 +458,6 @@ def setup_commands(application):
 )
 @statsd(namespace="tasks")
 def migrate_data_to_ft_billing(start_date, end_date):
-
     current_app.logger.info("Billing migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date
@@ -591,7 +589,6 @@ def rebuild_ft_billing_for_day(service_id, day):
 )
 @statsd(namespace="tasks")
 def migrate_data_to_ft_notification_status(start_date, end_date):
-
     print("Notification statuses migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date

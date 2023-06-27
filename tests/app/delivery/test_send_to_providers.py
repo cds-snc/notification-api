@@ -566,7 +566,6 @@ def test_get_html_email_renderer_should_return_for_normal_service(sample_service
 def test_get_html_email_renderer_with_branding_details(
     branding_type, fip_banner_english, fip_banner_french, notify_db, sample_service
 ):
-
     email_branding = EmailBranding(
         brand_type=branding_type,
         colour="#000000",

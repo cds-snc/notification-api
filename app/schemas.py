@@ -86,7 +86,6 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
 
 
 class UserSchema(BaseSchema):
-
     permissions = fields.Method("user_permissions", dump_only=True)
     password_changed_at = field_for(models.User, "password_changed_at", format="%Y-%m-%d %H:%M:%S.%f")
     created_at = field_for(models.User, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
@@ -213,7 +212,6 @@ class ProviderDetailsHistorySchema(BaseSchema):
 
 
 class ServiceSchema(BaseSchema):
-
     created_by = field_for(models.Service, "created_by", required=True)
     organisation_type = field_for(models.Service, "organisation_type")
     letter_logo_filename = fields.Method(dump_only=True, serialize="get_letter_logo_filename")
@@ -343,7 +341,6 @@ class BaseTemplateSchema(BaseSchema):
 
 
 class TemplateSchema(BaseTemplateSchema):
-
     created_by = field_for(models.Template, "created_by", required=True)
     process_type = field_for(models.Template, "process_type")
     redact_personalisation = fields.Method("redact")
@@ -360,7 +357,6 @@ class TemplateSchema(BaseTemplateSchema):
 
 
 class TemplateHistorySchema(BaseSchema):
-
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
     process_type = field_for(models.Template, "process_type")
@@ -378,7 +374,6 @@ class TemplateHistorySchema(BaseSchema):
 
 
 class ApiKeySchema(BaseSchema):
-
     created_by = field_for(models.ApiKey, "created_by", required=True)
     key_type = field_for(models.ApiKey, "key_type", required=True)
 

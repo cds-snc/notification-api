@@ -1754,7 +1754,6 @@ class TestSaveEmails:
         notification_id = uuid.uuid4()
 
         with pytest.raises(Retry):
-
             save_emails(sample_email_template.service_id, [signer_notification.sign(notification)], notification_id)
 
         assert not provider_tasks.deliver_email.apply_async.called
@@ -1946,7 +1945,6 @@ class TestProcessIncompleteJob:
         assert len(save_smss.call_args[0][0][1]) == 8  # The unprocessed 8 notifications will be sent to save_smss
 
     def test_process_incomplete_job_with_notifications_all_sent(self, mocker, sample_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -1984,7 +1982,6 @@ class TestProcessIncompleteJob:
         assert mock_save_sms.call_count == 0  # There are 10 in the file and we've added 10 it should not have been called
 
     def test_process_incomplete_jobs_sms(self, mocker, sample_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2064,7 +2061,6 @@ class TestProcessIncompleteJob:
         assert len(mock_save_sms.call_args[0][0][1]) == 10  # There are 10 in the csv file
 
     def test_process_incomplete_jobs(self, mocker):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2077,7 +2073,6 @@ class TestProcessIncompleteJob:
         assert mock_save_sms.call_count == 0  # There are no jobs to process so it will not have been called
 
     def test_process_incomplete_job_no_job_in_database(self, mocker, fake_uuid):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2090,7 +2085,6 @@ class TestProcessIncompleteJob:
         assert mock_save_sms.call_count == 0  # There is no job in the db it will not have been called
 
     def test_process_incomplete_job_email(self, mocker, sample_email_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_email"),
@@ -2266,7 +2260,6 @@ class TestSeedBounceRateData:
         mocker.patch("app.celery.tasks.bounce_rate_client.get_seeding_started", return_value=True)
 
         with notify_api.app_context():
-
             seed_bounce_rate_in_redis("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
 
             mocked_set_seeded_total_notifications.assert_not_called()

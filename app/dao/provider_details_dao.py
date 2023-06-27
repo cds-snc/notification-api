@@ -76,7 +76,6 @@ def dao_switch_sms_provider_to_provider_with_identifier(identifier):
 
 
 def get_provider_details_by_notification_type(notification_type, supports_international=False):
-
     filters = [ProviderDetails.notification_type == notification_type]
 
     if supports_international:
