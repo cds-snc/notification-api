@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from marshmallow import ValidationError
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import get_international_phone_info
 
@@ -38,7 +39,6 @@ from app.utils import (
     get_template_instance,
     pagination_links,
 )
-from marshmallow import ValidationError
 
 notifications = Blueprint("notifications", __name__)
 
