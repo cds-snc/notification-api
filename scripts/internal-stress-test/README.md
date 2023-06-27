@@ -45,30 +45,4 @@ You can pass the necessary parameters to the command line to run in the headless
 locust -f ./internal_stress_test.py --headless --type [ email | sms ]
 ```
 
-The defaults in `locust.conf` may be overridden by command line options
-
-To check whether all the POSTs from locust made it into the database, run the "Soak test" query on blazer. The query is already in staging, or you can run:
-
-```sql
-WITH
-data as (
-    select 
-        n.created_at, n.sent_at, n.updated_at, client_reference, notification_status as status, t.process_type as priority
-    from notifications n join templates t on n.template_id = t.id
-    where client_reference like concat('%', 'soak-2023-05-30-A'::text, '%')
-),
-munged as (
-    select *,
-    EXTRACT(epoch FROM updated_at - created_at) as total_time
-    from data
-),
-stats as (
-    select 
-        status, count(*),
-        percentile_cont(0.5) within group(order by total_time) AS total_median,
-        avg(total_time) as total_mean
-    from munged
-    group by status
-)
-select * from stats 
-```
+The defaults in `locust.conf` may be overridden by command line options.
