@@ -565,10 +565,7 @@ def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job
         noti = create_notification(
             template=sample_job.template, job=sample_job, status="sent" if i <= 5 else "pending", updated_at=datetime.utcnow()
         )
-        try:
-            save_notification(noti)
-        except IntegrityError:
-            pass
+        save_notification(noti)
         if i == 5:
             latest_sent = noti.updated_at
 

@@ -490,7 +490,7 @@ class TestBatchSaving:
 
 
 class TestUpdateJob:
-    def test_update_job(sample_template, sample_job, mocker):
+    def test_update_job(self, sample_template, sample_job, mocker):
         latest = save_notification(create_notification(job=sample_job, updated_at=datetime.utcnow()))
         save_notification(create_notification(job=sample_job))
         mocker.patch("app.celery.tasks.dao_get_job_by_id", return_value=sample_job)

@@ -133,7 +133,7 @@ def check_job_status():
     from jobs
     where job_status == 'in progress'
     and template_type in ('sms', 'email')
-    and scheduled_at or created_at is older that 120 minutes.
+    and scheduled_at or created_at is older than 60 minutes.
     if any results then
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
