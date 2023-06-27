@@ -69,7 +69,6 @@ def fetch_sms_free_allowance_remainder(start_date):
 
 
 def fetch_sms_billing_for_all_services(start_date, end_date):
-
     # ASSUMPTION: AnnualBilling has been populated for year.
     free_allowance_remainder = fetch_sms_free_allowance_remainder(start_date).subquery()
 
