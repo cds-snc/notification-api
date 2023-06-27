@@ -22,7 +22,6 @@ from tests.app.db import (
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_signed_data(notify_db_session, notification_type):
-
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
 
@@ -45,6 +44,7 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_sign
         "reference": notification.client_reference,
         "to": notification.to,
         "status": notification.status,
+        "status_description": notification.formatted_status,
         "provider_response": notification.provider_response,
         "created_at": datestr.strftime(DATETIME_FORMAT),
         "completed_at": datestr.strftime(DATETIME_FORMAT),
@@ -177,6 +177,7 @@ def _set_up_data_for_status_update(callback_api, notification):
         "notification_client_reference": notification.client_reference,
         "notification_to": notification.to,
         "notification_status": notification.status,
+        "notification_status_description": notification.formatted_status,
         "notification_provider_response": notification.provider_response,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_updated_at": notification.updated_at.strftime(DATETIME_FORMAT) if notification.updated_at else None,

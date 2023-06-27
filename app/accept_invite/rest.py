@@ -13,7 +13,6 @@ register_errors(accept_invite)
 
 @accept_invite.route("/<invitation_type>/<token>", methods=["GET"])
 def validate_invitation_token(invitation_type, token):
-
     max_age_seconds = 60 * 60 * 24 * current_app.config["INVITATION_EXPIRATION_DAYS"]
 
     try:

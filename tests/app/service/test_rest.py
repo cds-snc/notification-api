@@ -408,7 +408,6 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
     ),
 )
 def test_create_service_with_domain_sets_organisation(admin_request, sample_user, domain, expected_org, mocker):
-
     red_herring_org = create_organisation(name="Sub example")
     create_domain("specific.example.gov.uk", red_herring_org.id)
     create_domain("aaaaaaaa.example.gov.uk", red_herring_org.id)
@@ -443,7 +442,6 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
 
 
 def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
-
     org = create_organisation()
     email_branding = create_email_branding()
     org.email_branding = email_branding
@@ -1097,7 +1095,6 @@ def test_default_permissions_are_added_for_user_service(
 ):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
-
             data = {
                 "name": "created service",
                 "user_id": str(sample_user.id),
@@ -1595,7 +1592,6 @@ def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_
 
 
 def test_get_notification_for_service(client, notify_db, notify_db_session):
-
     service_1 = create_service(service_name="1", email_from="1")
     service_2 = create_service(service_name="2", email_from="2")
 
@@ -2027,7 +2023,6 @@ def test_get_detailed_services_for_date_range(sample_template, start_date_delta,
 
 
 def test_search_for_notification_by_to_field(client, sample_template, sample_email_template):
-
     notification1 = save_notification(
         create_notification(template=sample_template, to_field="+16502532222", normalised_to="+16502532222")
     )
@@ -2271,6 +2266,24 @@ def test_update_service_does_not_call_send_notification_when_restricted_not_chan
 
     assert resp.status_code == 200
     assert not send_notification_mock.called
+
+
+def test_update_service_name_updates_salesforce_engagement(sample_service, client, mocker):
+    user = create_user(email="active1@foo.com", state="active")
+    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
+    mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user)
+
+    data = {"name": "New service name"}
+
+    auth_header = create_authorization_header()
+    resp = client.post(
+        "service/{}".format(sample_service.id),
+        data=json.dumps(data),
+        headers=[auth_header],
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    mocked_salesforce_client.engagement_update.assert_called_once_with(sample_service, user, {"Name": "New service name"})
 
 
 def test_search_for_notification_by_to_field_filters_by_status(client, notify_db, notify_db_session):

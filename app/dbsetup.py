@@ -68,7 +68,6 @@ class ExplicitRoutingSession(SignallingSession):
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
-
     SensitiveString = SensitiveString
 
     def on_reader(self):

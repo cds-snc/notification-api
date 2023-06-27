@@ -486,7 +486,6 @@ def test_check_sms_content_char_count_fails_with_svc_name(char_count, notify_api
 @pytest.mark.parametrize("key_type", ["team", "live", "test"])
 def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session, key_type, mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
-
         if key_type == "live":
             api_key_type = "normal"
         else:

@@ -78,7 +78,6 @@ def test_update_safelist_replaces_old_safelist(client, sample_service_safelist):
 
 
 def test_update_safelist_doesnt_remove_old_safelist_if_error(client, sample_service_safelist):
-
     data = {"email_addresses": [""], "phone_numbers": ["6502532222"]}
 
     response = client.put(

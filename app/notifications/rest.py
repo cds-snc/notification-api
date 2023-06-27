@@ -38,6 +38,7 @@ from app.utils import (
     get_template_instance,
     pagination_links,
 )
+from marshmallow import ValidationError
 
 notifications = Blueprint("notifications", __name__)
 
@@ -86,16 +87,20 @@ def get_all_notifications():
 
 @notifications.route("/notifications/<string:notification_type>", methods=["POST"])
 def send_notification(notification_type: NotificationType):
-
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form = (  # type: ignore
-        sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
-    ).load(request.get_json())
+    try:
+        notification_form = (  # type: ignore
+            sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
+        ).load(request.get_json())
+    except ValidationError as err:
+        errors = err.messages
+        raise InvalidRequest(errors, status_code=400)
 
+    current_app.logger.info(f"POST to V1 API: send_notification, service_id: {authenticated_service.id}")
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
