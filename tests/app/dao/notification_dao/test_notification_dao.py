@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.notifications_dao import (
-    _update_notification_status,
     bulk_insert_notifications,
     dao_create_notification,
     dao_created_scheduled_notification,
@@ -46,7 +45,6 @@ from app.models import (
     KEY_TYPE_TEST,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING,
-    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_STATUS_TYPES,
@@ -199,21 +197,6 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery
 
     assert res is None
     assert notification.status == NOTIFICATION_SENT
-
-
-def test_should_not_update_status_by_permanent_failure_and_then_delivered(
-    sample_template,
-):
-    notification = save_notification(
-        create_notification(
-            sample_template,
-            status=NOTIFICATION_PERMANENT_FAILURE,
-        )
-    )
-
-    res = _update_notification_status(notification, "delivered")
-
-    assert res.status == NOTIFICATION_PERMANENT_FAILURE
 
 
 def test_should_not_update_status_by_id_if_sent_to_country_with_carrier_delivery_receipts(
@@ -1762,10 +1745,7 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
 
     assert NotificationHistory.query.count() == 5
 
-    assert send_method_stats_by_service(
-        datetime.utcnow() - timedelta(days=7),
-        datetime.utcnow(),
-    ) == [
+    assert send_method_stats_by_service(datetime.utcnow() - timedelta(days=7), datetime.utcnow(),) == [
         (
             sample_service.id,
             sample_service.name,

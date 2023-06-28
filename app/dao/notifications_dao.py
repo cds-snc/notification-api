@@ -205,10 +205,6 @@ def country_records_delivery(phone_prefix):
 
 
 def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
-    # Sometimes we get callback from the providers in the wrong order. If the notification has a
-    # permanent failure status, we don't want to overwrite it with a delivered status.
-    if notification.status == NOTIFICATION_PERMANENT_FAILURE and status == NOTIFICATION_DELIVERED:
-        return notification
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
