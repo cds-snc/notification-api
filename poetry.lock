@@ -1639,13 +1639,13 @@ files = [
 
 [[package]]
 name = "iso8601"
-version = "0.1.16"
+version = "2.0.0"
 description = "Simple module to parse ISO 8601 dates"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7,<4.0"
 files = [
-    {file = "iso8601-0.1.16-py2.py3-none-any.whl", hash = "sha256:906714829fedbc89955d52806c903f2332e3948ed94e31e85037f9e0226b8376"},
-    {file = "iso8601-0.1.16.tar.gz", hash = "sha256:36532f77cc800594e8f16641edae7f1baf7932f05d8e508545b95fc53c6dc85b"},
+    {file = "iso8601-2.0.0-py3-none-any.whl", hash = "sha256:ebe10061b932edb8a8e33cc635d661926c59b9c3bed7a4f4edca8c62d400af10"},
+    {file = "iso8601-2.0.0.tar.gz", hash = "sha256:739960d37c74c77bd9bd546a76562ccb581fe3d4820ff5c3141eb49c839fda8f"},
 ]
 
 [[package]]
@@ -4028,4 +4028,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "ca1707b30cd77866b536d96b89f32505f83c758d62ba79a947f07c45ce225823"
+content-hash = "b0c68d338592079252f63577e01cf5c7cbbc0f6d7ff435e65dbb560e364845df"
