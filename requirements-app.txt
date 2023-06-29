@@ -5,11 +5,7 @@ Authlib >= 1.2.0
 boto3 >= 1.26.158
 botocore >= 1.29.158
 cachelib >= 0.10.2
-
-# 5 May 2022: Ignoring security vulnerabilities 42498 and 43738 in Makefile.
-# One is fixed in version 5.2.0; the other, 5.2.2.  See the note below for "kombu".
-celery[sqs] >= 4.4.7
-
+celery[sqs] >= 5.3.1
 click-datetime >= 0.2
 
 # Datadog Tracer and Profiler
@@ -43,14 +39,11 @@ gunicorn[eventlet] @ git+https://github.com/benoitc/gunicorn.git@6a8ebb4844b2f28
 iso8601 >= 2.0.0
 itsdangerous >= 1.1.0
 jsonschema >= 4.17.3
-
-# 5 May 2022: Celery depends on this package, and the Docker image build failed with the newest version.
-# Ignoring security vulnerability 42497 in Makefile.  The vulnerability is fixed in kombu >= 5.2.1.
-# Kombu is a top-level package too.
-kombu < 5.0
+kombu >= 5.3.1
 
 # 31 March 2023: marshmallow 2.x has not been supported since 18 August 2020.
 marshmallow ~= 2.20.5
+
 marshmallow-sqlalchemy ~= 0.22.3
 nanoid >= 2.0.0
 notifications-python-client >= 8.0.1

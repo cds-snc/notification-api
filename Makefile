@@ -34,7 +34,7 @@ install-safety:
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	# The ignored issues are documented in requirements-app.txt.
-	safety check -r requirements.txt --full-report -i 42497 -i 42498 -i 43738 -i 51668
+	safety check -r requirements.txt --full-report -i 51668
 
 .PHONY:
 	help \

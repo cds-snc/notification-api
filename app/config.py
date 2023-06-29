@@ -246,7 +246,7 @@ class Config(object):
         },
         'worker_enable_remote_control': False,
         'enable_utc': True,
-        'timezone': os.getenv("TIMEZONE", "America/Toronto"),
+        'timezone': os.getenv("TIMEZONE", "America/New_York"),
         'accept_content': ['json'],
         'task_serializer': 'json',
         'imports': (
