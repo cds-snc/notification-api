@@ -1,5 +1,6 @@
 # from sqlalchemy.ext.declarative import DeclarativeMeta
-from flask.json import JSONEncoder
+from json import JSONEncoder
+
 from sqlalchemy.engine.row import Row
 
 

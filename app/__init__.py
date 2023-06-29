@@ -194,80 +194,106 @@ def register_blueprint(application):
     )
     from app.user.rest import user_blueprint
 
-    service_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(service_blueprint, url_prefix="/service")
+    blueprints = [
+        billing_blueprint,
+        complaint_blueprint,
+        email_branding_blueprint,
+        events_blueprint,
+        inbound_number_blueprint,
+        inbound_sms_blueprint,
+        invite_blueprint,
+        job_blueprint,
+        letter_branding_blueprint,
+        letter_job,
+        letter_callback_blueprint,
+        notifications_blueprint,
+        organisation_invite_blueprint,
+        organisation_blueprint,
+        platform_stats_blueprint,
+        provider_details_blueprint,
+        service_callback_blueprint,
+        service_blueprint,
+        status_blueprint,
+        template_blueprint,
+        template_folder_blueprint,
+        template_statistics_blueprint,
+        user_blueprint,
+    ]
+    if not all(blueprint._got_registered_once for blueprint in blueprints):
+        service_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(service_blueprint, url_prefix="/service")
 
-    user_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(user_blueprint, url_prefix="/user")
+        user_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(user_blueprint, url_prefix="/user")
 
-    template_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_blueprint)
+        template_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(template_blueprint)
 
-    status_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(status_blueprint)
+        status_blueprint.before_request(requires_no_auth)
+        application.register_blueprint(status_blueprint)
 
-    notifications_blueprint.before_request(requires_auth)
-    application.register_blueprint(notifications_blueprint)
+        notifications_blueprint.before_request(requires_auth)
+        application.register_blueprint(notifications_blueprint)
 
-    job_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(job_blueprint)
+        job_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(job_blueprint)
 
-    invite_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(invite_blueprint)
+        invite_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(invite_blueprint)
 
-    inbound_number_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(inbound_number_blueprint)
+        inbound_number_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(inbound_number_blueprint)
 
-    inbound_sms_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(inbound_sms_blueprint)
+        inbound_sms_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(inbound_sms_blueprint)
 
-    accept_invite.before_request(requires_admin_auth)
-    application.register_blueprint(accept_invite, url_prefix="/invite")
+        accept_invite.before_request(requires_admin_auth)
+        application.register_blueprint(accept_invite, url_prefix="/invite")
 
-    template_statistics_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_statistics_blueprint)
+        template_statistics_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(template_statistics_blueprint)
 
-    events_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(events_blueprint)
+        events_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(events_blueprint)
 
-    provider_details_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(provider_details_blueprint, url_prefix="/provider-details")
+        provider_details_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(provider_details_blueprint, url_prefix="/provider-details")
 
-    email_branding_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(email_branding_blueprint, url_prefix="/email-branding")
+        email_branding_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(email_branding_blueprint, url_prefix="/email-branding")
 
-    api_key_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(api_key_blueprint, url_prefix="/api-key")
+        api_key_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(api_key_blueprint, url_prefix="/api-key")
 
-    letter_job.before_request(requires_admin_auth)
-    application.register_blueprint(letter_job)
+        letter_job.before_request(requires_admin_auth)
+        application.register_blueprint(letter_job)
 
-    letter_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(letter_callback_blueprint)
+        letter_callback_blueprint.before_request(requires_no_auth)
+        application.register_blueprint(letter_callback_blueprint)
 
-    billing_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(billing_blueprint)
+        billing_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(billing_blueprint)
 
-    service_callback_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(service_callback_blueprint)
+        service_callback_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(service_callback_blueprint)
 
-    organisation_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(organisation_blueprint, url_prefix="/organisations")
+        organisation_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(organisation_blueprint, url_prefix="/organisations")
 
-    organisation_invite_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(organisation_invite_blueprint)
+        organisation_invite_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(organisation_invite_blueprint)
 
-    complaint_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(complaint_blueprint)
+        complaint_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(complaint_blueprint)
 
-    platform_stats_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(platform_stats_blueprint, url_prefix="/platform-stats")
+        platform_stats_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(platform_stats_blueprint, url_prefix="/platform-stats")
 
-    template_folder_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_folder_blueprint)
+        template_folder_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(template_folder_blueprint)
 
-    letter_branding_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(letter_branding_blueprint)
+        letter_branding_blueprint.before_request(requires_admin_auth)
+        application.register_blueprint(letter_branding_blueprint)
 
 
 def register_v2_blueprints(application):
@@ -287,17 +313,19 @@ def register_v2_blueprints(application):
     )
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
 
-    v2_notification_blueprint.before_request(requires_auth)
-    application.register_blueprint(v2_notification_blueprint)
+    blueprints = [v2_notification_blueprint, get_templates, v2_template_blueprint, get_inbound_sms]
+    if not all(blueprint._got_registered_once for blueprint in blueprints):
+        v2_notification_blueprint.before_request(requires_auth)
+        application.register_blueprint(v2_notification_blueprint)
 
-    get_templates.before_request(requires_auth)
-    application.register_blueprint(get_templates)
+        get_templates.before_request(requires_auth)
+        application.register_blueprint(get_templates)
 
-    v2_template_blueprint.before_request(requires_auth)
-    application.register_blueprint(v2_template_blueprint)
+        v2_template_blueprint.before_request(requires_auth)
+        application.register_blueprint(v2_template_blueprint)
 
-    get_inbound_sms.before_request(requires_auth)
-    application.register_blueprint(get_inbound_sms)
+        get_inbound_sms.before_request(requires_auth)
+        application.register_blueprint(get_inbound_sms)
 
 
 def init_app(app):
