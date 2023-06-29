@@ -816,6 +816,23 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
     )
 
 
+def test_should_not_send_email_message_to_internal_test_address(sample_service, sample_email_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_email_template,
+            to_field=Config.INTERNAL_TEST_EMAIL_ADDRESS,
+            status="created",
+            reply_to_text=sample_service.get_default_reply_to_email_address(),
+        )
+    )
+    mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="reference")
+    send_mock = mocker.patch("app.aws_ses_client.send_email")
+    send_to_providers.send_email_to_provider(notification)
+
+    send_mock.assert_not_called()
+    assert Notification.query.get(notification.id).status == "sending"
+
+
 def test_send_email_to_provider_should_format_reply_to_email_address(sample_email_template, mocker):
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
     mocker.patch("app.delivery.send_to_providers.bounce_rate_client")

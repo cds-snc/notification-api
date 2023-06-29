@@ -460,7 +460,9 @@ class Config(object):
 
     SIMULATED_SMS_NUMBERS = ("+16132532222", "+16132532223", "+16132532224")
 
+    # Match with scripts/internal_stress_test/internal_stress_test.py
     INTERNAL_TEST_NUMBER = "+16135550123"
+    INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
