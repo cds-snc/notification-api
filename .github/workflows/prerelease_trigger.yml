@@ -1,7 +1,7 @@
-name: Release to Prod
+name: Pre-release to Staging
 on:
   release:
-    types: [released]
+    types: [published]
 
 jobs:
   setup-release:
@@ -18,12 +18,12 @@ jobs:
         run: |
           echo "Release tag: ${{ github.event.release.tag_name }}"	          
           echo "Release name: ${{ github.event.release.name }}"
-          echo "string check: release (prod)?: ${{ github.event.action }}"
+          echo "is a prerelease? (github.event.release.prerelease): ${{ github.event.release.prerelease }}"
 
-  release:
+  pre-release:
     needs: [setup-release]
     uses: ./.github/workflows/release.yml
     with:
-      environment: "prod"
+      environment: "staging"
       git-tag: "${{ github.event.release.tag_name }}"
     secrets: inherit

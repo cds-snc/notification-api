@@ -1,4 +1,4 @@
-name: Release to Prod
+name: Release
 on:
   workflow_call:
     inputs:
@@ -32,4 +32,3 @@ jobs:
       environment: "${{ inputs.environment }}"
       ref: "${{ inputs.git-tag }}"
     secrets: inherit
-
