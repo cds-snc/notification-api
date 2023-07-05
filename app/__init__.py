@@ -31,7 +31,7 @@ from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
-from app.json_encoder import NotifyJSONProvider
+from app.json_provider import NotifyJSONProvider
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"

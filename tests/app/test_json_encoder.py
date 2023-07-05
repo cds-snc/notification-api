@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.engine.row import Row
 
-from app.json_encoder import NotifyJSONProvider
+from app.json_provider import NotifyJSONProvider
 
 
 class TestNotifyJSONProvider:
