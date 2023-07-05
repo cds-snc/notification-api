@@ -89,6 +89,7 @@ def send_sms_to_provider(notification):
         ):
             current_app.logger.info(f"notification {notification.id} sending to internal test number. Not sending to AWS")
             notification.reference = send_sms_response(provider.get_name(), notification.to)
+            notification.billable_units = template.fragment_count
             update_notification_to_sending(notification, provider)
 
         else:
@@ -257,6 +258,10 @@ def send_email_to_provider(notification: Notification):
             f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"
         )
         if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+            notification.reference = send_email_response(notification.to)
+            update_notification_to_sending(notification, provider)
+        elif notification.to == Config.INTERNAL_TEST_EMAIL_ADDRESS:
+            current_app.logger.info(f"notification {notification.id} sending to internal test email address. Not sending to AWS")
             notification.reference = send_email_response(notification.to)
             update_notification_to_sending(notification, provider)
         else:

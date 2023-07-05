@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import bounce_rate_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
@@ -39,7 +39,6 @@ def process_ses_results(self, response):
             return True
 
         reference = ses_message["mail"]["messageId"]
-
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
         except NoResultFound:
@@ -55,12 +54,17 @@ def process_ses_results(self, response):
 
         aws_response_dict = get_aws_responses(ses_message)
         notification_status = aws_response_dict["notification_status"]
-        notifications_dao._update_notification_status(
-            notification=notification,
-            status=notification_status,
-            provider_response=aws_response_dict.get("provider_response", None),
-            bounce_response=aws_response_dict.get("bounce_response", None),
-        )
+        # Sometimes we get callback from the providers in the wrong order. If the notification has a
+        # permanent failure status, we don't want to overwrite it with a delivered status.
+        if notification.status == NOTIFICATION_PERMANENT_FAILURE and notification_status == NOTIFICATION_DELIVERED:
+            pass
+        else:
+            notifications_dao._update_notification_status(
+                notification=notification,
+                status=notification_status,
+                provider_response=aws_response_dict.get("provider_response", None),
+                bounce_response=aws_response_dict.get("bounce_response", None),
+            )
 
         if not aws_response_dict["success"]:
             current_app.logger.info(
