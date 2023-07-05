@@ -210,6 +210,7 @@ def get_live_services_data():
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
+    # SJA here
     return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 

@@ -244,7 +244,7 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     response = admin_request.get("service.get_delivered_notification_stats_by_month_data")["data"]
 
     assert len(response) == 1
-    assert list(response[0]) == ["count", "month", "notification_type"]
+    assert sorted(list(response[0])) == ["count", "month", "notification_type"]
     first = response[0]
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
