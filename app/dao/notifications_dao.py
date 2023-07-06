@@ -747,6 +747,16 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(start_date
 
 
 @statsd(namespace="dao")
+def get_latest_sent_notification_for_job(job_id):
+    return (
+        Notification.query.filter(Notification.job_id == job_id, Notification.status == "sent")
+        .order_by(Notification.updated_at.desc())
+        .limit(1)
+        .first()
+    )
+
+
+@statsd(namespace="dao")
 def dao_get_last_notification_added_for_job_id(job_id):
     last_notification_added = (
         Notification.query.filter(Notification.job_id == job_id).order_by(Notification.job_row_number.desc()).first()
