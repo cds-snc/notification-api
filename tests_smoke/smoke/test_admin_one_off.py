@@ -4,7 +4,7 @@ from notifications_python_client.authentication import create_jwt_token
 from .common import Config, Notification_type, pretty_print, single_succeeded
 
 
-def test_admin_one_off(notification_type: Notification_type):
+def test_admin_one_off(notification_type: Notification_type, local: bool = False):
     print(f"test_admin_one_off ({notification_type.value})... ", end="", flush=True)
 
     token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
@@ -28,9 +28,12 @@ def test_admin_one_off(notification_type: Notification_type):
         print("FAILED: post to send_notification failed")
         exit(1)
 
-    uri = f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{body['id']}"
-    success = single_succeeded(uri, use_jwt=True)
-    if not success:
-        print("FAILED: job didn't finish successfully")
-        exit(1)
-    print("Success")
+    if local:
+        print("Check manually")
+    else:
+        uri = f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{body['id']}"
+        success = single_succeeded(uri, use_jwt=True)
+        if not success:
+            print("FAILED: job didn't finish successfully")
+            exit(1)
+        print("Success")

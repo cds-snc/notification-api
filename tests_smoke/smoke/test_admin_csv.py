@@ -13,7 +13,7 @@ from .common import (
 )
 
 
-def test_admin_csv(notification_type: Notification_type):
+def test_admin_csv(notification_type: Notification_type, local: bool = False):
     print(f"test_admin_csv ({notification_type.value})... ", end="", flush=True)
 
     if notification_type == Notification_type.EMAIL:
@@ -42,8 +42,11 @@ def test_admin_csv(notification_type: Notification_type):
         print("FAILED: post to send_notification failed")
         exit(1)
 
-    success = job_succeeded(Config.SERVICE_ID, upload_id)
-    if not success:
-        print("FAILED: job didn't finish successfully")
-        exit(1)
-    print("Success")
+    if local:
+        print("Check manually")
+    else:
+        success = job_succeeded(Config.SERVICE_ID, upload_id)
+        if not success:
+            print("FAILED: job didn't finish successfully")
+            exit(1)
+        print("Success")

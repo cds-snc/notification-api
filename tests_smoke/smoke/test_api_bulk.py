@@ -12,7 +12,7 @@ from .common import (
 )
 
 
-def test_api_bulk(notification_type: Notification_type):
+def test_api_bulk(notification_type: Notification_type, local: bool = False):
     print(f"test_api_bulk ({notification_type.value})... ", end="", flush=True)
     template_id = Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID
     to = Config.EMAIL_TO if notification_type == Notification_type.EMAIL else Config.SMS_TO
@@ -32,8 +32,11 @@ def test_api_bulk(notification_type: Notification_type):
         print("FAILED: post failed")
         exit(1)
 
-    success = job_succeeded(Config.SERVICE_ID, response.json()["data"]["id"])
-    if not success:
-        print("FAILED: job didn't finish successfully")
-        exit(1)
-    print("Success")
+    if local:
+        print("Check manually")
+    else:
+        success = job_succeeded(Config.SERVICE_ID, response.json()["data"]["id"])
+        if not success:
+            print("FAILED: job didn't finish successfully")
+            exit(1)
+        print("Success")
