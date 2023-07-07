@@ -51,7 +51,7 @@ def test_api_one_off(notification_type: Notification_type, attachment_type: Atta
         }
     else:
         data["personalisation"] = {
-            "var": "var",
+            "var": "smoke test api one off",
         }
 
     response = requests.post(

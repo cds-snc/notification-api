@@ -62,8 +62,8 @@ def rows_to_csv(rows: List[List[str]]):
     return output.getvalue()
 
 
-def job_line(data: str, number_of_lines: int) -> Iterator[List[str]]:
-    return map(lambda n: [data, f"var{n}"], range(0, number_of_lines))
+def job_line(data: str, number_of_lines: int, prefix: str = "") -> Iterator[List[str]]:
+    return map(lambda n: [data, f"{prefix} {n}"], range(0, number_of_lines))
 
 
 def pretty_print(data: Any):

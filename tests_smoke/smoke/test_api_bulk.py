@@ -23,7 +23,7 @@ def test_api_bulk(notification_type: Notification_type, local: bool = False):
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": template_id,
-            "csv": rows_to_csv([[header, "var"], *job_line(to, Config.JOB_SIZE)]),
+            "csv": rows_to_csv([[header, "var"], *job_line(to, Config.JOB_SIZE, prefix="smoke test api bulk")]),
         },
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )

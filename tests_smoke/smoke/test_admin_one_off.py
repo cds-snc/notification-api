@@ -17,7 +17,7 @@ def test_admin_one_off(notification_type: Notification_type, local: bool = False
             "to": to,
             "template_id": template_id,
             "created_by": Config.USER_ID,
-            "personalisation": {"var": "var"},
+            "personalisation": {"var": "smoke test admin one off"},
         },
         headers={"Authorization": f"Bearer {token}"},
     )
