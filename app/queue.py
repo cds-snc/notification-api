@@ -2,7 +2,7 @@ import random
 import string
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from flask import current_app
@@ -40,7 +40,7 @@ class Buffer(Enum):
             return f"{self.value}::{str(process_type)}"
         return self.value
 
-    def inflight_prefix(self, suffix: str = None, process_type: str = None) -> str:
+    def inflight_prefix(self, suffix: Optional[str], process_type: Optional[str]) -> str:
         if process_type and suffix:
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(process_type)}"
         if suffix:
@@ -50,7 +50,7 @@ class Buffer(Enum):
             return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
-    def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None, process_type: str = None) -> str:
+    def inflight_name(self, suffix: Optional[str], process_type: Optional[str], receipt: UUID = uuid4()) -> str:
         return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
@@ -144,7 +144,7 @@ class RedisQueue(Queue):
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
-        in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        in_flight_key = Buffer.IN_FLIGHT.inflight_name(self._suffix, self._process_type, receipt)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
             current_app.logger.info(f"Inflight created: {in_flight_key}")
@@ -154,12 +154,16 @@ class RedisQueue(Queue):
     def expire_inflights(self):
         if self._process_type:
             args = [
-                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}:{self._process_type}*",
+                f"{Buffer.IN_FLIGHT.inflight_prefix(suffix=None, process_type=None)}:{self._suffix}:{self._process_type}*",
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
         else:
-            args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
+            args = [
+                f"{Buffer.IN_FLIGHT.inflight_prefix(suffix=None, process_type=None)}:{self._suffix}*",
+                self._inbox,
+                self._expire_inflight_after_seconds,
+            ]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
@@ -175,7 +179,7 @@ class RedisQueue(Queue):
 
         Returns: True if the inflight was found in that queue and removed, False otherwise
         """
-        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(self._suffix, self._process_type, receipt)
         if not self._redis_client.exists(inflight_name):
             current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
             return False

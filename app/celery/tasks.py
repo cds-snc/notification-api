@@ -458,7 +458,7 @@ def handle_batch_error_and_forward(
     signed_and_verified: list[tuple[Any, Any]],
     notification_type: str,
     exception,
-    receipt: UUID = None,
+    receipt: Optional[UUID],
     template: Any = None,
 ):
     if receipt:
