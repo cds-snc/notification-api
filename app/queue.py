@@ -50,7 +50,7 @@ class Buffer(Enum):
             return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
-    def inflight_name(self, suffix: Optional[str], process_type: Optional[str], receipt: UUID = uuid4()) -> str:
+    def inflight_name(self, receipt: UUID = uuid4(), suffix: Optional[str] = None, process_type: Optional[str] = None) -> str:
         return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
