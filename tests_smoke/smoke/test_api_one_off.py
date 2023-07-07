@@ -65,7 +65,7 @@ def test_api_one_off(notification_type: Notification_type, attachment_type: Atta
         exit(1)
 
     if local:
-        print("Check manually")
+        print(f"Check manually for 1 {notification_type.value}")
     else:
         uri = response.json()["uri"]
         success = single_succeeded(uri, use_jwt=False)

@@ -23,7 +23,7 @@ def test_api_bulk(notification_type: Notification_type, local: bool = False):
         json={
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": template_id,
-            "csv": rows_to_csv([[header, "var"], *job_line(to, 2)]),
+            "csv": rows_to_csv([[header, "var"], *job_line(to, Config.JOB_SIZE)]),
         },
         headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
     )
@@ -33,7 +33,7 @@ def test_api_bulk(notification_type: Notification_type, local: bool = False):
         exit(1)
 
     if local:
-        print("Check manually")
+        print(f"Check manually for {Config.JOB_SIZE} {notification_type.value}s")
     else:
         success = job_succeeded(Config.SERVICE_ID, response.json()["data"]["id"])
         if not success:

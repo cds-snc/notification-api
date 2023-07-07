@@ -29,7 +29,7 @@ def test_admin_one_off(notification_type: Notification_type, local: bool = False
         exit(1)
 
     if local:
-        print("Check manually")
+        print(f"Check manually for 1 {notification_type.value}")
     else:
         uri = f"{Config.API_HOST_NAME}/service/{Config.SERVICE_ID}/notifications/{body['id']}"
         success = single_succeeded(uri, use_jwt=True)

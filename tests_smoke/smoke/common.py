@@ -3,7 +3,6 @@ import json
 import os
 import time
 
-# from notifications_utils.s3 import s3upload as utils_s3upload
 import urllib
 import uuid
 from enum import Enum
@@ -37,7 +36,7 @@ class Config:
     EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
-
+    JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
 
 boto_session = Session(
     aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
@@ -116,7 +115,6 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
     return success
 
 
-# from notifications_utils.s3 import s3upload as utils_s3upload
 def utils_s3upload(filedata, region, bucket_name, file_location, content_type="binary/octet-stream", tags=None):
     _s3 = boto_session.resource("s3")
 

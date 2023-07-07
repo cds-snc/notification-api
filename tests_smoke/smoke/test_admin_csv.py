@@ -17,9 +17,9 @@ def test_admin_csv(notification_type: Notification_type, local: bool = False):
     print(f"test_admin_csv ({notification_type.value})... ", end="", flush=True)
 
     if notification_type == Notification_type.EMAIL:
-        data = rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_TO, 2)])
+        data = rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE)])
     else:
-        data = rows_to_csv([["phone number", "var"], *job_line(Config.SMS_TO, 2)])
+        data = rows_to_csv([["phone number", "var"], *job_line(Config.SMS_TO, Config.JOB_SIZE)])
 
     upload_id = s3upload(Config.SERVICE_ID, data)
     metadata_kwargs = {
@@ -43,7 +43,7 @@ def test_admin_csv(notification_type: Notification_type, local: bool = False):
         exit(1)
 
     if local:
-        print("Check manually")
+        print(f"Check manually for {Config.JOB_SIZE} {notification_type.value}s")
     else:
         success = job_succeeded(Config.SERVICE_ID, upload_id)
         if not success:
