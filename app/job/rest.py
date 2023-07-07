@@ -124,7 +124,7 @@ def get_jobs_by_service(service_id):
     statuses = [x.strip() for x in request.args.get("statuses", "").split(",")]
 
     page = int(request.args.get("page", 1))
-    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page))
+    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page, request.args.get("template_type")))
 
 
 @job_blueprint.route("", methods=["POST"])
@@ -196,13 +196,14 @@ def create_job(service_id):
     return jsonify(data=job_json), 201
 
 
-def get_paginated_jobs(service_id, limit_days, statuses, page):
+def get_paginated_jobs(service_id, limit_days, statuses, page, template_type):
     pagination = dao_get_jobs_by_service_id(
         service_id,
         limit_days=limit_days,
         page=page,
         page_size=current_app.config["PAGE_SIZE"],
         statuses=statuses,
+        template_type=template_type,
     )
     data = job_schema.dump(pagination.items, many=True).data
     for job_data in data:

@@ -7,7 +7,7 @@ from notifications_utils.letter_timings import (
     letter_can_be_cancelled,
 )
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import asc, desc, func
+from sqlalchemy import and_, asc, desc, func
 
 from app import db
 from app.dao.dao_utils import transactional
@@ -49,7 +49,7 @@ def dao_get_job_by_service_id_and_job_id(service_id, job_id):
     return Job.query.filter_by(service_id=service_id, id=job_id).first()
 
 
-def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None):
+def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None, template_type=None):
     query_filter = [
         Job.service_id == service_id,
         Job.original_file_name != current_app.config["TEST_MESSAGE_FILENAME"],
@@ -59,6 +59,19 @@ def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50
         query_filter.append(Job.created_at >= midnight_n_days_ago(limit_days))
     if statuses is not None and statuses != [""]:
         query_filter.append(Job.job_status.in_(statuses))
+
+    if template_type is not None:
+        query_filter.append(Template.template_type == template_type)
+        query = (
+            Job.query
+            .join(Template, Job.template_id == Template.id)
+            .with_entities(Job)  # Joining Job and Template tables
+            .filter(and_(*query_filter))  # Applying the combined filters
+            .order_by(Job.processing_started.desc(), Job.created_at.desc())
+            .paginate(page=page, per_page=page_size)
+        )
+        return query
+
     return (
         Job.query.filter(*query_filter)
         .order_by(Job.processing_started.desc(), Job.created_at.desc())
