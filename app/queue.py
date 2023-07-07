@@ -40,7 +40,7 @@ class Buffer(Enum):
             return f"{self.value}::{str(process_type)}"
         return self.value
 
-    def inflight_prefix(self, suffix: Optional[str], process_type: Optional[str]) -> str:
+    def inflight_prefix(self, suffix: Optional[str] = None, process_type: Optional[str] = None) -> str:
         if process_type and suffix:
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(process_type)}"
         if suffix:
