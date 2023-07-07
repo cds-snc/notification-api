@@ -160,7 +160,9 @@ class RedisQueue(Queue):
             ]
         else:
             args = [
-                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds,
+                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*",
+                self._inbox,
+                self._expire_inflight_after_seconds,
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
