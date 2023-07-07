@@ -144,7 +144,7 @@ class RedisQueue(Queue):
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
-        in_flight_key = Buffer.IN_FLIGHT.inflight_name(self._suffix, self._process_type, receipt)
+        in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         results = self.__move_to_inflight(in_flight_key, count)
         if results:
             current_app.logger.info(f"Inflight created: {in_flight_key}")
@@ -160,7 +160,7 @@ class RedisQueue(Queue):
             ]
         else:
             args = [
-                f"{Buffer.IN_FLIGHT.inflight_prefix(suffix=None, process_type=None)}:{self._suffix}*",
+                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds,
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
@@ -179,7 +179,7 @@ class RedisQueue(Queue):
 
         Returns: True if the inflight was found in that queue and removed, False otherwise
         """
-        inflight_name = Buffer.IN_FLIGHT.inflight_name(self._suffix, self._process_type, receipt)
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         if not self._redis_client.exists(inflight_name):
             current_app.logger.warning(f"Inflight to delete not found: {inflight_name}")
             return False
