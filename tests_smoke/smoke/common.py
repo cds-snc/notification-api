@@ -2,7 +2,6 @@ import csv
 import json
 import os
 import time
-
 import urllib
 import uuid
 from enum import Enum
@@ -37,6 +36,7 @@ class Config:
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
     JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
+
 
 boto_session = Session(
     aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
