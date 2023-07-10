@@ -48,3 +48,7 @@ smoke-test:
 .PHONY: run
 run:
 	flask run -p 6011 --host=0.0.0.0
+
+.PHONY: run-db
+run-db:
+	psql postgres://postgres:chummy@db:5432/notification_api
