@@ -7,6 +7,7 @@ import boto3
 import botocore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
+from notifications_utils.statsd_decorators import statsd
 from unidecode import unidecode
 
 from app.clients.email import EmailClient, EmailClientException
@@ -30,6 +31,7 @@ class AwsSesClient(EmailClient):
     def get_name(self):
         return self.name
 
+    @statsd(namespace="clients.ses")
     def send_email(
         self,
         source,

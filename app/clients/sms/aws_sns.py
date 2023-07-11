@@ -4,6 +4,7 @@ from time import monotonic
 import boto3
 import botocore
 import phonenumbers
+from notifications_utils.statsd_decorators import statsd
 
 from app.clients.sms import SmsClient
 
@@ -25,6 +26,7 @@ class AwsSnsClient(SmsClient):
     def get_name(self):
         return self.name
 
+    @statsd(namespace="clients.sns")
     def send_sms(self, to, content, reference, multi=True, sender=None):
         matched = False
 
