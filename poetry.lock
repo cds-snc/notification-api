@@ -2520,8 +2520,8 @@ werkzeug = "2.3.3"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "upgrade-flask"
-resolved_reference = "f1da679f1d5468acc42bbe7910d5be4ac115d5f7"
+reference = "52.0.0"
+resolved_reference = "72b30b85c30249d4676c68badc79a21052a210eb"
 
 [[package]]
 name = "ordered-set"
@@ -4213,4 +4213,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "364b871345ef0bb81a409408dd121e01db316f698fc4957bc9a199f427e35cfe"
+content-hash = "5ebca86da9d5460c27dadfdcbc1cb8dbf3cd82c2474254f9017031caff030bc9"
