@@ -1,8 +1,10 @@
 import json
+from ast import Str
 from collections import namedtuple
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
+from celery import chain
 
 from flask import current_app
 from itsdangerous import BadSignature
@@ -142,10 +144,11 @@ def process_job(job_id):
             metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
         )
 
-    job_complete(job, start=start)
 
-
-def job_complete(job: Job, resumed=False, start=None):
+@notify_celery.task(name="job-complete")
+@statsd(namespace="tasks")
+def job_complete(job_id: Str, resumed=False, start=None):
+    job = dao_get_job_by_id(job_id)
     job.job_status = JOB_STATUS_FINISHED
 
     finished = datetime.utcnow()
@@ -192,15 +195,17 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     # the same_sms and save_email task are going to be using template and service objects from cache
     # these objects are transient and will not have relationships loaded
     if encrypted_smss:
-        save_smss.apply_async(
+        chain(save_smss.s(
             (str(service.id), encrypted_smss, None),
-            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
-        )
+            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count)),
+            job_complete.s(job.id)
+        ).apply_async()
     if encrypted_emails:
-        save_emails.apply_async(
+        chain(save_emails.s(
             (str(service.id), encrypted_emails, None),
-            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
-        )
+            queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count)),
+            job_complete.s(job.id)
+        ).apply_async()
 
 
 def __sending_limits_for_job_exceeded(service, job: Job, job_id):
@@ -669,7 +674,7 @@ def process_incomplete_job(job_id):
                 first_row = []
             break
 
-    job_complete(job, resumed=True)
+    job_complete(job.id, resumed=True)
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
