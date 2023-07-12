@@ -378,10 +378,14 @@ class BaseTemplateSchema(BaseSchema):
 
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
+    is_precompiled_letter = fields.Method('get_is_precompiled_letter')
     process_type = field_for(models.Template, "process_type")
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
+
+    def get_is_precompiled_letter(self, template):
+        return template.is_precompiled_letter
 
     def redact(self, template):
         return template.redact_personalisation
@@ -543,6 +547,7 @@ class NotificationWithTemplateSchema(BaseSchema):
             "content",
             "subject",
             "redact_personalisation",
+            "is_precompiled_letter",
         ],
         dump_only=True,
     )

@@ -2424,6 +2424,7 @@ def test_get_notification_for_service_includes_precompiled_letter(admin_request,
     )
 
     assert resp["id"] == str(sample_notification.id)
+    assert resp["template"]["is_precompiled_letter"] is False
 
 
 def test_get_all_notifications_for_service_includes_template_redacted(admin_request, sample_service):
@@ -2464,7 +2465,10 @@ def test_get_all_notifications_for_service_includes_template_hidden(admin_reques
     resp = admin_request.get("service.get_all_notifications_for_service", service_id=sample_service.id)
 
     assert resp["notifications"][0]["id"] == str(precompiled_noti.id)
+    assert resp["notifications"][0]["template"]["is_precompiled_letter"] is True
+
     assert resp["notifications"][1]["id"] == str(letter_noti.id)
+    assert resp["notifications"][1]["template"]["is_precompiled_letter"] is False
 
 
 def test_search_for_notification_by_to_field_returns_personlisation(
