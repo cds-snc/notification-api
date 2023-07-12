@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, cast
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -42,6 +42,11 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
+from celery import Task
+
+# https://stackoverflow.com/questions/63714223/correct-type-annotation-for-a-celery-task
+save_smss = cast(Task, save_smss)
+save_emails = cast(Task, save_emails)
 
 
 @notify_celery.task(name="run-scheduled-jobs")
