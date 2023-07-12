@@ -378,7 +378,7 @@ class BaseTemplateSchema(BaseSchema):
 
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
-    is_precompiled_letter = fields.Method('get_is_precompiled_letter')
+    is_precompiled_letter = fields.Method("get_is_precompiled_letter")
     process_type = field_for(models.Template, "process_type")
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
