@@ -32,7 +32,7 @@ module.exports = defineConfig({
     },
     specPattern: '**/e2e/**/*.cy.js',
     watchForFileChanges: false,
-    blockHosts: ['*google-analytics.com', 'stats.g.doubleclick.net', 'bam.nr-data.net'],
+    blockHosts: ['*google-analytics.com', 'stats.g.doubleclick.net', 'bam.nr-data.net', '*newrelic.com'],
     viewportWidth: 1280,
     viewportHeight: 850,
     testIsolation: false
