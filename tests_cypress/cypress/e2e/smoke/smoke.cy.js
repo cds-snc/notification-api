@@ -229,7 +229,7 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
             TemplatesPage.GotoAddRecipients();
             AddRecipientsPage.SendOneOffEmail(config.Users.Simulated[2]);
 
-            cy.contains('.notification-status', 'Delivered').should('be.visible');
+            cy.contains('.notification-status', config.CONFIG_NAME === 'LOCAL' ? 'In transit' : 'Delivered').should('be.visible');
         });
         
         // it('can send/receive bulk CSV emails', () => {
