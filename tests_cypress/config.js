@@ -53,8 +53,8 @@ let LOCAL = {
     },
     Templates: {
         'FILE_ATTACH_TEMPLATE_ID': '7246c71e-3d60-458b-96af-af17a5b07659',
-        'SIMPLE_EMAIL_TEMPLATE_ID': '939dafde-1b60-47f0-a6d5-c9080d92a4a8',
-        'VARIABLES_EMAIL_TEMPLATE_ID': '1101a00a-11b7-4036-865c-add43fcff7c9',
+        'SIMPLE_EMAIL_TEMPLATE_ID': 'b4692883-4182-4a23-b1b9-7b9df66a66e8',
+        'VARIABLES_EMAIL_TEMPLATE_ID': '258d8617-da88-4faa-ad28-46cc69f5a458',
         'SMOKE_TEST_EMAIL': '136e951e-05c8-4db4-bc50-fe122d72fcaa',
         'SMOKE_TEST_EMAIL_BULK': '48207d93-144d-4ebb-92c5-99ff1f1baead',
         'SMOKE_TEST_EMAIL_ATTACH': '58db03d6-a9d8-4482-8621-26f473f3980a',
@@ -64,12 +64,12 @@ let LOCAL = {
     Users: {
         Team: ['andrew.leith+bannertest@cds-snc.ca'],
         NonTeam: ['person@example.com'],
-        Simulated: ['success@simulator.amazonses.com', 'simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca'],
+        Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
         SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
     },
     ReplyTos: {
-        Default: '24e5288d-8bfa-4ad4-93aa-592c11a694cd',
-        Second: '797865c4-788b-4184-91ae-8e45eb07e40b'
+        Default: '1bc45a34-f4de-4635-b36f-7da2e2d248ed',
+        Second: 'aaa58593-fc0a-46b0-82b8-b303ae662a41'
     }
 };
 
