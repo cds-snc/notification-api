@@ -13,7 +13,7 @@ describe('File attachment test', () => {
       Notify.API.SendEmail({
         api_key:  Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
         to: config.Users.Simulated[0],
-        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
+        template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');
@@ -29,7 +29,7 @@ describe('File attachment test', () => {
       Notify.API.SendEmail({
         api_key:  Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
         to: config.Users.Simulated[0],
-        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
+        template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');
@@ -46,7 +46,7 @@ describe('File attachment test', () => {
       Notify.API.SendEmail({
         api_key:  Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
         to: config.Users.Simulated[0],
-        template_id: config.Templates.FILE_ATTACH_TEMPLATE_ID,
+        template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
         personalisation: file_payload,
         failOnStatusCode: false
       }).as('fileRequest');
