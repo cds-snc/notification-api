@@ -24,7 +24,6 @@ from app.dao.notifications_dao import (
     dao_update_notification,
     dao_update_notifications_by_reference,
     delete_notifications_older_than_retention_by_type,
-    get_latest_sent_notification_for_job,
     get_notification_by_id,
     get_notification_for_job,
     get_notification_with_personalisation,
@@ -41,7 +40,6 @@ from app.dao.notifications_dao import (
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import (
     JOB_STATUS_IN_PROGRESS,
-    JOB_STATUS_PENDING,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
@@ -557,27 +555,6 @@ def test_get_notification_for_job(sample_notification):
         sample_notification.id,
     )
     assert sample_notification == notification_from_db
-
-
-def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job):
-    latest_sent = datetime.utcnow()
-    for i in range(0, 10):
-        noti = create_notification(
-            template=sample_job.template, job=sample_job, status="sent" if i <= 5 else "pending", updated_at=datetime.utcnow()
-        )
-        save_notification(noti)
-        if i == 5:
-            latest_sent = noti.updated_at
-
-    latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
-    assert latest_sent_notification.updated_at == latest_sent
-
-
-def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
-    job = create_job(template=sample_template, notification_count=0, job_status=JOB_STATUS_PENDING)
-
-    latest_sent_notification = get_latest_sent_notification_for_job(job.id)
-    assert latest_sent_notification is None
 
 
 def test_get_all_notifications_for_job(sample_job):
