@@ -3,7 +3,7 @@
 import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
 
-describe('Email notifications test', () => {
+describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
   before(() => {
     Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
   });
@@ -48,17 +48,19 @@ describe('Email notifications test', () => {
       });
 
       it('can send email to smoke test addresses', () => {
-        for (const email of config.Users.Simulated) {
-          Notify.API.SendEmail({
-            api_key: keys[api_key],
-            to: email,
-            template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
-            personalisation: {},
-          }).as('emailRequest');
+        if (api_key !== 'TEAM') {
+          for (const email of config.Users.Simulated) {
+            Notify.API.SendEmail({
+              api_key: keys[api_key],
+              to: email,
+              template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
+              personalisation: {},
+            }).as('emailRequest');
 
-          cy.get('@emailRequest').then(resp => {
-            expect(resp.status).to.eq(201);
-          });
+            cy.get('@emailRequest').then(resp => {
+              expect(resp.status).to.eq(201);
+            });
+          }
         }
       });
 
