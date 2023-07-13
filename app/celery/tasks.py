@@ -85,6 +85,7 @@ from app.v2.errors import (
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
+from celery import group
 
 
 @notify_celery.task(name="process-job")
@@ -126,13 +127,15 @@ def process_job(job_id):
     csv = get_recipient_csv(job, template)
 
     rows = csv.get_rows()
+    task_signatures = []
     for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
-        process_rows(result, template, job, service)
+        task_signature = process_rows(result, template, job, service)
+        task_signatures.append(task_signature)
         put_batch_saving_bulk_created(
             metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
         )
-
-    job_complete(job, start=start)
+    result = group(task_signatures).apply_async()
+    result.on_ready(job_complete(job, start=start))
 
 
 def job_complete(job: Job, resumed=False, start=None):
@@ -151,6 +154,7 @@ def job_complete(job: Job, resumed=False, start=None):
 
 
 def process_rows(rows: List, template: Template, job: Job, service: Service):
+    "Returns a celery task signature for saving notifications"
     template_type = template.template_type
     sender_id = str(job.sender_id) if job.sender_id else None
     encrypted_smss: List[SignedNotification] = []
@@ -182,12 +186,12 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     # the same_sms and save_email task are going to be using template and service objects from cache
     # these objects are transient and will not have relationships loaded
     if encrypted_smss:
-        save_smss.apply_async(
+        return save_smss.s(
             (str(service.id), encrypted_smss, None),
             queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
         )
     if encrypted_emails:
-        save_emails.apply_async(
+        return save_emails.s(
             (str(service.id), encrypted_emails, None),
             queue=choose_database_queue(str(template.process_type), service.research_mode, job.notification_count),
         )
@@ -647,19 +651,21 @@ def process_incomplete_job(job_id):
     csv = get_recipient_csv(job, template)
     rows = csv.get_rows()  # This returns an iterator
     first_row = []
+    task_signatures = []
     for row in rows:
         if row.index > resume_from_row:
             first_row.append(row)
             for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
                 result = first_row + result
-                process_rows(result, template, job, job.service)
+                task_signature = process_rows(result, template, job, job.service)
+                task_signatures.append(task_signature)
                 put_batch_saving_bulk_created(
                     metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
                 )
                 first_row = []
             break
-
-    job_complete(job, resumed=True)
+    result = group(task_signatures).apply_async()
+    result.on_ready(job_complete(job, resumed=True))
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
