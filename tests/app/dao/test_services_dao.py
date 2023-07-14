@@ -37,6 +37,8 @@ from app.dao.services_dao import (
     dao_suspend_service,
     dao_update_service,
     delete_service_and_all_associated_db_objects,
+    fetch_service_email_limit,
+    fetch_todays_total_email_count,
     fetch_todays_total_message_count,
     fetch_todays_total_sms_count,
     get_services_by_partial_name,
@@ -1418,3 +1420,46 @@ def create_email_sms_letter_template():
     template_two = create_template(service=service, template_name="2", template_type="sms")
     template_three = create_template(service=service, template_name="3", template_type="letter")
     return template_one, template_three, template_two
+
+
+class TestServiceEmailLimits:
+    def test_get_email_count_for_service(self, notify_db_session):
+        active_user_1 = create_user(email="active1@foo.com", state="active")
+        service = Service(
+            name="service_name",
+            email_from="email_from",
+            message_limit=1000,
+            sms_daily_limit=1000,
+            restricted=False,
+            created_by=active_user_1,
+        )
+        dao_create_service(
+            service,
+            active_user_1,
+            service_permissions=[
+                SMS_TYPE,
+                EMAIL_TYPE,
+                INTERNATIONAL_SMS_TYPE,
+            ],
+        )
+        assert fetch_service_email_limit(service.id) == 1000
+
+    def test_dao_fetch_todays_total_message_count_returns_count_for_today(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type="email")
+        save_notification(create_notification(template=email_template, status="created"))
+        assert fetch_todays_total_message_count(service.id) == 1
+
+    def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_message_count(uuid.uuid4()) == 0
+
+    def test_dao_fetch_todays_total_message_count_returns_0_with_yesterday_messages(self):
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        notification = save_notification(
+            create_notification(
+                created_at=yesterday,
+                template=create_template(service=create_service(service_name="tester"), template_type="email"),
+            )
+        )
+        assert fetch_todays_total_message_count(notification.service.id) == 0
