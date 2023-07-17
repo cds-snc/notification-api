@@ -132,7 +132,6 @@ def process_job(job_id):
             metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
         )
 
-    job_complete(job, start=start)
 
 
 def job_complete(job: Job, resumed=False, start=None):
@@ -659,7 +658,6 @@ def process_incomplete_job(job_id):
                 first_row = []
             break
 
-    job_complete(job, resumed=True)
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
