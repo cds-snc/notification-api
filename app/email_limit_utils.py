@@ -5,9 +5,8 @@ from flask import current_app
 from notifications_utils.clients.redis import email_daily_count_cache_key
 
 from app import redis_store
-from app.dao.services_dao import (
-    fetch_todays_total_email_count,
-)
+from app.dao.services_dao import fetch_todays_total_email_count
+
 
 def fetch_todays_email_count(service_id: UUID) -> int:
     if not current_app.config["REDIS_ENABLED"]:
