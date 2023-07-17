@@ -38,7 +38,6 @@ from app.dao.services_dao import (
     dao_update_service,
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
-    fetch_todays_total_email_count,
     fetch_todays_total_message_count,
     fetch_todays_total_sms_count,
     get_services_by_partial_name,
