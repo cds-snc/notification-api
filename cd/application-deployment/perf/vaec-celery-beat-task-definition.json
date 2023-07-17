@@ -46,7 +46,7 @@
         },
         {
           "name": "DD_SERVICE",
-          "value": "notification-api"
+          "value": "celery-beat"
         },
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
@@ -264,7 +264,7 @@
         },
         {
           "name": "DD_SERVICE",
-          "value": "notification-api"
+          "value": "celery-beat"
         },
         {
           "name": "DD_APM_FEATURES",

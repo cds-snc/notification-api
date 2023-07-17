@@ -19,6 +19,8 @@ RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcur
   # Install Python dependencies.
   && python -m pip install --upgrade pip \
   && python -m pip install wheel \
+  # TODO #1375 Temporary add due to errors related to PyYAML and AttributeError.
+  && pip install "Cython<3.0" "pyyaml<6" --no-build-isolation \
   &&  pip install --upgrade setuptools==65.5.1 \
   && pip install --no-cache-dir -r requirements-app.txt \
   # Remove build dependencies.
