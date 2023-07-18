@@ -1,6 +1,6 @@
 import json
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
@@ -36,10 +36,11 @@ from app.aws.metrics import (
 )
 from app.config import Config, QueueNames
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
-from app.dao.jobs_dao import dao_get_job_by_id, dao_update_job
+from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
     dao_get_last_notification_added_for_job_id,
     dao_get_notification_history_by_reference,
+    get_latest_sent_notification_for_job,
     get_notification_by_id,
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
@@ -85,6 +86,16 @@ from app.v2.errors import (
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
+
+
+@notify_celery.task(name="update-job")
+@statsd(namespace="tasks")
+def update_in_progress_jobs():
+    jobs = dao_get_in_progress_jobs(datetime.utcnow() - timedelta(minutes=5))
+    for job in jobs:
+        notification = get_latest_sent_notification_for_job(job.id)
+        job.updated_at = notification.updated_at
+        dao_update_job(job)
 
 
 @notify_celery.task(name="process-job")

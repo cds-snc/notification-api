@@ -85,7 +85,8 @@ def test_should_call_delete_invotations_on_delete_invitations_task(notify_api, m
 
 
 def test_should_update_scheduled_jobs_and_put_on_queue(notify_db, notify_db_session, mocker):
-    mocked = mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocked_process_job = mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocked_update_job = mocker.patch("app.celery.tasks.update_in_progress_jobs.apply_async")
 
     one_minute_in_the_past = datetime.utcnow() - timedelta(minutes=1)
     job = create_sample_job(
@@ -99,11 +100,13 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db, notify_db_sess
 
     updated_job = dao_get_job_by_id(job.id)
     assert updated_job.job_status == "pending"
-    mocked.assert_called_with([str(job.id)], queue="job-tasks")
+    mocked_process_job.assert_called_with([str(job.id)], queue="job-tasks")
+    mocked_update_job.assert_called_with(queue="job-tasks")
 
 
 def test_should_update_all_scheduled_jobs_and_put_on_queue(notify_db, notify_db_session, mocker):
-    mocked = mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocked_process_job = mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocked_update_job = mocker.patch("app.celery.tasks.update_in_progress_jobs.apply_async")
 
     one_minute_in_the_past = datetime.utcnow() - timedelta(minutes=1)
     ten_minutes_in_the_past = datetime.utcnow() - timedelta(minutes=10)
@@ -133,13 +136,14 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(notify_db, notify_db_
     assert dao_get_job_by_id(job_2.id).job_status == "pending"
     assert dao_get_job_by_id(job_2.id).job_status == "pending"
 
-    mocked.assert_has_calls(
+    mocked_process_job.assert_has_calls(
         [
             call([str(job_3.id)], queue="job-tasks"),
             call([str(job_2.id)], queue="job-tasks"),
             call([str(job_1.id)], queue="job-tasks"),
         ]
     )
+    mocked_update_job.assert_called_once()
 
 
 @pytest.mark.skip(reason="Currently using only 1 SMS provider")
@@ -193,8 +197,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     job = create_job(
         template=sample_template,
         notification_count=3,
-        created_at=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     save_notification(create_notification(template=sample_template, job=job))
@@ -215,8 +218,8 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=61),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -236,16 +239,14 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -266,15 +267,13 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
-        created_at=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=119),
+        updated_at=datetime.utcnow() - timedelta(minutes=58),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
@@ -296,15 +295,14 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(hours=2),
-        scheduled_for=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=121),
+        updated_at=datetime.utcnow() - timedelta(minutes=61),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     job_2 = create_job(
         template=sample_template,
         notification_count=3,
         created_at=datetime.utcnow() - timedelta(minutes=121),
-        processing_started=datetime.utcnow() - timedelta(minutes=119),
+        updated_at=datetime.utcnow() - timedelta(minutes=58),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
