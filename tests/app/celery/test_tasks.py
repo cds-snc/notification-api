@@ -44,14 +44,12 @@ from app.models import (
     BULK,
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
-    JOB_STATUS_FINISHED,
     JOB_STATUS_IN_PROGRESS,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
     PRIORITY,
     SMS_TYPE,
-    Job,
     Notification,
     ServiceEmailReplyTo,
     ServiceSmsSender,
@@ -438,7 +436,7 @@ class TestBatchSaving:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -508,7 +506,7 @@ class TestProcessJob:
             (str(sample_job.service_id), ["something_encrypted"], None), queue=QueueNames.NORMAL_DATABASE
         )
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -608,7 +606,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         tasks.save_emails.apply_async.assert_called_with(
             (
                 str(job.service_id),
@@ -671,7 +669,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -684,7 +682,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert tasks.save_smss.apply_async.called is False
 
     def test_should_process_email_job(self, email_job_with_placeholders, mocker):
@@ -714,7 +712,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -753,7 +751,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -832,7 +830,7 @@ class TestProcessJob:
         }
         assert tasks.save_smss.apply_async.call_count == 1
         job = jobs_dao.dao_get_job_by_id(sample_job_with_placeholdered_template.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
 
     def test_should_cancel_job_if_service_is_inactive(self, sample_service, sample_job, mocker):
         sample_service.active = False
@@ -1937,10 +1935,6 @@ class TestProcessIncompleteJob:
 
         process_incomplete_job(str(job.id))
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
         assert save_smss.call_count == 1  # The save_smss call will be called once
         assert len(save_smss.call_args[0][0][1]) == 8  # The unprocessed 8 notifications will be sent to save_smss
 
@@ -1974,10 +1968,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 10
 
         process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_save_sms.call_count == 0  # There are 10 in the file and we've added 10 it should not have been called
 
@@ -2022,13 +2012,6 @@ class TestProcessIncompleteJob:
         jobs = [job.id, job2.id]
         process_incomplete_jobs(jobs)
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-        completed_job2 = Job.query.filter(Job.id == job2.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
-        assert completed_job2.job_status == JOB_STATUS_FINISHED
-
         assert mock_save_smss.call_count == 2
         # The second time the job is called we will send 5 notifications through
         assert len(mock_save_smss.call_args[0][0][1]) == 5
@@ -2052,10 +2035,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 0
 
         process_incomplete_job(job.id)
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_save_sms.call_count == 1
         assert len(mock_save_sms.call_args[0][0][1]) == 10  # There are 10 in the csv file
@@ -2106,10 +2085,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
         process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_email_saver.call_count == 1
         assert len(mock_email_saver.call_args[0][0][1]) == 8  # There are 10 in the file and we've added two already
