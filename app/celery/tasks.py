@@ -133,7 +133,6 @@ def process_job(job_id):
         )
 
 
-
 def job_complete(job: Job, resumed=False, start=None):
     job.job_status = JOB_STATUS_FINISHED
 
@@ -657,7 +656,6 @@ def process_incomplete_job(job_id):
                 )
                 first_row = []
             break
-
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
