@@ -25,6 +25,7 @@ from app.dao.notifications_dao import (
     dao_update_notifications_by_reference,
     delete_notifications_older_than_retention_by_type,
     get_notification_by_id,
+    get_notification_count_for_job,
     get_notification_for_job,
     get_notification_with_personalisation,
     get_notifications_for_job,
@@ -75,6 +76,7 @@ def test_should_have_decorated_notifications_dao_functions():
     assert dao_update_notification.__wrapped__.__name__ == "dao_update_notification"  # noqa
     assert update_notification_status_by_reference.__wrapped__.__name__ == "update_notification_status_by_reference"  # noqa
     assert get_notification_for_job.__wrapped__.__name__ == "get_notification_for_job"  # noqa
+    assert get_notification_count_for_job.__wrapped__.__name__ == "get_notification_count_for_job"  # noqa
     assert get_notifications_for_job.__wrapped__.__name__ == "get_notifications_for_job"  # noqa
     assert get_notification_with_personalisation.__wrapped__.__name__ == "get_notification_with_personalisation"  # noqa
     assert get_notifications_for_service.__wrapped__.__name__ == "get_notifications_for_service"  # noqa
@@ -566,6 +568,17 @@ def test_get_all_notifications_for_job(sample_job):
 
     notifications_from_db = get_notifications_for_job(sample_job.service.id, sample_job.id).items
     assert len(notifications_from_db) == 5
+
+
+def test_get_notification_count_for_job(sample_job):
+    for i in range(0, 7):
+        try:
+            save_notification(create_notification(template=sample_job.template, job=sample_job))
+        except IntegrityError:
+            pass
+
+    notification_count_from_db = get_notification_count_for_job(sample_job.service.id, sample_job.id)
+    assert notification_count_from_db == 7
 
 
 def test_get_all_notifications_for_job_by_status(sample_job):
