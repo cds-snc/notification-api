@@ -54,9 +54,11 @@ from app.sms_fragment_utils import (
 from app.utils import get_document_url, get_public_notify_type_text, is_blank
 from app.v2.errors import (
     BadRequestError,
+    LiveServiceTooManyEmailRequestsError,
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
     RateLimitError,
+    TrialServiceTooManyEmailRequestsError,
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
@@ -128,6 +130,33 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
         raise LiveServiceTooManySMSRequestsError(service.sms_daily_limit)
 
 
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.trial_service_daily_email",
+    exception=TrialServiceTooManyEmailRequestsError,
+)
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.live_service_daily_email",
+    exception=LiveServiceTooManyEmailRequestsError,
+)
+def check_email_daily_limit(service: Service, requested_email=0):
+    emails_sent_today = fetch_todays_email_count(service.id)
+    bool_over_email_daily_limit = (emails_sent_today + requested_email) > service.message_limit
+
+    # Send a warning when reaching the daily email limit
+    if not bool_over_email_daily_limit:
+        return
+
+    current_app.logger.info(
+        f"service {service.id} is exceeding their daily email limit [total sent today: {int(emails_sent_today)} limit: {service.message_limit}, attempted send: {requested_email}"
+    )
+    if service.restricted:
+        raise TrialServiceTooManySMSRequestsError(service.message_limit)
+    else:
+        raise LiveServiceTooManySMSRequestsError(service.message_limit)
+
+
 def send_warning_email_limit_emails_if_needed(service: Service) -> None:
     """
     Function that decides if we should send email warnings about nearing or reaching the email daily limit.
@@ -192,6 +221,15 @@ def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, re
 
     check_sms_daily_limit(service, requested_sms)
     increment_todays_requested_sms_count(service.id, requested_sms)
+    send_warning_sms_limit_emails_if_needed(service)
+
+
+def check_email_limit_increment_redis_send_warnings_if_needed(service: Service, requested_email=0) -> None:
+    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+        return
+
+    check_email_daily_limit(service, requested_email)
+    increment_todays_email_count(service.id, requested_email)
     send_warning_sms_limit_emails_if_needed(service)
 
 
