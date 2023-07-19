@@ -17,7 +17,7 @@ from app import (
     zendesk_client,
 )
 from app.celery.tasks import (
-    job_complete
+    job_complete,
     process_job,
     save_emails,
     save_smss,
