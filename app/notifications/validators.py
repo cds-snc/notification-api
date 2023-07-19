@@ -152,9 +152,9 @@ def check_email_daily_limit(service: Service, requested_email=0):
         f"service {service.id} is exceeding their daily email limit [total sent today: {int(emails_sent_today)} limit: {service.message_limit}, attempted send: {requested_email}"
     )
     if service.restricted:
-        raise TrialServiceTooManySMSRequestsError(service.message_limit)
+        raise TrialServiceTooManyEmailRequestsError(service.message_limit)
     else:
-        raise LiveServiceTooManySMSRequestsError(service.message_limit)
+        raise LiveServiceTooManyEmailRequestsError(service.message_limit)
 
 
 def send_warning_email_limit_emails_if_needed(service: Service) -> None:
@@ -230,7 +230,7 @@ def check_email_limit_increment_redis_send_warnings_if_needed(service: Service, 
 
     check_email_daily_limit(service, requested_email)
     increment_todays_email_count(service.id, requested_email)
-    send_warning_sms_limit_emails_if_needed(service)
+    send_warning_email_limit_emails_if_needed(service)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):

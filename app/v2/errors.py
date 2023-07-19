@@ -40,7 +40,7 @@ class TooManySMSRequestsError(InvalidRequest):
 
 class TooManyEmailRequestsError(InvalidRequest):
     status_code = 429
-    messsage_template = "Exceeded email daily sending limit of {}"
+    messsage_template = "Exceeded email daily sending limit of {} messages"
 
     def __init__(self, sending_limit):
         self.message = self.messsage_template.format(sending_limit)
