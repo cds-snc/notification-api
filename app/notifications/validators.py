@@ -235,7 +235,8 @@ def check_email_limit_increment_redis_send_warnings_if_needed(service: Service, 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit_and_update_rate(service, api_key)
-    check_service_over_daily_message_limit(api_key.key_type, service)
+    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+        check_service_over_daily_message_limit(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):
