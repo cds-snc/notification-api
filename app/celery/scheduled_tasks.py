@@ -58,7 +58,7 @@ save_emails = cast(Task, save_emails)
 @statsd(namespace="tasks")
 def run_scheduled_jobs():
     try:
-        update_in_progress_jobs.apply_async(queue=QueueNames.JOBS)
+        update_in_progress_jobs.delay(queue=QueueNames.JOBS)
         for job in dao_set_scheduled_jobs_to_pending():
             process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
             current_app.logger.info("Job ID {} added to process job queue".format(job.id))
@@ -148,15 +148,15 @@ def check_job_status():
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
     """
-    minutes_ago_60 = datetime.utcnow() - timedelta(minutes=60)
-    minutes_ago_65 = datetime.utcnow() - timedelta(minutes=65)
+    minutes_ago_30 = datetime.utcnow() - timedelta(minutes=30)
+    minutes_ago_35 = datetime.utcnow() - timedelta(minutes=35)
 
-    jobs_not_complete_after_60_minutes = (
+    jobs_not_complete_after_30_minutes = (
         Job.query.filter(
             Job.job_status == JOB_STATUS_IN_PROGRESS,
             and_(
-                minutes_ago_65 < Job.updated_at,
-                Job.updated_at < minutes_ago_60,
+                minutes_ago_35 < Job.updated_at,
+                Job.updated_at < minutes_ago_30,
             ),
         )
         .order_by(Job.updated_at)
@@ -166,7 +166,7 @@ def check_job_status():
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.
     job_ids: List[str] = []
-    for job in jobs_not_complete_after_60_minutes:
+    for job in jobs_not_complete_after_30_minutes:
         job.job_status = JOB_STATUS_ERROR
         dao_update_job(job)
         job_ids.append(str(job.id))

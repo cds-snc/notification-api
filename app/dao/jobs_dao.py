@@ -77,14 +77,8 @@ def dao_archive_job(job):
     db.session.commit()
 
 
-def dao_get_in_progress_jobs(start_time: datetime):
-    filter = [
-        Job.job_status == JOB_STATUS_IN_PROGRESS,
-        Job.processing_started >= start_time,
-        Job.processing_started <= datetime.utcnow(),
-    ]
-
-    return Job.query.filter(*filter).all()
+def dao_get_in_progress_jobs():
+    return Job.query.filter(Job.job_status == JOB_STATUS_IN_PROGRESS).all()
 
 
 def dao_set_scheduled_jobs_to_pending():
