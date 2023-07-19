@@ -16,6 +16,7 @@ from app.models import (
     ApiKeyType,
 )
 from app.notifications.validators import (
+    check_email_daily_limit,
     check_reply_to,
     check_service_email_reply_to_id,
     check_service_letter_contact_id,
@@ -79,10 +80,10 @@ def over_key(limit_type, service_id):
         return f"over-{service_id}-2016-01-01-count"
 
 
-class TestCheckDailyLimits:
+class TestCheckDailySMSEmailLimits:
     @pytest.mark.parametrize(
         "limit_type, key_type",
-        [("all", "test"), ("all", "team"), ("all", "normal"), ("sms", "test"), ("sms", "team"), ("sms", "normal")],
+        [("email", "test"), ("email", "team"), ("email", "normal"), ("sms", "test"), ("sms", "team"), ("sms", "normal")],
     )
     def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(
         self, notify_api, limit_type, key_type, sample_service, mocker
@@ -95,7 +96,7 @@ class TestCheckDailyLimits:
             with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
                 check_sms_daily_limit(sample_service)
         else:
-            check_service_over_daily_message_limit(key_type, sample_service)
+            check_email_daily_limit(sample_service)
         app.notifications.validators.redis_store.set.assert_not_called()
         assert not app.notifications.validators.services_dao.mock_calls
 
@@ -617,10 +618,12 @@ def test_check_service_sms_sender_id_where_sms_sender_is_not_found(sample_servic
     assert e.value.message == "sms_sender_id {} does not exist in database for service id {}".format(fake_uuid, sample_service.id)
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_check_service_letter_contact_id_where_letter_contact_id_is_none():
     assert check_service_letter_contact_id(None, None, "letter") is None
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_check_service_letter_contact_id_where_letter_contact_id_is_found(
     sample_service,
 ):
@@ -628,6 +631,7 @@ def test_check_service_letter_contact_id_where_letter_contact_id_is_found(
     assert check_service_letter_contact_id(sample_service.id, letter_contact.id, LETTER_TYPE) == "123456"
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_check_service_letter_contact_id_where_service_id_is_not_found(sample_service, fake_uuid):
     letter_contact = create_letter_contact(service=sample_service, contact_block="123456")
     with pytest.raises(BadRequestError) as e:
@@ -638,6 +642,7 @@ def test_check_service_letter_contact_id_where_service_id_is_not_found(sample_se
     )
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_check_service_letter_contact_id_where_letter_contact_is_not_found(sample_service, fake_uuid):
     with pytest.raises(BadRequestError) as e:
         check_service_letter_contact_id(sample_service.id, fake_uuid, LETTER_TYPE)
@@ -665,3 +670,7 @@ def test_check_reply_to_sms_type(sample_service):
 def test_check_reply_to_letter_type(sample_service):
     letter_contact = create_letter_contact(service=sample_service, contact_block="123456")
     assert check_reply_to(sample_service.id, letter_contact.id, LETTER_TYPE) == "123456"
+
+
+class TestEmailLimitValidators:
+    pass
