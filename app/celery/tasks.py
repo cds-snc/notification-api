@@ -91,7 +91,7 @@ from app.v2.errors import (
 @notify_celery.task(name="update-job")
 @statsd(namespace="tasks")
 def update_in_progress_jobs():
-    jobs = dao_get_in_progress_jobs(datetime.utcnow() - timedelta(minutes=5))
+    jobs = dao_get_in_progress_jobs()
     for job in jobs:
         notification = get_latest_sent_notification_for_job(job.id)
         if notification is not None:
