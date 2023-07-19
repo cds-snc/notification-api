@@ -279,7 +279,7 @@ def post_notification(notification_type: NotificationType):
     )
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, 1) # 1 email
+        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)

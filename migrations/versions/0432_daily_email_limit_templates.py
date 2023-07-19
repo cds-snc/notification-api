@@ -98,19 +98,19 @@ def upgrade():
         {
             "id": near_email_limit_template_id,
             "name": "Near daily EMAIL limit",
-            "subject": "Action required: 80% of daily email sending limit reached for ((service_name)) | Action requise: 80% de la limite d’envoi quotidienne atteinte pour ((service_name))",
+            "subject": "Action required: 80% of Daily email sending limit reached for ((service_name)) | Action requise: 80% de la limite d’envoi de courriels quotidienne atteinte pour ((service_name))",
             "content": near_email_limit_content,
         },
         {
             "id": at_email_limit_template_id,
             "name": "Daily EMAIL limit reached",
-            "subject": "Action required: Daily email sending limit reached for ((service_name)) | Action requise: Limite d’envoi quotidienne atteinte pour ((service_name)) )",
+            "subject": "Action required: Daily email sending limit reached for ((service_name)) | Action requise: Limite d’envoi de courriels quotidienne atteinte pour ((service_name)) )",
             "content": reached_email_limit_content,
         },
         {
             "id": daily_email_limit_updated_id,
             "name": "Daily EMAIL limit updated",
-            "subject": "Daily email sending limit updated for ((service_name)) | Limite d’envoi quotidienne mise à jour pour ((service_name))",
+            "subject": "Daily email sending limit updated for ((service_name)) | Limite d’envoi de courriels quotidienne mise à jour pour ((service_name))",
             "content": daily_email_limit_updated_content,
         },
     ]

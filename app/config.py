@@ -627,7 +627,7 @@ class Test(Development):
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FF_BOUNCE_RATE_BACKEND = True
-    FF_EMAIL_DAILY_LIMIT = True
+    FF_EMAIL_DAILY_LIMIT = False
 
 
 class Production(Config):

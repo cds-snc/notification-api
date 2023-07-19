@@ -65,22 +65,28 @@ def enable_redis(notify_api):
 def count_key(limit_type, service_id):
     if limit_type == "sms":
         return f"sms-{service_id}-2016-01-01-count"
-    else:
+    elif limit_type == "email":
         return f"email-{service_id}-2016-01-01-count"
+    else:
+        return f"{service_id}-2016-01-01-count"
 
 
 def near_key(limit_type, service_id):
     if limit_type == "sms":
         return f"nearing-daily-limit-sms-{service_id}-2016-01-01-count"
-    else:
+    elif limit_type == "email":
         return f"nearing-daily-email-limit-email-{service_id}-2016-01-01-count"
+    else:
+        return f"nearing-{service_id}-2016-01-01-count"
 
 
 def over_key(limit_type, service_id):
     if limit_type == "sms":
         return f"over-daily-limit-sms-{service_id}-2016-01-01-count"
+    elif limit_type == "email":
+        return f"over-daily-email-limit-email-{service_id}-2016-01-01-count"
     else:
-        return f"oover-daily-email-limit-email-{service_id}-2016-01-01-count"
+        return f"over-{service_id}-2016-01-01-count"
 
 
 class TestCheckDailySMSEmailLimits:

@@ -1591,7 +1591,9 @@ class TestSaveEmails:
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
 
-    def test_should_use_email_template_and_persist(self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker):
+    def test_should_use_email_template_and_persist(
+        self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
+    ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 

@@ -94,6 +94,7 @@ def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_let
 
     assert response == 1
 
+
 @pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_returns_False(
