@@ -84,7 +84,7 @@ def dao_get_in_progress_jobs(start_time: datetime):
         Job.processing_started <= datetime.utcnow(),
     ]
 
-    return Job.query.filter(*filter)
+    return Job.query.filter(*filter).all()
 
 
 def dao_set_scheduled_jobs_to_pending():

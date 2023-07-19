@@ -94,8 +94,9 @@ def update_in_progress_jobs():
     jobs = dao_get_in_progress_jobs(datetime.utcnow() - timedelta(minutes=5))
     for job in jobs:
         notification = get_latest_sent_notification_for_job(job.id)
-        job.updated_at = notification.updated_at
-        dao_update_job(job)
+        if notification is not None:
+            job.updated_at = notification.updated_at
+            dao_update_job(job)
 
 
 @notify_celery.task(name="process-job")
