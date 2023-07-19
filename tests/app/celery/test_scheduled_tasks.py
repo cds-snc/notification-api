@@ -18,6 +18,7 @@ from app.celery.scheduled_tasks import (
     check_templated_letter_state,
     delete_invitations,
     delete_verify_codes,
+    mark_jobs_complete,
     recover_expired_notifications,
     replay_created_notifications,
     run_scheduled_jobs,
@@ -592,3 +593,27 @@ class TestRecoverExpiredNotification:
         email_bulk.assert_called_once()
         email_normal.assert_called_once()
         email_priority.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "notification_count_in_job, notification_count_in_db, expected_status",
+    [
+        [3, 0, JOB_STATUS_IN_PROGRESS],
+        [3, 1, JOB_STATUS_IN_PROGRESS],
+        [3, 3, JOB_STATUS_FINISHED],
+        [3, 10, JOB_STATUS_FINISHED],
+    ],
+)
+def test_mark_jobs_complete(sample_template, notification_count_in_job, notification_count_in_db, expected_status):
+    job = create_job(
+        template=sample_template,
+        notification_count=notification_count_in_job,
+        created_at=datetime.utcnow() - timedelta(minutes=1),
+        processing_started=datetime.utcnow() - timedelta(minutes=1),
+        job_status=JOB_STATUS_IN_PROGRESS,
+    )
+    for _ in range(notification_count_in_db):
+        save_notification(create_notification(template=sample_template, job=job))
+
+    mark_jobs_complete()
+    assert job.job_status == expected_status

@@ -17,11 +17,13 @@ from app import (
     zendesk_client,
 )
 from app.celery.tasks import (
+    job_complete
     process_job,
     save_emails,
     save_smss,
     update_in_progress_jobs,
 )
+
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -32,6 +34,7 @@ from app.dao.notifications_dao import (
     dao_get_scheduled_notifications,
     dao_old_letters_with_created_status,
     dao_precompiled_letters_still_pending_virus_check,
+    get_notification_count_for_job,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
     set_scheduled_notification_to_processed,
@@ -64,6 +67,33 @@ def run_scheduled_jobs():
             current_app.logger.info("Job ID {} added to process job queue".format(job.id))
     except SQLAlchemyError:
         current_app.logger.exception("Failed to run scheduled jobs")
+        raise
+
+
+@notify_celery.task(name="mark-jobs-complete")
+@statsd(namespace="tasks")
+def mark_jobs_complete():
+    # query for jobs that are in progress
+    jobs_in_progress = (
+        Job.query.filter(
+            Job.job_status == JOB_STATUS_IN_PROGRESS,
+        )
+        .order_by(Job.processing_started)
+        .all()
+    )
+
+    try:
+        for job in jobs_in_progress:
+            # check if all notifications for that job are sent
+            notification_count = get_notification_count_for_job(job.service_id, job.id)
+
+            # if so, mark job as complete
+            if notification_count >= job.notification_count:
+                job_complete(job)
+                current_app.logger.info(f"Job ID {str(job.id)} marked as complete")
+
+    except SQLAlchemyError:
+        current_app.logger.exception("Failed to mark jobs complete")
         raise
 
 
