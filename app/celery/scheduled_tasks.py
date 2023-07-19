@@ -23,7 +23,6 @@ from app.celery.tasks import (
     save_smss,
     update_in_progress_jobs,
 )
-
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,

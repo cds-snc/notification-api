@@ -592,7 +592,7 @@ def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
     latest_sent_notification = get_latest_sent_notification_for_job(job.id)
     assert latest_sent_notification is None
 
-    
+
 def test_get_notification_count_for_job(sample_job):
     for i in range(0, 7):
         try:

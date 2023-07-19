@@ -498,7 +498,6 @@ class TestUpdateJob:
         updated_job = jobs_dao.dao_get_job_by_id(sample_job.id)
         assert updated_job.updated_at == latest.updated_at
 
-
     def test_update_job_should_not_update_if_no_sent_notifications(self, sample_job, mocker):
         mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
         mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=None)
