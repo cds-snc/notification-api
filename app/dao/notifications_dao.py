@@ -284,7 +284,7 @@ def get_notifications_for_job(service_id, job_id, filter_dict=None, page=1, page
 
 @statsd(namespace="dao")
 def get_notification_count_for_job(service_id, job_id):
-    return Notification.query.filter_by(service_id=service_id, job_id=job_id).count()
+    return Notification.query.filter_by(service_id=service_id, job_id=job_id, status=NOTIFICATION_SENT).count()
 
 
 @statsd(namespace="dao")

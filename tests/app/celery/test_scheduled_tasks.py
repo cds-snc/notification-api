@@ -615,7 +615,7 @@ def test_mark_jobs_complete(sample_template, notification_count_in_job, notifica
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     for _ in range(notification_count_in_db):
-        save_notification(create_notification(template=sample_template, job=job))
+        save_notification(create_notification(template=sample_template, status="sent", job=job))
 
     mark_jobs_complete()
     assert job.job_status == expected_status

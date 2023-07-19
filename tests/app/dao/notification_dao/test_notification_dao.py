@@ -573,7 +573,7 @@ def test_get_all_notifications_for_job(sample_job):
 def test_get_notification_count_for_job(sample_job):
     for i in range(0, 7):
         try:
-            save_notification(create_notification(template=sample_job.template, job=sample_job))
+            save_notification(create_notification(template=sample_job.template, status="sent", job=sample_job))
         except IntegrityError:
             pass
 
