@@ -10,7 +10,7 @@ moto >= 4.1.7
 
 # https://pyjwt.readthedocs.io/en/stable/installation.html#cryptographic-dependencies-optional
 # When this is upgraded, also upgrade the version in lambda_functions/va_profile/requirements-lambda.txt.
-PyJWT[crypto] ~= 2.7.0
+PyJWT[crypto] ~= 2.8.0
 
 pytest >= 7.3.1
 pytest-cov >= 4.0.0

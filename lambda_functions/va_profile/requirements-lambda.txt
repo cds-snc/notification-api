@@ -3,7 +3,7 @@ psycopg2-binary ~= 2.9.6
 
 # https://pyjwt.readthedocs.io/en/stable/installation.html#cryptographic-dependencies-optional
 # When this is upgraded, also upgrade the version in requirements_for_test.txt.
-PyJWT[crypto] ~= 2.7.0
+PyJWT[crypto] ~= 2.8.0
 
 # https://cryptography.io/en/latest/changelog/#v38-0-0
 # 20 April 2023: The current AWS Lambda runtime does not include the version of Rust needed
