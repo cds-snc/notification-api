@@ -573,17 +573,23 @@ def test_get_all_notifications_for_job(sample_job):
 
 
 def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job):
-    latest_sent = datetime.utcnow()
-    for i in range(0, 10):
-        noti = create_notification(
-            template=sample_job.template, job=sample_job, status="sent" if i <= 5 else "pending", updated_at=datetime.utcnow()
-        )
-        save_notification(noti)
-        if i == 5:
-            latest_sent = noti.updated_at
+    one_s = timedelta(seconds=1)
+    now = datetime.utcnow()
+
+    test_data = [
+        (now - 5 * one_s, "sent"),
+        (now - 4 * one_s, "sent"),
+        (now - 3 * one_s, "sent"),
+        (now - 2 * one_s, "pending"),
+        (now - 1 * one_s, "pending"),
+        (now, "sent"),
+    ]
+
+    for updated_at, status in test_data:
+        save_notification(create_notification(template=sample_job.template, job=sample_job, status=status, updated_at=updated_at))
 
     latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
-    assert latest_sent_notification.updated_at == latest_sent
+    assert latest_sent_notification.updated_at == now
 
 
 def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
