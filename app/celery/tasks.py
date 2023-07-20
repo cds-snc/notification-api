@@ -88,8 +88,6 @@ from app.v2.errors import (
 )
 
 
-@notify_celery.task(name="update-job")
-@statsd(namespace="tasks")
 def update_in_progress_jobs():
     jobs = dao_get_in_progress_jobs()
     for job in jobs:

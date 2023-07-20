@@ -87,7 +87,6 @@ def test_should_call_delete_invotations_on_delete_invitations_task(notify_api, m
 
 def test_should_update_scheduled_jobs_and_put_on_queue(notify_db, notify_db_session, mocker):
     mocked_process_job = mocker.patch("app.celery.tasks.process_job.apply_async")
-    mocked_update_job = mocker.patch("app.celery.tasks.update_in_progress_jobs.delay")
 
     one_minute_in_the_past = datetime.utcnow() - timedelta(minutes=1)
     job = create_sample_job(
@@ -102,12 +101,10 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db, notify_db_sess
     updated_job = dao_get_job_by_id(job.id)
     assert updated_job.job_status == "pending"
     mocked_process_job.assert_called_with([str(job.id)], queue="job-tasks")
-    mocked_update_job.assert_called_with(queue="job-tasks")
 
 
 def test_should_update_all_scheduled_jobs_and_put_on_queue(notify_db, notify_db_session, mocker):
     mocked_process_job = mocker.patch("app.celery.tasks.process_job.apply_async")
-    mocked_update_job = mocker.patch("app.celery.tasks.update_in_progress_jobs.apply_async")
 
     one_minute_in_the_past = datetime.utcnow() - timedelta(minutes=1)
     ten_minutes_in_the_past = datetime.utcnow() - timedelta(minutes=10)
@@ -144,7 +141,6 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(notify_db, notify_db_
             call([str(job_1.id)], queue="job-tasks"),
         ]
     )
-    mocked_update_job.assert_called_once()
 
 
 @pytest.mark.skip(reason="Currently using only 1 SMS provider")
@@ -195,6 +191,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
 def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_template):
     mock_celery = mocker.patch("app.celery.tasks.notify_celery.send_task")
+    mocker.patch("app.celery.scheduled_tasks.update_in_progress_jobs")
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -215,6 +212,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
 
 def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is_not_complete(mocker, sample_template):
     mock_celery = mocker.patch("app.celery.tasks.notify_celery.send_task")
+    mocker.patch("app.celery.scheduled_tasks.update_in_progress_jobs")
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -236,6 +234,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
 
 def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(mocker, sample_template):
     mock_celery = mocker.patch("app.celery.tasks.notify_celery.send_task")
+    mocker.patch("app.celery.scheduled_tasks.update_in_progress_jobs")
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -264,6 +263,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
 
 def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
     mock_celery = mocker.patch("app.celery.tasks.notify_celery.send_task")
+    mocker.patch("app.celery.scheduled_tasks.update_in_progress_jobs")
     job = create_job(
         template=sample_template,
         notification_count=3,
@@ -292,6 +292,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template):
 
 def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
     mock_celery = mocker.patch("app.celery.tasks.notify_celery.send_task")
+    mocker.patch("app.celery.scheduled_tasks.update_in_progress_jobs")
     job = create_job(
         template=sample_template,
         notification_count=3,

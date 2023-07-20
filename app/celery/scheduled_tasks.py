@@ -60,7 +60,6 @@ save_emails = cast(Task, save_emails)
 @statsd(namespace="tasks")
 def run_scheduled_jobs():
     try:
-        update_in_progress_jobs.delay(queue=QueueNames.JOBS)
         for job in dao_set_scheduled_jobs_to_pending():
             process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
             current_app.logger.info("Job ID {} added to process job queue".format(job.id))
@@ -168,13 +167,14 @@ def check_job_status():
     from jobs
     where job_status == 'in progress'
     and template_type in ('sms', 'email')
-    and scheduled_at or created_at is older than 60 minutes.
+    and scheduled_at or created_at is older than 30 minutes.
     if any results then
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
     """
     minutes_ago_30 = datetime.utcnow() - timedelta(minutes=30)
     minutes_ago_35 = datetime.utcnow() - timedelta(minutes=35)
+    update_in_progress_jobs()
 
     jobs_not_complete_after_30_minutes = (
         Job.query.filter(
