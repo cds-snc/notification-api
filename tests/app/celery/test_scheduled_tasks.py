@@ -596,21 +596,25 @@ class TestRecoverExpiredNotification:
 
 
 @pytest.mark.parametrize(
-    "notification_count_in_job, notification_count_in_db, expected_status",
+    "notification_count_in_job, notification_count_in_db, initial_status, expected_status",
     [
-        [3, 0, JOB_STATUS_IN_PROGRESS],
-        [3, 1, JOB_STATUS_IN_PROGRESS],
-        [3, 3, JOB_STATUS_FINISHED],
-        [3, 10, JOB_STATUS_FINISHED],
+        [3, 0, JOB_STATUS_IN_PROGRESS, JOB_STATUS_IN_PROGRESS],
+        [3, 1, JOB_STATUS_IN_PROGRESS, JOB_STATUS_IN_PROGRESS],
+        [3, 1, JOB_STATUS_ERROR, JOB_STATUS_ERROR],
+        [3, 3, JOB_STATUS_ERROR, JOB_STATUS_FINISHED],
+        [3, 3, JOB_STATUS_IN_PROGRESS, JOB_STATUS_FINISHED],
+        [3, 10, JOB_STATUS_IN_PROGRESS, JOB_STATUS_FINISHED],
     ],
 )
-def test_mark_jobs_complete(sample_template, notification_count_in_job, notification_count_in_db, expected_status):
+def test_mark_jobs_complete(
+    sample_template, notification_count_in_job, notification_count_in_db, initial_status, expected_status
+):
     job = create_job(
         template=sample_template,
         notification_count=notification_count_in_job,
         created_at=datetime.utcnow() - timedelta(minutes=1),
         processing_started=datetime.utcnow() - timedelta(minutes=1),
-        job_status=JOB_STATUS_IN_PROGRESS,
+        job_status=initial_status,
     )
     for _ in range(notification_count_in_db):
         save_notification(create_notification(template=sample_template, job=job))
