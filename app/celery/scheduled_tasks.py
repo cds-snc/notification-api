@@ -65,17 +65,13 @@ def run_scheduled_jobs():
 @notify_celery.task(name="mark-jobs-complete")
 @statsd(namespace="tasks")
 def mark_jobs_complete():
-    # query for jobs that are in progress
-    jobs_in_progress = (
-        Job.query.filter(
-            Job.job_status == JOB_STATUS_IN_PROGRESS,
-        )
-        .order_by(Job.processing_started)
-        .all()
+    # query for jobs that are not yet complete
+    jobs_not_complete = (
+        Job.query.filter(Job.job_status.in_([JOB_STATUS_IN_PROGRESS, JOB_STATUS_ERROR])).order_by(Job.processing_started).all()
     )
 
     try:
-        for job in jobs_in_progress:
+        for job in jobs_not_complete:
             # check if all notifications for that job are sent
             notification_count = get_notification_count_for_job(job.service_id, job.id)
 
