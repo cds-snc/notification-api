@@ -67,11 +67,7 @@ def run_scheduled_jobs():
 def mark_jobs_complete():
     # query for jobs that are not yet complete
     jobs_not_complete = (
-        Job.query.filter(
-            Job.job_status.in_([JOB_STATUS_IN_PROGRESS, JOB_STATUS_ERROR])
-        )
-        .order_by(Job.processing_started)
-        .all()
+        Job.query.filter(Job.job_status.in_([JOB_STATUS_IN_PROGRESS, JOB_STATUS_ERROR])).order_by(Job.processing_started).all()
     )
 
     try:
