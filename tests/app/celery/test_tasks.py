@@ -45,7 +45,6 @@ from app.models import (
     BULK,
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
-    JOB_STATUS_IN_PROGRESS,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
@@ -2137,7 +2136,7 @@ class TestProcessIncompleteJob:
         assert mock_letter_saver.call_count == 8
 
     @freeze_time("2017-01-01")
-    def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processing_started_time(self, mocker, sample_template):
+    def test_process_incomplete_jobs_does_not_change_status_and_resets_processing_started_time(self, mocker, sample_template):
         mock_process_incomplete_job = mocker.patch("app.celery.tasks.process_incomplete_job")
 
         job1 = create_job(
@@ -2153,10 +2152,10 @@ class TestProcessIncompleteJob:
 
         process_incomplete_jobs([str(job1.id), str(job2.id)])
 
-        assert job1.job_status == JOB_STATUS_IN_PROGRESS
+        assert job1.job_status == JOB_STATUS_ERROR
         assert job1.processing_started == datetime.utcnow()
 
-        assert job2.job_status == JOB_STATUS_IN_PROGRESS
+        assert job2.job_status == JOB_STATUS_ERROR
         assert job2.processing_started == datetime.utcnow()
 
         assert mock_process_incomplete_job.mock_calls == [

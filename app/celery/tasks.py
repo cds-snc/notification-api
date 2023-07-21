@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
 from datetime import datetime
+from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
@@ -625,7 +626,6 @@ def process_incomplete_jobs(job_ids):
 
     # reset the processing start time so that the check_job_status scheduled task doesn't pick this job up again
     for job in jobs:
-        job.job_status = JOB_STATUS_IN_PROGRESS
         job.processing_started = datetime.utcnow()
         dao_update_job(job)
 
@@ -640,9 +640,9 @@ def process_incomplete_job(job_id):
     last_notification_added = dao_get_last_notification_added_for_job_id(job_id)
 
     if last_notification_added:
-        resume_from_row = last_notification_added.job_row_number
+        resume_from_row = last_notification_added.job_row_number + 1
     else:
-        resume_from_row = -1  # The first row in the csv with a number is row 0
+        resume_from_row = 0  # no rows have been added yet, resume from row 0
 
     current_app.logger.info("Resuming job {} from row {}".format(job_id, resume_from_row))
 
@@ -654,18 +654,11 @@ def process_incomplete_job(job_id):
 
     csv = get_recipient_csv(job, template)
     rows = csv.get_rows()  # This returns an iterator
-    first_row = []
-    for row in rows:
-        if row.index > resume_from_row:
-            first_row.append(row)
-            for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
-                result = first_row + result
-                process_rows(result, template, job, job.service)
-                put_batch_saving_bulk_created(
-                    metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
-                )
-                first_row = []
-            break
+    for result in chunked(islice(rows, resume_from_row, None), Config.BATCH_INSERTION_CHUNK_SIZE):
+        process_rows(result, template, job, job.service)
+        put_batch_saving_bulk_created(
+            metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
+        )
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
