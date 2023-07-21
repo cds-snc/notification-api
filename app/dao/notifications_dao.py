@@ -283,6 +283,11 @@ def get_notifications_for_job(service_id, job_id, filter_dict=None, page=1, page
 
 
 @statsd(namespace="dao")
+def get_notification_count_for_job(service_id, job_id):
+    return Notification.query.filter_by(service_id=service_id, job_id=job_id).count()
+
+
+@statsd(namespace="dao")
 def get_notification_with_personalisation(service_id, notification_id, key_type):
     filter_dict = {"service_id": service_id, "id": notification_id}
     if key_type:
