@@ -4,3 +4,7 @@ class RetryableException(Exception):
 
 class NonRetryableException(Exception):
     pass
+
+
+class AutoRetryException(Exception):
+    pass

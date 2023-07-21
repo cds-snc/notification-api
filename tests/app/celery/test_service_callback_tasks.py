@@ -9,7 +9,7 @@ from freezegun import freeze_time
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import (DATETIME_FORMAT, encryption)
-from app.celery.exceptions import NonRetryableException
+from app.celery.exceptions import AutoRetryException, NonRetryableException
 from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_complaint_to_vanotify,
@@ -146,14 +146,12 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
                                        status='sent'
                                        )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
-    mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.retry')
-    with requests_mock.Mocker() as request_mock:
-        request_mock.post(callback_api.url,
-                          json={},
-                          status_code=501)
-        send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
 
-    assert mocked.call_count == 1
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(callback_api.url, json={}, status_code=501)
+        with pytest.raises(Exception) as exc_info:
+            send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
+        assert exc_info.type is AutoRetryException
 
 
 @pytest.mark.parametrize("notification_type",
@@ -173,15 +171,13 @@ def test_send_data_to_service_callback_api_does_not_retry_if_request_returns_404
                                        status='sent'
                                        )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
-    mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.retry')
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url,
                           json={},
                           status_code=404)
-        with pytest.raises(NonRetryableException):
+        with pytest.raises(Exception) as exc_info:
             send_delivery_status_to_service(callback_api.id, notification.id, encrypted_status_update=encrypted_data)
-
-    assert mocked.call_count == 0
+        assert exc_info.type is NonRetryableException
 
 
 def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(

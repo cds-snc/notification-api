@@ -10,13 +10,12 @@ from app.dao.notifications_dao import (
 )
 
 from typing import Tuple
-from celery.exceptions import Retry
 from flask import current_app
 
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from app import notify_celery, statsd_client, clients
-from app.config import QueueNames
+from app.celery.exceptions import AutoRetryException
 from app.dao.service_callback_dao import dao_get_callback_include_payload_status
 
 from app.models import (
@@ -36,7 +35,10 @@ FINAL_STATUS_STATES = [
 
 
 # Create SQS Queue for Process Deliver Status.
-@notify_celery.task(bind=True, name="process-delivery-status-result", max_retries=48, default_retry_delay=300)
+@notify_celery.task(bind=True, name="process-delivery-status-result",
+                    throws=(AutoRetryException, ),
+                    autoretry_for=(AutoRetryException, ),
+                    max_retries=585, retry_backoff=True, retry_backoff_max=300)
 @statsd(namespace="tasks")
 def process_delivery_status(self, event: CeleryEvent) -> bool:
     """Celery task for updating the delivery status of a notification"""
@@ -49,10 +51,10 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
     current_app.logger.debug(event)
 
     # first attempt to process the incoming event
-    sqs_message = _get_sqs_message(self, event)
+    sqs_message = _get_sqs_message(event)
 
     # get the provider
-    (provider_name, provider) = _get_provider_info(self, sqs_message)
+    (provider_name, provider) = _get_provider_info(sqs_message)
 
     body = sqs_message.get("body")
     current_app.logger.info("retrieved delivery status body: %s", body)
@@ -66,14 +68,9 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
      number_of_message_parts, price_in_millicents_usd) = _get_notification_parameters(notification_platform_status)
 
     # retrieves the inbound message for this provider we are updating the status of the outbound message
-    notification, should_retry, should_exit = attempt_to_get_notification(
+    notification, should_exit = attempt_to_get_notification(
         reference, notification_status, self.request.retries * self.default_retry_delay
     )
-
-    # the race condition scenario if we got the delivery status before we actually record the sms
-    if should_retry or (notification is None):
-        # warning is handled in the attempt_to_get_notification() call
-        self.retry(queue=QueueNames.RETRY)
 
     if should_exit:
         current_app.logger.critical(event)
@@ -99,17 +96,10 @@ def process_delivery_status(self, event: CeleryEvent) -> bool:
             payload = {}
         check_and_queue_callback_task(notification, payload)
         return True
-
-    except Retry:
-        # This block exists to preempt executing the "Exception" logic below.  A better approach is
-        # to catch specific exceptions where they might occur.
-        raise
     except Exception as e:
         # why are we here logging.warning indicate the step that was being performed
         current_app.logger.exception(e)
-        self.retry(queue=QueueNames.RETRY)
-
-    return True
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
 
 def attempt_to_get_notification(
@@ -119,7 +109,6 @@ def attempt_to_get_notification(
     Attempt to get the Notification object, and determine whether the Celery Event should be retried or exit.
     """
 
-    should_retry = False
     notification = None
     should_exit = False
     try:
@@ -133,22 +122,22 @@ def attempt_to_get_notification(
     except NoResultFound:
         # A race condition exists wherein a callback might be received before a notification
         # persists in the database.  Continue retrying for up to 5 minutes (300 seconds).
+        statsd_client.incr("callback.delivery_status.no_notification_found")
+        should_exit = True
         if event_duration_in_seconds < 300:
             current_app.logger.info(
                 "Delivery Status callback event for reference %s was received less than five minutes ago.", reference)
-            should_retry = True
+            raise AutoRetryException('Found NoResultFound, autoretrying...')
         else:
             current_app.logger.critical(
                 "notification not found for reference: %s (update to %s)", reference, notification_status)
-        statsd_client.incr("callback.delivery_status.no_notification_found")
-        should_exit = True
     except MultipleResultsFound:
         current_app.logger.warning(
             "multiple notifications found for reference: %s (update to %s)", reference, notification_status)
         statsd_client.incr("callback.delivery_status.multiple_notifications_found")
         should_exit = True
 
-    return notification, should_retry, should_exit
+    return notification, should_exit
 
 
 def log_notification_status_warning(notification: Notification, status: str) -> None:
@@ -231,7 +220,7 @@ def _get_notification_platform_status(self, provider: any, body: str, sqs_messag
         current_app.logger.error("The event stream body could not be translated.")
         current_app.logger.exception(e)
         current_app.logger.debug(sqs_message)
-        self.retry(queue=QueueNames.RETRY)
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
     current_app.logger.info("retrieved delivery status: %s", notification_platform_status)
 
@@ -239,7 +228,7 @@ def _get_notification_platform_status(self, provider: any, body: str, sqs_messag
     if notification_platform_status is None:
         current_app.logger.error("Notification Platform Status cannot be None")
         current_app.logger.debug(body)
-        self.retry(queue=QueueNames.RETRY)
+        raise AutoRetryException("Found no notification_platform_status, autoretrying...")
 
     return notification_platform_status
 
@@ -260,7 +249,7 @@ def _get_include_payload_status(self, notification: Notification) -> bool:
         current_app.logger.error("Could not determine include_payload property for ServiceCallback.")
         current_app.logger.exception(e)
         current_app.logger.debug(notification)
-        self.retry(queue=QueueNames.RETRY)
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
     return include_payload_status
 
@@ -278,22 +267,19 @@ def _increment_statsd(notification: Notification, provider_name: str, notificati
         )
 
 
-# Annotations please
-def _get_sqs_message(self, event: CeleryEvent) -> dict:
+def _get_sqs_message(event: CeleryEvent) -> dict:
     """ Gets the sms message from the CeleryEvent """
     sqs_message = None
     current_app.logger.info("Get SQS message")
-    try:
-        sqs_message = event["message"]
-    except (TypeError, KeyError) as e:
-        current_app.logger.exception(e)
-        # same thing here regarding logging
-        self.retry(queue=QueueNames.RETRY)
-
+    sqs_message = event.get("message")
+    if sqs_message is None:
+        # Logic was previously setup this way. Not sure why we're retrying on type/key errors
+        current_app.logger.warning("Unable to parse event format for event: %s", event)
+        raise AutoRetryException('Unable to find "message" in event, autoretrying...')
     return sqs_message
 
 
-def _get_provider_info(self, sqs_message: dict) -> Tuple[str, any]:
+def _get_provider_info(sqs_message: dict) -> Tuple[str, any]:
     """ Gets the provider_name and provider object """
     current_app.logger.info("Get provider Information")
     provider_name = sqs_message.get("provider")
@@ -301,8 +287,7 @@ def _get_provider_info(self, sqs_message: dict) -> Tuple[str, any]:
 
     # provider cannot None
     if provider is None:
-        current_app.logger.error("Provider cannot be None")
-        current_app.logger.debug(sqs_message)
-        self.retry(queue=QueueNames.RETRY)
+        current_app.logger.warning("Unable to find provider given the following message: %s", sqs_message)
+        raise AutoRetryException("Found no provider, autoretrying...")
 
     return provider_name, provider

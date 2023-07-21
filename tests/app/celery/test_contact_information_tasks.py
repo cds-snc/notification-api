@@ -2,7 +2,9 @@ import uuid
 
 import pytest
 
+from app.celery.common import RETRIES_EXCEEDED
 from app.celery.contact_information_tasks import lookup_contact_info
+from app.celery.exceptions import AutoRetryException
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import Notification, RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, \
     NOTIFICATION_PERMANENT_FAILURE, LETTER_TYPE, EMAIL_TYPE, SMS_TYPE
@@ -101,18 +103,15 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, notificatio
         'app.celery.contact_information_tasks.update_notification_status_by_id'
     )
 
-    mocked_retry = mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.retry')
-
-    with pytest.raises(NotificationPermanentFailureException):
+    with pytest.raises(Exception) as exc_info:
         lookup_contact_info(notification.id)
 
+    assert exc_info.type is NotificationPermanentFailureException
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
     mocked_update_notification_status_by_id.assert_called_with(
         notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
     )
-
-    mocked_retry.assert_not_called()
 
 
 def test_should_retry_on_retryable_exception(client, mocker, notification):
@@ -129,13 +128,11 @@ def test_should_retry_on_retryable_exception(client, mocker, notification):
         new=mocked_va_profile_client
     )
 
-    mocked_retry = mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.retry')
+    with pytest.raises(Exception) as exc_info:
+        lookup_contact_info(notification.id)
 
-    lookup_contact_info(notification.id)
-
+    assert exc_info.type is AutoRetryException
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
-
-    mocked_retry.assert_called()
 
 
 def test_should_update_notification_to_technical_failure_on_max_retries(client, mocker, notification):
@@ -146,34 +143,23 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    exception = VAProfileRetryableException(
-        'RETRY FAILED: Max retries reached. '
-        f'The task lookup_contact_info failed for notification {notification_id}. '
-        'Notification has been updated to technical-failure'
-    )
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
+    mocked_va_profile_client.get_email = mocker.Mock(side_effect=VAProfileRetryableException)
     mocker.patch(
         'app.celery.contact_information_tasks.va_profile_client',
         new=mocked_va_profile_client
     )
-
-    mocked_update_notification_status_by_id = mocker.patch(
-        'app.celery.contact_information_tasks.update_notification_status_by_id'
+    mocker.patch('app.celery.contact_information_tasks.can_retry', return_value=False)
+    mocked_handle_max_retries_exceeded = mocker.patch(
+        'app.celery.contact_information_tasks.handle_max_retries_exceeded'
     )
 
-    mocker.patch(
-        'app.celery.contact_information_tasks.lookup_contact_info.retry',
-        side_effect=lookup_contact_info.MaxRetriesExceededError
-    )
-
-    with pytest.raises(NotificationTechnicalFailureException):
+    with pytest.raises(Exception) as exc_info:
         lookup_contact_info(notification.id)
 
+    assert exc_info.type is NotificationTechnicalFailureException
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
-    mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=exception.failure_reason
-    )
+    mocked_handle_max_retries_exceeded.assert_called_once()
 
 
 def test_should_update_notification_to_permanent_failure_on_no_contact_info_exception(client, mocker, notification):
@@ -222,7 +208,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
             VAProfileRetryableException,
             NotificationTechnicalFailureException,
             NOTIFICATION_TECHNICAL_FAILURE,
-            VAProfileRetryableException.failure_reason
+            RETRIES_EXCEEDED
         ),
         (
             NoContactInfoException,
@@ -239,36 +225,27 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     ]
 )
 def test_exception_sets_failure_reason_if_thrown(
-        client, mocker, notification, exception, throws_additional_exception, notification_status, exception_reason
-):
+        client, mocker, notification, exception, throws_additional_exception, notification_status, exception_reason):
     notification.notification_type = EMAIL_TYPE
-    mocker.patch(
-        'app.celery.contact_information_tasks.get_notification_by_id',
-        return_value=notification
-    )
+    mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
-    mocker.patch(
-        'app.celery.contact_information_tasks.va_profile_client',
-        new=mocked_va_profile_client
-    )
-
-    mocked_update_notification_status_by_id = mocker.patch(
-        'app.celery.contact_information_tasks.update_notification_status_by_id'
-    )
-
-    mocker.patch(
-        'app.celery.contact_information_tasks.lookup_contact_info.retry',
-        side_effect=lookup_contact_info.MaxRetriesExceededError
-    )
-
-    if throws_additional_exception:
+    mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
+    mocker.patch('app.celery.contact_information_tasks.can_retry', return_value=False)
+    if exception_reason == RETRIES_EXCEEDED:
+        mocker_handle_max_retries_exceeded = mocker.patch(
+            'app.celery.contact_information_tasks.handle_max_retries_exceeded')
         with pytest.raises(throws_additional_exception):
             lookup_contact_info(notification.id)
+        mocker_handle_max_retries_exceeded.assert_called_once()
     else:
-        lookup_contact_info(notification.id)
-
-    mocked_update_notification_status_by_id.assert_called_once_with(
-        notification.id, notification_status, status_reason=exception_reason
-    )
+        mocked_update_notification_status_by_id = mocker.patch(
+            'app.celery.contact_information_tasks.update_notification_status_by_id')
+        if throws_additional_exception:
+            with pytest.raises(throws_additional_exception):
+                lookup_contact_info(notification.id)
+        else:
+            lookup_contact_info(notification.id)
+            mocked_update_notification_status_by_id.assert_called_once_with(
+                notification.id, notification_status, status_reason=exception_reason)

@@ -1,5 +1,5 @@
 """
-This module tests GET requests to /notificaitons endpoints.
+This module tests GET requests to /notifications endpoints.
 """
 
 import pytest

@@ -3,13 +3,12 @@ import datetime
 import json
 from typing import Tuple
 
-from celery.exceptions import Retry
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from app import notify_celery, statsd_client
-from app.config import QueueNames
+from app.celery.exceptions import AutoRetryException
 from app.dao.notifications_dao import (
     dao_get_notification_by_reference,
     dao_update_notification,
@@ -50,7 +49,10 @@ def _map_record_status_to_notification_status(record_status):
     return _record_status_status_mapping[record_status]
 
 
-@notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="process-pinpoint-result",
+                    throws=(AutoRetryException, ),
+                    autoretry_for=(AutoRetryException, ),
+                    max_retries=585, retry_backoff=True, retry_backoff_max=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
     """
@@ -68,8 +70,7 @@ def process_pinpoint_results(self, response):
         pinpoint_message = json.loads(base64.b64decode(response['Message']))
     except (json.decoder.JSONDecodeError, ValueError, TypeError, KeyError) as e:
         current_app.logger.exception(e)
-        self.retry(queue=QueueNames.RETRY)
-        return None
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
     try:
         pinpoint_attributes = pinpoint_message["attributes"]
@@ -82,8 +83,7 @@ def process_pinpoint_results(self, response):
         current_app.logger.error("The event stream message data is missing expected attributes.")
         current_app.logger.exception(e)
         current_app.logger.debug(pinpoint_message)
-        self.retry(queue=QueueNames.RETRY)
-        return None
+        raise AutoRetryException('Found KeyError, autoretrying...')
 
     current_app.logger.info(
         "Processing Pinpoint result. | reference=%s | event_type=%s | record_status=%s | "
@@ -94,12 +94,9 @@ def process_pinpoint_results(self, response):
     try:
         notification_status = get_notification_status(event_type, record_status, reference)
 
-        notification, should_retry, should_exit = attempt_to_get_notification(
+        notification, should_exit = attempt_to_get_notification(
             reference, notification_status, pinpoint_message['event_timestamp']
         )
-
-        if should_retry:
-            self.retry(queue=QueueNames.RETRY)
 
         if should_exit:
             return
@@ -131,16 +128,9 @@ def process_pinpoint_results(self, response):
         check_and_queue_callback_task(notification)
 
         return True
-
-    except Retry:
-        # This block exists to preempt executing the "Exception" logic below.  A better approach is
-        # to catch specific exceptions where they might occur.
-        raise
     except Exception as e:
         current_app.logger.exception(e)
-        self.retry(queue=QueueNames.RETRY)
-
-    return None
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
 
 def get_notification_status(event_type: str, record_status: str, reference: str) -> str:
@@ -156,7 +146,6 @@ def get_notification_status(event_type: str, record_status: str, reference: str)
 def attempt_to_get_notification(
         reference: str, notification_status: str, event_timestamp_in_ms: str
 ) -> Tuple[Notification, bool, bool]:
-    should_retry = False
     notification = None
 
     try:
@@ -165,18 +154,18 @@ def attempt_to_get_notification(
     except NoResultFound:
         # A race condition exists wherein a callback might be received before a notification
         # persists in the database.  Continue retrying for up to 5 minutes (300 seconds).
+        statsd_client.incr('callback.pinpoint.no_notification_found')
+        should_exit = True
         message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
             current_app.logger.info(
                 'Pinpoint callback event for reference %s was received less than five minutes ago.', reference
             )
-            should_retry = True
+            raise AutoRetryException('Found NoResultFound, autoretrying...')
         else:
             current_app.logger.critical(
                 'notification not found for reference: %s (update to %s)', reference, notification_status
             )
-        statsd_client.incr('callback.pinpoint.no_notification_found')
-        should_exit = True
     except MultipleResultsFound:
         current_app.logger.warning(
             'multiple notifications found for reference: %s (update to %s)', reference, notification_status
@@ -184,7 +173,7 @@ def attempt_to_get_notification(
         statsd_client.incr('callback.pinpoint.multiple_notifications_found')
         should_exit = True
 
-    return notification, should_retry, should_exit
+    return notification, should_exit
 
 
 def check_notification_status(notification: Notification, notification_status: str) -> bool:

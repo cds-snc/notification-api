@@ -1,5 +1,6 @@
 import datetime
 import pytest
+from app.celery.exceptions import AutoRetryException
 from app.celery.process_delivery_status_result_tasks import (
     _get_provider_info,
     _get_notification_parameters,
@@ -7,13 +8,7 @@ from app.celery.process_delivery_status_result_tasks import (
     process_delivery_status,
 )
 from app.models import Notification
-from celery.exceptions import Retry
 from tests.app.db import create_notification
-
-
-class MockCeleryTask:
-    def retry(self, queue=None):
-        raise Retry()
 
 
 @pytest.fixture
@@ -79,57 +74,63 @@ def sample_sqs_message_without_provider():
     }
 
 
-def test_celery_event_with_missing_message_attribute(notify_db_session, sample_delivery_status_result_message):
+def test_celery_retry_event_when_missing_message_attribute(notify_db_session, sample_delivery_status_result_message):
     """Test that celery will retry the task if "message" is missing from the CeleryEvent message"""
 
     del sample_delivery_status_result_message["message"]
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_celery_event_with_missing_provider_attribute(notify_db_session, sample_delivery_status_result_message):
-    """Test that celery will retry the task if "message" is missing from the CeleryEvent message"""
+    """Test that celery will retry the task if "provider" is missing from the CeleryEvent message"""
 
     del sample_delivery_status_result_message["message"]["provider"]
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_celery_event_with_missing_body_attribute(notify_db_session, sample_delivery_status_result_message):
-    """Test that celery will retry the task if "message" is missing from the CeleryEvent message"""
+    """Test that celery will retry the task if "body" is missing from the CeleryEvent message"""
 
     del sample_delivery_status_result_message["message"]["body"]
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_celery_event_with_invalid_provider_attribute(notify_db_session, sample_delivery_status_result_message):
     """Test that celery will retry the task if "message" is invalid from the CeleryEvent message"""
 
     sample_delivery_status_result_message["message"]["provider"] = "abc123"
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_celery_event_with_invalid_body_attribute(notify_db_session, sample_delivery_status_result_message):
     """Test that celery will retry the task if "message" is missing from the CeleryEvent message"""
 
     sample_delivery_status_result_message["message"]["body"] = "body"
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
-def test_get_provider_info_with_no_provider_raises_retry(
+def test_get_provider_info_with_no_provider_retries(
         notify_db_session,
         sample_sqs_message_without_provider
 ):
-    """ Test get_provider_info() raises celery.exception.retry() when no provider is given by the celery event """
+    """ Test get_provider_info() retries when no provider is given by the celery event """
 
-    with pytest.raises(Retry):
-        _get_provider_info(MockCeleryTask(), sample_sqs_message_without_provider)
+    with pytest.raises(Exception) as exc_info:
+        _get_provider_info(sample_sqs_message_without_provider)
+    assert exc_info.type is AutoRetryException
 
 
-def test_get_provider_info_with_invalid_provider_raises_retry(
+def test_get_provider_info_with_invalid_provider_retries(
         notify_db_session,
         sample_sqs_message_with_provider
 ):
@@ -138,8 +139,9 @@ def test_get_provider_info_with_invalid_provider_raises_retry(
     sample_sqs_message_with_provider['provider'] = "abc"
 
     # now supply the sample to the function we want to test with the expectation of failure
-    with pytest.raises(Retry):
-        _get_provider_info(MockCeleryTask(), sample_sqs_message_with_provider)
+    with pytest.raises(Exception) as exc_info:
+        _get_provider_info(sample_sqs_message_with_provider)
+    assert exc_info.type is AutoRetryException
 
 
 def test_get_provider_info_with_twilio(
@@ -149,7 +151,7 @@ def test_get_provider_info_with_twilio(
     sample_sqs_message_with_provider['provider'] = 'twilio'
 
     # now supply the sample to the function we want to test
-    provider_name_output, provider = _get_provider_info(MockCeleryTask(), sample_sqs_message_with_provider)
+    provider_name_output, provider = _get_provider_info(sample_sqs_message_with_provider)
 
     assert provider.name == 'twilio'
     assert provider_name_output == 'twilio'
@@ -173,7 +175,7 @@ def test_attempt_to_get_notification_with_good_data(
     )
 
     # attempt to get the notification object that we created from the database
-    notification, should_retry, should_exit = attempt_to_get_notification(
+    notification, should_exit = attempt_to_get_notification(
         reference, notification_status, 0
     )
 
@@ -183,7 +185,6 @@ def test_attempt_to_get_notification_with_good_data(
     assert notification.reference == reference
 
     # SQS callback received matches the data in the database, so we should exit the celery task
-    assert not should_retry
     assert should_exit
 
 
@@ -193,7 +194,7 @@ def test_attempt_to_get_notification_duplicate_notification(
         sample_template
 ):
 
-    """Test that duplicate notifications will make notification = None, should_retry=False, should_exit=True"""
+    """Test that duplicate notifications will make notification = None, should_exit=True"""
 
     notification_status = 'delivered'
     reference = 'SMyyy'
@@ -215,7 +216,7 @@ def test_attempt_to_get_notification_duplicate_notification(
     )
 
     # should trigger a "MultipleResultsFound" when we attempt to get the notification object
-    notification, should_retry, should_exit = attempt_to_get_notification(
+    notification, should_exit = attempt_to_get_notification(
         reference, notification_status, 0
     )
 
@@ -223,17 +224,17 @@ def test_attempt_to_get_notification_duplicate_notification(
     assert notification is None
 
     # should_exit=True because of the "MultipleResultsFound" exception
-    assert not should_retry
     assert should_exit
 
 
-def test_process_delivery_status_with_invalid_notification_raises_retry(
+def test_process_delivery_status_with_invalid_notification_retries(
         notify_db_session,
         sample_delivery_status_result_message
 ):
     """ Notification is invalid because there are no notifications in the database"""
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_none_notification_platform_status_triggers_retry(
@@ -246,36 +247,38 @@ def test_none_notification_platform_status_triggers_retry(
     mocker.patch("app.clients")
     mocker.patch("app.clients.sms.twilio.TwilioSMSClient.translate_delivery_status", return_value=None)
 
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
-@pytest.mark.parametrize("event_duration_in_seconds", [0, 100, 200, 300, 400])
+@pytest.mark.parametrize("event_duration_in_seconds", [-1, 0, 299, 300])
 def test_attempt_to_get_notification_NoResultFound(notify_db_session, event_duration_in_seconds):
     """
     The Celery Task should retry whenever attempt_to_get_notification could not find a matching notification
     and less than 300 seconds (5 minutes) has elapsed since sending the notification.  (This is a race
     condition.)  There won't be a matching notification because this test doesn't create a Notification.
     """
-
-    notification, should_retry, should_exit = attempt_to_get_notification(
-        "bad_reference", "delivered", event_duration_in_seconds
-    )
-    assert notification is None
-    assert should_exit
-
     if event_duration_in_seconds < 300:
-        assert should_retry
+        with pytest.raises(Exception) as exc_info:
+            # Ignore the returns, we are expecting an exception
+            attempt_to_get_notification("bad_reference", "delivered", event_duration_in_seconds)
+        assert exc_info.type is AutoRetryException
     else:
-        assert not should_retry
+        notification, should_exit = attempt_to_get_notification(
+            "bad_reference", "delivered", event_duration_in_seconds
+        )
+        assert notification is None
+        assert should_exit
 
 
 def test_process_delivery_status_should_retry_preempts_exit(
         notify_db_session,
         sample_delivery_status_result_message
 ):
-    with pytest.raises(Retry):
+    with pytest.raises(Exception) as exc_info:
         process_delivery_status(event=sample_delivery_status_result_message)
+    assert exc_info.type is AutoRetryException
 
 
 def test_process_delivery_status_with_valid_message_with_no_payload(
