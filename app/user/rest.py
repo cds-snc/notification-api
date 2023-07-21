@@ -107,7 +107,6 @@ def handle_integrity_error(exc):
 def create_user():
     req_json = request.get_json()
     user_to_create = create_user_schema.load(req_json)
-    req_json = request.get_json()
 
     password = req_json.get("password", None)
     response = pwnedpasswords.check(password)
