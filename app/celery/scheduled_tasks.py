@@ -166,8 +166,8 @@ def check_job_status():
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
     """
-    minutes_ago_120 = datetime.utcnow() - timedelta(minutes=120)
-    minutes_ago_125 = datetime.utcnow() - timedelta(minutes=125)
+    minutes_ago_120 = datetime.utcnow() - timedelta(minutes=0)
+    minutes_ago_125 = datetime.utcnow() - timedelta(minutes=5)
 
     jobs_not_complete_after_120_minutes = (
         Job.query.filter(
