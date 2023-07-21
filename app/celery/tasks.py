@@ -127,15 +127,11 @@ def process_job(job_id):
     csv = get_recipient_csv(job, template)
 
     rows = csv.get_rows()
-    i = 0
     for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
-        if i > 0:
-            break
         process_rows(result, template, job, service)
         put_batch_saving_bulk_created(
             metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
         )
-        i += 1
 
 
 def job_complete(job: Job, resumed=False, start=None):
