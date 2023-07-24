@@ -16,7 +16,13 @@ from app import (
     sms_priority,
     zendesk_client,
 )
-from app.celery.tasks import job_complete, process_job, save_emails, save_smss
+from app.celery.tasks import (
+    job_complete,
+    process_job,
+    save_emails,
+    save_smss,
+    update_in_progress_jobs,
+)
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import (
     delete_org_invitations_created_more_than_two_days_ago,
@@ -161,30 +167,31 @@ def check_job_status():
     from jobs
     where job_status == 'in progress'
     and template_type in ('sms', 'email')
-    and scheduled_at or created_at is older that 120 minutes.
+    and scheduled_at or created_at is older than 30 minutes.
     if any results then
         raise error
         process the rows in the csv that are missing (in another task) just do the check here.
     """
-    minutes_ago_120 = datetime.utcnow() - timedelta(minutes=120)
-    minutes_ago_125 = datetime.utcnow() - timedelta(minutes=125)
+    minutes_ago_30 = datetime.utcnow() - timedelta(minutes=30)
+    minutes_ago_35 = datetime.utcnow() - timedelta(minutes=35)
+    update_in_progress_jobs()
 
-    jobs_not_complete_after_120_minutes = (
+    jobs_not_complete_after_30_minutes = (
         Job.query.filter(
             Job.job_status == JOB_STATUS_IN_PROGRESS,
             and_(
-                minutes_ago_125 < Job.processing_started,
-                Job.processing_started < minutes_ago_120,
+                minutes_ago_35 < Job.updated_at,
+                Job.updated_at < minutes_ago_30,
             ),
         )
-        .order_by(Job.processing_started)
+        .order_by(Job.updated_at)
         .all()
     )
 
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.
     job_ids: List[str] = []
-    for job in jobs_not_complete_after_120_minutes:
+    for job in jobs_not_complete_after_30_minutes:
         job.job_status = JOB_STATUS_ERROR
         dao_update_job(job)
         job_ids.append(str(job.id))
