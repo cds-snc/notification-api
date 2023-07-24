@@ -36,9 +36,10 @@ def _validate_positive_number(value, msg="Not a positive integer"):
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_too_far_in_future(dte):
+def _validate_datetime_not_too_far_in_future(dte: datetime):
     max_hours = current_app.config["JOBS_MAX_SCHEDULE_HOURS_AHEAD"]
-    if dte > datetime.utcnow() + timedelta(hours=max_hours):
+    max_schedule_time = datetime.utcnow() + timedelta(hours=max_hours)
+    if dte.timestamp() > max_schedule_time.timestamp():
         msg = f"Date cannot be more than {max_hours} hours in the future"
         raise ValidationError(msg)
 
@@ -48,18 +49,8 @@ def _validate_not_in_future(dte, msg="Date cannot be in the future"):
         raise ValidationError(msg)
 
 
-def _validate_not_in_past(dte, msg="Date cannot be in the past"):
-    if dte < date.today():
-        raise ValidationError(msg)
-
-
-def _validate_datetime_not_in_future(dte, msg="Date cannot be in the future"):
-    if dte > datetime.utcnow():
-        raise ValidationError(msg)
-
-
-def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
-    if dte < datetime.utcnow():
+def _validate_datetime_not_in_past(dte: datetime, msg="Date cannot be in the past"):
+    if dte.timestamp() < datetime.utcnow().timestamp():
         raise ValidationError(msg)
 
 
