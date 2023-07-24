@@ -36,6 +36,7 @@ from app.celery.tasks import (
     seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
+    update_in_progress_jobs,
 )
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
@@ -483,6 +484,26 @@ class TestBatchSaving:
         assert persisted_notification[0]._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
         assert pbsbp_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
+
+
+class TestUpdateJob:
+    def test_update_job(self, sample_template, sample_job, mocker):
+        latest = save_notification(create_notification(job=sample_job, updated_at=datetime.utcnow()))
+        save_notification(create_notification(job=sample_job))
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
+        mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=latest)
+
+        update_in_progress_jobs()
+        updated_job = jobs_dao.dao_get_job_by_id(sample_job.id)
+        assert updated_job.updated_at == latest.updated_at
+
+    def test_update_job_should_not_update_if_no_sent_notifications(self, sample_job, mocker):
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
+        mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=None)
+        mocked_update_job = mocker.patch("app.celery.tasks.dao_update_job")
+
+        update_in_progress_jobs()
+        mocked_update_job.assert_not_called()
 
 
 class TestProcessJob:
