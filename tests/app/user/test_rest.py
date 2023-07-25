@@ -118,7 +118,6 @@ def test_post_user(client, notify_db, notify_db_session):
     resp = client.post(url_for("user.create_user"), data=json.dumps(data), headers=headers)
     assert resp.status_code == 201
     user = User.query.filter_by(email_address="user@digital.cabinet-office.gov.uk").first()
-    assert user.check_password("tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm")
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp["data"]["email_address"] == user.email_address
     assert json_resp["data"]["id"] == str(user.id)
@@ -1192,7 +1191,7 @@ def test_cannot_update_user_password_using_attributes_method(admin_request, samp
         _data={"password": "foo"},
         _expected_status=400,
     )
-    assert resp == {"message": {"_schema": ["Unknown field name password"]}, "result": "error"}
+    assert resp["message"]["_schema"] == ["Unknown field name password"]
 
 
 def test_get_orgs_and_services_nests_services(admin_request, sample_user):

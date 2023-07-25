@@ -26,7 +26,7 @@ def validate_invitation_token(invitation_type, token):
 
     if invitation_type == "service":
         invited_user = get_invited_user_by_id(invited_user_id)
-        return jsonify(data=invited_user_schema.dump(invited_user)), 200
+        return jsonify(data=invited_user_schema.dump(invited_user).data), 200
     elif invitation_type == "organisation":
         invited_user = dao_get_invited_organisation_user(invited_user_id)
         return jsonify(data=invited_user.serialize()), 200

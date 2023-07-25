@@ -51,7 +51,7 @@ def get_job_by_service_and_job_id(service_id, job_id):
     job = dao_get_job_by_service_id_and_job_id(service_id, job_id)
     if job is not None:
         statistics = dao_get_notification_outcomes_for_job(service_id, job_id)
-        data = job_schema.dump(job)
+        data = job_schema.dump(job).data
         data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
         return jsonify(data=data)
     else:
@@ -84,7 +84,7 @@ def cancel_letter_job(service_id, job_id):
 
 @job_blueprint.route("/<job_id>/notifications", methods=["GET"])
 def get_all_notifications_for_service_job(service_id, job_id):
-    data = notifications_filter_schema.load(request.args)
+    data = notifications_filter_schema.load(request.args).data
     page = data["page"] if "page" in data else 1
     page_size = data["page_size"] if "page_size" in data else current_app.config.get("PAGE_SIZE")
     paginated_notifications = get_notifications_for_job(service_id, job_id, filter_dict=data, page=page, page_size=page_size)
@@ -97,7 +97,7 @@ def get_all_notifications_for_service_job(service_id, job_id):
     if data.get("format_for_csv"):
         notifications = [notification.serialize_for_csv() for notification in paginated_notifications.items]
     else:
-        notifications = notification_with_template_schema.dump(paginated_notifications.items, many=True)
+        notifications = notification_with_template_schema.dump(paginated_notifications.items, many=True).data
 
     return (
         jsonify(
@@ -180,7 +180,7 @@ def create_job(service_id):
 
     data.update({"template_version": template.version})
 
-    job = job_schema.load(data)
+    job = job_schema.load(data).data
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED
@@ -190,7 +190,7 @@ def create_job(service_id):
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
 
-    job_json = job_schema.dump(job)
+    job_json = job_schema.dump(job).data
     job_json["statistics"] = []
 
     return jsonify(data=job_json), 201
@@ -204,7 +204,7 @@ def get_paginated_jobs(service_id, limit_days, statuses, page):
         page_size=current_app.config["PAGE_SIZE"],
         statuses=statuses,
     )
-    data = job_schema.dump(pagination.items, many=True)
+    data = job_schema.dump(pagination.items, many=True).data
     for job_data in data:
         start = job_data["processing_started"]
         start = dateutil.parser.parse(start).replace(tzinfo=None) if start else None

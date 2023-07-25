@@ -579,7 +579,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
+    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 

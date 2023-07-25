@@ -13,15 +13,16 @@ def test_job_schema_doesnt_return_notifications(sample_notification_with_job):
     job = sample_notification_with_job.job
     assert job.notifications.count() == 1
 
-    data = job_schema.dump(job)
+    data, errors = job_schema.dump(job)
 
+    assert not errors
     assert "notifications" not in data
 
 
 def test_notification_schema_ignores_absent_api_key(sample_notification_with_job):
     from app.schemas import notification_with_template_schema
 
-    data = notification_with_template_schema.dump(sample_notification_with_job)
+    data = notification_with_template_schema.dump(sample_notification_with_job).data
     assert data["key_name"] is None
 
 
@@ -31,7 +32,7 @@ def test_notification_schema_adds_api_key_name(sample_notification):
     api_key = create_api_key(sample_notification.service, key_name="Test key")
     sample_notification.api_key = api_key
 
-    data = notification_with_template_schema.dump(sample_notification)
+    data = notification_with_template_schema.dump(sample_notification).data
     assert data["key_name"] == "Test key"
 
 
@@ -47,7 +48,7 @@ def test_notification_schema_adds_api_key_name(sample_notification):
 def test_notification_schema_has_correct_status(sample_notification, schema_name):
     from app import schemas
 
-    data = getattr(schemas, schema_name).dump(sample_notification)
+    data = getattr(schemas, schema_name).dump(sample_notification).data
 
     assert data["status"] == sample_notification.status
 
@@ -65,7 +66,7 @@ def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_v
     update_dict = {user_attribute: user_value}
     from app.schemas import user_update_schema_load_json
 
-    errors = user_update_schema_load_json.validate(update_dict)
+    data, errors = user_update_schema_load_json.load(update_dict)
     assert not errors
 
 
@@ -84,7 +85,7 @@ def test_user_update_schema_rejects_invalid_attribute_pairs(user_attribute, user
     update_dict = {user_attribute: user_value}
 
     with pytest.raises(ValidationError):
-        user_update_schema_load_json.load(update_dict)
+        data, errors = user_update_schema_load_json.load(update_dict)
 
 
 @pytest.mark.parametrize(
@@ -108,7 +109,7 @@ def test_user_update_schema_rejects_disallowed_attribute_keys(user_attribute):
     from app.schemas import user_update_schema_load_json
 
     with pytest.raises(ValidationError) as excinfo:
-        user_update_schema_load_json.load(update_dict)
+        data, errors = user_update_schema_load_json.load(update_dict)
 
     assert excinfo.value.messages["_schema"][0] == "Unknown field name {}".format(user_attribute)
 
@@ -118,7 +119,7 @@ def test_provider_details_schema_returns_user_details(mocker, sample_user, curre
 
     mocker.patch("app.provider_details.switch_providers.get_user_by_id", return_value=sample_user)
     current_sms_provider.created_by = sample_user
-    data = provider_details_schema.dump(current_sms_provider)
+    data = provider_details_schema.dump(current_sms_provider).data
 
     assert sorted(data["created_by"].keys()) == sorted(["id", "email_address", "name"])
 
@@ -130,7 +131,7 @@ def test_provider_details_history_schema_returns_user_details(
 
     mocker.patch("app.provider_details.switch_providers.get_user_by_id", return_value=sample_user)
     current_sms_provider.created_by_id = sample_user.id
-    data = provider_details_schema.dump(current_sms_provider)
+    data = provider_details_schema.dump(current_sms_provider).data
 
     dao_update_provider_details(current_sms_provider)
 
@@ -139,6 +140,6 @@ def test_provider_details_history_schema_returns_user_details(
         .order_by(desc(ProviderDetailsHistory.version))
         .first()
     )
-    data = provider_details_schema.dump(current_sms_provider_in_history)
+    data = provider_details_schema.dump(current_sms_provider_in_history).data
 
     assert sorted(data["created_by"].keys()) == sorted(["id", "email_address", "name"])

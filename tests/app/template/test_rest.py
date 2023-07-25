@@ -86,7 +86,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
 
 
 def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
@@ -820,7 +820,7 @@ def test_create_a_template_with_reply_to(admin_request, sample_user):
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
     th = TemplateHistory.query.filter_by(id=template.id, version=1).one()
     assert th.service_letter_contact_id == letter_contact.id
 

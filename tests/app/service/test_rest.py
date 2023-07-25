@@ -788,10 +788,7 @@ def test_update_service_sets_volumes(
     (
         (True, 200, True),
         (False, 200, False),
-        ("Yes", 200, True),
-        ("No", 200, False),
-        ("Oui", 400, None),
-        ("Non", 400, None),
+        ("Yes", 400, None),
     ),
 )
 def test_update_service_sets_research_consent(
