@@ -235,7 +235,7 @@ def post_bulk():
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
-    return jsonify(data=job_schema.dump(job).data), 201
+    return jsonify(data=job_schema.dump(job)), 201
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
@@ -719,7 +719,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         data["job_status"] = JOB_STATUS_SCHEDULED
         data["scheduled_for"] = form.get("scheduled_for")
 
-    job = job_schema.load(data).data
+    job = job_schema.load(data)
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:
