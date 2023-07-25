@@ -104,7 +104,7 @@ def upgrade():
         {
             "id": at_email_limit_template_id,
             "name": "Daily EMAIL limit reached",
-            "subject": "Action required: Daily email sending limit reached for ((service_name)) | Action requise: Limite d’envoi de courriels quotidienne atteinte pour ((service_name)) )",
+            "subject": "Action required: Daily email sending limit reached for ((service_name)) | Action requise: Limite d’envoi de courriels quotidienne atteinte pour ((service_name))",
             "content": reached_email_limit_content,
         },
         {
