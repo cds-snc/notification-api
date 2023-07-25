@@ -310,6 +310,11 @@ class Config(object):
             "schedule": timedelta(minutes=66),
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "mark-jobs-complete": {
+            "task": "mark-jobs-complete",
+            "schedule": crontab(),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
         "check-job-status": {
             "task": "check-job-status",
             "schedule": crontab(),
@@ -574,7 +579,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
+    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 

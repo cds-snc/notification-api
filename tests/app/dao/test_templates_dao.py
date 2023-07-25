@@ -294,7 +294,7 @@ def test_get_all_templates_ignores_hidden_templates(sample_service):
 def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     sample_template = create_template(template_name="Test Template", service=sample_service)
 
-    json_data = {"data": template_schema.dump(sample_template).data}
+    json_data = {"data": template_schema.dump(sample_template)}
     mocked_redis_get = mocker.patch.object(
         redis_store,
         "get",
@@ -310,7 +310,7 @@ def test_get_template_id_from_redis_when_cached(sample_service, mocker):
 
 def test_get_template_id_with_specific_version_from_redis(sample_service, mocker, notify_db_session):
     sample_template = create_template(template_name="Test Template", service=sample_service)
-    json_data = {"data": template_schema.dump(sample_template).data}
+    json_data = {"data": template_schema.dump(sample_template)}
     mocked_redis_get = mocker.patch.object(
         redis_store,
         "get",
@@ -449,8 +449,9 @@ def test_get_template_versions(sample_template):
 
     from app.schemas import template_history_schema
 
-    v = template_history_schema.load(versions, many=True)
+    v = template_history_schema.dump(versions, many=True)
     assert len(v) == 2
+    assert {template_history["version"] for template_history in v} == {1, 2}
 
 
 def test_get_template_versions_is_empty_for_hidden_templates(sample_service):

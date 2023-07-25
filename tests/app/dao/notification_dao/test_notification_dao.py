@@ -24,7 +24,9 @@ from app.dao.notifications_dao import (
     dao_update_notification,
     dao_update_notifications_by_reference,
     delete_notifications_older_than_retention_by_type,
+    get_latest_sent_notification_for_job,
     get_notification_by_id,
+    get_notification_count_for_job,
     get_notification_for_job,
     get_notification_with_personalisation,
     get_notifications_for_job,
@@ -40,6 +42,7 @@ from app.dao.notifications_dao import (
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import (
     JOB_STATUS_IN_PROGRESS,
+    JOB_STATUS_PENDING,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
@@ -75,6 +78,7 @@ def test_should_have_decorated_notifications_dao_functions():
     assert dao_update_notification.__wrapped__.__name__ == "dao_update_notification"  # noqa
     assert update_notification_status_by_reference.__wrapped__.__name__ == "update_notification_status_by_reference"  # noqa
     assert get_notification_for_job.__wrapped__.__name__ == "get_notification_for_job"  # noqa
+    assert get_notification_count_for_job.__wrapped__.__name__ == "get_notification_count_for_job"  # noqa
     assert get_notifications_for_job.__wrapped__.__name__ == "get_notifications_for_job"  # noqa
     assert get_notification_with_personalisation.__wrapped__.__name__ == "get_notification_with_personalisation"  # noqa
     assert get_notifications_for_service.__wrapped__.__name__ == "get_notifications_for_service"  # noqa
@@ -566,6 +570,44 @@ def test_get_all_notifications_for_job(sample_job):
 
     notifications_from_db = get_notifications_for_job(sample_job.service.id, sample_job.id).items
     assert len(notifications_from_db) == 5
+
+
+def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job):
+    one_s = timedelta(seconds=1)
+    now = datetime.utcnow()
+
+    test_data = [
+        (now - 5 * one_s, "sent"),
+        (now - 4 * one_s, "sent"),
+        (now - 3 * one_s, "sent"),
+        (now - 2 * one_s, "pending"),
+        (now - 1 * one_s, "pending"),
+        (now, "sent"),
+    ]
+
+    for updated_at, status in test_data:
+        save_notification(create_notification(template=sample_job.template, job=sample_job, status=status, updated_at=updated_at))
+
+    latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
+    assert latest_sent_notification.updated_at == now
+
+
+def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
+    job = create_job(template=sample_template, notification_count=0, job_status=JOB_STATUS_PENDING)
+
+    latest_sent_notification = get_latest_sent_notification_for_job(job.id)
+    assert latest_sent_notification is None
+
+
+def test_get_notification_count_for_job(sample_job):
+    for i in range(0, 7):
+        try:
+            save_notification(create_notification(template=sample_job.template, job=sample_job))
+        except IntegrityError:
+            pass
+
+    notification_count_from_db = get_notification_count_for_job(sample_job.service.id, sample_job.id)
+    assert notification_count_from_db == 7
 
 
 def test_get_all_notifications_for_job_by_status(sample_job):
