@@ -3,7 +3,7 @@ from io import BytesIO
 
 import botocore
 from flask import Blueprint, current_app, jsonify, request
-from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT, TEMPLATE_NAME_CHAR_COUNT_LIMIT
 from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate
 from PyPDF2.utils import PdfReadError
@@ -54,6 +54,9 @@ def _content_count_greater_than_limit(content, template_type):
         return template.is_message_too_long()
     return False
 
+def _template_name_over_char_limit(name, content, template_type):
+    return HTMLEmailTemplate({"name": name, "content": content, "subject": "placeholder", "template_type": template_type}).is_name_too_long()
+
 
 def validate_parent_folder(template_json):
     if template_json.get("parent_folder_id"):
@@ -103,6 +106,14 @@ def create_template(service_id):
         errors = {"content": [message]}
         current_app.logger.warning(
             {"error": f"{new_template.template_type}_char_count_exceeded", "message": message, "service_id": service_id}
+        )
+        raise InvalidRequest(errors, status_code=400)
+
+    if _template_name_over_char_limit(new_template.name, new_template.content, new_template.template_type):
+        message = "Template name must be less than {} characters".format(TEMPLATE_NAME_CHAR_COUNT_LIMIT)
+        errors = {"name": [message]}
+        current_app.logger.warning(
+            {"error": f"{new_template.template_type}_name_char_count_exceeded", "message": message, "service_id": service_id}
         )
         raise InvalidRequest(errors, status_code=400)
 
