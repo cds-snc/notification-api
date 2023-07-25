@@ -357,7 +357,6 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
 def test_send_one_off_letter_should_not_make_pdf_in_research_mode(
     sample_letter_template,
 ):
-
     sample_letter_template.service.research_mode = True
 
     data = {

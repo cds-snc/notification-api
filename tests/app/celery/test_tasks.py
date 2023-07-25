@@ -36,6 +36,7 @@ from app.celery.tasks import (
     seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
+    update_in_progress_jobs,
 )
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
@@ -44,14 +45,11 @@ from app.models import (
     BULK,
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
-    JOB_STATUS_FINISHED,
-    JOB_STATUS_IN_PROGRESS,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
     PRIORITY,
     SMS_TYPE,
-    Job,
     Notification,
     ServiceEmailReplyTo,
     ServiceSmsSender,
@@ -438,7 +436,7 @@ class TestBatchSaving:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -488,6 +486,26 @@ class TestBatchSaving:
         assert pbsbp_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
 
 
+class TestUpdateJob:
+    def test_update_job(self, sample_template, sample_job, mocker):
+        latest = save_notification(create_notification(job=sample_job, updated_at=datetime.utcnow()))
+        save_notification(create_notification(job=sample_job))
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
+        mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=latest)
+
+        update_in_progress_jobs()
+        updated_job = jobs_dao.dao_get_job_by_id(sample_job.id)
+        assert updated_job.updated_at == latest.updated_at
+
+    def test_update_job_should_not_update_if_no_sent_notifications(self, sample_job, mocker):
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
+        mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=None)
+        mocked_update_job = mocker.patch("app.celery.tasks.dao_update_job")
+
+        update_in_progress_jobs()
+        mocked_update_job.assert_not_called()
+
+
 class TestProcessJob:
     def test_should_process_sms_job_FF_PRIORITY_LANES_true(self, sample_job, mocker):
         mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
@@ -508,7 +526,7 @@ class TestProcessJob:
             (str(sample_job.service_id), ["something_encrypted"], None), queue=QueueNames.NORMAL_DATABASE
         )
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -608,7 +626,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         tasks.save_emails.apply_async.assert_called_with(
             (
                 str(job.service_id),
@@ -671,7 +689,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -684,7 +702,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert tasks.save_smss.apply_async.called is False
 
     def test_should_process_email_job(self, email_job_with_placeholders, mocker):
@@ -714,7 +732,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -753,7 +771,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -832,7 +850,7 @@ class TestProcessJob:
         }
         assert tasks.save_smss.apply_async.call_count == 1
         job = jobs_dao.dao_get_job_by_id(sample_job_with_placeholdered_template.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
 
     def test_should_cancel_job_if_service_is_inactive(self, sample_service, sample_job, mocker):
         sample_service.active = False
@@ -1754,7 +1772,6 @@ class TestSaveEmails:
         notification_id = uuid.uuid4()
 
         with pytest.raises(Retry):
-
             save_emails(sample_email_template.service_id, [signer_notification.sign(notification)], notification_id)
 
         assert not provider_tasks.deliver_email.apply_async.called
@@ -1938,15 +1955,10 @@ class TestProcessIncompleteJob:
 
         process_incomplete_job(str(job.id))
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
         assert save_smss.call_count == 1  # The save_smss call will be called once
         assert len(save_smss.call_args[0][0][1]) == 8  # The unprocessed 8 notifications will be sent to save_smss
 
     def test_process_incomplete_job_with_notifications_all_sent(self, mocker, sample_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -1977,14 +1989,9 @@ class TestProcessIncompleteJob:
 
         process_incomplete_job(str(job.id))
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
         assert mock_save_sms.call_count == 0  # There are 10 in the file and we've added 10 it should not have been called
 
     def test_process_incomplete_jobs_sms(self, mocker, sample_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2025,13 +2032,6 @@ class TestProcessIncompleteJob:
         jobs = [job.id, job2.id]
         process_incomplete_jobs(jobs)
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-        completed_job2 = Job.query.filter(Job.id == job2.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
-        assert completed_job2.job_status == JOB_STATUS_FINISHED
-
         assert mock_save_smss.call_count == 2
         # The second time the job is called we will send 5 notifications through
         assert len(mock_save_smss.call_args[0][0][1]) == 5
@@ -2056,15 +2056,10 @@ class TestProcessIncompleteJob:
 
         process_incomplete_job(job.id)
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
         assert mock_save_sms.call_count == 1
         assert len(mock_save_sms.call_args[0][0][1]) == 10  # There are 10 in the csv file
 
     def test_process_incomplete_jobs(self, mocker):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2077,7 +2072,6 @@ class TestProcessIncompleteJob:
         assert mock_save_sms.call_count == 0  # There are no jobs to process so it will not have been called
 
     def test_process_incomplete_job_no_job_in_database(self, mocker, fake_uuid):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_sms"),
@@ -2090,7 +2084,6 @@ class TestProcessIncompleteJob:
         assert mock_save_sms.call_count == 0  # There is no job in the db it will not have been called
 
     def test_process_incomplete_job_email(self, mocker, sample_email_template):
-
         mocker.patch(
             "app.celery.tasks.s3.get_job_from_s3",
             return_value=load_example_csv("multiple_email"),
@@ -2112,10 +2105,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
         process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_email_saver.call_count == 1
         assert len(mock_email_saver.call_args[0][0][1]) == 8  # There are 10 in the file and we've added two already
@@ -2147,7 +2136,7 @@ class TestProcessIncompleteJob:
         assert mock_letter_saver.call_count == 8
 
     @freeze_time("2017-01-01")
-    def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processing_started_time(self, mocker, sample_template):
+    def test_process_incomplete_jobs_does_not_change_status_and_resets_processing_started_time(self, mocker, sample_template):
         mock_process_incomplete_job = mocker.patch("app.celery.tasks.process_incomplete_job")
 
         job1 = create_job(
@@ -2163,10 +2152,10 @@ class TestProcessIncompleteJob:
 
         process_incomplete_jobs([str(job1.id), str(job2.id)])
 
-        assert job1.job_status == JOB_STATUS_IN_PROGRESS
+        assert job1.job_status == JOB_STATUS_ERROR
         assert job1.processing_started == datetime.utcnow()
 
-        assert job2.job_status == JOB_STATUS_IN_PROGRESS
+        assert job2.job_status == JOB_STATUS_ERROR
         assert job2.processing_started == datetime.utcnow()
 
         assert mock_process_incomplete_job.mock_calls == [
@@ -2266,7 +2255,6 @@ class TestSeedBounceRateData:
         mocker.patch("app.celery.tasks.bounce_rate_client.get_seeding_started", return_value=True)
 
         with notify_api.app_context():
-
             seed_bounce_rate_in_redis("6ce466d0-fd6a-11e5-82f5-e0accb9d11a6")
 
             mocked_set_seeded_total_notifications.assert_not_called()

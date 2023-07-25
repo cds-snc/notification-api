@@ -19,6 +19,7 @@ from app.models import (
     NOTIFICATION_HARD_NOEMAIL,
     NOTIFICATION_HARD_ONACCOUNTSUPPRESSIONLIST,
     NOTIFICATION_HARD_SUPPRESSED,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SOFT_ATTACHMENTREJECTED,
     NOTIFICATION_SOFT_BOUNCE,
     NOTIFICATION_SOFT_CONTENTREJECTED,
@@ -123,6 +124,25 @@ def test_ses_callback_should_update_notification_status(notify_db, notify_db_ses
         send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
 
 
+def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
+    with freeze_time("2001-01-01T12:00:00"):
+        mocker.patch("app.statsd_client.incr")
+        mocker.patch("app.statsd_client.timing_with_dates")
+        mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        notification = save_notification(
+            create_notification(
+                sample_template,
+                status=NOTIFICATION_PERMANENT_FAILURE,
+                reference="ref",
+            )
+        )
+        notification = get_notification_by_id(notification.id)
+        assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+        assert process_ses_results(ses_notification_callback(reference="ref"))
+        notification = get_notification_by_id(notification.id)
+        assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+
+
 def test_ses_callback_should_update_notification_status_when_receiving_new_delivery_receipt(sample_email_template, mocker):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
@@ -161,7 +181,6 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
     with freeze_time("2001-01-01T12:00:00"):
-
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,

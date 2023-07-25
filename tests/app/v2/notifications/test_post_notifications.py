@@ -307,7 +307,6 @@ class TestPostNotificationsErrors:
     def test_post_notification_returns_400_and_missing_template(
         self, client, sample_service, notification_type, key_send_to, send_to
     ):
-
         data = {key_send_to: send_to, "template_id": str(uuid.uuid4())}
         auth_header = create_authorization_header(service_id=sample_service.id)
 
@@ -1633,7 +1632,6 @@ class TestSMSFragmentCounter:
             save_model_api_key(api_key)
 
             with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
-
                 response = client.post(
                     path="/v2/notifications/bulk",
                     data=json.dumps(data),
