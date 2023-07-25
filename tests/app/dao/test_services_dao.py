@@ -602,7 +602,7 @@ def test_get_service_by_id_returns_service(notify_db_session):
 
 def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_session, mocker):
     sample_service = create_service(service_name="testing", email_from="testing")
-    service_json = {"data": service_schema.dump(sample_service).data}
+    service_json = {"data": service_schema.dump(sample_service)}
 
     service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
     service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]

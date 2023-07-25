@@ -15,6 +15,7 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     JOB_STATUS_CANCELLED,
     JOB_STATUS_FINISHED,
+    JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     LETTER_TYPE,
@@ -74,6 +75,10 @@ def dao_archive_job(job):
     job.archived = True
     db.session.add(job)
     db.session.commit()
+
+
+def dao_get_in_progress_jobs():
+    return Job.query.filter(Job.job_status == JOB_STATUS_IN_PROGRESS).all()
 
 
 def dao_set_scheduled_jobs_to_pending():
