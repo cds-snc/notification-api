@@ -446,7 +446,6 @@ class Config(object):
         # },
     }
 
-
     CELERY_QUEUES: List[Any] = []
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
@@ -529,15 +528,16 @@ class Config(object):
 
     # Feature flag for stack trace debugging
     FF_DEBUG_STACK_TRACE = env.bool("FF_DEBUG_STACK_TRACE", False)
-    if FF_DEBUG_STACK_TRACE: 
-        CELERYBEAT_SCHEDULE.update({
-            "debug-stack-trace": {
-                "task": "debug-stack-trace",
-                "schedule": 10,
-                "options": {"queue": QueueNames.PERIODIC},
-        },
-        }
-    )
+    if FF_DEBUG_STACK_TRACE:
+        CELERYBEAT_SCHEDULE.update(
+            {
+                "debug-stack-trace": {
+                    "task": "debug-stack-trace",
+                    "schedule": 10,
+                    "options": {"queue": QueueNames.PERIODIC},
+                },
+            }
+        )
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
