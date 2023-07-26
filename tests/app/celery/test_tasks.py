@@ -1114,8 +1114,8 @@ class TestSaveSmss:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
-        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
@@ -1494,8 +1494,8 @@ class TestSaveEmails:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
-        json_template_date = {"data": template_schema.dump(sample_template).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
