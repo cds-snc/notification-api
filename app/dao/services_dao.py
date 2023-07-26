@@ -454,7 +454,7 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     result = (
-        db.session.query(func.count(Notification).label("total_email_notifications"))
+        db.session.query(func.count(Notification.id).label("total_email_notifications"))
         .filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
