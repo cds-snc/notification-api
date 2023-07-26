@@ -173,6 +173,21 @@ Jinja templates are pulled in from the [notification-utils](https://github.com/c
 
 6. Remove `USE_LOCAL_JINJA_TEMPLATES=True` from your .env file, and delete any jinja in `jinja_templates`. Deleting the folder and jinja files is not required, but recommended. Make sure you're pulling up-to-date jinja from notification-utils the next time you need to make changes.
 
+## Testing
+
+To help debug full code paths of emails and SMS, we have a special email and phone number
+set in the application's configuration. As it stands at the moment these are the following:
+
+| Notification Type | Test destination         |
+|-------------------|--------------------------|
+| Email             | internal.test@cds-snc.ca |
+| SMS               | +16135550123             |
+
+Whereas the smoke test emails and long codes might not get through the whole GCNotify
+data treatment, these will and have proper database fields populated. This is useful
+for proper stress tests where the notifications shouldn't merely touch the API 
+front-door but also get through the Celery workers processing.
+
 ## Frequent problems
 
 __Problem__: No *postgres* role exists.
