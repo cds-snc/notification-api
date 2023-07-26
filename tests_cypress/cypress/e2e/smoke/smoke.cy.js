@@ -10,7 +10,7 @@ const ADMIN_COOKIE = 'notify_admin_session';
 
 describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
     before(() => {
-        Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+        Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
     });
 
     context('API tests', () => {
@@ -173,7 +173,7 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
                     // ensure SMOKE test email is received
                     cy.contains('p', "SMOKE_TEST_EMAIL_LINK").should('be.visible');
                     // ensure link to ddapi is in the email
-                    cy.contains('p', config.DDAPI.HostName).should('be.visible');
+                    cy.contains('p', config.Hostnames.DDAPI).should('be.visible');
                 });
             });
         });
@@ -214,15 +214,15 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
     context('ADMIN tests', () => {
         // Login to notify before the test suite starts
         before(() => {
-            Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
-            LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('ADMIN_USER_PASSWORD'));
+            Cypress.config('baseUrl', config.Hostnames.Admin); // use hostname for this environment
+            LoginPage.Login(Cypress.env('NOTIFY_USER'), Cypress.env('NOTIFY_PASSWORD'));
 
             // ensure we logged in correctly
             cy.contains('h1', 'Sign-in history').should('be.visible');
         });
 
         it('can send/receive a one-off email', () => {
-            cy.visit(`${config.Admin.HostName}/services/${config.Services.Cypress}`)
+            cy.visit(`${config.Hostnames.Admin}/services/${config.Services.Cypress}`)
             
             Navigation.Templates();
             TemplatesPage.SelectTemplate("SMOKE_TEST_EMAIL");

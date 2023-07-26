@@ -10,7 +10,7 @@ const emailAccount = async () => {
 
     const emailConfig = {
         imap: {
-            user:  env.UI_TEST_USER,
+            user:  env.NOTIFY_USER,
             password: env.IMAP_PASSWORD,
             host: 'imap.gmail.com',
             port: 993,

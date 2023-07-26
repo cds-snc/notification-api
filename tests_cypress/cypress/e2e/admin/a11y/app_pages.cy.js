@@ -34,8 +34,8 @@ const pages = [
 
 describe(`A11Y - App pages [${config.CONFIG_NAME}]`, () => {
     before(() => {
-        Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
-        LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('ADMIN_USER_PASSWORD'));
+        Cypress.config('baseUrl', config.Hostnames.Admin); // use hostname for this environment
+        LoginPage.Login(Cypress.env('NOTIFY_USER'), Cypress.env('NOTIFY_PASSWORD'));
     });
     
     // for (const viewport of config.viewports) {

@@ -1,13 +1,9 @@
 let STAGING = {
     CONFIG_NAME: "STAGING",
-    API: {
-        HostName: 'https://api.staging.notification.cdssandbox.xyz',
-    },
-    Admin: {
-        HostName: 'https://staging.notification.cdssandbox.xyz',
-    },
-    DDAPI: {
-        HostName: 'https://api.document.staging.notification.cdssandbox.xyz'
+    Hostnames: {
+        API: 'https://api.staging.notification.cdssandbox.xyz',
+        Admin: 'https://staging.notification.cdssandbox.xyz',
+        DDAPI: 'https://api.document.staging.notification.cdssandbox.xyz',
     },
     Services: {
         Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553',
@@ -38,14 +34,10 @@ let STAGING = {
 
 let LOCAL = {
     CONFIG_NAME: "LOCAL",
-    API: {
-        HostName: 'http://localhost:6011',
-    },
-    Admin: {
-        HostName: 'http://localhost:6012',
-    },
-    DDAPI: {
-        HostName: 'http://localhost:7000'
+    Hostnames: {
+        API: 'http://localhost:6011',
+        Admin: 'http://localhost:6012',
+        DDAPI: 'http://localhost:7000',
     },
     Services: {
         Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553',
@@ -70,7 +62,8 @@ let LOCAL = {
     ReplyTos: {
         Default: '1bc45a34-f4de-4635-b36f-7da2e2d248ed',
         Second: 'aaa58593-fc0a-46b0-82b8-b303ae662a41'
-    }
+    },
+    viewports: [320,375,640,768]
 };
 
 const config = {

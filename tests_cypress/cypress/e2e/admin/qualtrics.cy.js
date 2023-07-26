@@ -10,8 +10,8 @@ describe('Qualtrics', () => {
 
     // Login to notify before the test suite starts
     before(() => {
-        Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
-        LoginPage.Login(Cypress.env('UI_TEST_USER'), Cypress.env('ADMIN_USER_PASSWORD'));
+        Cypress.config('baseUrl', config.Hostnames.Admin); // use hostname for this environment
+        LoginPage.Login(Cypress.env('NOTIFY_USER'), Cypress.env('NOTIFY_PASSWORD'));
     });
 
     // Before each test, persist the auth cookie so we don't have to login again

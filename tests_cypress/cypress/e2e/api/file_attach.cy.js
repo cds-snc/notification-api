@@ -5,7 +5,7 @@ import Notify from "../../Notify/NotifyAPI";
 
 describe('File attachment test', () => {
   before(() => {
-    Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+    Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
   });
 
   it('can send single attachment', () => {

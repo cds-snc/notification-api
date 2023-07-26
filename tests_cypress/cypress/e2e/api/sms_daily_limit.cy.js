@@ -7,7 +7,7 @@ var service;
 
 describe('SMS Daily limit', () => {
     before(() => {
-        Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+        Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
     });
     
     before(() => {

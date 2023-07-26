@@ -26,7 +26,7 @@ const ADMIN_COOKIE = "notify_admin_session";
 
 describe('GCA static pages', () => {
     before(() => {
-        Cypress.config('baseUrl', config.Admin.HostName); // use hostname for this environment
+        Cypress.config('baseUrl', config.Hostnames.Admin); // use hostname for this environment
     });
     afterEach(() => {
         // cy.get('main').htmlvalidate({

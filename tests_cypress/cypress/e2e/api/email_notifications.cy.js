@@ -5,7 +5,7 @@ import Notify from "../../Notify/NotifyAPI";
 
 describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
   before(() => {
-    Cypress.config('baseUrl', config.API.HostName); // use hostname for this environment
+    Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
   });
 
   var keys = {
