@@ -69,3 +69,7 @@ run-celery-beat: ## Run the celery beat
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
 	./scripts/run_celery_purge.sh
+
+.PHONY: run-db
+run-db: ## psql to access dev database
+	psql postgres://postgres:chummy@db:5432/notification_api

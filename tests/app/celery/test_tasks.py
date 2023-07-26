@@ -1272,14 +1272,15 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "12345"
 
-    def test_should_save_sms_template_to_and_persist_with_job_id(self, sample_job, mocker):
+    def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1610,7 +1611,9 @@ class TestSaveEmails:
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
 
-    def test_should_use_email_template_and_persist(self, sample_email_template_with_placeholders, sample_api_key, mocker):
+    def test_should_use_email_template_and_persist(
+        self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
+    ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
@@ -1626,9 +1629,10 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            save_emails(
-                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-            )
+            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+                save_emails(
+                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+                )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"

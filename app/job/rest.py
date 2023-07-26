@@ -22,14 +22,15 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import (
+    EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
-    LETTER_TYPE,
     SMS_TYPE,
 )
 from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
+    check_email_limit_increment_redis_send_warnings_if_needed,
     check_sms_limit_increment_redis_send_warnings_if_needed,
 )
 from app.schemas import (
@@ -144,14 +145,15 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
 
+    job = get_job_from_s3(service_id, data["id"])
+    recipient_csv = RecipientCSV(
+        job,
+        template_type=template.template_type,
+        placeholders=template._as_utils_template().placeholders,
+        template=Template(template.__dict__),
+    )
+
     if template.template_type == SMS_TYPE:
-        job = get_job_from_s3(service_id, data["id"])
-        recipient_csv = RecipientCSV(
-            job,
-            template_type=template.template_type,
-            placeholders=template._as_utils_template().placeholders,
-            template=Template(template.__dict__),
-        )
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
@@ -167,8 +169,8 @@ def create_job(service_id):
         if not is_test_notification:
             check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
 
-    if template.template_type == LETTER_TYPE and service.restricted:
-        raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)
+    if template.template_type == EMAIL_TYPE:
+        check_email_limit_increment_redis_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
     if data.get("valid") != "True":
         raise InvalidRequest("File is not valid, can't create job", 400)
