@@ -445,6 +445,8 @@ class Config(object):
         # 'options': {'queue': QueueNames.PERIODIC}
         # },
     }
+
+
     CELERY_QUEUES: List[Any] = []
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
@@ -524,6 +526,18 @@ class Config(object):
     FF_BOUNCE_RATE_BACKEND = env.bool("FF_BOUNCE_RATE_BACKEND", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+
+    # Feature flag for stack trace debugging
+    FF_DEBUG_STACK_TRACE = env.bool("FF_DEBUG_STACK_TRACE", False)
+    if FF_DEBUG_STACK_TRACE: 
+        CELERYBEAT_SCHEDULE.update({
+            "debug-stack-trace": {
+                "task": "debug-stack-trace",
+                "schedule": 10,
+                "options": {"queue": QueueNames.PERIODIC},
+        },
+        }
+    )
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
