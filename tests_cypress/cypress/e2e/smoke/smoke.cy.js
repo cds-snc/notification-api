@@ -4,7 +4,6 @@ const { recurse } = require('cypress-recurse')
 const nodemailer = require("nodemailer");
 import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
-import { Navigation, LoginPage, TemplatesPage, AddRecipientsPage  } from "../../Notify/Admin/Pages/all";
 
 const ADMIN_COOKIE = 'notify_admin_session';
 
@@ -212,32 +211,61 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
     });
 
     context('ADMIN tests', () => {
-        // Login to notify before the test suite starts
-        before(() => {
-            Cypress.config('baseUrl', config.Hostnames.Admin); // use hostname for this environment
-            LoginPage.Login(Cypress.env('NOTIFY_USER'), Cypress.env('NOTIFY_PASSWORD'));
+        context('Email', () => {
+            it('can send/receive a one-off email', () => {
+                // create an ethereal email account to use for this test
+                cy.task('createEmailAccount').then(acct => {
+                    cy.log("Email account created for test: " + acct.user);
 
-            // ensure we logged in correctly
-            cy.contains('h1', 'Sign-in history').should('be.visible');
-        });
+                    Notify.Admin.SendOneOff({
+                        to: acct.user, 
+                        template_id: config.Templates.SMOKE_TEST_EMAIL
+                    }).as('emailRequest');
 
-        it('can send/receive a one-off email', () => {
-            cy.visit(`${config.Hostnames.Admin}/services/${config.Services.Cypress}`)
-            
-            Navigation.Templates();
-            TemplatesPage.SelectTemplate("SMOKE_TEST_EMAIL");
-            TemplatesPage.GotoAddRecipients();
-            AddRecipientsPage.SendOneOffEmail(config.Users.Simulated[2]);
+                    // ensure API returns a 201
+                    cy.get('@emailRequest').then(resp => {
+                        expect(resp.status).to.eq(201);
+                    });
+                    
+                    // verify email receipt
+                    recurse(
+                        () => cy.task('fetchEmail', acct), // Cypress commands to retry
+                        Cypress._.isObject, // keep retrying until the tas`k returns an object
+                        {
+                            log: true,
+                            limit: 50, // max number of iterations
+                            timeout: 30000, // time limit in ms
+                            delay: 500, // delay before next iteration, ms
+                        },
+                    ).then(response => {
+                        response.html = `
+                            <div style="max-width: 580px; margin: 0px auto">
+                                <ul>
+                                    <li><strong>FROM:</strong> ${response.from}</li>
+                                    <li><strong>TO:</strong> ${response.to}</li>    
+                                    <li><strong>SUBJECT:</strong> ${response.subject}</li>
+                                </ul>
+                                <hr />
+                            </div>
+                        ` + response.html;
+                        cy.document().then((document) => { document.documentElement.innerHTML = response.html })
+                    });
 
-            cy.contains('.notification-status', config.CONFIG_NAME === 'LOCAL' ? 'In transit' : 'Delivered').should('be.visible');
+                    // ensure SMOKE test email is received
+                    cy.contains('p', "SMOKE_TEST").should('be.visible');
+                });
+                
+            });
+            // it('can send/receive bulk CSV emails', () => {
+            // });
         });
         
-        // it('can send/receive bulk CSV emails', () => {
-        // });
-        // it('can send a one-off SMS', () => {
-        // });
-        // it('can send bulk CSV SMSs', () => {
-        // });
+        context('SMS', () => {
+            // it('can send a one-off SMS', () => {
+            // });
+            // it('can send bulk CSV SMSs', () => {
+            // });
+        });
     });
 
 });
