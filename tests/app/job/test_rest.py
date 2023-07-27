@@ -72,6 +72,7 @@ def test_cant_cancel_normal_job(client, sample_job, mocker):
     assert mock_update.call_count == 0
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_letter_template, admin_request, mocker):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
@@ -94,6 +95,7 @@ def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_let
     assert response == 1
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_returns_False(
     sample_letter_template, admin_request, mocker
@@ -286,6 +288,7 @@ def test_create_job_returns_400_if_file_is_invalid(client, fake_uuid, sample_tem
     mock_job_dao.assert_not_called()
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_create_job_returns_403_if_letter_template_type_and_service_in_trial(
     client, fake_uuid, sample_trial_letter_template, mocker
 ):

@@ -72,6 +72,7 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.notifications.validators import (
+    check_email_limit_increment_redis_send_warnings_if_needed,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
@@ -213,6 +214,9 @@ def post_bulk():
             )
             raise BadRequestError(message=message)
 
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
@@ -273,6 +277,9 @@ def post_notification(notification_type: NotificationType):
         authenticated_service,
         notification_type,
     )
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
