@@ -35,11 +35,11 @@ def lookup_contact_info(self, notification_id):
                 f"{notification.notification_type} is not supported")
 
     except VAProfileRetryableException as e:
-        if can_retry(self.request.retries, self.max_retries):
+        if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning("Unable to get contact info for notification id: %s, retrying", notification_id)
             raise AutoRetryException('Found VAProfileRetryableException, autoretrying...', e, e.args)
         else:
-            msg = handle_max_retries_exceeded(notification_id, 'lookup_contact_info', current_app.logger)
+            msg = handle_max_retries_exceeded(notification_id, 'lookup_contact_info')
             raise NotificationTechnicalFailureException(msg)
     except NoContactInfoException as e:
         message = (

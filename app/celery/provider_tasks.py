@@ -55,11 +55,11 @@ def deliver_sms(self, notification_id, sms_sender_id=None):
         current_app.logger.exception(
             "SMS delivery for notification id: %s failed", notification_id
         )
-        if can_retry(self.request.retries, self.max_retries):
+        if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning("Unable to send sms for notification id: %s, retrying", notification_id)
             raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
-            msg = handle_max_retries_exceeded(notification_id, 'deliver_sms', current_app.logger)
+            msg = handle_max_retries_exceeded(notification_id, 'deliver_sms')
             raise NotificationTechnicalFailureException(msg)
 
 
@@ -110,12 +110,12 @@ def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
         current_app.logger.exception(
             "Rate Limit SMS notification delivery for id: %s failed", notification_id
         )
-        if can_retry(self.request.retries, self.max_retries):
+        if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning("Unable to send sms with rate limiting for notification id: %s, retrying",
                                        notification_id)
             raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
-            msg = handle_max_retries_exceeded(notification_id, 'deliver_sms_with_rate_limiting', current_app.logger)
+            msg = handle_max_retries_exceeded(notification_id, 'deliver_sms_with_rate_limiting')
             raise NotificationTechnicalFailureException(msg)
 
 
@@ -159,7 +159,7 @@ def deliver_email(self, notification_id: str, sms_sender_id=None):
         current_app.logger.exception(
             "Email delivery for notification id: %s failed", notification_id
         )
-        if can_retry(self.request.retries, self.max_retries):
+        if can_retry(self.request.retries, self.max_retries, notification_id):
             if isinstance(e, AwsSesClientThrottlingSendRateException):
                 current_app.logger.warning(
                     "RETRY number %s: Email notification %s was rate limited by SES",
@@ -169,5 +169,5 @@ def deliver_email(self, notification_id: str, sms_sender_id=None):
                 current_app.logger.warning("Unable to send email for notification id: %s, retrying", notification_id)
             raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
-            msg = handle_max_retries_exceeded(notification_id, 'deliver_email', current_app.logger)
+            msg = handle_max_retries_exceeded(notification_id, 'deliver_email')
             raise NotificationTechnicalFailureException(msg)

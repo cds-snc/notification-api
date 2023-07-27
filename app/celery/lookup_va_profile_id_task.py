@@ -40,12 +40,12 @@ def lookup_va_profile_id(self, notification_id):
         return va_profile_id
 
     except MpiRetryableException as e:
-        if can_retry(self.request.retries, self.max_retries):
+        if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning("Unable to lookup VA Profile ID for notification id: %s, retrying",
                                        notification_id)
             raise AutoRetryException('Found MpiRetryableException, autoretrying...', e, e.args)
         else:
-            msg = handle_max_retries_exceeded(notification_id, 'lookup_va_profile_id', current_app.logger)
+            msg = handle_max_retries_exceeded(notification_id, 'lookup_va_profile_id')
             raise NotificationTechnicalFailureException(msg)
 
     except (BeneficiaryDeceasedException, IdentifierNotFound, MultipleActiveVaProfileIdsException,
