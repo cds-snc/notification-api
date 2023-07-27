@@ -55,7 +55,7 @@ def create(
             }
             field_values = field_default_values | field_updates
             result = session.Opportunity.create(
-                field_values,
+                engagement_maxlengths(field_values),
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
             parse_result(result, f"Salesforce Engagement create for service ID {service.id}")
@@ -106,7 +106,7 @@ def update(
         if engagement:
             result = session.Opportunity.update(
                 engagement.get("Id"),
-                field_updates,
+                engagement_maxlengths(field_updates),
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
             is_updated = parse_result(result, f"Salesforce Engagement update '{service}' with '{field_updates}'")
@@ -140,9 +140,9 @@ def contact_role_add(session: Salesforce, service: Service, account_id: Optional
                 {"ContactId": contact_id, "OpportunityId": engagement.get("Id")},
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
+            parse_result(result, f"Salesforce ContactRole add for {contact_id} with '{service.id}'")
         else:
-            result = create(session, service, {}, account_id, contact_id)  # This implicitly creates the ContactRole
-        parse_result(result, f"Salesforce ContactRole add for {contact_id} with '{service.id}'")
+            create(session, service, {}, account_id, contact_id)  # This implicitly creates the ContactRole
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce ContactRole add for {contact_id} with '{service.id}' failed: {ex}")
 
@@ -168,7 +168,7 @@ def contact_role_delete(session: Salesforce, service: Service, account_id: Optio
 
         if engagement_contact_role:
             result = session.OpportunityContactRole.delete(engagement_contact_role.get("Id"))
-        parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
+            parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce ContactRole delete for {contact_id} with '{service.id}' failed: {ex}")
 
@@ -208,3 +208,21 @@ def get_engagement_contact_role(
         query = f"SELECT Id, OpportunityId, ContactId FROM OpportunityContactRole WHERE OpportunityId = '{query_param_sanitize(engagement_id)}' AND ContactId = '{query_param_sanitize(contact_id)}' LIMIT 1"
         result = query_one(session, query)
     return result
+
+
+def engagement_maxlengths(fields: dict[str, str]) -> dict[str, str]:
+    """Given a dictionary of Engagement fields to update, truncate the values to the maximum length allowed by Salesforce.
+
+    Args:
+        field_updates (dict[str, str]): Engagement fields to check
+
+    Returns:
+        dict[str, str]: Field updates with values truncated to the maximum length allowed by Salesforce
+    """
+    maxlengths = {
+        "Name": 120,
+    }
+    for field_name, maxlength in maxlengths.items():
+        if field_name in fields:
+            fields[field_name] = fields[field_name][:maxlength]
+    return fields

@@ -33,27 +33,27 @@ flask-marshmallow = "0.14.0"
 Flask-Migrate = "2.7.0"
 Flask-SQLAlchemy = { git = "https://github.com/pallets-eco/flask-sqlalchemy.git", rev = "500e732dd1b975a56ab06a46bd1a20a21e682262"}
 #git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
-Flask = "2.2.3"
+Flask = "2.3.2"
 click-datetime = "0.2"
 gevent = "22.10.2"
 gunicorn = "20.1.0"
-iso8601 = "0.1.16"
+iso8601 = "2.0.0"
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 jsonschema = "3.2.0"
 marshmallow-sqlalchemy = "0.23.1"
-marshmallow = "2.21.0"
+marshmallow = "3.19.0"
 python-magic = "0.4.27"
 psycopg2-binary = "2.9.6"
 PyJWT = "2.6.0"
 pytz = "2021.3"
-PyYAML = "5.4.1"
+PyYAML = "5.3.1"
 SQLAlchemy = "1.4.48"
 cachelib = "0.10.2"
 newrelic = "6.10.0.165"
 notifications-python-client = "6.4.1"
-python-dotenv = "0.21.1"
+python-dotenv = "1.0.0"
 pwnedpasswords = "2.0.0"
-tldextract = "3.4.2"
+tldextract = "3.4.4"
 nanoid = "2.0.0"
 unidecode = "1.3.6"
 more-itertools = "8.14.0"
@@ -61,21 +61,20 @@ more-itertools = "8.14.0"
 awscli-cwlogs = "1.4.6"
 aws-embedded-metrics = "1.0.8"
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug = "2.2.3"
-MarkupSafe = "2.1.2"
+Werkzeug = "2.3.3"
+MarkupSafe = "2.1.3"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = {git = "https://github.com/cds-snc/notifier-utils.git", rev = "50.3.3"}
-
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", rev = "52.0.4" }
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.5.0"
 greenlet = "2.0.2"
 simple-salesforce = "^1.12.3"
 
 [tool.poetry.group.test.dependencies]
-flake8 = "4.0.1"
+flake8 = "6.0.0"
 isort = "5.12.0"
-moto = "4.1.9"
+moto = "4.1.11"
 idna = "2.10"
 pytest = "7.2.2"
 pytest-env = "0.8.1"
@@ -90,13 +89,13 @@ strict-rfc3339 = "0.7"
 rfc3987 = "1.3.8"
 # used for creating manifest file locally
 jinja2-cli = { extras = ["yaml"], version = "0.8.2" }
-black = "22.12.0"
+black = "23.3.0"
 locust = "2.15.1"
 mypy = "0.812"
 sqlalchemy-stubs = "0.4"
 sqlalchemy2-stubs = "0.0.2a34"
 networkx = "2.8.8" # not directly required, pinned by Snyk to avoid a vulnerability
-pytest-mock-resources = { extras = ["redis"], version = "2.6.12" }
+pytest-mock-resources = { extras = ["redis"], version = "2.6.13" }
 types-boto = "2.49.18.8"
 types-mock = "4.0.15.2"
 types-python-dateutil = "2.8.19.13"

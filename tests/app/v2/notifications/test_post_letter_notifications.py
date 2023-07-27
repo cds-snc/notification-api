@@ -131,7 +131,6 @@ def test_post_letter_notification_sets_postage(client, notify_db_session, mocker
 def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_delivered(
     notify_api, client, sample_letter_template, mocker, env
 ):
-
     data = {
         "template_id": str(sample_letter_template.id),
         "personalisation": {
@@ -172,7 +171,6 @@ def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_d
 def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_sending_and_sends_fake_response_file(
     notify_api, client, sample_letter_template, mocker, env
 ):
-
     data = {
         "template_id": str(sample_letter_template.id),
         "personalisation": {

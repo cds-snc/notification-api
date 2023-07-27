@@ -1,7 +1,7 @@
 from typing import Any, List, NewType, Optional, TypedDict, cast
 
 from flask_bcrypt import check_password_hash, generate_password_hash
-from itsdangerous import BadSignature, URLSafeSerializer
+from itsdangerous import URLSafeSerializer
 from typing_extensions import NotRequired  # type: ignore
 
 SignedNotification = NewType("SignedNotification", str)
@@ -40,7 +40,6 @@ class CryptoSigner:
         self.secret_key = cast(List[str], [secret_key] if type(secret_key) is str else secret_key)
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
-        self.dangerous_salt = app.config.get("DANGEROUS_SALT")
 
     def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
         """Sign a string or dict with the class secret key and salt.
@@ -67,35 +66,19 @@ class CryptoSigner:
             signed.append(URLSafeSerializer(k).dumps(to_sign, salt=self.salt))
         return signed
 
-    def sign_with_all_dangerously_salted_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
-        """Sign a string or dict with all the individual keys in the class secret key list, and the DANGEROUS_SALT.
-
-        Args:
-            to_sign (str | NotificationDictToSign): The string or dict to sign.
-
-        Returns:
-            List[str | bytes]: A list of signed values.
-        """
-        signed = []
-        for k in reversed(self.secret_key):  # reversed so that the default key is last
-            signed.append(URLSafeSerializer(k).dumps(to_sign, salt=self.dangerous_salt))
-        return signed
-
     def verify(self, to_verify: str | bytes) -> Any:
         """Checks the signature of a signed value and returns the original value.
-        Currently checks against both self.salt and self.dangerous_salt.
-        After everything is signed with the new salts, this will only check against self.salt.
 
         Args:
             to_verify (str | bytes): The signed value to check
 
         Returns:
             Original value if signature is valid, raises BadSignature otherwise
+
+        Raises:
+            BadSignature: If the signature is invalid
         """
-        try:
-            return self.serializer.loads(to_verify, salt=self.salt)
-        except BadSignature:
-            return self.serializer.loads(to_verify, salt=self.dangerous_salt)
+        return self.serializer.loads(to_verify, salt=self.salt)
 
     def verify_unsafe(self, to_verify: str | bytes) -> Any:
         """Ignore the signature and return the original value that has been signed.
@@ -107,7 +90,7 @@ class CryptoSigner:
         Returns:
             Any: Original value that has been signed
         """
-        return self.serializer.loads_unsafe(to_verify, salt=self.dangerous_salt)[1]
+        return self.serializer.loads_unsafe(to_verify)[1]
 
 
 def hashpw(password):

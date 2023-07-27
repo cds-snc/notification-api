@@ -105,19 +105,14 @@ def handle_integrity_error(exc):
 
 @user_blueprint.route("", methods=["POST"])
 def create_user():
-    # import pdb; pdb.set_trace()
-    user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
+    user_to_create = create_user_schema.load(req_json)
 
     password = req_json.get("password", None)
-    if not password:
-        errors.update({"password": ["Missing data for required field."]})
+    response = pwnedpasswords.check(password)
+    if response > 0:
+        errors = {"password": ["Password is not allowed."]}
         raise InvalidRequest(errors, status_code=400)
-    else:
-        response = pwnedpasswords.check(password)
-        if response > 0:
-            errors.update({"password": ["Password is not allowed."]})
-            raise InvalidRequest(errors, status_code=400)
 
     save_model_user(user_to_create, pwd=req_json.get("password"))
     result = user_to_create.serialize()
@@ -133,9 +128,7 @@ def update_user_attribute(user_id):
     else:
         updated_by = None
 
-    update_dct, errors = user_update_schema_load_json.load(req_json)
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
+    update_dct = user_update_schema_load_json.load(req_json)
 
     save_user_attribute(user_to_update, update_dict=update_dct)
 
@@ -361,9 +354,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
 @user_blueprint.route("/<uuid:user_id>/change-email-verification", methods=["POST"])
 def send_user_confirm_new_email(user_id):
     user_to_send_to = get_user_by_id(user_id=user_id)
-    email, errors = email_data_request_schema.load(request.get_json())
-    if errors:
-        raise InvalidRequest(message=errors, status_code=400)
+    email = email_data_request_schema.load(request.get_json())
 
     template = dao_get_template_by_id(current_app.config["CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
@@ -418,7 +409,7 @@ def send_new_user_email_verification(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/email-already-registered", methods=["POST"])
 def send_already_registered_email(user_id):
-    to, errors = email_data_request_schema.load(request.get_json())
+    to = email_data_request_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config["ALREADY_REGISTERED_EMAIL_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
@@ -445,7 +436,6 @@ def send_already_registered_email(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/contact-request", methods=["POST"])
 def send_contact_request(user_id):
-
     contact = None
     user = None
 
@@ -491,7 +481,6 @@ def send_contact_request(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
-
     contact = None
     data = request.json
     try:
@@ -576,7 +565,7 @@ def get_by_email():
 
 @user_blueprint.route("/find-users-by-email", methods=["POST"])
 def find_users_by_email():
-    email, errors = partial_email_data_request_schema.load(request.get_json())
+    email = partial_email_data_request_schema.load(request.get_json())
     fetched_users = get_users_by_partial_email(email["email"])
     result = [user.serialize_for_users_list() for user in fetched_users]
     return jsonify(data=result), 200
@@ -584,7 +573,7 @@ def find_users_by_email():
 
 @user_blueprint.route("/reset-password", methods=["POST"])
 def send_user_reset_password():
-    email, errors = email_data_request_schema.load(request.get_json())
+    email = email_data_request_schema.load(request.get_json())
 
     user_to_send_to = get_user_by_email(email["email"])
 
@@ -615,7 +604,7 @@ def send_user_reset_password():
 
 @user_blueprint.route("/forced-password-reset", methods=["POST"])
 def send_forced_user_reset_password():
-    email, errors = email_data_request_schema.load(request.get_json())
+    email = email_data_request_schema.load(request.get_json())
 
     user_to_send_to = get_user_by_email(email["email"])
 
@@ -656,13 +645,11 @@ def update_password(user_id):
         login_data = req_json["loginData"]
         del req_json["loginData"]
 
-    update_dct, errors = user_update_password_schema_load_json.load(req_json)
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
+    user_update_password_schema_load_json.load(req_json)
 
     response = pwnedpasswords.check(pwd)
     if response > 0:
-        errors.update({"password": ["Password is not allowed."]})
+        errors = {"password": ["Password is not allowed."]}
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)

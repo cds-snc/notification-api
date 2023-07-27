@@ -1,7 +1,5 @@
 import base64
 import json
-import random
-import string
 import uuid
 from datetime import datetime, timedelta
 
@@ -9,7 +7,7 @@ import botocore
 import pytest
 import requests_mock
 from freezegun import freeze_time
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from PyPDF2.utils import PdfReadError
 
 from app.dao.organisation_dao import dao_update_organisation
@@ -88,11 +86,10 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
 
 
 def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
-
     parent_folder = create_template_folder(service=sample_service, name="parent folder")
 
     data = {
@@ -556,7 +553,6 @@ def test_should_get_only_templates_for_that_service(admin_request, notify_db_ses
     ],
 )
 def test_should_get_a_single_template(notify_db, client, sample_user, service_factory, subject, content, template_type):
-
     template = create_sample_template(
         notify_db,
         notify_db.session,
@@ -628,7 +624,6 @@ def test_should_preview_a_single_template(
     expected_content,
     expected_error,
 ):
-
     template = create_sample_template(
         notify_db,
         notify_db.session,
@@ -654,7 +649,6 @@ def test_should_preview_a_single_template(
 
 
 def test_should_return_empty_array_if_no_templates_for_service(client, sample_service):
-
     auth_header = create_authorization_header()
 
     response = client.get("/service/{}/template".format(sample_service.id), headers=[auth_header])
@@ -665,7 +659,6 @@ def test_should_return_empty_array_if_no_templates_for_service(client, sample_se
 
 
 def test_should_return_404_if_no_templates_for_service_with_id(client, sample_service, fake_uuid):
-
     auth_header = create_authorization_header()
 
     response = client.get(
@@ -679,15 +672,27 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
     assert json_resp["message"] == "No result found"
 
 
-def test_create_400_for_over_limit_content(client, notify_api, sample_user, sample_service, fake_uuid):
-    content = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1))
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ],
+)
+def test_create_400_for_over_limit_content(
+    client, notify_api, sample_user, sample_service, fake_uuid, template_type, char_count_limit
+):
+    content = "x" * (char_count_limit + 1)
     data = {
         "name": "too big template",
-        "template_type": SMS_TYPE,
+        "template_type": template_type,
         "content": content,
         "service": str(sample_service.id),
         "created_by": str(sample_user.id),
     }
+
+    if template_type == EMAIL_TYPE:
+        data.update({"subject": "subject"})
     data = json.dumps(data)
     auth_header = create_authorization_header()
 
@@ -698,29 +703,36 @@ def test_create_400_for_over_limit_content(client, notify_api, sample_user, samp
     )
     assert response.status_code == 400
     json_resp = json.loads(response.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
-        "content"
-    ]
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"]["content"]
 
 
-def test_update_400_for_over_limit_content(client, notify_api, sample_user, sample_template):
+@pytest.mark.parametrize(
+    "template_type, char_count_limit",
+    [
+        (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
+        (EMAIL_TYPE, EMAIL_CHAR_COUNT_LIMIT),
+    ],
+)
+def test_update_400_for_over_limit_content(
+    client, notify_db, notify_db_session, notify_api, sample_user, template_type, char_count_limit
+):
     json_data = json.dumps(
         {
-            "content": "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(SMS_CHAR_COUNT_LIMIT + 1)),
+            "content": "x" * (char_count_limit + 1),
             "created_by": str(sample_user.id),
         }
     )
     auth_header = create_authorization_header()
+
+    sample_template = create_sample_template(notify_db, notify_db_session, template_type=template_type)
     resp = client.post(
-        "/service/{}/template/{}".format(sample_template.service.id, sample_template.id),
+        f"/service/{sample_template.service.id}/template/{sample_template.id}",
         headers=[("Content-Type", "application/json"), auth_header],
         data=json_data,
     )
     assert resp.status_code == 400
     json_resp = json.loads(resp.get_data(as_text=True))
-    assert ("Content has a character count greater than the limit of {}").format(SMS_CHAR_COUNT_LIMIT) in json_resp["message"][
-        "content"
-    ]
+    assert (f"Content has a character count greater than the limit of {char_count_limit}") in json_resp["message"]["content"]
 
 
 def test_should_return_all_template_versions_for_service_and_template_id(client, sample_template):
@@ -750,7 +762,6 @@ def test_should_return_all_template_versions_for_service_and_template_id(client,
 
 
 def test_update_does_not_create_new_version_when_there_is_no_change(client, sample_template):
-
     auth_header = create_authorization_header()
     data = {
         "template_type": sample_template.template_type,
@@ -809,7 +820,7 @@ def test_create_a_template_with_reply_to(admin_request, sample_user):
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
     th = TemplateHistory.query.filter_by(id=template.id, version=1).one()
     assert th.service_letter_contact_id == letter_contact.id
 
@@ -1035,7 +1046,6 @@ def test_update_redact_template_400s_if_no_created_by(admin_request, sample_temp
 
 
 def test_preview_letter_template_by_id_invalid_file_type(sample_letter_notification, admin_request):
-
     resp = admin_request.get(
         "template.preview_letter_template_by_notification_id",
         service_id=sample_letter_notification.service_id,
@@ -1098,7 +1108,6 @@ def test_preview_letter_template_by_id_valid_file_type(
 
 
 def test_preview_letter_template_by_id_template_preview_500(notify_api, client, admin_request, sample_letter_notification):
-
     with set_config_values(
         notify_api,
         {
@@ -1132,7 +1141,6 @@ def test_preview_letter_template_by_id_template_preview_500(notify_api, client, 
 
 
 def test_preview_letter_template_precompiled_pdf_file_type(notify_api, client, admin_request, sample_service, mocker):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1151,7 +1159,6 @@ def test_preview_letter_template_precompiled_pdf_file_type(notify_api, client, a
         },
     ):
         with requests_mock.Mocker():
-
             content = b"\x00\x01"
 
             mock_get_letter_pdf = mocker.patch("app.template.rest.get_letter_pdf", return_value=content)
@@ -1168,7 +1175,6 @@ def test_preview_letter_template_precompiled_pdf_file_type(notify_api, client, a
 
 
 def test_preview_letter_template_precompiled_s3_error(notify_api, client, admin_request, sample_service, mocker):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1187,7 +1193,6 @@ def test_preview_letter_template_precompiled_s3_error(notify_api, client, admin_
         },
     ):
         with requests_mock.Mocker():
-
             mocker.patch(
                 "app.template.rest.get_letter_pdf",
                 side_effect=botocore.exceptions.ClientError({"Error": {"Code": "403", "Message": "Unauthorized"}}, "GetObject"),
@@ -1226,7 +1231,6 @@ def test_preview_letter_template_precompiled_png_file_type_or_pdf_with_overlay(
     post_url,
     overlay,
 ):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1245,7 +1249,6 @@ def test_preview_letter_template_precompiled_png_file_type_or_pdf_with_overlay(
         },
     ):
         with requests_mock.Mocker() as request_mock:
-
             pdf_content = b"\x00\x01"
             expected_returned_content = b"\x00\x02"
 
@@ -1300,7 +1303,6 @@ def test_preview_letter_template_precompiled_png_file_type_hide_notify_tag_only_
     page_number,
     expect_preview_url,
 ):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1340,7 +1342,6 @@ def test_preview_letter_template_precompiled_png_file_type_hide_notify_tag_only_
 def test_preview_letter_template_precompiled_png_template_preview_500_error(
     notify_api, client, admin_request, sample_service, mocker
 ):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1359,7 +1360,6 @@ def test_preview_letter_template_precompiled_png_template_preview_500_error(
         },
     ):
         with requests_mock.Mocker() as request_mock:
-
             pdf_content = b"\x00\x01"
             png_content = b"\x00\x02"
 
@@ -1389,7 +1389,6 @@ def test_preview_letter_template_precompiled_png_template_preview_500_error(
 def test_preview_letter_template_precompiled_png_template_preview_400_error(
     notify_api, client, admin_request, sample_service, mocker
 ):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1408,7 +1407,6 @@ def test_preview_letter_template_precompiled_png_template_preview_400_error(
         },
     ):
         with requests_mock.Mocker() as request_mock:
-
             pdf_content = b"\x00\x01"
             png_content = b"\x00\x02"
 
@@ -1438,7 +1436,6 @@ def test_preview_letter_template_precompiled_png_template_preview_400_error(
 def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
     notify_api, client, admin_request, sample_service, mocker
 ):
-
     template = create_template(
         sample_service,
         template_type="letter",
@@ -1457,7 +1454,6 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
         },
     ):
         with requests_mock.Mocker() as request_mock:
-
             pdf_content = b"\x00\x01"
             png_content = b"\x00\x02"
 
@@ -1492,7 +1488,6 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
 
 
 def test_should_template_be_redacted():
-
     some_org = create_organisation()
     assert not should_template_be_redacted(some_org)
 

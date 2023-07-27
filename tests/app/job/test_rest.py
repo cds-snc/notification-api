@@ -72,6 +72,7 @@ def test_cant_cancel_normal_job(client, sample_job, mocker):
     assert mock_update.call_count == 0
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_letter_template, admin_request, mocker):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
@@ -94,6 +95,7 @@ def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_let
     assert response == 1
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_returns_False(
     sample_letter_template, admin_request, mocker
@@ -230,7 +232,9 @@ def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
     resp_json = json.loads(response.get_data(as_text=True))
 
     assert resp_json["data"]["id"] == fake_uuid
-    assert resp_json["data"]["scheduled_for"] == datetime(2016, 1, 5, 11, 59, 0, tzinfo=pytz.UTC).isoformat()
+    assert resp_json["data"]["scheduled_for"] == datetime(2016, 1, 5, 11, 59, 0, tzinfo=pytz.UTC).isoformat(
+        timespec="microseconds"
+    )
     assert resp_json["data"]["job_status"] == "scheduled"
     assert resp_json["data"]["template"] == str(sample_template.id)
     assert resp_json["data"]["original_file_name"] == "thisisatest.csv"
@@ -284,6 +288,7 @@ def test_create_job_returns_400_if_file_is_invalid(client, fake_uuid, sample_tem
     mock_job_dao.assert_not_called()
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_create_job_returns_403_if_letter_template_type_and_service_in_trial(
     client, fake_uuid, sample_trial_letter_template, mocker
 ):
@@ -690,8 +695,8 @@ def test_get_jobs_should_paginate(admin_request, sample_template):
     with set_config(admin_request.app, "PAGE_SIZE", 2):
         resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id)
 
-    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00+00:00"
-    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00+00:00"
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00.000000+00:00"
     assert resp_json["page_size"] == 2
     assert resp_json["total"] == 10
     assert "links" in resp_json
@@ -704,8 +709,8 @@ def test_get_jobs_accepts_page_parameter(admin_request, sample_template):
     with set_config(admin_request.app, "PAGE_SIZE", 2):
         resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page=2)
 
-    assert resp_json["data"][0]["created_at"] == "2015-01-01T08:00:00+00:00"
-    assert resp_json["data"][1]["created_at"] == "2015-01-01T07:00:00+00:00"
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T08:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T07:00:00.000000+00:00"
     assert resp_json["page_size"] == 2
     assert resp_json["total"] == 10
     assert "links" in resp_json

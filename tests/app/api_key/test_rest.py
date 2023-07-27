@@ -12,7 +12,6 @@ from tests.app.db import (
 
 
 def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_session):
-
     service = create_service(service_name="Service 1")
     api_key = create_api_key(service)
     template = create_template(service=service, template_type="email")
@@ -37,7 +36,6 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
 
 
 def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session):
-
     service = create_service(service_name="Service 2")
     api_key = create_api_key(service)
 
@@ -51,7 +49,6 @@ def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session)
 
 
 def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
-
     service = create_service(service_name="Service 1")
     api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")

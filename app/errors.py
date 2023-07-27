@@ -13,7 +13,6 @@ from app.exceptions import ArchiveValidationError
 
 class VirusScanError(Exception):
     def __init__(self, message):
-
         super().__init__(message)
 
 

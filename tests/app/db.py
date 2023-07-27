@@ -400,6 +400,7 @@ def create_job(
     template,
     notification_count=1,
     created_at=None,
+    updated_at=None,
     job_status="pending",
     scheduled_for=None,
     processing_started=None,
@@ -416,6 +417,7 @@ def create_job(
         "original_file_name": original_file_name,
         "notification_count": notification_count,
         "created_at": created_at or datetime.utcnow(),
+        "updated_at": updated_at,
         "created_by": template.created_by,
         "job_status": job_status,
         "scheduled_for": scheduled_for,
@@ -639,7 +641,6 @@ def create_annual_billing(service_id, free_sms_fragment_limit, financial_year_st
 
 
 def create_domain(domain, organisation_id):
-
     domain = Domain(domain=domain, organisation_id=organisation_id)
 
     db.session.add(domain)
@@ -798,7 +799,6 @@ def create_service_data_retention(service, notification_type="sms", days_of_rete
 
 
 def create_invited_user(service=None, to_email_address=None):
-
     if service is None:
         service = create_service()
     if to_email_address is None:

@@ -18,6 +18,7 @@ def send_delivery_status_to_service(self, notification_id, signed_status_update)
         "reference": status_update["notification_client_reference"],
         "to": status_update["notification_to"],
         "status": status_update["notification_status"],
+        "status_description": status_update["notification_status_description"],
         "provider_response": status_update["notification_provider_response"],
         "created_at": status_update["notification_created_at"],
         "completed_at": status_update["notification_updated_at"],

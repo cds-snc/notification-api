@@ -380,7 +380,6 @@ def test_proxy_key_non_auth_endpoint(notify_api, check_proxy_header, header_valu
             "CHECK_PROXY_HEADER": check_proxy_header,
         },
     ):
-
         with notify_api.test_client() as client:
             response = client.get(
                 path="/_status",
@@ -414,7 +413,6 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
             "CHECK_PROXY_HEADER": check_proxy_header,
         },
     ):
-
         with notify_api.test_client() as client:
             response = client.get(
                 path="/service",

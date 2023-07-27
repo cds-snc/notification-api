@@ -18,6 +18,7 @@ from app.models import (
 from app.service.send_notification import send_one_off_notification
 from app.v2.errors import (
     BadRequestError,
+    LiveServiceTooManyEmailRequestsError,
     LiveServiceTooManySMSRequestsError,
     TooManyRequestsError,
 )
@@ -29,6 +30,7 @@ from tests.app.db import (
     create_template,
     create_user,
 )
+from tests.conftest import set_config_values
 
 
 @pytest.fixture
@@ -270,6 +272,25 @@ def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_sessi
         send_one_off_notification(service.id, post_data)
 
 
+def test_send_one_off_notification_raises_if_over_email_limit(notify_db_session, notify_api, mocker):
+    service = create_service(message_limit=0)
+    template = create_template(service=service, template_type=EMAIL_TYPE)
+    mocker.patch(
+        "app.service.send_notification.check_email_limit_increment_redis_send_warnings_if_needed",
+        side_effect=LiveServiceTooManyEmailRequestsError(1),
+    )
+
+    post_data = {
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
+    }
+
+    with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": True}):
+        with pytest.raises(LiveServiceTooManyEmailRequestsError):
+            send_one_off_notification(service.id, post_data)
+
+
 def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_session, mocker):
     service = create_service(sms_daily_limit=0)
     template = create_template(service=service)
@@ -357,7 +378,6 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
 def test_send_one_off_letter_should_not_make_pdf_in_research_mode(
     sample_letter_template,
 ):
-
     sample_letter_template.service.research_mode = True
 
     data = {

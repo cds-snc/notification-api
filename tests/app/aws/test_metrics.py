@@ -1,3 +1,5 @@
+from unittest.mock import call
+
 import pytest
 from botocore.exceptions import ClientError
 from flask import Flask
@@ -82,7 +84,12 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._process_type = "bar"
         put_batch_saving_expiry_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
-        metrics_logger_mock.set_dimensions.assert_called_with({"expired": "True", "notification_type": "foo", "priority": "bar"})
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [
+                call({"expired": "True", "notification_type": "foo", "priority": "bar"}),
+                call({"expired": "True", "notification_type": "any", "priority": "any"}),
+            ]
+        )
 
     def test_put_batch_saving_bulk_created(self, mocker, metrics_logger_mock):
         put_batch_saving_bulk_created(metrics_logger_mock, 1, "foo", "bar")

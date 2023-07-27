@@ -7,15 +7,41 @@
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
-	"settings": {
-		"[python]": {
-			"editor.formatOnSave": true
-		},
-		"python.formatting.blackPath": "/usr/local/bin/black",
-		"python.linting.enabled": true,
-		"python.linting.pylintEnabled": true,
-		"python.linting.pylintPath": "/usr/local/bin/pylint",
-		"python.pythonPath": "/usr/local/bin/python",
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"[python]": {
+					"editor.formatOnSave": true
+				},
+				"python.formatting.blackPath": "/usr/local/bin/black",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.linting.pylintPath": "/usr/local/bin/pylint",
+				"python.pythonPath": "/usr/local/bin/python"
+			},
+			"extensions": [
+				"bungcip.better-toml",
+				"donjayamanne.python-extension-pack",
+				"eamodio.gitlens",
+				"GitHub.copilot",
+				"GitHub.copilot-labs",
+				"googlecloudtools.cloudcode",
+				"matangover.mypy",
+				"ms-azuretools.vscode-docker",
+				"ms-ossdata.vscode-postgresql",
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-vsliveshare.vsliveshare",
+				"mtxr.sqltools",
+				"mtxr.sqltools-driver-pg",
+				"pmbenjamin.vscode-snyk",
+				"usernamehw.errorlens",
+				"visualstudioexptteam.vscodeintellicode",
+				"wenfangdu.jump",
+				"wholroyd.jinja",
+				"yzhang.markdown-all-in-one"
+			]
+		}
 	},
 	"features": {
 		"docker-from-docker": {
@@ -28,28 +54,6 @@
 			"minikube": "none"
 		}
 	},
-	"extensions": [
-		"bungcip.better-toml",
-		"donjayamanne.python-extension-pack",
-		"eamodio.gitlens",
-		"GitHub.copilot",
-		"GitHub.copilot-labs",
-		"googlecloudtools.cloudcode",
-		"matangover.mypy",
-		"ms-azuretools.vscode-docker",
-		"ms-ossdata.vscode-postgresql",
-		"ms-python.python",
-		"ms-python.vscode-pylance",
-		"ms-vsliveshare.vsliveshare",
-		"mtxr.sqltools",
-		"mtxr.sqltools-driver-pg",
-		"pmbenjamin.vscode-snyk",
-		"usernamehw.errorlens",
-		"visualstudioexptteam.vscodeintellicode",
-		"wenfangdu.jump",
-		"wholroyd.jinja",
-		"yzhang.markdown-all-in-one",
-	],
 	"postCreateCommand": "notify-dev-entrypoint.sh",
 	"remoteUser": "vscode"
 }

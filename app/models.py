@@ -1632,7 +1632,7 @@ class Notification(BaseModel):
     client_reference = db.Column(db.String, index=True, nullable=True)
     _personalisation = db.Column(db.SensitiveString, nullable=True)
 
-    scheduled_notification = db.relationship("ScheduledNotification", uselist=False)
+    scheduled_notification = db.relationship("ScheduledNotification", uselist=False, back_populates="notification")
 
     client_reference = db.Column(db.String, index=True, nullable=True)
 
@@ -2044,7 +2044,7 @@ class ScheduledNotification(BaseModel):
         index=True,
         nullable=False,
     )
-    notification = db.relationship("Notification", uselist=False)
+    notification = db.relationship("Notification", uselist=False, back_populates="scheduled_notification")
     scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
 

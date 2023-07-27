@@ -15,7 +15,6 @@ from alembic import op
 
 
 def upgrade():
-
     op.execute(
         """
             UPDATE

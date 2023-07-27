@@ -187,7 +187,7 @@ def get_services():
         return result
     else:
         services = dao_fetch_all_services(only_active)
-    data = service_schema.dump(services, many=True).data
+    data = service_schema.dump(services, many=True)
     return jsonify(data=data)
 
 
@@ -220,7 +220,7 @@ def get_service_by_id(service_id):
     else:
         fetched = dao_fetch_service_by_id(service_id)
 
-        data = service_schema.dump(fetched).data
+        data = service_schema.dump(fetched)
     return jsonify(data=data)
 
 
@@ -263,7 +263,7 @@ def create_service():
         except Exception as e:
             current_app.logger.exception(e)
 
-    return jsonify(data=service_schema.dump(valid_service).data), 201
+    return jsonify(data=service_schema.dump(valid_service)), 201
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
@@ -272,13 +272,14 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
+    service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
-    current_data = dict(service_schema.dump(fetched_service).data.items())
+    current_data = dict(service_schema.dump(fetched_service).items())
 
     current_data.update(request.get_json())
 
-    service = service_schema.load(current_data).data
+    service = service_schema.load(current_data)
 
     if "email_branding" in req_json:
         email_branding_id = req_json["email_branding"]
@@ -304,28 +305,33 @@ def update_service(service_id):
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
 
-    if service_going_live and current_app.config["FF_SALESFORCE_CONTACT"]:
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
-            # Two scenarios, if there is a user that has requested to go live, we will use that user
-            # to create a Contact/Engagment pair between Notify and Salesforce.
-            # If by any chance there is no tracked request to a user, Notify will try to identify the user
-            # that created the service and then create a Contact/Engagment relationship.
-            if service.go_live_user_id:
-                user = get_user_by_id(service.go_live_user_id)
-            else:
+            if service_going_live:
+                # Two scenarios, if there is a user that has requested to go live, we will use that user
+                # to create a Contact/Engagment pair between Notify and Salesforce.
+                # If by any chance there is no tracked request to a user, Notify will try to identify the user
+                # that created the service and then create a Contact/Engagment relationship.
+                if service.go_live_user_id:
+                    user = get_user_by_id(service.go_live_user_id)
+                else:
+                    user = dao_fetch_service_creator(service.id)
+                salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
+            elif service_name_changed:
                 user = dao_fetch_service_creator(service.id)
-
-            salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
+                salesforce_client.engagement_update(service, user, {"Name": service.name})
         except Exception as e:
             current_app.logger.exception(e)
 
-    return jsonify(data=service_schema.dump(fetched_service).data), 200
+    return jsonify(data=service_schema.dump(fetched_service)), 200
 
 
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
+        if current_app.config["FF_EMAIL_DAILY_LIMIT"]
+        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),
@@ -366,7 +372,7 @@ def _warn_services_users_about_going_live(service_id, data):
 @service_blueprint.route("/<uuid:service_id>/api-key", methods=["POST"])
 def create_api_key(service_id=None):
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
-    valid_api_key = api_key_schema.load(request.get_json()).data
+    valid_api_key = api_key_schema.load(request.get_json())
     valid_api_key.service = fetched_service
     save_model_api_key(valid_api_key)
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
@@ -397,7 +403,7 @@ def get_api_keys(service_id, key_id=None):
         error = "API key not found for id: {}".format(service_id)
         raise InvalidRequest(error, status_code=404)
 
-    return jsonify(apiKeys=api_key_schema.dump(api_keys, many=True).data), 200
+    return jsonify(apiKeys=api_key_schema.dump(api_keys, many=True)), 200
 
 
 @service_blueprint.route("/<uuid:service_id>/users", methods=["GET"])
@@ -422,7 +428,7 @@ def add_user_to_service(service_id, user_id):
     folder_permissions = data.get("folder_permissions", [])
 
     dao_add_user_to_service(service, user, permissions, folder_permissions)
-    data = service_schema.dump(service).data
+    data = service_schema.dump(service)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
@@ -469,12 +475,12 @@ def get_service_history(service_id):
     )
 
     service_history = Service.get_history_model().query.filter_by(id=service_id).all()
-    service_data = service_history_schema.dump(service_history, many=True).data
+    service_data = service_history_schema.dump(service_history, many=True)
     api_key_history = ApiKey.get_history_model().query.filter_by(service_id=service_id).all()
-    api_keys_data = api_key_history_schema.dump(api_key_history, many=True).data
+    api_keys_data = api_key_history_schema.dump(api_key_history, many=True)
 
     template_history = TemplateHistory.query.filter_by(service_id=service_id).all()
-    template_data, errors = template_history_schema.dump(template_history, many=True)
+    template_data = template_history_schema.dump(template_history, many=True)
 
     data = {
         "service_history": service_data,
@@ -488,7 +494,7 @@ def get_service_history(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications", methods=["GET"])
 def get_all_notifications_for_service(service_id):
-    data = notifications_filter_schema.load(request.args).data
+    data = notifications_filter_schema.load(request.args)
     if data.get("to"):
         notification_type = data.get("template_type")[0] if data.get("template_type") else None
         return search_for_notification_by_to_field(
@@ -524,7 +530,7 @@ def get_all_notifications_for_service(service_id):
     if data.get("format_for_csv"):
         notifications = [notification.serialize_for_csv() for notification in pagination.items]
     else:
-        notifications = notification_with_template_schema.dump(pagination.items, many=True).data
+        notifications = notification_with_template_schema.dump(pagination.items, many=True)
     return (
         jsonify(
             notifications=notifications,
@@ -538,10 +544,9 @@ def get_all_notifications_for_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_for_service(service_id, notification_id):
-
     notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
     if notification is not None:
-        return jsonify(notification_with_template_schema.dump(notification).data), 200
+        return jsonify(notification_with_template_schema.dump(notification)), 200
     else:
         return jsonify(result="error", message="Notification not found in database"), 404
 
@@ -571,7 +576,7 @@ def cancel_notification_for_service(service_id, notification_id):
     )
 
     return (
-        jsonify(notification_with_template_schema.dump(updated_notification).data),
+        jsonify(notification_with_template_schema.dump(updated_notification)),
         200,
     )
 
@@ -584,7 +589,7 @@ def search_for_notification_by_to_field(service_id, search_term, statuses, notif
         notification_type=notification_type,
     )
     return (
-        jsonify(notifications=notification_with_template_schema.dump(results, many=True).data),
+        jsonify(notifications=notification_with_template_schema.dump(results, many=True)),
         200,
     )
 
@@ -618,7 +623,7 @@ def get_detailed_service(service_id, today_only=False):
     service = dao_fetch_service_by_id(service_id)
 
     service.statistics = get_service_statistics(service_id, today_only)
-    return detailed_service_schema.dump(service).data
+    return detailed_service_schema.dump(service)
 
 
 def get_service_statistics(service_id, today_only, limit_days=7):
@@ -635,7 +640,6 @@ def get_detailed_services(start_date, end_date, only_active=False, include_from_
     if start_date == datetime.utcnow().date():
         stats = dao_fetch_todays_stats_for_all_services(include_from_test_key=include_from_test_key, only_active=only_active)
     else:
-
         stats = fetch_stats_for_all_services_by_date_range(
             start_date=start_date,
             end_date=end_date,
@@ -794,7 +798,7 @@ def get_email_reply_to_address(service_id, reply_to_id):
 
 @service_blueprint.route("/<uuid:service_id>/email-reply-to/verify", methods=["POST"])
 def verify_reply_to_email_address(service_id):
-    email_address, errors = email_data_request_schema.load(request.get_json())
+    email_address = email_data_request_schema.load(request.get_json())
     check_if_reply_to_address_already_in_use(service_id, email_address["email"])
     template = dao_get_template_by_id(current_app.config["REPLY_TO_EMAIL_ADDRESS_VERIFICATION_TEMPLATE_ID"])
     notify_service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])

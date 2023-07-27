@@ -81,7 +81,6 @@ def test_get_financial_year_for_datetime(dt, fy):
 
 
 class TestMidnightDateTime:
-
     eastern = pytz.timezone("US/Eastern")
     utc = pytz.utc
 

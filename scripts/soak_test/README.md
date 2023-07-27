@@ -6,14 +6,19 @@ The goal of this code is to do a soak test of api while we make significant appl
 
 ## How to configure
 
+Run the setup.sh to install the python pre-requisites or run in the repo devcontainer.
+
 Default configuration is in the `locust.conf` file.
 
 The python file `soak_test.py` requires environment variables `API_KEY` and `EMAIL_TEMPLATE_ID`. The template should have no variables.
+
 ```
 API_KEY=gcntfy-notAKey-f6c7cc49-b5b7-4e67-a8ff-24f34be34523-f6c7cc49-b5b7-4e67-a8ff-24f34be34523
 EMAIL_TEMPLATE_ID=f6c7cc49-b5b7-4e67-a8ff-24f34be34523
 ```
 These can be in a `.env` file in the soak_test directory.
+
+__See Last Pass note "Soak Test Staging API Key and Template" in Shared-New-Notify-Staging folder__
 
 Note that the default configuration in `locust.conf` is to send one email per second.
 

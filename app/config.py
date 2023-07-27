@@ -18,7 +18,6 @@ load_dotenv()
 
 
 class QueueNames(object):
-
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
 
@@ -271,6 +270,9 @@ class Config(object):
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
     CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID = "b04beb4a-8408-4280-9a5c-6a046b6f7704"
+    NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
+    REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
+    DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -309,6 +311,11 @@ class Config(object):
         "delete-invitations": {
             "task": "delete-invitations",
             "schedule": timedelta(minutes=66),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "mark-jobs-complete": {
+            "task": "mark-jobs-complete",
+            "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "check-job-status": {
@@ -461,7 +468,9 @@ class Config(object):
 
     SIMULATED_SMS_NUMBERS = ("+16132532222", "+16132532223", "+16132532224")
 
+    # Match with scripts/internal_stress_test/internal_stress_test.py
     INTERNAL_TEST_NUMBER = "+16135550123"
+    INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
@@ -519,6 +528,9 @@ class Config(object):
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
 
+    # Feature flags for email_daily_limit
+    FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
@@ -573,7 +585,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
+    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
@@ -615,6 +627,7 @@ class Test(Development):
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FF_BOUNCE_RATE_BACKEND = True
+    FF_EMAIL_DAILY_LIMIT = False
 
 
 class Production(Config):
@@ -638,9 +651,14 @@ class Staging(Production):
     NOTIFY_ENVIRONMENT = "staging"
 
 
+class Scratch(Production):
+    NOTIFY_ENVIRONMENT = "scratch"
+
+
 configs = {
     "development": Development,
     "test": Test,
     "production": Production,
     "staging": Staging,
+    "scratch": Scratch,
 }
