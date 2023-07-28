@@ -30,17 +30,13 @@ from app import (
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
-from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
-from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.services_dao import fetch_todays_total_message_count
-from app.dao.templates_dao import get_precompiled_letter_template
 from app.encryption import NotificationDictToSign
-from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
     EMAIL_TYPE,
@@ -48,7 +44,6 @@ from app.models import (
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
-    LETTER_TYPE,
     NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
@@ -62,7 +57,6 @@ from app.models import (
     NotificationType,
     Service,
 )
-from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     choose_queue,
     db_save_and_send_notification,
@@ -91,53 +85,15 @@ from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
     create_post_email_response_from_notification,
-    create_post_letter_response_from_notification,
     create_post_sms_response_from_notification,
 )
 from app.v2.notifications.notification_schemas import (
     post_bulk_request,
     post_email_request,
-    post_letter_request,
-    post_precompiled_letter_request,
     post_sms_request,
 )
 
 TWENTY_FOUR_HOURS_S = 24 * 60 * 60
-
-
-@v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
-def post_precompiled_letter_notification():
-    if "content" not in (request.get_json() or {}):
-        return post_notification(LETTER_TYPE)
-
-    form = validate(request.get_json(), post_precompiled_letter_request)
-
-    # Check permission to send letters
-    check_service_has_permission(LETTER_TYPE, authenticated_service.permissions)
-
-    check_rate_limiting(authenticated_service, api_user)
-
-    template = get_precompiled_letter_template(authenticated_service.id)
-
-    form["personalisation"] = {"address_line_1": form["reference"]}
-
-    reply_to = get_reply_to_text(LETTER_TYPE, form, template)
-
-    notification = process_letter_notification(
-        letter_data=form,
-        api_key=api_user,
-        template=template,
-        reply_to_text=reply_to,
-        precompiled=True,
-    )
-
-    resp = {
-        "id": notification.id,
-        "reference": notification.client_reference,
-        "postage": notification.postage,
-    }
-
-    return jsonify(resp), 201
 
 
 def _seed_bounce_data(epoch_timestamp: int, service_id: str):
@@ -251,8 +207,6 @@ def post_notification(notification_type: NotificationType):
         form = validate(request_json, post_email_request)
     elif notification_type == SMS_TYPE:
         form = validate(request_json, post_sms_request)
-    elif notification_type == LETTER_TYPE:
-        form = validate(request_json, post_letter_request)
     else:
         abort(404)
 
@@ -289,24 +243,16 @@ def post_notification(notification_type: NotificationType):
 
     reply_to = get_reply_to_text(notification_type, form, template)
 
-    if notification_type == LETTER_TYPE:
-        notification = process_letter_notification(
-            letter_data=form,
-            api_key=api_user,
-            template=template,
-            reply_to_text=reply_to,
-        )
-    else:
-        notification = process_sms_or_email_notification(
-            form=form,
-            notification_type=notification_type,
-            api_key=api_user,
-            template=template,
-            service=authenticated_service,
-            reply_to_text=reply_to,
-        )
+    notification = process_sms_or_email_notification(
+        form=form,
+        notification_type=notification_type,
+        api_key=api_user,
+        template=template,
+        service=authenticated_service,
+        reply_to_text=reply_to,
+    )
 
-        template_with_content.values = notification.personalisation
+    template_with_content.values = notification.personalisation
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -319,11 +265,6 @@ def post_notification(notification_type: NotificationType):
             create_post_email_response_from_notification,
             subject=template_with_content.subject,
             email_from="{}@{}".format(authenticated_service.email_from, sending_domain),
-        )
-    elif notification_type == LETTER_TYPE:
-        create_resp_partial = functools.partial(
-            create_post_letter_response_from_notification,
-            subject=template_with_content.subject,
         )
 
     resp = create_resp_partial(
@@ -499,85 +440,6 @@ def save_stats_for_attachments(files_data, service_id, template_id):
         statsd_client.incr(f"attachments.file-size.{file_size_bucket}")
 
 
-def process_letter_notification(*, letter_data, api_key, template, reply_to_text, precompiled=False):
-    if api_key.key_type == KEY_TYPE_TEAM:
-        raise BadRequestError(message="Cannot send letters with a team api key", status_code=403)
-
-    if not api_key.service.research_mode and api_key.service.restricted and api_key.key_type != KEY_TYPE_TEST:
-        raise BadRequestError(message="Cannot send letters when service is in trial mode", status_code=403)
-
-    if precompiled:
-        return process_precompiled_letter_notifications(
-            letter_data=letter_data,
-            api_key=api_key,
-            template=template,
-            reply_to_text=reply_to_text,
-        )
-
-    test_key = api_key.key_type == KEY_TYPE_TEST
-
-    # if we don't want to actually send the letter, then start it off in SENDING so we don't pick it up
-    status = NOTIFICATION_CREATED if not test_key else NOTIFICATION_SENDING
-    queue = QueueNames.CREATE_LETTERS_PDF if not test_key else QueueNames.RESEARCH_MODE
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    create_letters_pdf.apply_async([str(notification.id)], queue=queue)
-
-    if test_key:
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["preview", "development"]:
-            create_fake_letter_response_file.apply_async((notification.reference,), queue=queue)
-        else:
-            update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
-
-    return notification
-
-
-def process_precompiled_letter_notifications(*, letter_data, api_key, template, reply_to_text):
-    try:
-        status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data["content"])
-    except ValueError:
-        raise BadRequestError(
-            message="Cannot decode letter content (invalid base64 encoding)",
-            status_code=400,
-        )
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    filename = upload_letter_pdf(notification, letter_content, precompiled=True)
-
-    current_app.logger.info("Calling task scan-file for {}".format(filename))
-
-    # call task to add the filename to anti virus queue
-    if current_app.config["ANTIVIRUS_ENABLED"]:
-        notify_celery.send_task(
-            name=TaskNames.SCAN_FILE,
-            kwargs={"filename": filename},
-            queue=QueueNames.ANTIVIRUS,
-        )
-    else:
-        # stub out antivirus in dev
-        process_virus_scan_passed.apply_async(
-            kwargs={"filename": filename},
-            queue=QueueNames.LETTERS,
-        )
-
-    return notification
-
-
 def validate_sender_id(template, reply_to_id):
     notification_type = template.template_type
 
@@ -621,9 +483,6 @@ def get_reply_to_text(notification_type, form, template, form_field=None):
             reply_to = try_validate_and_format_phone_number(sms_sender_id)
         else:
             reply_to = template.get_reply_to_text()
-
-    elif notification_type == LETTER_TYPE:
-        reply_to = template.get_reply_to_text()
 
     return reply_to
 

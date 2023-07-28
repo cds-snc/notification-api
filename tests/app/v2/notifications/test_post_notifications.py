@@ -328,11 +328,6 @@ class TestPostNotificationsErrors:
         [
             ("sms", "phone_number", "+16502532222"),
             ("email", "email_address", "sample@email.com"),
-            (
-                "letter",
-                "personalisation",
-                {"address_line_1": "The queen", "postcode": "SW1 1AA"},
-            ),
         ],
     )
     def test_post_notification_returns_401_and_well_formed_auth_error(
