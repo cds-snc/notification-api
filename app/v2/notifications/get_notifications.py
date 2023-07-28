@@ -1,18 +1,8 @@
-from io import BytesIO
-
-from flask import current_app, jsonify, request, send_file, url_for
+from flask import current_app, jsonify, request, url_for
 
 from app import api_user, authenticated_service
 from app.dao import notifications_dao
-from app.letters.utils import get_letter_pdf
-from app.models import (
-    LETTER_TYPE,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-)
 from app.schema_validation import validate
-from app.v2.errors import BadRequestError, PDFNotReadyError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -31,32 +21,6 @@ def get_notification_by_id(notification_id):
         return jsonify(notification.serialize()), 200
     else:
         return jsonify(result="error", message="Notification not found in database"), 404
-
-
-@v2_notification_blueprint.route("/<notification_id>/pdf", methods=["GET"])
-def get_pdf_for_notification(notification_id):
-    _data = {"notification_id": notification_id}
-    validate(_data, notification_by_id)
-    notification = notifications_dao.get_notification_by_id(notification_id, authenticated_service.id, _raise=True)
-
-    if notification.notification_type != LETTER_TYPE:
-        raise BadRequestError(message="Notification is not a letter")
-
-    if notification.status == NOTIFICATION_VIRUS_SCAN_FAILED:
-        raise BadRequestError(message="Document did not pass the virus scan")
-
-    if notification.status == NOTIFICATION_TECHNICAL_FAILURE:
-        raise BadRequestError(message="PDF not available for letters in status {}".format(notification.status))
-
-    if notification.status == NOTIFICATION_PENDING_VIRUS_CHECK:
-        raise PDFNotReadyError()
-
-    try:
-        pdf_data = get_letter_pdf(notification)
-    except Exception:
-        raise PDFNotReadyError()
-
-    return send_file(path_or_file=BytesIO(pdf_data), mimetype="application/pdf")
 
 
 @v2_notification_blueprint.route("", methods=["GET"])
