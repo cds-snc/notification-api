@@ -1463,7 +1463,7 @@ class TestSMSSendFragments:
             create_sample_notification(notify_db, notify_db_session, service=service)
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+        with set_config_values(notify_api, {"REDIS_ENABLED": True}):
             response = client.post(
                 path="/v2/notifications/sms",
                 data=json.dumps(data),
@@ -1484,36 +1484,13 @@ class TestSMSSendFragments:
             create_sample_notification(notify_db, notify_db_session, service=service)
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
-            response = client.post(
-                path="/v2/notifications/sms",
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), auth_header],
-            )
-        assert response.status_code == 429
-
-    def test_post_sms_not_enough_fragments_left_FF_SPIKE_SMS_DAILY_LIMIT_false(
-        self, notify_api, client, notify_db, notify_db_session, mocker
-    ):
-        mocker.patch("app.sms_normal_publish.publish")
-        service = create_service(sms_daily_limit=10, message_limit=100)
-        template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
-        data = {
-            "phone_number": "+16502532222",
-            "template_id": str(template.id),
-            "personalisation": {" Name": "Jo"},
-        }
-        for x in range(7):
-            create_sample_notification(notify_db, notify_db_session, service=service)
-        auth_header = create_authorization_header(service_id=template.service_id)
-
         with set_config_values(notify_api, {"REDIS_ENABLED": True}):
             response = client.post(
                 path="/v2/notifications/sms",
                 data=json.dumps(data),
                 headers=[("Content-Type", "application/json"), auth_header],
             )
-        assert response.status_code == 201
+        assert response.status_code == 429
 
 
 class TestSMSFragmentCounter:
