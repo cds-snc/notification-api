@@ -41,8 +41,10 @@ jobs:
           push: true
           tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment }}
 
-      - name: Dispatch Twistlock Workflow
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run -r master -F image-tag=${{ inputs.ref }}_${{ inputs.environment }} twistlock.yml
+      # This is temporarily removed due to EC2 issues that resulted in a switch to AWS Inspector Enhanced Scanner.  
+      # Twistlock will be fully removed from actions and the infrastructure in #1398
+      #- name: Dispatch Twistlock Workflow
+        #env:
+          #GH_TOKEN: ${{ github.token }}
+        #run: |
+          #gh workflow run -r master -F image-tag=${{ inputs.ref }}_${{ inputs.environment }} twistlock.yml
