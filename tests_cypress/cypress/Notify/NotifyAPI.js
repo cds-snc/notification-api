@@ -50,7 +50,7 @@ const API = {
             }
         });
     },
-    SendBulkEmail: ({ api_key, to, bulk_name, template_id, personalisation, failOnStatusCode = true }) => {
+    SendBulkEmail: ({ api_key, to, bulk_name, template_id, personalisation, failOnStatusCode = true, scheduled_for}) => {
         return cy.request({
             failOnStatusCode: failOnStatusCode,
             url: '/v2/notifications/bulk',
@@ -66,6 +66,7 @@ const API = {
                     ["email address"],
                     ...to
                 ],
+                ...(scheduled_for) && { scheduled_for: scheduled_for } // only add scheduled_for if it's defined
             }
         });
     },

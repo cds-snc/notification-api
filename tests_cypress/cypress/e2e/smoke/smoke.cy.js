@@ -8,10 +8,6 @@ import Notify from "../../Notify/NotifyAPI";
 const ADMIN_COOKIE = 'notify_admin_session';
 
 describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
-    before(() => {
-        Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
-    });
-
     context('API tests', () => {
         context('Email', () => {
             it('can send/receive a one-off email', () => {
@@ -174,6 +170,49 @@ describe(`Smoke tests [${config.CONFIG_NAME}]`, () => {
                     // ensure link to ddapi is in the email
                     cy.contains('p', config.Hostnames.DDAPI).should('be.visible');
                 });
+            });
+
+            it('can schedule and receive bulk CSV emails', () => {
+                // create an ethereal email account to use for this test
+                cy.task('createEmailAccount').then(acct => {
+                    cy.log("Email account created for test: " + acct.user);
+
+                    // Schedule 20 seconds from now
+                    var secheduled_for = new Date(); 
+                    secheduled_for.setSeconds(secheduled_for.getSeconds()+20);
+ 
+                    // send an email using the Notify API
+                    Notify.API.SendBulkEmail({
+                        api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
+                        to: [[acct.user],[acct.user],[acct.user],[acct.user],[acct.user]],
+                        bulk_name: "Smoke Test",
+                        template_id: config.Templates.SMOKE_TEST_EMAIL_BULK,
+                        personalisation: {},
+                        scheduled_for: secheduled_for.toISOString(),
+                    }).as('emailRequest');
+
+                    // ensure API returns a 201
+                    cy.get('@emailRequest').then(resp => {
+                        expect(resp.status).to.eq(201);
+                    });
+                    
+                    // verify email receipt
+                    recurse(
+                        () => cy.task('fetchEmail', acct), // Cypress commands to retry
+                        (response) => response.totalEmails === 5, // keep trying until the inbox has 5 emails
+                        {
+                            log: true,
+                            limit: 50, // max number of iterations
+                            timeout: 65000, // time limit in ms
+                            delay: 500, // delay before next iteration, ms
+                        },
+                    ).then(response => {
+                        cy.document().then((document) => { document.documentElement.innerHTML = response.html })
+                    });
+                    // ensure SMOKE test email is received
+                    cy.contains('p', "SMOKE_TEST_EMAIL_BULK").should('be.visible');
+                });
+                
             });
         });
 
