@@ -4,10 +4,6 @@ import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
 
 describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
-  before(() => {
-    Cypress.config('baseUrl', config.Hostnames.API); // use hostname for this environment
-  });
-
   var keys = {
     LIVE: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
     TEAM: Cypress.env(config.CONFIG_NAME).API_KEY_TEAM,
@@ -105,6 +101,26 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
         });
       });
 
+      it('Can scheduled a bulk email send', () => {
+        // Schedule 20 seconds from now
+        var secheduled_for = new Date(); 
+        secheduled_for.setSeconds(secheduled_for.getSeconds()+20);
+
+        // send an email using the Notify API
+        Notify.API.SendBulkEmail({
+            api_key: Cypress.env(config.CONFIG_NAME).API_KEY_LIVE,
+            to: [[config.Users.Simulated[0]],[config.Users.Simulated[0]],[config.Users.Simulated[0]],[config.Users.Simulated[0]],[config.Users.Simulated[0]]],
+            bulk_name: "Smoke Test",
+            template_id: config.Templates.SIMPLE_EMAIL_TEMPLATE_ID,
+            personalisation: {},
+            scheduled_for: secheduled_for.toISOString(),
+        }).as('emailRequest');
+
+        // ensure API returns a 201
+        cy.get('@emailRequest').then(resp => {
+            expect(resp.status).to.eq(201);
+        });
+      });
       // Additional tests for TEAM keys
       if (api_key === 'TEAM') {
         it('can send to team address', () => {
