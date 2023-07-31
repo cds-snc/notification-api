@@ -74,4 +74,4 @@ const config = {
 // choose which config to use here
 const ConfigToUse = config.STAGING;
 
-export default ConfigToUse;
+module.exports = ConfigToUse;
