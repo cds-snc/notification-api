@@ -979,7 +979,7 @@ def test_fetch_stats_counts_correctly(notify_db_session, notify_api):
 
     assert stats[2].notification_type == "sms"
     assert stats[2].status == "created"
-    assert stats[2].count == 10
+    assert stats[2].count == 1
 
 
 def test_fetch_stats_counts_should_ignore_team_key(notify_db_session):

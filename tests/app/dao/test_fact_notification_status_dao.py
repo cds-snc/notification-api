@@ -267,7 +267,6 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
             status="delivered",
         )
     )
-
     results = sorted(
         fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id),
         key=lambda x: (x.notification_type, x.status),
@@ -332,8 +331,8 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         ("sms Template Name", False, mock.ANY, "sms", "created", 1),
         ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
         ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+        ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
         ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 

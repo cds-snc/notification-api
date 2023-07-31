@@ -471,16 +471,7 @@ def _stats_for_service_query(service_id):
         db.session.query(
             Notification.notification_type,
             Notification.status,
-            *(
-                [
-                    case(
-                        [
-                            (Notification.notification_type == "email", func.count(Notification.id)),
-                        ],
-                        else_=func.sum(Notification.billable_units),
-                    ).label("count")
-                ]
-            ),
+            *([func.count(Notification.id).label("count")]),
         )
         .filter(
             Notification.service_id == service_id,
