@@ -517,10 +517,6 @@ class Config(object):
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
 
-    # add and use sms_daily_limit
-    FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
-    FF_SMS_PARTS_UI = env.bool("FF_SMS_PARTS_UI", False)
-
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
     # Feature flags for bounce rate

@@ -214,8 +214,6 @@ def time_until_end_of_day() -> timedelta:
 
 
 def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
-    if not current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
-        return
     if not current_app.config["REDIS_ENABLED"]:
         return
 
@@ -295,9 +293,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
 def send_near_sms_limit_email(service: Service):
     send_notification_to_service_users(
         service_id=service.id,
-        template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"]
-        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
-        else current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
+        template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
@@ -331,9 +327,7 @@ def send_near_email_limit_email(service: Service) -> None:
 def send_sms_limit_reached_email(service: Service):
     send_notification_to_service_users(
         service_id=service.id,
-        template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"]
-        if current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
-        else current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
+        template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",

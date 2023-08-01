@@ -1463,7 +1463,7 @@ class TestSMSSendFragments:
             create_sample_notification(notify_db, notify_db_session, service=service)
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+        with set_config_values(notify_api, {"REDIS_ENABLED": True}):
             response = client.post(
                 path="/v2/notifications/sms",
                 data=json.dumps(data),
@@ -1484,36 +1484,13 @@ class TestSMSSendFragments:
             create_sample_notification(notify_db, notify_db_session, service=service)
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+        with set_config_values(notify_api, {"REDIS_ENABLED": True}):
             response = client.post(
                 path="/v2/notifications/sms",
                 data=json.dumps(data),
                 headers=[("Content-Type", "application/json"), auth_header],
             )
         assert response.status_code == 429
-
-    def test_post_sms_not_enough_fragments_left_FF_SPIKE_SMS_DAILY_LIMIT_false(
-        self, notify_api, client, notify_db, notify_db_session, mocker
-    ):
-        mocker.patch("app.sms_normal_publish.publish")
-        service = create_service(sms_daily_limit=10, message_limit=100)
-        template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
-        data = {
-            "phone_number": "+16502532222",
-            "template_id": str(template.id),
-            "personalisation": {" Name": "Jo"},
-        }
-        for x in range(7):
-            create_sample_notification(notify_db, notify_db_session, service=service)
-        auth_header = create_authorization_header(service_id=template.service_id)
-
-        with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": False, "REDIS_ENABLED": True}):
-            response = client.post(
-                path="/v2/notifications/sms",
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), auth_header],
-            )
-        assert response.status_code == 201
 
 
 class TestSMSFragmentCounter:
@@ -1539,7 +1516,7 @@ class TestSMSFragmentCounter:
             )
             save_model_api_key(api_key)
 
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/sms",
                     data=json.dumps(data),
@@ -1587,7 +1564,7 @@ class TestSMSFragmentCounter:
             )
             save_model_api_key(api_key)
 
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/bulk",
                     data=json.dumps(data),
@@ -1631,7 +1608,7 @@ class TestSMSFragmentCounter:
             )
             save_model_api_key(api_key)
 
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/bulk",
                     data=json.dumps(data),
@@ -1672,7 +1649,7 @@ class TestSMSFragmentCounter:
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 token = create_jwt_token(
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
@@ -1721,7 +1698,7 @@ class TestSMSFragmentCounter:
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 mocker.patch(
                     "app.job.rest.get_job_metadata_from_s3",
                     return_value={
@@ -1764,7 +1741,7 @@ class TestEmailsAndLimitsForSMSFragments:
 
         def __send_sms():
             auth_header = create_authorization_header(service_id=template.service_id)
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/sms",
                     data=json.dumps(data),
@@ -1802,7 +1779,7 @@ class TestEmailsAndLimitsForSMSFragments:
 
         def __send_sms():
             auth_header = create_authorization_header(service_id=template.service_id)
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/sms",
                     data=json.dumps(data),
@@ -1837,7 +1814,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 data = {
                     "name": "job_name",
                     "template_id": str(template.id),
@@ -1880,7 +1857,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 numbers = [["9025551234"]] * number_to_send
                 data = {
                     "name": "job_name",
@@ -1925,7 +1902,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
 
         def __send_sms(number_to_send=1):
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 numbers = [["9025551234"]] * number_to_send
                 data = {
                     "name": "job_name",
@@ -1970,7 +1947,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 token = create_jwt_token(
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
@@ -2014,7 +1991,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 token = create_jwt_token(
                     current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
                 )
@@ -2057,7 +2034,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms():
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 mocker.patch(
                     "app.job.rest.get_job_metadata_from_s3",
                     return_value={
@@ -2109,7 +2086,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 phone_numbers = "\r\n6502532222" * number_to_send
                 mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
                 mocker.patch(
@@ -2165,7 +2142,7 @@ class TestEmailsAndLimitsForSMSFragments:
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
         def __send_sms(number_to_send=1):
-            with set_config_values(notify_api, {"FF_SPIKE_SMS_DAILY_LIMIT": True, "REDIS_ENABLED": True}):
+            with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 phone_numbers = "\r\n6502532222" * number_to_send
                 mocker.patch("app.job.rest.get_job_from_s3", return_value=f"phone number{phone_numbers}")
                 mocker.patch(
@@ -2635,12 +2612,11 @@ class TestBulkSend:
             "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"]]),
         }
 
-        with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-            response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-            )
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
 
         assert response.status_code == 400
         error_json = json.loads(response.get_data(as_text=True))
@@ -2664,13 +2640,11 @@ class TestBulkSend:
             "template_id": template.id,
             "csv": rows_to_csv([["phone number"], ["6135551234"]]),
         }
-
-        with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-            response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-            )
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+        )
 
         assert response.status_code == 400
         error_json = json.loads(response.get_data(as_text=True))
@@ -2680,30 +2654,6 @@ class TestBulkSend:
                 "message": "You only have 1 remaining sms message parts before you reach your daily limit. You've tried to send 4 message parts.",
             }
         ]
-
-    def test_post_bulk_does_not_flag_not_enough_remaining_sms_message_parts_with_FF_SPIKE_SMS_DAILY_LIMIT_false(
-        self, notify_api, client, notify_db, notify_db_session, notify_user, mocker
-    ):
-        service = create_service(sms_daily_limit=10, message_limit=100)
-        template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
-        mocker.patch("app.v2.notifications.post_notifications.fetch_todays_requested_sms_count", return_value=9)
-        job_id = str(uuid.uuid4())
-        mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
-        mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
-        data = {
-            "name": "job_name",
-            "template_id": template.id,
-            "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"], ["6135551234"], ["6135551234"]]),
-        }
-
-        with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", False):
-            response = client.post(
-                "/v2/notifications/bulk",
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-            )
-
-        assert response.status_code == 201
 
     @pytest.mark.parametrize("data_type", ["rows", "csv"])
     def test_post_bulk_flags_rows_with_errors(self, client, notify_db, notify_db_session, data_type):
