@@ -299,7 +299,7 @@ def update_service(service_id):
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
-        if not fetched_service.restricted and current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+        if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
 
     if service_going_live:

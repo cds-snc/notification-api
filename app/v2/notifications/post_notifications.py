@@ -160,7 +160,6 @@ def post_bulk():
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
-    check_sms_limit = current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
     if bounce_rate_v1 and epoch_seeding_bounce:
@@ -173,7 +172,7 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    if template.template_type == SMS_TYPE and check_sms_limit:
+    if template.template_type == SMS_TYPE:
         fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
@@ -690,13 +689,8 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        # TODO:
-        # - right now there are no other errors in RecipientCSV so this else is not needed
-        # - if FF_SPIKE_SMS_DAILY_LIMIT is false we do not want to throw this error if only more_sms_rows_than_can_send is set
-        # - after the FF is turned on / removed, we will restore this else
-        #
-        # else:
-        #     raise NotImplementedError("Got errors but code did not handle")
+        else:
+            raise NotImplementedError("Got errors but code did not handle")
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):

@@ -101,8 +101,7 @@ class TestCheckDailySMSEmailLimits:
         mocker.patch("app.notifications.validators.redis_store.set")
         mocker.patch("app.notifications.validators.services_dao")
         if limit_type == "sms":
-            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_sms_daily_limit(sample_service)
+            check_sms_daily_limit(sample_service)
         else:
             check_email_daily_limit(sample_service)
         app.notifications.validators.redis_store.set.assert_not_called()
@@ -119,8 +118,7 @@ class TestCheckDailySMSEmailLimits:
         mocker.patch("app.notifications.validators.redis_store.set")
         mocker.patch("app.notifications.validators.services_dao")
         if limit_type == "sms":
-            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_sms_daily_limit(sample_service)
+            check_sms_daily_limit(sample_service)
         else:
             check_email_daily_limit(sample_service)
             app.notifications.validators.redis_store.set.assert_not_called()
@@ -152,8 +150,7 @@ class TestCheckDailySMSEmailLimits:
         with set_config(notify_api, "REDIS_ENABLED", False):
             db_mock = mocker.patch("app.notifications.validators.services_dao")
             check_service_over_daily_message_limit("normal", sample_service)
-            with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                check_sms_daily_limit(sample_service)
+            check_sms_daily_limit(sample_service)
 
             assert db_mock.method_calls == []
 
@@ -218,8 +215,7 @@ class TestCheckDailySMSEmailLimits:
                 create_sample_notification(notify_db, notify_db_session, service=service, template=template)
 
             if limit_type == "sms":
-                with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_sms_limit_increment_redis_send_warnings_if_needed(service)
+                check_sms_limit_increment_redis_send_warnings_if_needed(service)
             else:
                 with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
                     check_email_limit_increment_redis_send_warnings_if_needed(service)
@@ -283,8 +279,7 @@ class TestCheckDailySMSEmailLimits:
             assert e.value.fields == []
 
             with pytest.raises(TooManySMSRequestsError) as e:
-                with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-                    check_sms_daily_limit(service)
+                check_sms_daily_limit(service)
             assert e.value.status_code == 429
             assert e.value.message == "Exceeded SMS daily sending limit of 4 fragments"
             assert e.value.fields == []
@@ -337,8 +332,7 @@ class TestCheckDailySMSEmailLimits:
         # When
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
         check_service_over_daily_message_limit("normal", service)
-        with set_config(notify_api, "FF_SPIKE_SMS_DAILY_LIMIT", True):
-            check_sms_daily_limit(service)
+        check_sms_daily_limit(service)
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
 
