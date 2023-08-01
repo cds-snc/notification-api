@@ -2437,6 +2437,7 @@ components:
             - PID
             - ICN
             - BIRLSID
+            - EDIPI
         id_value:
           type: string
       required:

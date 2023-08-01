@@ -26,7 +26,8 @@ class TestTransformToFhirFormat:
         (IdentifierType.ICN, "1008533405V377263", "1008533405V377263^NI^200M^USVHA"),
         (IdentifierType.PID, "123456", "123456^PI^200CORP^USVBA"),
         (IdentifierType.VA_PROFILE_ID, "301", "301^PI^200VETS^USDVA"),
-        (IdentifierType.BIRLSID, "789123", "789123^PI^200BRLS^USVBA")
+        (IdentifierType.BIRLSID, "789123", "789123^PI^200BRLS^USVBA"),
+        (IdentifierType.EDIPI, "1005079124", "1005079124^NI^200DOD^USDOD")
     ])
     def test_should_transform_recipient_identifier_to_mpi_acceptable_format(
             self,
@@ -73,7 +74,8 @@ class TestTransformFromFhirFormat:
         ("1008533405V377263^NI^200M^USVHA", "1008533405V377263"),
         ("123456^PI^200CORP^USVBA", "123456"),
         ("301^PI^200VETS^USDVA", "301"),
-        ("789123^PI^200BRLS^USVBA", "789123")
+        ("789123^PI^200BRLS^USVBA", "789123"),
+        ("1005079124^NI^200DOD^USDOD", "1005079124")
     ])
     def test_should_transform_from_fhir_format(
             self,
