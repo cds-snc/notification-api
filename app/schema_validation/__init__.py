@@ -1,13 +1,16 @@
 import json
-from datetime import datetime, timedelta
-from uuid import UUID
-
-from iso8601 import iso8601, ParseError
-from jsonschema import (Draft7Validator, ValidationError, FormatChecker)
-from notifications_utils.recipients import (validate_phone_number, validate_email_address, InvalidPhoneError,
-                                            InvalidEmailError)
-
 from app.notifications.validators import decode_personalisation_files
+from datetime import datetime, timedelta
+from flask import current_app
+from iso8601 import iso8601, ParseError
+from jsonschema import Draft7Validator, FormatChecker, ValidationError
+from notifications_utils.recipients import (
+    InvalidEmailError,
+    InvalidPhoneError,
+    validate_email_address,
+    validate_phone_number,
+)
+from uuid import UUID
 
 format_checker = FormatChecker()
 
@@ -60,10 +63,16 @@ def validate(json_to_validate, schema):
     validator = Draft7Validator(schema, format_checker=format_checker)
     errors = list(validator.iter_errors(json_to_validate))
     if len(errors) > 0:
+        if isinstance(json_to_validate, dict) and "personalisation" in json_to_validate:
+            if isinstance(json_to_validate["personalisation"], str):
+                json_to_validate["personalisation"] = "<redacted>"
+            elif isinstance(json_to_validate["personalisation"], dict):
+                json_to_validate["personalisation"] = {key: "<redacted>" for key in json_to_validate["personalisation"]}
+        current_app.logger.info("Validation failed for: %s", json_to_validate)
         raise ValidationError(build_error_message(errors))
 
     # TODO - This assumes that json_to_validate is a dictionary.  It could raise AttributeError.
-    if json_to_validate.get('personalisation', None):
+    if json_to_validate.get('personalisation'):
         json_to_validate['personalisation'], errors = decode_personalisation_files(
             json_to_validate.get('personalisation', {})
         )
