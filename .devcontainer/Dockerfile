@@ -24,12 +24,25 @@ RUN apt-get update \
     man-db \
     manpages \
     net-tools \
+    nodejs \
+    npm \
     openssh-client \
     procps \
     sudo \
     tldr \
     unzip \
     vim \
+    libgtk2.0-0 \
+    libgtk-3-0 \
+    libgbm-dev \
+    libnotify-dev \
+    libgconf-2-4 \
+    libnss3 \
+    libxss1 \
+    libasound2 \
+    libxtst6 \
+    xauth \
+    xvfb \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
