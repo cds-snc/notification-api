@@ -49,6 +49,7 @@ class TwilioSMSClient(SmsClient):
             "30008": NOTIFICATION_TECHNICAL_FAILURE,
             "30009": NOTIFICATION_TECHNICAL_FAILURE,
             "30010": NOTIFICATION_TECHNICAL_FAILURE,
+            "30034": NOTIFICATION_PERMANENT_FAILURE,
         }
 
         self.twilio_notify_status_map = {

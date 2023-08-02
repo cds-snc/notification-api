@@ -152,7 +152,7 @@ def deliver_email(self, notification_id: str, sms_sender_id=None):
         update_notification_status_by_id(
             notification_id,
             NOTIFICATION_TECHNICAL_FAILURE,
-            status_reason=f"Email provider configuration invalid"
+            status_reason="Email provider configuration invalid"
         )
         raise NotificationTechnicalFailureException(str(e))
     except Exception as e:
