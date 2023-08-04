@@ -27,8 +27,8 @@ changelog:
         - actions
         - devops
     - title: Dependency Upgrades 🆙
-        labels:
-          - dependencies
+      labels:
+        - dependencies
     - title: Other Changes 🧑‍💻
       labels:
         - "*"
