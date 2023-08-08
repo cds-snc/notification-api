@@ -50,6 +50,7 @@ jobs:
     - name: run notify api
       env:
         NOTIFY_ENVIRONMENT: test
+        FLASK_APP: application.py
       run: |
         poetry run flask db upgrade
         poetry run make run
