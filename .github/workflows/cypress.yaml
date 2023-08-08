@@ -52,9 +52,7 @@ jobs:
         NOTIFY_ENVIRONMENT: test
         FLASK_APP: application.py
       run: |
-        poetry run flask db upgrade
         poetry run make run
-        
 
     - name: Write the cypress.env.json file
       run: |
