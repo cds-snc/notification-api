@@ -56,12 +56,12 @@ jobs:
         NOTIFY_ENVIRONMENT: test
         FLASK_APP: application.py
         REDIS_ENABLED: 1
-        REDIS_URL: redis://host.docker.internal:6379
-        REDIS_PUBLISH_URL: redis://host.docker.internal:6379
+        REDIS_URL: redis://redis:6379
+        REDIS_PUBLISH_URL: redis://redis:6379
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@postgres:5432/test_notification_api
         SQLALCHEMY_DATABASE_READER_URI: postgresql://reader:postgres@postgres:5432/test_notification_api
       run: |
-        createdb --user=postgres --host host.docker.internal test_notification_api
+        createdb --user=postgres --host postgres test_notification_api
         poetry run flask db upgrade
         poetry run make run
 
