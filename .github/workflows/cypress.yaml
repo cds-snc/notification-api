@@ -51,6 +51,18 @@ jobs:
     - name: Install requirements
       run: poetry install --with test
 
+    - name: Copy site-packages in workspace
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.10/site-packages "${{ github.workspace }}/env/"
+
+    - name: Install development .env file
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      run: |
+        cp -f .env.example .env
+
     - name: prep db and run notify api
       env:
         NOTIFY_ENVIRONMENT: test
