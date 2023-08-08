@@ -18,8 +18,8 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
       redis:
         image: redis:6.2@sha256:9e75c88539241ad7f61bc9c39ea4913b354064b8a75ca5fc40e1cef41b645bc0
-        options: >-
-          --port 6380
+        ports:
+        - 6379:6379
 
     steps:
     - name: Set up Python 3.10
@@ -52,8 +52,8 @@ jobs:
         NOTIFY_ENVIRONMENT: test
         FLASK_APP: application.py
         REDIS_ENABLED: 1
-        REDIS_URL: redis://host.docker.internal:6380
-        REDIS_PUBLISH_URL: redis://host.docker.internal:6380
+        REDIS_URL: redis://host.docker.internal:6379
+        REDIS_PUBLISH_URL: redis://host.docker.internal:6379
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_notification_api
         SQLALCHEMY_DATABASE_READER_URI: postgresql://reader:postgres@localhost:5432/test_notification_api
       run: |
