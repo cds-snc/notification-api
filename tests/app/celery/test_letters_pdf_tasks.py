@@ -3,7 +3,7 @@ from unittest.mock import Mock, call, ANY
 
 import base64
 import boto3
-from PyPDF2.errors import PdfReadError
+from pypdf.errors import PdfReadError
 from moto import mock_s3
 from flask import current_app
 from freezegun import freeze_time

@@ -3,7 +3,7 @@ from datetime import datetime
 from io import BytesIO
 
 import botocore
-from PyPDF2.errors import PdfReadError
+from pypdf.errors import PdfReadError
 from flask import (
     Blueprint,
     current_app,

@@ -50,9 +50,7 @@ notifications-python-client >= 8.0.1
 psycopg2-binary >= 2.9.6
 pwnedpasswords >= 2.0.0
 PyJWT >= 2.8.0
-
-# 19 April 2023: This package is deprecated.  See #1221.
-PyPDF2 ~= 3.0.1
+pypdf >= 3.15.0
 
 python-dotenv >= 1.0.0
 python-magic >= 0.4.27

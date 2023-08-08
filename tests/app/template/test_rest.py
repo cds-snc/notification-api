@@ -26,7 +26,7 @@ from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.template import HTMLEmailTemplate
-from PyPDF2.errors import PdfReadError
+from pypdf.errors import PdfReadError
 from tests import create_authorization_header
 from tests.app.db import (
     create_service,
