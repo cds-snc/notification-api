@@ -72,6 +72,7 @@ jobs:
         REDIS_PUBLISH_URL: redis://redis:6379
         SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@postgres:5432/test_notification_api
         SQLALCHEMY_DATABASE_READER_URI: postgresql://reader:postgres@postgres:5432/test_notification_api
+        FLASK_DEBUG: true
       run: |
         poetry run make run
 
