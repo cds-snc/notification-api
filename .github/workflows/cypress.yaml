@@ -48,7 +48,12 @@ jobs:
       run: poetry install --with test
 
     - name: run notify api
-      run: poetry run make run
+      env:
+        NOTIFY_ENVIRONMENT: test
+      run: |
+        poetry run flask db upgrade
+        poetry run make run
+        
 
     - name: Write the cypress.env.json file
       run: |
