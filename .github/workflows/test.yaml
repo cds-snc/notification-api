@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:11.17-bullseye
+        image: postgres:11.20-bullseye@sha256:4e4b23580ada59c9ec5a712bdff9f91b0e6a7898d9ea954306b953c426727cef
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
