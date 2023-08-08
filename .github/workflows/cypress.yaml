@@ -16,12 +16,12 @@ jobs:
         ports:
         - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:6.2@sha256:9e75c88539241ad7f61bc9c39ea4913b354064b8a75ca5fc40e1cef41b645bc0
+        options: >-
+          --port 6380
 
     steps:
-    - name: Install libcurl
-      run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
-
     - name: Set up Python 3.10
       uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b # v4.6.0
       with:
@@ -47,11 +47,18 @@ jobs:
     - name: Install requirements
       run: poetry install --with test
 
-    - name: run notify api
+    - name: prep db and run notify api
       env:
         NOTIFY_ENVIRONMENT: test
         FLASK_APP: application.py
+        REDIS_ENABLED: 1
+        REDIS_URL: redis://host.docker.internal:6380
+        REDIS_PUBLISH_URL: redis://host.docker.internal:6380
+        SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost:5432/test_notification_api
+        SQLALCHEMY_DATABASE_READER_URI: postgresql://reader:postgres@localhost:5432/test_notification_api
       run: |
+        createdb --user=postgres test_notification_api
+        poetry run flask db upgrade
         poetry run make run
 
     - name: Write the cypress.env.json file
