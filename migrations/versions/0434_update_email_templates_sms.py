@@ -19,11 +19,7 @@ near_content = "\n".join(
         "",
         "Hello ((name)),",
         "",
-        "If a text message is long, it travels in fragments. The fragments assemble into 1 message for the recipient. Each fragment counts towards your daily limit.",
-        "",
-        "The number of fragments may be higher than the number of recipients. Complex factors determine how messages split into fragments. These factors include character count and type of characters used.",
-        "",
-        "((service_name)) can send ((message_limit_en)) text fragments per day. You’ll be blocked from sending if you exceed that limit before 7 pm Eastern Time. Check [your current local time](https://nrc.canada.ca/en/web-clock/).",
+        "((service_name)) can send ((message_limit_en)) text messages per day. You’ll be blocked from sending if you exceed that limit before ((limit_reset_time_et_12hr)) Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
         "",
         "To request a limit increase, [contact us](((contact_url))). We’ll respond within 1 business day.",
         "",
@@ -33,13 +29,8 @@ near_content = "\n".join(
         "",
         "Bonjour ((name)),",
         "",
-        "Lorsqu’un message texte est long, il se fragmente lors de la transmission. Tous les fragments sont rassemblés pour former un message unique pour le destinataire. Chaque fragment compte dans votre limite quotidienne.",
+        "((service_name)) peut envoyer ((message_limit_fr)) messages texte par jour. Si vous atteignez cette limite avant ((limit_reset_time_et_24hr)) heures, heure de l’Est, vos envois seront bloqués. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
         "",
-        "Le nombre de fragments peut être supérieur au nombre de destinataires. La division des messages en fragments dépend de facteurs complexes, dont le nombre de caractères et le type de caractères utilisés.",
-        "",
-        "La limite quotidienne d’envoi est de ((message_limit_fr)) fragments de message texte par jour pour ((service_name)). Si vous dépassez cette limite avant 19 heures, heure de l’Est, vos envois seront bloqués.",
-        "",
-        "Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/)." "",
         "Veuillez [nous contacter](((contact_url))) si vous désirez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
         "",
         "L’équipe Notification GC",
@@ -53,11 +44,11 @@ reached_content = "\n".join(
         "",
         "Hello ((name)),",
         "",
-        "((service_name)) has sent ((message_limit_en)) emails today.",
+        "((service_name)) has sent ((message_limit_en)) text messages today.",
         "",
-        "You can send more messages after 7pm Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
+        "You can send more messages after ((limit_reset_time_et_12hr)) Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
         "",
-        "To request a limit increase, [contact us](https://notification.canada.ca/contact). We’ll respond within 1 business day.",
+        "To request a limit increase, [contact us](((contact_url))). We’ll respond within 1 business day.",
         "",
         "The GC Notify team",
         "",
@@ -65,28 +56,56 @@ reached_content = "\n".join(
         "",
         "Bonjour ((name)),",
         "",
-        "Aujourd’hui, ((message_limit_fr)) courriels ont été envoyés pour ((service_name)).",
+        "Aujourd’hui, ((message_limit_fr)) messages texte ont été envoyés pour ((service_name)).",
         "",
-        "Vous pourrez envoyer davantage de courriels après 19 heures, heure de l’Est. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
+        "Vous pourrez envoyer davantage de messages texte après ((limit_reset_time_et_24hr)) heures, heure de l’Est. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
         "",
-        "Veuillez [nous contacter](https://notification.canada.ca/contact) si vous désirez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
+        "Veuillez [nous contacter](((contact_url))) si vous désirez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
         "",
         "L’équipe Notification GC",
     ]
 )
 
+updated_content = "\n".join(
+    [
+        "(la version française suit)",
+        "",
+        "Hello ((name)),",
+        "",
+        "You can now send ((message_limit_en)) text messages per day.",
+        "",
+        "The GC Notify team",
+        "",
+        "---",
+        "",
+        "Bonjour ((name)),",
+        "",
+        "Vous pouvez désormais envoyer ((message_limit_fr)) messages texte par jour.",
+        "",
+        "L’équipe Notification GC",
+    ]
+)
 
 templates = [
     {
         "id": current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         "template_type": "email",
+        "subject": "((service_name)) is near its daily limit for text messages. | La limite quotidienne d’envoi de messages texte est presque atteinte pour ((service_name)).",
         "content": near_content,
         "process_type": "priority",
     },
     {
         "id": current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         "template_type": "email",
+        "subject": "((service_name)) has reached its daily limit for text messages. | La limite quotidienne d’envoi de messages texte est atteinte pour ((service_name)).",
         "content": reached_content,
+        "process_type": "priority",
+    },
+    {
+        "id": current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
+        "template_type": "email",
+        "subject": "We’ve updated the daily limit for ((service_name)) | Limite quotidienne d’envoi mise à jour pour ((service_name)).",
+        "content": updated_content,
         "process_type": "priority",
     },
 ]
@@ -97,14 +116,12 @@ def upgrade():
 
     for template in templates:
         current_version = conn.execute("select version from templates where id='{}'".format(template["id"])).fetchone()
-        subject = conn.execute("select subject from templates where id='{}'".format(template["id"])).fetchone()
         name = conn.execute("select name from templates where id='{}'".format(template["id"])).fetchone()
         template["version"] = current_version[0] + 1
-        template["subject"] = subject[0]
         template["name"] = name[0]
 
     template_update = """
-        UPDATE templates SET content = '{}', version = '{}', updated_at = '{}'
+        UPDATE templates SET content = '{}', subject = '{}', version = '{}', updated_at = '{}'
         WHERE id = '{}'
     """
     template_history_insert = """
@@ -117,6 +134,7 @@ def upgrade():
         op.execute(
             template_update.format(
                 template["content"],
+                template["subject"],
                 template["version"],
                 datetime.utcnow(),
                 template["id"],
