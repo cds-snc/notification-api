@@ -85,9 +85,10 @@ jobs:
         echo 'FLASK_APP=application.py' >> .env
         echo 'FLASK_DEBUG=true' >> .env
         echo 'WERKZEUG_DEBUG_PIN=off' >> .env
-
+        pwd
     - name: prep db and run notify api
       run: |
+        pwd
         poetry run make run
 
     - name: Write the cypress.env.json file
