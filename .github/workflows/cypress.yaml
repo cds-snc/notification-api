@@ -112,4 +112,4 @@ jobs:
         record: false
         build: npx cypress info
         working-directory: tests_cypress
-        spec: cypress/e2e/admin/api/sanity_check.cy.js
+        spec: cypress/e2e/api/sanity_check.cy.js
