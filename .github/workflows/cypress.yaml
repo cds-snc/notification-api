@@ -60,32 +60,32 @@ jobs:
     - name: Setup .env
       working-directory: ${{ github.workspace }}
       run: |
-        echo 'NOTIFICATION_QUEUE_PREFIX: andrewl-dev-notification-canada-ca' > .env
-        echo 'AWS_ACCESS_KEY_ID: not-a-real-secret' >> .env
-        echo 'AWS_SECRET_ACCESS_KEY: not-a-real-secret' >> .env
-        echo 'AWS_REGION: ca-central-1' >> .env
-        echo 'ASSET_DOMAIN: example.com' >> .env
-        echo 'ASSET_UPLOAD_BUCKET_NAME: not-a-real-secret' >> .env
-        echo 'CSV_UPLOAD_BUCKET_NAME: not-a-real-secret' >> .env
-        echo 'DOCUMENTS_BUCKET: not-a-real-secret' >> .env
-        echo 'NOTIFY_EMAIL_DOMAIN: not-a-real-secret' >> .env
-        echo 'ADMIN_CLIENT_SECRET: local_app' >> .env
-        echo 'REDIS_URL: redis://redis:6379' >> .env
-        echo 'REDIS_PUBLISH_URL: redis://redis:6379' >> .env
-        echo 'SQLALCHEMY_DATABASE_TEST_URI: postgresql://postgres:postgres@postgres:5432/test_notification_api' >> .env
-        echo 'DOCUMENT_DOWNLOAD_API_HOST: http://host.docker.internal:7000' >> .env
-        echo 'FF_REDIS_BATCH_SAVING: true' >> .env
-        echo 'FF_BATCH_INSERTION: true' >> .env
-        echo 'REDIS_ENABLED: true' >> .env
-        echo 'FF_CLOUDWATCH_METRICS_ENABLED: false' >> .env
-        echo 'FF_SPIKE_SMS_DAILY_LIMIT: true' >> .env
-        echo 'FRESH_DESK_ENABLED: false' >> .env
-        echo 'SECRET_KEY: local_secret_key' >> .env
-        echo 'DANGEROUS_SALT: local_dangerous_salt' >> .env
-        echo 'NOTIFY_ENVIRONMENT: test' >> .env
-        echo 'FLASK_APP: application.py' >> .env
-        echo 'FLASK_DEBUG: true' >> .env
-        echo 'WERKZEUG_DEBUG_PIN: off' >> .env
+        echo 'NOTIFICATION_QUEUE_PREFIX=andrewl-dev-notification-canada-ca' > .env
+        echo 'AWS_ACCESS_KEY_ID=not-a-real-secret' >> .env
+        echo 'AWS_SECRET_ACCESS_KEY=not-a-real-secret' >> .env
+        echo 'AWS_REGION=ca-central-1' >> .env
+        echo 'ASSET_DOMAIN=example.com' >> .env
+        echo 'ASSET_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
+        echo 'CSV_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
+        echo 'DOCUMENTS_BUCKET=not-a-real-secret' >> .env
+        echo 'NOTIFY_EMAIL_DOMAIN=not-a-real-secret' >> .env
+        echo 'ADMIN_CLIENT_SECRET=local_app' >> .env
+        echo 'REDIS_URL=redis://redis:6379' >> .env
+        echo 'REDIS_PUBLISH_URL=redis://redis:6379' >> .env
+        echo 'SQLALCHEMY_DATABASE_TEST_URI=postgresql://postgres:postgres@postgres:5432/test_notification_api' >> .env
+        echo 'DOCUMENT_DOWNLOAD_API_HOST=http://host.docker.internal:7000' >> .env
+        echo 'FF_REDIS_BATCH_SAVING=true' >> .env
+        echo 'FF_BATCH_INSERTION=true' >> .env
+        echo 'REDIS_ENABLED=true' >> .env
+        echo 'FF_CLOUDWATCH_METRICS_ENABLED=false' >> .env
+        echo 'FF_SPIKE_SMS_DAILY_LIMIT=true' >> .env
+        echo 'FRESH_DESK_ENABLED=false' >> .env
+        echo 'SECRET_KEY=local_secret_key' >> .env
+        echo 'DANGEROUS_SALT=local_dangerous_salt' >> .env
+        echo 'NOTIFY_ENVIRONMENT=test' >> .env
+        echo 'FLASK_APP=application.py' >> .env
+        echo 'FLASK_DEBUG=true' >> .env
+        echo 'WERKZEUG_DEBUG_PIN=off' >> .env
 
     - name: prep db and run notify api
       run: |
