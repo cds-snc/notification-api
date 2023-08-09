@@ -68,7 +68,7 @@ reached_content = "\n".join(
     ]
 )
 
-updated_content =  "\n".join(
+updated_content = "\n".join(
     [
         "(la version française suit)",
         "",
