@@ -58,7 +58,6 @@ jobs:
         mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.10/site-packages "${{ github.workspace }}/env/"
 
     - name: Setup .env
-      working-directory: ${{ github.workspace }}
       run: |
         echo 'NOTIFICATION_QUEUE_PREFIX=andrewl-dev-notification-canada-ca' > .env
         echo 'AWS_ACCESS_KEY_ID=not-a-real-secret' >> .env
