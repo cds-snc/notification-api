@@ -50,6 +50,16 @@ jobs:
 
     - name: Install requirements
       run: poetry install --with test
+    
+    - name: Get python version
+      run: |
+        python_version=$(python  -V | cut -d' ' -f2)
+        echo "python_version=${python_version}" >> $GITHUB_ENV
+    
+    - name: Make version file
+      run: |
+        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
+        cp version.py "${{ github.workspace }}/app/"
 
     - name: Copy site-packages in workspace
       working-directory: ${{ github.workspace }}
@@ -88,7 +98,7 @@ jobs:
         pwd
     - name: prep db and run notify api
       run: |
-        pwd
+        
         poetry run make run
 
     - name: Write the cypress.env.json file
