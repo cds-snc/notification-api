@@ -98,8 +98,7 @@ jobs:
         pwd
     - name: prep db and run notify api
       run: |
-        
-        poetry run make run
+        poetry run make run &
 
     - name: Write the cypress.env.json file
       run: |
