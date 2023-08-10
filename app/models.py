@@ -1089,7 +1089,7 @@ class TemplateBase(BaseModel):
                 NORMAL: QueueNames.SEND_SMS_MEDIUM,
                 PRIORITY: QueueNames.SEND_SMS_HIGH,
                 BULK: QueueNames.SEND_SMS_LOW,
-                }[self.process_type]
+            }[self.process_type]
         else:
             return {
                 NORMAL: QueueNames.NORMAL,

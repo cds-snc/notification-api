@@ -55,7 +55,7 @@ class QueueNames(object):
     # Queues for sending all SMS, except long dedicated numbers.
     SEND_SMS_HIGH = "send-sms-high"
     SEND_SMS_MEDIUM = "send-sms-medium"
-    SEND_SMS_LOW= "send-sms-low"
+    SEND_SMS_LOW = "send-sms-low"
 
     # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
