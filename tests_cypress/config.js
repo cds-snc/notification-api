@@ -72,6 +72,6 @@ const config = {
 };
 
 // choose which config to use here
-const ConfigToUse = config.STAGING;
+const ConfigToUse = config.LOCAL;
 
 module.exports = ConfigToUse;
