@@ -36,7 +36,13 @@ with engine.connect() as conn:
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'sms',E'2023-05-16 15:02:43.706528'),
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'upload_document',E'2023-05-24 14:01:51.321006');
         """ 
-               
+
+        insert_user_to_service = """
+            INSERT INTO "public"."user_to_service"("user_id","service_id")
+            VALUES
+            (E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'4049c2d0-0cab-455c-8f4c-f356dff51810');
+        """
+
         insert_templates = """
             INSERT INTO "public"."templates"("id","name","template_type","created_at","updated_at","content","service_id","subject","created_by_id","version","archived","process_type","service_letter_contact_id","hidden","postage")
             VALUES
