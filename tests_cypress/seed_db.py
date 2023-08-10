@@ -36,7 +36,16 @@ with engine.connect() as conn:
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'sms',E'2023-05-16 15:02:43.706528'),
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'upload_document',E'2023-05-24 14:01:51.321006');
         """ 
-
+        insert_permissions = """
+            INSERT INTO "public"."permissions"("id","service_id","user_id","permission","created_at")
+            VALUES
+            (E'074d892e-4608-45e7-b24f-53203ad75482',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'view_activity',E'2023-05-24 13:41:57.755493'),
+            (E'1e59292c-ff05-466b-ac11-d77378d94aac',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'manage_users',E'2023-05-24 13:41:57.755452'),
+            (E'20a1fb31-0e64-43a7-8d5e-fdd5ae97b006',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'manage_api_keys',E'2023-05-24 13:41:57.755534'),
+            (E'544cbafa-a979-43aa-8727-45082af5c901',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'manage_templates',E'2023-05-24 13:41:57.755554'),
+            (E'5ec04af6-4842-4c94-9294-b53cdaaf2166',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'send_emails',E'2023-05-24 13:41:57.75558'),
+            (E'7b3a128a-45ea-4ec7-b897-c5bb1ce515d8',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',E'send_letters',E'2023-05-24 13:41:57.755425');
+        """
         insert_user_to_service = """
             INSERT INTO "public"."user_to_service"("user_id","service_id")
             VALUES
