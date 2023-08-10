@@ -20,7 +20,7 @@ let STAGING = {
         'SMOKE_TEST_SMS': '16cae0b3-1d44-47ad-a537-fd12cc0646b6'
     },
     Users: {
-        Team: ['andrew.leith+bannertest@cds-snc.ca'],
+        Team: ['notify-ui-tests@cds-snc.ca'],
         NonTeam: ['person@example.com'],
         Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
         SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
