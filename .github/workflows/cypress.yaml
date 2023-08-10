@@ -90,8 +90,8 @@ jobs:
         echo 'FF_CLOUDWATCH_METRICS_ENABLED=false' >> .env
         echo 'FF_SPIKE_SMS_DAILY_LIMIT=true' >> .env
         echo 'FRESH_DESK_ENABLED=false' >> .env
-        echo 'SECRET_KEY=local_secret_key' >> .env
-        echo 'DANGEROUS_SALT=local_dangerous_salt' >> .env
+        echo 'SECRET_KEY=${{ secrets.SECRET_KEY }}' >> .env
+        echo 'DANGEROUS_SALT=${{ secrets.DANGEROUS_SALT }}' >> .env
         echo 'NOTIFY_ENVIRONMENT=test' >> .env
         echo 'FLASK_APP=application.py' >> .env
         echo 'FLASK_DEBUG=true' >> .env
