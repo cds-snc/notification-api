@@ -99,6 +99,7 @@ jobs:
         pwd
     - name: prep db and run notify api
       run: |
+        poetry run flask db upgrade
         poetry run make run &
 
     - name: Write the cypress.env.json file
