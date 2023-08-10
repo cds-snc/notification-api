@@ -244,7 +244,7 @@ This application defines Docker images for production, testing, and development 
 |------------|----------------|-------|-----------------------|
 | Python 3.8 | 14 October 2024 | | Dockerfile, Dockerfile.local |
 | Alpine Linux 3.16 | 23 May 2024 | | Dockerfile, Dockerfile.local |
-| Postgres 11 | [9 November 2023](https://www.postgresql.org/support/versioning/) | | docker-compose.yml, docker-compose-local.yml, docker-compose-local-migrate.yml, docker-compose-test.yml |
+| Postgres 15 | [11 November 2027](https://www.postgresql.org/support/versioning/) | | docker-compose.yml, docker-compose-local.yml, docker-compose-local-migrate.yml, docker-compose-test.yml |
 | localstack | None given.  The YAML files specifies v0.12.3.  As of March 2022, v0.14.1 is available. | As of March 2022, localstack requires Python 3.6-3.9. | docker-compose-local.yml |
 | bbyars/mountebank 2.4.0 | None given. | Newer versions are available. | docker-compose-local.yml |
 | redis | | No version specified. | docker-compose-local.yml |
