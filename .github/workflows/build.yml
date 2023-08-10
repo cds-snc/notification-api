@@ -32,6 +32,8 @@ jobs:
       - name: Login to VAEC ECR
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
 
       - name: Docker Build
         uses: docker/build-push-action@v4

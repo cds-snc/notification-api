@@ -28,6 +28,8 @@ jobs:
       - name: Login to VAEC ECR
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
 
       - name: Perform twistlock scan
         env:
