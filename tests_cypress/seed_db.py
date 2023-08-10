@@ -1,6 +1,6 @@
 import os
 
-SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
+SQLALCHEMY_DATABASE_URI = "postgresql://postgres:postgres@localhost:5432/test_notification_api" #os.getenv("SQLALCHEMY_DATABASE_URI")
 print(SQLALCHEMY_DATABASE_URI)
 
 import sqlalchemy as sa
