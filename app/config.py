@@ -52,8 +52,12 @@ class QueueNames(object):
     # pretty quickly.
     SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
 
-    # Queue for sending all SMS, except long dedicated numbers.
-    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
+    # Queues for sending all SMS, except long dedicated numbers.
+    SEND_SMS_HIGH = "send-sms-high"
+    SEND_SMS_MEDIUM = "send-sms-medium"
+    SEND_SMS_LOW= "send-sms-low"
+
+    # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
@@ -99,6 +103,9 @@ class QueueNames(object):
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
+            QueueNames.SEND_SMS_HIGH,
+            QueueNames.SEND_SMS_MEDIUM,
+            QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,
