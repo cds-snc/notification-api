@@ -20,7 +20,7 @@ let STAGING = {
         'SMOKE_TEST_SMS': '16cae0b3-1d44-47ad-a537-fd12cc0646b6'
     },
     Users: {
-        Team: ['notify-ui-tests@cds-snc.ca'],
+        Team: ['andrew.leith+bannertest@cds-snc.ca'],
         NonTeam: ['person@example.com'],
         Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
         SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
@@ -54,7 +54,7 @@ let LOCAL = {
         'SMOKE_TEST_SMS': '5945e2f0-3e37-4813-9a60-e0665e02e9c8'
     },
     Users: {
-        Team: ['andrew.leith+bannertest@cds-snc.ca'],
+        Team: ['notify-ui-tests@cds-snc.ca'],
         NonTeam: ['person@example.com'],
         Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
         SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
