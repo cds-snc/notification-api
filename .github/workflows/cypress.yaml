@@ -69,15 +69,15 @@ jobs:
 
     - name: Setup .env
       run: |
-        echo 'NOTIFICATION_QUEUE_PREFIX=andrewl-dev-notification-canada-ca' > .env
-        echo 'AWS_ACCESS_KEY_ID=not-a-real-secret' >> .env
-        echo 'AWS_SECRET_ACCESS_KEY=not-a-real-secret' >> .env
+        echo 'NOTIFICATION_QUEUE_PREFIX=api-pr-notification-canada-ca' > .env
+        echo 'AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}' >> .env
+        echo 'AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}' >> .env
         echo 'AWS_REGION=ca-central-1' >> .env
         echo 'ASSET_DOMAIN=example.com' >> .env
         echo 'ASSET_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
         echo 'CSV_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
         echo 'DOCUMENTS_BUCKET=not-a-real-secret' >> .env
-        echo 'NOTIFY_EMAIL_DOMAIN=not-a-real-secret' >> .env
+        echo 'NOTIFY_EMAIL_DOMAIN=staging.notification.cdssandbox.xyz' >> .env
         echo 'ADMIN_CLIENT_SECRET=local_app' >> .env
         echo 'REDIS_URL=redis://redis:6379' >> .env
         echo 'REDIS_PUBLISH_URL=redis://redis:6379' >> .env
@@ -100,6 +100,7 @@ jobs:
     - name: prep db and run notify api
       run: |
         poetry run flask db upgrade
+        python tests_cypress/seed_db.py
         poetry run make run &
 
     - name: Write the cypress.env.json file
@@ -114,4 +115,4 @@ jobs:
         record: false
         build: npx cypress info
         working-directory: tests_cypress
-        spec: cypress/e2e/api/sanity_check.cy.js
+        spec: cypress/e2e/api/all.cy.js
