@@ -2,6 +2,7 @@ TWILIO_ACCOUNT_SID=add value
 TWILIO_AUTH_TOKEN=add value
 
 SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
+SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db:5432/notification_api
 NOTIFY_ENVIRONMENT=development
 FLASK_APP=application.py
 
@@ -45,4 +46,4 @@ GITHUB_CLIENT_ID=fake-id
 GITHUB_CLIENT_SECRET=fake-secret
 
 REDIS_ENABLED='True'
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://redis:6379/0

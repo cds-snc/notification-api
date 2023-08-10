@@ -108,6 +108,7 @@ class Config(object):
 
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
+    SQLALCHEMY_DATABASE_URI_READ = os.getenv('SQLALCHEMY_DATABASE_URI_READ')
 
     # MMG API Key
     MMG_API_KEY = os.getenv('MMG_API_KEY')
@@ -514,6 +515,10 @@ class Development(Config):
         "SQLALCHEMY_DATABASE_URI",
         'postgresql://postgres@localhost/notification_api')
 
+    SQLALCHEMY_BINDS = {"read-db": os.getenv(
+        "SQLALCHEMY_DATABASE_URI_READ",
+        'postgresql://postgres@localhost/notification_api')}
+
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
 
     for queue in QueueNames.all_queues():
@@ -543,6 +548,9 @@ class Test(Development):
         'SQLALCHEMY_DATABASE_URI',
         'postgresql://postgres@localhost/test_notification_api'
     )
+    SQLALCHEMY_BINDS = {"read-db": os.getenv(
+        "SQLALCHEMY_DATABASE_URI_READ",
+        'postgresql://postgres@localhost/notification_api')}
 
     CELERY_SETTINGS = {
         'broker_url': 'you-forgot-to-mock-celery-in-your-tests://'

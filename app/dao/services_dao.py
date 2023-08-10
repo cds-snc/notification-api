@@ -1,15 +1,18 @@
 import uuid
 from datetime import date, datetime, timedelta
+from app.service.service_data import ServiceData, ServiceDataException
 
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.sql.expression import asc, case, and_, func
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 from flask import current_app
 
 from app import db
 from app.dao.date_util import get_current_financial_year
 from app.dao.dao_utils import (
+    get_reader_session,
     transactional,
     version_class,
     VersionOptions,
@@ -194,16 +197,29 @@ def dao_fetch_service_by_inbound_number(number):
 
 
 def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
-    query = Service.query.filter_by(
-        id=service_id
-    ).options(
-        joinedload('api_keys')
-    )
+    with get_reader_session() as session:
+        query = session.query(Service).filter_by(
+            id=service_id
+        ).options(
+            joinedload('api_keys')
+        )
 
-    if only_active:
-        query = query.filter(Service.active)
+        if only_active:
+            query = query.filter(Service.active)
 
-    return query.one()
+        try:
+            result = query.one()
+            # instead of returning the whole model attached to read-db engine
+            # extract needed properties and return object that can be
+            # serialized for caching
+            return ServiceData(result)
+        except (ServiceDataException, NoResultFound, MultipleResultsFound) as err:
+            # we handle this failure in the parent
+            current_app.logger.error("Could not find unique service with ID %s", service_id)
+            raise NoResultFound(err)
+        except Exception:
+            # we handle this failure in the parent
+            raise
 
 
 def dao_fetch_all_services_by_user(user_id, only_active=False):

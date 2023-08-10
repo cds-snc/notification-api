@@ -23,6 +23,19 @@ services:
     environment:
       - POSTGRES_PASSWORD=LocalPassword
       - POSTGRES_DB=notification_api
+    volumes:
+      - ./db-data:/var/db-data
+
+  db-read:
+    image: postgres:15
+    restart: unless-stopped
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_PASSWORD=LocalPassword
+      - POSTGRES_DB=notification_api
+    volumes:
+      - ./db-data-read:/var/db-data-read
 
   migrations:
     image: notification_api

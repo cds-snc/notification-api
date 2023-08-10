@@ -9,9 +9,9 @@ The docker-compose command used to run the full test suite sets environment vari
 ## Setup
 
 1. Stop all running containers associated with Notification-api.
-2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci_db_1`.  All migrations should already be applied.
-3. Start a test container shell by running `docker run --rm -it -v "<absolute path to notification-api>:/app" --env-file tests/env_vars ci_test bash`.
-4. Add the test container started in the previous step to the default network: `docker network connect ci_default <test container name or ID>`.
+2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci-db-1`.  All migrations should already be applied.
+3. Start a test container shell by running `docker run --rm -it -v "<absolute path to notification-api>:/app" --env-file tests/env_vars --name ci-test ci-test bash`.
+4. Add the test container started in the previous step to the default network: `docker network connect ci_default ci-test`.
 5. In the test container shell, run `pytest -h` to see the syntax for running tests.  Without flags, you can run `pytest [file or directory]...`.
 
 ## Running Individual Tests
