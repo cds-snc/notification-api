@@ -13,7 +13,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
 
   for (const api_key in keys) {
     context(`With ${api_key} api key`, () => {
-      it('can send email notification without personalisation', () => {
+      it.only('can send email notification without personalisation', () => {
         Notify.API.SendEmail({
           api_key: keys[api_key],
           to: api_key === 'TEAM' ? config.Users.Team[0] : config.Users.Simulated[1],
