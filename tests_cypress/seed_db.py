@@ -45,7 +45,7 @@ with engine.connect() as conn:
             (E'61a3f8e1-516d-446c-bc3a-c2dac33c9474',E'CYPRESS',E'IjhmYmE3MzUwLTIwN2ItNDRhYi1iNmYwLTVkZjk3ZjAzNjZlMyI.xiQ94d2oAedkohXNhx83B6cWr_0',E'4049c2d0-0cab-455c-8f4c-f356dff51811',NULL,E'2023-05-24 13:48:23.93561',E'6af522d0-2915-4e52-83a3-3690455a5fe6',NULL,1,E'normal'),
             (E'74a06881-7742-4d4a-85ff-b91ae71e1bcd',E'CYPRESS_TEAM_KEY',E'IjYxZjhhYzU3LTNlZGEtNDE3MS1iMDcyLTJjNTY0OWEzODI4ZSI.p6K5JNnYp6Pcn3OEQg1kDM1UHAY',E'4049c2d0-0cab-455c-8f4c-f356dff51811',NULL,E'2023-07-10 16:43:19.425995',E'6af522d0-2915-4e52-83a3-3690455a5fe6',NULL,1,E'team');
         """
-        # conn.execute(sa.text(insert_user))
+        conn.execute(sa.text(insert_org))
         conn.execute(sa.text(insert_service))
         conn.execute(sa.text(insert_templates))
         conn.execute(sa.text(insert_api_keys))
