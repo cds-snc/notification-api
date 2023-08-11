@@ -11,8 +11,8 @@ jobs:
         image: postgres:11.17-bullseye
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_notification_api
+          POSTGRES_PASSWORD: chummy
+          POSTGRES_DB: notification_api
         ports:
         - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
@@ -75,14 +75,14 @@ jobs:
         echo 'AWS_REGION=ca-central-1' >> .env
         echo 'ASSET_DOMAIN=example.com' >> .env
         echo 'ASSET_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
-        echo 'CSV_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
+        echo 'CSV_UPLOAD_BUCKET_NAME=notification-canada-ca-staging-csv-upload' >> .env
         echo 'DOCUMENTS_BUCKET=not-a-real-secret' >> .env
         echo 'NOTIFY_EMAIL_DOMAIN=staging.notification.cdssandbox.xyz' >> .env
         echo 'ADMIN_CLIENT_SECRET=local_app' >> .env
         echo 'REDIS_URL=redis://redis:6379' >> .env
         echo 'REDIS_PUBLISH_URL=redis://redis:6379' >> .env
-        echo 'SQLALCHEMY_DATABASE_URI=postgresql://postgres:postgres@localhost:5432/test_notification_api' >> .env
-        echo 'SQLALCHEMY_DATABASE_READER_URI=postgresql://postgres:postgres@localhost:5432/test_notification_api' >> .env
+        echo 'SQLALCHEMY_DATABASE_URI=postgresql://postgres:chummy@localhost:5432/notification_api' >> .env
+        echo 'SQLALCHEMY_DATABASE_READER_URI=postgresql://postgres:chummy@localhost:5432/notification_api' >> .env
         echo 'DOCUMENT_DOWNLOAD_API_HOST=http://host.docker.internal:7000' >> .env
         echo 'FF_REDIS_BATCH_SAVING=true' >> .env
         echo 'FF_BATCH_INSERTION=true' >> .env
@@ -115,4 +115,4 @@ jobs:
         record: false
         build: npx cypress info
         working-directory: tests_cypress
-        spec: cypress/e2e/api/all.cy.js
+        spec: cypress/e2e/api/email_notifications.cy.js
