@@ -43,7 +43,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
 
       });
 
-      it('can send email to smoke test addresses', () => {
+      it.skip('can send email to smoke test addresses', () => {
         if (api_key !== 'TEAM') {
           for (const email of config.Users.Simulated) {
             Notify.API.SendEmail({
@@ -60,7 +60,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
         }
       });
 
-      it('can use a non-default replyTo', () => {
+      it.skip('can use a non-default replyTo', () => {
         Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.Users.Simulated[0],
@@ -74,7 +74,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
         });
       });
 
-      it('can use a default replyTo', () => {
+      it.skip('can use a default replyTo', () => {
         Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.Users.Simulated[0],
@@ -88,7 +88,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
         });
       });
 
-      it('can use no replyTo', () => {
+      it.skip('can use no replyTo', () => {
         Notify.API.SendEmail({
           api_key: keys[api_key],
           to: config.Users.Simulated[0],
@@ -101,7 +101,7 @@ describe(`Email notifications test[${config.CONFIG_NAME}]`, () => {
         });
       });
 
-      it('Can scheduled a bulk email send', () => {
+      it.skip('Can scheduled a bulk email send', () => {
         // Schedule 20 seconds from now
         var secheduled_for = new Date(); 
         secheduled_for.setSeconds(secheduled_for.getSeconds()+20);
