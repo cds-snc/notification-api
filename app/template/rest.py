@@ -98,7 +98,6 @@ def create_template(service_id):
         errors = {'content': [message]}
         raise InvalidRequest(errors, status_code=400)
 
-    # TODO #1410 clean up validator, use class method instead.
     if not service_has_permission(new_template.template_type, permissions):
         message = "Creating {} templates is not allowed".format(
             get_public_notify_type_text(new_template.template_type))

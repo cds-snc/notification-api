@@ -2,8 +2,6 @@ import itertools
 from app import db
 from app.history_meta import create_history
 from functools import wraps
-from contextlib import contextmanager
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 
 def transactional(func):
@@ -81,26 +79,3 @@ def version_class(*version_options):
 
 def dao_rollback():
     db.session.rollback()
-
-
-@contextmanager
-def get_reader_session():
-    """
-    This context manager is used to abstract the connection to the read-only database engine
-    in order to execute read queries. By using a scoped session, it ensures that the session
-    is thread-local and can be reused if needed. It ensures proper handling of the session's
-    lifecycle by closing it when the context is exited.
-
-    Yields:
-        session (scoped_session): A session connected to the read-only database engine.
-
-    Example Usage:
-        with get_reader_session() as session:
-            result = session.query(Service).filter_by(id=service_id).one()
-    """
-    engine = db.engines['read-db']
-    session = scoped_session(sessionmaker(bind=engine))
-    try:
-        yield session
-    finally:
-        session.close()

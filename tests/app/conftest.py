@@ -1,6 +1,5 @@
 import json
 import os
-from app.service.service_data import ServiceDataApiKey
 import pytest
 import pytz
 import requests_mock
@@ -580,23 +579,6 @@ def sample_api_key(notify_db,
     api_key = ApiKey(**data)
     save_model_api_key(api_key)
     return api_key
-
-
-@pytest.fixture(scope='function')
-def sample_service_data_api_key(service=None, key_type=KEY_TYPE_NORMAL, name=None):
-    if service is None:
-        service = create_service(check_if_service_exists=True)
-
-    data = {
-        'service': service,
-        'name': name or uuid.uuid4(),
-        'created_by': service.created_by,
-        'key_type': key_type
-    }
-    api_key = ApiKey(**data)
-    save_model_api_key(api_key)
-
-    return ServiceDataApiKey(api_key)
 
 
 @pytest.fixture(scope='function')

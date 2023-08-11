@@ -34,7 +34,7 @@ from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm.collections import attribute_mapped_collection, InstrumentedList
+from sqlalchemy.orm.collections import attribute_mapped_collection
 
 
 SMS_TYPE = 'sms'
@@ -448,20 +448,8 @@ class Service(db.Model, Versioned):
         default_letter_contact = [x for x in self.letter_contacts if x.is_default]
         return default_letter_contact[0].contact_block if default_letter_contact else None
 
-    def has_permissions(self, permissions_to_check_for):
-        if isinstance(permissions_to_check_for, InstrumentedList):
-            _permissions_to_check_for = [p.permission for p in permissions_to_check_for]
-        elif not isinstance(permissions_to_check_for, list):
-            _permissions_to_check_for = [permissions_to_check_for]
-        else:
-            _permissions_to_check_for = permissions_to_check_for
-
-        if isinstance(self.permissions, InstrumentedList):
-            _permissions = [p.permission for p in self.permissions]
-        else:
-            _permissions = self.permissions
-
-        return frozenset(_permissions_to_check_for).issubset(frozenset(_permissions))
+    def has_permission(self, permission):
+        return permission in [p.permission for p in self.permissions]
 
     def serialize_for_org_dashboard(self):
         return {

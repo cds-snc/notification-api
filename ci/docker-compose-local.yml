@@ -14,7 +14,6 @@ services:
     depends_on:
       - migrations
       - localstack
-
   db:
     image: postgres:15
     restart: unless-stopped
@@ -23,7 +22,6 @@ services:
     environment:
       - POSTGRES_PASSWORD=LocalPassword
       - POSTGRES_DB=notification_api
-
   migrations:
     image: notification_api
     env_file:
@@ -33,7 +31,6 @@ services:
     command: ["bash", "-c", "flask db upgrade"]
     depends_on:
       - db
-
   localstack:
     image: localstack/localstack
     container_name: localstack
@@ -49,7 +46,6 @@ services:
       - HOSTNAME_EXTERNAL=localstack
     volumes:
       - './localstack_setup.sh:/docker-entrypoint-initaws.d/setup.sh'
-
   celery:
     image: notification_api
     env_file:
@@ -67,7 +63,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-
   mountebank:
     container_name: mountebank
     image: bbyars/mountebank:2.4.0
@@ -80,8 +75,9 @@ services:
       - 7007:7007
       - 7008:7008
     command: start --configfile /mountebank/imposters.ejs --allowInjection
-
   redis:
     image: redis
     ports:
       - "6379:6379"
+
+

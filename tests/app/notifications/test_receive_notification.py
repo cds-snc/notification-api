@@ -12,6 +12,7 @@ from app.notifications.receive_notifications import (
     format_mmg_datetime,
     create_inbound_sms_object,
     strip_leading_forty_four,
+    has_inbound_sms_permissions,
     unescape_string, fetch_potential_service, NoSuitableServiceForInboundSms,
 )
 
@@ -99,7 +100,7 @@ def test_receive_notification_returns_received_to_mmg(client, mocker, sample_ser
 ])
 def test_check_permissions_for_inbound_sms(notify_db, notify_db_session, permissions, expected_response):
     service = create_service(service_permissions=permissions)
-    assert service.has_permissions([INBOUND_SMS_TYPE, SMS_TYPE]) is expected_response
+    assert has_inbound_sms_permissions(service.permissions) is expected_response
 
 
 @pytest.mark.skip(reason="Endpoint disabled and slated for removal")
@@ -721,13 +722,9 @@ class TestFetchPotentialService:
             fetch_potential_service('some-inbound-number', 'some-provider-name')
 
     def test_should_raise_if_service_doesnt_have_permission(self, notify_api, mocker):
-        # make mocked service execute original code
-        # just mocking service won't let us execute .has_permissions
-        # method properly
-        mock_service_instance = Service(permissions=[])
         mocker.patch(
             'app.notifications.receive_notifications.dao_fetch_service_by_inbound_number',
-            return_value=mock_service_instance
+            return_value=mocker.Mock(Service, permissions=[])
         )
 
         with pytest.raises(NoSuitableServiceForInboundSms):

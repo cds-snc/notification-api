@@ -31,7 +31,8 @@ from app.notifications.process_notifications import (
 from app.notifications.validators import (
     check_template_is_for_notification_type,
     check_template_is_active,
-    check_rate_limiting
+    check_rate_limiting,
+    service_has_permission
 )
 from app.schemas import (
     email_notification_schema,
@@ -121,7 +122,7 @@ def send_notification(notification_type):
     template_object = create_template_object_for_notification(template, notification_form.get('personalisation', {}))
 
     _service_allowed_to_send_to(notification_form, authenticated_service)
-    if not authenticated_service.has_permissions(notification_type):
+    if not service_has_permission(notification_type, authenticated_service.permissions):
         raise InvalidRequest(
             {'service': ["Cannot send {}".format(get_public_notify_type_text(notification_type, plural=True))]},
             status_code=400
@@ -186,9 +187,10 @@ def get_notification_return_data(notification_id, notification, template):
 
 
 def _service_can_send_internationally(service, number):
-    phone_info = get_international_phone_info(number)
+    international_phone_info = get_international_phone_info(number)
 
-    if phone_info.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
+    if international_phone_info.international and \
+            INTERNATIONAL_SMS_TYPE not in [p.permission for p in service.permissions]:
         raise InvalidRequest(
             {'to': ["Cannot send to international mobile numbers"]},
             status_code=400

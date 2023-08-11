@@ -7,6 +7,9 @@ from app.mobile_app import MobileAppRegistry, MobileAppType, DEAFULT_MOBILE_APP_
 from app.models import (
     PUSH_TYPE
 )
+from app.notifications.validators import (
+    check_service_has_permission
+)
 from app.schema_validation import validate
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
@@ -14,7 +17,6 @@ from app.v2.notifications.notification_schemas import (
     push_notification_request
 )
 from app.va.vetext import (VETextRetryableException, VETextNonRetryableException, VETextBadRequestException)
-from app.utils import get_public_notify_type_text
 
 
 @v2_notification_blueprint.route('/push', methods=['POST'])
@@ -22,10 +24,7 @@ def send_push_notification():
     if not is_feature_enabled(FeatureFlag.PUSH_NOTIFICATIONS_ENABLED):
         raise NotImplementedError()
 
-    if not authenticated_service.has_permissions(PUSH_TYPE):
-        raise BadRequestError(message="Service is not allowed to send {}".format(
-            get_public_notify_type_text(PUSH_TYPE, plural=True)))
-
+    check_service_has_permission(PUSH_TYPE, authenticated_service.permissions)
     req_json = validate(request.get_json(), push_notification_request)
     registry = MobileAppRegistry()
 
