@@ -51,7 +51,12 @@ from app.sms_fragment_utils import (
     fetch_todays_requested_sms_count,
     increment_todays_requested_sms_count,
 )
-from app.utils import get_document_url, get_public_notify_type_text, is_blank
+from app.utils import (
+    get_document_url,
+    get_limit_reset_time_et,
+    get_public_notify_type_text,
+    is_blank,
+)
 from app.v2.errors import (
     BadRequestError,
     LiveServiceTooManyEmailRequestsError,
@@ -291,6 +296,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
 
 
 def send_near_sms_limit_email(service: Service):
+    limit_reset_time_et = get_limit_reset_time_et()
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -299,6 +305,8 @@ def send_near_sms_limit_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
+            "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
         include_user_fields=["name"],
     )
@@ -325,6 +333,7 @@ def send_near_email_limit_email(service: Service) -> None:
 
 
 def send_sms_limit_reached_email(service: Service):
+    limit_reset_time_et = get_limit_reset_time_et()
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -333,6 +342,8 @@ def send_sms_limit_reached_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
+            "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
         include_user_fields=["name"],
     )

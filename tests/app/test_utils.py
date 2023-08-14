@@ -6,6 +6,7 @@ from freezegun import freeze_time
 
 from app.utils import (
     get_document_url,
+    get_limit_reset_time_et,
     get_local_timezone_midnight,
     get_local_timezone_midnight_in_utc,
     get_logo_url,
@@ -127,3 +128,11 @@ def test_get_document_url(notify_api: Flask):
     with notify_api.app_context():
         assert get_document_url("en", "test.html") == "https://documentation.notification.canada.ca/en/test.html"
         assert get_document_url("None", "None") == "https://documentation.notification.canada.ca/None/None"
+
+
+def test_get_limit_reset_time_et():
+    # the daily limit resets at 8PM or 7PM depending on whether it's daylight savings time or not
+    with freeze_time("2023-08-10 00:00"):
+        assert get_limit_reset_time_et() == {"12hr": "8PM", "24hr": "20"}
+    with freeze_time("2023-01-10 00:00"):
+        assert get_limit_reset_time_et() == {"12hr": "7PM", "24hr": "19"}

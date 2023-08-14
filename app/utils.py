@@ -195,3 +195,23 @@ def get_document_url(lang: str, path: str):
 def is_blank(content: Any) -> bool:
     content = str(content)
     return not content or content.isspace()
+
+
+def get_limit_reset_time_et() -> dict[str, str]:
+    """
+    This function gets the time when the daily limit resets (UTC midnight)
+    and returns this formatted in eastern time. This will either be 7PM or 8PM,
+    depending on the time of year."""
+
+    now = datetime.now()
+    one_day = timedelta(1.0)
+    next_midnight = datetime(now.year, now.month, now.day) + one_day
+
+    utc = pytz.timezone("UTC")
+    et = pytz.timezone("US/Eastern")
+
+    next_midnight_utc = next_midnight.astimezone(utc)
+    next_midnight_utc_in_et = next_midnight_utc.astimezone(et)
+
+    limit_reset_time_et = {"12hr": next_midnight_utc_in_et.strftime("%-I%p"), "24hr": next_midnight_utc_in_et.strftime("%H")}
+    return limit_reset_time_et
