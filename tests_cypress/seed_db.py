@@ -1,15 +1,14 @@
-import os
-
-SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:chummy@localhost:5432/notification_api'#os.getenv("SQLALCHEMY_DATABASE_URI")
-print(SQLALCHEMY_DATABASE_URI)
-
+# import os
 import sqlalchemy as sa
+
+SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:chummy@localhost:5432/notification_api'  # os.getenv("SQLALCHEMY_DATABASE_URI")
+print(SQLALCHEMY_DATABASE_URI)
 
 # set connection URI here ↓
 engine = sa.create_engine(SQLALCHEMY_DATABASE_URI)
 
 with engine.connect() as conn:
-    with conn.begin():        
+    with conn.begin():
         insert_user = """
         INSERT INTO "public"."users"("id","name","email_address","created_at","updated_at","_password","mobile_number","password_changed_at","logged_in_at","failed_login_count","state","platform_admin","current_session_id","auth_type","blocked","additional_information","password_expired")
             VALUES
@@ -27,7 +26,7 @@ with engine.connect() as conn:
             VALUES
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'Cypress2',E'2023-05-16 15:02:43.663183',E'2023-05-24 14:01:51.335072',TRUE,10000,FALSE,E'bouncey',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',5,FALSE,E'central',TRUE,TRUE,1000,NULL,NULL,NULL,NULL,NULL,FALSE,E'2023-05-16 15:08:46.692247',NULL,E'93413f91-227f-4704-b229-b8210d1ecc0a',NULL,FALSE,1000,NULL);
         """
-    
+
         insert_s_permissions = """
             INSERT INTO "public"."service_permissions"("service_id","permission","created_at")
             VALUES
@@ -35,7 +34,7 @@ with engine.connect() as conn:
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'international_sms',E'2023-05-16 15:02:43.706543'),
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'sms',E'2023-05-16 15:02:43.706528'),
             (E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'upload_document',E'2023-05-24 14:01:51.321006');
-        """ 
+        """
         insert_permissions = """
             INSERT INTO "public"."permissions"("id","service_id","user_id","permission","created_at")
             VALUES
@@ -63,7 +62,7 @@ with engine.connect() as conn:
             (E'5945e2f0-3e37-4813-9a60-e0665e02e9c8',E'SMOKE_TEST_SMS',E'sms',E'2023-05-24 13:33:20.936811',NULL,E'SMOKE_TEST_SMS',E'4049c2d0-0cab-455c-8f4c-f356dff51810',NULL,E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',1,FALSE,E'bulk',NULL,FALSE,NULL),
             (E'b4692883-4182-4a23-b1b9-7b9df66a66e8',E'SIMPLE_EMAIL_TEMPLATE_ID',E'email',E'2023-07-10 16:33:10.288618',NULL,E'TESTING',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'TESTING',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',1,FALSE,E'bulk',NULL,FALSE,NULL);
         """
-        
+
         insert_api_keys = """
             INSERT INTO "public"."api_keys"("id","name","secret","service_id","expiry_date","created_at","created_by_id","updated_at","version","key_type")
             VALUES
