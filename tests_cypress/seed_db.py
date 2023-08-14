@@ -71,7 +71,12 @@ with engine.connect() as conn:
             (E'61a3f8e1-516d-446c-bc3a-c2dac33c9474',E'CYPRESS',E'IjhmYmE3MzUwLTIwN2ItNDRhYi1iNmYwLTVkZjk3ZjAzNjZlMyI.xiQ94d2oAedkohXNhx83B6cWr_0',E'4049c2d0-0cab-455c-8f4c-f356dff51810',NULL,E'2023-05-24 13:48:23.93561',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',NULL,1,E'normal'),
             (E'74a06881-7742-4d4a-85ff-b91ae71e1bcd',E'CYPRESS_TEAM_KEY',E'IjYxZjhhYzU3LTNlZGEtNDE3MS1iMDcyLTJjNTY0OWEzODI4ZSI.p6K5JNnYp6Pcn3OEQg1kDM1UHAY',E'4049c2d0-0cab-455c-8f4c-f356dff51810',NULL,E'2023-07-10 16:43:19.425995',E'3f478896-6d3f-4ef3-aa5a-530fea1206bb',NULL,1,E'team');
         """
-        
+        insert_reply_tos = """
+            INSERT INTO "public"."service_email_reply_to"("id","service_id","email_address","is_default","created_at","updated_at","archived")
+            VALUES
+            (E'1bc45a34-f4de-4635-b36f-7da2e2d248ed',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'andrew.leith+testing@cds-snc.ca',TRUE,E'2023-07-10 16:41:25.562693',NULL,FALSE),
+            (E'aaa58593-fc0a-46b0-82b8-b303ae662a41',E'4049c2d0-0cab-455c-8f4c-f356dff51810',E'andrew.leith+testing_second_reply@cds-snc.ca',FALSE,E'2023-07-10 16:42:30.376411',NULL,FALSE);
+        """
         conn.execute(sa.text(insert_user))
         conn.execute(sa.text(insert_org))
         conn.execute(sa.text(insert_service))
@@ -80,3 +85,4 @@ with engine.connect() as conn:
         conn.execute(sa.text(insert_user_to_service))
         conn.execute(sa.text(insert_templates))
         conn.execute(sa.text(insert_api_keys))
+        conn.execute(sa.text(insert_reply_tos))
