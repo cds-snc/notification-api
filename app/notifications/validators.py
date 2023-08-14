@@ -318,6 +318,7 @@ def send_near_email_limit_email(service: Service) -> None:
     Send an email to service users when nearing the daily email limit.
 
     """
+    limit_reset_time_et = get_limit_reset_time_et()
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID"],
@@ -326,6 +327,8 @@ def send_near_email_limit_email(service: Service) -> None:
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.message_limit),
             "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
+            "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
+            "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
         include_user_fields=["name"],
     )
@@ -350,6 +353,7 @@ def send_sms_limit_reached_email(service: Service):
 
 
 def send_email_limit_reached_email(service: Service):
+    limit_reset_time_et = get_limit_reset_time_et()
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID"],
@@ -358,6 +362,8 @@ def send_email_limit_reached_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.message_limit),
             "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
+            "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
+            "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
         include_user_fields=["name"],
     )

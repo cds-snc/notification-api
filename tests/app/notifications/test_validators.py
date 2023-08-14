@@ -226,7 +226,7 @@ class TestCheckDailySMSEmailLimits:
                 call(count_key(limit_type, service.id)),
                 call(near_key(limit_type, service.id)),
             ]
-            kwargs = {"limit_reset_time_et_12hr": "7PM", "limit_reset_time_et_24hr": "19"} if limit_type == "sms" else {}
+            kwargs = {"limit_reset_time_et_12hr": "7PM", "limit_reset_time_et_24hr": "19"}
             send_notification.assert_called_once_with(
                 service_id=service.id,
                 template_id=current_app.config[template_name],
