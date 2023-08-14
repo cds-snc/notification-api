@@ -1193,11 +1193,11 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         if process_type == "priority":
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=f"send-sms-high"
+                [str(persisted_notification.id)], queue="send-sms-high"
             )
         else:
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=f"send-sms-low"
+                [str(persisted_notification.id)], queue="send-sms-low"
             )
         assert mocked_deliver_sms.called
 
