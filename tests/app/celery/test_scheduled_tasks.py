@@ -184,7 +184,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
     send_scheduled_notifications()
 
-    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue="send-sms-tasks")
+    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue="send-sms-medium")
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
 
@@ -364,7 +364,7 @@ def test_replay_created_notifications(notify_db_session, sample_service, mocker)
 
     replay_created_notifications()
     email_delivery_queue.assert_called_once_with([str(old_email.id)], queue="send-email-tasks")
-    sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue="send-sms-tasks")
+    sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue="send-sms-medium")
 
 
 def test_check_job_status_task_does_not_raise_error(sample_template):

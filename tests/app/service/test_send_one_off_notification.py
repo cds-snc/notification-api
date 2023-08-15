@@ -190,11 +190,11 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
 
 
 @pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority"), ("bulk", "normal"), ("normal", "normal")])
-def test_send_one_off_notification_honors_process_type(
+def test_send_one_off_email_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
     service = create_service()
-    template = create_template(service=service)
+    template = create_template(service=service, template_type=EMAIL_TYPE)
     template.process_type = process_type
 
     post_data = {
@@ -206,6 +206,27 @@ def test_send_one_off_notification_honors_process_type(
     send_one_off_notification(service.id, post_data)
 
     assert celery_mock.call_args[1]["queue"] == f"{expected_queue}-tasks"
+
+
+@pytest.mark.parametrize(
+    "process_type, expected_queue", [("priority", "semd-sms-high"), ("bulk", "send-sms-medium"), ("normal", "send-sms-medium")]
+)
+def test_send_one_off_sms_notification_honors_process_type(
+    notify_db_session, persist_mock, celery_mock, process_type, expected_queue
+):
+    service = create_service()
+    template = create_template(service=service, template_type=EMAIL_TYPE)
+    template.process_type = process_type
+
+    post_data = {
+        "template_id": str(template.id),
+        "to": "6502532222",
+        "created_by": str(service.created_by_id),
+    }
+
+    send_one_off_notification(service.id, post_data)
+
+    assert celery_mock.call_args[1]["queue"] == expected_queue
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session):

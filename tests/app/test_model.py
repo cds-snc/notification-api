@@ -370,15 +370,18 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
 
 
 @pytest.mark.parametrize(
-    "process_type, expected_queue",
+    "template_type, process_type, expected_queue",
     [
-        ("normal", "normal-tasks"),
-        ("priority", "priority-tasks"),
-        ("bulk", "bulk-tasks"),
+        (SMS_TYPE, "normal", "send-sms-medium"),
+        (SMS_TYPE, "priority", "send-sms-high"),
+        (SMS_TYPE, "bulk", "send-sms-low"),
+        (EMAIL_TYPE, "normal", "send-email-task"),
+        (EMAIL_TYPE, "priority", "priority-tasks"),
+        (EMAIL_TYPE, "bulk", "bulk-tasks"),
     ],
 )
-def test_template_queue_to_use(sample_service, process_type, expected_queue):
-    template = create_template(sample_service, process_type=process_type)
+def test_template_queue_to_use(sample_service, template_type, process_type, expected_queue):
+    template = create_template(sample_service, process_type=process_type, template_type=template_type)
     assert template.queue_to_use() == expected_queue
 
 

@@ -232,7 +232,7 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
         if notification.sends_with_custom_number():
             queue = QueueNames.SEND_THROTTLED_SMS
         if not queue:
-            queue = QueueNames.SEND_SMS
+            queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
             queue = QueueNames.SEND_EMAIL

@@ -599,7 +599,7 @@ class TestSendNotificationQueue:
         )
         with pytest.raises(Boto3Error):
             send_notification_to_queue(sample_notification, False)
-        mocked.assert_called_once_with([(str(sample_notification.id))], queue="send-sms-tasks")
+        mocked.assert_called_once_with([(str(sample_notification.id))], queue="send-sms-medium")
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -675,9 +675,9 @@ class TestChooseQueue:
                 "+14383898585",
                 "send-throttled-sms-tasks",
             ),
-            (False, None, "sms", "normal", None, "send-sms-tasks"),
+            (False, None, "sms", "normal", None, "send-sms-medium"),
             (False, None, "email", "normal", None, "send-email-tasks"),
-            (False, None, "sms", "team", None, "send-sms-tasks"),
+            (False, None, "sms", "team", None, "send-sms-medium"),
             (
                 False,
                 None,
@@ -973,9 +973,9 @@ class TestDBSaveAndSendNotification:
                 "send-throttled-sms-tasks",
                 "deliver_throttled_sms",
             ),
-            ("sms", "normal", None, "send-sms-tasks", "deliver_sms"),
+            ("sms", "normal", None, "send-sms-medium", "deliver_sms"),
             ("email", "normal", None, "send-email-tasks", "deliver_email"),
-            ("sms", "team", None, "send-sms-tasks", "deliver_sms"),
+            ("sms", "team", None, "send-sms-medium", "deliver_sms"),
             ("sms", "test", None, "research-mode-tasks", "deliver_sms"),
             (
                 "sms",
@@ -1074,12 +1074,12 @@ class TestDBSaveAndSendNotification:
             reply_to_text=sample_template.service.get_default_sms_sender(),
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-            queue_name="send-sms-tasks",
+            queue_name="send-sms-medium",
         )
 
         with pytest.raises(Boto3Error):
             db_save_and_send_notification(notification)
-        mocked.assert_called_once_with([(str(notification.id))], queue="send-sms-tasks")
+        mocked.assert_called_once_with([(str(notification.id))], queue="send-sms-medium")
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
