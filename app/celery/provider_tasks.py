@@ -52,9 +52,9 @@ def deliver_sms(self, notification_id, sms_sender_id=None):
         )
         notification = notifications_dao.get_notification_by_id(notification_id)
         check_and_queue_callback_task(notification)
-    except NullValueForNonConditionalPlaceholderException:
-        msg = handle_non_retryable(notification_id, 'deliver_sms')
-        raise NotificationTechnicalFailureException(msg)
+    except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
+        handle_non_retryable(notification_id, 'deliver_sms')
+        raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception(
             "SMS delivery for notification id: %s failed", notification_id
@@ -110,9 +110,9 @@ def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
         )
 
         self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=retry_time)
-    except NullValueForNonConditionalPlaceholderException:
-        msg = handle_non_retryable(notification_id, 'deliver_sms_with_rate_limiting')
-        raise NotificationTechnicalFailureException(msg)
+    except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
+        handle_non_retryable(notification_id, 'deliver_sms_with_rate_limiting')
+        raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception(
             "Rate Limit SMS notification delivery for id: %s failed", notification_id
@@ -162,9 +162,9 @@ def deliver_email(self, notification_id: str, sms_sender_id=None):
             status_reason="Email provider configuration invalid"
         )
         raise NotificationTechnicalFailureException(str(e))
-    except NullValueForNonConditionalPlaceholderException:
-        msg = handle_non_retryable(notification_id, 'deliver_email')
-        raise NotificationTechnicalFailureException(msg)
+    except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
+        handle_non_retryable(notification_id, 'deliver_email')
+        raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception(
             "Email delivery for notification id: %s failed", notification_id
