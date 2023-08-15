@@ -321,7 +321,7 @@ def test_should_allow_valid_sms_notification(notify_api, sample_template, mocker
             response_data = json.loads(response.data)["data"]
             notification_id = response_data["notification"]["id"]
 
-            mocked.assert_called_once_with([notification_id], queue="send-sms-tasks")
+            mocked.assert_called_once_with([notification_id], queue="send-sms-medium")
             assert response.status_code == 201
             assert notification_id
             assert "subject" not in response_data
@@ -653,13 +653,13 @@ def test_should_send_sms_if_team_api_key_and_a_service_user(client, sample_templ
         ],
     )
 
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with([fake_uuid], queue="send-sms-tasks")
+    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with([fake_uuid], queue="send-sms-medium")
     assert response.status_code == 201
 
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, "send-sms-tasks"), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, "send-sms-medium"), (EMAIL_TYPE, "send-email-tasks")],
 )
 def test_should_persist_notification(
     client,
@@ -709,7 +709,7 @@ def test_should_persist_notification(
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, "send-sms-tasks"), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, "send-sms-medium"), (EMAIL_TYPE, "send-email-tasks")],
 )
 def test_should_delete_notification_and_return_error_if_sqs_fails(
     client,
@@ -1076,7 +1076,7 @@ def test_should_allow_store_original_number_on_sms_notification(client, sample_t
     response_data = json.loads(response.data)["data"]
     notification_id = response_data["notification"]["id"]
 
-    mocked.assert_called_once_with([notification_id], queue="send-sms-tasks")
+    mocked.assert_called_once_with([notification_id], queue="send-sms-medium")
     assert response.status_code == 201
     assert notification_id
     notifications = Notification.query.all()

@@ -495,9 +495,9 @@ class TestSendNotificationQueue:
                 "send-throttled-sms-tasks",
                 "deliver_throttled_sms",
             ),
-            (False, None, "sms", "normal", None, "send-sms-tasks", "deliver_sms"),
+            (False, None, "sms", "normal", None, "send-sms-medium", "deliver_sms"),
             (False, None, "email", "normal", None, "send-email-tasks", "deliver_email"),
-            (False, None, "sms", "team", None, "send-sms-tasks", "deliver_sms"),
+            (False, None, "sms", "team", None, "send-sms-medium", "deliver_sms"),
             (
                 False,
                 None,
