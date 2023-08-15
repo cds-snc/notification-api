@@ -117,7 +117,7 @@ def send_one_off_notification(service_id, post_data):
             queue = QueueNames.SEND_SMS_MEDIUM
         elif template.template_type == EMAIL_TYPE and queue == QueueNames.BULK:
             queue = QueueNames.NORMAL
-            
+
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,

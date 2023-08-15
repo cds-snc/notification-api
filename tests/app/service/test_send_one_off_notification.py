@@ -189,7 +189,9 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     assert celery_mock.call_args[1]["research_mode"] is True
 
 
-@pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority-tasks"), ("bulk", "normal-tasks"), ("normal", "normal-tasks")])
+@pytest.mark.parametrize(
+    "process_type, expected_queue", [("priority", "priority-tasks"), ("bulk", "normal-tasks"), ("normal", "normal-tasks")]
+)
 def test_send_one_off_email_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
