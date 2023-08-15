@@ -1196,9 +1196,7 @@ class TestSaveSmss:
                 [str(persisted_notification.id)], queue="send-sms-high"
             )
         else:
-            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue="send-sms-low"
-            )
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-low")
         assert mocked_deliver_sms.called
 
     def test_should_route_save_sms_task_to_bulk_on_large_csv_file(self, notify_db, notify_db_session, mocker):
