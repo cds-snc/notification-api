@@ -10,6 +10,7 @@ services:
       - TWILIO_ACCOUNT_SID=
       - TWILIO_AUTH_TOKEN=
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
+      - SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db:5432/notification_api
       - NOTIFY_ENVIRONMENT=development
       - FLASK_APP=application.py
     depends_on:
@@ -30,6 +31,7 @@ services:
       - TWILIO_ACCOUNT_SID=
       - TWILIO_AUTH_TOKEN=
       - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
+      - SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db:5432/notification_api
       - NOTIFY_ENVIRONMENT=development
       - FLASK_APP=application.py
     depends_on:

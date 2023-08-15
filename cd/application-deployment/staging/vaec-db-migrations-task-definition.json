@@ -46,6 +46,10 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/database/uri"
         },
         {
+          "name": "SQLALCHEMY_DATABASE_URI_READ",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/database/uri_read"
+        },
+        {
           "name": "SECRET_KEY",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/secret-key"
         }

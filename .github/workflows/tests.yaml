@@ -52,6 +52,7 @@ jobs:
           NOTIFY_ENVIRONMENT: test
           RETRY_SQS_URL: RETRY_SQS_URL
           SQLALCHEMY_DATABASE_URI: postgresql://postgres:postgres@localhost/test_notification_api
+          SQLALCHEMY_DATABASE_URI_READ: postgresql://postgres:postgres@localhost/test_notification_api
           TIMEOUT: 10
           VA_PROFILE_DOMAIN: int.vaprofile.va.gov
           VETEXT_API_AUTH_SSM_PATH: test

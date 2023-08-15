@@ -6,7 +6,7 @@ from datetime import datetime
 from flask_jwt_extended import create_access_token
 from jwt import ExpiredSignatureError
 
-from app.dao.services_dao import dao_add_user_to_service
+from app.dao.services_dao import dao_add_user_to_service, dao_update_service
 from tests.app.db import create_user, create_service
 from tests.conftest import set_config_values
 
@@ -16,7 +16,8 @@ from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
 from app import api_user
-from app.dao.api_key_dao import get_unsigned_secrets, save_model_api_key, get_unsigned_secret, expire_api_key
+from app.dao.api_key_dao import get_unsigned_secrets,\
+    save_model_api_key, get_unsigned_secret, expire_api_key
 from app.models import ApiKey, KEY_TYPE_NORMAL, PERMISSION_LIST, Permission
 from app.authentication.auth import AuthError, validate_admin_auth, validate_service_api_key_auth, \
     requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
@@ -278,8 +279,10 @@ def test_authentication_returns_error_when_service_doesnt_exit(
 
 def test_authentication_returns_error_when_service_inactive(client, sample_api_key):
     sample_api_key.service.active = False
-    token = create_jwt_token(secret=str(sample_api_key.id), client_id=str(sample_api_key.service_id))
+    # we now need to save the model because we'll read using read-db engine
+    dao_update_service(sample_api_key.service)
 
+    token = create_jwt_token(secret=str(sample_api_key.secret), client_id=str(sample_api_key.service_id))
     response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
 
     assert response.status_code == 403
@@ -301,21 +304,23 @@ def test_authentication_returns_error_when_service_has_no_secrets(client,
     assert exc.value.service_id == sample_service.id
 
 
-def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_service, sample_api_key):
+def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_service_data_api_key):
     with notify_api.test_request_context(), notify_api.test_client() as client:
-        token = __create_token(sample_api_key.service_id)
+        _key = sample_service_data_api_key
+        token = create_jwt_token(secret=_key.secret, client_id=str(_key.service_id))
         response = client.get(
             '/notifications',
             headers={'Authorization': 'Bearer {}'.format(token)}
         )
         assert response.status_code == 200
-        assert api_user == sample_api_key
+        # api_user is an api key assigned globally after a service is authenticated
+        assert api_user == _key
 
 
 def test_should_return_403_when_token_is_expired(client,
                                                  sample_api_key):
     with freeze_time('2001-01-01T12:00:00'):
-        token = __create_token(sample_api_key.service_id)
+        token = create_jwt_token(secret=sample_api_key.secret, client_id=str(sample_api_key.service_id))
     with freeze_time('2001-01-01T12:00:40'):
         with pytest.raises(AuthError) as exc:
             request.headers = {'Authorization': 'Bearer {}'.format(token)}
