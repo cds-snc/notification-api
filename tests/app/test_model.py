@@ -375,7 +375,7 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
         (SMS_TYPE, "normal", "send-sms-medium"),
         (SMS_TYPE, "priority", "send-sms-high"),
         (SMS_TYPE, "bulk", "send-sms-low"),
-        (EMAIL_TYPE, "normal", "send-email-task"),
+        (EMAIL_TYPE, "normal", "normal-tasks"),
         (EMAIL_TYPE, "priority", "priority-tasks"),
         (EMAIL_TYPE, "bulk", "bulk-tasks"),
     ],

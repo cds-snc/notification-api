@@ -111,11 +111,17 @@ def send_one_off_notification(service_id, post_data):
             NOTIFICATION_DELIVERED,
         )
     else:
+        # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
+        queue = template.queue_to_use()
+        if template.template_type == SMS_TYPE and queue == QueueNames.SEND_SMS_LOW:
+            queue = QueueNames.SEND_SMS_MEDIUM
+        elif template.template_type == EMAIL_TYPE and queue == QueueNames.BULK:
+            queue = QueueNames.NORMAL
+            
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
-            # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
-            queue=QueueNames.NORMAL if template.queue_to_use() == QueueNames.BULK else template.queue_to_use(),
+            queue=queue,
         )
 
     return {"id": str(notification.id)}

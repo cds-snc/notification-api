@@ -1024,7 +1024,11 @@ def test_send_notification_uses_appropriate_queue_when_template_has_process_type
     notification_id = response_data["notification"]["id"]
 
     assert response.status_code == 201
-    mocked.assert_called_once_with([notification_id], queue=f"{process_type}-tasks")
+    if notification_type == SMS_TYPE:
+        expected_queue = "send-sms-high" if process_type == "priority" else "send-sms-low"
+    else:
+        expected_queue = f"{process_type}-tasks"
+    mocked.assert_called_once_with([notification_id], queue=expected_queue)
 
 
 @pytest.mark.parametrize("notification_type, send_to", [("sms", "6502532222"), ("email", "sample@email.com")])

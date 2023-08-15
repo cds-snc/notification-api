@@ -60,7 +60,7 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
 
     assert resp == {"id": str(persist_mock.return_value.id)}
 
-    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue="send-sms-medium")
 
 
 def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock, celery_mock, notify_db_session):
@@ -189,7 +189,7 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     assert celery_mock.call_args[1]["research_mode"] is True
 
 
-@pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority"), ("bulk", "normal"), ("normal", "normal")])
+@pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority-tasks"), ("bulk", "normal-tasks"), ("normal", "normal-tasks")])
 def test_send_one_off_email_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
@@ -199,23 +199,23 @@ def test_send_one_off_email_notification_honors_process_type(
 
     post_data = {
         "template_id": str(template.id),
-        "to": "6502532222",
+        "to": "test@test.com",
         "created_by": str(service.created_by_id),
     }
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]["queue"] == f"{expected_queue}-tasks"
+    assert celery_mock.call_args[1]["queue"] == expected_queue
 
 
 @pytest.mark.parametrize(
-    "process_type, expected_queue", [("priority", "semd-sms-high"), ("bulk", "send-sms-medium"), ("normal", "send-sms-medium")]
+    "process_type, expected_queue", [("priority", "send-sms-high"), ("bulk", "send-sms-medium"), ("normal", "send-sms-medium")]
 )
 def test_send_one_off_sms_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
     service = create_service()
-    template = create_template(service=service, template_type=EMAIL_TYPE)
+    template = create_template(service=service, template_type=SMS_TYPE)
     template.process_type = process_type
 
     post_data = {
@@ -426,7 +426,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="send-sms-medium")
 
     assert notification.reply_to_text == "+16502532222"
 
@@ -444,7 +444,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="send-sms-medium")
 
     assert notification.reply_to_text == "+16502532222"
 
