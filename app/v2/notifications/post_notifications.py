@@ -72,6 +72,7 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.notifications.validators import (
+    check_email_limit_increment_redis_send_warnings_if_needed,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
@@ -159,7 +160,6 @@ def post_bulk():
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
-    check_sms_limit = current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
     if bounce_rate_v1 and epoch_seeding_bounce:
@@ -172,7 +172,7 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    if template.template_type == SMS_TYPE and check_sms_limit:
+    if template.template_type == SMS_TYPE:
         fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
         remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
     else:
@@ -213,6 +213,9 @@ def post_bulk():
             )
             raise BadRequestError(message=message)
 
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
@@ -231,7 +234,7 @@ def post_bulk():
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
-    return jsonify(data=job_schema.dump(job).data), 201
+    return jsonify(data=job_schema.dump(job)), 201
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
@@ -273,6 +276,9 @@ def post_notification(notification_type: NotificationType):
         authenticated_service,
         notification_type,
     )
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
@@ -683,13 +689,8 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Some rows have errors. {errors}.",
                 status_code=400,
             )
-        # TODO:
-        # - right now there are no other errors in RecipientCSV so this else is not needed
-        # - if FF_SPIKE_SMS_DAILY_LIMIT is false we do not want to throw this error if only more_sms_rows_than_can_send is set
-        # - after the FF is turned on / removed, we will restore this else
-        #
-        # else:
-        #     raise NotImplementedError("Got errors but code did not handle")
+        else:
+            raise NotImplementedError("Got errors but code did not handle")
 
 
 def create_bulk_job(service, api_key, template, form, recipient_csv):
@@ -712,7 +713,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         data["job_status"] = JOB_STATUS_SCHEDULED
         data["scheduled_for"] = form.get("scheduled_for")
 
-    job = job_schema.load(data).data
+    job = job_schema.load(data)
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:

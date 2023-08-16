@@ -23,7 +23,6 @@ def fetch_todays_email_count(service_id: UUID) -> int:
 def increment_todays_email_count(service_id: UUID, increment_by: int) -> None:
     if not current_app.config["REDIS_ENABLED"]:
         return
-
     fetch_todays_email_count(service_id)  # to make sure it's set in redis
     cache_key = email_daily_count_cache_key(service_id)
     redis_store.incrby(cache_key, increment_by)

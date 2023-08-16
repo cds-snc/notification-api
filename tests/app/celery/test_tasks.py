@@ -1114,8 +1114,8 @@ class TestSaveSmss:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
-        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
@@ -1272,14 +1272,15 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "12345"
 
-    def test_should_save_sms_template_to_and_persist_with_job_id(self, sample_job, mocker):
+    def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1494,8 +1495,8 @@ class TestSaveEmails:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
-        json_template_date = {"data": template_schema.dump(sample_template).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
@@ -1610,7 +1611,9 @@ class TestSaveEmails:
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
 
-    def test_should_use_email_template_and_persist(self, sample_email_template_with_placeholders, sample_api_key, mocker):
+    def test_should_use_email_template_and_persist(
+        self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
+    ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
@@ -1626,9 +1629,10 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            save_emails(
-                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-            )
+            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+                save_emails(
+                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+                )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"

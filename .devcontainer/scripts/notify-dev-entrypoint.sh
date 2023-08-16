@@ -49,3 +49,6 @@ poetry install
 
 # Upgrade schema of the notification_api database.
 poetry run flask db upgrade
+
+# install npm deps (i.e. cypress)
+cd tests_cypress && npm install && npx cypress install && cd ..
