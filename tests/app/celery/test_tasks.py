@@ -938,7 +938,7 @@ class TestProcessRows:
             (1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
         ],
     )
-    def test_should_redirect_job_to_queue_depending_on_csv_threshold(
+    def test_should_redirect_email_job_to_queue_depending_on_csv_threshold(
         self,
         notify_api,
         sample_job,
@@ -971,6 +971,50 @@ class TestProcessRows:
         notification = signer_notification.verify(signed_notification)
         assert expected_queue == notification.get("queue")
 
+    @pytest.mark.parametrize(
+        "csv_bulk_threshold, template_process_type, expected_queue",
+        [
+            (1_000, PRIORITY, "send-sms-high"),  # keep priority when no thresholds are met
+            (1, PRIORITY, "send-sms-low"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, "send-sms-low"),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, "send-sms-medium"),  # keep normal priority
+            (1, BULK, "send-sms-low"),  # keep bulk priority
+            (1_000, BULK, "send-sms-medium"),  # autoswitch to normal queue if normal threshold is met.
+        ],
+    )
+    def test_should_redirect_sms_job_to_queue_depending_on_csv_threshold(
+        self,
+        notify_api,
+        sample_job,
+        mocker,
+        fake_uuid,
+        csv_bulk_threshold,
+        template_process_type,
+        expected_queue,
+    ):
+        mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
+
+        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
+        job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
+        service = Mock(id=1, research_mode=False)
+
+        row = next(
+            RecipientCSV(
+                load_example_csv("sms"),
+                template_type=SMS_TYPE,
+            ).get_rows()
+        )
+
+        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold}):
+            process_rows([row], template, job, service)
+
+        tasks.save_smss.apply_async.assert_called_once()
+        args = mock_save_sms.method_calls[0].args
+        signed_notification = [i for i in args[0]][1][0]
+        notification = signer_notification.verify(signed_notification)
+        assert expected_queue == notification.get("queue")
+        
     def test_should_not_save_sms_if_restricted_service_and_invalid_number(self, notify_db_session, mocker):
         user = create_user(mobile_number="6502532222")
         service = create_service(user=user, restricted=True)
