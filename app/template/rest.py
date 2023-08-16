@@ -161,13 +161,28 @@ def update_template(service_id, template_id):
     if _template_has_not_changed(current_data, updated_template):
         return jsonify(data=updated_template), 200
 
-    over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
-    if over_limit:
+    content_over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
+    name_over_limit = _template_name_over_char_limit(
+        updated_template["name"], updated_template["content"], fetched_template.template_type
+    )
+    if content_over_limit:
         char_limit = SMS_CHAR_COUNT_LIMIT if fetched_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
         message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
         current_app.logger.warning(
             {"error": f"{fetched_template.template_type}_char_count_exceeded", "message": message, "template_id": template_id}
+        )
+        raise InvalidRequest(errors, status_code=400)
+
+    if name_over_limit:
+        message = "Template name must be less than {} characters".format(TEMPLATE_NAME_CHAR_COUNT_LIMIT)
+        errors = {"name": [message]}
+        current_app.logger.warning(
+            {
+                "error": f"{fetched_template.template_type}_name_char_count_exceeded",
+                "message": message,
+                "template_id": template_id,
+            }
         )
         raise InvalidRequest(errors, status_code=400)
 

@@ -679,7 +679,40 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
 @pytest.mark.parametrize(
     "template_type, char_count_limit", [(SMS_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT), (EMAIL_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT)]
 )
-def test_create_400_for_over_limit_name(client, sample_user, sample_service, template_type, char_count_limit):
+def test_update_template_400_for_over_limit_name(
+    client, mocker, sample_user, sample_service, sample_template, template_type, char_count_limit
+):
+    mocked_update_template = mocker.patch("app.dao.templates_dao.dao_update_template")
+    name = "x" * (char_count_limit + 1)
+    template_data = {
+        "id": str(sample_template.id),
+        "name": name,
+        "template_type": template_type,
+        "content": "some content here :)",
+        "service": str(sample_service.id),
+        "created_by": str(sample_user.id),
+    }
+    if template_type == EMAIL_TYPE:
+        template_data.update({"subject": "subject"})
+    request_data = json.dumps(template_data)
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        "/service/{}/template/{}".format(sample_service.id, sample_template.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+        data=request_data,
+    )
+    assert response.status_code == 400
+    json_response = json.loads(response.get_data(as_text=True))
+    assert (f"Template name must be less than {char_count_limit} characters") in json_response["message"]["name"]
+    mocked_update_template.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "template_type, char_count_limit", [(SMS_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT), (EMAIL_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT)]
+)
+def test_create_template_400_for_over_limit_name(client, mocker, sample_user, sample_service, template_type, char_count_limit):
+    mocked_update_template = mocker.patch("app.dao.templates_dao.dao_create_template")
     name = "x" * (char_count_limit + 1)
     template_data = {
         "name": name,
@@ -701,6 +734,7 @@ def test_create_400_for_over_limit_name(client, sample_user, sample_service, tem
     assert response.status_code == 400
     json_response = json.loads(response.get_data(as_text=True))
     assert (f"Template name must be less than {char_count_limit} characters") in json_response["message"]["name"]
+    mocked_update_template.assert_not_called()
 
 
 @pytest.mark.parametrize(
