@@ -1,6 +1,4 @@
 from flask import current_app
-from notifications_utils.statsd_decorators import statsd
-
 from app import notify_celery, va_profile_client
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
@@ -10,6 +8,8 @@ from app.dao.notifications_dao import get_notification_by_id, dao_update_notific
 from app.models import NOTIFICATION_PERMANENT_FAILURE, EMAIL_TYPE, SMS_TYPE
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.va.va_profile.exceptions import VAProfileIDNotFoundException
+from notifications_utils.statsd_decorators import statsd
+from requests import Timeout
 
 
 @notify_celery.task(bind=True, name="lookup-contact-info-tasks",
@@ -34,10 +34,10 @@ def lookup_contact_info(self, notification_id):
                 f"The task lookup_contact_info failed for notification {notification_id}. "
                 f"{notification.notification_type} is not supported")
 
-    except VAProfileRetryableException as e:
+    except (Timeout, VAProfileRetryableException) as e:
         if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning("Unable to get contact info for notification id: %s, retrying", notification_id)
-            raise AutoRetryException('Found VAProfileRetryableException, autoretrying...', e, e.args)
+            raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
             msg = handle_max_retries_exceeded(notification_id, 'lookup_contact_info')
             raise NotificationTechnicalFailureException(msg)

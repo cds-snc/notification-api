@@ -31,6 +31,10 @@ def deliver_sms(self, notification_id, sms_sender_id=None):
             # Distributed computing race condition
             current_app.logger.warning("Notification not found for: %s, retrying", notification_id)
             raise AutoRetryException
+        if not notification.to:
+            raise RuntimeError(
+                f'The "to" field was not set for notification {notification_id}.  This is a programming error.'
+            )
         send_to_providers.send_sms_to_provider(notification, sms_sender_id)
         current_app.logger.info("Successfully sent sms for notification id: %s", notification_id)
     except InvalidProviderException as e:
@@ -78,6 +82,10 @@ def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
         if not notification:
             current_app.logger.warning("Notification not found for: %s, retrying", notification_id)
             raise AutoRetryException
+        if not notification.to:
+            raise RuntimeError(
+                f'The "to" field was not set for notification {notification_id}.  This is a programming error.'
+            )
         sms_sender = dao_get_service_sms_sender_by_service_id_and_number(notification.service_id,
                                                                          notification.reply_to_text)
         check_sms_sender_over_rate_limit(notification.service_id, sms_sender.id)
@@ -139,6 +147,10 @@ def deliver_email(self, notification_id: str, sms_sender_id=None):
         if not notification:
             current_app.logger.warning("Notification not found for: %s, retrying", notification_id)
             raise AutoRetryException
+        if not notification.to:
+            raise RuntimeError(
+                f'The "to" field was not set for notification {notification_id}.  This is a programming error.'
+            )
         send_to_providers.send_email_to_provider(notification)
         current_app.logger.info("Successfully sent email for notification id: %s", notification_id)
     except InvalidEmailError as e:

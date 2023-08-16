@@ -245,8 +245,6 @@ fileignoreconfig:
       checksum: efce5afc3015a7bdcae7e027da762acf1fefe782b30a5a92855b253cad6c3050
     - filename: requirements.txt
       checksum: 0cf734d45d6941fdc317a23c6490ed4ce92194bc02adecb52e5edff5bb5442f8
-    - filename: app/va/va_profile/va_profile_client.py
-      checksum: 2942cb80f53433d4c129c2fbd43ba7b28f252d2daf30ad2c93bf8255d3d1e179
     - filename: ci/.docker-env.example
       checksum: 7bc7fefe2e93aab23fae65dc41683255bdabd0a07af9e0154c046592567d914c
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
@@ -262,7 +260,7 @@ fileignoreconfig:
     - filename: cd/application-deployment/perf/vaec-celery-beat-task-definition.json
       checksum: fb096cd80adb5cc7916a504aac7b9657d1b5318f27479edc9a8e6b69ed3c4e9c
     - filename: app/va/va_profile/va_profile_client.py
-      checksum: 92ae208ffa16b46c91e959911b811d8fc82d274434dffc6e784f2c85682729f7
+      checksum: be53471b99e1e1e579f680f9076365170d5ca6951e32dd9f0153c2769198e8cd
     - filename: tests/app/oauth/test_rest.py
       checksum: 33abe86bb9eb4f135c7df41d7bc990258e9e368120f2088f199135462a342734
     - filename: tests/app/notifications/test_rest.py

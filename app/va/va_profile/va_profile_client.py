@@ -41,7 +41,12 @@ class VAProfileClient:
         self.ssl_key_path = ssl_key_path
         self.statsd_client = statsd_client
 
-    def get_email(self, va_profile_id):
+    def get_email(self, va_profile_id) -> str:
+        """
+        Return the e-mail address for a given Profile ID, or raise NoContactInfoException.
+        Upstream code should catch and appropriately handle the requests.Timeout exception.
+        """
+
         if is_fhir_format(va_profile_id):
             va_profile_id = transform_from_fhir_format(va_profile_id)
 
@@ -51,12 +56,31 @@ class VAProfileClient:
         )
         response = self._make_request(url, va_profile_id, self.EMAIL_BIO_TYPE)
 
-        most_recently_created_bio = self._get_most_recently_created_email_bio(response, va_profile_id)
-        email = most_recently_created_bio['emailAddressText']
-        self.statsd_client.incr("clients.va-profile.get-email.success")
-        return email
+        try:
+            sorted_bios = sorted(
+                response['bios'],
+                key=lambda bio: iso8601.parse_date(bio['createDate']),
+                reverse=True
+            )
+            if sorted_bios:
+                if sorted_bios[0].get("emailAddressText"):
+                    # The e-mail address attribute is present and not the empty string.
+                    self.statsd_client.incr("clients.va-profile.get-email.success")
+                # This is intentionally allowed to raise KeyError so the problem is logged below.
+                return sorted_bios[0]["emailAddressText"]
+        except KeyError as e:
+            self.logger.error("Received a garbled response from VA Profile for ID %s.", va_profile_id)
+            self.logger.exception(e)
 
-    def get_telephone(self, va_profile_id):
+        self.statsd_client.incr("clients.va-profile.get-email.failure")
+        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
+
+    def get_telephone(self, va_profile_id) -> str:
+        """
+        Return the phone number for a given Profile ID, or raise NoContactInfoException.
+        Upstream code should catch and appropriately handle the requests.Timeout exception.
+        """
+
         if is_fhir_format(va_profile_id):
             va_profile_id = transform_from_fhir_format(va_profile_id)
 
@@ -66,12 +90,27 @@ class VAProfileClient:
         )
         response = self._make_request(url, va_profile_id, self.PHONE_BIO_TYPE)
 
-        most_recently_created_bio = self._get_highest_order_phone_bio(response, va_profile_id)
-        phone_number = f"+{most_recently_created_bio['countryCode']}" \
-                       f"{most_recently_created_bio['areaCode']}" \
-                       f"{most_recently_created_bio['phoneNumber']}"
-        self.statsd_client.incr("clients.va-profile.get-telephone.success")
-        return phone_number
+        try:
+            # First sort by phone type and then by create date.  Since reverse order is used,
+            # potential MOBILE bios will end up before HOME.
+            sorted_bios = sorted(
+                (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
+                key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
+                reverse=True
+            )
+            if sorted_bios:
+                if sorted_bios[0].get("countryCode") and sorted_bios[0].get("areaCode") and \
+                        sorted_bios[0].get("phoneNumber"):
+                    # The required attributes are present and not empty strings.
+                    self.statsd_client.incr("clients.va-profile.get-telephone.success")
+                # This is intentionally allowed to raise KeyError so the problem is logged below.
+                return '+' + sorted_bios[0]["countryCode"] + sorted_bios[0]["areaCode"] + sorted_bios[0]["phoneNumber"]
+        except KeyError as e:
+            self.logger.error("Received a garbled response from VA Profile for ID %s.", va_profile_id)
+            self.logger.exception(e)
+
+        self.statsd_client.incr("clients.va-profile.get-telephone.failure")
+        self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def get_is_communication_allowed(
             self, recipient_identifier, communication_item_id: str, notification_id: str, notification_type: str
@@ -166,6 +205,10 @@ class VAProfileClient:
 
             raise exception from e
 
+        except requests.Timeout:
+            self.logger.error("The request to VA Profile timed out for VA Profile ID %s.", va_profile_id)
+            raise
+
         else:
             response_json = response.json()
             response_status = response_json['status']
@@ -183,32 +226,6 @@ class VAProfileClient:
         finally:
             elapsed_time = monotonic() - start_time
             self.statsd_client.timing("clients.va-profile.request-time", elapsed_time)
-
-    def _get_most_recently_created_email_bio(self, response, va_profile_id):
-        sorted_bios = None
-        if 'bios' in response:
-            sorted_bios = sorted(
-                response['bios'],
-                key=lambda bio: iso8601.parse_date(bio['createDate']),
-                reverse=True
-            )
-        if sorted_bios:
-            return sorted_bios[0]
-        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
-
-    def _get_highest_order_phone_bio(self, response, va_profile_id):
-        # First sort by phone type and then by create date
-        # since reverse order is used, potential MOBILE bios will end up before HOME
-        sorted_bios = None
-        if 'bios' in response:
-            sorted_bios = sorted(
-                (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
-                key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
-                reverse=True
-            )
-        if sorted_bios:
-            return sorted_bios[0]
-        self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def _raise_no_contact_info_exception(self, bio_type: str, va_profile_id: str, tx_audit_id: str):
         self.statsd_client.incr(f"clients.va-profile.get-{bio_type}.no-{bio_type}")
