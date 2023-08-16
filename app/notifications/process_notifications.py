@@ -283,7 +283,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         raise
 
     current_app.logger.info(
-        "{} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
+        "------ ---- {} {} sent to the {} queue for delivery".format(notification.notification_type, notification.id, queue)
     )
     # TODO: once we've cleaned up all the unused code paths and ensured that this warning never occurs we can delete
     # the warning as well as the above calculation of queue.

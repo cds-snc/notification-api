@@ -697,19 +697,19 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     queue: Optional[str] = process_type
 
     if notifications_count >= large_csv_threshold:
-        queue = QueueNames.BULK
+        queue = QueueNames.SEND_SMS_LOW if notif_type == SMS_TYPE else QueueNames.BULK
     # If priority is slow/bulk, but lower than threshold, let's make it
     # faster by switching to normal queue.
     elif process_type == BULK:
-        queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.SEND_SMS_MEDIUM if notif_type == SMS_TYPE else QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
     else:
         # If the size isn't a concern, fall back to the template's process type.
         if process_type == PRIORITY:
-            queue = QueueNames.PRIORITY
+            queue = QueueNames.SEND_SMS_HIGH if notif_type == SMS_TYPE else QueueNames.PRIORITY
         elif process_type == BULK:
-            queue = QueueNames.BULK
+            queue = QueueNames.SEND_SMS_LOW if notif_type == SMS_TYPE else QueueNames.BULK
         else:
-            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+            queue = QueueNames.SEND_SMS_MEDIUM if notif_type == SMS_TYPE else QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
     return queue
 
 
