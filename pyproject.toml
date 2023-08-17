@@ -29,7 +29,7 @@ docopt = "0.6.2"
 environs = "9.5.0" # pyup: <9.3.3 # marshmallow v3 throws errors"
 fido2 = "0.9.3"
 Flask-Bcrypt = "1.0.1"
-flask-marshmallow = "0.15.0"
+flask-marshmallow = "0.14.0"
 Flask-Migrate = "2.7.0"
 Flask-SQLAlchemy = { git = "https://github.com/pallets-eco/flask-sqlalchemy.git", rev = "500e732dd1b975a56ab06a46bd1a20a21e682262"}
 #git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
@@ -61,11 +61,11 @@ more-itertools = "8.14.0"
 awscli-cwlogs = "1.4.6"
 aws-embedded-metrics = "1.0.8"
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug = "2.3.3"
+Werkzeug = "2.3.6"
 MarkupSafe = "2.1.3"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", rev = "52.0.4" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", rev = "52.0.5" }
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.7.1"
 greenlet = "2.0.2"
