@@ -12,7 +12,7 @@ There are two soak tests here:
 
 Run the setup.sh to install the python pre-requisites or run in the repo devcontainer.
 
-Default configuration is in the `locust.conf` file.
+Default configuration is in the `locust.conf` file. Note that the `host` is the base address of the system you are testing, for example `https://staging.notification.cdssandbox.xyz` **not** `https://api.staging.notification.cdssandbox.xyz`. The "api" prefix will be added in the code.
 
 The python file `soak_test_send_email.py` requires environment variables `API_KEY` and `EMAIL_TEMPLATE_ID`. The template should have no variables.
 
