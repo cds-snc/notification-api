@@ -457,9 +457,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
 def handle_batch_error_and_forward(
     task: Any,
     signed_and_verified: list[tuple[Any, Any]],
-    notification_type: str,
+    notification_type: Optional[str],
     exception,
-    receipt: UUID = None,
+    receipt: Optional[UUID] = None,
     template: Any = None,
 ):
     if receipt:

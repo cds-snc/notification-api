@@ -2,7 +2,7 @@ import random
 import string
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from flask import current_app
@@ -40,7 +40,7 @@ class Buffer(Enum):
             return f"{self.value}::{str(process_type)}"
         return self.value
 
-    def inflight_prefix(self, suffix: str = None, process_type: str = None) -> str:
+    def inflight_prefix(self, suffix: Optional[str] = None, process_type: Optional[str] = None) -> str:
         if process_type and suffix:
             return f"{Buffer.IN_FLIGHT.value}:{str(suffix)}:{str(process_type)}"
         if suffix:
@@ -50,7 +50,7 @@ class Buffer(Enum):
             return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
-    def inflight_name(self, receipt: UUID = uuid4(), suffix: str = None, process_type: str = None) -> str:
+    def inflight_name(self, receipt: UUID = uuid4(), suffix: Optional[str] = None, process_type: Optional[str] = None) -> str:
         return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
