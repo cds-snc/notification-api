@@ -219,21 +219,21 @@ aiohttp = "*"
 
 [[package]]
 name = "awscli"
-version = "1.27.152"
+version = "1.29.22"
 description = "Universal Command Line Environment for AWS."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "awscli-1.27.152-py3-none-any.whl", hash = "sha256:2b6040312cdc06212dfe3417b1db6b1493e36dfec312cd850d32cfada236b61b"},
-    {file = "awscli-1.27.152.tar.gz", hash = "sha256:0b14964b1f1a2f67524b76c8505c4b0eb50397b127479e6557e97d7d0207c71b"},
+    {file = "awscli-1.29.22-py3-none-any.whl", hash = "sha256:031ce6bcb58fa4f8817dd94043a64af0174f82a3d5df7abf4d511120e8b8398e"},
+    {file = "awscli-1.29.22.tar.gz", hash = "sha256:2a289197a51ba5cde621fc197efc17871cdf3034132d053d8d0af3e5cb338d13"},
 ]
 
 [package.dependencies]
-botocore = "1.29.152"
+botocore = "1.31.22"
 colorama = ">=0.2.5,<0.4.5"
 docutils = ">=0.10,<0.17"
-PyYAML = ">=3.10,<5.5"
+PyYAML = ">=3.10,<6.1"
 rsa = ">=3.1.2,<4.8"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -395,18 +395,18 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.26.152"
+version = "1.28.22"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.26.152-py3-none-any.whl", hash = "sha256:a2778c5729d3dc0b3688c9f0d103543d7ec5ff44a4fd0e84d0d542e2dff05e62"},
-    {file = "boto3-1.26.152.tar.gz", hash = "sha256:ee0b8f8d238d4e1cf50fa6a185e4e066955b6105e9838a80b1b6582cd327dfdf"},
+    {file = "boto3-1.28.22-py3-none-any.whl", hash = "sha256:0c1c1d19232018ac49fd2c0a94aa0b802f5d222e89448ff50734626bce454b32"},
+    {file = "boto3-1.28.22.tar.gz", hash = "sha256:af1ce129f462cdc8dfb1a1c559d7ed725e51344fb0ae4a56d9453196bf416555"},
 ]
 
 [package.dependencies]
-botocore = ">=1.29.152,<1.30.0"
+botocore = ">=1.31.22,<1.32.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.6.0,<0.7.0"
 
@@ -415,14 +415,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.29.152"
+version = "1.31.22"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.29.152-py3-none-any.whl", hash = "sha256:02a3205cc8579d4be6d537e63d72aebbf3f70f3aedcf40b3cae9dc2e24c774d0"},
-    {file = "botocore-1.29.152.tar.gz", hash = "sha256:f6319ecdbe3d325878f837cac2874e461b4d90691bb2d2186f980bce3b3cfcc8"},
+    {file = "botocore-1.31.22-py3-none-any.whl", hash = "sha256:b91025ca1a16b13ae662bdb46e7c16d2c53619df23bf3583a43791519da14870"},
+    {file = "botocore-1.31.22.tar.gz", hash = "sha256:d193ab0742ddc4af3a3994af4ec993acf5ac75460f298880fe869765e7bc578d"},
 ]
 
 [package.dependencies]
@@ -431,7 +431,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = ">=1.25.4,<1.27"
 
 [package.extras]
-crt = ["awscrt (==0.16.9)"]
+crt = ["awscrt (==0.16.26)"]
 
 [[package]]
 name = "brotli"
@@ -2488,24 +2488,23 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.0.4"
+version = "52.0.5"
 description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
-python-versions = ">=3.10,<3.11"
-files = [
-    {file = "notifications_utils-52.0.4.tar.gz", hash = "sha256:c120e2f04996599508fdf6ff10144aad5fc1c00346690ed4d918782b0a124c11"},
-]
+python-versions = "~3.10"
+files = []
+develop = false
 
 [package.dependencies]
-awscli = "1.27.152"
+awscli = "1.29.22"
 bleach = "6.0.0"
-boto3 = "1.26.152"
+boto3 = "1.28.22"
 cachetools = "4.2.4"
 Flask = "2.3.2"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.1.2"
-Jinja2 = ">=3.0.0,<4.0.0"
+Jinja2 = "^3.0.0"
 markupsafe = "2.1.3"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
@@ -2523,8 +2522,8 @@ werkzeug = "2.3.3"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.0.4"
-resolved_reference = "a6ed8d1bc1b70780a204912e4266b1981b330bae"
+reference = "52.0.5"
+resolved_reference = "5d8fa8298fc1bf251be28de7ddc3b966ff46e9a0"
 
 [[package]]
 name = "ordered-set"
@@ -4200,4 +4199,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "b64c41aa4559dd5cd3aa45b775f1511fb4f403f6fa960db5171095af59094371"
+content-hash = "0d69bf0eafca2de42d8611706026b0845e856ea68f2dbd298256eadb5dd46da1"
