@@ -1,17 +1,11 @@
-import os
-
 from dotenv import load_dotenv
-from urllib.parse import urlparse
 
 from locust import HttpUser, TaskSet, task, constant_pacing
 from locust.clients import HttpSession
 
+from soak_utils import url_with_prefix
+
 load_dotenv()
-
-def url_with_prefix(url: str, prefix: str) -> str:
-    parsed_url =  urlparse(url)
-    return parsed_url._replace(netloc=f"{prefix}.{parsed_url.netloc}").geturl()
-
 
 class MultipleHostsUser(HttpUser):
     abstract = True

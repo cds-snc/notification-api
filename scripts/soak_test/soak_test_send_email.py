@@ -3,6 +3,8 @@ import os
 from dotenv import load_dotenv
 from locust import HttpUser, constant_pacing, events, task
 
+from soak_utils import url_with_prefix
+
 load_dotenv()
 
 
@@ -15,11 +17,13 @@ class NotifyApiUser(HttpUser):
     wait_time = constant_pacing(1)  # each user makes one post per second
 
     def __init__(self, *args, **kwargs):
+        self.host = url_with_prefix(self.host, "api")
+        
         super(NotifyApiUser, self).__init__(*args, **kwargs)
         self.headers = {"Authorization": f"apikey-v1 {os.getenv('API_KEY')}"}
         self.email_address = "success@simulator.amazonses.com"
         self.email_template = os.getenv("EMAIL_TEMPLATE_ID")
-
+    
     @task(1)
     def send_email(self):
         reference_id = self.environment.parsed_options.ref
