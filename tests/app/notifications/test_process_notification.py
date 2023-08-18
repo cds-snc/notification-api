@@ -11,6 +11,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     LETTER_TYPE,
@@ -495,9 +496,9 @@ class TestSendNotificationQueue:
                 "send-throttled-sms-tasks",
                 "deliver_throttled_sms",
             ),
-            (False, None, "sms", "normal", None, "send-sms-medium", "deliver_sms"),
+            (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             (False, None, "email", "normal", None, "send-email-tasks", "deliver_email"),
-            (False, None, "sms", "team", None, "send-sms-medium", "deliver_sms"),
+            (False, None, "sms", "team", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             (
                 False,
                 None,
@@ -599,7 +600,7 @@ class TestSendNotificationQueue:
         )
         with pytest.raises(Boto3Error):
             send_notification_to_queue(sample_notification, False)
-        mocked.assert_called_once_with([(str(sample_notification.id))], queue="send-sms-medium")
+        mocked.assert_called_once_with([(str(sample_notification.id))], queue=QueueNames.SEND_SMS_MEDIUM)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -675,9 +676,9 @@ class TestChooseQueue:
                 "+14383898585",
                 "send-throttled-sms-tasks",
             ),
-            (False, None, "sms", "normal", None, "send-sms-medium"),
+            (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM),
             (False, None, "email", "normal", None, "send-email-tasks"),
-            (False, None, "sms", "team", None, "send-sms-medium"),
+            (False, None, "sms", "team", None, QueueNames.SEND_SMS_MEDIUM),
             (
                 False,
                 None,
@@ -973,9 +974,9 @@ class TestDBSaveAndSendNotification:
                 "send-throttled-sms-tasks",
                 "deliver_throttled_sms",
             ),
-            ("sms", "normal", None, "send-sms-medium", "deliver_sms"),
+            ("sms", "normal", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             ("email", "normal", None, "send-email-tasks", "deliver_email"),
-            ("sms", "team", None, "send-sms-medium", "deliver_sms"),
+            ("sms", "team", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             ("sms", "test", None, "research-mode-tasks", "deliver_sms"),
             (
                 "sms",
@@ -1074,12 +1075,12 @@ class TestDBSaveAndSendNotification:
             reply_to_text=sample_template.service.get_default_sms_sender(),
             to="+16502532222",
             created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-            queue_name="send-sms-medium",
+            queue_name=QueueNames.SEND_SMS_MEDIUM,
         )
 
         with pytest.raises(Boto3Error):
             db_save_and_send_notification(notification)
-        mocked.assert_called_once_with([(str(notification.id))], queue="send-sms-medium")
+        mocked.assert_called_once_with([(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0

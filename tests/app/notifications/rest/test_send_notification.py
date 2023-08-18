@@ -9,6 +9,7 @@ from notifications_python_client.authentication import create_jwt_token
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
+from app.config import QueueNames
 from app.dao import notifications_dao
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.services_dao import dao_update_service
@@ -321,7 +322,7 @@ def test_should_allow_valid_sms_notification(notify_api, sample_template, mocker
             response_data = json.loads(response.data)["data"]
             notification_id = response_data["notification"]["id"]
 
-            mocked.assert_called_once_with([notification_id], queue="send-sms-medium")
+            mocked.assert_called_once_with([notification_id], queue=QueueNames.SEND_SMS_MEDIUM)
             assert response.status_code == 201
             assert notification_id
             assert "subject" not in response_data
@@ -653,13 +654,13 @@ def test_should_send_sms_if_team_api_key_and_a_service_user(client, sample_templ
         ],
     )
 
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with([fake_uuid], queue="send-sms-medium")
+    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with([fake_uuid], queue=QueueNames.SEND_SMS_MEDIUM)
     assert response.status_code == 201
 
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, "send-sms-medium"), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, "send-email-tasks")],
 )
 def test_should_persist_notification(
     client,
@@ -709,7 +710,7 @@ def test_should_persist_notification(
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, "send-sms-medium"), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, "send-email-tasks")],
 )
 def test_should_delete_notification_and_return_error_if_sqs_fails(
     client,
@@ -1025,7 +1026,7 @@ def test_send_notification_uses_appropriate_queue_when_template_has_process_type
 
     assert response.status_code == 201
     if notification_type == SMS_TYPE:
-        expected_queue = "send-sms-high" if process_type == "priority" else "send-sms-low"
+        expected_queue = QueueNames.SEND_SMS_HIGH if process_type == "priority" else QueueNames.SEND_SMS_LOW
     else:
         expected_queue = f"{process_type}-tasks"
     mocked.assert_called_once_with([notification_id], queue=expected_queue)
@@ -1080,7 +1081,7 @@ def test_should_allow_store_original_number_on_sms_notification(client, sample_t
     response_data = json.loads(response.data)["data"]
     notification_id = response_data["notification"]["id"]
 
-    mocked.assert_called_once_with([notification_id], queue="send-sms-medium")
+    mocked.assert_called_once_with([notification_id], queue=QueueNames.SEND_SMS_MEDIUM)
     assert response.status_code == 201
     assert notification_id
     notifications = Notification.query.all()

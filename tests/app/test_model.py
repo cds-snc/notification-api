@@ -4,6 +4,7 @@ from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
 from app import signer_personalisation
+from app.config import QueueNames
 from app.models import (
     EMAIL_TYPE,
     MOBILE_TYPE,
@@ -372,9 +373,9 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
 @pytest.mark.parametrize(
     "template_type, process_type, expected_queue",
     [
-        (SMS_TYPE, "normal", "send-sms-medium"),
-        (SMS_TYPE, "priority", "send-sms-high"),
-        (SMS_TYPE, "bulk", "send-sms-low"),
+        (SMS_TYPE, "normal", QueueNames.SEND_SMS_MEDIUM),
+        (SMS_TYPE, "priority", QueueNames.SEND_SMS_HIGH),
+        (SMS_TYPE, "bulk", QueueNames.SEND_SMS_LOW),
         (EMAIL_TYPE, "normal", "normal-tasks"),
         (EMAIL_TYPE, "priority", "priority-tasks"),
         (EMAIL_TYPE, "bulk", "bulk-tasks"),
