@@ -1014,7 +1014,7 @@ class TestProcessRows:
         signed_notification = [i for i in args[0]][1][0]
         notification = signer_notification.verify(signed_notification)
         assert expected_queue == notification.get("queue")
-        
+
     def test_should_not_save_sms_if_restricted_service_and_invalid_number(self, notify_db_session, mocker):
         user = create_user(mobile_number="6502532222")
         service = create_service(user=user, restricted=True)
