@@ -1104,8 +1104,8 @@ class TestProcessRows:
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
                 "queue": QueueNames.SEND_SMS_MEDIUM if template_type == SMS_TYPE else "send-{}-tasks".format(template_type),
-                "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
+                "client_reference": reference,
             },
         )
         task_mock.apply_async.assert_called_once()

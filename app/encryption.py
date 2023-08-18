@@ -22,7 +22,7 @@ class NotificationDictToSign(TypedDict):
     key_type: str  # should be ApiKeyType but I can't import that here
     client_reference: Optional[str]
     queue: Optional[str]
-    sender_id: NotRequired[str]
+    sender_id: Optional[str]
     job: NotRequired[str]  # actually job_id
     row_number: Optional[Any]  # should this be int or str?
 
