@@ -510,7 +510,7 @@ class TestSmsSenderRateLimit:
             sample_service.restricted = True
 
             with pytest.raises(RateLimitError) as e:
-                check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
+                check_sms_sender_over_rate_limit(sample_service, sms_sender)
 
             should_throttle.assert_called_once_with(
                 sms_sender.sms_sender, sample_service.rate_limit, 60
@@ -540,7 +540,7 @@ class TestSmsSenderRateLimit:
 
             sample_service.restricted = True
 
-            check_sms_sender_over_rate_limit(sample_service, sms_sender.id)
+            check_sms_sender_over_rate_limit(sample_service, sms_sender)
             should_throttle.assert_called_once_with(
                 str(sms_sender.sms_sender), 10, 60
             )

@@ -72,7 +72,10 @@ def deliver_sms(self, notification_id, sms_sender_id=None):
 
 
 # Including sms_sender_id is necessary in case it's passed in when being called
-@notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting', max_retries=None)
+@notify_celery.task(bind=True, name='deliver_sms_with_rate_limiting',
+                    throws=(AutoRetryException, ),
+                    autoretry_for=(AutoRetryException, ),
+                    max_retries=2886, retry_backoff=2, retry_backoff_max=60)
 @statsd(namespace='tasks')
 def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
     from app.notifications.validators import check_sms_sender_over_rate_limit
@@ -88,7 +91,7 @@ def deliver_sms_with_rate_limiting(self, notification_id, sms_sender_id=None):
             )
         sms_sender = dao_get_service_sms_sender_by_service_id_and_number(notification.service_id,
                                                                          notification.reply_to_text)
-        check_sms_sender_over_rate_limit(notification.service_id, sms_sender.id)
+        check_sms_sender_over_rate_limit(notification.service_id, sms_sender)
         send_to_providers.send_sms_to_provider(notification, sms_sender_id)
         current_app.logger.info('Successfully sent sms with rate limiting for notification id: %s', notification_id)
     except InvalidProviderException as e:

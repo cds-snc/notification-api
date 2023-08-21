@@ -58,15 +58,15 @@ def check_service_over_daily_message_limit(key_type, service):
             raise TooManyRequestsError(service.message_limit)
 
 
-def check_sms_sender_over_rate_limit(service_id, sms_sender_id):
+def check_sms_sender_over_rate_limit(service_id, sms_sender):
     if (
         not is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED)
-        or sms_sender_id is None
+        or sms_sender is None
     ):
         current_app.logger.info('Skipping sms sender rate limit check')
         return
 
-    sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender_id)
+    sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender.id)
     if current_app.config['REDIS_ENABLED']:
         current_app.logger.info('Checking sms sender rate limit')
         cache_key = sms_sender.sms_sender

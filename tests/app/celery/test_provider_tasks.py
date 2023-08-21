@@ -199,3 +199,26 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(samp
         queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None,
         countdown=sms_sender.rate_limit_interval / sms_sender.rate_limit
     )
+
+
+def test_deliver_sms_with_rate_limiting_should_retry_generic_exceptions(sample_notification, mocker):
+    mocker.patch('app.celery.provider_tasks.send_to_providers.send_sms_to_provider', side_effect=Exception)
+    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+
+    with pytest.raises(AutoRetryException) as exc_info:
+        deliver_sms_with_rate_limiting(sample_notification.id)
+
+    assert exc_info.type is AutoRetryException
+
+
+def test_deliver_sms_with_rate_limiting_max_retries_exceeded(sample_notification, mocker):
+    mocker.patch('app.celery.provider_tasks.send_to_providers.send_sms_to_provider', side_effect=Exception)
+    mocker.patch('app.celery.provider_tasks.can_retry', return_value=False)
+    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+
+    with pytest.raises(NotificationTechnicalFailureException) as exc_info:
+        deliver_sms_with_rate_limiting(sample_notification.id)
+
+    assert exc_info.type is NotificationTechnicalFailureException
+    assert sample_notification.status == 'technical-failure'
+    assert sample_notification.status_reason == RETRIES_EXCEEDED
