@@ -19,7 +19,7 @@ from app.config import Config, Test
 class TestBatchSavingMetricsFunctions:
     @pytest.fixture(autouse=True)
     def app(self):
-        config: Config = Test() # type: ignore
+        config: Config = Test()  # type: ignore
         config.REDIS_ENABLED = True
         app = Flask(config.NOTIFY_ENVIRONMENT)
         create_app(app, config)
