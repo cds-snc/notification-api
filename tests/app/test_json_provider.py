@@ -13,5 +13,5 @@ class TestNotifyJSONProvider:
 
     def test_serialization_row(self, notify_api, row):
         jp = NotifyJSONProvider(notify_api)
-        serialized: str = jp.dumps(row)
+        serialized: str = jp.dumps(row) # type: ignore
         assert '{"key1": "value1", "key2": "value2"}' in serialized

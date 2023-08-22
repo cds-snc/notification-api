@@ -7,8 +7,8 @@ from sqlalchemy.engine.row import Row
 def default_encoder(o):
     # Support for sqlalchemy.engine.row.Row
     if isinstance(o, Row):
-        row: Row = o
-        m: dict = row._asdict()
+        row: Row = o # type: ignore
+        m: dict = row._asdict() # type: ignore
         return m
     # Redirect to default
     return _default(o)
