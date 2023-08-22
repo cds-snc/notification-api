@@ -268,7 +268,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": SMS_TYPE,
+            "notification_type": SMS_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
@@ -278,7 +278,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = template.process_type
+        process_type = template.process_type  # type: ignore
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
