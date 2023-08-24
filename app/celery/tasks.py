@@ -379,7 +379,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": EMAIL_TYPE,
+            "notification_type": EMAIL_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
