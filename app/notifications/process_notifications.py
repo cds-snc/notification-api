@@ -110,11 +110,6 @@ def persist_notification(
         billable_units=billable_units,
     )
     template = dao_get_template_by_id(template_id, template_version, use_cache=True)
-    # if the template is obtained from cache a tuple will be returned where
-    # the first element is the Template object and the second the template cache data
-    # in the form of a dict
-    if isinstance(template, tuple):
-        template = template[0]
     notification.queue_name = choose_queue(
         notification=notification, research_mode=service.research_mode, queue=template.queue_to_use()
     )
@@ -329,11 +324,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             billable_units=notification.get("billable_units"),  # type: ignore
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        if isinstance(template, tuple):
-            template = template[0]
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(
             notification=notification_obj, research_mode=service.research_mode, queue=template.queue_to_use()

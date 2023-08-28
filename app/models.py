@@ -607,7 +607,7 @@ class Service(BaseModel, Versioned):
 
     def get_default_sms_sender(self):
         default_sms_sender = [x for x in self.service_sms_senders if x.is_default]
-        return default_sms_sender[0].sms_sender
+        return default_sms_sender[0].sms_sender if default_sms_sender else None
 
     def get_default_reply_to_email_address(self):
         default_reply_to = [x for x in self.reply_to_email_addresses if x.is_default]

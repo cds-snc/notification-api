@@ -247,16 +247,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-            if isinstance(template, tuple):
-                template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
+        elif template.service:
+            reply_to_text = template.get_reply_to_text()
         else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+            reply_to_text = service.get_default_sms_sender()  # type: ignore
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
@@ -359,16 +353,11 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         else:
             if sender_id:
                 reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            elif isinstance(template, tuple):
-                reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            else:
+            elif template.service:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
+            else:
+                reply_to_text = service.get_default_reply_to_email_address()
 
-        if isinstance(template, tuple):
-            template = template[0]
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
             "notification_id": notification_id,
@@ -488,11 +477,6 @@ def handle_batch_error_and_forward(
             template = dao_get_template_by_id(
                 notification.get("template_id"), notification.get("template_version"), use_cache=True
             )
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            if isinstance(template, tuple):
-                template = template[0]
             process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
