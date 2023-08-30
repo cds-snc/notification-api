@@ -67,8 +67,8 @@ def get_organisation_id_from_crm_org_notes(org_notes: str):
         return None
     organisation_name = org_notes.split(">")[0].strip()
     response = requests.get(
-        current_app.config["CRM_URL"],
-        headers={"Authorization": f"token {current_app.config["github_token"]}"}
+        current_app.config["CRM_ORG_LIST_URL"],
+        headers={"Authorization": f"token {current_app.config["CRM_GITHUB_PERSONAL_ACCESS_TOKEN"]}"}
     )
     response.raise_for_status()
 
