@@ -40,6 +40,7 @@ from app.notifications.validators import (
     validate_and_format_recipient,
     validate_template,
 )
+from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 
 
@@ -112,7 +113,7 @@ def send_one_off_notification(service_id, post_data):
         )
     else:
         # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
-        queue = template.queue_to_use()
+        queue = get_delivery_queue_for_template(template)
         if queue == QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.LOW]:
             queue = QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.MEDIUM]
 

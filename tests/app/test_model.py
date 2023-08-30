@@ -4,7 +4,6 @@ from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
 from app import signer_personalisation
-from app.config import QueueNames
 from app.models import (
     EMAIL_TYPE,
     MOBILE_TYPE,
@@ -368,22 +367,6 @@ def test_is_precompiled_letter_hidden_true_not_name(sample_letter_template):
 def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
     sample_letter_template.name = PRECOMPILED_TEMPLATE_NAME
     assert not sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.parametrize(
-    "template_type, process_type, expected_queue",
-    [
-        (SMS_TYPE, "normal", QueueNames.SEND_SMS_MEDIUM),
-        (SMS_TYPE, "priority", QueueNames.SEND_SMS_HIGH),
-        (SMS_TYPE, "bulk", QueueNames.SEND_SMS_LOW),
-        (EMAIL_TYPE, "normal", QueueNames.SEND_EMAIL),
-        (EMAIL_TYPE, "priority", QueueNames.PRIORITY),
-        (EMAIL_TYPE, "bulk", QueueNames.BULK),
-    ],
-)
-def test_template_queue_to_use(sample_service, template_type, process_type, expected_queue):
-    template = create_template(sample_service, process_type=process_type, template_type=template_type)
-    assert template.queue_to_use() == expected_queue
 
 
 def test_template_folder_is_parent(sample_service):

@@ -40,7 +40,6 @@ from app import (
 )
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
-from app.utils import get_delivery_queue_for_template
 
 TemplateType = Literal["sms", "email", "letter"]
 
@@ -1082,9 +1081,6 @@ class TemplateBase(BaseModel):
             nullable=False,
             default=NORMAL,
         )
-
-    def queue_to_use(self):
-        return get_delivery_queue_for_template(self)
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
 
