@@ -10,19 +10,34 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
 
+# from app.models import EMAIL_TYPE, SMS_TYPE, Priorities
 from celery.schedules import crontab
-from models import SMS_TYPE, EMAIL_TYPE, BULK as PROCESS_TYPE_BULK, NORMAL as PROCESS_TYPE_NORMAL, PRIORITY as PROCESS_TYPE_PRIORITY
 
 env = Env()
 env.read_env()
 load_dotenv()
 
+
 class Priorities(object):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+    BULK = "bulk"
+    NORMAL = "normal"
+    PRIORITY = "priority"
 
-    
+    @staticmethod
+    def to_lmh(priority: str) -> str:
+        if priority == Priorities.BULK:
+            return Priorities.LOW
+        elif priority == Priorities.NORMAL:
+            return Priorities.MEDIUM
+        elif priority == Priorities.PRIORITY:
+            return Priorities.HIGH
+        else:
+            return priority
+
+
 class QueueNames(object):
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
@@ -100,24 +115,23 @@ class QueueNames(object):
     DELIVERY_RECEIPTS = "delivery-receipts"
 
     DELIVERY_QUEUES = {
-        SMS_TYPE: {
+        "sms": {
             Priorities.LOW: SEND_SMS_LOW,
-            PROCESS_TYPE_BULK: SEND_SMS_LOW,
             Priorities.MEDIUM: SEND_SMS_MEDIUM,
-            PROCESS_TYPE_NORMAL: SEND_SMS_MEDIUM,
             Priorities.HIGH: SEND_SMS_HIGH,
-            PROCESS_TYPE_PRIORITY: SEND_SMS_HIGH,
         },
-        EMAIL_TYPE: {
+        "email": {
             Priorities.LOW: BULK,
-            PROCESS_TYPE_BULK: BULK,
             Priorities.MEDIUM: SEND_EMAIL,
-            PROCESS_TYPE_NORMAL: SEND_EMAIL,
             Priorities.HIGH: PRIORITY,
-            PROCESS_TYPE_PRIORITY: PRIORITY,
+        },
+        "letter": {
+            Priorities.LOW: BULK,
+            Priorities.MEDIUM: NORMAL,
+            Priorities.HIGH: PRIORITY,
         },
     }
-    
+
     @staticmethod
     def all_queues():
         return [

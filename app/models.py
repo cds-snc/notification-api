@@ -38,9 +38,9 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
-from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
+from app.utils import get_delivery_queue_for_template
 
 TemplateType = Literal["sms", "email", "letter"]
 
@@ -55,6 +55,7 @@ template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
 NORMAL = "normal"
 PRIORITY = "priority"
 BULK = "bulk"
+
 TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY, BULK]
 
 
@@ -1084,7 +1085,7 @@ class TemplateBase(BaseModel):
         )
 
     def queue_to_use(self):
-        return QueueNames.DELIVERY_QUEUES[self.template_type][self.process_type]
+        return get_delivery_queue_for_template(self)
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
 

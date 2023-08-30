@@ -376,9 +376,9 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
         (SMS_TYPE, "normal", QueueNames.SEND_SMS_MEDIUM),
         (SMS_TYPE, "priority", QueueNames.SEND_SMS_HIGH),
         (SMS_TYPE, "bulk", QueueNames.SEND_SMS_LOW),
-        (EMAIL_TYPE, "normal", "normal-tasks"),
-        (EMAIL_TYPE, "priority", "priority-tasks"),
-        (EMAIL_TYPE, "bulk", "bulk-tasks"),
+        (EMAIL_TYPE, "normal", QueueNames.SEND_EMAIL),
+        (EMAIL_TYPE, "priority", QueueNames.PRIORITY),
+        (EMAIL_TYPE, "bulk", QueueNames.BULK),
     ],
 )
 def test_template_queue_to_use(sample_service, template_type, process_type, expected_queue):

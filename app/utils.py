@@ -11,6 +11,8 @@ from notifications_utils.template import (
 )
 from sqlalchemy import func
 
+from app.config import Priorities, QueueNames
+
 local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
 
 
@@ -40,6 +42,10 @@ def get_template_instance(template, values):
     return {SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate}[
         template["template_type"]
     ](template, values)
+
+
+def get_delivery_queue_for_template(template):
+    return QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.to_lmh(template.process_type)]
 
 
 def get_html_email_body_from_template(template_instance):
