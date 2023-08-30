@@ -65,6 +65,8 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 def get_organisation_id_from_crm_org_notes(org_notes: str):
     if ">" not in org_notes:
         return None
+    
+    # this is like: "Department of Silly Walks > Unit 2"
     organisation_name = org_notes.split(">")[0].strip()
     response = requests.get(
         current_app.config["CRM_ORG_LIST_URL"],
@@ -76,9 +78,11 @@ def get_organisation_id_from_crm_org_notes(org_notes: str):
 
     # todo: find the org name in the list
     # todo: return the org id
-    account_name_data = {
-        "en": [item["name_eng"] for item in account_data],
-        "fr": [item["name_fra"] for item in account_data],
-    }
+
+    en_dict = {}
+    fr_dict = {}
+    for item in account_data:
+        en_dict[item["name_eng"]] = item["notify_organisation_id"] 
+        fr_dict[item["name_fra"]] = item["notify_organisation_id"] 
 
     return "asdfasdf"
