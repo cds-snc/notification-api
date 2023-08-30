@@ -1,7 +1,9 @@
 import itertools
+import json
 
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
+import requests
 
 from app.models import (
     EMAIL_TYPE,
@@ -58,3 +60,25 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 
     if (key_type == KEY_TYPE_NORMAL and service.restricted) or (key_type == KEY_TYPE_TEAM):
         return itertools.chain(team_members, safelist_members)
+
+
+def get_organisation_id_from_crm_org_notes(org_notes: str):
+    if ">" not in org_notes:
+        return None
+    organisation_name = org_notes.split(">")[0].strip()
+    response = requests.get(
+        current_app.config["CRM_URL"],
+        headers={"Authorization": f"token {current_app.config["github_token"]}"}
+    )
+    response.raise_for_status()
+
+    account_data = json.loads(response.text)
+
+    # todo: find the org name in the list
+    # todo: return the org id
+    account_name_data = {
+        "en": [item["name_eng"] for item in account_data],
+        "fr": [item["name_fra"] for item in account_data],
+    }
+
+    return "asdfasdf"
