@@ -56,7 +56,6 @@ from app.models import (
     Complaint,
     InvitedUser,
     TemplateFolder,
-    LetterBranding,
     Domain,
     NotificationHistory,
     RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
@@ -1058,15 +1057,6 @@ def create_template_folder(service, name='foo', parent=None):
     db.session.add(tf)
     db.session.commit()
     return tf
-
-
-def create_letter_branding(name='HM Government', filename='hm-government'):
-    test_domain_branding = LetterBranding(name=name,
-                                          filename=filename,
-                                          )
-    db.session.add(test_domain_branding)
-    db.session.commit()
-    return test_domain_branding
 
 
 def set_up_usage_data(start_date):

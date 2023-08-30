@@ -170,28 +170,6 @@ service_email_branding = db.Table(
 )
 
 
-class LetterBranding(db.Model):
-    __tablename__ = 'letter_branding'
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = db.Column(db.String(255), unique=True, nullable=False)
-    filename = db.Column(db.String(255), unique=True, nullable=False)
-
-    def serialize(self):
-        return {
-            "id": str(self.id),
-            "name": self.name,
-            "filename": self.filename,
-        }
-
-
-service_letter_branding = db.Table(
-    'service_letter_branding',
-    db.Model.metadata,
-    # service_id is a primary key as you can only have one letter branding per service
-    db.Column('service_id', UUID(as_uuid=True), db.ForeignKey('services.id'), primary_key=True, nullable=False),
-    db.Column('letter_branding_id', UUID(as_uuid=True), db.ForeignKey('letter_branding.id'), nullable=False),
-)
-
 INTERNATIONAL_SMS_TYPE = 'international_sms'
 INBOUND_SMS_TYPE = 'inbound_sms'
 SCHEDULE_NOTIFICATIONS = 'schedule_notifications'
@@ -281,13 +259,6 @@ class Organisation(db.Model):
         nullable=True,
     )
 
-    letter_branding = db.relationship('LetterBranding')
-    letter_branding_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey('letter_branding.id'),
-        nullable=True,
-    )
-
     @property
     def live_services(self):
         return [
@@ -308,7 +279,6 @@ class Organisation(db.Model):
             "active": self.active,
             "crown": self.crown,
             "organisation_type": self.organisation_type,
-            "letter_branding_id": self.letter_branding_id,
             "email_branding_id": self.email_branding_id,
             "agreement_signed": self.agreement_signed,
             "agreement_signed_at": self.agreement_signed_at,
@@ -409,11 +379,6 @@ class Service(db.Model, Versioned):
     email_branding = db.relationship(
         'EmailBranding',
         secondary=service_email_branding,
-        uselist=False,
-        backref=db.backref('services', lazy='dynamic'))
-    letter_branding = db.relationship(
-        'LetterBranding',
-        secondary=service_letter_branding,
         uselist=False,
         backref=db.backref('services', lazy='dynamic'))
 

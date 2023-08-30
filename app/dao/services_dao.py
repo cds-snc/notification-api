@@ -315,9 +315,6 @@ def dao_create_service(
         if organisation.email_branding:
             service.email_branding = organisation.email_branding
 
-        if organisation.letter_branding and not service.letter_branding:
-            service.letter_branding = organisation.letter_branding
-
         service.crown = organisation.crown
 
     service.count_as_live = not user.platform_admin

@@ -69,7 +69,6 @@ from tests.app.db import (
     create_notification,
     create_api_key,
     create_invited_user,
-    create_letter_branding,
     create_notification_history,
     create_annual_billing,
 )
@@ -82,7 +81,6 @@ def test_should_have_decorated_services_dao_functions():
 
 def test_create_service(notify_db_session):
     user = create_user()
-    create_letter_branding()
     assert Service.query.count() == 0
     service = Service(name="service_name",
                       email_from="email_from",
@@ -102,7 +100,6 @@ def test_create_service(notify_db_session):
     assert user in service_db.users
     assert service_db.organisation_type == 'other'
     assert service_db.crown is None
-    assert not service.letter_branding
     assert not service.organisation_id
 
 
@@ -130,7 +127,6 @@ def test_create_service_with_organisation(notify_db_session):
     assert user in service_db.users
     assert service_db.organisation_type == 'other'
     assert service_db.crown is None
-    assert not service.letter_branding
     assert service.organisation_id == organisation.id
     assert service.organisation == organisation
 
@@ -636,7 +632,6 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
 
 def test_create_service_creates_a_history_record_with_current_data(notify_db_session):
     user = create_user()
-    create_letter_branding()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
     service = Service(name="service_name",

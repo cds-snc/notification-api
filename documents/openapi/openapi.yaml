@@ -1671,10 +1671,6 @@ components:
           format: uuid
           nullable: true
           type: string
-        letter_branding_id:
-          format: uuid
-          nullable: true
-          type: string
         request_to_go_live_notes:
           nullable: true
           type: string
@@ -1958,8 +1954,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Id'
-        letter_branding:
-          $ref: '#/components/schemas/Id'
         letter_contact_block:
           type: string
         letter_logo_filename:

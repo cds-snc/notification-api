@@ -60,7 +60,7 @@ def create_letters_pdf(self, notification_id):
         pdf_data, billable_units = get_letters_pdf(
             notification.template,
             contact_block=notification.reply_to_text,
-            filename=notification.service.letter_branding and notification.service.letter_branding.filename,
+            filename=None,
             values=notification.personalisation
         )
 

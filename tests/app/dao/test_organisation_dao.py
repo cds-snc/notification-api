@@ -24,7 +24,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from tests.app.db import (
     create_domain,
     create_email_branding,
-    create_letter_branding,
     create_organisation,
     create_service,
     create_user
@@ -62,7 +61,6 @@ def test_update_organisation(notify_db_session):
     organisation = Organisation.query.one()
     user = create_user()
     email_branding = create_email_branding()
-    letter_branding = create_letter_branding()
 
     data = {
         'name': 'new name',
@@ -72,7 +70,6 @@ def test_update_organisation(notify_db_session):
         "agreement_signed_at": datetime.datetime.utcnow(),
         "agreement_signed_by_id": user.id,
         "agreement_signed_version": 999.99,
-        "letter_branding_id": letter_branding.id,
         "email_branding_id": email_branding.id,
     }
 

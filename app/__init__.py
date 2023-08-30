@@ -268,7 +268,6 @@ def register_blueprint(application):
     from app.complaint.complaint_rest import complaint_blueprint
     from app.platform_stats.rest import platform_stats_blueprint
     from app.template_folder.rest import template_folder_blueprint
-    from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.oauth.rest import oauth_blueprint
     from app.notifications.receive_notifications import receive_notifications_blueprint
     from app.communication_item.rest import communication_item_blueprint
@@ -351,9 +350,6 @@ def register_blueprint(application):
 
     template_folder_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(template_folder_blueprint)
-
-    letter_branding_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(letter_branding_blueprint)
 
     application.register_blueprint(receive_notifications_blueprint)
 
