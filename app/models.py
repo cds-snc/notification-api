@@ -1084,18 +1084,7 @@ class TemplateBase(BaseModel):
         )
 
     def queue_to_use(self):
-        if self.template_type == SMS_TYPE:
-            return {
-                NORMAL: QueueNames.SEND_SMS_MEDIUM,
-                PRIORITY: QueueNames.SEND_SMS_HIGH,
-                BULK: QueueNames.SEND_SMS_LOW,
-            }[self.process_type]
-        else:
-            return {
-                NORMAL: QueueNames.NORMAL,
-                PRIORITY: QueueNames.PRIORITY,
-                BULK: QueueNames.BULK,
-            }[self.process_type]
+        return QueueNames.DELIVERY_QUEUES[self.template_type][self.process_type]
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
 
