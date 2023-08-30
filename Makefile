@@ -33,8 +33,9 @@ install-safety:
 	pip install safety
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	# The ignored issues are documented in requirements-app.txt.
-	safety check -r requirements.txt --full-report -i 51668 -i 59234
+	# Ignored issues not described here are documented in requirements-app.txt.
+	# 59956 will be resolved by upgrading certifi to >=2023.07.22.
+	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 59956
 
 .PHONY:
 	help \

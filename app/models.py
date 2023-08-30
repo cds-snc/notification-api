@@ -37,10 +37,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.collections import attribute_mapped_collection, InstrumentedList
 
 
-SMS_TYPE = 'sms'
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
+MOBILE_TYPE = 'mobile'
 PUSH_TYPE = 'push'
+SMS_TYPE = 'sms'
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
     EMAIL_TYPE: 'Email',
@@ -571,9 +572,6 @@ class ServicePermission(db.Model):
     def __repr__(self):
         return '<{} has service permission: {}>'.format(self.service_id, self.permission)
 
-
-MOBILE_TYPE = 'mobile'
-EMAIL_TYPE = 'email'
 
 WHITELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
 whitelist_recipient_types = db.Enum(*WHITELIST_RECIPIENT_TYPE, name='recipient_type')

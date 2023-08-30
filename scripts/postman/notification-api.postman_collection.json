@@ -1405,6 +1405,231 @@
 			]
 		},
 		{
+			"name": "/v3/notifications",
+			"item": [
+				{
+					"name": "send e-mail",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// JWT generation script adapted from",
+									"// https://gist.github.com/corbanb/",
+									"",
+									"var jwtSecret = pm.environment.get(\"service-api-key\");",
+									"",
+									"// Set headers for JWT",
+									"var header = {",
+									"\t'typ': 'JWT',",
+									"\t'alg': 'HS256'",
+									"};",
+									"",
+									"// Prepare timestamp in seconds",
+									"var currentTimestamp = Math.floor(Date.now() / 1000)",
+									"",
+									"var data = {",
+									"\t'iss': pm.environment.get(\"service-id\"),",
+									"\t'iat': currentTimestamp",
+									"}",
+									"",
+									"",
+									"function base64url(source) {",
+									"    // Encode in classical base64",
+									"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+									"    ",
+									"    // Remove padding equal characters",
+									"    encodedSource = encodedSource.replace(/=+$/, '')",
+									"    ",
+									"    // Replace characters according to base64url specifications",
+									"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+									"    encodedSource = encodedSource.replace(/\\//g, '_')",
+									"    ",
+									"    return encodedSource",
+									"}",
+									"",
+									"// encode header",
+									"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+									"var encodedHeader = base64url(stringifiedHeader)",
+									"",
+									"// encode data",
+									"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+									"var encodedData = base64url(stringifiedData)",
+									"",
+									"// build token",
+									"var token = `${encodedHeader}.${encodedData}`",
+									"",
+									"// sign token",
+									"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+									"signature = base64url(signature)",
+									"var signedToken = `${token}.${signature}`",
+									"",
+									"pm.environment.set('jwt_signed', signedToken)"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code == 201) {",
+									"    var jsonData = pm.response.json(); ",
+									"    pm.environment.set(\"notification-id\", jsonData.id);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_signed}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email_address\": \"veteran@email.com\",\n    \"template_id\": \"{{email-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    },\n    \"email_reply_to_id\": \"uuid\"\n}"						},
+						"url": {
+							"raw": "{{notification-api-url}}/v3/notifications/email",
+							"host": [
+								"{{notification-api-url}}"
+							],
+							"path": [
+								"v3",
+								"notifications",
+								"email"
+							]
+						},
+						"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+					},
+					"response": []
+				},
+				{
+					"name": "send SMS",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// JWT generation script adapted from",
+									"// https://gist.github.com/corbanb/",
+									"",
+									"var jwtSecret = pm.environment.get(\"service-api-key\");",
+									"",
+									"// Set headers for JWT",
+									"var header = {",
+									"\t'typ': 'JWT',",
+									"\t'alg': 'HS256'",
+									"};",
+									"",
+									"// Prepare timestamp in seconds",
+									"var currentTimestamp = Math.floor(Date.now() / 1000)",
+									"",
+									"var data = {",
+									"\t'iss': pm.environment.get(\"service-id\"),",
+									"\t'iat': currentTimestamp",
+									"}",
+									"",
+									"",
+									"function base64url(source) {",
+									"    // Encode in classical base64",
+									"    encodedSource = CryptoJS.enc.Base64.stringify(source)",
+									"    ",
+									"    // Remove padding equal characters",
+									"    encodedSource = encodedSource.replace(/=+$/, '')",
+									"    ",
+									"    // Replace characters according to base64url specifications",
+									"    encodedSource = encodedSource.replace(/\\+/g, '-')",
+									"    encodedSource = encodedSource.replace(/\\//g, '_')",
+									"    ",
+									"    return encodedSource",
+									"}",
+									"",
+									"// encode header",
+									"var stringifiedHeader = CryptoJS.enc.Utf8.parse(JSON.stringify(header))",
+									"var encodedHeader = base64url(stringifiedHeader)",
+									"",
+									"// encode data",
+									"var stringifiedData = CryptoJS.enc.Utf8.parse(JSON.stringify(data))",
+									"var encodedData = base64url(stringifiedData)",
+									"",
+									"// build token",
+									"var token = `${encodedHeader}.${encodedData}`",
+									"",
+									"// sign token",
+									"var signature = CryptoJS.HmacSHA256(token, jwtSecret)",
+									"signature = base64url(signature)",
+									"var signedToken = `${token}.${signature}`",
+									"",
+									"pm.environment.set('jwt_signed', signedToken)"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code == 201) {",
+									"    var jsonData = pm.response.json(); ",
+									"    pm.environment.set(\"notification-id\", jsonData.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_signed}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"phone_number\": \"+16502532222\",\n    \"template_id\": \"{{sms-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    },\n    \"sms_sender_id\": \"{{sms-sender-id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{notification-api-url}}/v3/notifications/sms",
+							"host": [
+								"{{notification-api-url}}"
+							],
+							"path": [
+								"v3",
+								"notifications",
+								"sms"
+							]
+						},
+						"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "/service",
 			"item": [
 				{

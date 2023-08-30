@@ -32,6 +32,7 @@ from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.oauth.registry import oauth_registry
 from app.va.va_onsite import VAOnsiteClient
 from app.va.va_profile import VAProfileClient
@@ -222,6 +223,9 @@ def create_app(application, worker_id=None):
     register_blueprint(application)
     register_v2_blueprints(application)
 
+    if is_feature_enabled(FeatureFlag.V3_ENABLED):
+        register_v3_blueprints(application)
+
     # avoid circular imports by importing this file later
     from app.commands import setup_commands
 
@@ -379,6 +383,24 @@ def register_v2_blueprints(application):
 
     get_inbound_sms.before_request(validate_service_api_key_auth)
     application.register_blueprint(get_inbound_sms)
+
+
+def register_v3_blueprints(application):
+    """
+    Only the top level v3_blueprint should be registered directly with the application.  Register all
+    child blueprints with v3_blueprint.  This helps to standardize error handling across all v3 routes.
+    See app/v3/__init__.py.
+    """
+
+    from app.authentication.auth import validate_service_api_key_auth
+    from app.v3 import v3_blueprint
+
+    # Notifications
+    from app.v3.notifications.rest import v3_notifications_blueprint
+    v3_notifications_blueprint.before_request(validate_service_api_key_auth)
+    v3_blueprint.register_blueprint(v3_notifications_blueprint)
+
+    application.register_blueprint(v3_blueprint)
 
 
 def init_app(app):

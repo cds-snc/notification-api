@@ -26,6 +26,7 @@ services:
       - TIMEOUT=10
       - VA_PROFILE_DOMAIN=int.vaprofile.va.gov
       - VETEXT_API_AUTH_SSM_PATH=test
+      - V3_ENABLED=True
     depends_on:
       - db
   db:

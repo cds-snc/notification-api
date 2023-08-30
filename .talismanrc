@@ -224,7 +224,7 @@ fileignoreconfig:
     - filename: app/template/rest.py
       checksum: 4f300f5136873066acede094b788ccca6707c05f14c22979adb64ea2e60569eb
     - filename: scripts/postman/notification-api.postman_collection.json
-      checksum: b92b55a7835796a97a71be623282911b3e4fb65dfe2e9eb831625a5d236a2800
+      checksum: be4dcc184966687f28698133ac547f68388b0d770f316e53e6bdb298ca31015d
     - filename: scripts/postman/development.postman_environment.json
       checksum: 750e0712ccb3fe0e07f9ba73dbe83998ec71d70b88d852100cc27ca8e6fcd58e
     - filename: scripts/postman/performance.postman_environment.json
@@ -246,7 +246,7 @@ fileignoreconfig:
     - filename: requirements.txt
       checksum: 0cf734d45d6941fdc317a23c6490ed4ce92194bc02adecb52e5edff5bb5442f8
     - filename: ci/.docker-env.example
-      checksum: 7bc7fefe2e93aab23fae65dc41683255bdabd0a07af9e0154c046592567d914c
+      checksum: c8375940619721b3691429d58b303b6d864ef179b065a13d3be0b319a6a4153c
     - filename: cd/application-deployment/prod/vaec-celery-beat-task-definition.json
       checksum: 3c249196ee8c2ba3b9b0ca7c736850cfb467c1b0c1993ac58a11653a4f80b436
     - filename: cd/application-deployment/prod/vaec-api-task-definition.json
@@ -314,7 +314,7 @@ fileignoreconfig:
     - filename: .github/workflows/dev_deploy.yml
       checksum: 217b1dbca27958380523fce8c4e3c56af5e73e3ae914a2117a2574739f7d15a7
     - filename: tests/env_vars
-      checksum: 21b553d4eb2875e4a6041fd33dd248cf4d8c41e71af9b42f52c9dcaea615a299
+      checksum: 2a33fe8099baf5449abd0b4deefb7796e770ad504734cf12c21a2f1e5f357a3d
     - filename: lambda_functions/two_way_sms/two_way_sms_v2.py
       checksum: a0fcf9acc774b4ced5d6e4c9adff5e68e29b67f31a8dc5e2bb3bb9372596a9be
     - filename: lambda_functions/nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py

@@ -38,6 +38,20 @@ class AuthError(Exception):
             ]
         }
 
+    def to_dict_v3(self):
+        """
+        All V3 routes use this format for the HTTP 401 response.
+        """
+
+        return {
+            "errors": [
+                {
+                    "error": "AuthError",
+                    "message": self.short_message
+                }
+            ]
+        }
+
 
 def get_auth_token(req):
     auth_header = req.headers.get('Authorization', None)
