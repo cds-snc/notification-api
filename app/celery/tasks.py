@@ -704,12 +704,7 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
         queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.MEDIUM]
     else:
         # If the size isn't a concern, fall back to the template's process type.
-        if process_type == PRIORITY:
-            queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.HIGH]
-        elif process_type == BULK:
-            queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.LOW]
-        else:
-            queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.MEDIUM]
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.to_lmh(process_type)]
     return queue
 
 

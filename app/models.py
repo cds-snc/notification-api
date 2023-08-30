@@ -55,7 +55,6 @@ template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
 NORMAL = "normal"
 PRIORITY = "priority"
 BULK = "bulk"
-
 TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY, BULK]
 
 
