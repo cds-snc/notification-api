@@ -308,7 +308,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         try:
             if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
                 check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 service.research_mode,
@@ -436,7 +436,7 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
         try:
             if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
                 check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
