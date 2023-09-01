@@ -28,6 +28,16 @@ class Priorities(object):
 
     @staticmethod
     def to_lmh(priority: str) -> str:
+        """
+        Convert bulk / normal / priority to low / medium / high. Anything else left alone.
+
+        Args:
+            priority (str): priority to convert.
+
+        Returns:
+            str: low, medium, or high
+        """
+
         if priority == Priorities.BULK:
             return Priorities.LOW
         elif priority == Priorities.NORMAL:
