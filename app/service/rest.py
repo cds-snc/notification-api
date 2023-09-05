@@ -260,7 +260,7 @@ def create_service():
 
     organisation_id = get_organisation_id_from_crm_org_notes(data["organisation_notes"]) if data["organisation_notes"] else None
 
-    dao_create_service(valid_service, user, organisation_id)
+    dao_create_service(valid_service, user, organisation_id=organisation_id)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
