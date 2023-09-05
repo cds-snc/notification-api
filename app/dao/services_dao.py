@@ -15,7 +15,10 @@ from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
-from app.dao.organisation_dao import dao_get_organisation_by_email_address, dao_get_organisation_by_id
+from app.dao.organisation_dao import (
+    dao_get_organisation_by_email_address,
+    dao_get_organisation_by_id,
+)
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id

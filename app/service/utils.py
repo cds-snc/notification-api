@@ -1,9 +1,10 @@
 import itertools
 import json
+from typing import Optional
 
+import requests
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
-import requests
 
 from app.models import (
     EMAIL_TYPE,
@@ -62,27 +63,40 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
         return itertools.chain(team_members, safelist_members)
 
 
-def get_organisation_id_from_crm_org_notes(org_notes: str):
-    if ">" not in org_notes:
-        return None
-    
-    # this is like: "Department of Silly Walks > Unit 2"
-    organisation_name = org_notes.split(">")[0].strip()
+def get_gc_organisation_data() -> list[dict]:
+    "Returns the dataset from the gc-organisations repo"
     response = requests.get(
         current_app.config["CRM_ORG_LIST_URL"],
-        headers={"Authorization": f"token {current_app.config["CRM_GITHUB_PERSONAL_ACCESS_TOKEN"]}"}
+        headers={"Authorization": f'token {current_app.config["CRM_GITHUB_PERSONAL_ACCESS_TOKEN"]}'},
     )
     response.raise_for_status()
 
     account_data = json.loads(response.text)
+    return account_data
 
-    # todo: find the org name in the list
-    # todo: return the org id
 
+def get_organisation_id_from_crm_org_notes(org_notes: str) -> Optional[str]:
+    """Returns the notify_organisation_id if one exists for the organisation name
+    in the org_notes string
+    """
+    if ">" not in org_notes:
+        return None
+
+    # this is like: "Department of Silly Walks > Unit 2"
+    organisation_name = org_notes.split(">")[0].strip()
+
+    gc_org_data = get_gc_organisation_data()
+
+    # create 2 dicts that map english and french org names to the notify organisation_id
     en_dict = {}
     fr_dict = {}
-    for item in account_data:
-        en_dict[item["name_eng"]] = item["notify_organisation_id"] 
-        fr_dict[item["name_fra"]] = item["notify_organisation_id"] 
+    for item in gc_org_data:
+        en_dict[item["name_eng"]] = item["notify_organisation_id"]
+        fr_dict[item["name_fra"]] = item["notify_organisation_id"]
 
-    return "asdfasdf"
+    # find the org name in the list
+    if organisation_name in en_dict:
+        return en_dict[organisation_name]
+    if organisation_name in fr_dict:
+        return fr_dict[organisation_name]
+    return None
