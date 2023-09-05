@@ -258,7 +258,11 @@ def create_service():
     # unpack valid json into service object
     valid_service = Service.from_json(data)
 
-    organisation_id = get_organisation_id_from_crm_org_notes(data["organisation_notes"]) if data["organisation_notes"] else None
+    organisation_id = (
+        get_organisation_id_from_crm_org_notes(data["organisation_notes"])
+        if ("organisation_notes" in data and data["organisation_notes"])
+        else None
+    )
 
     dao_create_service(valid_service, user, organisation_id=organisation_id)
 
