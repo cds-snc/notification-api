@@ -6,6 +6,7 @@ import requests
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
 
+from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -14,6 +15,7 @@ from app.models import (
     MOBILE_TYPE,
     ServiceSafelist,
 )
+from app.variables import PT_DATA_RETENTION_DAYS
 
 
 def get_recipients_from_request(request_json, key, type):
@@ -100,3 +102,11 @@ def get_organisation_id_from_crm_org_notes(org_notes: str) -> Optional[str]:
     if organisation_name in fr_dict:
         return fr_dict[organisation_name]
     return None
+
+
+def add_pt_data_retention(service_id):
+    try:
+        insert_service_data_retention(service_id, "email", PT_DATA_RETENTION_DAYS)
+        insert_service_data_retention(service_id, "sms", PT_DATA_RETENTION_DAYS)
+    except Exception as e:
+        current_app.logger.error(f"Error setting data retention for service: {service_id}, Error: {e}")
