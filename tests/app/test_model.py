@@ -369,19 +369,6 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
     assert not sample_letter_template.is_precompiled_letter
 
 
-@pytest.mark.parametrize(
-    "process_type, expected_queue",
-    [
-        ("normal", "normal-tasks"),
-        ("priority", "priority-tasks"),
-        ("bulk", "bulk-tasks"),
-    ],
-)
-def test_template_queue_to_use(sample_service, process_type, expected_queue):
-    template = create_template(sample_service, process_type=process_type)
-    assert template.queue_to_use() == expected_queue
-
-
 def test_template_folder_is_parent(sample_service):
     x = None
     folders = []
