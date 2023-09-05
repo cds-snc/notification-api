@@ -218,20 +218,22 @@ def time_until_end_of_day() -> timedelta:
     return datetime.combine(tomorrow, time.min) - dt
 
 
-def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
+# def check_sms_limit_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
+def sms_increment_redis_send_warnings_if_needed(service: Service, requested_sms=0) -> None:
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    check_sms_daily_limit(service, requested_sms)
+    # check_sms_daily_limit(service, requested_sms)
     increment_todays_requested_sms_count(service.id, requested_sms)
     send_warning_sms_limit_emails_if_needed(service)
 
 
-def check_email_limit_increment_redis_send_warnings_if_needed(service: Service, requested_email=0) -> None:
+# def check_email_limit_increment_redis_send_warnings_if_needed(service: Service, requested_email=0) -> None:
+def email_increment_redis_send_warnings_if_needed(service: Service, requested_email=0) -> None:
     if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
         return
 
-    check_email_daily_limit(service, requested_email)
+    # check_email_daily_limit(service, requested_email)
     increment_todays_email_count(service.id, requested_email)
     send_warning_email_limit_emails_if_needed(service)
 
