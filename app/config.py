@@ -682,6 +682,8 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FF_BOUNCE_RATE_BACKEND = True
     FF_EMAIL_DAILY_LIMIT = False
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
+    CRM_ORG_LIST_URL = "https://test-url.com"
 
 
 class Production(Config):
