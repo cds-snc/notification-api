@@ -304,8 +304,7 @@ def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     template = dao_get_template_by_id(sample_template.id, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_template.id) == template[0].id
-    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
+    assert str(sample_template.id) == template.id
 
 
 def test_get_template_id_with_specific_version_from_redis(sample_service, mocker, notify_db_session):
@@ -320,9 +319,8 @@ def test_get_template_id_with_specific_version_from_redis(sample_service, mocker
     template = dao_get_template_by_id(sample_template.id, version=1, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_template.id) == template[0].id
-    assert isinstance(template[0], TemplateHistory)
-    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
+    assert str(sample_template.id) == template.id
+    assert isinstance(template, TemplateHistory)
 
 
 def test_get_template_by_id_and_service(sample_service):
