@@ -10,11 +10,42 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
 
+# from app.models import EMAIL_TYPE, SMS_TYPE, Priorities
 from celery.schedules import crontab
 
 env = Env()
 env.read_env()
 load_dotenv()
+
+
+class Priorities(object):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    BULK = "bulk"
+    NORMAL = "normal"
+    PRIORITY = "priority"
+
+    @staticmethod
+    def to_lmh(priority: str) -> str:
+        """
+        Convert bulk / normal / priority to low / medium / high. Anything else left alone.
+
+        Args:
+            priority (str): priority to convert.
+
+        Returns:
+            str: low, medium, or high
+        """
+
+        if priority == Priorities.BULK:
+            return Priorities.LOW
+        elif priority == Priorities.NORMAL:
+            return Priorities.MEDIUM
+        elif priority == Priorities.PRIORITY:
+            return Priorities.HIGH
+        else:
+            return priority
 
 
 class QueueNames(object):
@@ -52,8 +83,12 @@ class QueueNames(object):
     # pretty quickly.
     SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
 
-    # Queue for sending all SMS, except long dedicated numbers.
-    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
+    # Queues for sending all SMS, except long dedicated numbers.
+    SEND_SMS_HIGH = "send-sms-high"
+    SEND_SMS_MEDIUM = "send-sms-medium"
+    SEND_SMS_LOW = "send-sms-low"
+
+    # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
@@ -89,6 +124,24 @@ class QueueNames(object):
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
 
+    DELIVERY_QUEUES = {
+        "sms": {
+            Priorities.LOW: SEND_SMS_LOW,
+            Priorities.MEDIUM: SEND_SMS_MEDIUM,
+            Priorities.HIGH: SEND_SMS_HIGH,
+        },
+        "email": {
+            Priorities.LOW: BULK,
+            Priorities.MEDIUM: SEND_EMAIL,
+            Priorities.HIGH: PRIORITY,
+        },
+        "letter": {
+            Priorities.LOW: BULK,
+            Priorities.MEDIUM: NORMAL,
+            Priorities.HIGH: PRIORITY,
+        },
+    }
+
     @staticmethod
     def all_queues():
         return [
@@ -99,6 +152,9 @@ class QueueNames(object):
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
+            QueueNames.SEND_SMS_HIGH,
+            QueueNames.SEND_SMS_MEDIUM,
+            QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,

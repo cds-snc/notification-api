@@ -38,7 +38,6 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
-from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -1082,13 +1081,6 @@ class TemplateBase(BaseModel):
             nullable=False,
             default=NORMAL,
         )
-
-    def queue_to_use(self):
-        return {
-            NORMAL: QueueNames.NORMAL,
-            PRIORITY: QueueNames.PRIORITY,
-            BULK: QueueNames.BULK,
-        }[self.process_type]
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
 

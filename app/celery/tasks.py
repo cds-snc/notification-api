@@ -35,7 +35,7 @@ from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
 )
-from app.config import Config, QueueNames
+from app.config import Config, Priorities, QueueNames
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -80,7 +80,7 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import check_service_over_daily_message_limit
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows
+from app.utils import get_csv_max_rows, get_delivery_queue_for_template
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -308,7 +308,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         try:
             if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
                 check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 service.research_mode,
@@ -436,7 +436,7 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
         try:
             if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
                 check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -697,19 +697,14 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     queue: Optional[str] = process_type
 
     if notifications_count >= large_csv_threshold:
-        queue = QueueNames.BULK
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.LOW]
     # If priority is slow/bulk, but lower than threshold, let's make it
     # faster by switching to normal queue.
     elif process_type == BULK:
-        queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.MEDIUM]
     else:
         # If the size isn't a concern, fall back to the template's process type.
-        if process_type == PRIORITY:
-            queue = QueueNames.PRIORITY
-        elif process_type == BULK:
-            queue = QueueNames.BULK
-        else:
-            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.to_lmh(process_type)]
     return queue
 
 
