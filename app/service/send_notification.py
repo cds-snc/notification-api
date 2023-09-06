@@ -37,8 +37,8 @@ from app.notifications.validators import (
     check_service_has_permission,
     check_service_over_daily_message_limit,
     check_sms_daily_limit,
-    email_increment_redis_send_warnings_if_needed,
-    sms_increment_redis_send_warnings_if_needed,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
 )
@@ -91,9 +91,9 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            sms_increment_redis_send_warnings_if_needed(service, template_with_content.fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(service, template_with_content.fragment_count)
     elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        email_increment_redis_send_warnings_if_needed(service, 1)  # 1 email
+        increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
     sender_id = post_data.get("sender_id", None)
     reply_to = get_reply_to_text(

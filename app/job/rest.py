@@ -32,8 +32,8 @@ from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
     check_email_daily_limit,
     check_sms_daily_limit,
-    email_increment_redis_send_warnings_if_needed,
-    sms_increment_redis_send_warnings_if_needed,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
 )
 from app.schemas import (
     job_schema,
@@ -183,9 +183,9 @@ def create_job(service_id):
         raise InvalidRequest(errors, status_code=400)
 
     if template.template_type == SMS_TYPE:
-        sms_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
+        increment_sms_daily_count_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
     elif template.template_type == EMAIL_TYPE:
-        email_increment_redis_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
+        increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
     data.update({"template_version": template.version})
 

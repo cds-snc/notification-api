@@ -79,8 +79,8 @@ from app.notifications.validators import (
     check_service_has_permission,
     check_service_sms_sender_id,
     check_sms_daily_limit,
-    email_increment_redis_send_warnings_if_needed,
-    sms_increment_redis_send_warnings_if_needed,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
     validate_template_exists,
@@ -218,7 +218,7 @@ def post_bulk():
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_daily_limit(authenticated_service, len(list(recipient_csv.get_rows())))
-        email_increment_redis_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+        increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
@@ -235,7 +235,7 @@ def post_bulk():
 
         if not is_test_notification:
             check_sms_daily_limit(authenticated_service, recipient_csv.sms_fragment_count)
-            sms_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -314,12 +314,12 @@ def post_notification(notification_type: NotificationType):
         template_with_content.values = notification.personalisation
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        email_increment_redis_send_warnings_if_needed(authenticated_service, 1)  # 1 email
+        increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            sms_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)

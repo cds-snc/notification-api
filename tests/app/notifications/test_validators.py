@@ -27,9 +27,9 @@ from app.notifications.validators import (
     check_sms_daily_limit,
     check_template_is_active,
     check_template_is_for_notification_type,
-    email_increment_redis_send_warnings_if_needed,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     service_can_send_to_recipient,
-    sms_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
 )
 from app.utils import get_document_url
@@ -215,10 +215,10 @@ class TestCheckDailySMSEmailLimits:
                 create_sample_notification(notify_db, notify_db_session, service=service, template=template)
 
             if limit_type == "sms":
-                sms_increment_redis_send_warnings_if_needed(service)
+                increment_sms_daily_count_send_warnings_if_needed(service)
             else:
                 with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    email_increment_redis_send_warnings_if_needed(service)
+                    increment_email_daily_count_send_warnings_if_needed(service)
 
             assert redis_get.call_args_list == [
                 call(count_key(limit_type, service.id)),
