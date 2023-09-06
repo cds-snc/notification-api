@@ -31,6 +31,7 @@ from app.organisation.organisation_schema import (
     post_update_organisation_schema,
 )
 from app.schema_validation import validate
+from app.variables import PT_DATA_RETENTION_DAYS
 
 organisation_blueprint = Blueprint("organisation", __name__)
 register_errors(organisation_blueprint)
@@ -107,8 +108,6 @@ def update_organisation(organisation_id):
 
 
 def set_pt_data_retention(service_id):
-    PT_DATA_RETENTION_DAYS = 3
-
     for notification_type in ["email", "sms"]:
         data_retention = fetch_service_data_retention_by_notification_type(service_id, notification_type)
 

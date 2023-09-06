@@ -237,6 +237,8 @@ class Config(object):
     SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
     SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
     SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = os.getenv("CRM_GITHUB_PERSONAL_ACCESS_TOKEN")
+    CRM_ORG_LIST_URL = os.getenv("CRM_ORG_LIST_URL")
 
     # Logging
     DEBUG = False
@@ -680,6 +682,8 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FF_BOUNCE_RATE_BACKEND = True
     FF_EMAIL_DAILY_LIMIT = False
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
+    CRM_ORG_LIST_URL = "https://test-url.com"
 
 
 class Production(Config):
