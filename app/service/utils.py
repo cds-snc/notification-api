@@ -5,7 +5,9 @@ from typing import Optional
 import requests
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
+from sqlalchemy.orm.exc import NoResultFound
 
+from app.dao.organisation_dao import dao_get_organisation_by_id
 from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import (
     EMAIL_TYPE,
@@ -110,3 +112,12 @@ def add_pt_data_retention(service_id):
         insert_service_data_retention(service_id, "sms", PT_DATA_RETENTION_DAYS)
     except Exception as e:
         current_app.logger.error(f"Error setting data retention for service: {service_id}, Error: {e}")
+
+
+def get_organisation_by_id(organisation_id):
+    try:
+        organisation = dao_get_organisation_by_id(organisation_id)
+    except NoResultFound:
+        current_app.logger.warning(f"Could not find organisation with id {organisation_id}")
+        return None
+    return organisation

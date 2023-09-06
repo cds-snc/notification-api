@@ -15,10 +15,7 @@ from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
-from app.dao.organisation_dao import (
-    dao_get_organisation_by_email_address,
-    dao_get_organisation_by_id,
-)
+from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
@@ -49,7 +46,7 @@ from app.models import (
     User,
     VerifyCode,
 )
-from app.service.utils import add_pt_data_retention
+from app.service.utils import add_pt_data_retention, get_organisation_by_id
 from app.utils import (
     email_address_is_nhs,
     escape_special_characters,
@@ -290,7 +287,7 @@ def dao_create_service(
         service_permissions = DEFAULT_SERVICE_PERMISSIONS
 
     if organisation_id:
-        organisation = dao_get_organisation_by_id(organisation_id)
+        organisation = get_organisation_by_id(organisation_id)
     else:
         organisation = dao_get_organisation_by_email_address(user.email_address)
 
