@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# runs all celery queues except the throtted sms queue
+# runs celery with all celery queues except the throtted sms queue
 
 set -e
 

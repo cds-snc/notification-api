@@ -51,12 +51,12 @@ run: ## Run the web app
 	flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery
-run-celery: ## Run the celery workers
-	./scripts/run_celery.sh
+run-celery-local: ## Run the celery workers
+	./scripts/run_celery_local.sh
 
 .PHONY: run-celery-clean
-run-celery-clean: ## Run the celery workers but filter out common scheduled tasks
-	./scripts/run_celery.sh 2>&1 >/dev/null | grep -Ev 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+run-celery-local-clean: ## Run the celery workers but filter out common scheduled tasks
+	./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -Ev 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-sms
 run-celery-sms: ## run the celery workers for sms from dedicated numbers

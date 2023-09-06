@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# runs all celery queues.
+# runs celery with all celery queues
 # This is for local use only, NOT for use in AWS
 
 set -e
