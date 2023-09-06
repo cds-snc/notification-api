@@ -30,8 +30,10 @@ from app.models import (
 )
 from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
-    check_email_limit_increment_redis_send_warnings_if_needed,
-    check_sms_limit_increment_redis_send_warnings_if_needed,
+    check_email_daily_limit,
+    check_sms_daily_limit,
+    email_increment_redis_send_warnings_if_needed,
+    sms_increment_redis_send_warnings_if_needed,
 )
 from app.schemas import (
     job_schema,
@@ -167,10 +169,10 @@ def create_job(service_id):
         is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
+            check_sms_daily_limit(service, recipient_csv.sms_fragment_count)
 
     if template.template_type == EMAIL_TYPE:
-        check_email_limit_increment_redis_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
+        check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
 
     if data.get("valid") != "True":
         raise InvalidRequest("File is not valid, can't create job", 400)
@@ -179,6 +181,11 @@ def create_job(service_id):
 
     if errors:
         raise InvalidRequest(errors, status_code=400)
+
+    if template.template_type == SMS_TYPE:
+        sms_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
+    elif template.template_type == EMAIL_TYPE:
+        email_increment_redis_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
     data.update({"template_version": template.version})
 

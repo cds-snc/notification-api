@@ -73,13 +73,13 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import (
     check_email_daily_limit,
-    check_sms_daily_limit,
-    email_increment_redis_send_warnings_if_needed,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
+    check_sms_daily_limit,
+    email_increment_redis_send_warnings_if_needed,
     sms_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,

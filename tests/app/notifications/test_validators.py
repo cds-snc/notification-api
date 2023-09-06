@@ -17,7 +17,6 @@ from app.models import (
 )
 from app.notifications.validators import (
     check_email_daily_limit,
-    check_email_limit_increment_redis_send_warnings_if_needed,
     check_reply_to,
     check_service_email_reply_to_id,
     check_service_letter_contact_id,
@@ -26,10 +25,11 @@ from app.notifications.validators import (
     check_service_sms_sender_id,
     check_sms_content_char_count,
     check_sms_daily_limit,
-    check_sms_limit_increment_redis_send_warnings_if_needed,
     check_template_is_active,
     check_template_is_for_notification_type,
+    email_increment_redis_send_warnings_if_needed,
     service_can_send_to_recipient,
+    sms_increment_redis_send_warnings_if_needed,
     validate_and_format_recipient,
 )
 from app.utils import get_document_url
@@ -206,7 +206,7 @@ class TestCheckDailySMSEmailLimits:
         self, notify_api, limit_type, template_name, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
-            redis_get = mocker.patch("app.redis_store.get", side_effect=[4, 4, 4, None])
+            redis_get = mocker.patch("app.redis_store.get", side_effect=[4, 4, None])
             send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5, sms_limit=5)
@@ -215,13 +215,12 @@ class TestCheckDailySMSEmailLimits:
                 create_sample_notification(notify_db, notify_db_session, service=service, template=template)
 
             if limit_type == "sms":
-                check_sms_limit_increment_redis_send_warnings_if_needed(service)
+                sms_increment_redis_send_warnings_if_needed(service)
             else:
                 with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    check_email_limit_increment_redis_send_warnings_if_needed(service)
+                    email_increment_redis_send_warnings_if_needed(service)
 
             assert redis_get.call_args_list == [
-                call(count_key(limit_type, service.id)),
                 call(count_key(limit_type, service.id)),
                 call(count_key(limit_type, service.id)),
                 call(near_key(limit_type, service.id)),
