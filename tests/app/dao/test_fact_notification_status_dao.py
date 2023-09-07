@@ -420,6 +420,26 @@ def test_get_api_key_ranked_by_notifications_created(notify_db_session):
     assert int(second_place[8]) == sms_sends
 
 
+def test_last_used_for_api_key(notify_db_session):
+    service = create_service(service_name="Service 1")
+    api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+    api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
+    api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
+    template_email = create_template(service=service, template_type="email")
+    create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
+    save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
+
+    assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
+
+    save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
+
+    assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
+
+    create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
+
+    assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
+
+
 @pytest.mark.parametrize(
     "start_date, end_date, expected_email, expected_letters, expected_sms, expected_created_sms",
     [
