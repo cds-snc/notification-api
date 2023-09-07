@@ -35,7 +35,8 @@ install-safety:
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	# Ignored issues not described here are documented in requirements-app.txt.
 	# 59956 will be resolved by upgrading certifi to >=2023.07.22.
-	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 59956
+	# 60223, 60224, and 60225 will be resolved during the next routine upgrade to cryptography>=41.0.3.
+	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 59956 -i 60223 -i 60224 -i 60225
 
 .PHONY:
 	help \

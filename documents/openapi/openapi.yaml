@@ -1348,22 +1348,24 @@ paths:
               email:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   email: "test@notification.com"
               recipient_identifier:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   recipient_identifier:
@@ -1372,11 +1374,12 @@ paths:
               both:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   email: "test@notification.com"
@@ -1386,19 +1389,13 @@ paths:
         required: true
       responses:
         "202":
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
+          $ref: "#/components/responses/AcceptedV3"
         "400":
           $ref: "#/components/responses/BadRequestV3"
         "401":
-          $ref: "#/components/responses/UnauthorizedV3"
+          $ref: "#/components/responses/Unauthorized_401_V3"
+        "403":
+          $ref: "#/components/responses/Unauthorized_403_V3"
   /v3/notifications/sms:
     post:
       summary: Send a SMS notification
@@ -1413,22 +1410,24 @@ paths:
               phone_number:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   phone_number: "+19876543210"
               recipient_identifier:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
                   recipient_identifier:
@@ -1437,11 +1436,12 @@ paths:
               both:
                 value:
                   reference: string
+                  client_reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
+                  scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
                   phone_number: "+19876543210"
@@ -1451,19 +1451,13 @@ paths:
         required: true
       responses:
         "202":
-          description: Accepted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  id:
-                    type: string
-                    format: uuid
+          $ref: "#/components/responses/AcceptedV3"
         "400":
           $ref: "#/components/responses/BadRequestV3"
         "401":
-          $ref: "#/components/responses/UnauthorizedV3"
+          $ref: "#/components/responses/Unauthorized_401_V3"
+        "403":
+          $ref: "#/components/responses/Unauthorized_403_V3"
   /inbound-number:
     get:
       summary: Retrieve an inbound number
@@ -1609,6 +1603,14 @@ components:
       description: CommunicationItem identifier
       example: e925b547-8195-4ed2-83c5-0633a74d780a
   responses:
+    AcceptedV3:
+      description: Accepted
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/V3AcceptedResponse"
+          example:
+            id: 9ffb5212-e621-45df-820d-97ee65d392ab
     BadRequest:
       description: Bad Request
       content:
@@ -1626,12 +1628,11 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/V3Response400"
+            $ref: "#/components/schemas/V3ErrorResponse"
           example:
             errors:
               - error: ValidationError
-                message: "sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
-                                  for service id 9ffb5212-e621-45df-820d-97ee65d392ab"
+                message: "template_id is not a valid uuid"
     Unauthorized:
       description: No Bearer authentication provided
       content:
@@ -1643,16 +1644,26 @@ components:
             message:
               token:
                 - 'Unauthorized, authentication token must be provided'
-    UnauthorizedV3:
-      description: No Bearer authentication provided
+    Unauthorized_401_V3:
+      description: Not authenticated
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/V3Response401"
+            $ref: "#/components/schemas/V3ErrorResponse"
           example:
             errors:
               - error: AuthError
                 message: "Unauthorized, authentication token must be provided"
+    Unauthorized_403_V3:
+      description: Not authorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/V3ErrorResponse"
+          example:
+            errors:
+              - error: AuthError
+                message: Invalid token
     AdminAuthError:
       description: Authentication Error for Admin endpoints
       content:
@@ -1752,8 +1763,8 @@ components:
                 type: string
               message:
                 type: string
-    V3Response400:
-      description: 400 response for all V3 routes
+    V3ErrorResponse:
+      description: 4xx and 5xx response for all V3 routes
       type: object
       properties:
         errors:
@@ -1769,24 +1780,17 @@ components:
             required:
               - error
               - message
-    V3Response401:
-      description: 401 response for all V3 routes
+      required:
+        - errors
+    V3AcceptedResponse:
+      description: 202 Accepted
       type: object
       properties:
-        errors:
-          type: array
-          items:
-            type: object
-            properties:
-              error:
-                type: string
-                const: AuthError
-              message:
-                type: string
-                const: "Unauthortized, authentication token must be provided"
-            required:
-              - error
-              - message
+        id:
+          type: string
+          format: uuid
+      required:
+        - id
     ErrorMessage:
       type: object
       properties:
@@ -2449,13 +2453,16 @@ components:
         client_reference:
           type: string
         email_reply_to_id:
-          description: For e-mail notifications
           type: string
           format: uuid
         personalisation:
           $ref: "#/components/schemas/Personalisation"
         reference:
           type: string
+        scheduled_for:
+          description: An ISO 8601 formatted date-time string with timezone info
+          type: string
+          format: date-time
         template_id:
           $ref: "#/components/schemas/Id"
       additionalProperties: false
@@ -2483,8 +2490,11 @@ components:
           $ref: "#/components/schemas/Personalisation"
         reference:
           type: string
+        scheduled_for:
+          description: An ISO 8601 formatted date-time string with timezone info
+          type: string
+          format: date-time
         sms_sender_id:
-          description: For SMS notifications
           type: string
           format: uuid
         template_id:
