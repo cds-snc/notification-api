@@ -129,7 +129,10 @@ from app.service.service_senders_schema import (
     add_service_letter_contact_block_request,
     add_service_sms_sender_request,
 )
-from app.service.utils import get_safelist_objects
+from app.service.utils import (
+    get_organisation_id_from_crm_org_notes,
+    get_safelist_objects,
+)
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
@@ -255,7 +258,13 @@ def create_service():
     # unpack valid json into service object
     valid_service = Service.from_json(data)
 
-    dao_create_service(valid_service, user)
+    organisation_id = (
+        get_organisation_id_from_crm_org_notes(data["organisation_notes"])
+        if ("organisation_notes" in data and data["organisation_notes"])
+        else None
+    )
+
+    dao_create_service(valid_service, user, organisation_id=organisation_id)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
