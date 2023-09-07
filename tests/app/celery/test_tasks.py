@@ -36,7 +36,7 @@ from app.celery.tasks import (
     seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
-    update_job,
+    update_in_progress_jobs,
 )
 from app.config import QueueNames
 from app.dao import jobs_dao, service_email_reply_to_dao, service_sms_sender_dao
@@ -45,14 +45,11 @@ from app.models import (
     BULK,
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
-    JOB_STATUS_FINISHED,
-    JOB_STATUS_IN_PROGRESS,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NORMAL,
     PRIORITY,
     SMS_TYPE,
-    Job,
     Notification,
     ServiceEmailReplyTo,
     ServiceSmsSender,
@@ -439,7 +436,7 @@ class TestBatchSaving:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -493,13 +490,20 @@ class TestUpdateJob:
     def test_update_job(self, sample_template, sample_job, mocker):
         latest = save_notification(create_notification(job=sample_job, updated_at=datetime.utcnow()))
         save_notification(create_notification(job=sample_job))
-        mocker.patch("app.celery.tasks.dao_get_job_by_id", return_value=sample_job)
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
         mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=latest)
 
-        update_job(sample_job.id)
-
+        update_in_progress_jobs()
         updated_job = jobs_dao.dao_get_job_by_id(sample_job.id)
         assert updated_job.updated_at == latest.updated_at
+
+    def test_update_job_should_not_update_if_no_sent_notifications(self, sample_job, mocker):
+        mocker.patch("app.celery.tasks.dao_get_in_progress_jobs", return_value=[sample_job])
+        mocker.patch("app.celery.tasks.get_latest_sent_notification_for_job", return_value=None)
+        mocked_update_job = mocker.patch("app.celery.tasks.dao_update_job")
+
+        update_in_progress_jobs()
+        mocked_update_job.assert_not_called()
 
 
 class TestProcessJob:
@@ -522,7 +526,7 @@ class TestProcessJob:
             (str(sample_job.service_id), ["something_encrypted"], None), queue=QueueNames.NORMAL_DATABASE
         )
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -622,7 +626,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         tasks.save_emails.apply_async.assert_called_with(
             (
                 str(job.service_id),
@@ -685,7 +689,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -698,7 +702,7 @@ class TestProcessJob:
 
         s3.get_job_from_s3.assert_called_once_with(str(sample_job.service.id), str(sample_job.id))
         job = jobs_dao.dao_get_job_by_id(sample_job.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert tasks.save_smss.apply_async.called is False
 
     def test_should_process_email_job(self, email_job_with_placeholders, mocker):
@@ -728,7 +732,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -767,7 +771,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
         job = jobs_dao.dao_get_job_by_id(email_job_with_placeholders.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
         assert job.processing_started is not None
         assert job.created_at is not None
         redis_mock.assert_called_once_with("job.processing-start-delay", job.processing_started, job.created_at)
@@ -846,7 +850,7 @@ class TestProcessJob:
         }
         assert tasks.save_smss.apply_async.call_count == 1
         job = jobs_dao.dao_get_job_by_id(sample_job_with_placeholdered_template.id)
-        assert job.job_status == "finished"
+        assert job.job_status == "in progress"
 
     def test_should_cancel_job_if_service_is_inactive(self, sample_service, sample_job, mocker):
         sample_service.active = False
@@ -887,7 +891,7 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type)
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
 
@@ -916,7 +920,7 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": "send-{}-tasks".format(template_type),
+                "queue": QueueNames.SEND_SMS_MEDIUM if template_type == SMS_TYPE else "send-{}-tasks".format(template_type),
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },
@@ -934,7 +938,7 @@ class TestProcessRows:
             (1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
         ],
     )
-    def test_should_redirect_job_to_queue_depending_on_csv_threshold(
+    def test_should_redirect_email_job_to_queue_depending_on_csv_threshold(
         self,
         notify_api,
         sample_job,
@@ -963,6 +967,50 @@ class TestProcessRows:
 
         tasks.save_emails.apply_async.assert_called_once()
         args = mock_save_email.method_calls[0].args
+        signed_notification = [i for i in args[0]][1][0]
+        notification = signer_notification.verify(signed_notification)
+        assert expected_queue == notification.get("queue")
+
+    @pytest.mark.parametrize(
+        "csv_bulk_threshold, template_process_type, expected_queue",
+        [
+            (1_000, PRIORITY, QueueNames.SEND_SMS_HIGH),  # keep priority when no thresholds are met
+            (1, PRIORITY, QueueNames.SEND_SMS_LOW),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, QueueNames.SEND_SMS_LOW),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, QueueNames.SEND_SMS_MEDIUM),  # keep normal priority
+            (1, BULK, QueueNames.SEND_SMS_LOW),  # keep bulk priority
+            (1_000, BULK, QueueNames.SEND_SMS_MEDIUM),  # autoswitch to normal queue if normal threshold is met.
+        ],
+    )
+    def test_should_redirect_sms_job_to_queue_depending_on_csv_threshold(
+        self,
+        notify_api,
+        sample_job,
+        mocker,
+        fake_uuid,
+        csv_bulk_threshold,
+        template_process_type,
+        expected_queue,
+    ):
+        mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
+
+        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
+        job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
+        service = Mock(id=1, research_mode=False)
+
+        row = next(
+            RecipientCSV(
+                load_example_csv("sms"),
+                template_type=SMS_TYPE,
+            ).get_rows()
+        )
+
+        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold}):
+            process_rows([row], template, job, service)
+
+        tasks.save_smss.apply_async.assert_called_once()
+        args = mock_save_sms.method_calls[0].args
         signed_notification = [i for i in args[0]][1][0]
         notification = signer_notification.verify(signed_notification)
         assert expected_queue == notification.get("queue")
@@ -1055,9 +1103,9 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": "send-{}-tasks".format(template_type),
-                "client_reference": reference,
+                "queue": QueueNames.SEND_SMS_MEDIUM if template_type == SMS_TYPE else "send-{}-tasks".format(template_type),
                 "sender_id": str(sender_id) if sender_id else None,
+                "client_reference": reference,
             },
         )
         task_mock.apply_async.assert_called_once()
@@ -1091,7 +1139,7 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
-        mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+        mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM)
 
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
     def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
@@ -1110,8 +1158,8 @@ class TestSaveSmss:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
-        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template_with_placeholders)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
@@ -1144,7 +1192,7 @@ class TestSaveSmss:
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else "send-sms-tasks"
+            [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
         )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
@@ -1187,15 +1235,20 @@ class TestSaveSmss:
             notification_id,
         )
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=f"{process_type}-tasks"
-        )
+        if process_type == "priority":
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_HIGH
+            )
+        else:
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+            )
         assert mocked_deliver_sms.called
 
     def test_should_route_save_sms_task_to_bulk_on_large_csv_file(self, notify_db, notify_db_session, mocker):
         service = create_service()
         template = create_template(service=service, process_type="normal")
-        notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+        notification = _notification_json(template, to="+1 650 253 2222", queue=QueueNames.SEND_SMS_LOW)
 
         mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
@@ -1207,7 +1260,9 @@ class TestSaveSmss:
             notification_id,
         )
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+        )
         assert mocked_deliver_sms.called
 
     def test_should_route_save_sms_task_to_throttled_queue_on_large_csv_file_if_custom_sms_sender(
@@ -1215,7 +1270,7 @@ class TestSaveSmss:
     ):
         service = create_service_with_defined_sms_sender(sms_sender_value="3433061234")
         template = create_template(service=service, process_type="normal")
-        notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+        notification = _notification_json(template, to="+1 650 253 2222", queue=QueueNames.SEND_SMS_LOW)
 
         mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
         mocked_deliver_throttled_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
@@ -1253,7 +1308,9 @@ class TestSaveSmss:
         assert not persisted_notification.job_id
         assert not persisted_notification.personalisation
         assert persisted_notification.notification_type == "sms"
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+        )
 
     def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(self, notify_db_session, mocker):
         service = create_service_with_defined_sms_sender(sms_sender_value="12345")
@@ -1268,14 +1325,15 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "12345"
 
-    def test_should_save_sms_template_to_and_persist_with_job_id(self, sample_job, mocker):
+    def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1289,7 +1347,9 @@ class TestSaveSmss:
         assert persisted_notification.key_type == KEY_TYPE_NORMAL
         assert persisted_notification.notification_type == "sms"
 
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+        )
         mock_over_daily_limit.assert_called_once_with("normal", sample_job.service)
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
@@ -1490,8 +1550,8 @@ class TestSaveEmails:
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_reply_to_by_id", return_value=reply_to)
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
-        json_template_date = {"data": template_schema.dump(sample_template).data}
-        json_service_data = {"data": service_schema.dump(sample_service).data}
+        json_template_date = {"data": template_schema.dump(sample_template)}
+        json_service_data = {"data": service_schema.dump(sample_service)}
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
@@ -1606,7 +1666,9 @@ class TestSaveEmails:
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
 
-    def test_should_use_email_template_and_persist(self, sample_email_template_with_placeholders, sample_api_key, mocker):
+    def test_should_use_email_template_and_persist(
+        self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
+    ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
         mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
@@ -1622,9 +1684,10 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            save_emails(
-                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-            )
+            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
+                save_emails(
+                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+                )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"
@@ -1944,22 +2007,12 @@ class TestProcessIncompleteJob:
             job_status=JOB_STATUS_ERROR,
         )
 
-        save_notification(
-            create_notification(
-                sample_template,
-                job,
-                0,
-            )
-        )
+        save_notification(create_notification(sample_template, job, 0))
         save_notification(create_notification(sample_template, job, 1))
 
         assert Notification.query.filter(Notification.job_id == job.id).count() == 2
 
         process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert save_smss.call_count == 1  # The save_smss call will be called once
         assert len(save_smss.call_args[0][0][1]) == 8  # The unprocessed 8 notifications will be sent to save_smss
@@ -1994,10 +2047,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 10
 
         process_incomplete_job(str(job.id))
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_save_sms.call_count == 0  # There are 10 in the file and we've added 10 it should not have been called
 
@@ -2042,13 +2091,6 @@ class TestProcessIncompleteJob:
         jobs = [job.id, job2.id]
         process_incomplete_jobs(jobs)
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-        completed_job2 = Job.query.filter(Job.id == job2.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
-        assert completed_job2.job_status == JOB_STATUS_FINISHED
-
         assert mock_save_smss.call_count == 2
         # The second time the job is called we will send 5 notifications through
         assert len(mock_save_smss.call_args[0][0][1]) == 5
@@ -2072,10 +2114,6 @@ class TestProcessIncompleteJob:
         assert Notification.query.filter(Notification.job_id == job.id).count() == 0
 
         process_incomplete_job(job.id)
-
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
 
         assert mock_save_sms.call_count == 1
         assert len(mock_save_sms.call_args[0][0][1]) == 10  # There are 10 in the csv file
@@ -2127,10 +2165,6 @@ class TestProcessIncompleteJob:
 
         process_incomplete_job(str(job.id))
 
-        completed_job = Job.query.filter(Job.id == job.id).one()
-
-        assert completed_job.job_status == JOB_STATUS_FINISHED
-
         assert mock_email_saver.call_count == 1
         assert len(mock_email_saver.call_args[0][0][1]) == 8  # There are 10 in the file and we've added two already
 
@@ -2161,7 +2195,7 @@ class TestProcessIncompleteJob:
         assert mock_letter_saver.call_count == 8
 
     @freeze_time("2017-01-01")
-    def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processing_started_time(self, mocker, sample_template):
+    def test_process_incomplete_jobs_does_not_change_status_and_resets_processing_started_time(self, mocker, sample_template):
         mock_process_incomplete_job = mocker.patch("app.celery.tasks.process_incomplete_job")
 
         job1 = create_job(
@@ -2177,10 +2211,10 @@ class TestProcessIncompleteJob:
 
         process_incomplete_jobs([str(job1.id), str(job2.id)])
 
-        assert job1.job_status == JOB_STATUS_IN_PROGRESS
+        assert job1.job_status == JOB_STATUS_ERROR
         assert job1.processing_started == datetime.utcnow()
 
-        assert job2.job_status == JOB_STATUS_IN_PROGRESS
+        assert job2.job_status == JOB_STATUS_ERROR
         assert job2.processing_started == datetime.utcnow()
 
         assert mock_process_incomplete_job.mock_calls == [

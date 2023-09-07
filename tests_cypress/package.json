@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "cypress": "ETHEREAL_CACHE=false npx cypress open",
+    "smoke": "ETHEREAL_CACHE=false npx cypress run --spec cypress/e2e/smoke/smoke.cy.js",
+    "api": "ETHEREAL_CACHE=false npx cypress run --spec 'cypress/e2e/api/all.cy.js'"
+  },
+  "dependencies": {
+    "cypress-axe": "^1.4.0",
+    "cypress-html-validate": "^5.1.2",
+    "cypress-recurse": "^1.23.0",
+    "imap-simple": "^5.1.0",
+    "jsonwebtoken": "^9.0.0",
+    "mailparser": "^3.5.0",
+    "nodemailer": "^6.9.2"
+  },
+  "devDependencies": {
+    "axe-core": "^4.7.2",
+    "cypress": "^12.16.0",
+    "html-validate": "^7.7.1"
+  }
+}

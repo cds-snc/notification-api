@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:11.17-bullseye
+        image: postgres:11.20-bullseye@sha256:4e4b23580ada59c9ec5a712bdff9f91b0e6a7898d9ea954306b953c426727cef
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -18,9 +18,9 @@ jobs:
     steps:
     - name: Install libcurl
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
     - name: Set up Python 3.10
-      uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b # v4.6.0
+      uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1 # v4.7.0
       with:
         python-version: '3.10'
     - name: Upgrade pip
@@ -67,7 +67,7 @@ jobs:
       run: |
         cp -f .env.example .env
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@51.0.4
+      uses: cds-snc/notification-utils/.github/actions/waffles@415cd22db72ea1bcc56b7904f984cc7de369b7df # 52.0.6
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'

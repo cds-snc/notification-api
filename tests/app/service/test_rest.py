@@ -244,7 +244,7 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     response = admin_request.get("service.get_delivered_notification_stats_by_month_data")["data"]
 
     assert len(response) == 1
-    assert list(response[0]) == ["count", "month", "notification_type"]
+    assert sorted(list(response[0])) == ["count", "month", "notification_type"]
     first = response[0]
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
@@ -788,7 +788,10 @@ def test_update_service_sets_volumes(
     (
         (True, 200, True),
         (False, 200, False),
-        ("Yes", 400, None),
+        ("Yes", 200, True),
+        ("No", 200, False),
+        ("Oui", 400, None),
+        ("Non", 400, None),
     ),
 )
 def test_update_service_sets_research_consent(
@@ -2222,7 +2225,9 @@ def test_update_service_updating_daily_limit_sends_notification_to_users(
     if expected_call:
         send_notification_mock.assert_called_once_with(
             service_id=service.id,
-            template_id=current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
+            if current_app.config["FF_EMAIL_DAILY_LIMIT"]
+            else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
             personalisation={
                 "service_name": service.name,
                 "message_limit_en": "{:,}".format(new_limit),

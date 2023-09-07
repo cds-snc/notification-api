@@ -38,7 +38,6 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
-from app.config import QueueNames
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -607,7 +606,7 @@ class Service(BaseModel, Versioned):
 
     def get_default_sms_sender(self):
         default_sms_sender = [x for x in self.service_sms_senders if x.is_default]
-        return default_sms_sender[0].sms_sender
+        return default_sms_sender[0].sms_sender if default_sms_sender else None
 
     def get_default_reply_to_email_address(self):
         default_reply_to = [x for x in self.reply_to_email_addresses if x.is_default]
@@ -1082,13 +1081,6 @@ class TemplateBase(BaseModel):
             nullable=False,
             default=NORMAL,
         )
-
-    def queue_to_use(self):
-        return {
-            NORMAL: QueueNames.NORMAL,
-            PRIORITY: QueueNames.PRIORITY,
-            BULK: QueueNames.BULK,
-        }[self.process_type]
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
 
@@ -1630,7 +1622,7 @@ class Notification(BaseModel):
     client_reference = db.Column(db.String, index=True, nullable=True)
     _personalisation = db.Column(db.SensitiveString, nullable=True)
 
-    scheduled_notification = db.relationship("ScheduledNotification", uselist=False)
+    scheduled_notification = db.relationship("ScheduledNotification", uselist=False, back_populates="notification")
 
     client_reference = db.Column(db.String, index=True, nullable=True)
 
@@ -2042,7 +2034,7 @@ class ScheduledNotification(BaseModel):
         index=True,
         nullable=False,
     )
-    notification = db.relationship("Notification", uselist=False)
+    notification = db.relationship("Notification", uselist=False, back_populates="scheduled_notification")
     scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
 

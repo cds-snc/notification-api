@@ -10,11 +10,42 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
 
+# from app.models import EMAIL_TYPE, SMS_TYPE, Priorities
 from celery.schedules import crontab
 
 env = Env()
 env.read_env()
 load_dotenv()
+
+
+class Priorities(object):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    BULK = "bulk"
+    NORMAL = "normal"
+    PRIORITY = "priority"
+
+    @staticmethod
+    def to_lmh(priority: str) -> str:
+        """
+        Convert bulk / normal / priority to low / medium / high. Anything else left alone.
+
+        Args:
+            priority (str): priority to convert.
+
+        Returns:
+            str: low, medium, or high
+        """
+
+        if priority == Priorities.BULK:
+            return Priorities.LOW
+        elif priority == Priorities.NORMAL:
+            return Priorities.MEDIUM
+        elif priority == Priorities.PRIORITY:
+            return Priorities.HIGH
+        else:
+            return priority
 
 
 class QueueNames(object):
@@ -52,8 +83,12 @@ class QueueNames(object):
     # pretty quickly.
     SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
 
-    # Queue for sending all SMS, except long dedicated numbers.
-    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
+    # Queues for sending all SMS, except long dedicated numbers.
+    SEND_SMS_HIGH = "send-sms-high"
+    SEND_SMS_MEDIUM = "send-sms-medium"
+    SEND_SMS_LOW = "send-sms-low"
+
+    # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
@@ -89,6 +124,24 @@ class QueueNames(object):
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
 
+    DELIVERY_QUEUES = {
+        "sms": {
+            Priorities.LOW: SEND_SMS_LOW,
+            Priorities.MEDIUM: SEND_SMS_MEDIUM,
+            Priorities.HIGH: SEND_SMS_HIGH,
+        },
+        "email": {
+            Priorities.LOW: BULK,
+            Priorities.MEDIUM: SEND_EMAIL,
+            Priorities.HIGH: PRIORITY,
+        },
+        "letter": {
+            Priorities.LOW: BULK,
+            Priorities.MEDIUM: NORMAL,
+            Priorities.HIGH: PRIORITY,
+        },
+    }
+
     @staticmethod
     def all_queues():
         return [
@@ -99,6 +152,9 @@ class QueueNames(object):
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
+            QueueNames.SEND_SMS_HIGH,
+            QueueNames.SEND_SMS_MEDIUM,
+            QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,
@@ -181,6 +237,8 @@ class Config(object):
     SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
     SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
     SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = os.getenv("CRM_GITHUB_PERSONAL_ACCESS_TOKEN")
+    CRM_ORG_LIST_URL = os.getenv("CRM_ORG_LIST_URL")
 
     # Logging
     DEBUG = False
@@ -270,6 +328,9 @@ class Config(object):
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
     CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID = "b04beb4a-8408-4280-9a5c-6a046b6f7704"
+    NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
+    REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
+    DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -308,6 +369,11 @@ class Config(object):
         "delete-invitations": {
             "task": "delete-invitations",
             "schedule": timedelta(minutes=66),
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "mark-jobs-complete": {
+            "task": "mark-jobs-complete",
+            "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
         },
         "check-job-status": {
@@ -509,16 +575,15 @@ class Config(object):
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
 
-    # add and use sms_daily_limit
-    FF_SPIKE_SMS_DAILY_LIMIT = env.bool("FF_SPIKE_SMS_DAILY_LIMIT", False)
-    FF_SMS_PARTS_UI = env.bool("FF_SMS_PARTS_UI", False)
-
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
     # Feature flags for bounce rate
     FF_BOUNCE_RATE_BACKEND = env.bool("FF_BOUNCE_RATE_BACKEND", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+
+    # Feature flags for email_daily_limit
+    FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -574,7 +639,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", "redis://localhost:6379/0")
+    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
@@ -616,6 +681,9 @@ class Test(Development):
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FF_BOUNCE_RATE_BACKEND = True
+    FF_EMAIL_DAILY_LIMIT = False
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
+    CRM_ORG_LIST_URL = "https://test-url.com"
 
 
 class Production(Config):

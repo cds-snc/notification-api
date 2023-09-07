@@ -24,6 +24,7 @@ freeze-requirements:
 	poetry lock --no-update
 
 .PHONY: test-requirements
+test-requirements:
 	poetry lock --check
 
 .PHONY: coverage
@@ -50,5 +51,29 @@ smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
 .PHONY: run
-run:
+run: ## Run the web app
 	flask run -p 6011 --host=0.0.0.0
+
+.PHONY: run-celery
+run-celery: ## Run the celery workers
+	./scripts/run_celery.sh
+
+.PHONY: run-celery-clean
+run-celery-clean: ## Run the celery workers but filter out common scheduled tasks
+	./scripts/run_celery.sh 2>&1 >/dev/null | grep -Ev 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+
+.PHONY: run-celery-sms
+run-celery-sms: ## run the celery workers for sms from dedicated numbers
+	./scripts/run_celery_sms.sh
+
+.PHONY: run-celery-beat
+run-celery-beat: ## Run the celery beat
+	./scripts/run_celery_beat.sh
+
+.PHONY: run-celery-purge
+run-celery-purge: ## Purge the celery queues
+	./scripts/run_celery_purge.sh
+
+.PHONY: run-db
+run-db: ## psql to access dev database
+	psql postgres://postgres:chummy@db:5432/notification_api

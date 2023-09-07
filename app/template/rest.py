@@ -3,7 +3,11 @@ from io import BytesIO
 
 import botocore
 from flask import Blueprint, current_app, jsonify, request
-from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
+from notifications_utils import (
+    EMAIL_CHAR_COUNT_LIMIT,
+    SMS_CHAR_COUNT_LIMIT,
+    TEMPLATE_NAME_CHAR_COUNT_LIMIT,
+)
 from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate
 from PyPDF2.utils import PdfReadError
@@ -53,6 +57,12 @@ def _content_count_greater_than_limit(content, template_type):
         template = SMSMessageTemplate({"content": content, "template_type": template_type})
         return template.is_message_too_long()
     return False
+
+
+def _template_name_over_char_limit(name, content, template_type):
+    return HTMLEmailTemplate(
+        {"name": name, "content": content, "subject": "placeholder", "template_type": template_type}
+    ).is_name_too_long()
 
 
 def validate_parent_folder(template_json):
@@ -106,12 +116,20 @@ def create_template(service_id):
         )
         raise InvalidRequest(errors, status_code=400)
 
+    if _template_name_over_char_limit(new_template.name, new_template.content, new_template.template_type):
+        message = "Template name must be less than {} characters".format(TEMPLATE_NAME_CHAR_COUNT_LIMIT)
+        errors = {"name": [message]}
+        current_app.logger.warning(
+            {"error": f"{new_template.template_type}_name_char_count_exceeded", "message": message, "service_id": service_id}
+        )
+        raise InvalidRequest(errors, status_code=400)
+
     check_reply_to(service_id, new_template.reply_to, new_template.template_type)
 
     redact_personalisation = should_template_be_redacted(organisation)
     dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
-    return jsonify(data=template_schema.dump(new_template).data), 201
+    return jsonify(data=template_schema.dump(new_template)), 201
 
 
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
@@ -133,18 +151,21 @@ def update_template(service_id, template_id):
     if "reply_to" in data:
         check_reply_to(service_id, data.get("reply_to"), fetched_template.template_type)
         updated = dao_update_template_reply_to(template_id=template_id, reply_to=data.get("reply_to"))
-        return jsonify(data=template_schema.dump(updated).data), 200
+        return jsonify(data=template_schema.dump(updated)), 200
 
-    current_data = dict(template_schema.dump(fetched_template).data.items())
-    updated_template = dict(template_schema.dump(fetched_template).data.items())
+    current_data = dict(template_schema.dump(fetched_template).items())
+    updated_template = dict(template_schema.dump(fetched_template).items())
     updated_template.update(data)
 
     # Check if there is a change to make.
     if _template_has_not_changed(current_data, updated_template):
         return jsonify(data=updated_template), 200
 
-    over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
-    if over_limit:
+    content_over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
+    name_over_limit = _template_name_over_char_limit(
+        updated_template["name"], updated_template["content"], fetched_template.template_type
+    )
+    if content_over_limit:
         char_limit = SMS_CHAR_COUNT_LIMIT if fetched_template.template_type == SMS_TYPE else EMAIL_CHAR_COUNT_LIMIT
         message = "Content has a character count greater than the limit of {}".format(char_limit)
         errors = {"content": [message]}
@@ -153,18 +174,30 @@ def update_template(service_id, template_id):
         )
         raise InvalidRequest(errors, status_code=400)
 
-    update_dict = template_schema.load(updated_template).data
+    if name_over_limit:
+        message = "Template name must be less than {} characters".format(TEMPLATE_NAME_CHAR_COUNT_LIMIT)
+        errors = {"name": [message]}
+        current_app.logger.warning(
+            {
+                "error": f"{fetched_template.template_type}_name_char_count_exceeded",
+                "message": message,
+                "template_id": template_id,
+            }
+        )
+        raise InvalidRequest(errors, status_code=400)
+
+    update_dict = template_schema.load(updated_template)
     if update_dict.archived:
         update_dict.folder = None
 
     dao_update_template(update_dict)
-    return jsonify(data=template_schema.dump(update_dict).data), 200
+    return jsonify(data=template_schema.dump(update_dict)), 200
 
 
 @template_blueprint.route("/precompiled", methods=["GET"])
 def get_precompiled_template_for_service(service_id):
     template = get_precompiled_letter_template(service_id)
-    template_dict = template_schema.dump(template).data
+    template_dict = template_schema.dump(template)
 
     return jsonify(template_dict), 200
 
@@ -172,21 +205,21 @@ def get_precompiled_template_for_service(service_id):
 @template_blueprint.route("", methods=["GET"])
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
-    data = template_schema.dump(templates, many=True).data
+    data = template_schema.dump(templates, many=True)
     return jsonify(data=data)
 
 
 @template_blueprint.route("/<uuid:template_id>", methods=["GET"])
 def get_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template).data
+    data = template_schema.dump(fetched_template)
     return jsonify(data=data)
 
 
 @template_blueprint.route("/<uuid:template_id>/preview", methods=["GET"])
 def preview_template_by_id_and_service_id(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template).data
+    data = template_schema.dump(fetched_template)
     template_object = get_template_instance(data, values=request.args.to_dict())
 
     if template_object.missing_data:
@@ -204,7 +237,7 @@ def preview_template_by_id_and_service_id(service_id, template_id):
 def get_template_version(service_id, template_id, version):
     data = template_history_schema.dump(
         dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id, version=version)
-    ).data
+    )
     return jsonify(data=data)
 
 
@@ -213,7 +246,7 @@ def get_template_versions(service_id, template_id):
     data = template_history_schema.dump(
         dao_get_template_versions(service_id=service_id, template_id=template_id),
         many=True,
-    ).data
+    )
     return jsonify(data=data)
 
 

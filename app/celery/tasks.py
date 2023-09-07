@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
 from datetime import datetime
+from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
@@ -34,9 +35,9 @@ from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
 )
-from app.config import Config, QueueNames
+from app.config import Config, Priorities, QueueNames
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
-from app.dao.jobs_dao import dao_get_job_by_id, dao_update_job
+from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
     dao_get_last_notification_added_for_job_id,
     dao_get_notification_history_by_reference,
@@ -79,7 +80,7 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import check_service_over_daily_message_limit
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows
+from app.utils import get_csv_max_rows, get_delivery_queue_for_template
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -88,13 +89,13 @@ from app.v2.errors import (
 )
 
 
-@notify_celery.task(name="update-job")
-@statsd(namespace="tasks")
-def update_job(job_id):
-    job = dao_get_job_by_id(job_id)
-    notification = get_latest_sent_notification_for_job(job_id)
-    job.updated_at = notification.updated_at
-    dao_update_job(job)
+def update_in_progress_jobs():
+    jobs = dao_get_in_progress_jobs()
+    for job in jobs:
+        notification = get_latest_sent_notification_for_job(job.id)
+        if notification is not None:
+            job.updated_at = notification.updated_at
+            dao_update_job(job)
 
 
 @notify_celery.task(name="process-job")
@@ -141,8 +142,6 @@ def process_job(job_id):
         put_batch_saving_bulk_created(
             metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
         )
-
-    job_complete(job, start=start)
 
 
 def job_complete(job: Job, resumed=False, start=None):
@@ -248,16 +247,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-            if isinstance(template, tuple):
-                template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
+        elif template.service:
+            reply_to_text = template.get_reply_to_text()
         else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+            reply_to_text = service.get_default_sms_sender()  # type: ignore
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
@@ -269,7 +262,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": SMS_TYPE,
+            "notification_type": SMS_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
@@ -279,7 +272,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = template.process_type
+        process_type = template.process_type  # type: ignore
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
@@ -307,8 +300,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
         try:
-            check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+                check_service_over_daily_message_limit(notification_obj.key_type, service)
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 service.research_mode,
@@ -359,16 +353,11 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         else:
             if sender_id:
                 reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            elif isinstance(template, tuple):
-                reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            else:
+            elif template.service:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
+            else:
+                reply_to_text = service.get_default_reply_to_email_address()
 
-        if isinstance(template, tuple):
-            template = template[0]
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
             "notification_id": notification_id,
@@ -379,7 +368,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": EMAIL_TYPE,
+            "notification_type": EMAIL_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
@@ -434,8 +423,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+                check_service_over_daily_message_limit(notification_obj.key_type, service)
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -456,9 +446,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
 def handle_batch_error_and_forward(
     task: Any,
     signed_and_verified: list[tuple[Any, Any]],
-    notification_type: str,
+    notification_type: Optional[str],
     exception,
-    receipt: UUID = None,
+    receipt: Optional[UUID] = None,
     template: Any = None,
 ):
     if receipt:
@@ -487,11 +477,6 @@ def handle_batch_error_and_forward(
             template = dao_get_template_by_id(
                 notification.get("template_id"), notification.get("template_version"), use_cache=True
             )
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            if isinstance(template, tuple):
-                template = template[0]
             process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
@@ -627,7 +612,6 @@ def process_incomplete_jobs(job_ids):
 
     # reset the processing start time so that the check_job_status scheduled task doesn't pick this job up again
     for job in jobs:
-        job.job_status = JOB_STATUS_IN_PROGRESS
         job.processing_started = datetime.utcnow()
         dao_update_job(job)
 
@@ -642,9 +626,9 @@ def process_incomplete_job(job_id):
     last_notification_added = dao_get_last_notification_added_for_job_id(job_id)
 
     if last_notification_added:
-        resume_from_row = last_notification_added.job_row_number
+        resume_from_row = last_notification_added.job_row_number + 1
     else:
-        resume_from_row = -1  # The first row in the csv with a number is row 0
+        resume_from_row = 0  # no rows have been added yet, resume from row 0
 
     current_app.logger.info("Resuming job {} from row {}".format(job_id, resume_from_row))
 
@@ -656,20 +640,11 @@ def process_incomplete_job(job_id):
 
     csv = get_recipient_csv(job, template)
     rows = csv.get_rows()  # This returns an iterator
-    first_row = []
-    for row in rows:
-        if row.index > resume_from_row:
-            first_row.append(row)
-            for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
-                result = first_row + result
-                process_rows(result, template, job, job.service)
-                put_batch_saving_bulk_created(
-                    metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
-                )
-                first_row = []
-            break
-
-    job_complete(job, resumed=True)
+    for result in chunked(islice(rows, resume_from_row, None), Config.BATCH_INSERTION_CHUNK_SIZE):
+        process_rows(result, template, job, job.service)
+        put_batch_saving_bulk_created(
+            metrics_logger, 1, notification_type=db_template.template_type, priority=db_template.process_type
+        )
 
 
 def choose_database_queue(process_type: str, research_mode: bool, notifications_count: int) -> str:
@@ -706,19 +681,14 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     queue: Optional[str] = process_type
 
     if notifications_count >= large_csv_threshold:
-        queue = QueueNames.BULK
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.LOW]
     # If priority is slow/bulk, but lower than threshold, let's make it
     # faster by switching to normal queue.
     elif process_type == BULK:
-        queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.MEDIUM]
     else:
         # If the size isn't a concern, fall back to the template's process type.
-        if process_type == PRIORITY:
-            queue = QueueNames.PRIORITY
-        elif process_type == BULK:
-            queue = QueueNames.BULK
-        else:
-            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.to_lmh(process_type)]
     return queue
 
 

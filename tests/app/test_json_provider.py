@@ -1,12 +1,10 @@
-import json
-
 import pytest
 from sqlalchemy.engine.row import Row
 
-from app.json_encoder import NotifyJSONEncoder
+from app.json_provider import NotifyJSONProvider
 
 
-class TestNotifyJSONEncoder:
+class TestNotifyJSONProvider:
     @pytest.fixture()
     def row(self, mocker):
         row = mocker.patch("sqlalchemy.engine.row.Row", spec=Row)
@@ -14,5 +12,6 @@ class TestNotifyJSONEncoder:
         return row
 
     def test_serialization_row(self, notify_api, row):
-        serialized: str = json.dumps(row, cls=NotifyJSONEncoder)
+        jp = NotifyJSONProvider(notify_api)
+        serialized: str = jp.dumps(row)  # type: ignore
         assert '{"key1": "value1", "key2": "value2"}' in serialized

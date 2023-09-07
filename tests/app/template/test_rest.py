@@ -7,7 +7,11 @@ import botocore
 import pytest
 import requests_mock
 from freezegun import freeze_time
-from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
+from notifications_utils import (
+    EMAIL_CHAR_COUNT_LIMIT,
+    SMS_CHAR_COUNT_LIMIT,
+    TEMPLATE_NAME_CHAR_COUNT_LIMIT,
+)
 from PyPDF2.utils import PdfReadError
 
 from app.dao.organisation_dao import dao_update_organisation
@@ -86,7 +90,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
 
 
 def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
@@ -673,6 +677,67 @@ def test_should_return_404_if_no_templates_for_service_with_id(client, sample_se
 
 
 @pytest.mark.parametrize(
+    "template_type, char_count_limit", [(SMS_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT), (EMAIL_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT)]
+)
+def test_update_template_400_for_over_limit_name(
+    client, mocker, sample_user, sample_service, sample_template, template_type, char_count_limit
+):
+    mocked_update_template = mocker.patch("app.dao.templates_dao.dao_update_template")
+    name = "x" * (char_count_limit + 1)
+    template_data = {
+        "id": str(sample_template.id),
+        "name": name,
+        "template_type": template_type,
+        "content": "some content here :)",
+        "service": str(sample_service.id),
+        "created_by": str(sample_user.id),
+    }
+    if template_type == EMAIL_TYPE:
+        template_data.update({"subject": "subject"})
+    request_data = json.dumps(template_data)
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        "/service/{}/template/{}".format(sample_service.id, sample_template.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+        data=request_data,
+    )
+    assert response.status_code == 400
+    json_response = json.loads(response.get_data(as_text=True))
+    assert (f"Template name must be less than {char_count_limit} characters") in json_response["message"]["name"]
+    mocked_update_template.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "template_type, char_count_limit", [(SMS_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT), (EMAIL_TYPE, TEMPLATE_NAME_CHAR_COUNT_LIMIT)]
+)
+def test_create_template_400_for_over_limit_name(client, mocker, sample_user, sample_service, template_type, char_count_limit):
+    mocked_update_template = mocker.patch("app.dao.templates_dao.dao_create_template")
+    name = "x" * (char_count_limit + 1)
+    template_data = {
+        "name": name,
+        "template_type": template_type,
+        "content": "some content here :)",
+        "service": str(sample_service.id),
+        "created_by": str(sample_user.id),
+    }
+    if template_type == EMAIL_TYPE:
+        template_data.update({"subject": "subject"})
+    request_data = json.dumps(template_data)
+    auth_header = create_authorization_header()
+
+    response = client.post(
+        "/service/{}/template".format(sample_service.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+        data=request_data,
+    )
+    assert response.status_code == 400
+    json_response = json.loads(response.get_data(as_text=True))
+    assert (f"Template name must be less than {char_count_limit} characters") in json_response["message"]["name"]
+    mocked_update_template.assert_not_called()
+
+
+@pytest.mark.parametrize(
     "template_type, char_count_limit",
     [
         (SMS_TYPE, SMS_CHAR_COUNT_LIMIT),
@@ -820,7 +885,7 @@ def test_create_a_template_with_reply_to(admin_request, sample_user):
     template = Template.query.get(json_resp["data"]["id"])
     from app.schemas import template_schema
 
-    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp["data"]) == sorted(template_schema.dump(template))
     th = TemplateHistory.query.filter_by(id=template.id, version=1).one()
     assert th.service_letter_contact_id == letter_contact.id
 

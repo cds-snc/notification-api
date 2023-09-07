@@ -51,7 +51,6 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
-from tests.conftest import set_config
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -268,7 +267,6 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
             status="delivered",
         )
     )
-
     results = sorted(
         fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id),
         key=lambda x: (x.notification_type, x.status),
@@ -324,34 +322,18 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
             status="delivered",
         )
     )
-
-    with set_config(notify_api, "FF_SMS_PARTS_UI", False):
-        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
-        assert [
-            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
-            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
-            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
-            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
-            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
-
-    with set_config(notify_api, "FF_SMS_PARTS_UI", True):
-        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
-        assert [
-            ("email Template Name", False, mock.ANY, "email", "delivered", 1),
-            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
-            ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
-            ("sms Template 1", False, mock.ANY, "sms", "created", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
-            ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-            ("sms Template Name", False, mock.ANY, "sms", "delivered", 20),
-        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+    results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+    assert [
+        ("email Template Name", False, mock.ANY, "email", "delivered", 1),
+        ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+        ("letter Template Name", False, mock.ANY, "letter", "delivered", 5),
+        ("sms Template 1", False, mock.ANY, "sms", "created", 1),
+        ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+        ("sms Template 1", False, mock.ANY, "sms", "delivered", 1),
+        ("sms Template 2", False, mock.ANY, "sms", "delivered", 1),
+        ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
+        ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+    ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
@@ -436,6 +418,26 @@ def test_get_api_key_ranked_by_notifications_created(notify_db_session):
     assert int(second_place[6]) == 0
     assert int(second_place[7]) == sms_sends
     assert int(second_place[8]) == sms_sends
+
+
+def test_last_used_for_api_key(notify_db_session):
+    service = create_service(service_name="Service 1")
+    api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+    api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
+    api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
+    template_email = create_template(service=service, template_type="email")
+    create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
+    save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
+
+    assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
+
+    save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
+
+    assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
+
+    create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
+
+    assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
 
 
 @pytest.mark.parametrize(

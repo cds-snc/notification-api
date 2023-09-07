@@ -22,14 +22,15 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import (
+    EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
-    LETTER_TYPE,
     SMS_TYPE,
 )
 from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
+    check_email_limit_increment_redis_send_warnings_if_needed,
     check_sms_limit_increment_redis_send_warnings_if_needed,
 )
 from app.schemas import (
@@ -51,7 +52,7 @@ def get_job_by_service_and_job_id(service_id, job_id):
     job = dao_get_job_by_service_id_and_job_id(service_id, job_id)
     if job is not None:
         statistics = dao_get_notification_outcomes_for_job(service_id, job_id)
-        data = job_schema.dump(job).data
+        data = job_schema.dump(job)
         data["statistics"] = [{"status": statistic[1], "count": statistic[0]} for statistic in statistics]
         return jsonify(data=data)
     else:
@@ -84,7 +85,7 @@ def cancel_letter_job(service_id, job_id):
 
 @job_blueprint.route("/<job_id>/notifications", methods=["GET"])
 def get_all_notifications_for_service_job(service_id, job_id):
-    data = notifications_filter_schema.load(request.args).data
+    data = notifications_filter_schema.load(request.args)
     page = data["page"] if "page" in data else 1
     page_size = data["page_size"] if "page_size" in data else current_app.config.get("PAGE_SIZE")
     paginated_notifications = get_notifications_for_job(service_id, job_id, filter_dict=data, page=page, page_size=page_size)
@@ -97,7 +98,7 @@ def get_all_notifications_for_service_job(service_id, job_id):
     if data.get("format_for_csv"):
         notifications = [notification.serialize_for_csv() for notification in paginated_notifications.items]
     else:
-        notifications = notification_with_template_schema.dump(paginated_notifications.items, many=True).data
+        notifications = notification_with_template_schema.dump(paginated_notifications.items, many=True)
 
     return (
         jsonify(
@@ -144,14 +145,15 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
     template = dao_get_template_by_id(data["template"])
 
+    job = get_job_from_s3(service_id, data["id"])
+    recipient_csv = RecipientCSV(
+        job,
+        template_type=template.template_type,
+        placeholders=template._as_utils_template().placeholders,
+        template=Template(template.__dict__),
+    )
+
     if template.template_type == SMS_TYPE:
-        job = get_job_from_s3(service_id, data["id"])
-        recipient_csv = RecipientCSV(
-            job,
-            template_type=template.template_type,
-            placeholders=template._as_utils_template().placeholders,
-            template=Template(template.__dict__),
-        )
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
@@ -167,8 +169,8 @@ def create_job(service_id):
         if not is_test_notification:
             check_sms_limit_increment_redis_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
 
-    if template.template_type == LETTER_TYPE and service.restricted:
-        raise InvalidRequest("Create letter job is not allowed for service in trial mode ", 403)
+    if template.template_type == EMAIL_TYPE:
+        check_email_limit_increment_redis_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
     if data.get("valid") != "True":
         raise InvalidRequest("File is not valid, can't create job", 400)
@@ -180,7 +182,7 @@ def create_job(service_id):
 
     data.update({"template_version": template.version})
 
-    job = job_schema.load(data).data
+    job = job_schema.load(data)
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED
@@ -190,7 +192,7 @@ def create_job(service_id):
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
 
-    job_json = job_schema.dump(job).data
+    job_json = job_schema.dump(job)
     job_json["statistics"] = []
 
     return jsonify(data=job_json), 201
@@ -204,7 +206,7 @@ def get_paginated_jobs(service_id, limit_days, statuses, page):
         page_size=current_app.config["PAGE_SIZE"],
         statuses=statuses,
     )
-    data = job_schema.dump(pagination.items, many=True).data
+    data = job_schema.dump(pagination.items, many=True)
     for job_data in data:
         start = job_data["processing_started"]
         start = dateutil.parser.parse(start).replace(tzinfo=None) if start else None
