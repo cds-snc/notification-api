@@ -182,7 +182,7 @@ def create_job(service_id):
     if errors:
         raise InvalidRequest(errors, status_code=400)
 
-    if template.template_type == SMS_TYPE:
+    if template.template_type == SMS_TYPE and not is_test_notification:
         increment_sms_daily_count_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
     elif template.template_type == EMAIL_TYPE:
         increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
