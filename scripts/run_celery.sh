@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# runs celery with all celery queues except the throtted sms queue
+
 set -e
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
