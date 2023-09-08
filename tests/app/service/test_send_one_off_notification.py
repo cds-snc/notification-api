@@ -304,7 +304,7 @@ def test_send_one_off_notification_raises_if_over_email_limit(notify_db_session,
     service = create_service(message_limit=0)
     template = create_template(service=service, template_type=EMAIL_TYPE)
     mocker.patch(
-        "app.service.send_notification.check_email_limit_increment_redis_send_warnings_if_needed",
+        "app.service.send_notification.check_email_daily_limit",
         side_effect=LiveServiceTooManyEmailRequestsError(1),
     )
 
@@ -323,7 +323,7 @@ def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_sess
     service = create_service(sms_daily_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        "app.service.send_notification.check_sms_limit_increment_redis_send_warnings_if_needed",
+        "app.service.send_notification.check_sms_daily_limit",
         side_effect=LiveServiceTooManySMSRequestsError(1),
     )
 
