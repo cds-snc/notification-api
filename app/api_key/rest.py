@@ -1,8 +1,9 @@
+from datetime import datetime
+
 import werkzeug
 from flask import Blueprint, current_app, jsonify, request
 
 from app import DATETIME_FORMAT
-from app.config import QueueNames
 from app.dao.api_key_dao import (
     expire_api_key,
     get_api_key_by_secret,
@@ -13,15 +14,7 @@ from app.dao.fact_notification_status_dao import (
     get_last_send_for_api_key,
     get_total_notifications_sent_for_api_key,
 )
-from app.dao.services_dao import dao_fetch_active_users_for_service
-from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
-from app.models import KEY_TYPE_NORMAL, Service
-from app.notifications.process_notifications import (
-    persist_notification,
-    send_notification_to_queue,
-)
-from app.schemas import email_data_request_schema
 
 api_key_blueprint = Blueprint("api_key", __name__)
 register_errors(api_key_blueprint)
@@ -79,8 +72,6 @@ def get_api_keys_ranked(n_days_back):
 def send_api_key_revokation_email(service_id, api_key_name, api_key_information):
     """
     TODO: this function if not ready yet. It needs a template to be created.
-    """
-    pass
     email = email_data_request_schema.load(request.get_json())
 
     users_to_send_to = dao_fetch_active_users_for_service(service_id)
@@ -107,6 +98,9 @@ def send_api_key_revokation_email(service_id, api_key_name, api_key_information)
         )
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    """
+    return
 
 
 @api_key_blueprint.route("/revoke-api-keys", methods=["POST"])
@@ -146,11 +140,15 @@ def revoke_api_keys():
         # Step 2
         expire_api_key(api_key.service_id, api_key.id)
 
+        current_app.logger.info("Expired api key {} for service {}".format(api_key.id, api_key.service_id))
+
         # Step 3
         update_compromised_api_key_info(
             api_key.service_id,
             api_key.id,
             {
+                "time_of_revocation": str(datetime.utcnow()),
+                "type": api_key_data["type"],
                 "url": api_key_data["url"],
                 "source": api_key_data["source"],
             },
@@ -158,3 +156,5 @@ def revoke_api_keys():
 
         # Step 4
         send_api_key_revokation_email(api_key.service_id, api_key.name, api_key_data)
+
+    return jsonify(result="ok"), 201
