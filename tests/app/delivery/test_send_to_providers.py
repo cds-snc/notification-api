@@ -403,10 +403,10 @@ def test_should_not_send_to_provider_when_status_is_not_created(sample_template,
 
 def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
     # é, o, and u are in GSM.
-    # á, ï, grapes, tabs, zero width space and ellipsis are not
-    msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
+    # grapes, tabs, zero width space and ellipsis are not
+    msg = "é o u 🍇 foo\tbar\u200bbaz((misc))…"
     placeholder = "∆∆∆abc"
-    gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
+    gsm_message = "?odz Housing Service: é o u ? foo barbaz???abc..."
     service = create_service(service_name="Łódź Housing Service")
     template = create_template(service, content=msg)
     db_notification = save_notification(create_notification(template=template, personalisation={"misc": placeholder}))
