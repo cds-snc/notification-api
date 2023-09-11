@@ -377,6 +377,8 @@ class Service(db.Model, Versioned):
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), index=True, nullable=True)
     organisation = db.relationship('Organisation', backref='services')
 
+    p2p_enabled = db.Column(db.Boolean, nullable=True, default=False)
+
     email_branding = db.relationship(
         'EmailBranding',
         secondary=service_email_branding,
