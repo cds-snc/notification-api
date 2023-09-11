@@ -10,7 +10,7 @@ issue #(issue)
 
 ## Type of change
 
-Please delete options that are not relevant.
+Please check the relevant option(s).
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
@@ -21,7 +21,10 @@ Please delete options that are not relevant.
 ## How Has This Been Tested?
 
 <!--Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration-->
-How has this been tested? (e.g., screenshots, links to deployment, regression test results) to demonstrate the functionality or fix: e.g. Tested locally, Tested as a GitHub action, etc.
+How has this been tested? (e.g. Unit tests, Tested locally, Tested as a GitHub action, Depoyed to dev, etc)  
+Please provide relevant information and / or links to demonstrate the functionality or fix. (e.g. screenshots, link to deployment, regression test results, etc)
+
+
 
 ## Checklist
 
