@@ -1,6 +1,6 @@
-import pytz 
 from datetime import datetime, time, timedelta
 
+import pytz
 from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
