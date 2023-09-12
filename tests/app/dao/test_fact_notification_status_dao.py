@@ -1150,9 +1150,11 @@ def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
     service_1 = create_service(service_name="service_1")
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    # create notifications that should not be included in count
+    # create notifications that should not be included in today's count
     create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=30)
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, 23, 59, 59), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, 11, 59, 59), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 29, 11, 59, 59), status="delivered"))
 
     # create notifications that should be included in count
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
@@ -1172,4 +1174,4 @@ def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
         key=lambda x: (x.notification_type, x.status),
     )
 
-    assert results[0][2] == 3
+    assert results[0][2] == 4
