@@ -1,3 +1,4 @@
+import pytz 
 from datetime import datetime, time, timedelta
 
 from flask import current_app
@@ -8,6 +9,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
+from app.dao.date_util import get_midnight
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -239,7 +241,11 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    start_date = midnight_n_days_ago(limit_days)
+    if limit_days == 1:
+        start_date = get_midnight(datetime.now(tz=pytz.utc))
+    else:
+        start_date = midnight_n_days_ago(limit_days)
+
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
@@ -259,7 +265,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= midnight_n_days_ago(limit_days),
+            Notification.created_at >= start_date,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
