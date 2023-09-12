@@ -72,3 +72,12 @@ jobs:
     with:
       environment: "${{ inputs.environment }}"
     secrets: inherit
+
+  run-QA-suite:
+    needs: [run-deployment]
+    if: ${{ (inputs.environment == 'perf') || (inputs.environment == 'staging') }}
+    uses: ./.github/workflows/regression-public.yml
+    with:
+      qa-image-branch: "master"
+      environment: "${{ inputs.environment }}"
+    secrets: inherit
