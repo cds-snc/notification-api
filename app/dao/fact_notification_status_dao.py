@@ -1,6 +1,5 @@
 from datetime import datetime, time, timedelta
 
-import pytz
 from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
@@ -36,7 +35,6 @@ from app.models import (
 from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
-    midnight_n_days_ago,
 )
 
 
@@ -241,7 +239,7 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    start_date = utc_midnight_n_days_ago(limit_days-1)
+    start_date = utc_midnight_n_days_ago(limit_days - 1)
 
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
