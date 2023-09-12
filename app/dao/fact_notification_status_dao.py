@@ -9,7 +9,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.dao.date_util import get_midnight
+from app.dao.date_util import utc_midnight_n_days_ago
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -241,10 +241,7 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    if limit_days == 1:
-        start_date = get_midnight(datetime.now(tz=pytz.utc))
-    else:
-        start_date = midnight_n_days_ago(limit_days)
+    start_date = utc_midnight_n_days_ago(limit_days-1)
 
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),

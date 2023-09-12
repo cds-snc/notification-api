@@ -81,3 +81,10 @@ def get_financial_year_for_datetime(start_date):
 
 def get_midnight(datetime: datetime) -> datetime:
     return datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def utc_midnight_n_days_ago(number_of_days):
+    """
+    Returns utc midnight a number of days ago.
+    """
+    return get_midnight(datetime.utcnow() - timedelta(days=number_of_days))
