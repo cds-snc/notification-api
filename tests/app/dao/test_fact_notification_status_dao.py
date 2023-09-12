@@ -1141,3 +1141,35 @@ def test_fetch_monthly_notification_statuses_per_service_for_rows_that_should_be
 
     results = fetch_monthly_notification_statuses_per_service(date(2019, 3, 1), date(2019, 3, 31))
     assert len(results) == 0
+
+
+@freeze_time("2018-10-31T18:00:00")
+def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
+    notify_db_session,
+):
+    service_1 = create_service(service_name="service_1")
+    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+    # create notifications that should not be included in count
+    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=30)
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, 11, 59, 59), status="delivered"))
+
+    # create notifications that should be included in count
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 1, 0, 0), status="delivered"))
+
+    # checking the daily stats for this day should give us the 2 created after 12am UTC
+    results = sorted(
+        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=1),
+        key=lambda x: (x.notification_type, x.status),
+    )
+
+    assert results[0][2] == 2
+
+    # checking the daily stats for the last 2 days should give us the 2 created after 12am UTC and the 1 from the day before
+    results = sorted(
+        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=2),
+        key=lambda x: (x.notification_type, x.status),
+    )
+
+    assert results[0][2] == 3
