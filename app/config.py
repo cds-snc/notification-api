@@ -507,6 +507,7 @@ class Config(object):
         # },
     }
     CELERY_QUEUES: List[Any] = []
+    CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
 

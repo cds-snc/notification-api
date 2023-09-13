@@ -4,7 +4,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
-from app.config import QueueNames
+from app.config import Config, QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
@@ -47,7 +47,7 @@ def deliver_throttled_sms(self, notification_id):
     name="deliver_sms",
     max_retries=48,
     default_retry_delay=300,
-    rate_limit="1/s",
+    rate_limit=Config.CELERY_DELIVER_SMS_RATE_LIMIT,
 )
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
