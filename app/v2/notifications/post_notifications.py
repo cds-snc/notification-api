@@ -169,8 +169,7 @@ def post_bulk():
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     form = validate(request_json, post_bulk_request(max_rows))
@@ -271,9 +270,8 @@ def post_notification(notification_type: NotificationType):
     else:
         abort(404)
 
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     check_service_has_permission(notification_type, authenticated_service.permissions)
