@@ -251,6 +251,11 @@ def post_notification(notification_type: NotificationType):
             message="Error decoding arguments: {}".format(e.description),
             status_code=400,
         )
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     if notification_type == EMAIL_TYPE:
         form = validate(request_json, post_email_request)
