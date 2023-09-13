@@ -161,6 +161,11 @@ def post_bulk():
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
