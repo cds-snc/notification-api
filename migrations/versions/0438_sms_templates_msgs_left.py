@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0436_email_templates_msgs_left
-Revises: 0435_update_email_templates_2
+Revision ID: 0438_sms_templates_msgs_left
+Revises: 0437_email_templates_msgs_left
 Create Date: 2023-10-05 00:00:00
 
 """
@@ -10,8 +10,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0436_email_templates_msgs_left"
-down_revision = "0435_update_email_templates_2"
+revision = "0438_sms_templates_msgs_left"
+down_revision = "0437_email_templates_msgs_left"
 
 near_content = "\n".join(
     [
@@ -19,11 +19,11 @@ near_content = "\n".join(
         "",
         "Hello ((name)),",
         "",
-        "((service_name)) can send ((message_limit_en)) emails per day. You’ll be blocked from sending if you exceed that limit before ((limit_reset_time_et_12hr)) Eastern Time. Check [your current local time](https://nrc.canada.ca/en/web-clock/).",
+        "((service_name)) can send ((message_limit_en)) text messages per day. You’ll be blocked from sending if you exceed that limit before ((limit_reset_time_et_12hr)) Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
         "",
         "((service_name)) can send ((remaining_en)) more messages until your limit resets at 7 pm Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
         "",
-        "To request a limit increase, [contact us](https://notification.canada.ca/contact). We’ll respond within 1 business day.",
+        "To request a limit increase, [contact us](((contact_url))). We’ll respond within 1 business day.",
         "",
         "The GC Notify team",
         "",
@@ -31,25 +31,21 @@ near_content = "\n".join(
         "",
         "Bonjour ((name)),",
         "",
-        "La limite quotidienne d’envoi est de ((message_limit_fr)) courriels par jour pour ((service_name)). Si vous dépassez cette limite avant ((limit_reset_time_et_24hr)) heures, heure de l’Est, vos envois seront bloqués.",
+        "((service_name)) peut envoyer ((message_limit_fr)) messages texte par jour. Si vous atteignez cette limite avant ((limit_reset_time_et_24hr)) heures, heure de l’Est, vos envois seront bloqués. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
         "",
-        "((service_name)) can send ((remaining_fr)) more messages until your limit resets at 7 pm Eastern Time. Compare [official times across Canada](https://nrc.canada.ca/en/web-clock/).",
-        "",
-        "Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
-        "",
-        "Veuillez [nous contacter](https://notification.canada.ca/contact) si vous souhaitez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
+        "Veuillez [nous contacter](((contact_url))) si vous désirez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
         "",
         "L’équipe Notification GC",
     ]
 )
 
+
 templates = [
     {
-        "id": current_app.config["NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID"],
-        "name": "Near daily EMAIL limit",
+        "id": current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         "template_type": "email",
+        "subject": "((service_name)) is near its daily limit for text messages. | La limite quotidienne d’envoi de messages texte est presque atteinte pour ((service_name)).",
         "content": near_content,
-        "subject": "((service_name)) is near its daily limit for emails. | La limite quotidienne d’envoi de courriels est presque atteinte pour ((service_name)).",
         "process_type": "priority",
     },
 ]
@@ -60,7 +56,9 @@ def upgrade():
 
     for template in templates:
         current_version = conn.execute("select version from templates where id='{}'".format(template["id"])).fetchone()
+        name = conn.execute("select name from templates where id='{}'".format(template["id"])).fetchone()
         template["version"] = current_version[0] + 1
+        template["name"] = name[0]
 
     template_update = """
         UPDATE templates SET content = '{}', subject = '{}', version = '{}', updated_at = '{}'
