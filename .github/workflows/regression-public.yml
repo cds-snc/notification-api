@@ -66,7 +66,7 @@ jobs:
           docker run --rm --name qa_container \
           -v $(pwd)/.env:/home/qa-container/.env \
           "$ECR_REGISTRY/notification_api_qa:master" \
-          pytest -ra -v tests/test_organizations.py --platform local \
+          pytest -ra -v tests/ --platform local \
           --environment '${{ inputs.environment }}'
 
           docker image prune -a -f 1>/dev/null
