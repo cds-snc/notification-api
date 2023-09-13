@@ -917,6 +917,7 @@ class ApiKey(BaseModel, Versioned):
     )
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
 
     __table_args__ = (
         Index(
