@@ -1184,16 +1184,15 @@ class TestMalware:
 
 class TestBounceRate:
     def test_send_email_should_use_service_reply_to_email(self, sample_service, sample_email_template, mocker, notify_api):
-        with set_config_values(notify_api, {"FF_BOUNCE_RATE_BACKEND": True}):
-            mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-            mocker.patch("app.bounce_rate_client.set_sliding_notifications")
-            db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
-            create_reply_to_email(service=sample_service, email_address="foo@bar.com")
+        mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+        db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
+        create_reply_to_email(service=sample_service, email_address="foo@bar.com")
 
-            send_to_providers.send_email_to_provider(
-                db_notification,
-            )
-            app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+        app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
 
     def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
         with notify_api.app_context():

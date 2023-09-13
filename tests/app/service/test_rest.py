@@ -1578,11 +1578,7 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert not resp["notifications"][0]["row_number"]
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
-
-    if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-        assert resp["notifications"][0]["status"] == "In transit"
-    else:
-        assert resp["notifications"][0]["status"] == "Sending"
+    assert resp["notifications"][0]["status"] == "In transit"
 
 
 def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_session):
