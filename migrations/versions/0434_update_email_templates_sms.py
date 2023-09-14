@@ -29,7 +29,7 @@ near_content = "\n".join(
         "",
         "Bonjour ((name)),",
         "",
-        "((service_name)) peut envoyer ((message_limit_fr)) messages texte par jour. Si vous atteignez cette limite avant ((limit_reset_time_et_24hr)) heures, heure de l’Est, vos envois seront bloqués. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
+        "((service_name)) peut envoyer ((message_limit_fr)) messages texte par jour. Si vous atteignez cette limite avant ((limit_reset_time_et_24hr)) heures, heure de l’Est, vos envois seront bloqués. Comparez [les heures officielles au Canada](https://nrc.canada.ca/fr/horloge-web/).",
         "",
         "Veuillez [nous contacter](((contact_url))) si vous désirez augmenter votre limite d’envoi. Nous vous répondrons en un jour ouvrable.",
         "",
