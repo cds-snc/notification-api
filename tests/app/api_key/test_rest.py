@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from app import DATETIME_FORMAT
+from app.dao.api_key_dao import get_api_key_by_secret, get_unsigned_secret
 from app.models import KEY_TYPE_NORMAL
 from tests.app.db import (
     create_api_key,
@@ -75,3 +76,24 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
     assert api_keys_ranked[1]["email_notifications"] == total_sends
     assert api_keys_ranked[1]["total_notifications"] == total_sends
     assert "last_notification_created" in api_keys_ranked[0]
+
+
+class TestApiKeyRevocation:
+    def test_revoke_api_keys(self, admin_request, notify_db, notify_db_session):
+        service = create_service(service_name="Service 1")
+        api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+        unsigned_secret = get_unsigned_secret(api_key_1.id)
+
+        admin_request.post(
+            "api_key.revoke_api_keys",
+            _data=[{"token": unsigned_secret, "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"}],
+            _expected_status=201,
+        )
+
+        # Get api key from DB
+        api_key_1 = get_api_key_by_secret(api_key_1.secret)
+        assert api_key_1.expiry_date is not None
+        assert api_key_1.compromised_key_info["type"] == "cds-tester"
+        assert api_key_1.compromised_key_info["url"] == "https://example.com"
+        assert api_key_1.compromised_key_info["source"] == "cds-tester"
+        assert api_key_1.compromised_key_info["time_of_revocation"]

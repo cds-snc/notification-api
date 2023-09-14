@@ -161,11 +161,15 @@ def post_bulk():
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     form = validate(request_json, post_bulk_request(max_rows))
@@ -251,6 +255,11 @@ def post_notification(notification_type: NotificationType):
             message="Error decoding arguments: {}".format(e.description),
             status_code=400,
         )
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     if notification_type == EMAIL_TYPE:
         form = validate(request_json, post_email_request)
@@ -261,9 +270,8 @@ def post_notification(notification_type: NotificationType):
     else:
         abort(404)
 
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     check_service_has_permission(notification_type, authenticated_service.permissions)

@@ -579,7 +579,6 @@ class Config(object):
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
     # Feature flags for bounce rate
-    FF_BOUNCE_RATE_BACKEND = env.bool("FF_BOUNCE_RATE_BACKEND", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
 
@@ -681,7 +680,6 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
-    FF_BOUNCE_RATE_BACKEND = True
     FF_EMAIL_DAILY_LIMIT = False
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
