@@ -36,7 +36,7 @@ near_content = "\n".join(
         "",
         "Pour demander une augmentation de votre limite, veuillez nous joindre. Nous vous répondrons en un jour ouvrable.",
         "",
-        "L’équipe Notification GC"
+        "L’équipe Notification GC",
     ]
 )
 
