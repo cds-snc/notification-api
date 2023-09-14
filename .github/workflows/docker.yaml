@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -43,7 +43,7 @@ jobs:
 
     - name: Login to ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@2f9f10ea3fa2eed41ac443fee8bfbd059af2d0a4 # v1.6.0
+      uses: aws-actions/amazon-ecr-login@2fc7aceee09e9e4a7105c0d060c656fad0b4f63d # v1.7.0
       with:
         registry-type: public
 

@@ -1,5 +1,4 @@
 import pytest
-from flask import current_app
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
@@ -126,33 +125,6 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     assert serialized["row_number"] == 1
 
 
-# This test needs to be removed when FF_BOUNCE_RATE_BACKEND is removed
-@freeze_time("2016-01-30 12:39:58.321312")
-@pytest.mark.parametrize(
-    "template_type, status, expected_status",
-    [
-        ("email", "failed", "Failed"),
-        ("email", "technical-failure", "Technical failure"),
-        ("email", "temporary-failure", "Inbox not accepting messages right now"),
-        ("email", "permanent-failure", "Email address doesn’t exist"),
-        ("sms", "temporary-failure", "Phone not accepting messages right now"),
-        ("sms", "permanent-failure", "Phone number doesn’t exist"),
-        ("sms", "sent", "Sent"),
-        ("letter", "created", "Accepted"),
-        ("letter", "sending", "Accepted"),
-        ("letter", "technical-failure", "Technical failure"),
-        ("letter", "delivered", "Received"),
-    ],
-)
-def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
-    if not current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-        template = create_template(sample_service, template_type=template_type)
-        notification = save_notification(create_notification(template, status=status))
-
-        serialized = notification.serialize_for_csv()
-        assert serialized["status"] == expected_status
-
-
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
     "template_type, status, feedback_subtype, expected_status",
@@ -175,14 +147,13 @@ def test_notification_for_csv_returns_formatted_status(sample_service, template_
 def test_notification_for_csv_returns_formatted_status_ff_bouncerate(
     sample_service, template_type, status, feedback_subtype, expected_status
 ):
-    if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-        template = create_template(sample_service, template_type=template_type)
-        notification = save_notification(create_notification(template, status=status))
-        if feedback_subtype:
-            notification.feedback_subtype = feedback_subtype
+    template = create_template(sample_service, template_type=template_type)
+    notification = save_notification(create_notification(template, status=status))
+    if feedback_subtype:
+        notification.feedback_subtype = feedback_subtype
 
-        serialized = notification.serialize_for_csv()
-        assert serialized["status"] == expected_status
+    serialized = notification.serialize_for_csv()
+    assert serialized["status"] == expected_status
 
 
 @freeze_time("2017-03-26 23:01:53.321312")
@@ -367,19 +338,6 @@ def test_is_precompiled_letter_hidden_true_not_name(sample_letter_template):
 def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
     sample_letter_template.name = PRECOMPILED_TEMPLATE_NAME
     assert not sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.parametrize(
-    "process_type, expected_queue",
-    [
-        ("normal", "normal-tasks"),
-        ("priority", "priority-tasks"),
-        ("bulk", "bulk-tasks"),
-    ],
-)
-def test_template_queue_to_use(sample_service, process_type, expected_queue):
-    template = create_template(sample_service, process_type=process_type)
-    assert template.queue_to_use() == expected_queue
 
 
 def test_template_folder_is_parent(sample_service):

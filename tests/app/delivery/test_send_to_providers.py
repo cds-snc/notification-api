@@ -403,10 +403,10 @@ def test_should_not_send_to_provider_when_status_is_not_created(sample_template,
 
 def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
     # é, o, and u are in GSM.
-    # á, ï, grapes, tabs, zero width space and ellipsis are not
-    msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
+    # grapes, tabs, zero width space and ellipsis are not
+    msg = "é o u 🍇 foo\tbar\u200bbaz((misc))…"
     placeholder = "∆∆∆abc"
-    gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
+    gsm_message = "?odz Housing Service: é o u ? foo barbaz???abc..."
     service = create_service(service_name="Łódź Housing Service")
     template = create_template(service, content=msg)
     db_notification = save_notification(create_notification(template=template, personalisation={"misc": placeholder}))
@@ -1184,16 +1184,15 @@ class TestMalware:
 
 class TestBounceRate:
     def test_send_email_should_use_service_reply_to_email(self, sample_service, sample_email_template, mocker, notify_api):
-        with set_config_values(notify_api, {"FF_BOUNCE_RATE_BACKEND": True}):
-            mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-            mocker.patch("app.bounce_rate_client.set_sliding_notifications")
-            db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
-            create_reply_to_email(service=sample_service, email_address="foo@bar.com")
+        mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+        db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
+        create_reply_to_email(service=sample_service, email_address="foo@bar.com")
 
-            send_to_providers.send_email_to_provider(
-                db_notification,
-            )
-            app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+        app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
 
     def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
         with notify_api.app_context():

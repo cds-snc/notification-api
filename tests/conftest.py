@@ -156,7 +156,7 @@ def os_environ():
 
     class EnvironDict(dict):
         def __setitem__(self, key, value):
-            assert type(value) == str
+            assert isinstance(value, str)
             super().__setitem__(key, value)
 
     os.environ = EnvironDict()

@@ -34,6 +34,7 @@ from app.schemas import (
 )
 from app.service.utils import service_allowed_to_send_to
 from app.utils import (
+    get_delivery_queue_for_template,
     get_document_url,
     get_public_notify_type_text,
     get_template_instance,
@@ -141,7 +142,7 @@ def send_notification(notification_type: NotificationType):
         send_notification_to_queue(
             notification=notification_model,
             research_mode=authenticated_service.research_mode,
-            queue=template.queue_to_use(),
+            queue=get_delivery_queue_for_template(template),
         )
     else:
         current_app.logger.debug("POST simulated notification for id: {}".format(notification_model.id))

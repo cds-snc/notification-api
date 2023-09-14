@@ -69,7 +69,7 @@ def get_current_financial_year_start_year():
 
 
 def get_financial_year_for_datetime(start_date):
-    if type(start_date) == date:
+    if type(start_date) is date:
         start_date = datetime.combine(start_date, time.min)
 
     year = int(start_date.strftime("%Y"))
@@ -81,3 +81,10 @@ def get_financial_year_for_datetime(start_date):
 
 def get_midnight(datetime: datetime) -> datetime:
     return datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def utc_midnight_n_days_ago(number_of_days):
+    """
+    Returns utc midnight a number of days ago.
+    """
+    return get_midnight(datetime.utcnow() - timedelta(days=number_of_days))
