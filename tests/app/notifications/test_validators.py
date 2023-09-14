@@ -232,6 +232,8 @@ class TestCheckDailySMSEmailLimits:
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    "count_en": "4",
+                    "count_fr": "4",
                     "remaining_en": "1",
                     "remaining_fr": "1",
                     "message_limit_en": "5",
