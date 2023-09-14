@@ -76,6 +76,7 @@ jobs:
         kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send celery-sms-send=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
 
     - name: my-app-install token
       id: notify-pr-bot
