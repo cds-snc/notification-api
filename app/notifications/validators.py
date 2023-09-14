@@ -257,6 +257,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
                 template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
+                    "count": messages_sent,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
                     "message_limit_en": "{:,}".format(service.message_limit),
                     "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
@@ -302,6 +303,8 @@ def send_near_sms_limit_email(service: Service, sms_sent):
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "count_en": "{:,}".format(sms_sent),
+            "count_fr": "{:,}".format(sms_sent).replace(",", " "),
             "remaining_en": "{:,}".format(sms_remaining),
             "remaining_fr": "{:,}".format(sms_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
@@ -327,6 +330,8 @@ def send_near_email_limit_email(service: Service, emails_sent) -> None:
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "count_en": "{:,}".format(emails_sent),
+            "count_fr": "{:,}".format(emails_sent).replace(",", " "),
             "remaining_en": "{:,}".format(emails_remaining),
             "remaining_fr": "{:,}".format(emails_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.message_limit),
