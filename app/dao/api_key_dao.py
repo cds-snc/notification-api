@@ -68,6 +68,14 @@ def expire_api_key(service_id, api_key_id):
     db.session.add(api_key)
 
 
+@transactional
+@version_class(ApiKey)
+def update_compromised_api_key_info(service_id, api_key_id, compromised_info):
+    api_key = ApiKey.query.filter_by(id=api_key_id, service_id=service_id).one()
+    api_key.compromised_key_info = compromised_info
+    db.session.add(api_key)
+
+
 def get_api_key_by_secret(secret):
     signed_with_all_keys = signer_api_key.sign_with_all_keys(str(secret))
     for signed_secret in signed_with_all_keys:
