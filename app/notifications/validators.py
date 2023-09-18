@@ -176,7 +176,7 @@ def send_warning_email_limit_emails_if_needed(service: Service) -> None:
     if bool_nearing_email_daily_limit:
         cache_key = near_email_daily_limit_cache_key(service.id)
         if not redis_store.get(cache_key):
-            send_near_email_limit_email(service)
+            send_near_email_limit_email(service, todays_current_email_count)
             redis_store.set(cache_key, current_time, ex=cache_expiration)
 
     # Send a warning when reaching the daily message limit
@@ -198,7 +198,7 @@ def send_warning_sms_limit_emails_if_needed(service: Service):
     if nearing_sms_daily_limit:
         cache_key = near_sms_daily_limit_cache_key(service.id)
         if not redis_store.get(cache_key):
-            send_near_sms_limit_email(service)
+            send_near_sms_limit_email(service, todays_requested_sms)
             redis_store.set(cache_key, current_time, ex=cache_expiration)
 
     # Send a warning when reaching the daily message limit
@@ -257,6 +257,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
                 template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
                 personalisation={
                     "service_name": service.name,
+                    "count": messages_sent,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
                     "message_limit_en": "{:,}".format(service.message_limit),
                     "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
@@ -293,14 +294,19 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
             raise LiveServiceTooManyRequestsError(service.message_limit)
 
 
-def send_near_sms_limit_email(service: Service):
+def send_near_sms_limit_email(service: Service, sms_sent):
     limit_reset_time_et = get_limit_reset_time_et()
+    sms_remaining = service.sms_daily_limit - sms_sent
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "count_en": "{:,}".format(sms_sent),
+            "count_fr": "{:,}".format(sms_sent).replace(",", " "),
+            "remaining_en": "{:,}".format(sms_remaining),
+            "remaining_fr": "{:,}".format(sms_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
@@ -311,18 +317,23 @@ def send_near_sms_limit_email(service: Service):
     current_app.logger.info(f"service {service.id} is approaching its daily sms limit of {service.sms_daily_limit}")
 
 
-def send_near_email_limit_email(service: Service) -> None:
+def send_near_email_limit_email(service: Service, emails_sent) -> None:
     """
     Send an email to service users when nearing the daily email limit.
 
     """
     limit_reset_time_et = get_limit_reset_time_et()
+    emails_remaining = service.message_limit - emails_sent
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "count_en": "{:,}".format(emails_sent),
+            "count_fr": "{:,}".format(emails_sent).replace(",", " "),
+            "remaining_en": "{:,}".format(emails_remaining),
+            "remaining_fr": "{:,}".format(emails_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.message_limit),
             "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],

@@ -211,7 +211,7 @@ class TestCheckDailySMSEmailLimits:
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5, sms_limit=5)
             template = create_sample_template(notify_db, notify_db_session, service=service, template_type=limit_type)
-            for x in range(4):
+            for x in range(5):
                 create_sample_notification(notify_db, notify_db_session, service=service, template=template)
 
             if limit_type == "sms":
@@ -232,6 +232,10 @@ class TestCheckDailySMSEmailLimits:
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    "count_en": "4",
+                    "count_fr": "4",
+                    "remaining_en": "1",
+                    "remaining_fr": "1",
                     "message_limit_en": "5",
                     "message_limit_fr": "5",
                     **kwargs,
