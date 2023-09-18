@@ -296,7 +296,7 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
 
 def send_near_sms_limit_email(service: Service, sms_sent):
     limit_reset_time_et = get_limit_reset_time_et()
-    sms_remaining = service.message_limit - sms_sent
+    sms_remaining = service.sms_daily_limit - sms_sent
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
