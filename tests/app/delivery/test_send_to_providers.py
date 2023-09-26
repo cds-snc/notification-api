@@ -153,7 +153,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@notification.canada.ca>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@notification.canada.ca>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
@@ -244,7 +244,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@foo.bar>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@foo.bar>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
