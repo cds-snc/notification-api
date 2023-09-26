@@ -271,7 +271,7 @@ def test_replay_created_notifications(
 
     template = create_template(service=sample_service, template_type=notification_type)
 
-    older_than = (60 * 60 * 4) + (60 * 15)  # 4 hours 15 minutes
+    older_than = (60 * 60 * 24) + (60 * 15)  # 24 hours 15 minutes
     old_notification = create_notification(template=template,
                                            created_at=datetime.utcnow() - timedelta(seconds=older_than),
                                            status='created')

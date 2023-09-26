@@ -132,8 +132,8 @@ def check_job_status():
 @notify_celery.task(name='replay-created-notifications')
 @statsd(namespace="tasks")
 def replay_created_notifications():
-    # if the notification has not be send after 4 hours + 15 minutes, then try to resend.
-    resend_created_notifications_older_than = (60 * 60 * 4) + (60 * 15)
+    # if the notification has not be send after 24 hours + 15 minutes, then try to resend.
+    resend_created_notifications_older_than = (60 * 60 * 24) + (60 * 15)
     for notification_type in (EMAIL_TYPE, SMS_TYPE):
         notifications_to_resend = notifications_not_yet_sent(
             resend_created_notifications_older_than,
