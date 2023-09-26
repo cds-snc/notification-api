@@ -21,15 +21,20 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_SENT, Notification, NOTIFICATION_PREFERENCES_DECLINED
+    NOTIFICATION_PREFERENCES_DECLINED,
+    Notification
 )
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 
-FINAL_STATUS_STATES = [NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE,
-                       NOTIFICATION_PREFERENCES_DECLINED]
+FINAL_STATUS_STATES = [
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED
+]
 
 _record_status_status_mapping = {
-    'SUCCESSFUL': NOTIFICATION_SENT,
+    'SUCCESSFUL': NOTIFICATION_DELIVERED,
     'DELIVERED': NOTIFICATION_DELIVERED,
     'PENDING': NOTIFICATION_SENDING,
     'INVALID': NOTIFICATION_TECHNICAL_FAILURE,
@@ -136,7 +141,7 @@ def process_pinpoint_results(self, response):
 def get_notification_status(event_type: str, record_status: str, reference: str) -> str:
     if event_type == '_SMS.OPTOUT':
         current_app.logger.info("event type is OPTOUT for notification with reference %s", reference)
-        statsd_client.incr(f"callback.pinpoint.optout")
+        statsd_client.incr("callback.pinpoint.optout")
         notification_status = NOTIFICATION_PERMANENT_FAILURE
     else:
         notification_status = _map_record_status_to_notification_status(record_status)

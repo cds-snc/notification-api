@@ -13,7 +13,6 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_SENT
 )
 from tests.app.db import create_notification
 
@@ -35,7 +34,7 @@ def test_passes_if_toggle_disabled(mocker, notify_db_session):
 
 
 @pytest.mark.parametrize('event_type, record_status, expected_notification_status', [
-    ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_SENT),
+    ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_DELIVERED),
     ('_SMS.SUCCESS', 'DELIVERED', NOTIFICATION_DELIVERED),
     ('_SMS.FAILURE', 'INVALID', NOTIFICATION_TECHNICAL_FAILURE),
     ('_SMS.FAILURE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE),
