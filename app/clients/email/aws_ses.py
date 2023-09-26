@@ -2,14 +2,12 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from time import monotonic
-import base64
 
 import boto3
 import botocore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
-# from unidecode import unidecode
 
 from app.clients.email import EmailClient, EmailClientException
 
@@ -64,8 +62,6 @@ class AwsSesClient(EmailClient):
         attachments = attachments or []
         if isinstance(to_addresses, str):
             to_addresses = [to_addresses]
-        # TODO: fix this to allow accents
-        # source = base64.b64encode(bytes(source, "utf-8"))
 
         reply_to_addresses = [reply_to_address] if reply_to_address else []
 
@@ -104,10 +100,8 @@ class AwsSesClient(EmailClient):
                 msg.attach(attachment_part)
 
             start_time = monotonic()
-            response = self._client.send_raw_email(RawMessage={"Data": msg.as_string()})
+            response = self._client.send_raw_email(Source=source, RawMessage={"Data": msg.as_string()})
         except botocore.exceptions.ClientError as e:
-            # got an error here using a service with accents in the name
-            
             self.statsd_client.incr("clients.ses.error")
 
             # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html

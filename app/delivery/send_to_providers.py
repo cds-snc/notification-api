@@ -5,7 +5,6 @@ import urllib.request
 from datetime import datetime
 from typing import Dict
 from uuid import UUID
-from unidecode import unidecode
 
 from flask import current_app
 from notifications_utils.recipients import (
@@ -17,6 +16,7 @@ from notifications_utils.template import (
     PlainTextEmailTemplate,
     SMSMessageTemplate,
 )
+from unidecode import unidecode
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
@@ -187,6 +187,28 @@ def check_service_over_bounce_rate(service_id: str):
         )
 
 
+def mime_encoded_word_syntax(charset="utf-8", encoding="B", encoded_text="") -> str:
+    """MIME encoded-word syntax is a way to encode non-ASCII characters in email headers.
+    It is described here:
+    https://docs.aws.amazon.com/ses/latest/dg/send-email-raw.html#send-email-mime-encoding-headers
+    """
+    return f"=?{charset}?{encoding}?{encoded_text}?="
+
+
+def get_from_address(friendly_from: str, email_from: str, sending_domain: str) -> str:
+    """
+    This function returns the from_address or source in MIME encoded-word syntax
+    friendly_from is the sender's display name and may contain accents so we need to encode it to base64
+    email_from and sending_domain should be ASCII only
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ses/client/send_raw_email.html
+    "If you want to use Unicode characters in the “friendly from” name, you must encode the “friendly from”
+    name using MIME encoded-word syntax, as described in Sending raw email using the Amazon SES API."
+    """
+    friendly_from_b64 = base64.b64encode(friendly_from.encode()).decode("utf-8")
+    friendly_from_mime = mime_encoded_word_syntax(charset="utf-8", encoding="B", encoded_text=friendly_from_b64)
+    return f'"{friendly_from_mime}" <{unidecode(email_from)}@{unidecode(sending_domain)}>'
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -268,22 +290,10 @@ def send_email_to_provider(notification: Notification):
                 sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
             else:
                 sending_domain = service.sending_domain
-            
-            # do not use unidecode for the service name as it may contain accents
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ses/client/send_raw_email.html
-            # Amazon SES does not support the SMTPUTF8 extension, as described in RFC6531. For this reason, 
-            # the email address string must be 7-bit ASCII. If you want to send to or from email addresses that contain 
-            # Unicode characters in the domain part of an address, you must encode the domain using Punycode. 
-            # Punycode is not permitted in the local part of the email address (the part before the @ sign) nor in the “friendly from” name. 
-            # If you want to use Unicode characters in the “friendly from” name, you must encode the “friendly from” name using 
-            # MIME encoded-word syntax, as described in Sending raw email using the Amazon SES API. For more information about Punycode, 
-            # see RFC 3492.
-            
-            service_name = service.name
-            x = base64.b64encode(service_name.encode()).decode("utf-8")
-            friendly_from = f"=?utf-8?B?{x}?="
-            from_address = f'"{friendly_from}" <{unidecode(service.email_from)}@{unidecode(sending_domain)}>'
-            
+
+            from_address = get_from_address(
+                friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain
+            )
             email_reply_to = notification.reply_to_text
 
             reference = provider.send_email(
