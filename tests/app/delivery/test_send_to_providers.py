@@ -1,6 +1,7 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
+from unittest import TestCase
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
@@ -1223,7 +1224,8 @@ class TestBounceRate:
             mock_logger.assert_not_called()
 
 
-@pytest.mark.parametrize("encoded_text, charset, encoding, expected", 
+@pytest.mark.parametrize(
+    "encoded_text, charset, encoding, expected",
     [
         ("hello_world", "utf-8", "B", "=?utf-8?B?hello_world?="),
         ("hello_world", "utf-8", "Q", "=?utf-8?Q?hello_world?="),
@@ -1231,7 +1233,46 @@ class TestBounceRate:
     ],
 )
 def test_mime_encoded_word_syntax_encoding(encoded_text, charset, encoding, expected):
-        result = send_to_providers.mime_encoded_word_syntax(
-            encoded_text=encoded_text, charset=charset, encoding=encoding
-        )
-        assert result ==  expected
+    result = send_to_providers.mime_encoded_word_syntax(encoded_text=encoded_text, charset=charset, encoding=encoding)
+    assert result == expected
+
+
+class TestGetFromAddress(TestCase):
+    def test_get_from_address_ascii(self):
+        # Arrange
+        friendly_from = "John Doe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?Sm9obiBEb2U=?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_non_ascii(self):
+        # Arrange
+        friendly_from = "Jöhn Döe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?SsO2aG4gRMO2ZQ==?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_empty_friendly_from(self):
+        # Arrange
+        friendly_from = ""
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B??=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
