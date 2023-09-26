@@ -1221,3 +1221,17 @@ class TestBounceRate:
             mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
             assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
             mock_logger.assert_not_called()
+
+
+@pytest.mark.parametrize("encoded_text, charset, encoding, expected", 
+    [
+        ("hello_world", "utf-8", "B", "=?utf-8?B?hello_world?="),
+        ("hello_world", "utf-8", "Q", "=?utf-8?Q?hello_world?="),
+        ("hello_world2", "utf-8", "B", "=?utf-8?B?hello_world2?="),
+    ],
+)
+def test_mime_encoded_word_syntax_encoding(encoded_text, charset, encoding, expected):
+        result = send_to_providers.mime_encoded_word_syntax(
+            encoded_text=encoded_text, charset=charset, encoding=encoding
+        )
+        assert result ==  expected

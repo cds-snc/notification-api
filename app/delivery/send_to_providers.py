@@ -187,7 +187,7 @@ def check_service_over_bounce_rate(service_id: str):
         )
 
 
-def mime_encoded_word_syntax(charset="utf-8", encoding="B", encoded_text="") -> str:
+def mime_encoded_word_syntax(encoded_text="", charset="utf-8", encoding="B") -> str:
     """MIME encoded-word syntax is a way to encode non-ASCII characters in email headers.
     It is described here:
     https://docs.aws.amazon.com/ses/latest/dg/send-email-raw.html#send-email-mime-encoding-headers
@@ -205,7 +205,7 @@ def get_from_address(friendly_from: str, email_from: str, sending_domain: str) -
     name using MIME encoded-word syntax, as described in Sending raw email using the Amazon SES API."
     """
     friendly_from_b64 = base64.b64encode(friendly_from.encode()).decode("utf-8")
-    friendly_from_mime = mime_encoded_word_syntax(charset="utf-8", encoding="B", encoded_text=friendly_from_b64)
+    friendly_from_mime = mime_encoded_word_syntax(encoded_text=friendly_from_b64, charset="utf-8", encoding="B")
     return f'"{friendly_from_mime}" <{unidecode(email_from)}@{unidecode(sending_domain)}>'
 
 
