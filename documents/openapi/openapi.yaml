@@ -243,7 +243,6 @@ paths:
                   example: "+19876543210"
                 auth_type:
                   type: string
-                  format: auth type
                   enum:
                     - sms_auth
                     - email_auth
@@ -1091,7 +1090,7 @@ paths:
                   scheduled_for: string
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email: "test@notification.com"
+                  email_address: "test@notification.com"
               recipient_identifier:
                 value:
                   reference: string
@@ -1356,7 +1355,7 @@ paths:
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email: "test@notification.com"
+                  email_address: "test@notification.com"
               recipient_identifier:
                 value:
                   reference: string
@@ -1382,7 +1381,7 @@ paths:
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email: "test@notification.com"
+                  email_address: "test@notification.com"
                   recipient_identifier:
                     id_type: ICN
                     id_value: 1000000000V000000
@@ -1836,17 +1835,17 @@ components:
         - $ref: '#/components/schemas/OrganisationSummary'
       properties:
         agreement_signed:
-          format: datetime
-          nullable: true
           type: string
+          format: date-time
+          nullable: true
         agreement_signed_at:
-          format: datetime
-          nullable: true
           type: string
+          format: date-time
+          nullable: true
         agreement_signed_by_id:
+          type: string
           format: uuid
           nullable: true
-          type: string
         agreement_signed_on_behalf_of_email_address:
           nullable: true
           type: string
@@ -1858,9 +1857,9 @@ components:
         crown:
           type: boolean
         email_branding_id:
+          type: string
           format: uuid
           nullable: true
-          type: string
         request_to_go_live_notes:
           nullable: true
           type: string
@@ -1885,7 +1884,6 @@ components:
             type: string
         auth_type:
           type: string
-          format: auth type
           description: The auth type determines whether email address or mobile number are required.
           enum:
             - sms_auth
@@ -1911,10 +1909,10 @@ components:
           $ref: '#/components/schemas/CallbackType'
         created_at:
           type: string
-          format: datetime
+          format: date-time
         updated_at:
           type: string
-          format: datetime
+          format: date-time
           nullable: true
         updated_by_id:
           type: string
@@ -1960,7 +1958,7 @@ components:
       properties:
         url:
           type: string
-          format: url
+          format: uri
         bearer_token:
           type: string
         notification_statuses:
@@ -2030,7 +2028,7 @@ components:
             $ref: '#/components/schemas/Id'
         password_changed_at:
           type: string
-          format: datetime
+          format: date-time
         permissions:
           type: object
           additionalProperties:
@@ -2128,7 +2126,7 @@ components:
           nullable: true
         go_live_at:
           type: string
-          format: datetime
+          format: date-time
           nullable: true
         go_live_user:
           $ref: '#/components/schemas/Id'
@@ -2280,7 +2278,7 @@ components:
           type: boolean
         created_at:
           type: string
-          format: datetime
+          format: date-time
         folder:
           $ref: '#/components/schemas/Id'
         hidden:
@@ -2302,7 +2300,7 @@ components:
           $ref: '#/components/schemas/Id'
         updated_at:
           type: string
-          format: datetime
+          format: date-time
         version:
           type: number
     CreateHTMLPreviewRequest:
@@ -2370,7 +2368,8 @@ components:
           $ref: "#/components/schemas/Personalisation"
         scheduled_for:
           type: string
-          format: datetime within next day
+          format: date-time
+          description: datetime within next day
         billing_code:
           type: string
       required:
@@ -2387,7 +2386,6 @@ components:
             - properties:
                 phone_number:
                   type: string
-                  format: phone_number
                   example: "+19876543210"
               required: [phone_number]
             - properties:
@@ -2405,7 +2403,7 @@ components:
             - properties:
                 email_address:
                   type: string
-                  format: email_address
+                  format: email
               required: [email_address]
             - properties:
                 recipient_identifier:
@@ -2472,7 +2470,7 @@ components:
         - properties:
             email_address:
               type: string
-          format: email
+              format: email
           required: [email_address]
         - properties:
             recipient_identifier:
@@ -2713,7 +2711,6 @@ components:
           $ref: '#/components/schemas/Id'
         sms_sender:
           type: string
-          format: phonenumber
         updated_at:
           type: string
           format: date-time
@@ -2722,7 +2719,7 @@ components:
       properties:
         file:
           type: string
-          format: base64
+          description: base64 encoded data
         filename:
           type: string
   securitySchemes:
