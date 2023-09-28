@@ -1544,3 +1544,31 @@ def test_update_user_blocked(admin_request, sample_user, account_change_template
 
     assert resp["data"]["id"] == str(sample_user.id)
     assert resp["data"]["blocked"]
+
+
+class TestFailedLoginAttempts:
+
+    def test_update_user_password_saves_correctly(client, sample_service):
+        sample_user = sample_service.users[0]
+        new_password = "tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm"
+        data = {"_password": new_password}
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
+        resp = client.post(
+            url_for("user.update_password", user_id=sample_user.id),
+            data=json.dumps(data),
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+        json_resp = json.loads(resp.get_data(as_text=True))
+        assert json_resp["data"]["password_changed_at"] is not None
+        data = {"password": new_password}
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
+        resp = client.post(
+            url_for("user.t_user_password", user_id=str(sample_user.id)),
+            data=json.dumps(data),
+            headers=headers,
+        )
+        assert resp.status_code == 204
