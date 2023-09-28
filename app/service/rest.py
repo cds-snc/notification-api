@@ -68,7 +68,7 @@ from app.models import (
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schema_validation import validate
 from app.service import statistics
-from app.service.send_notification import send_one_off_notification, send_pdf_letter_notification
+from app.service.send_notification import send_one_off_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
@@ -619,13 +619,6 @@ def get_monthly_template_usage(service_id):
 @requires_admin_auth()
 def create_one_off_notification(service_id):
     resp = send_one_off_notification(service_id, request.get_json())
-    return jsonify(resp), 201
-
-
-@service_blueprint.route('/<uuid:service_id>/send-pdf-letter', methods=['POST'])
-@requires_admin_auth()
-def create_pdf_letter(service_id):
-    resp = send_pdf_letter_notification(service_id, request.get_json())
     return jsonify(resp), 201
 
 
