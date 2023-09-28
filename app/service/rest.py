@@ -46,13 +46,6 @@ from app.dao.service_email_reply_to_dao import (
     dao_get_reply_to_by_service_id,
     update_reply_to_email_address,
 )
-from app.dao.service_letter_contact_dao import (
-    archive_letter_contact,
-    dao_get_letter_contacts_by_service_id,
-    dao_get_letter_contact_by_id,
-    add_letter_contact_for_service,
-    update_letter_contact,
-)
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
@@ -74,10 +67,7 @@ from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
     update_service_data_retention_request,
 )
-from app.service.service_senders_schema import (
-    add_service_email_reply_to_request,
-    add_service_letter_contact_block_request,
-)
+from app.service.service_senders_schema import add_service_email_reply_to_request
 from app.schemas import (
     service_schema,
     api_key_schema,
@@ -692,53 +682,6 @@ def delete_service_reply_to_email_address(service_id, reply_to_email_id):
     archived_reply_to = archive_reply_to_email_address(service_id, reply_to_email_id)
 
     return jsonify(data=archived_reply_to.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/letter-contact', methods=["GET"])
-@requires_admin_auth()
-def get_letter_contacts(service_id):
-    result = dao_get_letter_contacts_by_service_id(service_id)
-    return jsonify([i.serialize() for i in result]), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>', methods=["GET"])
-@requires_admin_auth()
-def get_letter_contact_by_id(service_id, letter_contact_id):
-    result = dao_get_letter_contact_by_id(service_id=service_id, letter_contact_id=letter_contact_id)
-    return jsonify(result.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/letter-contact', methods=['POST'])
-@requires_admin_auth()
-def add_service_letter_contact(service_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_letter_contact = add_letter_contact_for_service(service_id=service_id,
-                                                        contact_block=form['contact_block'],
-                                                        is_default=form.get('is_default', True))
-    return jsonify(data=new_letter_contact.serialize()), 201
-
-
-@service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>', methods=['POST'])
-@requires_admin_auth()
-def update_service_letter_contact(service_id, letter_contact_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_reply_to = update_letter_contact(service_id=service_id,
-                                         letter_contact_id=letter_contact_id,
-                                         contact_block=form['contact_block'],
-                                         is_default=form.get('is_default', True))
-    return jsonify(data=new_reply_to.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>/archive', methods=['POST'])
-@requires_admin_auth()
-def delete_service_letter_contact(service_id, letter_contact_id):
-    archived_letter_contact = archive_letter_contact(service_id, letter_contact_id)
-
-    return jsonify(data=archived_letter_contact.serialize()), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/organisation', methods=['GET'])
