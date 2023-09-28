@@ -8,7 +8,6 @@ import botocore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
-from unidecode import unidecode
 
 from app.clients.email import EmailClient, EmailClientException
 
@@ -63,7 +62,7 @@ class AwsSesClient(EmailClient):
         attachments = attachments or []
         if isinstance(to_addresses, str):
             to_addresses = [to_addresses]
-        source = unidecode(source)
+
         reply_to_addresses = [reply_to_address] if reply_to_address else []
 
         # - If sending a TXT email without attachments:

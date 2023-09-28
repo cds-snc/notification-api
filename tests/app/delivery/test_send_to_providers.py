@@ -1,6 +1,7 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
+from unittest import TestCase
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
@@ -153,7 +154,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@notification.canada.ca>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@notification.canada.ca>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
@@ -244,7 +245,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@foo.bar>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@foo.bar>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
@@ -1221,3 +1222,57 @@ class TestBounceRate:
             mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
             assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
             mock_logger.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "encoded_text, charset, encoding, expected",
+    [
+        ("hello_world", "utf-8", "B", "=?utf-8?B?hello_world?="),
+        ("hello_world", "utf-8", "Q", "=?utf-8?Q?hello_world?="),
+        ("hello_world2", "utf-8", "B", "=?utf-8?B?hello_world2?="),
+    ],
+)
+def test_mime_encoded_word_syntax_encoding(encoded_text, charset, encoding, expected):
+    result = send_to_providers.mime_encoded_word_syntax(encoded_text=encoded_text, charset=charset, encoding=encoding)
+    assert result == expected
+
+
+class TestGetFromAddress(TestCase):
+    def test_get_from_address_ascii(self):
+        # Arrange
+        friendly_from = "John Doe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?Sm9obiBEb2U=?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_non_ascii(self):
+        # Arrange
+        friendly_from = "Jöhn Döe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?SsO2aG4gRMO2ZQ==?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_empty_friendly_from(self):
+        # Arrange
+        friendly_from = ""
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B??=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
