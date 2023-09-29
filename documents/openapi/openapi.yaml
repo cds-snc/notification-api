@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.2
+  version: 1.0.3
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -389,12 +389,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ServiceSmsSender'
+                type: array
+                items:
+                  $ref: '#/components/schemas/ServiceSmsSender'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -416,12 +413,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    items:
-                      $ref: '#/components/schemas/ServiceSmsSender'
+                $ref: '#/components/schemas/ServiceSmsSender'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -445,12 +437,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    items:
-                      $ref: '#/components/schemas/ServiceSmsSender'
+                $ref: '#/components/schemas/ServiceSmsSender'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -473,12 +460,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    items:
-                      $ref: '#/components/schemas/ServiceSmsSender'
+                $ref: '#/components/schemas/ServiceSmsSender'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -505,9 +487,7 @@ paths:
                 type: object
                 properties:
                   data:
-                    type: object
-                    items:
-                      $ref: '#/components/schemas/ServiceSmsSender'
+                    $ref: '#/components/schemas/ServiceSmsSender'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1772,7 +1752,6 @@ components:
             type: object
             properties:
               error:
-                type: string
                 const: ValidationError
               message:
                 type: string
