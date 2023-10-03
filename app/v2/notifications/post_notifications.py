@@ -13,7 +13,6 @@ from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.config import QueueNames, TaskNames
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.templates_dao import get_precompiled_letter_template
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -59,50 +58,8 @@ from app.v2.notifications.notification_schemas import (
     post_sms_request,
     post_email_request,
     post_letter_request,
-    post_precompiled_letter_request
 )
 from app.utils import get_public_notify_type_text
-
-
-# FIXME: POST requests to /v2/notifications/letter match this route and the
-# route hooked to the post_notification function below.  Proper execution
-# seems to depend on the order of the code (top-to-bottom route matching).
-@v2_notification_blueprint.route('/{}'.format(LETTER_TYPE), methods=['POST'])
-def post_precompiled_letter_notification():
-    if 'content' not in (request.get_json() or {}):
-        return post_notification(LETTER_TYPE)
-
-    form = validate(request.get_json(), post_precompiled_letter_request)
-
-    if not authenticated_service.has_permissions(LETTER_TYPE):
-        raise BadRequestError(message="Service is not allowed to send {}".format(
-            get_public_notify_type_text(LETTER_TYPE, plural=True)))
-
-    check_rate_limiting(authenticated_service, api_user)
-
-    template = get_precompiled_letter_template(authenticated_service.id)
-
-    form['personalisation'] = {
-        'address_line_1': form['reference']
-    }
-
-    reply_to = get_reply_to_text(LETTER_TYPE, form, template)
-
-    notification = process_letter_notification(
-        letter_data=form,
-        api_key=api_user,
-        template=template,
-        reply_to_text=reply_to,
-        precompiled=True
-    )
-
-    resp = {
-        'id': notification.id,
-        'reference': notification.client_reference,
-        'postage': notification.postage
-    }
-
-    return jsonify(resp), 201
 
 
 @v2_notification_blueprint.route('/<notification_type>', methods=['POST'])

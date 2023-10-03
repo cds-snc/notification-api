@@ -1,10 +1,7 @@
 import uuid
-from unittest.mock import ANY
-
 from flask import json
 from flask import url_for
 import pytest
-
 from app.config import QueueNames
 from app.models import (
     Job,
@@ -17,7 +14,6 @@ from app.models import (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
     SMS_TYPE
 )
 from app.schema_validation import validate
@@ -376,30 +372,6 @@ def test_post_letter_notification_is_delivered_but_still_creates_pdf_if_in_trial
     fake_create_letter_task.assert_called_once_with([str(notification.id)], queue='research-mode-tasks')
 
 
-def test_post_letter_notification_is_delivered_and_has_pdf_uploaded_to_test_letters_bucket_using_test_key(
-    client,
-    notify_user,
-    mocker
-):
-    sample_letter_service = create_service(service_permissions=['letter'])
-    mocker.patch('app.celery.letters_pdf_tasks.notify_celery.send_task')
-    s3mock = mocker.patch('app.v2.notifications.post_notifications.upload_letter_pdf', return_value='test.pdf')
-    data = {
-        "reference": "letter-reference",
-        "content": "bGV0dGVyLWNvbnRlbnQ="
-    }
-    letter_request(
-        client,
-        data=data,
-        service_id=str(sample_letter_service.id),
-        key_type=KEY_TYPE_TEST,
-        precompiled=True)
-
-    notification = Notification.query.one()
-    assert notification.status == NOTIFICATION_PENDING_VIRUS_CHECK
-    s3mock.assert_called_once_with(ANY, b'letter-content', precompiled=True)
-
-
 def test_post_letter_notification_persists_notification_reply_to_text(
     client, notify_db_session, mocker
 ):
@@ -418,81 +390,3 @@ def test_post_letter_notification_persists_notification_reply_to_text(
     notifications = Notification.query.all()
     assert len(notifications) == 1
     assert notifications[0].reply_to_text == service_address
-
-
-def test_post_precompiled_letter_with_invalid_base64(client, notify_user, mocker):
-    sample_service = create_service(service_permissions=['letter'])
-    mocker.patch('app.v2.notifications.post_notifications.upload_letter_pdf')
-
-    data = {
-        "reference": "letter-reference",
-        "content": "hi"
-    }
-    auth_header = create_authorization_header(service_id=sample_service.id)
-    response = client.post(
-        path="v2/notifications/letter",
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 400, response.get_data(as_text=True)
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['errors'][0]['message'] == 'Cannot decode letter content (invalid base64 encoding)'
-
-    assert not Notification.query.first()
-
-
-@pytest.mark.parametrize('notification_postage, expected_postage', [
-    ('second', 'second'),
-    ('first', 'first'),
-    (None, 'second')
-])
-def test_post_precompiled_letter_notification_returns_201(
-    client, notify_user, mocker, notification_postage, expected_postage
-):
-    sample_service = create_service(service_permissions=['letter'])
-    s3mock = mocker.patch('app.v2.notifications.post_notifications.upload_letter_pdf')
-    mocker.patch('app.celery.letters_pdf_tasks.notify_celery.send_task')
-    data = {
-        "reference": "letter-reference",
-        "content": "bGV0dGVyLWNvbnRlbnQ="
-    }
-    if notification_postage:
-        data["postage"] = notification_postage
-    auth_header = create_authorization_header(service_id=sample_service.id)
-    response = client.post(
-        path="v2/notifications/letter",
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 201, response.get_data(as_text=True)
-
-    s3mock.assert_called_once_with(ANY, b'letter-content', precompiled=True)
-
-    notification = Notification.query.one()
-
-    assert notification.billable_units == 0
-    assert notification.status == NOTIFICATION_PENDING_VIRUS_CHECK
-    assert notification.postage == expected_postage
-
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json == {'id': str(notification.id), 'reference': 'letter-reference', 'postage': expected_postage}
-
-
-def test_post_letter_notification_throws_error_for_invalid_postage(client, notify_user, mocker):
-    sample_service = create_service(service_permissions=['letter'])
-    data = {
-        "reference": "letter-reference",
-        "content": "bGV0dGVyLWNvbnRlbnQ=",
-        "postage": "space unicorn"
-    }
-    auth_header = create_authorization_header(service_id=sample_service.id)
-    response = client.post(
-        path="v2/notifications/letter",
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header])
-
-    assert response.status_code == 400, response.get_data(as_text=True)
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json['errors'][0]['message'] == "postage invalid. It must be either first or second."
-
-    assert not Notification.query.first()
