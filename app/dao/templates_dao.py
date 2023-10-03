@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime
-from typing import Tuple, Union
+from typing import Union
 
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
@@ -92,9 +92,7 @@ def dao_get_template_by_id_and_service_id(template_id, service_id, version=None)
     return db.on_reader().query(Template).filter_by(id=template_id, hidden=False, service_id=service_id).one()
 
 
-def dao_get_template_by_id(
-    template_id, version=None, use_cache=False
-) -> Union[Union[Template, TemplateHistory], Tuple[Union[Template, TemplateHistory], dict]]:
+def dao_get_template_by_id(template_id, version=None, use_cache=False) -> Union[Template, TemplateHistory]:
     if use_cache:
         # When loading a SQLAlchemy object from cache it is in the transient state.
         # We do not add it to the session. This would defeat the purpose of using the cache.
@@ -106,9 +104,9 @@ def dao_get_template_by_id(
         if template_cache:
             template_cache_decoded = json.loads(template_cache.decode("utf-8"))["data"]
             if version:
-                return TemplateHistory.from_json(template_cache_decoded), template_cache_decoded
+                return TemplateHistory.from_json(template_cache_decoded)
             else:
-                return Template.from_json(template_cache_decoded), template_cache_decoded
+                return Template.from_json(template_cache_decoded)
     if version is not None:
         return TemplateHistory.query.filter_by(id=template_id, version=version).one()
     return Template.query.filter_by(id=template_id).one()

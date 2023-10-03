@@ -1,6 +1,7 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
+from unittest import TestCase
 from unittest.mock import ANY, MagicMock, call
 
 import pytest
@@ -153,7 +154,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@notification.canada.ca>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@notification.canada.ca>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
@@ -244,7 +245,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
     send_to_providers.send_email_to_provider(db_notification)
 
     app.aws_ses_client.send_email.assert_called_once_with(
-        '"Sample service" <sample.service@foo.bar>',
+        '"=?utf-8?B?U2FtcGxlIHNlcnZpY2U=?=" <sample.service@foo.bar>',
         "jo.smith@example.com",
         "Jo <em>some HTML</em>",
         body="Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n",
@@ -403,10 +404,10 @@ def test_should_not_send_to_provider_when_status_is_not_created(sample_template,
 
 def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
     # é, o, and u are in GSM.
-    # á, ï, grapes, tabs, zero width space and ellipsis are not
-    msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
+    # grapes, tabs, zero width space and ellipsis are not
+    msg = "é o u 🍇 foo\tbar\u200bbaz((misc))…"
     placeholder = "∆∆∆abc"
-    gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
+    gsm_message = "?odz Housing Service: é o u ? foo barbaz???abc..."
     service = create_service(service_name="Łódź Housing Service")
     template = create_template(service, content=msg)
     db_notification = save_notification(create_notification(template=template, personalisation={"misc": placeholder}))
@@ -1184,16 +1185,15 @@ class TestMalware:
 
 class TestBounceRate:
     def test_send_email_should_use_service_reply_to_email(self, sample_service, sample_email_template, mocker, notify_api):
-        with set_config_values(notify_api, {"FF_BOUNCE_RATE_BACKEND": True}):
-            mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-            mocker.patch("app.bounce_rate_client.set_sliding_notifications")
-            db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
-            create_reply_to_email(service=sample_service, email_address="foo@bar.com")
+        mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+        mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+        db_notification = save_notification(create_notification(template=sample_email_template, reply_to_text="foo@bar.com"))
+        create_reply_to_email(service=sample_service, email_address="foo@bar.com")
 
-            send_to_providers.send_email_to_provider(
-                db_notification,
-            )
-            app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
+        send_to_providers.send_email_to_provider(
+            db_notification,
+        )
+        app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
 
     def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
         with notify_api.app_context():
@@ -1222,3 +1222,57 @@ class TestBounceRate:
             mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
             assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
             mock_logger.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "encoded_text, charset, encoding, expected",
+    [
+        ("hello_world", "utf-8", "B", "=?utf-8?B?hello_world?="),
+        ("hello_world", "utf-8", "Q", "=?utf-8?Q?hello_world?="),
+        ("hello_world2", "utf-8", "B", "=?utf-8?B?hello_world2?="),
+    ],
+)
+def test_mime_encoded_word_syntax_encoding(encoded_text, charset, encoding, expected):
+    result = send_to_providers.mime_encoded_word_syntax(encoded_text=encoded_text, charset=charset, encoding=encoding)
+    assert result == expected
+
+
+class TestGetFromAddress(TestCase):
+    def test_get_from_address_ascii(self):
+        # Arrange
+        friendly_from = "John Doe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?Sm9obiBEb2U=?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_non_ascii(self):
+        # Arrange
+        friendly_from = "Jöhn Döe"
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B?SsO2aG4gRMO2ZQ==?=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)
+
+    def test_get_from_address_empty_friendly_from(self):
+        # Arrange
+        friendly_from = ""
+        email_from = "johndoe"
+        sending_domain = "example.com"
+
+        # Act
+        result = send_to_providers.get_from_address(friendly_from, email_from, sending_domain)
+
+        # Assert
+        expected_result = '"=?utf-8?B??=" <johndoe@example.com>'
+        self.assertEqual(result, expected_result)

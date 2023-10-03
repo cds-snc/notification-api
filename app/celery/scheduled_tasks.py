@@ -190,7 +190,7 @@ def check_job_status():
 
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.
-    job_ids: List[str] = []
+    job_ids: List[str] = []  # type: ignore
     for job in jobs_not_complete_after_30_minutes:
         job.job_status = JOB_STATUS_ERROR
         dao_update_job(job)
@@ -383,5 +383,5 @@ def beat_inbox_sms_priority():
 
     while list_of_sms_notifications:
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.PRIORITY_DATABASE)
-        current_app.logger.info(f"Batch saving with Bulk Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
+        current_app.logger.info(f"Batch saving with Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_priority.poll()

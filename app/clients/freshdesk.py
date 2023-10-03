@@ -119,8 +119,6 @@ class Freshdesk(object):
     def email_freshdesk_ticket(self, content: dict) -> None:
         try:
             template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
-            if isinstance(template, tuple):
-                template = template[0]
             notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
 
             if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:

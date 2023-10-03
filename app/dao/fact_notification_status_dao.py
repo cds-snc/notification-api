@@ -8,6 +8,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
+from app.dao.date_util import utc_midnight_n_days_ago
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -34,7 +35,6 @@ from app.models import (
 from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
-    midnight_n_days_ago,
 )
 
 
@@ -239,7 +239,8 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    start_date = midnight_n_days_ago(limit_days)
+    start_date = utc_midnight_n_days_ago(limit_days - 1)
+
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
@@ -259,7 +260,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= midnight_n_days_ago(limit_days),
+            Notification.created_at >= start_date,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
@@ -333,13 +334,20 @@ def get_last_send_for_api_key(api_key_id):
     WHERE api_key_id = 'api_key_id'
     GROUP BY api_key_id;
     """
-
-    return (
+    notification_table = (
         db.session.query(func.max(Notification.created_at).label("last_notification_created"))
         .filter(Notification.api_key_id == api_key_id)
         .group_by(Notification.api_key_id)
         .all()
     )
+    if not notification_table:
+        return (
+            db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
+            .filter(NotificationHistory.api_key_id == api_key_id)
+            .group_by(NotificationHistory.api_key_id)
+            .all()
+        )
+    return notification_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):
