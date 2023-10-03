@@ -44,3 +44,11 @@ jobs:
       environment: "perf"
       ref: "${{ needs.setup-env.outputs.git-tag }}"
     secrets: inherit
+
+  run-QA-suite:
+    needs: [run-deployment]
+    uses: ./.github/workflows/regression-public.yml
+    with:
+      qa-image-branch: "master"
+      environment: "perf"
+    secrets: inherit

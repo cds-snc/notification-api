@@ -357,7 +357,7 @@ git tag v2.0.0
 git push origin v2.0.0
 ```
 
-When a new tag is created with a `v` prefix and pushed to the repository, the tagging action will start. This action will checkout the tag, create testing notes based on PR's with the `test` tag applied to them, and then build and deploy to our performance (perf) environment.
+When a new tag is created with a `v` prefix and pushed to the repository, the tagging action will start. This action will checkout the tag, create testing notes based on PR's with the `test` tag applied to them, and then build and deploy to our performance (perf) environment, and run the regression.
 
 ### Create a release for Staging
 
