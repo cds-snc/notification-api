@@ -1,8 +1,10 @@
 import json
+from sqlalchemy.sql.expression import select
 from types import SimpleNamespace
 from typing import List, Union
 
-from app.models import Service
+from app.models import Service, User
+from app.dao.dao_utils import get_reader_session
 
 
 class ServiceDataException(Exception):
@@ -59,7 +61,6 @@ class ServiceDataApiKey:
             key (object): The object containing the necessary attributes for the API key.
         """
         self.created_at = key.created_at
-        self.created_by = key.created_by
         self.created_by_id = key.created_by_id
         self.expiry_date = key.expiry_date
         self.id = key.id
@@ -75,6 +76,17 @@ class ServiceDataApiKey:
         self.service = SimpleNamespace(**_service)
         self.service_id = key.service_id
         self.updated_at = key.updated_at
+
+    @property
+    def created_by(self):
+        """
+        Returns the User object for the API Key creator
+        """
+        # Without the wrapper function the ORM object detaches in some cases
+        def lazyload():
+            with get_reader_session() as session:
+                return session.execute(select(User).filter_by(id=self.created_by_id)).one()
+        return lazyload
 
     def __eq__(self, other: 'ServiceDataApiKey') -> bool:
         """
