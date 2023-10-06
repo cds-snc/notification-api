@@ -10,7 +10,6 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
 
-# from app.models import EMAIL_TYPE, SMS_TYPE, Priorities
 from celery.schedules import crontab
 
 env = Env()
@@ -88,6 +87,11 @@ class QueueNames(object):
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
 
+    # Queues for sending all emails.
+    SEND_EMAIL_HIGH = "send-email-high"
+    SEND_EMAIL_MEDIUM = "send-email-medium"
+    SEND_EMAIL_LOW = "send-email-low"
+
     # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
 
@@ -95,8 +99,7 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # The queue to send emails by default, normal priority.
-    # TODO: Deprecate to favor priority queues instead, i.e. bulk, normal, priority.
+    # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
@@ -131,9 +134,9 @@ class QueueNames(object):
             Priorities.HIGH: SEND_SMS_HIGH,
         },
         "email": {
-            Priorities.LOW: BULK,
-            Priorities.MEDIUM: SEND_EMAIL,
-            Priorities.HIGH: PRIORITY,
+            Priorities.LOW: SEND_EMAIL_LOW,
+            Priorities.MEDIUM: SEND_EMAIL_MEDIUM,
+            Priorities.HIGH: SEND_EMAIL_HIGH,
         },
         "letter": {
             Priorities.LOW: BULK,
@@ -157,6 +160,9 @@ class QueueNames(object):
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
+            QueueNames.SEND_EMAIL_HIGH,
+            QueueNames.SEND_EMAIL_MEDIUM,
+            QueueNames.SEND_EMAIL_LOW,
             QueueNames.SEND_EMAIL,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,

@@ -194,7 +194,7 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
 
 @pytest.mark.parametrize(
     "process_type, expected_queue",
-    [("priority", QueueNames.PRIORITY), ("bulk", QueueNames.SEND_EMAIL), ("normal", QueueNames.SEND_EMAIL)],
+    [("priority", QueueNames.SEND_EMAIL_HIGH), ("bulk", QueueNames.SEND_EMAIL_MEDIUM), ("normal", QueueNames.SEND_EMAIL_MEDIUM)],
 )
 def test_send_one_off_email_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
@@ -382,7 +382,7 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 
     notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_EMAIL)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_EMAIL_MEDIUM)
     assert notification.reply_to_text == reply_to_email.email_address
 
 
