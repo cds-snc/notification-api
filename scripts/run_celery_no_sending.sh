@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# runs celery with all celery queues except send-throttled-sms-tasks, send-sms-tasks, send-sms-high, send-sms-medium, or send-sms-low
+# runs celery with all celery queues except send-throttled-sms-tasks, send-sms-* and send-email-*
 
 set -e
 

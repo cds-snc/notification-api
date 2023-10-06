@@ -87,17 +87,17 @@ class QueueNames(object):
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
 
-    # Queues for sending all emails.
-    SEND_EMAIL_HIGH = "send-email-high"
-    SEND_EMAIL_MEDIUM = "send-email-medium"
-    SEND_EMAIL_LOW = "send-email-low"
-
     # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
+
+    # Queues for sending all emails.
+    SEND_EMAIL_HIGH = "send-email-high"
+    SEND_EMAIL_MEDIUM = "send-email-medium"
+    SEND_EMAIL_LOW = "send-email-low"
 
     # TODO: Delete this queue once we verify that it is not used anymore.
     SEND_EMAIL = "send-email-tasks"

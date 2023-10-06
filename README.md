@@ -110,11 +110,7 @@ file. Copy that file to `.env` and customize it to your needs.
 
 ##  To run the queues
 ```
-scripts/run_celery.sh
-```
-
-```
-scripts/run_celery_sms.sh
+scripts/run_celery_local.sh
 ```
 
 ```
@@ -179,7 +175,7 @@ To help debug full code paths of emails and SMS, we have a special email and pho
 set in the application's configuration. As it stands at the moment these are the following:
 
 | Notification Type | Test destination         |
-|-------------------|--------------------------|
+| ----------------- | ------------------------ |
 | Email             | internal.test@cds-snc.ca |
 | SMS               | +16135550123             |
 
