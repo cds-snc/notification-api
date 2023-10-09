@@ -27,3 +27,11 @@ jobs:
       environment: "staging"
       git-tag: "${{ github.event.release.tag_name }}"
     secrets: inherit
+
+  run-qa-suite:
+    needs: [pre-release]
+    uses: ./.github/workflows/regression-public.yml
+    with:
+      qa-image-branch: "master"
+      environment: "staging"
+    secrets: inherit

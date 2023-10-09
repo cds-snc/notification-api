@@ -15,7 +15,7 @@ on:
         type: string
 
 jobs:
-  run-QA-suite:
+  run-qa-suite:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
