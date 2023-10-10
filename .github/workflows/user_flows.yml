@@ -12,7 +12,7 @@ jobs:
     if: ${{ inputs.environment == 'dev' }}
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.2.0
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
