@@ -18,7 +18,8 @@ if [[ ! -z "${STATSD_HOST}" ]]; then
             echo "Waiting for CWAgent to become ready."
             sleep 1
         fi
-    done fi
+    done
+fi
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 

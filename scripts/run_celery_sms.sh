@@ -4,6 +4,7 @@
 
 set -e
 
+
 if [[ ! -z "${STATSD_HOST}" ]]; then
     echo "Initializing... Waiting for CWAgent to become ready."
     while :
