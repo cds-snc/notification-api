@@ -18,6 +18,7 @@ on:
 
 jobs:
   setup-environment:
+    name: "setup-env-${{ inputs.environment }}"
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     outputs:
