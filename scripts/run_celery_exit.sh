@@ -18,8 +18,8 @@ function send_signal_to_celery_processes {
   # refresh pids to account for the case that some workers may have terminated but others not
   get_celery_pids
   # send signal to all remaining apps
-  echo ${APP_PIDS} | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: "
-  echo "We will send ${1} signal"
+  echo ${APP_PIDS} | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: " > /dev/stderr
+  echo "We will send ${1} signal" > /dev/stderr
   for value in ${APP_PIDS}
   do
     echo kill -s ${1} $value
@@ -30,14 +30,14 @@ function send_signal_to_celery_processes {
 
 function error_exit()
 {
-    echo "Error: $1"
+    echo "Error: $1" > /dev/stderr
 }
 
 function ensure_celery_is_running {
   if [ "${APP_PIDS}" = "" ]; then
-    echo "There are no celery processes running, this container is bad"
+    echo "There are no celery processes running, this container is bad" > /dev/stderr
 
-    echo "Exporting CF information for diagnosis"
+    echo "Exporting CF information for diagnosis" > /dev/stderr
 
     env | grep CF
 
@@ -56,14 +56,14 @@ function on_exit {
 
   # check if the apps are still running every second
   while [[ "$wait_time" -le "$TERMINATE_TIMEOUT" ]]; do
-    echo "exit function is running with wait time of 9s"
+    echo "exit function is running with wait time of 9s" > /dev/stderr
     get_celery_pids
     ensure_celery_is_running
     let wait_time=wait_time+1
     sleep 1
   done
 
-  echo "sending signal to celery to kill process as TERM signal has not timed out"
+  echo "sending signal to celery to kill process as TERM signal has not timed out" > /dev/stderr
   send_signal_to_celery_processes KILL
 }
 
