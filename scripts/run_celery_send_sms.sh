@@ -1,8 +1,21 @@
 #!/bin/sh
 
 # runs celery with only the send-sms-* queues
-
 set -e
+
+if [[ -z "${STATSD_HOST}" ]]; then
+    echo "Initializing... Waiting for CWAgent to become ready."
+    while :
+    do
+        if  nc -vz $STATSD_HOST 25888; then
+            echo "CWAgent is Ready."
+            break;
+        else
+            echo "Waiting for CWAgent to become ready."
+            sleep 1
+        fi
+    done
+fi
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 
