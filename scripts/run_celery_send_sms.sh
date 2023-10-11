@@ -8,10 +8,10 @@ if [[ -z "${STATSD_HOST}" ]]; then
     while :
     do
         if  nc -vz $STATSD_HOST 25888; then
-            echo "CWAgent is Ready." > /dev/stderr
+            echo "CWAgent is Ready."
             break;
         else
-            echo "Waiting for CWAgent to become ready." > /dev/stderr
+            echo "Waiting for CWAgent to become ready."
             sleep 1
         fi
     done
