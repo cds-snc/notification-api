@@ -2,9 +2,13 @@
 
 # runs celery with only the throttled sms sending queue
 
-init()
-{
-     # Wait for cwagent to become available.   
+# runs celery with all celery queues except send-throttled-sms-tasks, send-sms-tasks, send-sms-high, send-sms-medium, or send-sms-low
+
+set -e
+
+# Check and see if this is running in K8s and if so, wait for cloudwatch agent
+if [[ ! -z "${STATSD_HOST}" ]]; then
+    echo "Initializing... Waiting for CWAgent to become ready."
     while :
     do
         if  nc -vz $STATSD_HOST 25888; then
@@ -15,15 +19,6 @@ init()
             sleep 1
         fi
     done
-}
-
-# runs celery with all celery queues except send-throttled-sms-tasks, send-sms-tasks, send-sms-high, send-sms-medium, or send-sms-low
-
-set -e
-
-# Check and see if this is running in K8s and if so, wait for cloudwatch agent
-if [[ -z "${STATSD_HOST}" ]]; then
-    init
 fi
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
