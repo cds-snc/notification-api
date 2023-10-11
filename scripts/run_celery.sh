@@ -5,7 +5,7 @@
 set -e
 
 # Check and see if this is running in K8s and if so, wait for cloudwatch agent
-if [[ -z "${STATSD_HOST}" ]]; then
+if [[ ! -z "${STATSD_HOST}" ]]; then
     echo "Initializing... Waiting for CWAgent to become ready."
     while :
     do

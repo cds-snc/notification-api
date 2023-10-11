@@ -7,7 +7,7 @@
 set -e
 
 # Check and see if this is running in K8s and if so, wait for cloudwatch agent
-if [[ -z "${STATSD_HOST}" ]]; then
+if [[ ! -z "${STATSD_HOST}" ]]; then
     echo "Initializing... Waiting for CWAgent to become ready."
     while :
     do
@@ -18,8 +18,7 @@ if [[ -z "${STATSD_HOST}" ]]; then
             echo "Waiting for CWAgent to become ready."
             sleep 1
         fi
-    done
-fi
+    done fi
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 
