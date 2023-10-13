@@ -274,7 +274,7 @@ fileignoreconfig:
     - filename: app/__init__.py
       checksum: 6b99603dd19ba02921639b7da0b04d15908622de4238f443795e2982d311acaa
     - filename: app/config.py
-      checksum: e4e35170dd17728f2fcdfa0d40177dcaeffe020293f5fe28f253a27688845476
+      checksum: dd2df4bbed5a0c18271a242e50b2a98ceb34838b48487f755c2665e2d72b51a0
     - filename: tests/app/celery/test_reporting_tasks.py
       checksum: 9caffea8b2253d9b86c512aeff16e03487501a9b84a98737593a79dc4d8ee14d
     - filename: scripts/trigger_task.py
@@ -333,3 +333,9 @@ fileignoreconfig:
       checksum: 1c963f08a88caf7de46e27f89fdc7af37b38a61bb62b10498bfca26bc29d792e
     - filename: app/schema_validation/__init__.py
       checksum: a2ee4584781782e5154ae0641f85777bc263d6f1e6f9fe1cfd370fff0a869418
+    - filename: app/v3/notifications/rest.py
+      checksum: 7b12a5909efcd0e34c97661bee128cebd2968c186ce455699fcc668a4470244f
+    - filename: app/celery/v3/notification_tasks.py
+      checksum: 68a0f794fd010f7c2916de4e1af28aabba4e6465a8020f8f3b9f5f2e4d1bfa1a
+    - filename: tests/app/v3/notifications/test_rest.py
+      checksum: f970efab73ad52e3e203fe0805925929033a72d9975ec1deb077331e9409f06f

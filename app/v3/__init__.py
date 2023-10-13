@@ -56,3 +56,15 @@ def schema_validation_error(error):
             }
         ]
     }, 400
+
+
+@v3_blueprint.errorhandler(NotImplementedError)
+def not_implemented_error(error):
+    return {
+        "errors": [
+            {
+                "error": "NotImplementedError",
+                "message": str(error),
+            }
+        ]
+    }, 501

@@ -249,7 +249,7 @@ class Config(object):
         'worker_enable_remote_control': False,
         'enable_utc': True,
         'timezone': os.getenv("TIMEZONE", "America/New_York"),
-        'accept_content': ['json'],
+        'accept_content': ['json', 'pickle'],
         'task_serializer': 'json',
         'imports': (
             'app.celery.tasks',
@@ -258,7 +258,8 @@ class Config(object):
             'app.celery.nightly_tasks',
             'app.celery.process_pinpoint_receipt_tasks',
             'app.celery.process_pinpoint_inbound_sms',
-            'app.celery.process_delivery_status_result_tasks'
+            'app.celery.process_delivery_status_result_tasks',
+            'app.celery.v3.notification_tasks',
         ),
         'beat_schedule': {
             # app/celery/scheduled_tasks.py
@@ -339,41 +340,13 @@ class Config(object):
                 'schedule': crontab(hour=4, minute=0),
                 'options': {'queue': QueueNames.PERIODIC},
             },
-            # 'remove_letter_jobs': {
-            # 'task': 'remove_letter_jobs',
-            # 'schedule': crontab(hour=4, minute=20),
-            #  since we mark jobs as archived
-            # 'options': {'queue': QueueNames.PERIODIC},
-            # },
-            # 'check-templated-letter-state': {
-            # 'task': 'check-templated-letter-state',
-            # 'schedule': crontab(day_of_week='mon-fri', hour=9, minute=0),
-            # 'options': {'queue': QueueNames.PERIODIC}
-            # },
-            # 'check-precompiled-letter-state': {
-            # 'task': 'check-precompiled-letter-state',
-            # 'schedule': crontab(day_of_week='mon-fri', hour='9,15', minute=0),
-            # 'options': {'queue': QueueNames.PERIODIC}
-            # },
-            # 'raise-alert-if-letter-notifications-still-sending': {
-            # 'task': 'raise-alert-if-letter-notifications-still-sending',
-            # 'schedule': crontab(hour=16, minute=30),
-            # 'options': {'queue': QueueNames.PERIODIC}
-            # },
-            # The collate-letter-pdf does assume it is called in an hour that BST does not make a
-            # difference to the truncate date which translates to the filename to process
-            # 'collate-letter-pdfs-for-day': {
-            # 'task': 'collate-letter-pdfs-for-day',
-            # 'schedule': crontab(hour=17, minute=50),
-            # 'options': {'queue': QueueNames.PERIODIC}
-            # },
-            # 'raise-alert-if-no-letter-ack-file': {
-            # 'task': 'raise-alert-if-no-letter-ack-file',
-            # 'schedule': crontab(hour=23, minute=00),
-            # 'options': {'queue': QueueNames.PERIODIC}
-            # },
         },
-        'task_queues': []
+        "task_queues": [Queue(queue, Exchange("default"), routing_key=queue) for queue in QueueNames.all_queues()],
+        "task_routes": {
+            "app.celery.v3.notification_tasks.v3_process_notification": {"queue": QueueNames.NOTIFY},
+            "app.celery.v3.notification_tasks.v3_send_email_notification": {"queue": QueueNames.SEND_EMAIL},
+            "app.celery.v3.notification_tasks.v3_send_sms_notification": {"queue": QueueNames.SEND_SMS},
+        },
     }
 
     # When a service is created, this gets saved as default sms_sender
@@ -485,7 +458,6 @@ class Config(object):
     ATTACHMENTS_BUCKET = os.getenv('ATTACHMENTS_BUCKET', 'dev-notifications-va-gov-attachments')
     MAX_CONTENT_LENGTH = 1024 * 1024  # = 1024 KB
 
-
 ######################
 # Config overrides ###
 ######################
@@ -522,11 +494,6 @@ class Development(Config):
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
 
-    for queue in QueueNames.all_queues():
-        Config.CELERY_SETTINGS['task_queues'].append(
-            Queue(queue, Exchange('default'), routing_key=queue)
-        )
-
 
 class Test(Development):
     # When a service is created, this gets saved as default sms_sender
@@ -558,11 +525,6 @@ class Test(Development):
     }
 
     ANTIVIRUS_ENABLED = True
-
-    for queue in QueueNames.all_queues():
-        Config.CELERY_SETTINGS['task_queues'].append(
-            Queue(queue, Exchange('default'), routing_key=queue)
-        )
 
     API_HOST_NAME = "http://localhost:6011"
 
