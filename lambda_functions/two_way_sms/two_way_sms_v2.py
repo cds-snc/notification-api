@@ -213,9 +213,10 @@ def notify_incoming_sms_handler(event: dict, context: any):
 
         # Forward inbound_sms to the associated service.
         logger.info(
-            "POSTing the inbound SMS to service: %s. UrlEndpoint: %s",
+            "POSTing the inbound SMS to service: %s. UrlEndpoint: %s. Destination number: %s",
             two_way_record.get("service_id", "unknown"),
-            two_way_record.get("url_endpoint", "unknown")
+            two_way_record.get("url_endpoint", "unknown"),
+            inbound_sms.get("destinationNumber", "unknown")
         )
 
         try:
