@@ -8,7 +8,6 @@ Create Date: 2023-10-05 00:00:00
 from datetime import datetime
 
 from alembic import op
-from flask import current_app
 
 revision = "0439_add_index_n_history"
 down_revision = "0438_sms_templates_msgs_left"
