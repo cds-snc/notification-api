@@ -13,13 +13,10 @@ revision = "0439_add_index_n_history"
 down_revision = "0438_sms_templates_msgs_left"
 
 
-# option 1
+# Decided against adding this index in prd as the table is too large and needs more testing
 def upgrade():
-    op.execute("COMMIT")
-    op.create_index(
-        op.f("ix_notification_history_created_by_id"), "notification_history", ["created_by_id"], postgresql_concurrently=True
-    )
+    pass
 
 
 def downgrade():
-    op.drop_index(op.f("ix_notification_history_created_by_id"), table_name="notification_history")
+    pass
