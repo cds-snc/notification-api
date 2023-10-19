@@ -458,6 +458,15 @@ class ReplyToInbox(db.Model):
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
 
+class TemplateP2PChecklist(db.Model):
+    __tablename__ = "template_p2p_checklist"
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = db.Column(UUID(as_uuid=True), db.ForeignKey('templates.id'), nullable=False, index=True, unique=False)
+    checklist = db.Column(JSONB)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+
 class AnnualBilling(db.Model):
     __tablename__ = "annual_billing"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=False)
