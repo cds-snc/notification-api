@@ -710,10 +710,15 @@ class Scratch(Production):
     NOTIFY_ENVIRONMENT = "scratch"
 
 
+class Dev(Production):
+    NOTIFY_ENVIRONMENT = "dev"
+
+
 configs = {
     "development": Development,
     "test": Test,
     "production": Production,
     "staging": Staging,
     "scratch": Scratch,
+    "dev": Dev,
 }
