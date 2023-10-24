@@ -35,6 +35,7 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
+from app.notifications import RETRY_POLICY_DEFAULT, RETRY_POLICIES
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
 from app.v2.errors import BadRequestError
@@ -210,13 +211,31 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name)
+        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name, **build_task_params(notification))
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
     current_app.logger.info(
         f"{notification.notification_type} {notification.id} sent to the {notification.queue_name} queue for delivery"
     )
+
+
+def build_task_params(notification: Notification):
+    """
+    Build task params for the sending parameter tasks.
+
+    If the notification is a high priority SMS, set the retry policy to retry every 25 seconds
+    else fall back to the default retry policy of retrying every 5 minutes.
+    """
+    params = {}
+    params['retry'] = True
+    # Overring the retry policy is only supported for SMS for now;
+    # email support coming later.
+    if notification.notification_type == SMS_TYPE:
+        params['retry_policy'] = RETRY_POLICIES[notification.template.process_type]
+    else:
+        params['retry_policy'] = RETRY_POLICY_DEFAULT
+    return params
 
 
 def choose_queue(notification, research_mode, queue=None) -> QueueNames:
