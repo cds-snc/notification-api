@@ -228,13 +228,13 @@ def build_task_params(notification: Notification):
     else fall back to the default retry policy of retrying every 5 minutes.
     """
     params = {}
-    params['retry'] = True
+    params["retry"] = True
     # Overring the retry policy is only supported for SMS for now;
     # email support coming later.
     if notification.notification_type == SMS_TYPE:
-        params['retry_policy'] = RETRY_POLICIES[notification.template.process_type]
+        params["retry_policy"] = RETRY_POLICIES[notification.template.process_type]
     else:
-        params['retry_policy'] = RETRY_POLICY_DEFAULT
+        params["retry_policy"] = RETRY_POLICY_DEFAULT
     return params
 
 

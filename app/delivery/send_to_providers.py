@@ -60,6 +60,7 @@ def send_sms_to_provider(notification):
         inactive_service_failure(notification=notification)
         return
 
+    # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(
             SMS_TYPE,
@@ -215,6 +216,8 @@ def send_email_to_provider(notification: Notification):
     if not service.active:
         inactive_service_failure(notification=notification)
         return
+
+    # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(EMAIL_TYPE, notification.id)
 
