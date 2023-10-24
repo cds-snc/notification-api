@@ -10,8 +10,7 @@ load_dotenv()
 @events.init_command_line_parser.add_listener
 def _(parser):
     parser.add_argument("--ref", type=str, default="test", help="reference")
-    parser.add_argument("--type", type=str, default="email", help="email or sms")
-
+    parser.add_argument("--sms", action='store_true', help="send sms")
 
 class NotifyApiUser(HttpUser):
     wait_time = constant_pacing(1)  # each user makes one post per second
@@ -26,13 +25,13 @@ class NotifyApiUser(HttpUser):
         self.email_address = "success@simulator.amazonses.com"
         self.phone_number = "+16135550123" # INTERNAL_TEST_NUMBER
         self.reference_id = self.environment.parsed_options.ref
-        self.type = self.environment.parsed_options.type
+        self.send_sms = self.environment.parsed_options.sms
 
     @task(1)
     def send_notification(self):
-        if self.type == "email":
-            json = {"email_address": self.email_address, "template_id": self.email_template, "reference": self.reference_id}
-            self.client.post("/v2/notifications/email", json=json, headers=self.headers)
-        else:
+        if self.send_sms:
             json = {"phone_number": self.phone_number, "template_id": self.sms_template, "reference": self.reference_id}
             self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+        else:
+            json = {"email_address": self.email_address, "template_id": self.email_template, "reference": self.reference_id}
+            self.client.post("/v2/notifications/email", json=json, headers=self.headers)
