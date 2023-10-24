@@ -35,7 +35,7 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.notifications import RETRY_POLICY_DEFAULT, RETRY_POLICIES
+from app.notifications import RETRY_POLICIES, RETRY_POLICY_DEFAULT
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
 from app.v2.errors import BadRequestError
