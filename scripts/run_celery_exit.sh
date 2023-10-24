@@ -18,8 +18,8 @@ function send_signal_to_celery_processes {
   # refresh pids to account for the case that some workers may have terminated but others not
   get_celery_pids
   # send signal to all remaining apps
-  echo ${APP_PIDS} | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: " > /dev/stderr
-  echo "We will send ${1} signal" > /dev/stderr
+  echo ${APP_PIDS} | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: " >> /proc/1/fd/1
+  echo "We will send ${1} signal" >> /proc/1/fd/1
   for value in ${APP_PIDS}
   do
     echo kill -s ${1} $value
@@ -30,14 +30,14 @@ function send_signal_to_celery_processes {
 
 function error_exit()
 {
-    echo "Error: $1" > /dev/stderr
+    echo "Error: $1" >> /proc/1/fd/1
 }
 
 function ensure_celery_is_running {
   if [ "${APP_PIDS}" = "" ]; then
-    echo "There are no celery processes running, this container is bad" > /dev/stderr
+    echo "There are no celery processes running, this container is bad" >> /proc/1/fd/1
 
-    echo "Exporting CF information for diagnosis" > /dev/stderr
+    echo "Exporting CF information for diagnosis" >> /proc/1/fd/1
 
     env | grep CF
 
@@ -49,24 +49,24 @@ function ensure_celery_is_running {
 function on_exit {
   apk add --no-cache procps
   apk add --no-cache coreutils
-  echo "multi worker app exiting"
+  echo "multi worker app exiting" >> /proc/1/fd/1
   wait_time=0
 
   send_signal_to_celery_processes TERM
 
   # check if the apps are still running every second
   while [[ "$wait_time" -le "$TERMINATE_TIMEOUT" ]]; do
-    echo "exit function is running with wait time of 9s" > /dev/stderr
+    echo "exit function is running with wait time of 9s" >> /proc/1/fd/1
     get_celery_pids
     ensure_celery_is_running
     let wait_time=wait_time+1
     sleep 1
   done
 
-  echo "sending signal to celery to kill process as TERM signal has not timed out" > /dev/stderr
+  echo "sending signal to celery to kill process as TERM signal has not timed out" >> /proc/1/fd/1
   send_signal_to_celery_processes KILL
 }
 
-echo "Run script pid: $$"
+echo "Run script pid: $$" >> /proc/1/fd/1
 
 on_exit
