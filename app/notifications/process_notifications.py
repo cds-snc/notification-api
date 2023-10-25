@@ -227,7 +227,7 @@ def build_task_params(notification: Notification):
     If the notification is a high priority SMS, set the retry policy to retry every 25 seconds
     else fall back to the default retry policy of retrying every 5 minutes.
     """
-    params = {}
+    params: dict[str, any] = {}
     params["retry"] = True
     # Overring the retry policy is only supported for SMS for now;
     # email support coming later.
