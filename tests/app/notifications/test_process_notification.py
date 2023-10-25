@@ -20,6 +20,7 @@ from app.models import (
     ScheduledNotification,
     Template,
 )
+from app.notifications import RETRY_POLICY_DEFAULT
 from app.notifications.process_notifications import (
     choose_queue,
     create_content_for_notification,
@@ -1051,7 +1052,9 @@ class TestDBSaveAndSendNotification:
 
         db_save_and_send_notification(notification=notification)
 
-        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+        mocked.assert_called_once_with(
+            [str(notification.id)], queue=expected_queue, retry=True, retry_policy=RETRY_POLICY_DEFAULT
+        )
 
     def test_db_save_and_send_notification_throws_exception_deletes_notification(
         self, sample_template, sample_api_key, sample_job, mocker
