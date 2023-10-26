@@ -249,7 +249,7 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
     if notification.notification_type == LETTER_TYPE:
         if not queue:
             queue = QueueNames.CREATE_LETTERS_PDF
@@ -283,7 +283,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
         if not queue or queue == QueueNames.NORMAL:
