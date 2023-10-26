@@ -1105,7 +1105,7 @@ class TestDBSaveAndSendNotification:
             (EMAIL_TYPE, PRIORITY, 48, 300),
             (SMS_TYPE, BULK, 48, 300),
             (SMS_TYPE, NORMAL, 48, 300),
-            (SMS_TYPE, PRIORITY, 48, 26),
+            (SMS_TYPE, PRIORITY, 48, 25),
         ],
     )
     def test_delivery_task_parameters(self, notification_type, process_type, expected_retry, expected_retry_period):
