@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, List
+from typing import Any, Dict, List
 
 from flask import current_app
 from notifications_utils.clients import redis
@@ -224,7 +224,7 @@ def db_save_and_send_notification(notification: Notification):
     )
 
 
-def build_delivery_task_params(notification_type: str, notification_process_type: str):
+def build_delivery_task_params(notification_type: str, notification_process_type: str) -> Dict[str, Any]:
     """
     Build task params for the sending parameter tasks.
 

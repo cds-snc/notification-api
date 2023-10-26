@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from typing import Any, Dict
 from unittest.mock import call
 
 import pytest
@@ -14,7 +15,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
+    BULK,
+    EMAIL_TYPE,
     LETTER_TYPE,
+    NORMAL,
+    PRIORITY,
+    SMS_TYPE,
     Notification,
     NotificationHistory,
     ScheduledNotification,
@@ -22,6 +28,7 @@ from app.models import (
 )
 from app.notifications import RETRY_POLICY_DEFAULT
 from app.notifications.process_notifications import (
+    build_delivery_task_params,
     choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,
@@ -1089,6 +1096,27 @@ class TestDBSaveAndSendNotification:
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
+
+    @pytest.mark.parametrize(
+        ("notification_type, process_type, expected_retry, expected_retry_period"),
+        [
+            (EMAIL_TYPE, BULK, 48, 300),
+            (EMAIL_TYPE, NORMAL, 48, 300),
+            (EMAIL_TYPE, PRIORITY, 48, 300),
+            (SMS_TYPE, BULK, 48, 300),
+            (SMS_TYPE, NORMAL, 48, 300),
+            (SMS_TYPE, PRIORITY, 48, 26),
+        ],
+    )
+    def test_delivery_task_parameters(self, notification_type, process_type, expected_retry, expected_retry_period):
+        params: Dict[str, Any] = build_delivery_task_params(notification_type, process_type)
+        assert params["retry"] is True
+
+        retry_policy: Dict[str, Any] = params["retry_policy"]
+        assert retry_policy["max_retries"] == expected_retry
+        assert retry_policy["interval_start"] == expected_retry_period
+        assert retry_policy["interval_step"] == expected_retry_period
+        assert retry_policy["interval_max"] == expected_retry_period
 
     def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
