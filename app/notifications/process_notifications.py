@@ -211,7 +211,7 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name, **build_task_params(notification))
+        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name, **build_delivery_task_params(notification))
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
@@ -220,7 +220,7 @@ def db_save_and_send_notification(notification: Notification):
     )
 
 
-def build_task_params(notification: Notification):
+def build_delivery_task_params(notification: Notification):
     """
     Build task params for the sending parameter tasks.
 
