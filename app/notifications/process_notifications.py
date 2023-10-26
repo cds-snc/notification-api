@@ -211,7 +211,11 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name, **build_delivery_task_params(notification))
+        deliver_task.apply_async(
+            [str(notification.id)],
+            queue=notification.queue_name,
+            **build_delivery_task_params(notification.notification_type, notification.template.process_type),
+        )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
@@ -220,7 +224,7 @@ def db_save_and_send_notification(notification: Notification):
     )
 
 
-def build_delivery_task_params(notification: Notification):
+def build_delivery_task_params(notification_type: str, notification_process_type: str):
     """
     Build task params for the sending parameter tasks.
 
@@ -231,8 +235,8 @@ def build_delivery_task_params(notification: Notification):
     params["retry"] = True
     # Overring the retry policy is only supported for SMS for now;
     # email support coming later.
-    if notification.notification_type == SMS_TYPE:
-        params["retry_policy"] = RETRY_POLICIES[notification.template.process_type]
+    if notification_type == SMS_TYPE:
+        params["retry_policy"] = RETRY_POLICIES[notification_process_type]
     else:
         params["retry_policy"] = RETRY_POLICY_DEFAULT
     return params
