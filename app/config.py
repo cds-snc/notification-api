@@ -585,7 +585,7 @@ class Config(object):
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
-    FF_CELERY_CUSTOM_RETRY_POLICIES = env.bool("FF_CELERY_CUSTOM_RETRY_POLICIES", False)
+    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", False)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     # Feature flags for email_daily_limit
     FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
@@ -654,8 +654,8 @@ class Development(Config):
 
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
-    
-    FF_CELERY_CUSTOM_RETRY_POLICIES = True
+
+    FF_CELERY_CUSTOM_TASK_PARAMS = True
 
 
 class Test(Development):
@@ -691,7 +691,7 @@ class Test(Development):
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
 
-    FF_CELERY_CUSTOM_RETRY_POLICIES = True
+    FF_CELERY_CUSTOM_TASK_PARAMS = True
     FF_EMAIL_DAILY_LIMIT = False
 
 

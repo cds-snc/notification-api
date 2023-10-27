@@ -231,7 +231,7 @@ def build_delivery_task_params(notification_type: str, notification_process_type
     If the notification is a high priority SMS, set the retry policy to retry every 25 seconds
     else fall back to the default retry policy of retrying every 5 minutes.
     """
-    if current_app.config["FF_CELERY_CUSTOM_RETRY_POLICIES"]:
+    if current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"]:
         return {}
 
     params: dict[str, Any] = {}
