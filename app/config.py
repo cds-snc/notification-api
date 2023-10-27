@@ -573,7 +573,6 @@ class Config(object):
     CSV_BULK_REDIRECT_THRESHOLD = os.getenv("CSV_BULK_REDIRECT_THRESHOLD", 200)
 
     # Endpoint of Cloudwatch agent running as a side car in EKS listening for embedded metrics
-    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     CLOUDWATCH_AGENT_EMF_PORT = 25888
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
@@ -582,14 +581,15 @@ class Config(object):
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
 
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-
     # Feature flags for bounce rate
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
-
+    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
+    FF_CELERY_CUSTOM_RETRY_POLICIES = env.bool("FF_CELERY_CUSTOM_RETRY_POLICIES", False)
+    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     # Feature flags for email_daily_limit
     FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -654,6 +654,8 @@ class Development(Config):
 
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
+    
+    FF_CELERY_CUSTOM_RETRY_POLICIES = True
 
 
 class Test(Development):
@@ -686,9 +688,11 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
-    FF_EMAIL_DAILY_LIMIT = False
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
+
+    FF_CELERY_CUSTOM_RETRY_POLICIES = True
+    FF_EMAIL_DAILY_LIMIT = False
 
 
 class Production(Config):
