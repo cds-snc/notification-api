@@ -1110,6 +1110,7 @@ class TestDBSaveAndSendNotification:
     )
     def test_delivery_task_parameters(self, notification_type, process_type, expected_retry, expected_retry_period):
         from flask import current_app
+
         ff_value = current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"]
         print(f"test_process_notification: FF_CELERY_CUSTOM_TASK_PARAMS={ff_value}")
 
