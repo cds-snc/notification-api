@@ -26,7 +26,7 @@ from app.models import (
     ScheduledNotification,
     Template,
 )
-from app.notifications import RETRY_POLICY_DEFAULT
+from app.notifications import RETRY_POLICY_DEFAULT, RETRY_POLICY_HIGH
 from app.notifications.process_notifications import (
     build_delivery_task_params,
     choose_queue,
@@ -1100,12 +1100,12 @@ class TestDBSaveAndSendNotification:
     @pytest.mark.parametrize(
         ("notification_type, process_type, expected_retry, expected_retry_period"),
         [
-            (EMAIL_TYPE, BULK, 48, 300),
-            (EMAIL_TYPE, NORMAL, 48, 300),
-            (EMAIL_TYPE, PRIORITY, 48, 300),
-            (SMS_TYPE, BULK, 48, 300),
-            (SMS_TYPE, NORMAL, 48, 300),
-            (SMS_TYPE, PRIORITY, 48, 25),
+            (EMAIL_TYPE, BULK, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
+            (EMAIL_TYPE, NORMAL, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
+            (EMAIL_TYPE, PRIORITY, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
+            (SMS_TYPE, BULK, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
+            (SMS_TYPE, NORMAL, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
+            (SMS_TYPE, PRIORITY, RETRY_POLICY_HIGH["max_retries"], RETRY_POLICY_HIGH["interval_step"]),
         ],
     )
     def test_delivery_task_parameters(self, notification_type, process_type, expected_retry, expected_retry_period):
