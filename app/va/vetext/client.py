@@ -48,6 +48,11 @@ class VETextClient:
             )
             self.logger.info("VEText response: %s", response.json() if response.ok else response.status_code)
             response.raise_for_status()
+        except requests.exceptions.ReadTimeout:
+            # Discussion with VEText: read timeouts are still processed, so are marking this as good
+            self.logger.warning('ReadTimeout exceptions are still processed, returning 201')
+            # Logging as error.read_timeout so we can easily track it
+            self.statsd.incr(f"{self.STATSD_KEY}.error.read_timeout")
         except requests.HTTPError as e:
             self.logger.exception(e)
             self.statsd.incr(f"{self.STATSD_KEY}.error.{e.response.status_code}")

@@ -4,6 +4,8 @@ from app.feature_flags import FeatureFlag
 from app.models import PUSH_TYPE
 from app.mobile_app import MobileAppType, DEAFULT_MOBILE_APP_TYPE
 from app.va.vetext import VETextClient, VETextBadRequestException, VETextNonRetryableException, VETextRetryableException
+import requests
+import requests_mock
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests.app.db import (
     create_service,
@@ -127,6 +129,13 @@ class TestPushSending:
         return client
 
     def test_returns_201(self, client, service_with_push_permission, vetext_client):
+        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+
+        assert response.status_code == 201
+
+    def test_returns_201_after_read_timeout(self, client, service_with_push_permission, vetext_client):
+        with requests_mock.Mocker() as m:
+            m.post(f'{client.application.config["VETEXT_URL"]}/mobile/push/send', exc=requests.exceptions.ReadTimeout)
         response = post_send_notification(client, service_with_push_permission, 'push', push_request)
 
         assert response.status_code == 201
