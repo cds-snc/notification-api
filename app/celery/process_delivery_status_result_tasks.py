@@ -5,8 +5,9 @@ from app.celery.process_pinpoint_inbound_sms import CeleryEvent
 
 from app.dao.notifications_dao import (
     dao_get_notification_by_reference,
-    dao_update_notification,
+    dao_update_notification_by_id,
     update_notification_status_by_id,
+    FINAL_STATUS_STATES
 )
 
 from typing import Tuple
@@ -18,20 +19,7 @@ from app import notify_celery, statsd_client, clients
 from app.celery.exceptions import AutoRetryException
 from app.dao.service_callback_dao import dao_get_callback_include_payload_status
 
-from app.models import (
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    Notification,
-    NOTIFICATION_PREFERENCES_DECLINED,
-)
-
-FINAL_STATUS_STATES = [
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-]
+from app.models import Notification
 
 
 # Create SQS Queue for Process Deliver Status.
@@ -194,10 +182,13 @@ def _calculate_pricing(price_in_millicents_usd: float, notification: Notificatio
     """ Calculate pricing """
     current_app.logger.info("Calculate Pricing")
     if price_in_millicents_usd > 0.0:
-        notification.status = notification_status
-        notification.segments_count = number_of_message_parts
-        notification.cost_in_millicents = price_in_millicents_usd
-        dao_update_notification(notification)
+        dao_update_notification_by_id(
+            notification_id=notification.id,
+            status=notification_status,
+            segments_count=number_of_message_parts,
+            cost_in_millicents=price_in_millicents_usd,
+            updated_at=datetime.utcnow()
+        )
     else:
         # notification_id -  is the UID in the database for the notification
         # status - is the notification platform status generated earlier

@@ -2956,6 +2956,7 @@ def test_cancel_notification_for_service_raises_invalid_request_when_letter_is_i
 
 @pytest.mark.parametrize('notification_status', ['created', 'pending-virus-check'])
 @freeze_time('2018-07-07 16:00:00')
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_cancel_notification_for_service_updates_letter_if_letter_is_in_cancellable_state(
     admin_request,
     sample_letter_notification,
@@ -2990,6 +2991,7 @@ def test_cancel_notification_for_service_raises_error_if_its_too_late_to_cancel(
 
 
 @freeze_time('2018-7-7 16:00:00')
+@pytest.mark.skip(reason="Endpoint disabled and slated for removal")
 def test_cancel_notification_for_service_updates_letter_if_still_time_to_cancel(
     admin_request,
     sample_letter_notification,

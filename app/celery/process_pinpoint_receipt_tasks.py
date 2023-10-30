@@ -13,6 +13,7 @@ from app.dao.notifications_dao import (
     dao_get_notification_by_reference,
     dao_update_notification,
     update_notification_status_by_id,
+    FINAL_STATUS_STATES
 )
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
@@ -21,17 +22,9 @@ from app.models import (
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
     Notification
 )
 from app.celery.service_callback_tasks import check_and_queue_callback_task
-
-FINAL_STATUS_STATES = [
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED
-]
 
 _record_status_status_mapping = {
     'SUCCESSFUL': NOTIFICATION_DELIVERED,

@@ -45,6 +45,7 @@ from app.models import (
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_PENDING,
+    NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENT,
     NOTIFICATION_DELIVERED,
     KEY_TYPE_NORMAL,
@@ -127,27 +128,27 @@ def test_should_not_update_status_by_id_if_not_sending_and_does_not_update_job(s
 
 def test_should_not_update_status_by_reference_if_not_sending_and_does_not_update_job(sample_job):
     notification = create_notification(
-        template=sample_job.template, status='delivered', reference='reference', job=sample_job
+        template=sample_job.template, status=NOTIFICATION_DELIVERED, reference='reference', job=sample_job
     )
-    assert Notification.query.get(notification.id).status == 'delivered'
-    assert not update_notification_status_by_reference('reference', 'failed')
-    assert Notification.query.get(notification.id).status == 'delivered'
+    assert Notification.query.get(notification.id).status == NOTIFICATION_DELIVERED
+    assert not update_notification_status_by_reference('reference', NOTIFICATION_PERMANENT_FAILURE)
+    assert Notification.query.get(notification.id).status == NOTIFICATION_DELIVERED
     assert sample_job == Job.query.get(notification.job_id)
 
 
 def test_should_update_status_by_id_if_created(sample_template, sample_notification):
-    assert Notification.query.get(sample_notification.id).status == 'created'
-    updated = update_notification_status_by_id(sample_notification.id, 'failed')
-    assert Notification.query.get(sample_notification.id).status == 'failed'
-    assert updated.status == 'failed'
+    assert Notification.query.get(sample_notification.id).status == NOTIFICATION_CREATED
+    updated = update_notification_status_by_id(sample_notification.id, NOTIFICATION_PERMANENT_FAILURE)
+    assert Notification.query.get(sample_notification.id).status == NOTIFICATION_PERMANENT_FAILURE
+    assert updated.status == NOTIFICATION_PERMANENT_FAILURE
 
 
 def test_should_update_status_by_id_if_pending_virus_check(sample_letter_template):
-    notification = create_notification(template=sample_letter_template, status='pending-virus-check')
-    assert Notification.query.get(notification.id).status == 'pending-virus-check'
-    updated = update_notification_status_by_id(notification.id, 'cancelled')
-    assert Notification.query.get(notification.id).status == 'cancelled'
-    assert updated.status == 'cancelled'
+    notification = create_notification(template=sample_letter_template, status=NOTIFICATION_PENDING_VIRUS_CHECK)
+    assert Notification.query.get(notification.id).status == NOTIFICATION_PENDING_VIRUS_CHECK
+    updated = update_notification_status_by_id(notification.id, NOTIFICATION_PERMANENT_FAILURE)
+    assert Notification.query.get(notification.id).status == NOTIFICATION_PERMANENT_FAILURE
+    assert updated.status == NOTIFICATION_PERMANENT_FAILURE
 
 
 def test_should_update_status_by_id_and_set_sent_by(sample_template):
@@ -161,14 +162,14 @@ def test_should_update_status_by_id_and_set_sent_by(sample_template):
 def test_should_not_update_status_by_reference_if_from_country_with_no_delivery_receipts(sample_template):
     notification = create_notification(
         sample_template,
-        status=NOTIFICATION_SENT,
+        status=NOTIFICATION_DELIVERED,
         reference='foo'
     )
 
-    res = update_notification_status_by_reference('foo', 'failed')
+    response = update_notification_status_by_reference('foo', 'failed')
 
-    assert res is None
-    assert notification.status == NOTIFICATION_SENT
+    assert response is None
+    assert notification.status == NOTIFICATION_DELIVERED
 
 
 def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery_receipts(sample_template):
@@ -214,10 +215,10 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_delivery_receipt
 
 
 def test_should_not_update_status_by_reference_if_not_sending(sample_template):
-    notification = create_notification(template=sample_template, status='created', reference='reference')
-    assert Notification.query.get(notification.id).status == 'created'
-    updated = update_notification_status_by_reference('reference', 'failed')
-    assert Notification.query.get(notification.id).status == 'created'
+    notification = create_notification(template=sample_template, status=NOTIFICATION_CREATED, reference='reference')
+    assert Notification.query.get(notification.id).status == NOTIFICATION_CREATED
+    updated = update_notification_status_by_reference('reference', NOTIFICATION_PERMANENT_FAILURE)
+    assert Notification.query.get(notification.id).status == NOTIFICATION_CREATED
     assert not updated
 
 
