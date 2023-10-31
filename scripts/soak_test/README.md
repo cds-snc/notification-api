@@ -28,7 +28,7 @@ __See Last Pass note "Soak Test Staging API Key and Template" in Shared-New-Noti
 Notes:
 - The default configuration in `locust.conf` is to send one email per second.
 - You can supply a `--ref` option to `soak_test_send_notification.py` that will set the notification's `client_reference`. This is useful in testing that all POSTs were processed successfully.
-- You can also supply a `--type` option that will allow you to choose between `email` and `sms` (default is `email`)
+- You can also supply a `--sms` option that will sens sms instead of email.
 
 ## How to run
 
@@ -39,7 +39,7 @@ There are two ways to run Locust, with the UI or headless.
 Locally you can run the email soak test with:
 
 ```shell
-locust -f ./soak_test_send_notification.py --ref=soak-2023-05-30-A
+locust -f ./soak_test_send_notification.py [--ref=soak-2023-05-30-A] [--sms]
 ```
 
 Follow the localhost address that the console will display to get to the UI. It will ask you how many total users and spawned users you want configured. Once setup, you can manually start the tests via the UI and follow the summary data and charts visually.
@@ -55,7 +55,7 @@ locust -f ./soak_test_all_servers.py
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f ./soak_test_send_notification.py --headless --ref=soak-2023-05-30-A
+locust -f ./soak_test_send_notification.py --headless [--ref=soak-2023-05-30-A] [--sms]
 ```
 
 The defaults in `locust.conf` may be overridden by command line options
