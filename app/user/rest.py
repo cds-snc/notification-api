@@ -237,7 +237,7 @@ def verify_user_password(user_id):
                 user_id=user_id, failed_login_count=user_to_verify.failed_login_count
             )
         else:
-            message = "Incorrect password"
+            message = "Incorrect password for user_id {user_id}".format(user_id=user_id)
         errors = {"password": [message]}
         raise InvalidRequest(errors, status_code=400)
 

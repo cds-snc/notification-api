@@ -690,6 +690,7 @@ class Test(Development):
     FF_EMAIL_DAILY_LIMIT = False
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
+    FAILED_LOGIN_LIMIT = 0
 
 
 class Production(Config):
