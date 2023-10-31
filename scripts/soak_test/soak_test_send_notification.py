@@ -12,6 +12,7 @@ def _(parser):
     parser.add_argument("--ref", type=str, default="test", help="reference")
     parser.add_argument("--sms", action='store_true', help="send sms")
 
+
 class NotifyApiUser(HttpUser):
     wait_time = constant_pacing(1)  # each user makes one post per second
 
@@ -23,7 +24,7 @@ class NotifyApiUser(HttpUser):
         self.email_template = os.getenv("EMAIL_TEMPLATE_ID")
         self.sms_template = os.getenv("SMS_TEMPLATE_ID")
         self.email_address = "success@simulator.amazonses.com"
-        self.phone_number = "+16135550123" # INTERNAL_TEST_NUMBER
+        self.phone_number = "+16135550123"  # INTERNAL_TEST_NUMBER
         self.reference_id = self.environment.parsed_options.ref
         self.send_sms = self.environment.parsed_options.sms
 
