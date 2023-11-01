@@ -49,7 +49,6 @@ htmlcov/
 coverage.xml
 test_results.xml
 *,cover
-user_flow_results.xml
 
 # Translations
 *.mo

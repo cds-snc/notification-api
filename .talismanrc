@@ -29,8 +29,6 @@ fileignoreconfig:
       checksum: 98e291f97aaf0057998260270ff95649713fa35c718bb51f3042cc9ca59afd25
     - filename: .github/workflows/twistlock.yaml
       checksum: a1cb4548c2ef5b5df1195ad968e69a9e783c4b9f0f9ba98c4e92ca8f1a09f087
-    - filename: lambda_functions/user_flows/va-internal-cert-chain.pem
-      checksum: b275bb504d07e20888d222c31f12246b79aa554bea84c4d3028f110b0f9d473c
     - filename: ci/docker-compose-test.yml
       checksum: 6661566787728fca90a9a633644989c4b3ff05f1db576652076f439cebb1a485
     - filename: load_testing/.envrc.example

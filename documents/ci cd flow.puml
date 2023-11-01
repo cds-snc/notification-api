@@ -37,7 +37,6 @@ activate "deployment" #lightgray
 "deployment" -> "AWS dev": deploy celery
 "deployment" -> "AWS dev": deploy celery beat
 "deployment" -> "AWS dev": smoke tests
-"deployment" -> "AWS dev": run user flows
 activate Github
 "deployment" -> Github: tag container image with staging version
 "deployment" -> Github: broadcast status
@@ -56,7 +55,6 @@ activate "Staging flow" #lightgray
 "Staging flow" -> "AWS staging": deploy celery
 "Staging flow" -> "AWS staging": deploy celery beat
 "Staging flow" -> "AWS staging": smoke tests
-"Staging flow" -> "AWS staging": run user flows
 "Staging flow" -> Github: tag container image with version
 "Staging flow" -> Github: broadcast status
 deactivate "Staging flow"

@@ -12,7 +12,6 @@ on:
         required: true
         options:
           - All
-          - UserFlows
           - VetTextIncomingForwarder
           - SESCallback
           - TwoWaySMS

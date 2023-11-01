@@ -65,11 +65,3 @@ jobs:
       environment: "${{ inputs.environment }}"
       ref: "${{ needs.setup-environment.outputs.git-hash }}"
     secrets: inherit
-
-  run-user-flows:
-    needs: [run-deployment]
-    if: ${{ inputs.environment == 'dev' }}
-    uses: ./.github/workflows/user_flows.yml
-    with:
-      environment: "${{ inputs.environment }}"
-    secrets: inherit

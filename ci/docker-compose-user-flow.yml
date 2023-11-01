@@ -1,9 +1,0 @@
-version: "3"
-services:
-  user-flow:
-    build:
-      context: ..
-      dockerfile: ci/Dockerfile.userflow
-    environment: 
-      - NOTIFICATION_SECRET
-      - NOTIFICATION_URL

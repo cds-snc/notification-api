@@ -101,7 +101,7 @@ class ProviderService:
 
         # The template provider_id is nullable foreign key (UUID).
         # TODO #957 - The field is nullable, but what does SQLAlchemy return?  An empty string?
-        # Testing for None broke a user flows test.
+        # Testing for None broke a user flows test; user flows is since removed but this is possibly an issue?
         if notification.template.provider_id:
             logger.debug("Found template provider ID %s", notification.template.provider_id)
             return notification.template.provider_id

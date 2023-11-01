@@ -52,23 +52,6 @@ jobs:
         with:
           python-version: "3.8"
 
-        # TODO notification-api#1286 - Use lambda layers for user-flows dependencies.
-      - name: Package and deploy user-flows lambda function
-        if: ${{ (inputs.lambdaName == 'UserFlows') || (inputs.lambdaName == 'All') }}
-        run: |
-          cd user_flows/
-          python3 -m venv venv_user_flows
-          source venv_user_flows/bin/activate
-          pip install -r requirements-lambda.txt
-          deactivate
-          cat ../../certs/VA-Internal-S2-ICA11.cer >> ./venv_user_flows/lib/python3.8/site-packages/certifi/cacert.pem
-          cat ../../certs/VA-Internal-S2-RCA2.cer >> ./venv_user_flows/lib/python3.8/site-packages/certifi/cacert.pem
-          cd venv_user_flows/lib/python3.8/site-packages
-          zip -r9 ../../../../user_flows_lambda.zip .
-          cd ../../../../
-          zip -ugj user_flows_lambda.zip conftest.py steps.py test_retrieve_everything.py user_flows_lambda.py
-          aws lambda update-function-code --function-name project-user-flows-lambda --zip-file fileb://user_flows_lambda.zip
-
         # This function does not have any dependencies.
       - name: Package and deploy SES Callback lambda function
         if: ${{ (inputs.lambdaName == 'SESCallback') || (inputs.lambdaName == 'All') }}

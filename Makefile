@@ -17,9 +17,6 @@ test:
 	./scripts/run_tests.sh
 	rm -rf .pytest_cache test_results.xml
 
-user_flows: generate-version-file ## Run tests
-	./scripts/run_user_flows.sh
-
 clean: ## Remove virtualenv directory and build articacts
 	rm -rf node_modules cache target venv .coverage build tests/.cache
 
@@ -40,8 +37,6 @@ check-dependencies: install-safety ## Scan dependencies for security vulnerabili
 	help \
 	generate-version-file \
 	test \
-	user_flows \
-	daily_user_flows \
 	test-requirements \
 	clean \
 	check-vulnerabilities \
