@@ -230,8 +230,6 @@ def verify_user_password(user_id):
         return jsonify({}), 204
     else:
         increment_failed_login_count(user_to_verify)
-        # We want to get the user again to check the failed login count
-        user_to_verify = get_user_by_id(user_id=user_id)
         if user_to_verify.failed_login_count >= current_app.config["FAILED_LOGIN_LIMIT"]:
             message = "Failed login: Incorrect password for user_id {user_id} failed_login {failed_login_count} times".format(
                 user_id=user_id, failed_login_count=user_to_verify.failed_login_count
