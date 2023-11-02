@@ -1,6 +1,7 @@
 import datetime
 import uuid
 import itertools
+from typing import Dict, Any
 from app import (
     DATETIME_FORMAT,
     encryption,
@@ -35,7 +36,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm.collections import attribute_mapped_collection, InstrumentedList
-
 
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
@@ -2218,3 +2218,28 @@ class UserServiceRoles(db.Model):
             'created_at': self.created_at.strftime(DATETIME_FORMAT),
             'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None
         }
+
+
+class NotificationFailures(db.Model):
+    """
+    A SQLAlchemy model representing the 'notification_failures' table. This table captures infrequent,
+    invalid v3 requests that passed schema checks but failed during processing and could not be added
+    to the notifications table.
+
+    Attributes:
+        notification_id (int): The primary key of the table.
+        created_at (DateTime): Record date and time of creation. This field will be used for pg_cron
+        job delete records older then 30 days
+        body (JSONB): Column used to store the details of the notification failure in a JSON object.
+
+    Methods:
+        serialize: Converts the 'body' attribute to a dictionary for easier consumption.
+    """
+    __tablename__ = 'notification_failures'
+
+    notification_id = db.Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    body = db.Column(JSONB, nullable=False)
+
+    def serialize(self) -> Dict[str, Any]:
+        return self.body
