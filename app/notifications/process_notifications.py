@@ -35,7 +35,6 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.notifications import build_delivery_task_params
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
 from app.v2.errors import BadRequestError
@@ -214,7 +213,6 @@ def db_save_and_send_notification(notification: Notification):
         deliver_task.apply_async(
             [str(notification.id)],
             queue=notification.queue_name,
-            **build_delivery_task_params(notification.notification_type, notification.template.process_type),
         )
     except Exception:
         dao_delete_notifications_by_id(notification.id)

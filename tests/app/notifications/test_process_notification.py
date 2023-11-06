@@ -26,11 +26,7 @@ from app.models import (
     ScheduledNotification,
     Template,
 )
-from app.notifications import (
-    RETRY_POLICY_DEFAULT,
-    RETRY_POLICY_HIGH,
-    build_delivery_task_params,
-)
+from app.notifications import RETRY_PERIODS, build_retry_task_params
 from app.notifications.process_notifications import (
     choose_queue,
     create_content_for_notification,
@@ -1062,9 +1058,7 @@ class TestDBSaveAndSendNotification:
 
         db_save_and_send_notification(notification=notification)
 
-        mocked.assert_called_once_with(
-            [str(notification.id)], queue=expected_queue, retry=True, retry_policy=RETRY_POLICY_DEFAULT
-        )
+        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
 
     def test_db_save_and_send_notification_throws_exception_deletes_notification(
         self, sample_template, sample_api_key, sample_job, mocker
@@ -1101,25 +1095,22 @@ class TestDBSaveAndSendNotification:
         assert NotificationHistory.query.count() == 0
 
     @pytest.mark.parametrize(
-        ("notification_type, process_type, expected_retry, expected_retry_period"),
+        ("notification_type, process_type, expected_retry_period"),
         [
-            (EMAIL_TYPE, BULK, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
-            (EMAIL_TYPE, NORMAL, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
-            (EMAIL_TYPE, PRIORITY, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
-            (SMS_TYPE, BULK, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
-            (SMS_TYPE, NORMAL, RETRY_POLICY_DEFAULT["max_retries"], RETRY_POLICY_DEFAULT["interval_step"]),
-            (SMS_TYPE, PRIORITY, RETRY_POLICY_HIGH["max_retries"], RETRY_POLICY_HIGH["interval_step"]),
+            (EMAIL_TYPE, BULK, RETRY_PERIODS[BULK]),
+            (EMAIL_TYPE, NORMAL, RETRY_PERIODS[NORMAL]),
+            (EMAIL_TYPE, PRIORITY, RETRY_PERIODS[NORMAL]),
+            (SMS_TYPE, BULK, RETRY_PERIODS[BULK]),
+            (SMS_TYPE, NORMAL, RETRY_PERIODS[NORMAL]),
+            (SMS_TYPE, PRIORITY, RETRY_PERIODS[PRIORITY]),
         ],
     )
-    def test_delivery_task_parameters(self, notification_type, process_type, expected_retry, expected_retry_period):
-        params: Dict[str, Any] = build_delivery_task_params(notification_type, process_type)
-        assert params["retry"] is True
+    def test_retry_task_parameters(self, notify_api, notification_type, process_type, expected_retry_period):
+        with notify_api.app_context():
+            params: Dict[str, Any] = build_retry_task_params(notification_type, process_type)
 
-        retry_policy: Dict[str, Any] = params["retry_policy"]
-        assert retry_policy["max_retries"] == expected_retry
-        assert retry_policy["interval_start"] == expected_retry_period
-        assert retry_policy["interval_step"] == expected_retry_period
-        assert retry_policy["interval_max"] == expected_retry_period
+        assert params["queue"] == QueueNames.RETRY
+        assert params["countdown"] == expected_retry_period
 
     def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")

@@ -130,7 +130,6 @@ def _deliver_sms(self, notification_id):
                 # retry with the default delay.
                 current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
                 self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
-                # self.retry(kwargs=build_retry_task_params(notification.notification_type, notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
