@@ -1,8 +1,13 @@
+import pytest
+
 from datetime import datetime
 
 from app import DATETIME_FORMAT
 from app.dao.api_key_dao import get_api_key_by_secret, get_unsigned_secret
 from app.models import KEY_TYPE_NORMAL
+from flask import url_for
+from requests import post as requests_post
+from tests import create_sre_authorization_header
 from tests.app.db import (
     create_api_key,
     create_notification,
@@ -79,21 +84,86 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
 
 
 class TestApiKeyRevocation:
-    def test_revoke_api_keys(self, admin_request, notify_db, notify_db_session):
+    def test_revoke_api_keys_with_valid_auth(self, client, notify_db, notify_db_session, mocker):
         service = create_service(service_name="Service 1")
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
         unsigned_secret = get_unsigned_secret(api_key_1.id)
 
-        admin_request.post(
-            "api_key.revoke_api_keys",
-            _data=[{"token": unsigned_secret, "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"}],
-            _expected_status=201,
+        sre_auth_header = create_sre_authorization_header()
+        response = client.post(
+            url_for("sre_tools.revoke_api_keys"),
+            headers=[sre_auth_header],
+            json={"token": unsigned_secret, "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},
         )
 
         # Get api key from DB
         api_key_1 = get_api_key_by_secret(api_key_1.secret)
+        assert response.status_code == 201
         assert api_key_1.expiry_date is not None
         assert api_key_1.compromised_key_info["type"] == "cds-tester"
         assert api_key_1.compromised_key_info["url"] == "https://example.com"
         assert api_key_1.compromised_key_info["source"] == "cds-tester"
         assert api_key_1.compromised_key_info["time_of_revocation"]
+
+
+    def test_revoke_api_keys_fails_with_no_auth(self, client, notify_db, notify_db_session, mocker):
+        service = create_service(service_name="Service 1")
+        api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+        unsigned_secret = get_unsigned_secret(api_key_1.id)
+
+        response = client.post(
+            url_for("sre_tools.revoke_api_keys"),
+            headers=[],
+            json={"token": unsigned_secret, "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},
+        )
+
+        assert response.status_code == 401
+
+    @pytest.mark.parametrize("payload", (
+        {
+            # no token
+            "type": "cds-tester", 
+            "url": "https://example.com", 
+            "source": "cds-tester"
+        },
+        {
+            "token": "token",
+            # no type 
+            "url": "https://example.com", 
+            "source": "cds-tester"
+        },
+        {
+            "token": "token",
+            "type": "cds-tester", 
+            # no url
+            "source": "cds-tester"
+        },
+        {
+            "token": "token",
+            "type": "cds-tester", 
+            "url": "https://example.com", 
+            # no source
+        },
+        {
+            # no anything
+        },
+        {
+            "token": "token", # invalid token
+            "type": "cds-tester", 
+            "url": "https://example.com", 
+            "source": "cds-tester"
+        },
+    ))
+    def test_revoke_api_keys_fails_with_400_missing_or_invalid_payload(self, client, notify_db, notify_db_session, mocker, payload):
+        service = create_service(service_name="Service 1")
+        api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+        unsigned_secret = get_unsigned_secret(api_key_1.id)
+
+        sre_auth_header = create_sre_authorization_header()
+        response = client.post(
+            url_for("sre_tools.revoke_api_keys"),
+            headers=[sre_auth_header],
+            json=payload,
+        )
+
+        assert response.status_code == 400
