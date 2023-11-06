@@ -156,7 +156,6 @@ class TestApiKeyRevocation:
     ):
         service = create_service(service_name="Service 1")
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
-        unsigned_secret = get_unsigned_secret(api_key_1.id)
 
         sre_auth_header = create_sre_authorization_header()
         response = client.post(
