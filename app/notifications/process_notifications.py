@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import List
 
 from flask import current_app
 from notifications_utils.clients import redis
@@ -35,7 +35,7 @@ from app.models import (
     ScheduledNotification,
     Service,
 )
-from app.notifications import RETRY_POLICIES, RETRY_POLICY_DEFAULT
+from app.notifications import build_delivery_task_params
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
 from app.v2.errors import BadRequestError
@@ -222,27 +222,6 @@ def db_save_and_send_notification(notification: Notification):
     current_app.logger.info(
         f"{notification.notification_type} {notification.id} sent to the {notification.queue_name} queue for delivery"
     )
-
-
-def build_delivery_task_params(notification_type: str, notification_process_type: str) -> Dict[str, Any]:
-    """
-    Build task params for the sending parameter tasks.
-
-    If the notification is a high priority SMS, set the retry policy to retry every 25 seconds
-    else fall back to the default retry policy of retrying every 5 minutes.
-    """
-    if current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"] is False:
-        return {}
-
-    params: dict[str, Any] = {}
-    params["retry"] = True
-    # Overring the retry policy is only supported for SMS for now;
-    # email support coming later.
-    if notification_type == SMS_TYPE:
-        params["retry_policy"] = RETRY_POLICIES[notification_process_type]
-    else:
-        params["retry_policy"] = RETRY_POLICY_DEFAULT
-    return params
 
 
 def choose_queue(notification, research_mode, queue=None) -> QueueNames:

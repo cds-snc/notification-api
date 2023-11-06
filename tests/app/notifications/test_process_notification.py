@@ -26,9 +26,12 @@ from app.models import (
     ScheduledNotification,
     Template,
 )
-from app.notifications import RETRY_POLICY_DEFAULT, RETRY_POLICY_HIGH
-from app.notifications.process_notifications import (
+from app.notifications import (
+    RETRY_POLICY_DEFAULT,
+    RETRY_POLICY_HIGH,
     build_delivery_task_params,
+)
+from app.notifications.process_notifications import (
     choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,

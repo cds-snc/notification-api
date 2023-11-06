@@ -15,6 +15,7 @@ from app.exceptions import (
     NotificationTechnicalFailureException,
 )
 from app.models import NOTIFICATION_TECHNICAL_FAILURE
+from app.notifications import build_retry_task_params
 from app.notifications.callbacks import _check_and_queue_callback_task
 
 
@@ -112,6 +113,7 @@ def _deliver_sms(self, notification_id):
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
+        # raise Exception("Trigger artificial Celery retry")
         send_to_providers.send_sms_to_provider(notification)
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
@@ -127,7 +129,8 @@ def _deliver_sms(self, notification_id):
                 # Once the previous retry failed, log the exception and this time,
                 # retry with the default delay.
                 current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-                self.retry(queue=QueueNames.RETRY)
+                self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
+                # self.retry(kwargs=build_retry_task_params(notification.notification_type, notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
