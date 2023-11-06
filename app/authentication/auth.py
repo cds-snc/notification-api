@@ -93,6 +93,21 @@ def requires_admin_auth():
         raise AuthError("Unauthorized, admin authentication token required", 401)
 
 
+def requires_sre_auth():
+    request_helper.check_proxy_header_before_request()
+
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type != JWT_AUTH_TYPE:
+        raise AuthError("Invalid scheme: can only use JWT for sre authentication", 401)
+    client = __get_token_issuer(auth_token)
+
+    if client == current_app.config.get("SRE_USER_NAME"):
+        g.service_id = current_app.config.get("SRE_USER_NAME")
+        return handle_admin_key(auth_token, current_app.config.get("SRE_CLIENT_SECRET"))
+    else:
+        raise AuthError("Unauthorized, sre authentication token required", 401)
+        
+
 def requires_auth():
     request_helper.check_proxy_header_before_request()
 

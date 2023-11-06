@@ -592,6 +592,10 @@ class Config(object):
     # Feature flags for email_daily_limit
     FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
 
+    # SRE Tools auth keys
+    SRE_USER_NAME = "SRE_CLIENT_USER"
+    SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
