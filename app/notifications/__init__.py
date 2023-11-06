@@ -1,7 +1,9 @@
+from typing import Any, Dict
+
+from flask import current_app
+
 from app.config import QueueNames
 from app.models import BULK, NORMAL, PRIORITY, SMS_TYPE
-from flask import current_app
-from typing import Any, Dict
 
 # Default retry periods for sending notifications.
 RETRY_DEFAULT = 300
