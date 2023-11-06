@@ -153,9 +153,6 @@ class TestApiKeyRevocation:
     def test_revoke_api_keys_fails_with_400_missing_or_invalid_payload(
         self, client, notify_db, notify_db_session, mocker, payload
     ):
-        service = create_service(service_name="Service 1")
-        api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
-
         sre_auth_header = create_sre_authorization_header()
         response = client.post(
             url_for("sre_tools.revoke_api_keys"),
