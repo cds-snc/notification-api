@@ -1087,9 +1087,7 @@ class TestDBSaveAndSendNotification:
 
         with pytest.raises(Boto3Error):
             db_save_and_send_notification(notification)
-        mocked.assert_called_once_with(
-            [(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM, retry=True, retry_policy=RETRY_POLICY_DEFAULT
-        )
+        mocked.assert_called_once_with([(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
