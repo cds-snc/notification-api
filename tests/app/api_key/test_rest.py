@@ -2,7 +2,6 @@ from datetime import datetime
 
 import pytest
 from flask import url_for
-from requests import post as requests_post
 
 from app import DATETIME_FORMAT
 from app.dao.api_key_dao import get_api_key_by_secret, get_unsigned_secret
