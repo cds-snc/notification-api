@@ -233,7 +233,7 @@ def register_blueprint(application):
     register_notify_blueprint(application, email_branding_blueprint, requires_admin_auth, "/email-branding")
 
     register_notify_blueprint(application, api_key_blueprint, requires_admin_auth, "/api-key")
-    
+
     register_notify_blueprint(application, sre_tools_blueprint, requires_sre_auth, "/sre-tools")
 
     register_notify_blueprint(application, letter_job, requires_admin_auth)

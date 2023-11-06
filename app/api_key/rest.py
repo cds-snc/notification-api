@@ -125,13 +125,18 @@ def revoke_api_keys():
     """
     try:
         api_key_data = request.get_json()
-         # check for correct payload
-        if isinstance(api_key_data, list) or api_key_data.get("token") is None or api_key_data.get("type") is None or api_key_data.get("url") is None or api_key_data.get("source") is None:
+        # check for correct payload
+        if (
+            isinstance(api_key_data, list)
+            or api_key_data.get("token") is None
+            or api_key_data.get("type") is None
+            or api_key_data.get("url") is None
+            or api_key_data.get("source") is None
+        ):
             raise InvalidRequest("Invalid payload", status_code=400)
     except werkzeug.exceptions.BadRequest as errors:
         raise InvalidRequest(errors, status_code=400)
 
-    
     # Step 1
     try:
         # take last 36 chars of string so that it works even if the full key is provided.
@@ -139,8 +144,9 @@ def revoke_api_keys():
         api_key = get_api_key_by_secret(api_key_token)
     except Exception:
         current_app.logger.error(
-            "Revoke api key: API key not found for token {}".format(api_key_data['token']) if api_key_data.get('token') else 
-            "Revoke api key: no token provided"
+            "Revoke api key: API key not found for token {}".format(api_key_data["token"])
+            if api_key_data.get("token")
+            else "Revoke api key: no token provided"
         )
         raise InvalidRequest("Invalid request", status_code=400)
 

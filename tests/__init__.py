@@ -33,12 +33,14 @@ def create_authorization_header(service_id=None, key_type=KEY_TYPE_NORMAL):
     token = create_jwt_token(secret=secret, client_id=client_id)
     return "Authorization", "Bearer {}".format(token)
 
+
 def create_sre_authorization_header():
     client_id = current_app.config["SRE_USER_NAME"]
     secret = current_app.config["SRE_CLIENT_SECRET"]
 
     token = create_jwt_token(secret=secret, client_id=client_id)
     return "Authorization", "Bearer {}".format(token)
+
 
 def unwrap_function(fn):
     """

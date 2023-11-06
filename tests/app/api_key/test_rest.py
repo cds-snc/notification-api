@@ -1,12 +1,12 @@
-import pytest
-
 from datetime import datetime
+
+import pytest
+from flask import url_for
+from requests import post as requests_post
 
 from app import DATETIME_FORMAT
 from app.dao.api_key_dao import get_api_key_by_secret, get_unsigned_secret
 from app.models import KEY_TYPE_NORMAL
-from flask import url_for
-from requests import post as requests_post
 from tests import create_sre_authorization_header
 from tests.app.db import (
     create_api_key,
@@ -105,7 +105,6 @@ class TestApiKeyRevocation:
         assert api_key_1.compromised_key_info["source"] == "cds-tester"
         assert api_key_1.compromised_key_info["time_of_revocation"]
 
-
     def test_revoke_api_keys_fails_with_no_auth(self, client, notify_db, notify_db_session, mocker):
         service = create_service(service_name="Service 1")
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
@@ -119,42 +118,42 @@ class TestApiKeyRevocation:
 
         assert response.status_code == 401
 
-    @pytest.mark.parametrize("payload", (
-        {
-            # no token
-            "type": "cds-tester", 
-            "url": "https://example.com", 
-            "source": "cds-tester"
-        },
-        {
-            "token": "token",
-            # no type 
-            "url": "https://example.com", 
-            "source": "cds-tester"
-        },
-        {
-            "token": "token",
-            "type": "cds-tester", 
-            # no url
-            "source": "cds-tester"
-        },
-        {
-            "token": "token",
-            "type": "cds-tester", 
-            "url": "https://example.com", 
-            # no source
-        },
-        {
-            # no anything
-        },
-        {
-            "token": "token", # invalid token
-            "type": "cds-tester", 
-            "url": "https://example.com", 
-            "source": "cds-tester"
-        },
-    ))
-    def test_revoke_api_keys_fails_with_400_missing_or_invalid_payload(self, client, notify_db, notify_db_session, mocker, payload):
+    @pytest.mark.parametrize(
+        "payload",
+        (
+            {
+                # no token
+                "type": "cds-tester",
+                "url": "https://example.com",
+                "source": "cds-tester",
+            },
+            {
+                "token": "token",
+                # no type
+                "url": "https://example.com",
+                "source": "cds-tester",
+            },
+            {
+                "token": "token",
+                "type": "cds-tester",
+                # no url
+                "source": "cds-tester",
+            },
+            {
+                "token": "token",
+                "type": "cds-tester",
+                "url": "https://example.com",
+                # no source
+            },
+            {
+                # no anything
+            },
+            {"token": "token", "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},  # invalid token
+        ),
+    )
+    def test_revoke_api_keys_fails_with_400_missing_or_invalid_payload(
+        self, client, notify_db, notify_db_session, mocker, payload
+    ):
         service = create_service(service_name="Service 1")
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
         unsigned_secret = get_unsigned_secret(api_key_1.id)

@@ -106,7 +106,7 @@ def requires_sre_auth():
         return handle_admin_key(auth_token, current_app.config.get("SRE_CLIENT_SECRET"))
     else:
         raise AuthError("Unauthorized, sre authentication token required", 401)
-        
+
 
 def requires_auth():
     request_helper.check_proxy_header_before_request()
