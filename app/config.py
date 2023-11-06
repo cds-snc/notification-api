@@ -296,6 +296,7 @@ class Config(object):
     ONE_OFF_MESSAGE_FILENAME = "Report"
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
+    FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb
@@ -688,6 +689,7 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
+    FAILED_LOGIN_LIMIT = 0
 
     FF_EMAIL_DAILY_LIMIT = False
 
