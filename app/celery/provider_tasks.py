@@ -113,7 +113,6 @@ def _deliver_sms(self, notification_id):
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
-        # raise Exception("Trigger artificial Celery retry")
         send_to_providers.send_sms_to_provider(notification)
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
