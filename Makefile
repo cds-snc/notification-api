@@ -58,9 +58,9 @@ run-celery-local: ## Run the celery workers with all the queues
 run-celery-local-filtered: ## Run the celery workers with all queues but filter out common scheduled tasks
 	./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -Ev 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
-.PHONY: run-celery-beat
-run-celery-beat: ## Run the celery beat
-	./scripts/run_celery_beat.sh
+.PHONY: run-celery-beat-local
+run-celery-beat-local: ## Run the celery beat
+	./scripts/run_celery_beat_local.sh
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
