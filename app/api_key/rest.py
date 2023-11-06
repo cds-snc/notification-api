@@ -19,6 +19,9 @@ from app.errors import InvalidRequest, register_errors
 api_key_blueprint = Blueprint("api_key", __name__)
 register_errors(api_key_blueprint)
 
+sre_tools_blueprint = Blueprint("sre_tools", __name__)
+register_errors(sre_tools_blueprint)
+
 
 @api_key_blueprint.route("/<uuid:api_key_id>/summary-statistics", methods=["GET"])
 def get_api_key_stats(api_key_id):
@@ -103,58 +106,62 @@ def send_api_key_revokation_email(service_id, api_key_name, api_key_information)
     return
 
 
-@api_key_blueprint.route("/revoke-api-keys", methods=["POST"])
+@sre_tools_blueprint.route("/api-key-revoke", methods=["POST"])
 def revoke_api_keys():
     """
     We take a list of api keys and revoke them. The data is of the form:
-    [
-        {
-            "token": "NMIfyYncKcRALEXAMPLE",
-            "type": "mycompany_api_token",
-            "url": "https://github.com/octocat/Hello-World/blob/12345600b9cbe38a219f39a9941c9319b600c002/foo/bar.txt",
-            "source": "content",
-        }
-    ]
+    {
+        "token": "NMIfyYncKcRALEXAMPLE",
+        "type": "mycompany_api_token",
+        "url": "https://github.com/octocat/Hello-World/blob/12345600b9cbe38a219f39a9941c9319b600c002/foo/bar.txt",
+        "source": "content",
+    }
 
-    The function does 3 things:
+    The function does 4 things:
     1. Finds the api key by the token
     2. Revokes the api key
     3. Saves the source and url into the compromised_key_info field
     4. Sends the service owners of the api key an email notification indicating that the key has been revoked
     """
     try:
-        data = request.get_json()
+        api_key_data = request.get_json()
+         # check for correct payload
+        if isinstance(api_key_data, list) or api_key_data.get("token") is None or api_key_data.get("type") is None or api_key_data.get("url") is None or api_key_data.get("source") is None:
+            raise InvalidRequest("Invalid payload", status_code=400)
     except werkzeug.exceptions.BadRequest as errors:
         raise InvalidRequest(errors, status_code=400)
 
+    
     # Step 1
-    for api_key_data in data:
-        try:
-            # take last 36 chars of string so that it works even if the full key is provided.
-            api_key_token = api_key_data["token"][-36:]
-            api_key = get_api_key_by_secret(api_key_token)
-        except Exception:
-            current_app.logger.error(f"API key not found for token {api_key_data['type']}")
-            continue  # skip to next api key
-
-        # Step 2
-        expire_api_key(api_key.service_id, api_key.id)
-
-        current_app.logger.info("Expired api key {} for service {}".format(api_key.id, api_key.service_id))
-
-        # Step 3
-        update_compromised_api_key_info(
-            api_key.service_id,
-            api_key.id,
-            {
-                "time_of_revocation": str(datetime.utcnow()),
-                "type": api_key_data["type"],
-                "url": api_key_data["url"],
-                "source": api_key_data["source"],
-            },
+    try:
+        # take last 36 chars of string so that it works even if the full key is provided.
+        api_key_token = api_key_data["token"][-36:]
+        api_key = get_api_key_by_secret(api_key_token)
+    except Exception:
+        current_app.logger.error(
+            "Revoke api key: API key not found for token {}".format(api_key_data['token']) if api_key_data.get('token') else 
+            "Revoke api key: no token provided"
         )
+        raise InvalidRequest("Invalid request", status_code=400)
 
-        # Step 4
-        send_api_key_revokation_email(api_key.service_id, api_key.name, api_key_data)
+    # Step 2
+    expire_api_key(api_key.service_id, api_key.id)
+
+    current_app.logger.info("Expired api key {} for service {}".format(api_key.id, api_key.service_id))
+
+    # Step 3
+    update_compromised_api_key_info(
+        api_key.service_id,
+        api_key.id,
+        {
+            "time_of_revocation": str(datetime.utcnow()),
+            "type": api_key_data["type"],
+            "url": api_key_data["url"],
+            "source": api_key_data["source"],
+        },
+    )
+
+    # Step 4
+    send_api_key_revokation_email(api_key.service_id, api_key.name, api_key_data)
 
     return jsonify(result="ok"), 201
