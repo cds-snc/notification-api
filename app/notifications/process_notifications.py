@@ -210,7 +210,10 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name)
+        deliver_task.apply_async(
+            [str(notification.id)],
+            queue=notification.queue_name,
+        )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise

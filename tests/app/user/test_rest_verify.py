@@ -13,6 +13,7 @@ from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
 from app.dao.users_dao import create_user_code
 from app.models import EMAIL_TYPE, SMS_TYPE, Notification, User, VerifyCode
 from tests import create_authorization_header
+from tests.conftest import set_config_values
 
 
 @freeze_time("2016-01-01T12:00:00")
@@ -111,21 +112,22 @@ def test_user_verify_password_creates_login_event(client, sample_user):
     assert len(events) == 1
 
 
-def test_user_verify_password_invalid_password(client, sample_user):
+def test_user_verify_password_invalid_password(client, sample_user, mocker):
     data = json.dumps({"password": "bad password"})
     auth_header = create_authorization_header()
 
     assert sample_user.failed_login_count == 0
 
-    resp = client.post(
-        url_for("user.verify_user_password", user_id=sample_user.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert resp.status_code == 400
-    json_resp = json.loads(resp.get_data(as_text=True))
-    assert "Incorrect password" in json_resp["message"]["password"]
-    assert sample_user.failed_login_count == 1
+    with set_config_values(current_app, {"FAILED_LOGIN_LIMIT": 10}):
+        resp = client.post(
+            url_for("user.verify_user_password", user_id=sample_user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        json_resp = json.loads(resp.get_data(as_text=True))
+        assert "Incorrect password" in json_resp["message"]["password"][0]
+        assert sample_user.failed_login_count == 1
 
 
 def test_user_verify_password_valid_password_resets_failed_logins(client, sample_user):
@@ -134,27 +136,28 @@ def test_user_verify_password_valid_password_resets_failed_logins(client, sample
 
     assert sample_user.failed_login_count == 0
 
-    resp = client.post(
-        url_for("user.verify_user_password", user_id=sample_user.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    assert resp.status_code == 400
-    json_resp = json.loads(resp.get_data(as_text=True))
-    assert "Incorrect password" in json_resp["message"]["password"]
+    with set_config_values(current_app, {"FAILED_LOGIN_LIMIT": 10}):
+        resp = client.post(
+            url_for("user.verify_user_password", user_id=sample_user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        json_resp = json.loads(resp.get_data(as_text=True))
+        assert "Incorrect password" in json_resp["message"]["password"][0]
 
-    assert sample_user.failed_login_count == 1
+        assert sample_user.failed_login_count == 1
 
-    data = json.dumps({"password": "password"})
-    auth_header = create_authorization_header()
-    resp = client.post(
-        url_for("user.verify_user_password", user_id=sample_user.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
+        data = json.dumps({"password": "password"})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_user_password", user_id=sample_user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
-    assert resp.status_code == 204
-    assert sample_user.failed_login_count == 0
+        assert resp.status_code == 204
+        assert sample_user.failed_login_count == 0
 
 
 def test_user_verify_password_missing_password(client, sample_user):
