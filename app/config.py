@@ -616,6 +616,7 @@ class Config(object):
             "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
+            "SRE_CLIENT_SECRET",
         ]
 
     @classmethod
