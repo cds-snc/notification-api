@@ -4,7 +4,7 @@ import config from '../../../config';
 import Notify from "../../Notify/NotifyAPI";
 
 describe('SRE Tools', () => {
-    it('can revoke an API key', () => {
+    it('can revoke an API key using SRE auth', () => {
         let key_name = 'api-revoke-test-' + Notify.Utilities.GenerateID();
 
         Notify.API.CreateAPIKey({
@@ -25,6 +25,19 @@ describe('SRE Tools', () => {
                 source: 'Cypress Test'
             });
             cy.log("Revoked API KEY: " + key_name);
+        });
+    });
+    it('cannot revoke an API key using admin auth', () => {
+        Notify.API.RevokeAPIKeyWithAdminAuth({
+            token: "fake-key",
+            type: 'normal',
+            url:'https://example.com',
+            source: 'Cypress Test',
+            failOnStatusCode: false
+        }).as('revokeRequest');
+
+        cy.get('@revokeRequest').then(response => {
+          expect(response.status).to.eq(401);
         });
     });
 });

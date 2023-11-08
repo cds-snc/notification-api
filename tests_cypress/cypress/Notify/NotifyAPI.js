@@ -146,6 +146,23 @@ const API = {
                 "source": source
             }
         });
+    },
+    RevokeAPIKeyWithAdminAuth: ({ token, type, url, source, failOnStatusCode = true }) => {
+        var jwt_token = Utilities.CreateJWT(Cypress.env('ADMIN_USERNAME'), Cypress.env('ADMIN_SECRET'));
+        return cy.request({
+            url: `/sre-tools/api-key-revoke`,
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${jwt_token}`,
+            },
+            body: {
+                "token": token,
+                "type": type,
+                "url": url,
+                "source": source
+            },
+            failOnStatusCode: failOnStatusCode
+        });
     }
 
 }
