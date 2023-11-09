@@ -12,7 +12,6 @@ def worker_process_shutdown(sender, signal, pid, exitcode, **kwargs):
 
 
 def make_task(app):
-
     from app import statsd_client
 
     class NotifyTask(Task):
