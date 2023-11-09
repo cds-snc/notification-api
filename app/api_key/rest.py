@@ -109,7 +109,7 @@ def send_api_key_revokation_email(service_id, api_key_name, api_key_information)
 @sre_tools_blueprint.route("/api-key-revoke", methods=["POST"])
 def revoke_api_keys():
     """
-    We take a list of api keys and revoke them. The data is of the form:
+    This method accepts a single api key and revokes it. The data is of the form:
     {
         "token": "gcntfy-key-name-uuid-uuid",
         "type": "mycompany_api_token",
