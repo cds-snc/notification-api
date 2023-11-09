@@ -31,7 +31,9 @@ install-safety:
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	# Ignored issues not described here are documented in requirements-app.txt.
-	safety check -r requirements.txt --full-report -i 51668 -i 59234
+	# 7 Nov 2023: 61601 is fixed with urllib3 >=1.26.17, which is currently limited by the botocore version.
+	# 8 Nov 2023: 61657 & 61661 are fixed with aiohttp >=3.8.6.
+	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 61601 -i 61657 -i 61661
 
 .PHONY:
 	help \
