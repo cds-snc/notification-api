@@ -18,7 +18,7 @@ def make_task(app):
 
         def on_success(self, retval, task_id, args, kwargs):
             elapsed_time = time.time() - self.start
-            app.logger.info("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
+            app.logger.debug("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
             # ensure task will log exceptions to correct handlers
