@@ -26,8 +26,40 @@ from notifications_utils.recipients import validate_and_format_email_address
 # from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
+from typing import Tuple, Optional
 
 logger = get_task_logger(__name__)
+
+
+def get_default_sms_sender_id(service_id: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Retrieves the default SMS sender ID for a given service.
+
+    This function queries the database to find the default SMS sender associated with a specified service ID.
+
+    Parameters:
+    service_id (str): The unique identifier for the service whose default SMS sender ID is to be retrieved.
+
+    Returns:
+    Tuple[Optional[str], Optional[str]]:
+        - First element is an error message or None if no error occurs.
+        - Second element is the SMS sender ID (if found) or None (if not found or an error occurs).
+    """
+    query = select(ServiceSmsSender).where(
+        (ServiceSmsSender.service_id == service_id) &
+        ServiceSmsSender.is_default
+    )
+    with get_reader_session() as db:
+        try:
+            sms_sender = db.execute(query).one().ServiceSmsSender
+        except NoResultFound:
+            return "SMS sender ID was not set for the notification and no default was found.", None
+        except Exception as err:
+            return "Unexpected error while retrieving the SMS sender: %s" % err, None
+        else:
+            if sms_sender.id is None:
+                return "Unexpected missing SMS sender ID.", None
+            return (None, sms_sender.id)
 
 
 # TODO - Error handler for sqlalchemy.exc.IntegrityError.  This happens when a foreign key references a nonexistent ID.
@@ -105,21 +137,24 @@ def v3_process_notification(request_data: dict, service_id: str, api_key_id: str
         v3_send_email_notification.delay(notification, template)
     elif notification.notification_type == SMS_TYPE:
         if notification.sms_sender_id is None:
-            # Get the template or service default sms_sender_id.
-            # TODO
-            v3_persist_failed_notification(
-                notification, NOTIFICATION_TECHNICAL_FAILURE, "Default logic for sms_sender_id is not yet implemented."
-            )
-            return
+            err, sms_sender_id = get_default_sms_sender_id(service_id)
+            if err is not None:
+                v3_persist_failed_notification(notification, NOTIFICATION_TECHNICAL_FAILURE, err)
+                return
+            notification.sms_sender_id = sms_sender_id
 
         # TODO - Catch db connection errors and retry?
-        query = select(ServiceSmsSender).where(ServiceSmsSender.id == request_data["sms_sender_id"])
+        query = select(ServiceSmsSender).where(
+            (ServiceSmsSender.id == notification.sms_sender_id) &
+            (ServiceSmsSender.service_id == service_id)
+        )
         try:
             with get_reader_session() as reader_session:
                 sms_sender = reader_session.execute(query).one().ServiceSmsSender
                 v3_send_sms_notification.delay(notification, sms_sender.sms_sender)
         except (MultipleResultsFound, NoResultFound):
-            # Set sms_sender_id to None so persisting it doesn't raise sqlalchemy.exc.IntegrityError.
+            # Set sms_sender_id to None so persisting it doesn't raise sqlalchemy.exc.IntegrityError
+            # This happens in case user provides invalid sms_sender_id in the request data
             notification.sms_sender_id = None
             v3_persist_failed_notification(
                 notification, NOTIFICATION_PERMANENT_FAILURE, f"SMS sender {notification.sms_sender_id} does not exist."

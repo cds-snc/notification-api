@@ -203,7 +203,6 @@ def test_v3_process_notification_valid_sms_with_sender_id(
     assert isinstance(v3_send_sms_notification_mock.call_args.args[0], Notification)
 
 
-@pytest.mark.xfail(reason="Not implemented.", run=False)
 def test_v3_process_notification_valid_sms_without_sender_id(
     notify_db_session, mocker, sample_service, sample_template, sample_sms_sender
 ):
@@ -212,7 +211,61 @@ def test_v3_process_notification_valid_sms_without_sender_id(
     should pass a Notification instance to the task v3_send_sms_notification.
     """
 
-    pass
+    assert sample_template.template_type == SMS_TYPE
+
+    request_data = {
+        "id": str(uuid4()),
+        "notification_type": SMS_TYPE,
+        "phone_number": "+18006982411",
+        "template_id": sample_template.id,
+    }
+
+    v3_send_sms_notification_mock = mocker.patch(
+        "app.celery.v3.notification_tasks.v3_send_sms_notification.delay"
+    )
+
+    get_default_sms_sender_id_mock = mocker.patch(
+        "app.celery.v3.notification_tasks.get_default_sms_sender_id",
+        return_value=(None, sample_sms_sender.id)
+    )
+
+    v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
+
+    v3_send_sms_notification_mock.assert_called_once_with(
+        mocker.ANY,
+        sample_sms_sender.sms_sender
+    )
+
+    _notification = v3_send_sms_notification_mock.call_args.args[0]
+    assert isinstance(_notification, Notification)
+    _err, _sender_id = get_default_sms_sender_id_mock.return_value
+    assert _err is None
+    assert _notification.sms_sender_id == _sender_id
+
+    get_default_sms_sender_id_mock.assert_called_once_with(sample_service.id)
+
+
+def test_v3_process_notification_valid_sms_with_invalid_sender_id(
+    notify_db_session, mocker, sample_service, sample_template, sample_sms_sender
+):
+    """
+    Given data for a valid SMS notification that includes an INVALID sms_sender_id,
+    v3_process_notification should NOT call v3_send_sms_notification after checking sms_sender_id.
+    """
+
+    assert sample_template.template_type == SMS_TYPE
+
+    request_data = {
+        "id": str(uuid4()),
+        "notification_type": SMS_TYPE,
+        "phone_number": "+18006982411",
+        "template_id": sample_template.id,
+        "sms_sender_id": '111a1111-aaaa-1aa1-aa11-a1111aa1a1a1',
+    }
+
+    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
+    v3_send_sms_notification_mock.assert_not_called()
 
 
 def test_v3_send_sms_notification(notify_db_session, mocker, sample_notification, sample_sms_sender):
