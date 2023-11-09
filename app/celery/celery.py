@@ -12,13 +12,20 @@ def worker_process_shutdown(sender, signal, pid, exitcode, **kwargs):
 
 
 def make_task(app):
+
+    from app import statsd_client
+
     class NotifyTask(Task):
         abstract = True
         start = None
 
         def on_success(self, retval, task_id, args, kwargs):
-            elapsed_time = time.time() - self.start
-            app.logger.debug("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
+            task_name: str = self.name
+            now: float = time.time()
+            statsd_client.timing_with_dates(f"celery-task.{task_name}.total-time", now, self.start)
+
+            elapsed_time = now - self.start
+            app.logger.debug("{task_name} took {time}".format(task_name=task_name, time="{0:.4f}".format(elapsed_time)))
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
             # ensure task will log exceptions to correct handlers
@@ -28,7 +35,7 @@ def make_task(app):
         def __call__(self, *args, **kwargs):
             # ensure task has flask context to access config, logger, etc
             with app.app_context():
-                self.start = time.time()
+                self.start: float = time.time()
                 return super().__call__(*args, **kwargs)
 
     return NotifyTask
