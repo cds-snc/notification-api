@@ -277,7 +277,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.debug.info(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
@@ -383,7 +383,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.debug.info(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
