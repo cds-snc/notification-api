@@ -111,17 +111,17 @@ def revoke_api_keys():
     """
     We take a list of api keys and revoke them. The data is of the form:
     {
-        "token": "NMIfyYncKcRALEXAMPLE",
+        "token": "gcntfy-key-name-uuid-uuid",
         "type": "mycompany_api_token",
         "url": "https://github.com/octocat/Hello-World/blob/12345600b9cbe38a219f39a9941c9319b600c002/foo/bar.txt",
         "source": "content",
     }
 
     The function does 4 things:
-    1. Finds the api key by the token
-    2. Revokes the api key
+    1. Finds the api key by API key itself
+    2. Revokes the API key
     3. Saves the source and url into the compromised_key_info field
-    4. Sends the service owners of the api key an email notification indicating that the key has been revoked
+    4. TODO: Sends the service owners of the api key an email notification indicating that the key has been revoked
     """
     try:
         api_key_data = request.get_json()
