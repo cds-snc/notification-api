@@ -19,8 +19,8 @@ def make_task(app):
         start = None
 
         def on_success(self, retval, task_id, args, kwargs):
-            task_name: str = self.name
-            now: float = time.time()
+            task_name = self.name
+            now = time.time()
             statsd_client.timing_with_dates(f"celery-task.{task_name}.total-time", now, self.start)
 
             elapsed_time = now - self.start
@@ -34,7 +34,7 @@ def make_task(app):
         def __call__(self, *args, **kwargs):
             # ensure task has flask context to access config, logger, etc
             with app.app_context():
-                self.start: float = time.time()
+                self.start = time.time()
                 return super().__call__(*args, **kwargs)
 
     return NotifyTask
