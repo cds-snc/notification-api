@@ -2,21 +2,32 @@ import jwt from "jsonwebtoken";
 import config from "../../config";
 
 const Utilities = {
-    CreateJWT: () => {
+    CreateJWT: (user, secret) => {
         const claims = {
-            'iss': Cypress.env('ADMIN_USERNAME'),
+            'iss': user,
             'iat': Math.round(Date.now() / 1000)
         }
 
-        var token = jwt.sign(claims, Cypress.env('ADMIN_SECRET'));
+        var token = jwt.sign(claims, secret);
 
         return token;
     },
+    GenerateID: (length=10) => {
+        let result = '';
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const charactersLength = characters.length;
+        let counter = 0;
+        while (counter < length) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            counter += 1;
+        }
+        return result;
+    }
 };
 const Admin = {
     SendOneOff: ({to, template_id}) => {
 
-        var token = Utilities.CreateJWT();
+        var token = Utilities.CreateJWT(Cypress.env('ADMIN_USERNAME'), Cypress.env('ADMIN_SECRET'));
         return cy.request({
             url: `/service/${config.Services.Cypress}/send-notification`,
             method: 'POST',
@@ -105,6 +116,54 @@ const API = {
             }
         });
     },
+    CreateAPIKey: ({ service_id, key_type, name }) => {
+        var token = Utilities.CreateJWT(Cypress.env('ADMIN_USERNAME'), Cypress.env('ADMIN_SECRET'));
+        return cy.request({
+            url: `/service/${service_id}/api-key`,
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+            body: {
+                key_type: key_type,
+                name: name,
+                created_by: Cypress.env('NOTIFY_USER_ID'),
+            }
+        });
+    },
+    RevokeAPIKey: ({ token, type, url, source, failOnStatusCode = true }) => {
+        var jwt_token = Utilities.CreateJWT(Cypress.env('SRE_USERNAME'), Cypress.env('SRE_SECRET'));
+        cy.request({
+            url: `/sre-tools/api-key-revoke`,
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${jwt_token}`,
+            },
+            body: {
+                "token": token,
+                "type": type,
+                "url": url,
+                "source": source
+            }
+        });
+    },
+    RevokeAPIKeyWithAdminAuth: ({ token, type, url, source, failOnStatusCode = true }) => {
+        var jwt_token = Utilities.CreateJWT(Cypress.env('ADMIN_USERNAME'), Cypress.env('ADMIN_SECRET'));
+        return cy.request({
+            url: `/sre-tools/api-key-revoke`,
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${jwt_token}`,
+            },
+            body: {
+                "token": token,
+                "type": type,
+                "url": url,
+                "source": source
+            },
+            failOnStatusCode: failOnStatusCode
+        });
+    }
 
 }
 

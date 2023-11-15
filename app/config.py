@@ -592,6 +592,10 @@ class Config(object):
     FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
+    # SRE Tools auth keys
+    SRE_USER_NAME = "SRE_CLIENT_USER"
+    SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
@@ -612,6 +616,7 @@ class Config(object):
             "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
+            "SRE_CLIENT_SECRET",
         ]
 
     @classmethod
@@ -639,6 +644,7 @@ class Development(Config):
     ADMIN_CLIENT_SECRET = os.getenv("ADMIN_CLIENT_SECRET", "dev-notify-secret-key")
     SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
+    SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
