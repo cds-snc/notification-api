@@ -715,7 +715,6 @@ class Production(Config):
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
-    FF_CELERY_CUSTOM_TASK_PARAMS = False
 
 
 class Staging(Production):
