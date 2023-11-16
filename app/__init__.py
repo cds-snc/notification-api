@@ -169,11 +169,12 @@ def register_notify_blueprint(application, blueprint, auth_function, prefix=None
 
 def register_blueprint(application):
     from app.accept_invite.rest import accept_invite
-    from app.api_key.rest import api_key_blueprint
+    from app.api_key.rest import api_key_blueprint, sre_tools_blueprint
     from app.authentication.auth import (
         requires_admin_auth,
         requires_auth,
         requires_no_auth,
+        requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
@@ -232,6 +233,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, email_branding_blueprint, requires_admin_auth, "/email-branding")
 
     register_notify_blueprint(application, api_key_blueprint, requires_admin_auth, "/api-key")
+
+    register_notify_blueprint(application, sre_tools_blueprint, requires_sre_auth, "/sre-tools")
 
     register_notify_blueprint(application, letter_job, requires_admin_auth)
 
