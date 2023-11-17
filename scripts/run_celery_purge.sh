@@ -2,15 +2,16 @@
 
 set -e
 
-echo "\n--------------------------------------------------\n"
-echo "                   WARNING!!!!\n"
-echo "    This script is for local development only!\n"
-echo "  It will delete everything in the celery queues.\n"
-echo "--------------------------------------------------\n"
-echo "Are you sure you want to continue?"
-read -p "If so, type 'purge'> " check
+printf "\n--------------------------------------------------\n"
+printf "                   WARNING!!!!\n"
+printf "    This script is for local development only!\n"
+printf "  It will delete everything in the celery queues.\n"
+printf "\n--------------------------------------------------\n"
+printf "Are you sure you want to continue?"
+echo "If so, type 'purge'> \c"
+read -r check
     case $check in
-        purge ) echo "purging!"; celery -A run_celery.notify_celery purge -f; break;;
-        * ) echo "\nNot purging\n";;
+        purge ) echo "purging!"; celery -A run_celery.notify_celery purge -f;;
+        * ) printf "\nNot purging\n";;
     esac
 
