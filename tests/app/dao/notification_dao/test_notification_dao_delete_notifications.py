@@ -141,7 +141,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
             persist_notification(
                 template_id=sample_job.template.id,
                 template_version=sample_job.template.version,
-                service=sample_job.service,
+                service_id=sample_job.service.id,
                 personalisation=None,
                 notification_type=notification_type,
                 api_key_id=sample_api_key.id,

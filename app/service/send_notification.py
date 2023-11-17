@@ -78,7 +78,7 @@ def send_one_off_notification(service_id, post_data):
         template_version=template.version,
         template_postage=template.postage,
         recipient=post_data['to'],
-        service=service,
+        service_id=service.id,
         personalisation=personalisation,
         notification_type=template.template_type,
         api_key_id=None,

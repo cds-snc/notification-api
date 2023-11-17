@@ -1026,7 +1026,7 @@ class TestPostNotificationWithAttachment:
         assert response.status_code == 400
         resp_json = response.get_json()
         assert (
-            f"personalisation not-a-real-sending-method is not one of [attach, link]"
+            "personalisation not-a-real-sending-method is not one of [attach, link]"
             in resp_json["errors"][0]["message"]
         )
 

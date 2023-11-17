@@ -280,7 +280,7 @@ def process_ses_smtp_results(self, response):
                     template_id=template.id,
                     template_version=template.version,
                     recipient=recipient,
-                    service=service,
+                    service_id=service.id,
                     personalisation={
                         'subject': headers["subject"],
                         'message': message

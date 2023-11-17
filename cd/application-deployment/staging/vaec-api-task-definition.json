@@ -221,6 +221,22 @@
         {
           "name": "VA_SSO_ACCESS_TOKEN_URL",
           "value": "https://sqa.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/token"
+        },
+        {
+          "name": "COMP_AND_PEN_MESSAGES_ENABLED",
+          "value": "False"
+        },
+        {
+          "name": "COMP_AND_PEN_SERVICE_ID",
+          "value": ""
+        },
+        {
+          "name": "COMP_AND_PEN_TEMPLATE_ID",
+          "value": ""
+        },
+        {
+          "name": "COMP_AND_PEN_DYANMODB_NAME",
+          "value": ""
         }
       ],
       "secrets": [

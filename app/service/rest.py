@@ -637,7 +637,7 @@ def verify_reply_to_email_address(service_id):
         template_id=template.id,
         template_version=template.version,
         recipient=email_address["email"],
-        service=notify_service,
+        service_id=notify_service.id,
         personalisation='',
         notification_type=template.template_type,
         api_key_id=None,

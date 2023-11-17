@@ -46,7 +46,7 @@ def invite_user_to_org(organisation_id):
         template_id=template.id,
         template_version=template.version,
         recipient=invited_org_user.email_address,
-        service=template.service,
+        service_id=template.service.id,
         personalisation={
             'user_name': invited_org_user.invited_by.name,
             'organisation_name': invited_org_user.organisation.name,

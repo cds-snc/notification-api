@@ -3,10 +3,12 @@ from datetime import (
     timedelta
 )
 
+import boto3
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery, zendesk_client
 from app.celery.tasks import process_job
@@ -22,16 +24,23 @@ from app.dao.notifications_dao import (
     dao_precompiled_letters_still_pending_virus_check,
     dao_old_letters_with_created_status,
 )
+from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import (
     Job,
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_ERROR,
     SMS_TYPE,
     EMAIL_TYPE,
+    Service,
+    Template,
 )
 from app.notifications.process_notifications import send_notification_to_queue
+from app.notifications.send_notifications import send_notification_bypass_route
 from app.v2.errors import JobIncompleteError
+from app.va.identifier import IdentifierType
 
 
 @notify_celery.task(name="run-scheduled-jobs")
@@ -188,4 +197,148 @@ def check_templated_letter_state():
                 subject="[{}] Letters still in 'created' status".format(current_app.config['NOTIFY_ENVIRONMENT']),
                 message=msg,
                 ticket_type=zendesk_client.TYPE_INCIDENT
+            )
+
+
+def _get_dynamodb_comp_pen_messages(table, message_limit: int) -> list:
+    """
+    Helper function to get the Comp and Pen data from our dynamodb cache table.
+
+    :param table: the dynamodb table to grab the data from
+    :param message_limit: the number of rows to search at a time and the max number of items that should be returned
+    :return: a list of entries from the table that have not been processed yet
+    """
+
+    results = table.scan(
+        FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False),
+        Limit=message_limit
+    )
+
+    items: list = results.get('Items')
+
+    if items is None:
+        current_app.logger.critical(
+            'Error in _get_dynamodb_comp_pen_messages trying to read "Items" from dynamodb table scan result. '
+            'Returned results does not include "Items" - results: %s', results
+        )
+        return []
+
+    # Keep getting items from the table until we have the number we want to send, or run out of items
+    while 'LastEvaluatedKey' in results and len(items) < message_limit:
+        results = table.scan(
+            FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False),
+            Limit=message_limit,
+            ExclusiveStartKey=results['LastEvaluatedKey']
+        )
+
+        items.extend(results['Items'])
+
+    return items[:message_limit]
+
+
+@notify_celery.task(name='send-scheduled-comp-and-pen-sms')
+@statsd(namespace='tasks')
+def send_scheduled_comp_and_pen_sms():
+    if not is_feature_enabled(FeatureFlag.COMP_AND_PEN_MESSAGES_ENABLED):
+        current_app.logger.warning('Attempted to run send_scheduled_comp_and_pen_sms task, but feature flag disabled.')
+        return
+
+    # this is the agreed upon message per minute limit
+    messages_per_min = 3000
+    dynamodb_table_name = current_app.config['COMP_AND_PEN_DYNAMODB_TABLE_NAME']
+    service_id = current_app.config['COMP_AND_PEN_SERVICE_ID']
+    template_id = current_app.config['COMP_AND_PEN_TEMPLATE_ID']
+
+    # TODO: utils #146 - Debug messages currently don't show up in cloudwatch, requires a configuration change
+    current_app.logger.debug('send_scheduled_comp_and_pen_sms connecting to dynamodb')
+
+    # connect to dynamodb table
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(dynamodb_table_name)
+
+    # get messages to send
+    try:
+        comp_and_pen_messages: list = _get_dynamodb_comp_pen_messages(table, messages_per_min)
+    except Exception as e:
+        current_app.logger.critical(
+            'Exception trying to scan dynamodb table for send_scheduled_comp_and_pen_sms exception_type: %s - '
+            'exception_message: %s', type(e), e
+        )
+        return
+
+    current_app.logger.debug('send_scheduled_comp_and_pen_sms list of items from dynamodb: %s', comp_and_pen_messages)
+
+    # stop if there are no messages
+    if not comp_and_pen_messages:
+        current_app.logger.info(
+            'No Comp and Pen messages to send via send_scheduled_comp_and_pen_sms task. Exiting task.')
+        return
+
+    try:
+        service: Service = dao_fetch_service_by_id(service_id)
+        template: Template = dao_get_template_by_id(template_id)
+    except NoResultFound as e:
+        current_app.logger.error(
+            'No results found in task send_scheduled_comp_and_pen_sms attempting to lookup service or template. Exiting'
+            ' - exception: %s', e)
+        return
+    except Exception as e:
+        current_app.logger.critical(
+            'Error in task send_scheduled_comp_and_pen_sms attempting to lookup service or template Exiting - '
+            'exception: %s', e)
+        return
+
+    # send messages and update entries in dynamodb table
+    for item in comp_and_pen_messages:
+        current_app.logger.info(
+            'sending - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+            item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id')
+        )
+
+        try:
+            # call generic method to send messages
+            send_notification_bypass_route(
+                service=service,
+                template=template,
+                notification_type=SMS_TYPE,
+                personalisation={'paymentAmount': int(item.get('paymentAmount'))},
+                sms_sender_id=service.get_default_sms_sender_id(),
+                recipient_item={
+                    'id_type': IdentifierType.VA_PROFILE_ID.value,
+                    'id_value': str(item.get('vaprofile_id'))
+                },
+            )
+        except Exception as e:
+            current_app.logger.critical(
+                'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
+                'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
+                'exception: %s',
+                item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id'), type(e), e
+            )
+        else:
+            current_app.logger.info(
+                'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+                item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id')
+            )
+
+        # update dynamodb entries
+        try:
+            updated_item = table.update_item(
+                Key={
+                    'participant_id': item.get('participant_id'),
+                    'payment_id': item.get('payment_id')
+                },
+                UpdateExpression='SET is_processed = :val',
+                ExpressionAttributeValues={
+                    ':val': True
+                },
+                ReturnValues='ALL_NEW'
+            )
+
+            current_app.logger.info('updated_item from dynamodb ("is_processed" shouldb be "True"): %s', updated_item)
+        except Exception as e:
+            current_app.logger.critical(
+                'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '
+                'exception_type: %s exception_message: %s',
+                item.get('participant_id'), item.get('payment_id'), type(e), e
             )

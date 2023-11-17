@@ -225,6 +225,22 @@
         {
           "name": "VA_SSO_ACCESS_TOKEN_URL",
           "value": "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/token"
+        },
+        {
+          "name": "COMP_AND_PEN_MESSAGES_ENABLED",
+          "value": "True"
+        },
+        {
+          "name": "COMP_AND_PEN_SERVICE_ID",
+          "value": "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
+        },
+        {
+          "name": "COMP_AND_PEN_TEMPLATE_ID",
+          "value": "fca415e8-ff5f-4c29-a121-6dd534aa90c7"
+        },
+        {
+          "name": "COMP_AND_PEN_DYANMODB_NAME",
+          "value": "dev-bip-msg-mpi-profile-participant-cache-table"
         }
       ],
       "secrets": [

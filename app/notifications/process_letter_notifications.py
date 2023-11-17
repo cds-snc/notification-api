@@ -10,7 +10,7 @@ def create_letter_notification(letter_data, template, api_key, status, reply_to_
         template_postage=template.postage,
         # we only accept addresses_with_underscores from the API (from CSV we also accept dashes, spaces etc)
         recipient=letter_data['personalisation']['address_line_1'],
-        service=template.service,
+        service_id=template.service.id,
         personalisation=letter_data['personalisation'],
         notification_type=LETTER_TYPE,
         api_key_id=api_key.id,

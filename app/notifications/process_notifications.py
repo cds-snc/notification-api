@@ -63,7 +63,7 @@ def persist_notification(
         template_id,
         template_version,
         recipient=None,
-        service,
+        service_id,
         personalisation,
         notification_type,
         api_key_id,
@@ -95,7 +95,7 @@ def persist_notification(
         template_id=template_id,
         template_version=template_version,
         to=recipient,
-        service_id=service.id,
+        service_id=service_id,
         personalisation=personalisation,
         notification_type=notification_type,
         api_key_id=api_key_id,
@@ -138,11 +138,11 @@ def persist_notification(
         # Persist the Notification in the database.
         dao_create_notification(notification)
         if key_type != KEY_TYPE_TEST:
-            if redis_store.get(redis.daily_limit_cache_key(service.id)):
-                redis_store.incr(redis.daily_limit_cache_key(service.id))
+            if redis_store.get(redis.daily_limit_cache_key(service_id)):
+                redis_store.incr(redis.daily_limit_cache_key(service_id))
 
         current_app.logger.info(
-            f"{notification_type} {notification_id} created at {notification_created_at}"
+            "%s %s created at %s", notification_type, notification_id, notification_created_at
         )
 
     return notification
@@ -194,9 +194,7 @@ def send_notification_to_queue(
         raise
 
     current_app.logger.debug(
-        "{} {} sent to the {} queue for delivery".format(notification.notification_type,
-                                                         notification.id,
-                                                         queue))
+        "%s %s sent to the %s queue for delivery", notification.notification_type, notification.id, queue)
 
 
 def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender_id=None):

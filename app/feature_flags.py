@@ -26,6 +26,7 @@ class FeatureFlag(Enum):
     PLATFORM_STATS_ENABLED = 'PLATFORM_STATS_ENABLED'
     VA_SSO_ENABLED = 'VA_SSO_ENABLED'
     V3_ENABLED = 'V3_ENABLED'
+    COMP_AND_PEN_MESSAGES_ENABLED = 'COMP_AND_PEN_MESSAGES_ENABLED'
 
 
 def is_provider_enabled(current_app, provider_identifier):

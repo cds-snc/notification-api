@@ -171,7 +171,7 @@ def send_notifications_on_mou_signed(organisation_id):
             template_id=template.id,
             template_version=template.version,
             recipient=recipient,
-            service=notify_service,
+            service_id=notify_service.id,
             personalisation=personalisation,
             notification_type=template.template_type,
             api_key_id=None,

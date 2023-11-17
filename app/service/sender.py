@@ -21,7 +21,7 @@ def send_notification_to_service_users(service_id, template_id, personalisation=
             template_id=template.id,
             template_version=template.version,
             recipient=user.email_address if template.template_type == EMAIL_TYPE else user.mobile_number,
-            service=notify_service,
+            service_id=notify_service.id,
             personalisation=personalisation,
             notification_type=template.template_type,
             api_key_id=None,

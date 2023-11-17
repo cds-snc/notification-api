@@ -198,7 +198,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
         template_id=template.id,
         template_version=template.version,
         recipient=form_send_to,
-        service=service,
+        service_id=service.id,
         personalisation=personalisation,
         notification_type=notification_type,
         api_key_id=api_key.id,
@@ -237,7 +237,7 @@ def process_notification_with_recipient_identifier(*, form, notification_type, a
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
-        service=service,
+        service_id=service.id,
         personalisation=personalisation,
         notification_type=notification_type,
         api_key_id=api_key.id,

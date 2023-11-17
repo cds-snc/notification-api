@@ -140,7 +140,7 @@ def send_notification(notification_type):
         template_version=template.version,
         template_postage=template.postage,
         recipient=request.get_json()['to'],
-        service=authenticated_service,
+        service_id=authenticated_service.id,
         personalisation=notification_form.get('personalisation', None),
         notification_type=notification_type,
         api_key_id=api_user.id,

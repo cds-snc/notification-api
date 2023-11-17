@@ -36,7 +36,7 @@ def create_invited_user(service_id):
         template_id=template.id,
         template_version=template.version,
         recipient=invited_user["email_address"],
-        service=service,
+        service_id=service.id,
         personalisation={
             'user_name': invited_user["from_user"].name,
             'service_name': invited_user["service"].name,

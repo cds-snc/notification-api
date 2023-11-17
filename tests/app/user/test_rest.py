@@ -371,7 +371,7 @@ def test_post_user_attribute_send_notification_email(
             'email address': 'newuser@mail.com'
         },
         recipient='newuser@mail.com', reply_to_text='notify@gov.uk',
-        service=mock.ANY,
+        service_id=mock.ANY,
         template_id=UUID('c73f1d71-4049-46d5-a647-d013bdeca3f0'), template_version=1
     )),
     ('mobile_number', '+16502532223', dict(
@@ -381,7 +381,7 @@ def test_post_user_attribute_send_notification_email(
             'change_type': '\n- mobile number\n',
             'email address': 'notify@digital.cabinet-office.gov.uk'
         },
-        recipient='+16502532223', reply_to_text='testing', service=mock.ANY,
+        recipient='+16502532223', reply_to_text='testing', service_id=mock.ANY,
         template_id=UUID('8a31520f-4751-4789-8ea1-fe54496725eb'), template_version=1
     )),
 ])

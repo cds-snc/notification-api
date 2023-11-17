@@ -147,7 +147,7 @@ def update_user_attribute(user_id):
             template_id=template.id,
             template_version=template.version,
             recipient=recipient,
-            service=service,
+            service_id=service.id,
             personalisation={
                 'name': user_to_update.name,
                 'servicemanagername': updated_by.name,
@@ -227,7 +227,7 @@ def verify_user_code(user_id):
 
     code = get_user_code(user_to_verify, data['code'], data['code_type'])
 
-    if(verify_within_time(user_to_verify) >= 2):
+    if (verify_within_time(user_to_verify) >= 2):
         raise InvalidRequest("Code already sent", status_code=400)
 
     if user_to_verify.failed_login_count >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
@@ -254,7 +254,7 @@ def verify_user_code(user_id):
 def send_user_2fa_code(user_id, code_type):
     user_to_send_to = get_user_by_id(user_id=user_id)
 
-    if(verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
+    if (verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
         raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
 
     if count_user_verify_codes(user_to_send_to) >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
@@ -321,7 +321,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         template_id=template.id,
         template_version=template.version,
         recipient=recipient,
-        service=template.service,
+        service_id=template.service.id,
         personalisation=personalisation,
         notification_type=template.template_type,
         api_key_id=None,
@@ -348,7 +348,7 @@ def send_user_confirm_new_email(user_id):
         template_id=template.id,
         template_version=template.version,
         recipient=email['email'],
-        service=service,
+        service_id=service.id,
         personalisation={
             'name': user_to_send_to.name,
             'url': _create_confirmation_url(user=user_to_send_to, email_address=email['email']),
@@ -376,7 +376,7 @@ def send_new_user_email_verification(user_id):
         template_id=template.id,
         template_version=template.version,
         recipient=user_to_send_to.email_address,
-        service=service,
+        service_id=service.id,
         personalisation={
             'name': user_to_send_to.name,
             'url': _create_verification_url(user_to_send_to)
@@ -402,7 +402,7 @@ def send_already_registered_email(user_id):
         template_id=template.id,
         template_version=template.version,
         recipient=to['email'],
-        service=service,
+        service_id=service.id,
         personalisation={
             'signin_url': current_app.config['ADMIN_BASE_URL'] + '/sign-in',
             'forgot_password_url': current_app.config['ADMIN_BASE_URL'] + '/forgot-password',
@@ -462,7 +462,7 @@ def send_branding_request(user_id):
         template_id=template.id,
         template_version=template.version,
         recipient=to['email'],
-        service=service,
+        service_id=service.id,
         personalisation={
             'email': to['email'],
             'serviceID': to['serviceID'],
@@ -556,7 +556,7 @@ def send_user_reset_password():
         template_id=template.id,
         template_version=template.version,
         recipient=email['email'],
-        service=service,
+        service_id=service.id,
         personalisation={
             'user_name': user_to_send_to.name,
             'url': _create_reset_password_url(user_to_send_to.email_address)
@@ -763,7 +763,7 @@ def _update_alert(user_to_update, change_type=""):
         template_id=template.id,
         template_version=template.version,
         recipient=recipient,
-        service=service,
+        service_id=service.id,
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
             'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',

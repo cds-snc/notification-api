@@ -205,6 +205,22 @@
         {
           "name": "VA_ONSITE_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/onsite/notification-priv"
+        },
+        {
+          "name": "COMP_AND_PEN_MESSAGES_ENABLED",
+          "value": "False"
+        },
+        {
+          "name": "COMP_AND_PEN_SERVICE_ID",
+          "value": ""
+        },
+        {
+          "name": "COMP_AND_PEN_TEMPLATE_ID",
+          "value": ""
+        },
+        {
+          "name": "COMP_AND_PEN_DYANMODB_NAME",
+          "value": ""
         }
       ],
       "command": [
