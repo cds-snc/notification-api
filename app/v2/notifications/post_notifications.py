@@ -297,7 +297,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, template_with_content.fragment_count)
+            check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
