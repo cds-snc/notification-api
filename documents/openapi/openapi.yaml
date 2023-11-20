@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.3
+  version: 1.0.4
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -20,12 +20,24 @@ info:
     name: VA Notify team
 servers:
   - url: 'https://{environment}.notifications.va.gov'
+    description: PRIVATE, used inside the VA Network
     variables:
       environment:
         enum:
-          - staging.api
-          - dev.api
           - api
+          - staging.api
+          - perf.api
+          - dev.api
+        default: api
+  - url: 'https://{environment}.va.gov/vanotify'
+    description: PUBLIC, used outside of the VA Network
+    variables:
+      environment:
+        enum:
+          - api
+          - staging-api
+          - sandbox-api
+          - dev-api
         default: api
 paths:
   /organisations:
