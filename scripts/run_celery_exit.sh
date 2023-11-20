@@ -10,6 +10,7 @@ function get_celery_pids {
   # and keep only these PIDs
 
   set +o pipefail # so grep returning no matches does not premature fail pipe
+  # shellcheck disable=SC2009 # We don't want to bother re-writing this to use pgrep
   APP_PIDS=$(ps aux --sort=start_time | grep 'celery worker' | grep 'bin/celery' | head -1 | awk '{print $2}')
   set -o pipefail # pipefail should be set everywhere else
 }
@@ -18,12 +19,12 @@ function send_signal_to_celery_processes {
   # refresh pids to account for the case that some workers may have terminated but others not
   get_celery_pids
   # send signal to all remaining apps
-  echo ${APP_PIDS} | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: " >> /proc/1/fd/1
+  echo "${APP_PIDS}" | tr -d '\n' | tr -s ' ' | xargs echo "Sending signal ${1} to processes with pids: " >> /proc/1/fd/1
   echo "We will send ${1} signal" >> /proc/1/fd/1
   for value in ${APP_PIDS}
   do
-    echo kill -s ${1} $value
-    kill -s ${1} $value
+    echo kill -s "${1}" "$value"
+    kill -s "${1}" "$value"
   done
   #echo ${APP_PIDS} | xargs kill -s ${1}
 }
@@ -59,6 +60,7 @@ function on_exit {
     echo "exit function is running with wait time of 9s" >> /proc/1/fd/1
     get_celery_pids
     ensure_celery_is_running
+    # shellcheck disable=SC2219 # We could probably rewrite it as `((wait_time++)) || true` but I haven't tested and I assume this works as is
     let wait_time=wait_time+1
     sleep 1
   done
