@@ -1,3 +1,4 @@
+#!/bin/bash
 # Check and see if this is running in K8s and if so, wait for cloudwatch agent
 if [ -n "${STATSD_HOST}" ]; then
     echo "Initializing... Waiting for CWAgent to become ready within the next 30 seconds."
