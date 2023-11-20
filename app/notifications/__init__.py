@@ -29,8 +29,5 @@ def build_retry_task_params(notification_type: str, notification_process_type: s
 
     # Overring the retry policy is only supported for SMS for now;
     # email support coming later.
-    if notification_type == SMS_TYPE:
-        params["countdown"] = RETRY_PERIODS[notification_process_type]
-    else:
-        params["countdown"] = RETRY_DEFAULT
+    params["countdown"] = RETRY_PERIODS[notification_process_type]
     return params

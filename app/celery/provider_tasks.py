@@ -81,21 +81,36 @@ def deliver_email(self, notification_id):
         _check_and_queue_callback_task(notification)
     except MalwareDetectedException:
         _check_and_queue_callback_task(notification)
-    except Exception as e:
-        if isinstance(e, MalwareScanInProgressException) and self.request.retries <= SCAN_MAX_BACKOFF_RETRIES:
-            countdown = SCAN_RETRY_BACKOFF * (self.request.retries + 1)  # do we need to add 1 here?
+    except MalwareScanInProgressException:
+        if self.request.retries <= SCAN_MAX_BACKOFF_RETRIES:
+            countdown = SCAN_RETRY_BACKOFF * (self.request.retries + 1)
         else:
             countdown = None
         try:
-            current_app.logger.warning(f"The exception is {repr(e)}")
             if self.request.retries <= 10:
-                current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
+                current_app.logger.warning("RETRY {}: Email notification {} is waiting on pending malware scanning".format(self.request.retries, notification_id))
             else:
-                current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id))
+                current_app.logger.exception("RETRY: Email notification {} failed on pending malware scanning".format(notification_id))
             if countdown is not None:
                 self.retry(queue=QueueNames.RETRY, countdown=countdown)
             else:
                 self.retry(queue=QueueNames.RETRY)
+        except self.MaxRetriesExceededError:
+            message = (
+                "RETRY FAILED: Max retries reached. "
+                "The task send_email_to_provider failed for notification {}. "
+                "Notification has been updated to technical-failure".format(notification_id)
+            )
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
+            raise NotificationTechnicalFailureException(message)
+    except Exception as e:
+        try:
+            if self.request.retries <= 10:
+                current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
+            else:
+                current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
+            self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. "
