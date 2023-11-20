@@ -2,7 +2,7 @@ import pytest
 from flask import json
 
 from app import DATETIME_FORMAT
-from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, TEMPLATE_TYPES
+from app.models import EMAIL_TYPE, SMS_TYPE, TEMPLATE_TYPES
 from tests import create_authorization_header
 from tests.app.db import create_template
 
@@ -14,7 +14,6 @@ valid_version_params = [None, 1]
     [
         (SMS_TYPE, "sms Template Name", None, None),
         (EMAIL_TYPE, "email Template Name", "Template subject", None),
-        (LETTER_TYPE, "letter Template Name", "Template subject", "second"),
     ],
 )
 @pytest.mark.parametrize("version", valid_version_params)
@@ -73,24 +72,6 @@ def test_get_template_by_id_returns_200(client, sample_service, tmp_type, expect
             {
                 "subject": {"required": True},
                 "content": {"required": True},
-            },
-        ),
-        (
-            {
-                "template_type": LETTER_TYPE,
-                "subject": "((letterSubject))",
-                "content": "((letter_content))",
-            },
-            {
-                "letterSubject": {
-                    "required": True,
-                },
-                "letter_content": {
-                    "required": True,
-                },
-                "contact block": {
-                    "required": True,
-                },
             },
         ),
     ],
