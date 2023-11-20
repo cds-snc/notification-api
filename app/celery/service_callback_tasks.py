@@ -58,15 +58,24 @@ def send_complaint_to_service(self, complaint_data):
 
 def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):
     notification_id = data["notification_id"] if "notification_id" in data else data["id"]
+
+    def _build_headers(token: str):
+        if token:
+            return {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer {}".format(token),
+            }
+        else:
+            return {
+                "Content-Type": "application/json",
+            }
+
     try:
         response = request(
             method="POST",
             url=service_callback_url,
             data=json.dumps(data),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": "Bearer {}".format(token),
-            },
+            headers=_build_headers(token),
             timeout=60,
         )
         current_app.logger.info(

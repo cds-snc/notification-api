@@ -60,33 +60,44 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_sign
     assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(callback_api.bearer_token)
 
 
-def test_send_complaint_to_service_posts_https_request_to_service_with_signed_data(
-    notify_db_session,
-):
-    with freeze_time("2001-01-01T12:00:00"):
-        callback_api, template = _set_up_test_data("email", "complaint")
+@pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
+def test__send_data_to_service_callback_api_with_no_bearer_token(notify_db_session, mocker, notification_type):
+    callback_api, template = _set_up_test_data(notification_type, "delivery_status", None)
 
-        notification = create_notification(template=template)
-        complaint = create_complaint(service=template.service, notification=notification)
-        complaint_data = _set_up_data_for_complaint(callback_api, complaint, notification)
-        with requests_mock.Mocker() as request_mock:
-            request_mock.post(callback_api.url, json={}, status_code=200)
-            send_complaint_to_service(complaint_data)
+    datestr = datetime(2017, 6, 20)
 
-        mock_data = {
-            "notification_id": str(notification.id),
-            "complaint_id": str(complaint.id),
-            "reference": notification.client_reference,
-            "to": notification.to,
-            "complaint_date": datetime.utcnow().strftime(DATETIME_FORMAT),
-        }
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
+    )
+    signed_status_update = _set_up_data_for_status_update(callback_api, notification)
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(callback_api.url, json={}, status_code=200)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_status_update)
 
-        assert request_mock.call_count == 1
-        assert request_mock.request_history[0].url == callback_api.url
-        assert request_mock.request_history[0].method == "POST"
-        assert request_mock.request_history[0].text == json.dumps(mock_data)
-        assert request_mock.request_history[0].headers["Content-type"] == "application/json"
-        assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(callback_api.bearer_token)
+    mock_data = {
+        "id": str(notification.id),
+        "reference": notification.client_reference,
+        "to": notification.to,
+        "status": notification.status,
+        "provider_response": notification.provider_response,
+        "created_at": datestr.strftime(DATETIME_FORMAT),
+        "completed_at": datestr.strftime(DATETIME_FORMAT),
+        "sent_at": datestr.strftime(DATETIME_FORMAT),
+        "notification_type": notification_type,
+    }
+
+    assert request_mock.call_count == 1
+    assert request_mock.request_history[0].url == callback_api.url
+    assert request_mock.request_history[0].method == "POST"
+    assert request_mock.request_history[0].text == json.dumps(mock_data)
+    assert request_mock.request_history[0].headers["Content-type"] == "application/json"
+    assert request_mock.request_history[0].headers.get("Authorization") is None
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
@@ -159,13 +170,42 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(notify_db_s
     assert mocked.call_count == 0
 
 
-def _set_up_test_data(notification_type, callback_type):
+def test_send_complaint_to_service_posts_https_request_to_service_with_signed_data(
+    notify_db_session,
+):
+    with freeze_time("2001-01-01T12:00:00"):
+        callback_api, template = _set_up_test_data("email", "complaint")
+
+        notification = create_notification(template=template)
+        complaint = create_complaint(service=template.service, notification=notification)
+        complaint_data = _set_up_data_for_complaint(callback_api, complaint, notification)
+        with requests_mock.Mocker() as request_mock:
+            request_mock.post(callback_api.url, json={}, status_code=200)
+            send_complaint_to_service(complaint_data)
+
+        mock_data = {
+            "notification_id": str(notification.id),
+            "complaint_id": str(complaint.id),
+            "reference": notification.client_reference,
+            "to": notification.to,
+            "complaint_date": datetime.utcnow().strftime(DATETIME_FORMAT),
+        }
+
+        assert request_mock.call_count == 1
+        assert request_mock.request_history[0].url == callback_api.url
+        assert request_mock.request_history[0].method == "POST"
+        assert request_mock.request_history[0].text == json.dumps(mock_data)
+        assert request_mock.request_history[0].headers["Content-type"] == "application/json"
+        assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(callback_api.bearer_token)
+
+
+def _set_up_test_data(notification_type, callback_type, token="something_unique"):
     service = create_service(restricted=True)
     template = create_template(service=service, template_type=notification_type, subject="Hello")
     callback_api = create_service_callback_api(
         service=service,
         url="https://some.service.gov.uk/",
-        bearer_token="something_unique",
+        bearer_token=token,
         callback_type=callback_type,
     )
     return callback_api, template

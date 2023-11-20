@@ -855,7 +855,7 @@ class ServiceCallbackApi(BaseModel, Versioned):
     service = db.relationship("Service", backref="service_callback_api")
     url = db.Column(db.String(), nullable=False)
     callback_type = db.Column(db.String(), db.ForeignKey("service_callback_type.name"), nullable=True)
-    _bearer_token = db.Column("bearer_token", db.String(), nullable=False)
+    _bearer_token = db.Column("bearer_token", db.String(), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=True)
     updated_by = db.relationship("User")
