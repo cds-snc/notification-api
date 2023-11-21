@@ -1,9 +1,12 @@
+from typing import Optional
+
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
+from app.celery import build_retry_task_params
 from app.config import Config, QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
@@ -14,9 +17,9 @@ from app.exceptions import (
     MalwareScanInProgressException,
     NotificationTechnicalFailureException,
 )
-from app.models import NOTIFICATION_TECHNICAL_FAILURE
-from app.notifications import build_retry_task_params
+from app.models import NOTIFICATION_TECHNICAL_FAILURE, Notification
 from app.notifications.callbacks import _check_and_queue_callback_task
+from celery import Task
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -81,45 +84,24 @@ def deliver_email(self, notification_id):
         _check_and_queue_callback_task(notification)
     except MalwareDetectedException:
         _check_and_queue_callback_task(notification)
-    except MalwareScanInProgressException:
+    except MalwareScanInProgressException as me:
         if self.request.retries <= SCAN_MAX_BACKOFF_RETRIES:
             countdown = SCAN_RETRY_BACKOFF * (self.request.retries + 1)
         else:
             countdown = None
-        try:
-            if self.request.retries <= 10:
-                current_app.logger.warning("RETRY {}: Email notification {} is waiting on pending malware scanning".format(self.request.retries, notification_id))
-            else:
-                current_app.logger.exception("RETRY: Email notification {} failed on pending malware scanning".format(notification_id))
-            if countdown is not None:
-                self.retry(queue=QueueNames.RETRY, countdown=countdown)
-            else:
-                self.retry(queue=QueueNames.RETRY)
-        except self.MaxRetriesExceededError:
-            message = (
-                "RETRY FAILED: Max retries reached. "
-                "The task send_email_to_provider failed for notification {}. "
-                "Notification has been updated to technical-failure".format(notification_id)
+        if self.request.retries <= 10:
+            current_app.logger.warning(
+                "RETRY {}: Email notification {} is waiting on pending malware scanning".format(
+                    self.request.retries, notification_id
+                )
             )
-            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-            _check_and_queue_callback_task(notification)
-            raise NotificationTechnicalFailureException(message)
+        else:
+            current_app.logger.exception(
+                "RETRY: Email notification {} failed on pending malware scanning".format(notification_id)
+            )
+        _handle_email_retry(self, notification, me, countdown)
     except Exception as e:
-        try:
-            if self.request.retries <= 10:
-                current_app.logger.warning("RETRY {}: Email notification {} failed".format(self.request.retries, notification_id))
-            else:
-                current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
-            self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
-        except self.MaxRetriesExceededError:
-            message = (
-                "RETRY FAILED: Max retries reached. "
-                "The task send_email_to_provider failed for notification {}. "
-                "Notification has been updated to technical-failure".format(notification_id)
-            )
-            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-            _check_and_queue_callback_task(notification)
-            raise NotificationTechnicalFailureException(message)
+        _handle_email_retry(self, notification, e)
 
 
 def _deliver_sms(self, notification_id):
@@ -135,15 +117,8 @@ def _deliver_sms(self, notification_id):
         _check_and_queue_callback_task(notification)
     except Exception:
         try:
-            if self.request.retries == 0:
-                # Retry immediately, especially as a common failure is for the database data
-                # replication to be delayed. The immediate retry likely succeeds in these scenarios.
-                self.retry(queue=QueueNames.RETRY, countdown=0)
-            else:
-                # Once the previous retry failed, log the exception and this time,
-                # retry with the default delay.
-                current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-                self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
+            current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
+            self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
@@ -152,3 +127,22 @@ def _deliver_sms(self, notification_id):
             update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
             _check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(message)
+
+
+def _handle_email_retry(task: Task, notification: Notification, e: Exception, countdown: Optional[None] = None):
+    try:
+        if task.request.retries <= 10:
+            current_app.logger.warning("RETRY {}: Email notification {} failed".format(task.request.retries, notification.id))
+        else:
+            current_app.logger.exception("RETRY: Email notification {} failed".format(notification.id), exc_info=e)
+
+        task.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type, countdown))
+    except task.MaxRetriesExceededError:
+        message = (
+            "RETRY FAILED: Max retries reached. "
+            "The task send_email_to_provider failed for notification {}. "
+            "Notification has been updated to technical-failure".format(notification.id)
+        )
+        update_notification_status_by_id(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
+        raise NotificationTechnicalFailureException(message)
