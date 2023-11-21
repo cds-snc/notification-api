@@ -310,7 +310,7 @@ def dao_update_notification_by_id(notification_id: str, **kwargs):
         return None
     except ArgumentError as e:
         current_app.logger.warning(
-            'Cannot update notification %s - exception: %s', notification_id, status, e
+            'Cannot update notification %s - exception: %s', notification_id, e
         )
         return None
     except Exception as e:
