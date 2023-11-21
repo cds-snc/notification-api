@@ -12,6 +12,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.celery import RETRY_PERIODS, build_retry_task_params
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
@@ -26,7 +27,6 @@ from app.models import (
     ScheduledNotification,
     Template,
 )
-from app.notifications import RETRY_PERIODS, build_retry_task_params
 from app.notifications.process_notifications import (
     choose_queue,
     create_content_for_notification,
