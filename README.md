@@ -109,13 +109,9 @@ file. Copy that file to `.env` and customize it to your needs.
 
 
 ##  To run the queues
-```
-scripts/run_celery_local.sh
-```
+`make run-celery-local`
 
-```
-scripts/run_celery_beat.sh
-```
+`make run-celery-beat-local`
 
 ### Python version
 
