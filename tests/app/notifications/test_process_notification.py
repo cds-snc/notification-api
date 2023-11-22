@@ -1,6 +1,5 @@
 import datetime
 import uuid
-from typing import Any, Dict
 from unittest.mock import call
 
 import pytest
@@ -17,11 +16,9 @@ from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     BULK,
-    EMAIL_TYPE,
     LETTER_TYPE,
     NORMAL,
     PRIORITY,
-    SMS_TYPE,
     Notification,
     NotificationHistory,
     ScheduledNotification,
