@@ -48,21 +48,21 @@ class NotifyApiUser(HttpUser):
         self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
     
     
-    @task(1) # about every 10 minutes
+    @task(1) # about every 5 minutes
     def send_low_priority_emails(self):
         json = {
                 "name": f"Low priority emails {datetime.utcnow().isoformat()}",
                 "template_id": self.low_priority_email_template,
-                "csv": rows_to_csv([["email address"], *job_lines(self.email_address, 10)])
+                "csv": rows_to_csv([["email address"], *job_lines(self.email_address, 10000)])
             }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
-    @task(1) # about every 10 minutes
+    @task(1) # about every 5 minutes
     def send_low_priority_sms(self):
         json = {
                 "name": f"Low priority sms {datetime.utcnow().isoformat()}",
                 "template_id": self.low_priority_sms_template,
-                "csv": rows_to_csv([["phone_number"], *job_lines(self.phone_number, 10)])
+                "csv": rows_to_csv([["phone_number"], *job_lines(self.phone_number, 1000)])
             }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
