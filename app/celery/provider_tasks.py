@@ -6,7 +6,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
-from app.celery import build_retry_task_params
+from app.celery import CeleryParams
 from app.config import Config
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
@@ -118,7 +118,7 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-            self.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type))
+            self.retry(**CeleryParams.retry(notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
@@ -136,7 +136,7 @@ def _handle_email_retry(task: Task, notification: Notification, e: Exception, co
         else:
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification.id), exc_info=e)
 
-        task.retry(**build_retry_task_params(notification.notification_type, notification.template.process_type, countdown))
+        task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
     except task.MaxRetriesExceededError:
         message = (
             "RETRY FAILED: Max retries reached. "

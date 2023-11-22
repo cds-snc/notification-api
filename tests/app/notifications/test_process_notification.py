@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.celery import RETRY_PERIODS, build_retry_task_params
+from app.celery import RETRY_PERIODS, CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
@@ -1093,19 +1093,16 @@ class TestDBSaveAndSendNotification:
         assert NotificationHistory.query.count() == 0
 
     @pytest.mark.parametrize(
-        ("notification_type, process_type, expected_retry_period"),
+        ("process_type, expected_retry_period"),
         [
-            (EMAIL_TYPE, BULK, RETRY_PERIODS[BULK]),
-            (EMAIL_TYPE, NORMAL, RETRY_PERIODS[NORMAL]),
-            (EMAIL_TYPE, PRIORITY, RETRY_PERIODS[NORMAL]),
-            (SMS_TYPE, BULK, RETRY_PERIODS[BULK]),
-            (SMS_TYPE, NORMAL, RETRY_PERIODS[NORMAL]),
-            (SMS_TYPE, PRIORITY, RETRY_PERIODS[PRIORITY]),
+            (BULK, RETRY_PERIODS[BULK]),
+            (NORMAL, RETRY_PERIODS[NORMAL]),
+            (PRIORITY, RETRY_PERIODS[PRIORITY]),
         ],
     )
-    def test_retry_task_parameters(self, notify_api, notification_type, process_type, expected_retry_period):
+    def test_retry_task_parameters(self, notify_api, process_type, expected_retry_period):
         with notify_api.app_context():
-            params: Dict[str, Any] = build_retry_task_params(notification_type, process_type)
+            params = CeleryParams.retry(process_type)
 
         assert params["queue"] == QueueNames.RETRY
         assert params["countdown"] == expected_retry_period
