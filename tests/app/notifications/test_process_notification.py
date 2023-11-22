@@ -11,7 +11,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.celery import RETRY_PERIODS, CeleryParams
+from app.celery import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
@@ -1092,9 +1092,9 @@ class TestDBSaveAndSendNotification:
     @pytest.mark.parametrize(
         ("process_type, expected_retry_period"),
         [
-            (BULK, RETRY_PERIODS[BULK]),
-            (NORMAL, RETRY_PERIODS[NORMAL]),
-            (PRIORITY, RETRY_PERIODS[PRIORITY]),
+            (BULK, CeleryParams.RETRY_PERIODS[BULK]),
+            (NORMAL, CeleryParams.RETRY_PERIODS[NORMAL]),
+            (PRIORITY, CeleryParams.RETRY_PERIODS[PRIORITY]),
         ],
     )
     def test_retry_task_parameters(self, notify_api, process_type, expected_retry_period):
