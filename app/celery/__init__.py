@@ -2,6 +2,8 @@ from typing import Any, Dict, Optional
 
 from flask import current_app
 
+from app import config, models
+
 # Default retry periods for sending notifications.
 RETRY_DEFAULT = 300
 RETRY_HIGH = 25
@@ -10,13 +12,11 @@ RETRY_HIGH = 25
 class CeleryParams(object):
     # Important to load from the object and not the module to avoid
     # circular imports, back and forth between the app and celery modules.
-    from app.config import QueueNames
-    from app.models import BULK, NORMAL, PRIORITY
 
     RETRY_PERIODS = {
-        BULK: RETRY_DEFAULT,
-        NORMAL: RETRY_DEFAULT,
-        PRIORITY: RETRY_HIGH,
+        models.BULK: RETRY_DEFAULT,
+        models.NORMAL: RETRY_DEFAULT,
+        models.PRIORITY: RETRY_HIGH,
     }
 
     @staticmethod
@@ -29,7 +29,7 @@ class CeleryParams(object):
 
         Provide an override parameter for cases the calling task wants to override the retry policy.
         """
-        params: dict[str, Any] = {"queue": CeleryParams.QueueNames.RETRY}
+        params: dict[str, Any] = {"queue": config.RETRY}
         if current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"] is False:
             return params
 
