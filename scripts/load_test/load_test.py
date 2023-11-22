@@ -22,7 +22,7 @@ def job_lines(data: str, number_of_lines: int) -> Iterator[List[str]]:
 
 
 class NotifyApiUser(HttpUser):
-    wait_time = constant_pacing(1)  # each user makes one post per second
+    wait_time = constant_pacing(1)  # do something every second
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
@@ -35,12 +35,20 @@ class NotifyApiUser(HttpUser):
         self.high_priority_sms_template = os.getenv("HIGH_PRIORITY_SMS_TEMPLATE_ID")
         self.low_priority_sms_template = os.getenv("LOW_PRIORITY_SMS_TEMPLATE_ID")
 
-    @task(1)
+
+    @task(298) # about every 2 seconds
     def send_high_priority_email(self):
         json = {"email_address": self.email_address, "template_id": self.high_priority_email_template}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
     
-    @task(1)
+        
+    @task(298) # about every 2 seconds
+    def send_priority_sms(self):
+        json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
+        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+    
+    
+    @task(1) # about every 10 minutes
     def send_low_priority_emails(self):
         json = {
                 "name": f"Low priority emails {datetime.utcnow().isoformat()}",
@@ -48,14 +56,9 @@ class NotifyApiUser(HttpUser):
                 "csv": rows_to_csv([["email address"], *job_lines(self.email_address, 10)])
             }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
-    
-    @task(1)
-    def send_priority_sms(self):
-        json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
-        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
-    
-    @task(1)
-    def send_bulk_sms(self):
+
+    @task(1) # about every 10 minutes
+    def send_low_priority_sms(self):
         json = {
                 "name": f"Low priority sms {datetime.utcnow().isoformat()}",
                 "template_id": self.low_priority_sms_template,
