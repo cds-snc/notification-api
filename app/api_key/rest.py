@@ -14,7 +14,9 @@ from app.dao.fact_notification_status_dao import (
     get_last_send_for_api_key,
     get_total_notifications_sent_for_api_key,
 )
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors
+from app.service.sender import send_notification_to_service_users
 
 api_key_blueprint = Blueprint("api_key", __name__)
 register_errors(api_key_blueprint)
@@ -73,37 +75,17 @@ def get_api_keys_ranked(n_days_back):
 
 
 def send_api_key_revokation_email(service_id, api_key_name, api_key_information):
-    """
-    TODO: this function if not ready yet. It needs a template to be created.
-    email = email_data_request_schema.load(request.get_json())
-
-    users_to_send_to = dao_fetch_active_users_for_service(service_id)
-
-    template = dao_get_template_by_id(current_app.config["API_KEY_REVOKED_TEMPLATE_ID"])  # this template currently doesn't exist
-    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
-    users_service = Service.query.get(service_id)
-    for user_to_send_to in users_to_send_to:
-        saved_notification = persist_notification(
-            template_id=template.id,
-            template_version=template.version,
-            recipient=email["email"],
-            service=service,
-            personalisation={
-                "user_name": user_to_send_to.name,
-                "api_key_name": api_key_name,
-                "service_name": users_service.name,
-                "api_key_information": api_key_information,
-            },
-            notification_type=template.template_type,
-            api_key_id=None,
-            key_type=KEY_TYPE_NORMAL,
-            reply_to_text=service.get_default_reply_to_email_address(),
-        )
-
-        send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
-
-    """
-    return
+    service = dao_fetch_service_by_id(service_id)
+    send_notification_to_service_users(
+        service_id=service_id,
+        template_id=current_app.config["APIKEY_REVOKE_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "public_location": api_key_information["url"],
+            "key_name": api_key_name,
+        },
+        include_user_fields=["name"],
+    )
 
 
 @sre_tools_blueprint.route("/api-key-revoke", methods=["POST"])
