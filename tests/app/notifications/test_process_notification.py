@@ -11,7 +11,7 @@ from notifications_utils.recipients import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.celery import CeleryParams
+from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (

@@ -6,7 +6,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
-from app.celery import CeleryParams
+from app.celery.utils import CeleryParams
 from app.config import Config
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
