@@ -1772,7 +1772,6 @@ class TestEmailsAndLimitsForSMSFragments:
         response = __send_sms()  # send the 11th fragment
         assert response.status_code == 429  # Ensure send is blocked
 
-
     def test_API_BULK_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
