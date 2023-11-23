@@ -74,7 +74,7 @@ def get_api_keys_ranked(n_days_back):
     return jsonify(data=data)
 
 
-def send_api_key_revokation_email(service_id, api_key_name, api_key_information):
+def send_api_key_revocation_email(service_id, api_key_name, api_key_information):
     service = dao_fetch_service_by_id(service_id)
     send_notification_to_service_users(
         service_id=service_id,
@@ -150,6 +150,6 @@ def revoke_api_keys():
     )
 
     # Step 4
-    send_api_key_revokation_email(api_key.service_id, api_key.name, api_key_data)
+    send_api_key_revocation_email(api_key.service_id, api_key.name, api_key_data)
 
     return jsonify(result="ok"), 201
