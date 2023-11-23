@@ -29,7 +29,7 @@ class CeleryParams(object):
 
         Provide an override parameter for cases the calling task wants to override the retry policy.
         """
-        params: dict[str, Any] = {"queue": config.RETRY}
+        params: dict[str, Any] = {"queue": config.QueueNames.RETRY}
         if current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"] is False:
             return params
 
