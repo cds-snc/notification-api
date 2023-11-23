@@ -13,6 +13,7 @@ down_revision = "0439_add_index_n_history"
 
 apikey_revoke_template_id = current_app.config["APIKEY_REVOKE_TEMPLATE_ID"]
 
+
 def upgrade():
     template_insert = """
         INSERT INTO templates (id, name, template_type, created_at, content, archived, service_id, subject,
@@ -24,7 +25,6 @@ def upgrade():
         created_by_id, version, process_type, hidden)
         VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', false)
     """
-
 
     apikey_revoke_limit_content = "\n".join(
         [
@@ -55,7 +55,6 @@ def upgrade():
             "[[/fr]]",
         ]
     )
-
 
     templates = [
         {
