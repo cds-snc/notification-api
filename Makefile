@@ -46,6 +46,10 @@ format:
 smoke-test:
 	cd tests_smoke && poetry run python smoke_test.py
 
+.PHONY: smoke-loop
+smoke-loop:
+	cd tests_smoke && poetry run python smoke_loop.py $(ARGS)
+
 .PHONY: run
 run: ## Run the web app
 	flask run -p 6011 --host=0.0.0.0
