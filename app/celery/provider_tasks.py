@@ -89,19 +89,12 @@ def deliver_email(self, notification_id):
             countdown = SCAN_RETRY_BACKOFF * (self.request.retries + 1)
         else:
             countdown = None
-        if self.request.retries <= 10:
-            current_app.logger.warning(
-                "RETRY {}: Email notification {} is waiting on pending malware scanning".format(
-                    self.request.retries, notification_id
-                )
-            )
-        else:
-            current_app.logger.exception(
-                "RETRY: Email notification {} failed on pending malware scanning".format(notification_id)
-            )
-        _handle_email_retry(self, notification, me, countdown)
+        current_app.logger.warning(
+            "RETRY {}: Email notification {} is waiting on pending malware scanning".format(self.request.retries, notification_id)
+        )
+        _handle_error_with_email_retry(self, notification_id, notification, me, countdown)
     except Exception as e:
-        _handle_email_retry(self, notification, e)
+        _handle_error_with_email_retry(self, notification_id, notification, e)
 
 
 def _deliver_sms(self, notification_id):
@@ -129,20 +122,22 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-def _handle_email_retry(task: Task, notification: Notification, e: Exception, countdown: Optional[None] = None):
+def _handle_error_with_email_retry(task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[None] = None):
     try:
         if task.request.retries <= 10:
-            current_app.logger.warning("RETRY {}: Email notification {} failed".format(task.request.retries, notification.id))
+            current_app.logger.warning("RETRY {}: Email notification {} failed".format(task.request.retries, notification_id))
         else:
-            current_app.logger.exception("RETRY: Email notification {} failed".format(notification.id), exc_info=e)
-
-        task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
+            current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
+        # There is an edge case when a notification is not found in the database.
+        if notification is None:
+            task.retry(**CeleryParams.retry(countdown=countdown))
+        else:
+            task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
     except task.MaxRetriesExceededError:
         message = (
             "RETRY FAILED: Max retries reached. "
             "The task send_email_to_provider failed for notification {}. "
-            "Notification has been updated to technical-failure".format(notification.id)
+            "Notification has been updated to technical-failure".format(notification_id)
         )
-        update_notification_status_by_id(notification.id, NOTIFICATION_TECHNICAL_FAILURE)
-        _check_and_queue_callback_task(notification)
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
         raise NotificationTechnicalFailureException(message)

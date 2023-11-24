@@ -17,10 +17,11 @@ class CeleryParams(object):
         models.BULK: RETRY_DEFAULT,
         models.NORMAL: RETRY_DEFAULT,
         models.PRIORITY: RETRY_HIGH,
+        None : RETRY_HIGH,  # In case we cannot identify the priority, treat it as high.
     }
 
     @staticmethod
-    def retry(notification_process_type: str, countdown: Optional[int] = None) -> Dict[str, Any]:
+    def retry(notification_process_type: Optional[str], countdown: Optional[int] = None) -> Dict[str, Any]:
         """
         Build task params for the sending parameter retry tasks.
 
@@ -39,5 +40,4 @@ class CeleryParams(object):
             # Overring the retry policy is only supported for SMS for now;
             # email support coming later.
             params["countdown"] = CeleryParams.RETRY_PERIODS[notification_process_type]
-
         return params
