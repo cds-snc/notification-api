@@ -21,7 +21,7 @@ class CeleryParams(object):
     }
 
     @staticmethod
-    def retry(notification_process_type: Optional[str], countdown: Optional[int] = None) -> Dict[str, Any]:
+    def retry(notification_process_type: Optional[str] = None, countdown: Optional[int] = None) -> Dict[str, Any]:
         """
         Build task params for the sending parameter retry tasks.
 
