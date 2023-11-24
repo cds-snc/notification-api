@@ -122,7 +122,9 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-def _handle_error_with_email_retry(task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[None] = None):
+def _handle_error_with_email_retry(
+    task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[None] = None
+):
     try:
         if task.request.retries <= 10:
             current_app.logger.warning("RETRY {}: Email notification {} failed".format(task.request.retries, notification_id))

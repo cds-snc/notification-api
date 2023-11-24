@@ -17,7 +17,7 @@ class CeleryParams(object):
         models.BULK: RETRY_DEFAULT,
         models.NORMAL: RETRY_DEFAULT,
         models.PRIORITY: RETRY_HIGH,
-        None : RETRY_HIGH,  # In case we cannot identify the priority, treat it as high.
+        None: RETRY_HIGH,  # In case we cannot identify the priority, treat it as high.
     }
 
     @staticmethod
