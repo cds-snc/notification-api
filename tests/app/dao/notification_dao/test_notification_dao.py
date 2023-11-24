@@ -1787,7 +1787,10 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
 
     assert NotificationHistory.query.count() == 5
 
-    assert send_method_stats_by_service(datetime.utcnow() - timedelta(days=7), datetime.utcnow(),) == [
+    assert send_method_stats_by_service(
+        datetime.utcnow() - timedelta(days=7),
+        datetime.utcnow(),
+    ) == [
         (
             sample_service.id,
             sample_service.name,
