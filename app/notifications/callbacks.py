@@ -1,9 +1,10 @@
+from flask import current_app
+
 from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
 )
-from flask import current_app
 
 
 def _check_and_queue_callback_task(notification):
