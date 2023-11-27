@@ -9,7 +9,7 @@ from datetime import datetime
 
 from alembic import op
 
-revision = "0440_add_index_n_history_2"
+revision = "0440_add_index_n_history_comp"
 down_revision = "0439_add_index_n_history"
 
 
