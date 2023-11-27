@@ -24,6 +24,7 @@ def get_twilio_responses(status):
 class TwilioSMSClient(SmsClient):
     def __init__(self, account_sid=None, auth_token=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # https://www.twilio.com/docs/usage/webhooks/webhooks-connection-overrides
         self.callback_url = None
         self._callback_connection_timeout = 10000  # miliseconds, 10 seconds
         self._callback_read_timeout = 15000  # miliseconds, 15 seconds
