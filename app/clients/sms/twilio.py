@@ -24,6 +24,13 @@ def get_twilio_responses(status):
 class TwilioSMSClient(SmsClient):
     def __init__(self, account_sid=None, auth_token=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.callback_url = None
+        self._callback_connection_timeout = 10000  # miliseconds, 10 seconds
+        self._callback_read_timeout = 15000  # miliseconds, 15 seconds
+        self._callback_retry_count = 5
+        self._callback_retry_policy = 'all'
+        self._callback_notify_url_host = None
+        self.logger = None
         self._account_sid = account_sid
         self._auth_token = auth_token
         self._client = Client(account_sid, auth_token)
@@ -68,6 +75,7 @@ class TwilioSMSClient(SmsClient):
         self.logger = logger
         self._callback_notify_url_host = callback_notify_url_host
 
+
         prefix = "dev-"
 
         if environment == "staging":
@@ -77,7 +85,8 @@ class TwilioSMSClient(SmsClient):
         elif environment == "production":
             prefix = ""
 
-        self.callback_url = f"https://{prefix}api.va.gov/vanotify/sms/deliverystatus"
+        self.callback_url = f"https://{prefix}api.va.gov/vanotify/sms/deliverystatus#ct={self._callback_connection_timeout}"
+        self.callback_url += f"&rc={self._callback_retry_count}&rt={self._callback_read_timeout}&rp={self._callback_retry_policy}"
 
     @property
     def name(self):
