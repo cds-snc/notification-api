@@ -1,6 +1,6 @@
 """
-Revision ID: 0440_add_apikey_revoke_email
-Revises: 0439_add_index_n_history
+Revision ID: 0441_add_apikey_revoke_email
+Revises: 0440_add_index_n_history_comp
 Create Date: 2022-09-21 00:00:00
 """
 from datetime import datetime
@@ -8,8 +8,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0440_add_apikey_revoke_email"
-down_revision = "0439_add_index_n_history"
+revision = "0441_add_apikey_revoke_email"
+down_revision = "0440_add_index_n_history_comp"
 
 apikey_revoke_template_id = current_app.config["APIKEY_REVOKE_TEMPLATE_ID"]
 
