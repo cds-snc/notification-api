@@ -9,10 +9,6 @@ from smoke.test_admin_one_off import test_admin_one_off  # type: ignore
 from smoke.test_api_bulk import test_api_bulk  # type: ignore
 from smoke.test_api_one_off import test_api_one_off  # type: ignore
 
-runCount = 0
-maxRuns = 0
-
-
 class bcolors:
 
     HEADER = '\033[95m'
@@ -25,11 +21,11 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+def main():
 
-def init():
-
-    global maxRuns
-
+    runCount = 0
+    maxRuns = 0
+    
     parser = ArgumentParser()
     parser.add_argument("-m", "--max-runs", dest="maxruns",
                         help="Set the maximum number of runs you want", metavar="MAXRUNS")
@@ -58,40 +54,35 @@ def init():
 
     print(bcolors.ENDC)
 
+    while True:
 
-init()
+        runCount += 1
+        print(bcolors.OKBLUE)
+        print(f"Running smoke test #{str(runCount)}")
+        print(bcolors.ENDC)
+        startTime = time.time()
 
+        for notification_type in [Notification_type.EMAIL, Notification_type.SMS]:
+            test_admin_one_off(notification_type)
+            test_admin_csv(notification_type)
+            test_api_one_off(notification_type)
+            test_api_bulk(notification_type)
+        test_api_one_off(Notification_type.EMAIL, Attachment_type.ATTACHED)
+        test_api_one_off(Notification_type.EMAIL, Attachment_type.LINK)
 
-while True:
+        print(subprocess.STDOUT)
+        endTime = time.time()
+        totalTime = endTime - startTime
+        print(bcolors.OKBLUE)
+        print(f"Smoke Test {str(runCount)} complete in {totalTime} seconds")
+        print(bcolors.ENDC)
+        if maxRuns != 0:
+            if maxRuns >= runCount:
+                print(bcolors.WARNING)
+                print("Run limit reached. Stopping")
+                print(bcolors.ENDC)
+                break
+    
+if __name__ == "__main__":
+    main()
 
-    result = None
-    seconds = None
-    startTime = None
-    endTime = None
-
-    runCount += 1
-    print(bcolors.OKBLUE)
-    print(f"Running smoke test #{str(runCount)}")
-    print(bcolors.ENDC)
-    startTime = time.time()
-
-    for notification_type in [Notification_type.EMAIL, Notification_type.SMS]:
-        test_admin_one_off(notification_type)
-        test_admin_csv(notification_type)
-        test_api_one_off(notification_type)
-        test_api_bulk(notification_type)
-    test_api_one_off(Notification_type.EMAIL, Attachment_type.ATTACHED)
-    test_api_one_off(Notification_type.EMAIL, Attachment_type.LINK)
-
-    print(subprocess.STDOUT)
-    endTime = time.time()
-    totalTime = endTime - startTime
-    print(bcolors.OKBLUE)
-    print(f"Smoke Test {str(runCount)} complete in {totalTime} seconds")
-    print(bcolors.ENDC)
-    if maxRuns != 0:
-        if maxRuns >= runCount:
-            print(bcolors.WARNING)
-            print("Run limit reached. Stopping")
-            print(bcolors.ENDC)
-            break
