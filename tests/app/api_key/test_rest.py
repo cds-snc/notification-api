@@ -83,7 +83,9 @@ def test_get_api_keys_ranked(admin_request, notify_db, notify_db_session):
 
 
 class TestApiKeyRevocation:
-    def test_revoke_api_keys_with_valid_auth(self, client, notify_db, notify_db_session, mocker):
+    def test_revoke_api_keys_with_valid_auth_revokes_and_notifies_user(self, client, notify_db, notify_db_session, mocker):
+        notify_users = mocker.patch("app.api_key.rest.send_api_key_revocation_email")
+
         service = create_service(service_name="Service 1")
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
         unsigned_secret = get_unsigned_secret(api_key_1.id)
@@ -103,6 +105,8 @@ class TestApiKeyRevocation:
         assert api_key_1.compromised_key_info["url"] == "https://example.com"
         assert api_key_1.compromised_key_info["source"] == "cds-tester"
         assert api_key_1.compromised_key_info["time_of_revocation"]
+
+        notify_users.assert_called_once()
 
     def test_revoke_api_keys_fails_with_no_auth(self, client, notify_db, notify_db_session, mocker):
         service = create_service(service_name="Service 1")
