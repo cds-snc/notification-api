@@ -72,7 +72,7 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            check_sms_daily_limit(service, template_with_content.fragment_count)
+            check_sms_daily_limit(service, 1)
     elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
         check_email_daily_limit(service, 1)  # 1 email
 
@@ -91,7 +91,7 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(service, template_with_content.fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(service, 1)
     elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
         increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
