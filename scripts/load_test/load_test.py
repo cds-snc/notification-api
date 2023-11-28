@@ -31,44 +31,58 @@ class NotifyApiUser(HttpUser):
         self.email_address = "success@simulator.amazonses.com"
         self.phone_number = "16135550123"  # INTERNAL_TEST_NUMBER, does not actually send SMS
         self.high_priority_email_template = os.getenv("HIGH_PRIORITY_EMAIL_TEMPLATE_ID")
+        self.medium_priority_email_template = os.getenv("MEDIUM_PRIORITY_EMAIL_TEMPLATE_ID")
         self.low_priority_email_template = os.getenv("LOW_PRIORITY_EMAIL_TEMPLATE_ID")
         self.high_priority_sms_template = os.getenv("HIGH_PRIORITY_SMS_TEMPLATE_ID")
+        self.medium_priority_sms_template = os.getenv("MEDIUM_PRIORITY_SMS_TEMPLATE_ID")
         self.low_priority_sms_template = os.getenv("LOW_PRIORITY_SMS_TEMPLATE_ID")
 
-    def send_bulk_email(self, count: int):
+    def send_bulk_email(self, template: str, count: int):
         json = {
-            "name": f"Low priority emails {datetime.utcnow().isoformat()}",
-            "template_id": self.low_priority_email_template,
+            "name": f"bulk emails {datetime.utcnow().isoformat()}",
+            "template_id": template,
             "csv": rows_to_csv([["email address"], *job_lines(self.email_address, count)])
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers, timeout=60)
 
-    def send_bulk_sms(self, count: int):
+    def send_bulk_sms(self, template: str, count: int):
         json = {
-            "name": f"Low priority sms {datetime.utcnow().isoformat()}",
-            "template_id": self.low_priority_sms_template,
-            "csv": rows_to_csv([["phone_number"], *job_lines(self.phone_number, 1000)])
+            "name": f"bulk sms {datetime.utcnow().isoformat()}",
+            "template_id": template,
+            "csv": rows_to_csv([["phone_number"], *job_lines(self.phone_number, count)])
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers, timeout=60)
 
-    @task(297)  # about every 2 seconds
+    # SMS Tasks
+
+    @task(238)  # about every 2 seconds
+    def send_high_priority_sms(self):
+        json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
+        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+
+    @task(60)  # about every 10 seconds
+    def send_medium_priority_sms(self):
+        self.send_bulk_sms(self.medium_priority_sms_template, 100)
+
+    @task(2)  # about every 5 minutes
+    def send_low_priority_sms(self):
+        self.send_bulk_sms(self.low_priority_sms_template, 1000)
+
+    # Email Tasks
+
+    @task(237)  # about every 2 seconds
     def send_high_priority_email(self):
         json = {"email_address": self.email_address, "template_id": self.high_priority_email_template}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(298)  # about every 2 seconds
-    def send_priority_sms(self):
-        json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
-        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+    @task(60)  # about every 10 seconds
+    def send_medium_priority_email(self):
+        self.send_bulk_email(self.medium_priority_email_template, 100)
 
     @task(2)  # about every 5 minutes
     def send_low_priority_emails_1(self):
-        self.send_bulk_email(5000)
+        self.send_bulk_email(self.low_priority_email_template, 5000)
 
     @task(1)  # about every 10 minutes
     def send_low_priority_emails_2(self):
-        self.send_bulk_email(5000)
-
-    @task(2)  # about every 5 minutes
-    def send_low_priority_sms(self):
-        self.send_bulk_sms(1000)
+        self.send_bulk_email(self.low_priority_email_template, 5000)
