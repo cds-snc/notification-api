@@ -443,7 +443,7 @@ def fetch_todays_total_message_count(service_id):
 def fetch_todays_total_sms_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     result = (
-        db.session.query(func.count(Notification.id).label("total_sms_notifications"))
+        db.session.query(func.sum(Notification.billable_units).label("sum_billable_units"))
         .filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
@@ -452,7 +452,7 @@ def fetch_todays_total_sms_count(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+    return 0 if result is None or result.sum_billable_units is None else result.sum_billable_units
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
