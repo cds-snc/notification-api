@@ -1090,6 +1090,13 @@ class TestFetchTodaysTotalSmsCount:
         save_notification(create_notification(template=email_template))
         assert fetch_todays_total_sms_count(service.id) == 2
 
+    def test_sums_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=3))
+        save_notification(create_notification(template=sms_template, billable_units=10))
+        assert fetch_todays_total_sms_count(service.id) == 13
+
     def test_returns_0_when_no_messages_for_today(self):
         assert fetch_todays_total_sms_count(uuid.uuid4()) == 0
 
