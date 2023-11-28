@@ -20,6 +20,15 @@ class MockSmsSenderObject:
     sms_sender_specifics = {}
 
 
+def build_callback_url(expected_prefix, client):
+    test_url = f"https://{expected_prefix}api.va.gov/vanotify/sms/deliverystatus" \
+        f"#ct={client._callback_connection_timeout}" \
+        f"&rc={client._callback_retry_count}" \
+        f"&rt={client._callback_read_timeout}" \
+        f"&rp={client._callback_retry_policy}"
+    return test_url
+
+
 def make_twilio_message_response_dict():
     return {
         "account_sid": "TWILIO_TEST_ACCOUNT_SID_XXX",
@@ -537,9 +546,11 @@ def test_send_sms_twilio_callback_url(environment, expected_prefix):
 
     # Test with environment set to "staging"
     client.init_app(None, None, environment)
+    test_url = build_callback_url(expected_prefix, client)
+
     assert (
         client.callback_url
-        == f"https://{expected_prefix}api.va.gov/vanotify/sms/deliverystatus"
+        == test_url
     )
 
 
@@ -560,6 +571,7 @@ def test_send_sms_twilio_callback(
 
     twilio_sms_client = TwilioSMSClient(account_sid, auth_token)
     twilio_sms_client.init_app(logger, callback_notify_url_host, environment)
+    expected_callback_url = build_callback_url(expected_prefix, twilio_sms_client)
 
     response_dict = {
         "sid": "test_sid",
@@ -567,7 +579,7 @@ def test_send_sms_twilio_callback(
         "from": service_sms_sender.sms_sender,
         "body": content,
         "status": "sent",
-        "status_callback": f"https://{expected_prefix}api.va.gov/vanotify/sms/deliverystatus",
+        "status_callback": expected_callback_url,
     }
 
     with requests_mock.Mocker() as request_mock:
@@ -595,9 +607,10 @@ def test_send_sms_twilio_callback(
         d = dict(parse_qsl(req.text))
 
         # Assert the correct callback URL is used in the request
+        expected_callback_url = build_callback_url(expected_prefix, twilio_sms_client)
         assert (
             d["StatusCallback"]
-            == f"https://{expected_prefix}api.va.gov/vanotify/sms/deliverystatus"
+            == expected_callback_url
         )
         # Assert the expected Twilio SID is returned
         assert response_dict["sid"] == twilio_sid
