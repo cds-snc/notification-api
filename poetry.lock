@@ -2523,8 +2523,8 @@ werkzeug = "2.3.7"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.0.14"
-resolved_reference = "c0872d58911e03407780c59bc15acbfb81d1f052"
+reference = "52.0.15"
+resolved_reference = "4a4ba9d51af71d493f873b977bc0561b121ae51e"
 
 [[package]]
 name = "ordered-set"
@@ -4214,4 +4214,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "a6ada54e2b1a989a093bb3d025c4f9927d041dcbeeadf77d8e62d18ab9382e5d"
+content-hash = "ccef13745076d6498c196e2aeb9b05f28b60a827e4fb13a231b49819655f86bc"
