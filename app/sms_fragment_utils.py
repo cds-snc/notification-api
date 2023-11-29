@@ -13,11 +13,11 @@ def fetch_todays_requested_sms_count(service_id: UUID) -> int:
         return fetch_todays_total_sms_count(service_id)
 
     cache_key = sms_daily_count_cache_key(service_id)
-    sms_count = redis_store.get(cache_key)
-    if sms_count is None:
-        sms_count = fetch_todays_total_sms_count(service_id)
-        redis_store.set(cache_key, sms_count, ex=int(timedelta(hours=2).total_seconds()))
-    return int(sms_count)
+    fragment_count = redis_store.get(cache_key)
+    if fragment_count is None:
+        fragment_count = fetch_todays_total_sms_count(service_id)
+        redis_store.set(cache_key, fragment_count, ex=int(timedelta(hours=2).total_seconds()))
+    return int(fragment_count)
 
 
 def increment_todays_requested_sms_count(service_id: UUID, increment_by: int):
