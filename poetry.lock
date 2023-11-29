@@ -219,23 +219,23 @@ aiohttp = "*"
 
 [[package]]
 name = "awscli"
-version = "1.29.39"
+version = "1.29.84"
 description = "Universal Command Line Environment for AWS."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "awscli-1.29.39-py3-none-any.whl", hash = "sha256:917a4e6d63cca96bfaafd8c680b2d0c5b046ffd2921d1b34b0ab5ab7b0006d2f"},
-    {file = "awscli-1.29.39.tar.gz", hash = "sha256:e027120aea449b34dad91773caf3357a8dae52abf54c406f062dd90158c97c14"},
+    {file = "awscli-1.29.84-py3-none-any.whl", hash = "sha256:bc8c86d6bc6c086b5db47b848f7261118571a38aba993cb62cf3a6ddcbb70a09"},
+    {file = "awscli-1.29.84.tar.gz", hash = "sha256:68245c32a6fce891d14b3fa4ce50c75a394db3a5ba7bab938ba704dadb9ae17d"},
 ]
 
 [package.dependencies]
-botocore = "1.31.39"
+botocore = "1.31.84"
 colorama = ">=0.2.5,<0.4.5"
 docutils = ">=0.10,<0.17"
 PyYAML = ">=3.10,<6.1"
 rsa = ">=3.1.2,<4.8"
-s3transfer = ">=0.6.0,<0.7.0"
+s3transfer = ">=0.7.0,<0.8.0"
 
 [[package]]
 name = "awscli-cwlogs"
@@ -392,43 +392,43 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.28.39"
+version = "1.28.84"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "boto3-1.28.39-py3-none-any.whl", hash = "sha256:48d1ea0918088df0e59a37a88ce53de7f4500108638c81255f5b1cb8edea28f4"},
-    {file = "boto3-1.28.39.tar.gz", hash = "sha256:3ac38ad8afafc6ed6c8dd6cc58ddd22b6352c6a413b969aef928c6aacf555c56"},
+    {file = "boto3-1.28.84-py3-none-any.whl", hash = "sha256:98b01bbea27740720a06f7c7bc0132ae4ce902e640aab090cfb99ad3278449c3"},
+    {file = "boto3-1.28.84.tar.gz", hash = "sha256:adfb915958d7b54d876891ea1599dd83189e35a2442eb41ca52b04ea716180b6"},
 ]
 
 [package.dependencies]
-botocore = ">=1.31.39,<1.32.0"
+botocore = ">=1.31.84,<1.32.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.6.0,<0.7.0"
+s3transfer = ">=0.7.0,<0.8.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.31.39"
+version = "1.31.84"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "botocore-1.31.39-py3-none-any.whl", hash = "sha256:8ce716925284c1c0d04c796016a1e0e9c29ca3e196afefacacc16bc4e80c978f"},
-    {file = "botocore-1.31.39.tar.gz", hash = "sha256:61aefac8b44f86a4581d4128cce30806f633357e8d8efc4f73367a8e62009e70"},
+    {file = "botocore-1.31.84-py3-none-any.whl", hash = "sha256:d65bc05793d1a8a8c191a739f742876b4b403c5c713dc76beef262d18f7984a2"},
+    {file = "botocore-1.31.84.tar.gz", hash = "sha256:8913bedb96ad0427660dee083aeaa675466eb662bbf1a47781956b5882aadcc5"},
 ]
 
 [package.dependencies]
 jmespath = ">=0.7.1,<2.0.0"
 python-dateutil = ">=2.1,<3.0.0"
-urllib3 = ">=1.25.4,<1.27"
+urllib3 = {version = ">=1.25.4,<2.1", markers = "python_version >= \"3.10\""}
 
 [package.extras]
-crt = ["awscrt (==0.16.26)"]
+crt = ["awscrt (==0.19.10)"]
 
 [[package]]
 name = "brotli"
@@ -2487,7 +2487,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.0.12"
+version = "52.0.15"
 description = "Shared python code for Notification - Provides logging utils etc."
 category = "main"
 optional = false
@@ -2496,10 +2496,12 @@ files = []
 develop = false
 
 [package.dependencies]
-awscli = "1.29.39"
+awscli = "1.29.84"
 bleach = "6.0.0"
-boto3 = "1.28.39"
+boto3 = "1.28.84"
 cachetools = "4.2.4"
+certifi = "^2023.7.22"
+cryptography = "^41.0.2"
 Flask = "2.3.3"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.1.2"
@@ -2507,7 +2509,7 @@ Jinja2 = "^3.0.0"
 markupsafe = "2.1.3"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
-phonenumbers = "8.13.19"
+phonenumbers = "8.13.24"
 py_w3c = "0.3.1"
 pypdf2 = "1.28.6"
 python-json-logger = "2.0.7"
@@ -2521,8 +2523,8 @@ werkzeug = "2.3.7"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.0.12"
-resolved_reference = "b50a26d4a2c1844369640aa9de399d0b02e896b5"
+reference = "52.0.15"
+resolved_reference = "4a4ba9d51af71d493f873b977bc0561b121ae51e"
 
 [[package]]
 name = "ordered-set"
@@ -2565,14 +2567,14 @@ files = [
 
 [[package]]
 name = "phonenumbers"
-version = "8.13.19"
+version = "8.13.24"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "phonenumbers-8.13.19-py2.py3-none-any.whl", hash = "sha256:ba542f20f6dc83be8f127f240f9b5b7e7c1dec42aceff1879400d4dc0c781d81"},
-    {file = "phonenumbers-8.13.19.tar.gz", hash = "sha256:38180247697240ccedd74dec4bfbdbc22bb108b9c5f991f270ca3e41395e6f96"},
+    {file = "phonenumbers-8.13.24-py2.py3-none-any.whl", hash = "sha256:7dd66c57da00c0f373de83074e78d66a0801381cface4d010cfe07be2fa77fe5"},
+    {file = "phonenumbers-8.13.24.tar.gz", hash = "sha256:7abc66f38d92c3b9e827d597b5d590283ca3b05288d9fadea8bc0d6c8ad73c06"},
 ]
 
 [[package]]
@@ -3494,14 +3496,14 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "s3transfer"
-version = "0.6.1"
+version = "0.7.0"
 description = "An Amazon S3 Transfer Manager"
 category = "main"
 optional = false
 python-versions = ">= 3.7"
 files = [
-    {file = "s3transfer-0.6.1-py3-none-any.whl", hash = "sha256:3c0da2d074bf35d6870ef157158641178a4204a6e689e82546083e31e0311346"},
-    {file = "s3transfer-0.6.1.tar.gz", hash = "sha256:640bb492711f4c0c0905e1f62b6aaeb771881935ad27884852411f8e9cacbca9"},
+    {file = "s3transfer-0.7.0-py3-none-any.whl", hash = "sha256:10d6923c6359175f264811ef4bf6161a3156ce8e350e705396a7557d6293c33a"},
+    {file = "s3transfer-0.7.0.tar.gz", hash = "sha256:fd3889a66f5fe17299fe75b82eae6cf722554edca744ca5d5fe308b104883d2e"},
 ]
 
 [package.dependencies]
@@ -4212,4 +4214,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "64a5bf5874d3e17eba4acb5290f4a54dbf30c83a3f8109b4e1c5ef4344e70e15"
+content-hash = "ccef13745076d6498c196e2aeb9b05f28b60a827e4fb13a231b49819655f86bc"
