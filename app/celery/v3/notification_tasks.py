@@ -14,6 +14,7 @@ from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
+    NotificationFailures,
     ServiceSmsSender,
     SMS_TYPE,
     Template,
@@ -27,6 +28,7 @@ from notifications_utils.recipients import validate_and_format_email_address
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from typing import Tuple, Optional
+import json
 
 logger = get_task_logger(__name__)
 
@@ -74,6 +76,8 @@ def v3_process_notification(request_data: dict, service_id: str, api_key_id: str
     3. The given service owns the specified template.
     """
 
+    # current_app.logger.critical("NIK: v3_process_notification")
+
     right_now = datetime.utcnow()
     notification = Notification(
         id=request_data["id"],
@@ -111,6 +115,13 @@ def v3_process_notification(request_data: dict, service_id: str, api_key_id: str
                 "Notification %s specified nonexistent template %s.", notification.id, notification.template_id
             )
             return
+    
+    # current_app.logger.critical(f"NIK: try v3_persist_failed_notification")
+    # current_app.logger.critical(f"NIK: {json.dumps(request_data)}")
+    # # notification.template = template
+    # v3_persist_failed_notification(
+    #     notification, NOTIFICATION_PERMANENT_FAILURE, "NIK TEST"
+    # )
 
     notification.template_version = template.version
     if service_id != template.service_id:
@@ -279,3 +290,17 @@ def v3_persist_failed_notification(notification: Notification, status: str, stat
     notification.status_reason = status_reason
     db.session.add(notification)
     db.session.commit()
+
+    if status == NOTIFICATION_PERMANENT_FAILURE:
+        try:
+            # notification_json = notification.serialize()
+            notification_json = notification.serialize_permanent_failure()
+            notification_failure = NotificationFailures(
+                notification_id=notification.id,
+                body=notification_json
+            )
+            db.session.add(notification_failure)
+            db.session.commit()
+        except Exception as err:
+            db.session.rollback()
+            current_app.logger.error("Unable to store permanent failure for Notification '%s'. Error: '%s'", notification.id, err)

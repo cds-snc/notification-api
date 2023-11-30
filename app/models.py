@@ -1588,8 +1588,65 @@ class Notification(db.Model):
         }
 
         return serialized
+    
+    def serialize_permanent_failure(self):
+        # request_data_example = {
+        #     "phone_number": "+14083095235",
+        #     "template_id": "8a31520f-4751-4789-8ea1-fe54496725eb",
+        #     "recipient_identifier": {
+        #         "id_type": "VAPROFILEID",
+        #         "id_value": "example"
+        #     },
+        #     "notification_type": "sms",
+        #     "id": "19744df2-f079-4da0-ae16-b6ac0c1bc654"
+        # }
+
+        return {
+            "billing_code": self.billing_code,
+            "body": None,
+            "completed_at": None,
+            "cost_in_millicents": None,
+            "created_at": self.created_at.strftime(DATETIME_FORMAT),
+            "created_by_name": None,
+            "email_address": None,
+            "id": str(self.id),
+            "line_1": None,
+            "line_2": None,
+            "line_3": None,
+            "line_4": None,
+            "line_5": None,
+            "line_6": None,
+            "phone_number": self.to,
+            "postage": None,
+            "postcode": None,
+            "provider_reference": None,
+            "recipient_identifiers": [],
+            "reference": self.reference,
+            "scheduled_for": None,
+            "segments_count": None,
+            "sent_at": None,
+            "sent_by": None,
+            "sms_sender_id": str(self.sms_sender_id),
+            "status": self.status,
+            "status_reason": self.status_reason,
+            "subject": None,
+            "template": {
+                "id": str(self.template_id),
+                "uri": None,
+                "version": self.template_version
+            },
+            "type": self.notification_type
+        }
 
     def serialize(self):
+        # return {
+        #     "id": str(self.id),
+        #     "type": self.notification_type,
+        #     "status": self.get_letter_status() if self.notification_type == LETTER_TYPE else self.status,
+        #     "status_reason": self.status_reason,
+        #     "test": "test-1"
+        # }
+    
         template_dict = {
             'version': self.template.version,
             'id': self.template.id,
