@@ -61,6 +61,7 @@ from app.models import (
     Notification,
     NotificationType,
     Service,
+    TemplateType,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -238,8 +239,8 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or len(list(recipient_csv.get_rows())) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, recipient_csv.sms_fragment_count)
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+            check_sms_daily_limit(authenticated_service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -296,7 +297,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, template_with_content.fragment_count)
+            check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -327,7 +328,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -667,16 +668,17 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
-        if recipient_csv.more_sms_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
-                status_code=400,
-            )
         if recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                status_code=400,
-            )
+            if recipient_csv.template_type == SMS_TYPE:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
+                    status_code=400,
+                )
+            else:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                    status_code=400,
+                )
 
         if recipient_csv.too_many_rows:
             raise BadRequestError(

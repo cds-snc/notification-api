@@ -77,6 +77,16 @@ jobs:
         kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-sms-send celery-sms-send=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send celery-email-send=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+
+    - name: Restart deployments in staging
+      run: |
+        kubectl rollout restart deployment/api -n notification-canada-ca
+        kubectl rollout restart deployment/celery -n notification-canada-ca
+        kubectl rollout restart deployment/celery-beat -n notification-canada-ca
+        kubectl rollout restart deployment/celery-email-send -n notification-canada-ca
+        kubectl rollout restart deployment/celery-sms -n notification-canada-ca
+        kubectl rollout restart deployment/celery-sms-send -n notification-canada-ca
 
     - name: my-app-install token
       id: notify-pr-bot
