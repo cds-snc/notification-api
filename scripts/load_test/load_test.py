@@ -55,34 +55,37 @@ class NotifyApiUser(HttpUser):
 
     # SMS Tasks
 
-    @task(238)  # about every 2 seconds
+    @task(120)  # about every 5 seconds
     def send_high_priority_sms(self):
         json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
         self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
 
-    @task(60)  # about every 10 seconds
-    def send_medium_priority_sms(self):
-        self.send_bulk_sms(self.medium_priority_sms_template, 100)
-
     @task(2)  # about every 5 minutes
+    def send_medium_priority_sms(self):
+        self.send_bulk_sms(self.medium_priority_sms_template, 199)
+
+    @task(1)  # about every 10 minutes
     def send_low_priority_sms(self):
         self.send_bulk_sms(self.low_priority_sms_template, 1000)
 
     # Email Tasks
 
-    @task(237)  # about every 2 seconds
+    @task(120)  # about every 5 seconds
     def send_high_priority_email(self):
         json = {"email_address": self.email_address, "template_id": self.high_priority_email_template}
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(60)  # about every 10 seconds
-    def send_medium_priority_email(self):
-        self.send_bulk_email(self.medium_priority_email_template, 100)
-
     @task(2)  # about every 5 minutes
-    def send_low_priority_emails_1(self):
-        self.send_bulk_email(self.low_priority_email_template, 5000)
+    def send_medium_priority_email(self):
+        self.send_bulk_email(self.medium_priority_email_template, 199)
+
 
     @task(1)  # about every 10 minutes
-    def send_low_priority_emails_2(self):
-        self.send_bulk_email(self.low_priority_email_template, 5000)
+    def send_low_priority_emails(self):
+        self.send_bulk_email(self.low_priority_email_template, 10000)
+
+    # Do nothing task
+
+    @task(600 - 120 - 2 - 1 - 120 - 2 - 1)
+    def do_nothing(self):
+        pass
