@@ -34,7 +34,8 @@ check-dependencies: install-safety ## Scan dependencies for security vulnerabili
 	# 7 Nov 2023: 61601 is fixed with urllib3 >=1.26.17, which is currently limited by the botocore version.
 	# 8 Nov 2023: 61657 & 61661 are fixed with aiohttp >=3.8.6.
 	# 20 Nov 2023: 61893 is fixed with urllib3 >=1.26.18, which is currently limited by the botocore version.
-	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 61601 -i 61657 -i 61661 -i 61893
+	# 4 Dec 2023: 62123 is fixed with pypdf >=3.17
+	safety check -r requirements.txt --full-report -i 51668 -i 59234 -i 61601 -i 61657 -i 61661 -i 61893 -i 62123
 
 .PHONY:
 	help \

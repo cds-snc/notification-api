@@ -55,6 +55,7 @@ phonenumbers ~= 8.12.57
 psycopg2-binary >= 2.9.7
 pwnedpasswords >= 2.0.0
 PyJWT >= 2.8.0
+# 4 Dec 2023: Ignoring security vulnerability 62123 in Makefile. It is fixed in >= 3.17
 pypdf >= 3.16.0
 
 python-dotenv >= 1.0.0
