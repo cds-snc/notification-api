@@ -79,7 +79,6 @@ class NotifyApiUser(HttpUser):
     def send_medium_priority_email(self):
         self.send_bulk_email(self.medium_priority_email_template, 199)
 
-
     @task(1)  # about every 10 minutes
     def send_low_priority_emails(self):
         self.send_bulk_email(self.low_priority_email_template, 10000)
