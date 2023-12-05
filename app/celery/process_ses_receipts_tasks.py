@@ -96,5 +96,9 @@ def process_ses_results(self, response):
         raise
 
     except Exception as e:
-        current_app.logger.exception("Error processing SES results: {}".format(type(e)))
+        notifcation_msg = "Notification ID: {}".format(notification.id) if notification else "No notification"
+        notification_status_msg = "Notification status: {}".format(notification_status) if notification_status else "No notification status"
+        ref_msg = "Reference ID: {}".format(reference) if reference else "No reference"
+
+        current_app.logger.exception("Error processing SES results: {} [{}, {}, {}]".format(type(e)), notifcation_msg, notification_status_msg, ref_msg)
         self.retry(queue=QueueNames.RETRY)
