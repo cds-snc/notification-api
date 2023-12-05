@@ -169,7 +169,7 @@ def create_job(service_id):
         is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_daily_limit(service, recipient_csv.sms_fragment_count)
+            check_sms_daily_limit(service, len(recipient_csv))
 
     if template.template_type == EMAIL_TYPE:
         check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
@@ -183,7 +183,7 @@ def create_job(service_id):
         raise InvalidRequest(errors, status_code=400)
 
     if template.template_type == SMS_TYPE and not is_test_notification:
-        increment_sms_daily_count_send_warnings_if_needed(service, recipient_csv.sms_fragment_count)
+        increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
     elif template.template_type == EMAIL_TYPE:
         increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
