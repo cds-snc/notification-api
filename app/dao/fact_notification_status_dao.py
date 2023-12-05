@@ -337,16 +337,15 @@ def get_last_send_for_api_key(api_key_id):
     notification_table = (
         db.session.query(func.max(Notification.created_at).label("last_notification_created"))
         .filter(Notification.api_key_id == api_key_id)
-        .group_by(Notification.api_key_id)
         .all()
     )
-    if not notification_table:
-        return (
+    if not notification_table[0][0]:
+        notification_table = (
             db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
             .filter(NotificationHistory.api_key_id == api_key_id)
-            .group_by(NotificationHistory.api_key_id)
             .all()
         )
+        notification_table = [] if notification_table[0][0] is None else notification_table
     return notification_table
 
 
