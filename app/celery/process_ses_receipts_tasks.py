@@ -103,6 +103,6 @@ def process_ses_results(self, response):
         ref_msg = "Reference ID: {}".format(reference) if reference else "No reference"
 
         current_app.logger.exception(
-            "Error processing SES results: {} [{}, {}, {}]".format(type(e)), notifcation_msg, notification_status_msg, ref_msg
+            "Error processing SES results: {} [{}, {}, {}]".format(type(e), notifcation_msg, notification_status_msg, ref_msg)
         )
         self.retry(queue=QueueNames.RETRY)
