@@ -1,12 +1,14 @@
 """This module is used to determine the source of an external delivery status and route it to the proper queue"""
-import boto3
+import base64
 import json
 import logging
 import os
 import sys
 import uuid
-import base64
 from typing import Optional
+
+import boto3
+from twilio.request_validator import RequestValidator
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 CELERY_TASK = os.getenv("CELERY_TASK_NAME", "process-delivery-status-result")
@@ -34,6 +36,23 @@ except ValueError:
     logger.warning("Invalid log level specified, defaulting to INFO")
 
 
+# Duplicated in vetext_incoming_forwarder.
+def validate_twilio_event(event):
+    uri = f"https://{event['headers']['host']}/twoway/vettext"
+    auth_token = os.getenv('TWILIO_AUTH_TOKEN', '')
+    # avoid key error
+    signature = event['headers'].get('x-twilio-signature', False)
+    if not auth_token or not signature:
+        logger.error("TWILIO_AUTH_TOKEN not set")
+        return False
+    validator = RequestValidator(auth_token)
+    return validator.validate(
+        uri=uri,
+        params={'body': event['body']},
+        signature=event['headers']['x-twilio-signature']
+    )
+
+
 def delivery_status_processor_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb.
     @param: event   -  contains data pertaining to an sms delivery status from the external provider
@@ -52,6 +71,10 @@ def delivery_status_processor_lambda_handler(event: any, context: any):
         logger.debug(event["body"])
 
         celery_body = event_to_celery_body_mapping(event)
+        if celery_body['provider'] == 'twilio' and not validate_twilio_event(event):
+            return {
+                "statusCode": 403,
+            }
 
         if celery_body is None:
             logger.error("Unable to generate the celery body for event: %s", event)
