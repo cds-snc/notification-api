@@ -785,7 +785,7 @@ def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID
     ):
         return
     else:
-        current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")
+        current_app.logger.warning(f"acknowledge_receipt: receipt {receipt} not found in any queue")
 
 
 @notify_celery.task(name="seed-bounce-rate-in-redis")
