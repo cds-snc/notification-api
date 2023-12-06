@@ -534,6 +534,16 @@ def sample_template_without_email_permission(notify_db_session):
     return create_template(service, template_type=EMAIL_TYPE)
 
 
+@pytest.fixture(scope='function')
+def other_sample_template(notify_db_session):
+    service = create_service(
+        service_permissions=[SMS_TYPE],
+        service_name="OTHER_SMS_SERVICE",
+        check_if_service_exists=False
+    )
+    return create_template(service, template_type=SMS_TYPE, template_name="OTHER_SMS_TEMLATE")
+
+
 @pytest.fixture
 def sample_letter_template(sample_service_full_permissions, postage="second"):
     return create_template(sample_service_full_permissions, template_type=LETTER_TYPE, postage=postage)
