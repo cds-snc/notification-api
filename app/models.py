@@ -480,6 +480,15 @@ class ReplyToInbox(db.Model):
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
 
+class Session(db.Model):
+    __tablename__ = "sessions"
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String, nullable=False, index=True)
+    data = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, index=True, onupdate=datetime.datetime.utcnow)
+
+
 class TemplateP2PChecklist(db.Model):
     __tablename__ = "template_p2p_checklist"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
