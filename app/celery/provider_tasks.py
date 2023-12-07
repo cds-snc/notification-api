@@ -131,7 +131,7 @@ def _handle_error_with_email_retry(
         else:
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
         # There is an edge case when a notification is not found in the database.
-        if notification is None:
+        if notification is None or notification.template is None:
             task.retry(**CeleryParams.retry(countdown=countdown))
         else:
             task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
