@@ -257,7 +257,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
-            send_va_onsite_notification_task.s(id_value, notification.template.id, onsite_enabled)
+            send_va_onsite_notification_task.s(id_value, str(notification.template.id), onsite_enabled)
                                             .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
@@ -273,7 +273,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
-            send_va_onsite_notification_task.s(notification.template.id, onsite_enabled)
+            send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled)
                                             .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
             deliver_task.si(notification.id).set(queue=deliver_queue)
