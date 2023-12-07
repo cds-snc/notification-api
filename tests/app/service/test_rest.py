@@ -11,7 +11,9 @@ from freezegun import freeze_time
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_email_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_email_daily_limit_cache_key,
 )
 
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
@@ -2181,6 +2183,8 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
             call(daily_limit_cache_key(service.id)),
             call(near_daily_limit_cache_key(service.id)),
             call(over_daily_limit_cache_key(service.id)),
+            call(near_email_daily_limit_cache_key(service.id)),
+            call(over_email_daily_limit_cache_key(service.id)),
         ]
     else:
         redis_delete.assert_not_called()

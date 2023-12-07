@@ -5,8 +5,10 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
@@ -303,6 +305,8 @@ def update_service(service_id):
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
+        redis_store.delete(near_email_daily_limit_cache_key(service_id))
+        redis_store.delete(over_email_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
     if sms_limit_changed:
