@@ -66,7 +66,7 @@ SCAN_MAX_BACKOFF_RETRIES = 5
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     try:
-        current_app.logger.info("Start sending email for notification id: {}".format(notification_id))
+        current_app.logger.debug("Start sending email for notification id: {}".format(notification_id))
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()

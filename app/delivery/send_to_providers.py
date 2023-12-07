@@ -174,7 +174,7 @@ def check_service_over_bounce_rate(service_id: str):
     bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
     bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
     debug_data = bounce_rate_client.get_debug_data(service_id)
-    current_app.logger.info(
+    current_app.logger.debug(
         f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
     )
     if bounce_rate_status == BounceRateStatus.CRITICAL.value:
