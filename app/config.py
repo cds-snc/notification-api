@@ -161,7 +161,7 @@ class Config(object):
     ###########################
 
     NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
-    ADMIN_CLIENT_USER_NAME = 'notify-admin'
+    ADMIN_CLIENT_USER_NAME = os.getenv("ADMIN_CLIENT_USER_NAME", "test")
     AWS_REGION = os.getenv("AWS_REGION", "us-gov-west-1")
     AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
     AWS_SES_REGION = os.getenv("AWS_SES_REGION", AWS_REGION)

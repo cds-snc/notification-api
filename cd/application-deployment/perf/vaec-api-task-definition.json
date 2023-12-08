@@ -229,6 +229,10 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/database/uri_read"
         },
         {
+          "name": "ADMIN_CLIENT_USER_NAME",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/admin-client-user"
+        },
+        {
           "name": "ADMIN_CLIENT_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/admin-client-secret"
         },
