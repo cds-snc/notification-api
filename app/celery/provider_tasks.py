@@ -65,6 +65,7 @@ SCAN_MAX_BACKOFF_RETRIES = 5
 @notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
+    notification = None
     try:
         current_app.logger.debug("Start sending email for notification id: {}".format(notification_id))
         notification = notifications_dao.get_notification_by_id(notification_id)
@@ -111,7 +112,7 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-            self.retry(**CeleryParams.retry(notification.template.process_type))
+            self.retry(**CeleryParams.retry(None if notification is None else notification.template.process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
@@ -142,4 +143,5 @@ def _handle_error_with_email_retry(
             "Notification has been updated to technical-failure".format(notification_id)
         )
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
         raise NotificationTechnicalFailureException(message)
