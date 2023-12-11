@@ -1,4 +1,4 @@
-# Soak test
+# Load test
 
 ## Goals
 
