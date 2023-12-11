@@ -109,13 +109,8 @@ file. Copy that file to `.env` and customize it to your needs.
 
 
 ##  To run the queues
-```
-scripts/run_celery_local.sh
-```
 
-```
-scripts/run_celery_beat.sh
-```
+Run `make run-celery-local` or `make run-celery-local-filtered`. Note that the "filtered" option does not show the beat worker logs nor most scheduled tasks (this makes it easier to trace notification sending).
 
 ### Python version
 
