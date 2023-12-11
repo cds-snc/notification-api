@@ -12,7 +12,7 @@ Default configuration is in the `locust.conf` file.
 
 The python file `load_test.py` requires environment variables as listed in `.env.example`. The templates should have no variables.
 
-__See Last Pass note "Load Test Variables" in Shared-New-Notify-Staging folder__
+__See One Password note "Load Test Variables" in Shared-New-Notify-Staging folder__
 
 
 ## How to run
