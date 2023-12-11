@@ -92,9 +92,9 @@ def deliver_email(self, notification_id):
         current_app.logger.warning(
             "RETRY {}: Email notification {} is waiting on pending malware scanning".format(self.request.retries, notification_id)
         )
-        _handle_error_with_email_retry(self, notification_id, notification, me, countdown)
+        _handle_error_with_email_retry(self, me, notification_id, notification, countdown)
     except Exception as e:
-        _handle_error_with_email_retry(self, notification_id, notification, e)
+        _handle_error_with_email_retry(self, e, notification_id, notification)
 
 
 def _deliver_sms(self, notification_id):
