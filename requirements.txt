@@ -1,4 +1,4 @@
-aiohttp==3.8.5
+aiohttp==3.9.1
 aiohttp-retry==2.8.3
 aiosignal==1.3.1
 alembic==1.12.0
@@ -27,7 +27,7 @@ click-datetime==0.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
-cryptography==41.0.4
+cryptography==41.0.7
 Cython==0.29.36
 ddsketch==2.0.4
 ddtrace==1.18.2
@@ -63,14 +63,14 @@ jsonschema-specifications==2023.7.1
 kombu==5.3.1
 Mako==1.2.4
 MarkupSafe==2.1.3
-marshmallow==2.20.5
+marshmallow==2.21.0
 marshmallow-sqlalchemy==0.22.3
 mistune==0.8.4
 monotonic==1.6
 multidict==6.0.4
 nanoid==2.0.0
 notification-utils @ git+https://github.com/department-of-veterans-affairs/notification-utils.git@3738c8c32a16ff42f98d9ed92c877dbbe2063a64
-notifications-python-client==8.0.1
+notifications-python-client==8.1.0
 opentelemetry-api==1.20.0
 orderedset==2.0.3
 oscrypto==1.3.0
@@ -84,7 +84,7 @@ pwnedpasswords==2.0.0
 pycparser==2.21
 pycurl==7.45.2
 PyJWT==2.8.0
-pypdf==3.16.0
+pypdf==3.17.2
 python-dateutil==2.8.2
 python-dotenv==1.0.0
 python-json-logger==2.0.7
@@ -106,7 +106,7 @@ twilio==8.8.0
 typing_extensions==4.7.1
 tzdata==2023.3
 Unidecode==1.3.6
-urllib3==1.26.16
+urllib3==1.26.18
 validatesns==0.1.1
 vine==5.0.0
 wcwidth==0.2.6

@@ -46,7 +46,7 @@ marshmallow ~= 2.20.5
 
 marshmallow-sqlalchemy ~= 0.22.3
 nanoid >= 2.0.0
-notifications-python-client >= 8.0.1
+notifications-python-client >= 8.1.0
 
 # Sending an SMS message with v3 endpoints uses this package to test for a valid phone number.  The package
 # is also a dependency of notification-utils.
@@ -56,7 +56,7 @@ psycopg2-binary >= 2.9.7
 pwnedpasswords >= 2.0.0
 PyJWT >= 2.8.0
 # 4 Dec 2023: Ignoring security vulnerability 62123 in Makefile. It is fixed in >= 3.17
-pypdf >= 3.16.0
+pypdf >= 3.17.2
 
 python-dotenv >= 1.0.0
 python-magic >= 0.4.27
