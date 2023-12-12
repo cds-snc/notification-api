@@ -39,6 +39,7 @@ from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service, create_service_sms_sender, create_template
 
+from tests.conftest import set_config
 
 class TestContentCreation:
     def test_create_content_for_notification_passes(self, sample_email_template):
@@ -1103,6 +1104,38 @@ class TestDBSaveAndSendNotification:
 
         assert params["queue"] == QueueNames.RETRY
         assert params["countdown"] == expected_retry_period
+
+    @pytest.mark.parametrize(
+        ("process_type"),
+        [
+            (BULK),
+            (NORMAL),
+            (PRIORITY),
+            (None)
+        ],
+    )
+    def test_retry_task_parameters_with_countdown_override(self, notify_api, process_type):
+        with notify_api.app_context():
+            params = CeleryParams.retry(process_type, countdown=-1)
+
+        assert params["queue"] == QueueNames.RETRY
+        assert params["countdown"] == -1
+
+    @pytest.mark.parametrize(
+        ("process_type, expected_retry_period"),
+        [
+            (BULK, CeleryParams.RETRY_PERIODS[BULK]),
+            (NORMAL, CeleryParams.RETRY_PERIODS[NORMAL]),
+            (PRIORITY, CeleryParams.RETRY_PERIODS[PRIORITY]),
+            (None, CeleryParams.RETRY_PERIODS[PRIORITY])
+        ],
+    )
+    def test_retry_task_parameters_with_ff_off(self, notify_api, process_type, expected_retry_period):
+        with notify_api.app_context(), set_config(notify_api, "FF_CELERY_CUSTOM_TASK_PARAMS", False):
+            params = CeleryParams.retry(process_type)
+
+        assert params["queue"] == QueueNames.RETRY
+        assert params.get("countdown") is None
 
     def test_db_save_and_send_notification_throws_exception_when_missing_template(self, sample_api_key, mocker):
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
