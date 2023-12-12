@@ -38,7 +38,6 @@ from app.notifications.process_notifications import (
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service, create_service_sms_sender, create_template
-
 from tests.conftest import set_config
 
 
