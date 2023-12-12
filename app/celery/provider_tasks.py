@@ -143,5 +143,6 @@ def _handle_error_with_email_retry(
             "Notification has been updated to technical-failure".format(notification_id)
         )
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
-        _check_and_queue_callback_task(notification)
+        if notification is not None:
+            _check_and_queue_callback_task(notification)
         raise NotificationTechnicalFailureException(message)
