@@ -41,6 +41,7 @@ from tests.app.db import create_service, create_service_sms_sender, create_templ
 
 from tests.conftest import set_config
 
+
 class TestContentCreation:
     def test_create_content_for_notification_passes(self, sample_email_template):
         template = Template.query.get(sample_email_template.id)
@@ -1107,12 +1108,7 @@ class TestDBSaveAndSendNotification:
 
     @pytest.mark.parametrize(
         ("process_type"),
-        [
-            (BULK),
-            (NORMAL),
-            (PRIORITY),
-            (None)
-        ],
+        [(BULK), (NORMAL), (PRIORITY), (None)],
     )
     def test_retry_task_parameters_with_countdown_override(self, notify_api, process_type):
         with notify_api.app_context():
@@ -1127,7 +1123,7 @@ class TestDBSaveAndSendNotification:
             (BULK, CeleryParams.RETRY_PERIODS[BULK]),
             (NORMAL, CeleryParams.RETRY_PERIODS[NORMAL]),
             (PRIORITY, CeleryParams.RETRY_PERIODS[PRIORITY]),
-            (None, CeleryParams.RETRY_PERIODS[PRIORITY])
+            (None, CeleryParams.RETRY_PERIODS[PRIORITY]),
         ],
     )
     def test_retry_task_parameters_with_ff_off(self, notify_api, process_type, expected_retry_period):
