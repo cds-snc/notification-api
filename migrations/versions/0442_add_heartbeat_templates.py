@@ -13,7 +13,7 @@ down_revision = "0441_add_apikey_revoke_email"
 
 templates = [
     {
-        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"], 
+        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
         "name": "HEARTBEAT_TEMPLATE_EMAIL_LOW",
         "template_type": "email",
         "content": "HEARTBEAT_TEMPLATE_EMAIL_LOW",
@@ -21,7 +21,7 @@ templates = [
         "process_type": "bulk",
     },
     {
-        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"], 
+        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
         "name": "HEARTBEAT_TEMPLATE_EMAIL_MEDIUM",
         "template_type": "email",
         "content": "HEARTBEAT_TEMPLATE_EMAIL_MEDIUM",
@@ -29,7 +29,7 @@ templates = [
         "process_type": "normal",
     },
     {
-        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"], 
+        "id": current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"],
         "name": "HEARTBEAT_TEMPLATE_EMAIL_HIGH",
         "template_type": "email",
         "content": "HEARTBEAT_TEMPLATE_EMAIL_HIGH",
@@ -37,7 +37,7 @@ templates = [
         "process_type": "priority",
     },
     {
-        "id": current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"], 
+        "id": current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"],
         "name": "HEARTBEAT_TEMPLATE_SMS_LOW",
         "template_type": "sms",
         "content": "HEARTBEAT_TEMPLATE_SMS_LOW",
@@ -45,7 +45,7 @@ templates = [
         "process_type": "bulk",
     },
     {
-        "id": current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"], 
+        "id": current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"],
         "name": "HEARTBEAT_TEMPLATE_SMS_MEDIUM",
         "template_type": "sms",
         "content": "HEARTBEAT_TEMPLATE_SMS_MEDIUM",
@@ -104,9 +104,10 @@ def upgrade():
             )
         )
 
+
 def downgrade():
     TEMPLATE_IDS = ",".join(["'{}'".format(x["id"]) for x in templates])
-    
+
     op.execute("DELETE FROM notifications WHERE template_id in ({})".format(TEMPLATE_IDS))
     op.execute("DELETE FROM notification_history WHERE template_id in ({})".format(TEMPLATE_IDS))
     op.execute("DELETE FROM template_redacted WHERE template_id in ({})".format(TEMPLATE_IDS))
