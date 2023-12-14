@@ -13,6 +13,13 @@ from twilio.request_validator import RequestValidator
 
 logger = logging.getLogger("vetext_incoming_forwarder_lambda")
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+try:
+    logger.setLevel(LOG_LEVEL)
+except ValueError:
+    logger.setLevel("INFO")
+    logger.warning("Invalid log level specified, defaulting to INFO")
+
 # http timeout for calling vetext endpoint
 HTTPTIMEOUT = (3.05, 1)
 
