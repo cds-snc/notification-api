@@ -1,11 +1,11 @@
+"""
 from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
     process_body_from_alb_invocation,
     push_to_retry_sqs,
     vetext_incoming_forwarder_lambda_handler,
 )
+"""
 import pytest
-import http
-import os
 import json
 import base64
 import requests
@@ -37,14 +37,14 @@ albInvokeWithAddOn = {
         "x-real-ip": "3.89.199.39",
         "x-twilio-signature": "CRL6vBRyRo0DOLIud+zkNNjHi/Q=",
     },
-    "body": "VG9Db3VudHJ5PVVTJlRvU3RhdGU9JlNtc01lc3NhZ2VTaWQ9U00wOGMwODNhYjY3YjRhNjdkOTYwZWU1ZTM1OTc2MDU5MyZOdW1NZWRpYT0wJlRvQ2l0eT0mRnJvbVppcD02OTE0MyZTbXNTaWQ9U00wOGMwODNhYjY3YjRhNjdkOTYwZWU1ZTM1OTc2MDU5MyZGcm9tU3RhdGU9TkUmU21zU3RhdHVzPXJlY2VpdmVkJkZyb21DaXR5PU5PUlRIK1BMQVRURSZCb2R5PVkxMyZGcm9tQ291bnRyeT1VUyZUbz01MzA3OSZNZXNzYWdpbmdTZXJ2aWNlU2lkPU1HYmU2YmIyN2E5Y2ExNWRlMjc2YzViODZmMGQ5ZTljMmUmVG9aaXA9JkFkZE9ucz0lN0IlMjJzdGF0dXMlMjIlM0ElMjJzdWNjZXNzZnVsJTIyJTJDJTIybWVzc2FnZSUyMiUzQW51bGwlMkMlMjJjb2RlJTIyJTNBbnVsbCUyQyUyMnJlc3VsdHMlMjIlM0ElN0IlN0QlN0QmTnVtU2VnbWVudHM9MSZSZWZlcnJhbE51bU1lZGlhPTAmTWVzc2FnZVNpZD1TTTA4YzA4M2FiNjdiNGE2N2Q5NjBlZTVlMzU5NzYwNTkzJkFjY291bnRTaWQ9QUM1NTFmYzYwODZmOTNhODM0OTI0NjZmYzYwNGM2OGFmNCZGcm9tPSUyQjEzMDg2NjA3NzgyJkFwaVZlcnNpb249MjAxMC0wNC0wMQ==",
+    "body": "U21zU2lkPXRoaXNpc3NvbWVzbXNpZCZTbXNTdGF0dXM9c2VudCZNZXNzYWdlU3RhdHVzPXNlbnQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1zb21lbWVzc2FnZWlkZW50aWZpZXImQWNjb3VudFNpZD10d2lsaW9hY2NvdW50c2lkJkZyb209JTJCMjIyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=",
     "isBase64Encoded": True,
 }
 
 albInvokedWithoutAddOn = {
     "requestContext": {
         "elb": {
-            "targetGroupArn": "arn:aws-us-gov:elasticloadbalancing:us-gov-west-1:TEST:targetgroup/prod-vetext-incoming-tg/235ef4ac03a4706b"
+            "targetGroupArn": ""
         }
     },
     "httpMethod": "POST",
@@ -53,23 +53,23 @@ albInvokedWithoutAddOn = {
     "headers": {
         "accept": "*/*",
         "connection": "close",
-        "content-length": "573",
+        "content-length": "552",
         "content-type": "application/x-www-form-urlencoded",
         "host": "api.va.gov",
-        "i-twilio-idempotency-token": "62c29575-5ed0-4638-92cb-297c5c8763ea",
+        "i-twilio-idempotency-token": "09f6d617-b893-4864-8f42-24a36ec48691",
         "user-agent": "TwilioProxy/1.1",
-        "x-amzn-trace-id": "Self=1-62cda3f5-20dbbea14d3b70cf717c9a77;Root=1-62cda3f5-44e716a47645d83a41a7ee7f",
-        "x-forwarded-for": "44.202.129.169, 10.237.28.71, 44.202.129.169, 10.247.32.239",
+        "x-amzn-trace-id": "",
+        "x-forwarded-for": "",
         "x-forwarded-host": "api.va.gov:443",
         "x-forwarded-port": "443",
         "x-forwarded-proto": "https",
         "x-forwarded-scheme": "https",
         "x-home-region": "us1",
-        "x-real-ip": "44.202.129.169",
-        "x-twilio-signature": "twiliosig",
+        "x-real-ip": "",
+        "x-twilio-signature": "CaQLzIRYCf7qUkE76KNq7c3kCSU=",
+        "x-use-static-proxy": "true"
     },
-    "body": "VG9Db3VudHJ5PVVTJlRvU3RhdGU9JlNtc01lc3NhZ2VTaWQ9U002NDI0Yjc5ZDY3NTlkYjU3MWI0OGUzMTZjYWVmNDlmMyZOdW1NZWRpYT0wJlRvQ2l0eT0mRnJvbVppcD05NjE1MCZTbXNTaWQ9U002NDI0Yjc5ZDY3NTlkYjU3MWI0OGUzMTZjYWVmNDlmMyZGcm9tU3RhdGU9TlYmU21zU3RhdHVzPXJlY2VpdmVkJkZyb21DaXR5PUNBUlNPTitDSVRZJkJvZHk9VkFYJkZyb21Db3VudHJ5PVVTJlRvPTgwNzI4Jk1lc3NhZ2luZ1NlcnZpY2VTaWQ9TUdmZWQ1NjhmMmQzZGM0YWM2ODUwYTBiYWQyYzk4NzNiMSZUb1ppcD0mQWRkT25zPSU3QiUyMnN0YXR1cyUyMiUzQSUyMnN1Y2Nlc3NmdWwlMjIlMkMlMjJtZXNzYWdlJTIyJTNBbnVsbCUyQyUyMmNvZGUlMjIlM0FudWxsJTJDJTIycmVzdWx0cyUyMiUzQSU3QiU3RCU3RCZOdW1TZWdtZW50cz0xJlJlZmVycmFsTnVtTWVkaWE9MCZNZXNzYWdlU2lkPVNNNjQyNGI3OWQ2NzU5ZGI1NzFiNDhlMzE2Y2FlZjQ5ZjMmQWNjb3VudFNpZD1BQzU1MWZjNjA4NmY5M2E4MzQ5MjQ2NmZjNjA0YzY4YWY0JkZyb209JTJCMTc3NTcyMDYwMjAmQXBpVmVyc2lvbj0yMDEwLTA0LTAx",
-    "isBase64Encoded": True,
+    "body": "U21zU2lkPXRoaXNpc3NvbWVzbXNpZCZTbXNTdGF0dXM9c2VudCZNZXNzYWdlU3RhdHVzPXNlbnQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1zb21lbWVzc2FnZWlkZW50aWZpZXImQWNjb3VudFNpZD10d2lsaW9hY2NvdW50c2lkJkZyb209JTJCMjIyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE="
 }
 
 sqsInvokedWithAddOn = {
@@ -137,18 +137,21 @@ def mocked_requests_httperror_exception():
 def missing_domain_env_param(monkeypatch):
     monkeypatch.setenv("vetext_api_endpoint_path", VETEXT_URI_PATH)
     monkeypatch.setenv("vetext_api_auth_ssm_path", "ssm")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN_SSM_NAME", 'unit_test')
 
 
 @pytest.fixture
 def missing_api_endpoint_path_env_param(monkeypatch):
     monkeypatch.setenv("vetext_api_endpoint_domain", VETEXT_DOMAIN)
     monkeypatch.setenv("vetext_api_auth_ssm_path", "ssm")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN_SSM_NAME", 'unit_test')
 
 
 @pytest.fixture
 def missing_ssm_path_env_param(monkeypatch):
     monkeypatch.setenv("vetext_api_endpoint_domain", VETEXT_DOMAIN)
     monkeypatch.setenv("vetext_api_endpoint_path", VETEXT_URI_PATH)
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN_SSM_NAME", 'unit_test')
 
 
 @pytest.fixture
@@ -158,6 +161,7 @@ def all_path_env_param_set(monkeypatch):
     monkeypatch.setenv("vetext_api_auth_ssm_path", "ssm")
     monkeypatch.setenv("vetext_request_drop_sqs_url", "someurl")
     monkeypatch.setenv("vetext_request_dead_letter_sqs_url", "someurl")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN_SSM_NAME", 'unit_test')
 
 
 LAMBDA_MODULE = (
@@ -166,7 +170,10 @@ LAMBDA_MODULE = (
 
 
 @pytest.mark.parametrize("event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
-def test_verify_parsing_of_twilio_message(event):
+def test_verify_parsing_of_twilio_message(monkeypatch, all_path_env_param_set, event):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        process_body_from_alb_invocation
+    )
     response = process_body_from_alb_invocation(event)
 
     assert response, "The dictionary should not be empty"
@@ -176,13 +183,16 @@ def test_verify_parsing_of_twilio_message(event):
 @pytest.mark.parametrize(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
-def test_request_makes_vetext_call(mocker, all_path_env_param_set, event):
+def test_request_makes_vetext_call(mocker, monkeypatch, all_path_env_param_set, event):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
     mocker.patch(
         f"{LAMBDA_MODULE}.requests.post", return_value=mocked_requests_post_success()
     )
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -195,14 +205,18 @@ def test_request_makes_vetext_call(mocker, all_path_env_param_set, event):
 @pytest.mark.parametrize(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
-def test_failed_vetext_call_goes_to_retry_sqs(mocker, event):
+def test_failed_vetext_call_goes_to_retry_sqs(mocker, event, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
     mocker.patch(
         f"{LAMBDA_MODULE}.requests.post", return_value=mocked_requests_post_404()
     )
 
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -215,7 +229,11 @@ def test_failed_vetext_call_goes_to_retry_sqs(mocker, event):
 @pytest.mark.parametrize(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
-def test_failed_vetext_call_throws_http_exception_goes_to_retry_sqs(mocker, event):
+def test_failed_vetext_call_throws_http_exception_goes_to_retry_sqs(mocker, event, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
     mocker.patch(
@@ -223,7 +241,7 @@ def test_failed_vetext_call_throws_http_exception_goes_to_retry_sqs(mocker, even
         return_value=mocked_requests_httperror_exception(),
     )
 
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -236,11 +254,15 @@ def test_failed_vetext_call_throws_http_exception_goes_to_retry_sqs(mocker, even
 @pytest.mark.parametrize(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
-def test_failed_vetext_call_throws_general_exception_goes_to_retry_sqs(mocker, event):
+def test_failed_vetext_call_throws_general_exception_goes_to_retry_sqs(mocker, event, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
     mocker.patch(f"{LAMBDA_MODULE}.requests.post", side_effect=Exception)
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -252,13 +274,17 @@ def test_failed_vetext_call_throws_general_exception_goes_to_retry_sqs(mocker, e
 
 @pytest.mark.parametrize("event", [(sqsInvokedWithAddOn)])
 def test_failed_sqs_invocation_call_throws_general_exception_goes_to_dead_letter_sqs(
-    mocker, event
+    mocker, event, monkeypatch, all_path_env_param_set
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(
         f"{LAMBDA_MODULE}.process_body_from_sqs_invocation", side_effect=Exception
     )
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 500
     assert response["body"] == "<Response />"
@@ -270,13 +296,17 @@ def test_failed_sqs_invocation_call_throws_general_exception_goes_to_dead_letter
 
 @pytest.mark.parametrize("event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
 def test_failed_alb_invocation_call_throws_general_exception_goes_to_dead_letter_sqs(
-    mocker, event
+    mocker, event, monkeypatch, all_path_env_param_set
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(
         f"{LAMBDA_MODULE}.process_body_from_alb_invocation", side_effect=Exception
     )
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response['statusCode'] == 500
     assert response['body'] == '<Response />'
@@ -287,11 +317,15 @@ def test_failed_alb_invocation_call_throws_general_exception_goes_to_dead_letter
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
 def test_eventbody_moved_to_retry_sqs_when_ssm_paramter_returns_empty_string(
-    mocker, event
+    mocker, event, monkeypatch, all_path_env_param_set
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="")
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -308,11 +342,15 @@ def test_eventbody_moved_to_retry_sqs_when_ssm_paramter_returns_empty_string(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
 def test_failed_getenv_vetext_api_endpoint_domain_property(
-    mocker, missing_domain_env_param, event
+    mocker, missing_domain_env_param, event, monkeypatch
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -326,11 +364,15 @@ def test_failed_getenv_vetext_api_endpoint_domain_property(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
 def test_failed_getenv_vetext_api_endpoint_path(
-    mocker, missing_api_endpoint_path_env_param, event
+    mocker, missing_api_endpoint_path_env_param, event, monkeypatch
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -344,11 +386,15 @@ def test_failed_getenv_vetext_api_endpoint_path(
     "event", [(albInvokedWithoutAddOn), (albInvokeWithAddOn), (sqsInvokedWithAddOn)]
 )
 def test_failed_getenv_vetext_api_auth_ssm_path(
-    mocker, missing_ssm_path_env_param, event
+    mocker, missing_ssm_path_env_param, event, monkeypatch
 ):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_retry_sqs")
     mocker.patch(f"{LAMBDA_MODULE}.read_from_ssm", return_value="ssm")
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -358,21 +404,31 @@ def test_failed_getenv_vetext_api_auth_ssm_path(
     sqs_mock.assert_called_once()
 
 
-def test_unexpected_event_received(mocker, all_path_env_param_set):
+def test_unexpected_event_received(mocker, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_dead_letter_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_dead_letter_sqs")
     event = {}
-    response = vetext_incoming_forwarder_lambda_handler(event, None)
+    response = vetext_incoming_forwarder_lambda_handler(event, False)
 
     assert response['statusCode'] == 500
     assert response['body'] == '<Response />'
     sqs_dead_letter_mock.assert_called_once()
 
 
-def test_failed_getenv_vetext_api_auth_ssm_path(mocker, all_path_env_param_set):
+def test_sqs_dead_letter_queue_called(
+        mocker, monkeypatch, all_path_env_param_set
+):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_dead_letter_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_dead_letter_sqs")
 
     mocker.patch("json.loads", side_effect=json.decoder.JSONDecodeError)
-    response = vetext_incoming_forwarder_lambda_handler(sqsInvokedWithAddOn, None)
+    response = vetext_incoming_forwarder_lambda_handler(sqsInvokedWithAddOn, False)
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
@@ -382,13 +438,17 @@ def test_failed_getenv_vetext_api_auth_ssm_path(mocker, all_path_env_param_set):
     sqs_dead_letter_mock.assert_called_once()
 
 
-def test_loading_message_from_alb_fails(mocker, all_path_env_param_set):
+def test_loading_message_from_alb_fails(mocker, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
     sqs_dead_letter_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_dead_letter_sqs")
 
     mocker.patch("base64.b64decode", side_effect=base64.binascii.Error)
-    response = vetext_incoming_forwarder_lambda_handler(albInvokedWithoutAddOn, None)
+    response = vetext_incoming_forwarder_lambda_handler(albInvokedWithoutAddOn, False)
 
-    assert response["statusCode"] == 200
+    assert response["statusCode"] == 500
     assert response["body"] == "<Response />"
     assert response["headers"] != None
     assert response["headers"]["Content-Type"] == "text/xml"
@@ -396,10 +456,30 @@ def test_loading_message_from_alb_fails(mocker, all_path_env_param_set):
     sqs_dead_letter_mock.assert_called_once()
 
 
-def test_loading_message_from_alb_fails(mocker, all_path_env_param_set):
+def test_loading_message_from_sqs_called_once(mocker, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        push_to_retry_sqs
+    )
+
     sqs_dead_letter_mock = mocker.patch(f"{LAMBDA_MODULE}.push_to_dead_letter_sqs")
 
     mocker.patch("json.dumps", side_effect=Exception)
     push_to_retry_sqs(albInvokedWithoutAddOn)
 
     sqs_dead_letter_mock.assert_called_once()
+
+
+def test_twilio_validate_failure(mocker, monkeypatch, all_path_env_param_set):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler
+    )
+
+    broken_headers = albInvokedWithoutAddOn
+    broken_headers['headers']['x-twilio-signature'] = 'spoofed'
+    response = vetext_incoming_forwarder_lambda_handler(broken_headers, True)
+    assert response["statusCode"] == 403
+
+    missing_header = broken_headers
+    del missing_header['headers']['x-twilio-signature']
+    response = vetext_incoming_forwarder_lambda_handler(missing_header, True)
+    assert response["statusCode"] == 403

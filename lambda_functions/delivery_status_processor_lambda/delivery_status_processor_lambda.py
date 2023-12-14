@@ -1,5 +1,4 @@
 """This module is used to determine the source of an external delivery status and route it to the proper queue"""
-import boto3
 import json
 import logging
 import os
@@ -7,13 +6,16 @@ import sys
 import uuid
 import base64
 from typing import Optional
+import boto3
+from twilio.request_validator import RequestValidator
+from urllib.parse import parse_qs
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 CELERY_TASK = os.getenv("CELERY_TASK_NAME", "process-delivery-status-result")
 ROUTING_KEY = os.getenv("ROUTING_KEY", "delivery-status-result-tasks")
 DELIVERY_STATUS_RESULT_TASK_QUEUE = os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE")
 DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER = os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER")
-
+TWILIO_AUTH_TOKEN_SSM_NAME = os.getenv("TWILIO_AUTH_TOKEN_SSM_NAME")
 
 SQS_DELAY_SECONDS = 10
 
@@ -22,6 +24,9 @@ if DELIVERY_STATUS_RESULT_TASK_QUEUE is None:
 
 if DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER is None:
     sys.exit("A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER")
+
+if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT':
+    sys.exit("A required environment variable is not set. Please set TWILIO_AUTH_TOKEN_SSM_NAME")
 
 sqs_client = boto3.client("sqs", region_name="us-gov-west-1")
 
@@ -34,12 +39,71 @@ except ValueError:
     logger.warning("Invalid log level specified, defaulting to INFO")
 
 
+def get_twilio_token() -> str:
+    """
+        Is run on instantiation.
+        Defined here and in vetext_incoming_forwarder
+        @return: Twilio Token from SSM
+        """
+    try:
+        if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test':
+            return 'bad_twilio_auth'
+        ssm_client = boto3.client("ssm", "us-gov-west-1")
+
+        response = ssm_client.get_parameter(
+            Name=TWILIO_AUTH_TOKEN_SSM_NAME,
+            WithDecryption=True
+        )
+        return response.get("Parameter").get("Value")
+    except Exception as e:
+        logger.error('Failed to retrieve Twilio Auth with: %s', e)
+        return None
+
+
+auth_token = get_twilio_token()
+
+
+def validate_twilio_event(event: dict) -> bool:
+    """
+    Defined both here and in vetext_incoming_forwarder.
+    Validates that event was from Twilio.
+    @param: event
+    @return: bool
+    """
+    logger.info("validating twilio delivery event")
+
+    try:
+        signature = event["headers"].get("x-twilio-signature", "")
+
+        validator = RequestValidator(auth_token)
+        uri = f"https://{event['headers']['host']}/vanotify/sms/deliverystatus"
+        decoded = base64.b64decode(event.get("body")).decode()
+        params = parse_qs(decoded)
+        params = {k: v[0] for k, v in sorted(params.items())}
+        return validator.validate(
+            uri=uri,
+            params=params,
+            signature=signature
+        )
+    except Exception as e:
+        logger.error("Error validating request origin: %s", e)
+        return False
+
+
 def delivery_status_processor_lambda_handler(event: any, context: any):
     """this method takes in an event passed in by either an alb.
     @param: event   -  contains data pertaining to an sms delivery status from the external provider
-    @param: context -  contains information regarding information
-        regarding what triggered the lambda (context.invoked_function_arn).
+    @param: context -  AWS context sent by ALB to all events. Over ridden by unit tests as skip trigger.
     """
+    """
+    Synthetic monitors sometimes hit this endpoint to look for anomalous performance. 
+    Do not process what they send, just respond with a 200
+    """
+    try:
+        if "sec-datadog" in event["headers"]:
+            return {"statusCode": 200}
+    except Exception as e:
+        logger.info("Passing on issue with synthetic test payload: %s", e)
 
     try:
         logger.debug("Event: %s", event)
@@ -50,6 +114,15 @@ def delivery_status_processor_lambda_handler(event: any, context: any):
 
         logger.info("Valid ALB request received")
         logger.debug(event["body"])
+        if "TwilioProxy" in event["headers"]["user-agent"] \
+                and context \
+                and not validate_twilio_event(event):
+            logger.error("Returning 403 on unauthenticated Twilio request")
+            return {
+                "statusCode": 403,
+            }
+        else:
+            logger.info("Authenticated Twilio request")
 
         celery_body = event_to_celery_body_mapping(event)
 
@@ -78,6 +151,9 @@ def delivery_status_processor_lambda_handler(event: any, context: any):
         #   for potential processing at a later time
         logger.critical("Unknown Failure: %s", e)
         push_to_sqs(event, DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER, False)
+        return {
+            "statusCode": 500,
+        }
 
 
 def valid_event(event: dict) -> bool:
@@ -91,7 +167,7 @@ def valid_event(event: dict) -> bool:
     elif "body" not in event or "headers" not in event:
         logger.error("Missing from event object: %s", event)
     elif "user-agent" not in event["headers"]:
-        logger.error('Missing "user-agent" from: %s', event.get("headers"))
+        logger.error("Missing 'user-agent' from: %s", event.get("headers"))
     else:
         return True
 

@@ -9,6 +9,7 @@ def all_path_env_param_set(monkeypatch):
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("CELERY_TASK_NAME", "CELERY_TASK_NAME")
     monkeypatch.setenv("ROUTING_KEY", "ROUTING_KEY")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN_SSM_NAME", "unit_test")
 
 
 LAMBDA_MODULE = "lambda_functions.delivery_status_processor_lambda.delivery_status_processor_lambda"
@@ -18,30 +19,34 @@ LAMBDA_MODULE = "lambda_functions.delivery_status_processor_lambda.delivery_stat
 def event():
     """Generates a sample ALB received Twilio delivery status event object."""
     return {
-        "requestContext": {"elb": {"targetGroupArn": "<DEV TARGET GROUP>"}},
+        "requestContext": {
+            "elb": {
+                "targetGroupArn": ""
+            }
+        },
         "httpMethod": "POST",
-        "path": "/deliverystatus",
+        "path": "/sms/deliverystatus",
         "queryStringParameters": {},
         "headers": {
             "accept": "*/*",
             "connection": "close",
-            "content-length": "227",
+            "content-length": "277",
             "content-type": "application/x-www-form-urlencoded; charset=utf-8",
-            "host": "dev-api.va.gov",
-            "i-twilio-idempotency-token": "50609cf4-07f3-4e3f-ac42-044bd13bbc6c",
+            "host": "api.va.gov",
+            "i-twilio-idempotency-token": "32e709c9-0e95-47c0-8f0d-c6c868cf6241",
             "user-agent": "TwilioProxy/1.1",
-            "x-amzn-trace-id": "Self=<SOME VALUE>",
-            "x-forwarded-for": "<COMMA SEPARTED IPS>",
-            "x-forwarded-host": "dev-api.va.gov:443",
+            "x-amzn-trace-id": "",
+            "x-forwarded-for": "",
+            "x-forwarded-host": "api.va.gov:443",
             "x-forwarded-port": "443",
             "x-forwarded-proto": "https",
             "x-forwarded-scheme": "https",
             "x-home-region": "us1",
-            "x-real-ip": "<SOME IP>",
-            "x-twilio-signature": "<SOME VALUE>",
+            "x-real-ip": "",
+            "x-twilio-signature": "GV6ZwxO2f7qTuUKx94saVKju4XI=",
+            "x-use-static-proxy": "true"
         },
         "body": "U21zU2lkPXRoaXNpc3NvbWVzbXNpZCZTbXNTdGF0dXM9c2VudCZNZXNzYWdlU3RhdHVzPXNlbnQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1zb21lbWVzc2FnZWlkZW50aWZpZXImQWNjb3VudFNpZD10d2lsaW9hY2NvdW50c2lkJkZyb209JTJCMjIyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=",
-        "isBase64Encoded": True,
     }
 
 
@@ -176,4 +181,21 @@ def test_delivery_status_processor_lambda_handler_non_twilio_event(mocker, event
     sqs_mock.assert_called_once_with(event, os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER"), False)
 
 
-# TEST: celery_body_to_celery_task() returns a dict with an envelope that has a body = base 64 encoded task and that base 64 encoded task  contains message key with the task_message
+# TEST: celery_body_to_celery_task() returns a dict with an envelope that has a body = base 64 encoded
+# task and that base 64 encoded task  contains message key with the task_message
+
+
+def test_twilio_validate_failure(mocker, event, all_path_env_param_set):
+    from lambda_functions.delivery_status_processor_lambda.delivery_status_processor_lambda import (
+        delivery_status_processor_lambda_handler,
+    )
+
+    broken_headers = event
+    broken_headers['headers']['x-twilio-signature'] = 'spoofed'
+    response = delivery_status_processor_lambda_handler(broken_headers, True)
+    assert response["statusCode"] == 403
+
+    missing_header = broken_headers
+    del missing_header['headers']['x-twilio-signature']
+    response = delivery_status_processor_lambda_handler(missing_header, True)
+    assert response["statusCode"] == 403
