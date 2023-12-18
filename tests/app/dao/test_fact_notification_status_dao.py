@@ -287,13 +287,13 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
     sms_template_2 = create_template(service=service_1, template_type=SMS_TYPE)
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
+    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)  # delivered
     create_ft_notification_status(date(2018, 10, 29), "sms", service_1, notification_status="created")
-    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
+    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)  # delivered
+    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)  # delivered
 
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))  # Created
+    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))  # Created
     save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
 
@@ -322,7 +322,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
 
     assert results[2].notification_type == "sms"
     assert results[2].status == "delivered"
-    assert results[2].count == 18
+    assert results[2].count == 19
 
 
 @freeze_time("2018-10-31T18:00:00")
