@@ -318,7 +318,7 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
 
     assert results[1].notification_type == "sms"
     assert results[1].status == "created"
-    assert results[1].count == 1
+    assert results[1].count == 3
 
     assert results[2].notification_type == "sms"
     assert results[2].status == "delivered"
