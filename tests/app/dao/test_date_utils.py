@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 import pytest
 import pytz
+from freezegun import freeze_time
 
 from app.dao.date_util import (
     get_april_fools,
@@ -9,6 +10,7 @@ from app.dao.date_util import (
     get_financial_year_for_datetime,
     get_midnight,
     get_month_start_and_end_date_in_utc,
+    tz_aware_midnight_n_days_ago,
 )
 
 
@@ -78,6 +80,19 @@ def test_get_month_start_and_end_date_in_utc(month, year, expected_start, expect
 )
 def test_get_financial_year_for_datetime(dt, fy):
     assert get_financial_year_for_datetime(dt) == fy
+
+
+@pytest.mark.parametrize(
+    "frozen_datetime, expected_tz",
+    [
+        ("2023-11-04T00:00:00", "EDT"),
+        ("2023-11-08T00:00:00", "EST"),
+    ],
+)
+def test_tz_aware_midnight_n_days_ago_handles_daylight_savings(frozen_datetime, expected_tz):
+    with freeze_time(frozen_datetime):
+        converted_date = tz_aware_midnight_n_days_ago(days_ago=1)
+        assert converted_date.tzinfo._tzname == expected_tz
 
 
 class TestMidnightDateTime:

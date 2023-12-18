@@ -48,6 +48,7 @@ from tests.app.db import (
     create_notification,
     create_notification_history,
     create_service,
+    create_service_data_retention,
     create_template,
     save_notification,
 )
@@ -239,6 +240,44 @@ def test_fetch_notification_status_for_service_for_day(notify_db_session):
     assert results[1].count == 1
 
 
+@freeze_time("2023-12-14T19:00:00")
+def test_fetch_notification_status_for_service_for_today_and_7_previous_days_non_default_retention_period(
+    notify_db_session,
+):
+    service = create_service(service_name="service")
+    create_service_data_retention(service, notification_type="sms", days_of_retention=3)
+    create_service_data_retention(service, notification_type="email", days_of_retention=3)
+    sms_template = create_template(service=service, template_type=SMS_TYPE)
+    email_template = create_template(service=service, template_type=EMAIL_TYPE)
+
+    # Should not be counted
+    create_ft_notification_status(date(2023, 12, 10), "sms", service, count=10)
+    create_ft_notification_status(date(2023, 12, 10), "email", service, count=10)
+    save_notification(create_notification(sms_template, created_at=datetime(2023, 12, 10, 18, 0)))
+    save_notification(create_notification(email_template, created_at=datetime(2023, 12, 10, 18, 0)))
+
+    # Should be counted
+    create_ft_notification_status(date(2023, 12, 11), "sms", service, count=5)
+    create_ft_notification_status(date(2023, 12, 11), "email", service, count=5)
+    save_notification(create_notification(sms_template, created_at=datetime(2023, 12, 10, 19, 0)))
+    save_notification(create_notification(email_template, created_at=datetime(2023, 12, 10, 19, 0)))
+
+    results = sorted(
+        fetch_notification_status_for_service_for_today_and_7_previous_days(service.id, False, 3),
+        key=lambda x: (x.notification_type, x.status),
+    )
+
+    assert len(results) == 2
+
+    assert results[0].notification_type == "email"
+    assert results[0].status == "delivered"
+    assert results[0].count == 5
+
+    assert results[1].notification_type == "sms"
+    assert results[1].status == "delivered"
+    assert results[1].count == 5
+
+
 @freeze_time("2018-10-31T18:00:00")
 def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
     notify_db_session,
@@ -248,13 +287,13 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
     sms_template_2 = create_template(service=service_1, template_type=SMS_TYPE)
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
+    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)  # delivered
     create_ft_notification_status(date(2018, 10, 29), "sms", service_1, notification_status="created")
-    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
+    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)  # delivered
+    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)  # delivered
 
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))  # Created
+    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))  # Created
     save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
 
@@ -291,7 +330,6 @@ def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
 def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(notify_db_session, notify_api):
     service_1 = create_service(service_name="service_1")
     sms_template = create_template(template_name="SMS NON-FT", service=service_1, template_type=SMS_TYPE)
-    sms_template_2 = create_template(template_name="SMS1 NON-FT", service=service_1, template_type=SMS_TYPE)
     email_template = create_template(template_name="EMAIL NON-FT", service=service_1, template_type=EMAIL_TYPE)
 
     # create unused email template
@@ -306,8 +344,8 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
 
     save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
     save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
-    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
 
     # too early, shouldn't be included
     save_notification(
@@ -319,12 +357,12 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     )
     results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
     assert [
+        ("EMAIL NON-FT", False, mock.ANY, "email", "created", 1),
         ("EMAIL NON-FT", False, mock.ANY, "email", "delivered", 1),
         ("email Template Name", False, mock.ANY, "email", "delivered", 3),
         ("SMS NON-FT", False, mock.ANY, "sms", "created", 1),
         ("sms Template Name", False, mock.ANY, "sms", "created", 1),
         ("SMS NON-FT", False, mock.ANY, "sms", "delivered", 1),
-        ("SMS1 NON-FT", False, mock.ANY, "sms", "delivered", 1),
         ("sms Template Name", False, mock.ANY, "sms", "delivered", 8),
         ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
         ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
@@ -1164,11 +1202,11 @@ def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
         key=lambda x: (x.notification_type, x.status),
     )
 
-    assert results[0][2] == 2
+    assert results[0][2] == 3
 
     # checking the daily stats for the last 2 days should give us the 2 created after 12am UTC and the 1 from the day before
     results = sorted(
         fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=2),
         key=lambda x: (x.notification_type, x.status),
     )
-    assert results[0][2] == 7
+    assert results[0][2] == 8

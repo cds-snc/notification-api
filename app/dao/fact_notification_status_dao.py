@@ -8,7 +8,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.dao.date_util import get_midnight, utc_midnight_n_days_ago
+from app.dao.date_util import get_midnight, tz_aware_utc_now, utc_midnight_n_days_ago
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -239,7 +239,10 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    start_date = utc_midnight_n_days_ago(limit_days)
+    ft_start_date = utc_midnight_n_days_ago(limit_days)
+
+    start = tz_aware_utc_now() - timedelta(days=1)
+    end = get_midnight(tz_aware_utc_now()) + timedelta(hours=23, minutes=59, seconds=59)
 
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
@@ -248,7 +251,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         *([FactNotificationStatus.notification_count.label("count")]),
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date >= ft_start_date,
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     )
 
@@ -260,7 +263,8 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= get_midnight(datetime.utcnow()),
+            Notification.created_at >= start,
+            Notification.created_at <= end,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
