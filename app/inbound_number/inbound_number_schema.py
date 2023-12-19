@@ -10,6 +10,7 @@ post_create_inbound_number_schema = {
         "self_managed": {"type": "boolean"},
         "service_id": {"type": "string"},
         "url_endpoint": {"type": "string"},
+        "auth_parameter": {"type": "string"},
     },
     "required": ["number", "provider"],
     "if": {

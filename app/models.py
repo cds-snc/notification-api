@@ -546,6 +546,7 @@ class InboundNumber(db.Model):
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     url_endpoint = db.Column(db.String(), nullable=True)
     self_managed = db.Column(db.Boolean, nullable=False, default=False)
+    auth_parameter = db.Column(db.String(), nullable=True)
 
     def serialize(self):
         return {
@@ -559,6 +560,7 @@ class InboundNumber(db.Model):
             "active": self.active,
             "url_endpoint": self.url_endpoint,
             "self_managed": self.self_managed,
+            "auth_parameter": self.auth_parameter,
         }
 
 

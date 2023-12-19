@@ -38,6 +38,7 @@ def create_inbound_number():
 
 @inbound_number_blueprint.route('/<uuid:inbound_number_id>', methods=['POST'])
 def update_inbound_number(inbound_number_id):
+    """Updates inbound number with given id and request data."""
     data = request.get_json()
 
     validate(data, post_update_inbound_number_schema)

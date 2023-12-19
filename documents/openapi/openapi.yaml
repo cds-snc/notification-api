@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.4
+  version: 1.0.5
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -1452,11 +1452,15 @@ paths:
   /inbound-number:
     get:
       summary: Retrieve an inbound number
+      tags:
+        - inbound-number
       responses:
         "200":
           description: OK
           content:
-            application/json: {} # TODO (issue 965)
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundNumbersGetResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -1467,6 +1471,31 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
     post:
       summary: Create an inbound number
+      tags:
+        - inbound-number
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: "#/components/schemas/InboundNumberCreateRequest"
+            examples:
+              selfManagedFalse url optional:
+                value:
+                  active: true
+                  auth_parameter: "auth-param-name"
+                  number: "+10123456789"
+                  provider: "ExampleProvider"
+                  self_managed: false
+                  url_endpoint: "http://example.com/api"
+              selfManagedTrue url *required:
+                value:
+                  active: true
+                  auth_parameter: "auth-param-name"
+                  number: "+19876543210"
+                  provider: "ExampleProvider"
+                  self_managed: true
+                  url_endpoint: "http://example.com/api"
+        required: true
       responses:
         "201":
           description: Created
@@ -1484,42 +1513,92 @@ paths:
           $ref: "#/components/responses/ServiceUnavailable"
   /inbound-number/available:
     get:
-      summary: Retrieve available inbound numbers
+      summary: Retrieve available inbound numbers that are not assigned to a service
+      tags:
+        - inbound-number
       responses:
         "200":
           description: OK
           content:
-            application/json: {} # TODO (issue 965)
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundNumbersGetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /inbound-number/{inbound_number_id}:
     post:
       summary: Update an inbound number
+      tags:
+        - inbound-number
       parameters:
         - $ref: "#/components/parameters/InboundNumberId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InboundNumberUpdateRequest"
+        required: true
       responses:
         "200":
           description: OK
           content:
-            application/json: {} # TODO (issue 965)
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundNumberCreateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /inbound-number/{inbound_number_id}/off:
     post:
-      summary: Set the inbound number as off
+      summary: Set the inbound number as off (active = false)
+      tags:
+        - inbound-number
       parameters:
         - $ref: "#/components/parameters/InboundNumberId"
       responses:
-        "200":
-          description: OK
-          content:
-            application/json: {} # TODO (issue 965)
+        "204":
+          description: NO CONTENT
+        "401":
+            $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
   /inbound-number/service/{service_id}:
     get:
       summary:  Get inbound numbers for a service
+      tags:
+        - inbound-number
       parameters:
         - $ref: "#/components/parameters/ServiceId"
       responses:
         "200":
           description: OK
           content:
-            application/json: {} # TODO (issue 965)
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InboundNumbersGetResponse"
+        "401":
+            $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "502":
+          $ref: "#/components/responses/BadGateway"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
 components:
   parameters:
     InboundNumberId:
@@ -2510,9 +2589,85 @@ components:
       example:
         "full_name": "John Smith"
         "claim_id": "123456"
+    InboundNumberResponseData:
+      type: object
+      properties:
+        active:
+          type: boolean
+        auth_parameter:
+          type: string
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        provider:
+          type: string
+        self_managed:
+          type: boolean
+        service:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+          nullable: true
+        url_endpoint:
+          type: string
+    InboundNumberUpdateRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+        auth_parameter:
+          type: string
+        number:
+          type: string
+        provider:
+          type: string
+        self_managed:
+          type: boolean
+          description: "If this is true, 'url_endpoint' must be populated."
+        url_endpoint:
+          type: string
+          description: "Required to be populated when 'self_managed' is true."
+      additionalProperties: false
+      minProperties: 1
+    InboundNumberCreateRequest:
+      type: object
+      properties:
+        active:
+          type: boolean
+        auth_parameter:
+          type: string
+        number:
+          type: string
+        provider:
+          type: string
+        self_managed:
+          type: boolean
+          description: "If this is true, 'url_endpoint' is required."
+        url_endpoint:
+          type: string
+          description: "Required when 'self_managed' is true."
+      required:
+        - number
+        - provider
+      additionalProperties: false
     InboundNumberCreateResponse:
       type: object
-      properties: {} # TODO (issue 965)
+      properties:
+        data:
+          $ref: "#/components/schemas/InboundNumberResponseData"
+    InboundNumbersGetResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/InboundNumberResponseData"
     Notification:
       type: object
       properties:

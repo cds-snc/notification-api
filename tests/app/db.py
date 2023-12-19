@@ -591,7 +591,8 @@ def create_inbound_number(
     active=True,
     service_id=None,
     url_endpoint=None,
-    self_managed=False
+    self_managed=False,
+    auth_parameter=None,
 ):
     inbound_number = InboundNumber(
         id=uuid.uuid4(),
@@ -600,7 +601,8 @@ def create_inbound_number(
         active=active,
         service_id=service_id,
         url_endpoint=url_endpoint,
-        self_managed=self_managed
+        self_managed=self_managed,
+        auth_parameter=auth_parameter,
     )
     db.session.add(inbound_number)
     db.session.commit()

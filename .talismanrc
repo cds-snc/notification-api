@@ -222,7 +222,7 @@ fileignoreconfig:
     - filename: app/template/rest.py
       checksum: 4f300f5136873066acede094b788ccca6707c05f14c22979adb64ea2e60569eb
     - filename: scripts/postman/notification-api.postman_collection.json
-      checksum: be4dcc184966687f28698133ac547f68388b0d770f316e53e6bdb298ca31015d
+      checksum: a77d6bb975347b361a23686e5d2fc6585e2d860c89475e3e7ea90d2fe7fb01da
     - filename: scripts/postman/development.postman_environment.json
       checksum: 750e0712ccb3fe0e07f9ba73dbe83998ec71d70b88d852100cc27ca8e6fcd58e
     - filename: scripts/postman/performance.postman_environment.json
@@ -314,7 +314,7 @@ fileignoreconfig:
     - filename: tests/env_vars
       checksum: 2a33fe8099baf5449abd0b4deefb7796e770ad504734cf12c21a2f1e5f357a3d
     - filename: lambda_functions/two_way_sms/two_way_sms_v2.py
-      checksum: a0fcf9acc774b4ced5d6e4c9adff5e68e29b67f31a8dc5e2bb3bb9372596a9be
+      checksum: bb0eb348130e9fa435d835c5c92548b21cf93ef2d4ab909e92b28c5bd7cdf91a
     - filename: lambda_functions/nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py
       checksum: 3cef32b214b5aa8d21c47493049aed0a9cbf8340fe6dab2ffa8461f7216fce8b
     - filename: app/dao/fact_billing_dao.py
@@ -345,3 +345,5 @@ fileignoreconfig:
       checksum: 23f7e8057a8fe922a3115c79c1898c9238971a8a24c9af5b40baf0a334200925
     - filename: tests/app/celery/test_scheduled_tasks.py
       checksum: 2893fb34960e6a1498a8da529d99c668806e6a156996b2914f807f768b5148bb
+    - filename: tests/lambda_functions/two_way_sms/test_two_way_sms_v2.py
+      checksum: 468b6d1fe14a7a621a3807ebcaee1d4701e57004e99a0f8c386731dc14df2970
