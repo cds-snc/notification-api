@@ -37,10 +37,8 @@ if __name__ == '__main__':
 
     application = Flask("enlarge_db")
     create_app(application)
-    application.app_context().push()
 
     notifications = create_notifications(args.notifications, args.reference)
-
     print(f"Adding {len(notifications)} notifications to notification_history")
     with application.app_context():
         db.session.bulk_save_objects(notifications)
