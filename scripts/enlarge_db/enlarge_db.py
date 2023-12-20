@@ -11,6 +11,8 @@ from app import create_app, create_uuid, db  # noqa: E402
 from app.config import Config  # noqa: E402
 from app.models import NotificationHistory  # noqa: E402
 
+DEFAULT_CHUNK_SIZE = 100000
+
 
 def create_notifications(n: int, ref: str) -> List[NotificationHistory]:
     notifications = [
@@ -33,14 +35,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--notifications", default=1, type=int, help="number of notifications to add to the notification_history table (default 1)")
     parser.add_argument("-r", "--reference", default="manually created", type=str, help="client reference to use for the notifications (default 'manually created')")
+    parser.add_argument("-c", "--chunksize", default=DEFAULT_CHUNK_SIZE, type=int, help=f"chunk size for bulk_save_objects (default {DEFAULT_CHUNK_SIZE})")
     args = parser.parse_args()
 
-    application = Flask("enlarge_db")
-    create_app(application)
+    app = Flask("enlarge_db")
+    create_app(app)
 
-    notifications = create_notifications(args.notifications, args.reference)
-    print(f"Adding {len(notifications)} notifications to notification_history")
-    with application.app_context():
-        db.session.bulk_save_objects(notifications)
-        db.session.commit()
-    print("Done!")
+    for notifications_done in range(0, args.notifications, args.chunksize):
+        notifications = create_notifications(min(args.chunksize, args.notifications - notifications_done), args.reference)
+        print(f"Adding {len(notifications)} notifications to notification_history")
+        with app.app_context():
+            db.session.bulk_save_objects(notifications)
+            db.session.commit()
+        print(f"Done {notifications_done+len(notifications)} / {args.notifications}")
