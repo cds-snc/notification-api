@@ -11,7 +11,7 @@ from app import create_app, create_uuid, db  # noqa: E402
 from app.config import Config  # noqa: E402
 from app.models import NotificationHistory  # noqa: E402
 
-DEFAULT_CHUNK_SIZE = 100000
+DEFAULT_CHUNK_SIZE = 10000
 
 
 def create_notifications(n: int, ref: str) -> List[NotificationHistory]:
