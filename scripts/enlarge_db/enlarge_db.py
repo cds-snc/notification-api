@@ -45,6 +45,11 @@ if __name__ == '__main__':
         notifications = create_notifications(min(args.chunksize, args.notifications - notifications_done), args.reference)
         print(f"Adding {len(notifications)} notifications to notification_history")
         with app.app_context():
-            db.session.bulk_save_objects(notifications)
-            db.session.commit()
+            try:
+                db.session.bulk_save_objects(notifications)
+                db.session.commit()
+            except Exception as e:
+                print(f"Error adding notifications: {e}")
+                db.session.rollback()
+                sys.exit(1)
         print(f"Done {notifications_done+len(notifications)} / {args.notifications}")
