@@ -38,7 +38,7 @@ def get_twilio_token() -> str:
     try:
         if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test':
             return "bad_twilio_auth"
-        ssm_client = boto3.client("ssm", "us-gov-west-1")
+        ssm_client = boto3.client("ssm")
         auth_ssm_key = os.getenv("TWILIO_AUTH_TOKEN_SSM_NAME", "")
         if not auth_ssm_key:
             logger.error("TWILIO_AUTH_TOKEN_SSM_NAME not set")
@@ -162,8 +162,9 @@ def process_body_from_sqs_invocation(event):
                 continue
 
             logger.debug("Processing record body from SQS")
-            event_body = json.loads(event_body)
-            logger.info("Successfully converted record body from sqs to json")
+            if not isinstance(event_body, dict):
+                event_body = json.loads(event_body)
+                logger.info("Successfully converted record body from sqs to json")
             event_bodies.append(event_body)
         except json.decoder.JSONDecodeError as je:
             logger.error("Failed to load json event_body: %s", je)
@@ -308,7 +309,7 @@ def push_to_retry_sqs(event_body):
     logger.debug("Retrieved queue_url: %s", queue_url)
 
     try:
-        sqs = boto3.client("sqs", "us-west-1")
+        sqs = boto3.client("sqs")
 
         queue_msg = json.dumps(event_body)
         queue_msg_attrs = {
@@ -334,7 +335,7 @@ def push_to_dead_letter_sqs(event, source):
     """Places unaccounted for event on dead-letter queue to be inspected"""
 
     logger.info("Placing event on dead-letter queue")
-    logger.debug("Preparing for DeadLetter SQS: %s", event)
+    logger.info("Preparing for DeadLetter SQS: %s", event)
 
     queue_url = os.getenv("vetext_request_dead_letter_sqs_url")
 
