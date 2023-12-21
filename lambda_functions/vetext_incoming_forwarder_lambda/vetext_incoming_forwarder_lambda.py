@@ -74,7 +74,7 @@ def validate_twilio_event(event: dict) -> bool:
         validator = RequestValidator(auth_token)
         uri = f"https://{event['headers']['host']}/vanotify/twoway/vettext"
         decoded = base64.b64decode(event.get("body")).decode()
-        params = parse_qs(decoded)
+        params = parse_qs(decoded, keep_blank_values=True)
         params = {k: v[0] for k, v in (params.items())}
         return validator.validate(
             uri=uri,
