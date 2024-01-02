@@ -1,4 +1,5 @@
 from collections import namedtuple
+from uuid import uuid4
 
 import pytest
 from freezegun import freeze_time
@@ -386,6 +387,14 @@ def test_rejects_api_calls_with_no_recipient():
         validate_and_format_recipient(None, 'key_type', 'service', 'SMS_TYPE')
     assert e.value.status_code == 400
     assert e.value.message == "Recipient can't be empty"
+
+
+def test_rejects_invalid_international_prefix(mocker):
+    service = create_service(service_name=str(uuid4()), service_permissions=[SMS_TYPE])
+    with pytest.raises(BadRequestError) as e:
+        mocker.patch('app.notifications.validators.service_can_send_to_recipient')
+        validate_and_format_recipient('+80888888888', 'test', service, SMS_TYPE)
+    assert e.value.status_code == 400
 
 
 @pytest.mark.parametrize('notification_type', ['sms', 'email', 'letter'])

@@ -126,7 +126,11 @@ def validate_and_format_recipient(send_to, key_type, service, notification_type,
     service_can_send_to_recipient(send_to, key_type, service, allow_whitelisted_recipients)
 
     if notification_type == SMS_TYPE:
-        phone_info = get_international_phone_info(send_to)
+        try:
+            phone_info = get_international_phone_info(send_to)
+        except KeyError:
+            current_app.logger.warn("Service used invalid International Billing Rate prefix: %s", send_to)
+            raise BadRequestError(message="Invalid International Billing Prefix")
 
         if phone_info.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
             raise BadRequestError(message="Cannot send to international mobile numbers")
