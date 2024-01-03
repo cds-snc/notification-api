@@ -7,7 +7,7 @@ from flask_jwt_extended import create_access_token
 from jwt import ExpiredSignatureError
 
 from app.dao.services_dao import dao_add_user_to_service, dao_update_service
-from tests.app.db import create_user, create_service
+from tests.app.db import create_api_key, create_user, create_service
 from tests.conftest import set_config_values
 
 import pytest
@@ -317,17 +317,43 @@ def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_ser
         assert api_user == _key
 
 
-def test_should_return_403_when_token_is_expired(client,
-                                                 sample_api_key):
+def test_should_return_403_when_token_is_expired(
+    client,
+):
+
+    # Needs a key that is not cached
+    service = create_service(service_name='test_should_return_403_when_token_is_expired')
+    api_key = create_api_key(service)
     with freeze_time('2001-01-01T12:00:00'):
-        token = create_jwt_token(secret=sample_api_key.secret, client_id=str(sample_api_key.service_id))
+        token = create_jwt_token(secret=api_key.secret, client_id=str(service.id))
     with freeze_time('2001-01-01T12:00:40'):
         with pytest.raises(AuthError) as exc:
             request.headers = {'Authorization': 'Bearer {}'.format(token)}
             validate_service_api_key_auth()
     assert exc.value.short_message == 'Error: Your system clock must be accurate to within 30 seconds'
-    assert exc.value.service_id == sample_api_key.service_id
-    assert exc.value.api_key_id == sample_api_key.id
+    assert exc.value.service_id == api_key.service_id
+    assert exc.value.api_key_id == api_key.id
+
+
+def test_auth_token_cached(
+    client,
+    mocker,
+):
+
+    # Needs a key that is not cached
+    service = create_service(service_name='test_auth_token_cached')
+    api_key = create_api_key(service)
+    with freeze_time('2001-01-01T12:00:00'):
+        token = create_jwt_token(secret=api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+        validate_service_api_key_auth()
+
+    authed_service = mocker.patch('app.dao.services_dao.dao_fetch_service_by_id_with_api_keys')
+    token = create_jwt_token(secret=api_key.secret, client_id=str(service.id))
+    request.headers = {'Authorization': 'Bearer {}'.format(token)}
+    validate_service_api_key_auth()
+    # Should not call the method because it is cached
+    authed_service.assert_not_called()
 
 
 def __create_token(service_id):
