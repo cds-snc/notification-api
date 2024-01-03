@@ -172,7 +172,7 @@ class VAProfileClient:
             response.raise_for_status()
 
         except requests.HTTPError as e:
-            self.logger.exception(e)
+            self.logger.warning('HTTPError raised making request to VA Profile for VA Profile ID: %s', va_profile_id)
             self.statsd_client.incr(f"clients.va-profile.error.{e.response.status_code}")
 
             failure_reason = (

@@ -277,20 +277,22 @@ def make_vetext_request(request_body):
         )
         logger.info("VeText POST complete")
         response.raise_for_status()
-        
+
         logger.info("VeText call complete with response: %d", response.status_code)
         logger.debug("VeText response: %s", response.content)
         return response.content
     except requests.HTTPError as e:
-        logger.error("HTTPError With Call To VeText")
-        logger.exception(e)
+        logger.error("HTTPError With Call To VeText url: %s, with body: %s and error: %s", endpoint_uri, body, e)
     except requests.RequestException as e:
-        logger.error("RequestException With Call To VeText")
-        logger.exception(e)
+        logger.error("RequestException With Call To VeText url: %s, with body: %s and error: %s", endpoint_uri, body, e)
     except Exception as e:
-        logger.error("General Exception With Call to VeText")
-        logger.exception(e)
-    
+        logger.error(
+            "Unexpected Exception With Call to VeText url: %s, with body: %s and error: %s",
+            endpoint_uri,
+            body,
+            e,
+        )
+
     return None
 
 

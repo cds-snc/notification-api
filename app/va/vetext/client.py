@@ -50,24 +50,36 @@ class VETextClient:
             response.raise_for_status()
         except requests.exceptions.ReadTimeout:
             # Discussion with VEText: read timeouts are still processed, so are marking this as good
-            self.logger.warning('ReadTimeout exceptions are still processed, returning 201')
+            self.logger.warning('ReadTimeout raised sending push notification - Still processed, returning 201')
             # Logging as error.read_timeout so we can easily track it
             self.statsd.incr(f"{self.STATSD_KEY}.error.read_timeout")
+        except requests.exceptions.ConnectTimeout as e:
+            self.logger.warning('ConnectTimeout raised sending push notification - Retrying')
+            # Logging as error.read_timeout so we can easily track it
+            self.statsd.incr(f"{self.STATSD_KEY}.error.connection_timeout")
+            raise VETextRetryableException from e
         except requests.HTTPError as e:
-            self.logger.exception(e)
+            self.logger.warning('HTTPError raised sending push notification')
             self.statsd.incr(f"{self.STATSD_KEY}.error.{e.response.status_code}")
             if e.response.status_code in [429, 500, 502, 503, 504]:
+                self.logger.warning('Retryable exception raised with status code: %s', e.response.status_code)
                 raise VETextRetryableException from e
-                # TODO: add retries?
             elif e.response.status_code == 400:
                 self._decode_bad_request_response(e)
             else:
+                self.logger.critical(
+                    'Status: %s - Not retrying - payload: %s',
+                    e.response.status_code,
+                    payload,
+                )
                 raise VETextNonRetryableException from e
         except requests.RequestException as e:
-            self.logger.exception(e)
+            self.logger.critical(
+                'RequestException raised sending push notification. Not retrying - payload: %s',
+                payload,
+            )
             self.statsd.incr(f"{self.STATSD_KEY}.error.request_exception")
-            raise VETextRetryableException from e
-            # TODO: add retries?
+            raise VETextNonRetryableException from e
         else:
             self.statsd.incr(f"{self.STATSD_KEY}.success")
         finally:

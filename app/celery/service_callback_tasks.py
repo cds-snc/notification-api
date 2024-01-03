@@ -58,26 +58,23 @@ def send_delivery_status_to_service(
     try:
         # calls the webhook / sqs callback to transmit message
         service_callback.send(payload=payload, logging_tags=logging_tags)
-    except RetryableException as e:
+    except RetryableException:
         try:
             current_app.logger.warning(
                 "Retrying: %s failed for %s, url %s.", self.name, logging_tags, service_callback.url
             )
-            current_app.logger.exception(e)
             raise AutoRetryException('Found RetryableException, autoretrying...')
         except self.MaxRetriesExceededError:
             current_app.logger.error(
                 "Retry: %s has retried the max num of times for %s, url %s.",
                 self.name, logging_tags, service_callback.url
             )
-            current_app.logger.exception(e)
-            raise e
-    except NonRetryableException as e:
-        current_app.logger.error(
+            raise
+    except NonRetryableException:
+        current_app.logger.critical(
             "Not retrying: %s failed for %s, url: %s. ", self.name, logging_tags, service_callback.url
         )
-        current_app.logger.exception(e)
-        raise e
+        raise
 
 
 @notify_celery.task(bind=True, name="send-complaint",
@@ -132,7 +129,7 @@ def send_complaint_to_service(self, service_callback_id, complaint_data):
             service_callback.url,
             e,
         )
-        raise e
+        raise
 
 
 @notify_celery.task(bind=True, name="send-complaint-to-vanotify",
@@ -228,14 +225,14 @@ def send_inbound_sms_to_service(self, inbound_sms_id, service_id):
             )
             raise e
     except NonRetryableException as e:
-        current_app.logger.error(
+        current_app.logger.critical(
             "Not retrying: %s failed for %s, url: %s. exc: %s",
             self.name,
             logging_tags,
             service_callback.url,
             e,
         )
-        raise e
+        raise
 
 
 def create_delivery_status_callback_data(

@@ -306,10 +306,14 @@ def forward_to_service(inbound_sms: dict, url: str, auth_parameter: str) -> bool
         logger.debug('Response Content: %s', response.content)
         return True
     except (requests.HTTPError, requests.RequestException) as e:
-        logger.exception(e)
+        logger.error('Forward request failed - Retryable. Error: %s', e)
     except Exception as e:
-        logger.exception(e)
-        logger.critical("General Exception With Http Request. The record should go to the dead letter queue.")
+        logger.critical(
+            'Unexpected Exception forwarding to url: %s, with message: %s, and error: %s',
+            url,
+            inbound_sms,
+            e,
+        )
 
         # Re-raise to move the message to the dead letter queue instead of the retry queue.
         raise
