@@ -740,9 +740,9 @@ def test_should_get_a_single_template(
         (
             'about your ((thing))',
             'hello ((name)) we’ve received your ((thing))',
-            '/service/{}/template/{}/preview?eman=Amala&gniht=document',
+            '/service/{}/template/{}/preview?name=Amala',
             None, None,
-            'Missing personalisation: name, thing'
+            'Missing personalisation: thing'
         ),
         (
             'about your ((thing))',

@@ -1,9 +1,6 @@
-# Python 3.8 is supported until 14 October 2024.
-# Alpine Linux 3.16 is supported until 23 May 2024 and packages OpenSSL v1.1.1.  Newer versions of Alpine package
-# OpenSSL v3.x, which will not work with notification-api until the Python "requests" package is upgrade to
-# >=2.30.0 and "urllib3" to >=2.0.0.  As of 18 May 2023, the notification-api top level dependency "botocore"
-# does not support urllib3>=2.0.0.
-FROM python:3.8-alpine3.16
+# Python 3.10 is supported until October 2026.
+# Alpine Linux 3.19 is supported until 1 November 2025
+FROM python:3.10-alpine3.19
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     # https://flask.palletsprojects.com/en/2.2.x/config/?highlight=flask_debug#DEBUG
@@ -20,8 +17,9 @@ RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcur
   && python -m pip install --upgrade pip \
   && python -m pip install wheel \
   # TODO #1375 Temporary add due to errors related to PyYAML and AttributeError.
-  && pip install "Cython<3.0" "pyyaml<6" --no-build-isolation \
-  &&  pip install --upgrade setuptools==65.5.1 \
+  && pip install "Cython<3.0" \
+  && pip install "pyyaml==6.0.0" --no-build-isolation \
+  && pip install --upgrade setuptools==65.5.1 \
   && pip install --no-cache-dir -r requirements-app.txt \
   # Remove build dependencies.
   && rm requirements-app.txt \

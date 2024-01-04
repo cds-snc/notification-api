@@ -143,16 +143,16 @@ TODO
 
   `brew install pyenv`
 
- 2. Install Python 3.8.13 (or whatever version is specified in .python-version)
+ 2. Install Python 3.10.13 (or whatever version is specified in .python-version)
  Then follow from instructions for rest of pyenv setup, [see step 3 here](https://github.com/pyenv/pyenv#basic-github-checkout)
 
  Note: For MacOS devs who are using Big Sur, Monterey, standard pyenv python installation will be failed in most case. I found [this solution](https://github.com/pyenv/pyenv/issues/2143#issuecomment-1070640288) so only 3.7.13, 3.8.13, 3.9.11 and 3.10.3 works fine.
 
- `pyenv install 3.8.13`
+ `pyenv install 3.10.13`
 
- 3. If you expect no conflicts, set `3.8.13` as your default
+ 3. If you expect no conflicts, set `3.10.13` as your default
 
- `pyenv global 3.8.13`
+ `pyenv global 3.10.13`
 
 Upgrade the versions of `pip` and `virtualenvwrapper`
 
@@ -184,12 +184,12 @@ Upgrade the versions of `pip` and `virtualenvwrapper`
  ```bash
  export WORKON_HOME=$HOME/.virtualenvs
  export PROJECT_HOME=$HOME/Devel
- source  ~/.pyenv/versions/3.8.13/bin/virtualenvwrapper.sh
+ source  ~/.pyenv/versions/3.10.13/bin/virtualenvwrapper.sh
  ```
 
  7. Restart your terminal and make your virtual environtment:
 
- `mkvirtualenv -p ~/.pyenv/versions/3.8.13/bin/python notification-api`
+ `mkvirtualenv -p ~/.pyenv/versions/3.10.13/bin/python notification-api`
 
  8. You can now return to your environment any time by entering
 
@@ -242,8 +242,8 @@ This application defines Docker images for production, testing, and development 
 
 | Technology | End of Support | Notes | Affected Files in ci/ |
 |------------|----------------|-------|-----------------------|
-| Python 3.8 | 14 October 2024 | | Dockerfile, Dockerfile.local |
-| Alpine Linux 3.16 | 23 May 2024 | | Dockerfile, Dockerfile.local |
+| Python 3.10 | 04 October 2026 | | Dockerfile, Dockerfile.local |
+| Alpine Linux 3.19 | 01 November 2025 | | Dockerfile, Dockerfile.local |
 | Postgres 15 | [11 November 2027](https://www.postgresql.org/support/versioning/) | | docker-compose.yml, docker-compose-local.yml, docker-compose-local-migrate.yml, docker-compose-test.yml |
 | localstack | None given.  The YAML files specifies v0.12.3.  As of March 2022, v0.14.1 is available. | As of March 2022, localstack requires Python 3.6-3.9. | docker-compose-local.yml |
 | bbyars/mountebank 2.4.0 | None given. | Newer versions are available. | docker-compose-local.yml |
@@ -588,7 +588,7 @@ This error may occur while attempting to install pyenv after updating to Big Sur
 ```bash
 CFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix bzip2)/include -I$(brew --prefix readline)/include -I$(xcrun --show-sdk-path)/usr/include" \
 LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix readline)/lib -L$(brew --prefix zlib)/lib -L$(brew --prefix bzip2)/lib" \
-pyenv install --patch 3.8.13 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
+pyenv install --patch 3.10.13 < <(curl -sSL https://github.com/python/cpython/commit/8ea6353.patch\?full_index\=1)
 ```
 
 ---

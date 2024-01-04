@@ -189,7 +189,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     )
 
     # This explains the use of "type" below:
-    # https://docs.python.org/3.8/library/unittest.mock.html#unittest.mock.PropertyMock
+    # https://docs.python.org/3.10/library/unittest.mock.html#unittest.mock.PropertyMock
     mocked_request = mocker.Mock()
     mocked_chain = mocker.PropertyMock()
     mocked_chain.return_value = ['some-task-to-be-executed-next']
