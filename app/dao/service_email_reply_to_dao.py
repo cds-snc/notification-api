@@ -1,31 +1,31 @@
-from sqlalchemy import desc
-
 from app import db
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
 from app.exceptions import ArchiveValidationError
 from app.models import ServiceEmailReplyTo
+from sqlalchemy import desc, select
 
 
 def dao_get_reply_to_by_service_id(service_id):
-    reply_to = db.session.query(
-        ServiceEmailReplyTo
-    ).filter(
+    stmt = select(ServiceEmailReplyTo).where(
         ServiceEmailReplyTo.service_id == service_id,
-        ServiceEmailReplyTo.archived == False  # noqa
-    ).order_by(desc(ServiceEmailReplyTo.is_default), desc(ServiceEmailReplyTo.created_at)).all()
-    return reply_to
+        ServiceEmailReplyTo.archived.is_(False)
+    ).order_by(
+        desc(ServiceEmailReplyTo.is_default),
+        desc(ServiceEmailReplyTo.created_at)
+    )
+
+    return db.session.scalars(stmt).all()
 
 
 def dao_get_reply_to_by_id(service_id, reply_to_id):
-    reply_to = db.session.query(
-        ServiceEmailReplyTo
-    ).filter(
+    stmt = select(ServiceEmailReplyTo).where(
         ServiceEmailReplyTo.service_id == service_id,
         ServiceEmailReplyTo.id == reply_to_id,
-        ServiceEmailReplyTo.archived == False  # noqa
-    ).order_by(ServiceEmailReplyTo.created_at).one()
-    return reply_to
+        ServiceEmailReplyTo.archived.is_(False)
+    ).order_by(ServiceEmailReplyTo.created_at)
+
+    return db.session.scalars(stmt).one()
 
 
 @transactional
@@ -50,7 +50,7 @@ def update_reply_to_email_address(service_id, reply_to_id, email_address, is_def
         if old_default.id == reply_to_id:
             raise InvalidRequest("You must have at least one reply to email address as the default.", 400)
 
-    reply_to_update = ServiceEmailReplyTo.query.get(reply_to_id)
+    reply_to_update = db.session.get(ServiceEmailReplyTo, reply_to_id)
     reply_to_update.email_address = email_address
     reply_to_update.is_default = is_default
     db.session.add(reply_to_update)
@@ -59,10 +59,12 @@ def update_reply_to_email_address(service_id, reply_to_id, email_address, is_def
 
 @transactional
 def archive_reply_to_email_address(service_id, reply_to_id):
-    reply_to_archive = ServiceEmailReplyTo.query.filter_by(
-        id=reply_to_id,
-        service_id=service_id
-    ).one()
+    stmt = select(ServiceEmailReplyTo).where(
+        ServiceEmailReplyTo.id == reply_to_id,
+        ServiceEmailReplyTo.service_id == service_id
+    )
+
+    reply_to_archive = db.session.scalars(stmt).one()
 
     if reply_to_archive.is_default:
         raise ArchiveValidationError("You cannot delete a default email reply to address")

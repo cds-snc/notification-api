@@ -120,8 +120,9 @@ def test_should_delete_all_invitations_more_than_one_day_old(
     make_invitation(sample_user, sample_service, age=timedelta(hours=48))
     make_invitation(sample_user, sample_service, age=timedelta(hours=48))
     assert len(InvitedUser.query.all()) == 2
-    delete_invitations_created_more_than_two_days_ago()
+    deleted = delete_invitations_created_more_than_two_days_ago()
     assert len(InvitedUser.query.all()) == 0
+    assert deleted == 2
 
 
 def test_should_not_delete_invitations_less_than_two_days_old(

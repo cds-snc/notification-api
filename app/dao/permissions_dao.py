@@ -1,17 +1,18 @@
-from typing import List
-
 from app import db
 from app.dao import DAOClass
 from app.models import (
     Permission,
-    MANAGE_USERS,
-    MANAGE_TEMPLATES,
+    MANAGE_API_KEYS,
     MANAGE_SETTINGS,
+    MANAGE_TEMPLATES,
+    MANAGE_USERS,
     SEND_TEXTS,
     SEND_EMAILS,
     SEND_LETTERS,
-    MANAGE_API_KEYS,
+    Service,
     VIEW_ACTIVITY)
+from sqlalchemy import delete, select
+from typing import List
 
 
 # Default permissions for a service
@@ -23,7 +24,8 @@ default_service_permissions = [
     SEND_EMAILS,
     SEND_LETTERS,
     MANAGE_API_KEYS,
-    VIEW_ACTIVITY]
+    VIEW_ACTIVITY,
+]
 
 
 class PermissionDAO(DAOClass):
@@ -37,18 +39,24 @@ class PermissionDAO(DAOClass):
             self.create_instance(permission, _commit=False)
 
     def remove_user_service_permissions(self, user, service):
-        query = self.Meta.model.query.filter_by(user=user, service=service)
-        query.delete()
+        stmt = delete(self.Meta.model).where(
+            self.Meta.model.user == user,
+            self.Meta.model.service == service
+        )
+        db.session.execute(stmt)
 
     def remove_user_service_permissions_for_all_services(self, user):
-        query = self.Meta.model.query.filter_by(user=user)
-        query.delete()
+        """
+        The deletion is commited in the calling code.
+        """
+
+        stmt = delete(self.Meta.model).where(self.Meta.model.user == user)
+        db.session.execute(stmt)
 
     def set_user_service_permission(self, user, service, permissions, _commit=False, replace=False):
         try:
             if replace:
-                query = self.Meta.model.query.filter_by(user=user, service=service)
-                query.delete()
+                self.remove_user_service_permissions(user, service)
             for p in permissions:
                 p.user = user
                 p.service = service
@@ -62,12 +70,29 @@ class PermissionDAO(DAOClass):
                 db.session.commit()
 
     def get_permissions_by_user_id(self, user_id) -> List[Permission]:
-        return self.Meta.model.query.filter_by(user_id=user_id)\
-                                    .join(Permission.service).filter_by(active=True).all()
+        stmt = select(
+            self.Meta.model
+        ).join(
+            self.Meta.model.service
+        ).where(
+            self.Meta.model.user_id == user_id,
+            Service.active.is_(True)
+        )
+
+        return db.session.scalars(stmt).all()
 
     def get_permissions_by_user_id_and_service_id(self, user_id, service_id) -> List[Permission]:
-        return self.Meta.model.query.filter_by(user_id=user_id)\
-                                    .join(Permission.service).filter_by(active=True, id=service_id).all()
+        stmt = select(
+            self.Meta.model
+        ).join(
+            self.Meta.model.service
+        ).where(
+            self.Meta.model.user_id == user_id,
+            Service.id == service_id,
+            Service.active.is_(True)
+        )
+
+        return db.session.scalars(stmt).all()
 
 
 permission_dao = PermissionDAO()

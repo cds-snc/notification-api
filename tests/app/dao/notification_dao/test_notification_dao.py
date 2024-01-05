@@ -33,6 +33,7 @@ from app.dao.notifications_dao import (
     dao_get_notifications_by_references,
     dao_get_notification_history_by_reference,
     notifications_not_yet_sent,
+    update_notification_delivery_status,
 )
 from app.models import (
     Job,
@@ -1862,3 +1863,93 @@ def test_update_notification_status_by_id_can_update_status_in_order_when_given_
         notification = dao_get_notification_by_reference(ref)
         assert isinstance(notification, Notification)
         assert notification.status == next_status
+
+
+@pytest.mark.parametrize("current_status, new_status", [
+    (NOTIFICATION_CREATED, NOTIFICATION_CREATED),
+    (NOTIFICATION_CREATED, NOTIFICATION_SENDING),
+    (NOTIFICATION_CREATED, NOTIFICATION_PENDING),
+    (NOTIFICATION_CREATED, NOTIFICATION_SENT),
+    (NOTIFICATION_CREATED, NOTIFICATION_DELIVERED),
+    (NOTIFICATION_CREATED, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_CREATED, NOTIFICATION_PERMANENT_FAILURE),
+    (NOTIFICATION_PENDING, NOTIFICATION_SENDING),
+    (NOTIFICATION_PENDING, NOTIFICATION_PENDING),
+    (NOTIFICATION_PENDING, NOTIFICATION_SENT),
+    (NOTIFICATION_PENDING, NOTIFICATION_DELIVERED),
+    (NOTIFICATION_PENDING, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_PENDING, NOTIFICATION_PERMANENT_FAILURE),
+    (NOTIFICATION_SENDING, NOTIFICATION_SENDING),
+    (NOTIFICATION_SENDING, NOTIFICATION_PENDING),
+    (NOTIFICATION_SENDING, NOTIFICATION_SENT),
+    (NOTIFICATION_SENDING, NOTIFICATION_DELIVERED),
+    (NOTIFICATION_SENDING, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_SENDING, NOTIFICATION_PERMANENT_FAILURE),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_SENT),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_DELIVERED),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE),
+    (NOTIFICATION_SENT, NOTIFICATION_SENT),
+    (NOTIFICATION_SENT, NOTIFICATION_DELIVERED),
+    (NOTIFICATION_SENT, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_DELIVERED),
+])
+def test_update_notification_delivery_status_valid_updates(
+        sample_template,
+        current_status,
+        new_status,
+):
+
+    notification = create_notification(
+        sample_template,
+        status=current_status,
+    )
+
+    assert notification.status == current_status
+
+    update_notification_delivery_status(
+        notification_id=notification.id,
+        new_status=new_status,
+    )
+
+    assert notification.status == new_status
+
+
+@pytest.mark.parametrize("current_status, new_status", [
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_CREATED),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_SENDING),
+    (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PENDING),
+    (NOTIFICATION_SENT, NOTIFICATION_CREATED),
+    (NOTIFICATION_SENT, NOTIFICATION_SENDING),
+    (NOTIFICATION_SENT, NOTIFICATION_PENDING),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_CREATED),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_SENDING),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_PENDING),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_DELIVERED, NOTIFICATION_SENT),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_CREATED),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_SENDING),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PENDING),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_SENT),
+    (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED),
+])
+def test_update_notification_delivery_status_invalid_updates(
+        sample_template,
+        current_status,
+        new_status,
+):
+
+    notification = create_notification(
+        sample_template,
+        status=current_status,
+    )
+
+    assert notification.status == current_status
+
+    update_notification_delivery_status(
+        notification_id=notification.id,
+        new_status=new_status,
+    )
+
+    assert notification.status != new_status

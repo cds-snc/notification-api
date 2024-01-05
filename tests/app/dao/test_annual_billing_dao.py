@@ -1,11 +1,11 @@
-
-from app.dao.date_util import get_current_financial_year_start_year
-
 from app.dao.annual_billing_dao import (
     dao_create_or_update_annual_billing_for_year,
     dao_get_free_sms_fragment_limit_for_year,
     dao_update_annual_billing_for_future_years,
 )
+from app.dao.date_util import get_current_financial_year_start_year
+from app.models import AnnualBilling
+from sqlalchemy import func, select
 from tests.app.db import create_annual_billing
 
 
@@ -41,3 +41,16 @@ def test_dao_update_annual_billing_for_future_years(notify_db_session, sample_se
     assert dao_get_free_sms_fragment_limit_for_year(sample_service.id, current_year) is None
     assert dao_get_free_sms_fragment_limit_for_year(sample_service.id, current_year + 1).free_sms_fragment_limit == 9999
     assert dao_get_free_sms_fragment_limit_for_year(sample_service.id, current_year + 2).free_sms_fragment_limit == 9999
+
+
+def test_dao_get_annual_billing(notify_db_session, sample_service):
+    """
+    Get all AnnualBilling instances associated with a given Service.
+    """
+
+    stmt = select(func.count()).select_from(AnnualBilling).where(AnnualBilling.service_id == sample_service.id)
+    assert notify_db_session.session.scalar(stmt) == 0
+
+    current_year = get_current_financial_year_start_year()
+    create_annual_billing(sample_service.id, 1, current_year)
+    assert notify_db_session.session.scalar(stmt) == 1

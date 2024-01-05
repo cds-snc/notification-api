@@ -1,4 +1,5 @@
 import itertools
+from app import db
 from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -84,6 +85,7 @@ from flask import current_app, Blueprint, jsonify, request
 from nanoid import generate
 from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -221,7 +223,7 @@ def update_service(service_id):
 
     if 'email_branding' in req_json:
         email_branding_id = req_json['email_branding']
-        service.email_branding = None if not email_branding_id else EmailBranding.query.get(email_branding_id)
+        service.email_branding = None if not email_branding_id else db.session.get(EmailBranding, email_branding_id)
     dao_update_service(service)
 
     if service_going_live:
@@ -324,7 +326,7 @@ def remove_user_from_service(service_id, user_id):
 
 # This is placeholder get method until more thought
 # goes into how we want to fetch and view various items in history
-# tables. This is so product owner can pass stories as done
+# tables. This is so product owner can pass stories as done.
 @service_blueprint.route('/<uuid:service_id>/history', methods=['GET'])
 @requires_admin_auth()
 def get_service_history(service_id):
@@ -335,12 +337,21 @@ def get_service_history(service_id):
         template_history_schema
     )
 
-    service_history = Service.get_history_model().query.filter_by(id=service_id).all()
+    service_history_model = Service.get_history_model()
+    stmt = select(service_history_model).where(service_history_model.id == service_id)
+    service_history = db.session.scalars(stmt).all()
+
     service_data = service_history_schema.dump(service_history, many=True).data
-    api_key_history = ApiKey.get_history_model().query.filter_by(service_id=service_id).all()
+
+    api_key_history_model = ApiKey.get_history_model()
+    stmt = select(api_key_history_model).where(api_key_history_model.service_id == service_id)
+    api_key_history = db.session.scalars(stmt).all()
+
     api_keys_data = api_key_history_schema.dump(api_key_history, many=True).data
 
-    template_history = TemplateHistory.query.filter_by(service_id=service_id).all()
+    stmt = select(TemplateHistory).where(TemplateHistory.service_id == service_id)
+    template_history = db.session.scalars(stmt).all()
+
     template_data, errors = template_history_schema.dump(template_history, many=True)
 
     data = {
@@ -632,7 +643,7 @@ def verify_reply_to_email_address(service_id):
     email_address, errors = email_data_request_schema.load(request.get_json())
     check_if_reply_to_address_already_in_use(service_id, email_address["email"])
     template = dao_get_template_by_id(current_app.config['REPLY_TO_EMAIL_ADDRESS_VERIFICATION_TEMPLATE_ID'])
-    notify_service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    notify_service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -696,12 +707,14 @@ def get_organisation_for_service(service_id):
 def is_service_name_unique():
     service_id, name, email_from = check_request_args(request)
 
-    name_exists = Service.query.filter_by(name=name).first()
+    stmt = select(Service).where(Service.name == name)
+    name_exists = db.session.scalars(stmt).first()
 
-    email_from_exists = Service.query.filter(
+    stmt = select(Service).where(
         Service.email_from == email_from,
         Service.id != service_id
-    ).first()
+    )
+    email_from_exists = db.session.scalar(stmt)
 
     result = not (name_exists or email_from_exists)
     return jsonify(result=result), 200

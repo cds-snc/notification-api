@@ -8,6 +8,8 @@ from sqlalchemy import (
     asc,
     desc,
     func,
+    select,
+    update,
 )
 
 from app import db
@@ -32,19 +34,21 @@ from app.models import (
 
 @statsd(namespace="dao")
 def dao_get_notification_outcomes_for_job(service_id, job_id):
-    return db.session.query(
+    stmt = select(
         func.count(Notification.status).label('count'),
         Notification.status
-    ).filter(
+    ).where(
         Notification.service_id == service_id,
         Notification.job_id == job_id
     ).group_by(
         Notification.status
-    ).all()
+    )
+
+    return db.session.execute(stmt).all()
 
 
 def dao_get_job_by_service_id_and_job_id(service_id, job_id):
-    return Job.query.filter_by(service_id=service_id, id=job_id).one()
+    return db.session.scalars(select(Job).where(Job.service_id == service_id, Job.id == job_id)).one()
 
 
 def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None):
@@ -66,7 +70,7 @@ def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50
 
 
 def dao_get_job_by_id(job_id):
-    return Job.query.filter_by(id=job_id).one()
+    return db.session.scalars(select(Job).where(Job.id == job_id)).one()
 
 
 def dao_archive_job(job):
@@ -83,14 +87,10 @@ def dao_set_scheduled_jobs_to_pending():
     the transaction so that if the task is run more than once concurrently, one task will block the other select
     from completing until it commits.
     """
-    jobs = Job.query \
-        .filter(
-            Job.job_status == JOB_STATUS_SCHEDULED,
-            Job.scheduled_for < datetime.utcnow()
-        ) \
-        .order_by(asc(Job.scheduled_for)) \
-        .with_for_update() \
-        .all()
+    stmt = select(Job).where(Job.job_status == JOB_STATUS_SCHEDULED, Job.scheduled_for < datetime.utcnow())\
+                      .order_by(asc(Job.scheduled_for))\
+                      .with_for_update()
+    jobs = db.session.scalars(stmt).all()
 
     for job in jobs:
         job.job_status = JOB_STATUS_PENDING
@@ -102,14 +102,13 @@ def dao_set_scheduled_jobs_to_pending():
 
 
 def dao_get_future_scheduled_job_by_id_and_service_id(job_id, service_id):
-    return Job.query \
-        .filter(
-            Job.service_id == service_id,
-            Job.id == job_id,
-            Job.job_status == JOB_STATUS_SCHEDULED,
-            Job.scheduled_for > datetime.utcnow()
-        ) \
-        .one()
+    stmt = select(Job).where(
+        Job.service_id == service_id,
+        Job.id == job_id,
+        Job.job_status == JOB_STATUS_SCHEDULED,
+        Job.scheduled_for > datetime.utcnow(),
+    )
+    return db.session.scalars(stmt).one()
 
 
 def dao_create_job(job):
@@ -125,46 +124,53 @@ def dao_update_job(job):
 
 
 def dao_get_jobs_older_than_data_retention(notification_types):
-    flexible_data_retention = ServiceDataRetention.query.filter(
-        ServiceDataRetention.notification_type.in_(notification_types)
-    ).all()
+    stmt = select(ServiceDataRetention).where(ServiceDataRetention.notification_type.in_(notification_types))
+    flexible_data_retention = db.session.scalars(stmt).all()
+
     jobs = []
     today = datetime.utcnow().date()
     for f in flexible_data_retention:
         end_date = today - timedelta(days=f.days_of_retention)
 
-        jobs.extend(Job.query.join(Template).filter(
+        stmt = select(Job).join(Template).where(
             func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
-            Job.archived == False,  # noqa
+            Job.archived.is_(False),
             Template.template_type == f.notification_type,
-            Job.service_id == f.service_id
-        ).order_by(desc(Job.created_at)).all())
+            Job.service_id == f.service_id,
+        ).order_by(desc(Job.created_at))
+
+        jobs.extend(db.session.scalars(stmt).all())
 
     end_date = today - timedelta(days=7)
     for notification_type in notification_types:
         services_with_data_retention = [
             x.service_id for x in flexible_data_retention if x.notification_type == notification_type
         ]
-        jobs.extend(Job.query.join(Template).filter(
+
+        stmt = select(Job).join(Template).where(
             func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
-            Job.archived == False,  # noqa
+            Job.archived.is_(False),
             Template.template_type == notification_type,
-            Job.service_id.notin_(services_with_data_retention)
-        ).order_by(desc(Job.created_at)).all())
+            Job.service_id.notin_(services_with_data_retention),
+        ).order_by(desc(Job.created_at))
+
+        jobs.extend(db.session.scalars(stmt).all())
 
     return jobs
 
 
 @transactional
 def dao_cancel_letter_job(job):
-    number_of_notifications_cancelled = Notification.query.filter(
-        Notification.job_id == job.id
-    ).update({'status': NOTIFICATION_CANCELLED,
-              'updated_at': datetime.utcnow(),
-              'billable_units': 0})
+    stmt = update(Notification).where(Notification.job_id == job.id).values(
+        status=NOTIFICATION_CANCELLED,
+        updated_at=datetime.utcnow(),
+        billable_units=0,
+    )
+    cancelled_count = db.session.execute(stmt).rowcount
+
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-    return number_of_notifications_cancelled
+    return cancelled_count
 
 
 def can_letter_job_be_cancelled(job):
@@ -172,11 +178,9 @@ def can_letter_job_be_cancelled(job):
     if template.template_type != LETTER_TYPE:
         return False, "Only letter jobs can be cancelled through this endpoint. This is not a letter job."
 
-    notifications = Notification.query.filter(
-        Notification.job_id == job.id
-    ).all()
-    count_notifications = len(notifications)
-    if job.job_status != JOB_STATUS_FINISHED or count_notifications != job.notification_count:
+    notifications = db.session.scalars(select(Notification).where(Notification.job_id == job.id)).all()
+
+    if job.job_status != JOB_STATUS_FINISHED or len(notifications) != job.notification_count:
         return False, "We are still processing these letters, please try again in a minute."
     count_cancellable_notifications = len([
         n for n in notifications if n.status in CANCELLABLE_JOB_LETTER_STATUSES

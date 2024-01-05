@@ -1,3 +1,4 @@
+from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
 
@@ -20,7 +21,8 @@ class DAOClass(object):
     def update_instance(self, inst, update_dict, _commit=True):
         # Make sure the id is not included in the update_dict
         update_dict.pop('id')
-        self.Meta.model.query.filter_by(id=inst.id).update(update_dict)
+        stmt = update(self.Meta.model).where(self.Meta.model.id == inst.id).values(**update_dict)
+        db.session.execute(stmt)
         if _commit:
             db.session.commit()
 

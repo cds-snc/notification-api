@@ -22,18 +22,22 @@ from app.utils import get_local_timezone_midnight_in_utc
 from datetime import date, datetime, time, timedelta
 from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
-from sqlalchemy import func, case, desc, Date, Integer, and_
+from sqlalchemy import func, case, delete, desc, Date, Integer, and_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
 
 
 def fetch_sms_free_allowance_remainder(start_date):
+    """
+    Note that this function returns a query expression; not rows.
+    """
+
     # ASSUMPTION: AnnualBilling has been populated for year.
     billing_year = get_financial_year_for_datetime(start_date)
     start_of_year = date(billing_year, 4, 1)
 
     billable_units = func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier), 0)
 
-    query = db.session.query(
+    return select(
         AnnualBilling.service_id.label("service_id"),
         AnnualBilling.free_sms_fragment_limit,
         billable_units.label('billable_units'),
@@ -47,13 +51,12 @@ def fetch_sms_free_allowance_remainder(start_date):
             FactBilling.bst_date < start_date,
             FactBilling.notification_type == SMS_TYPE,
         )
-    ).filter(
+    ).where(
         AnnualBilling.financial_year_start == billing_year,
     ).group_by(
         AnnualBilling.service_id,
         AnnualBilling.free_sms_fragment_limit,
     )
-    return query
 
 
 def fetch_sms_billing_for_all_services(start_date, end_date):
@@ -69,7 +72,7 @@ def fetch_sms_billing_for_all_services(start_date, end_date):
     chargeable_sms = func.greatest(sms_billable_units - sms_remainder, 0)
     sms_cost = chargeable_sms * FactBilling.rate
 
-    query = db.session.query(
+    stmt = select(
         Organisation.name.label('organisation_name'),
         Organisation.id.label('organisation_id'),
         Service.name.label("service_name"),
@@ -88,7 +91,7 @@ def fetch_sms_billing_for_all_services(start_date, end_date):
         Service.organisation
     ).join(
         FactBilling, FactBilling.service_id == Service.id,
-    ).filter(
+    ).where(
         FactBilling.bst_date >= start_date,
         FactBilling.bst_date <= end_date,
         FactBilling.notification_type == SMS_TYPE,
@@ -105,7 +108,7 @@ def fetch_sms_billing_for_all_services(start_date, end_date):
         Service.name
     )
 
-    return query.all()
+    return db.session.execute(stmt).all()
 
 
 def fetch_nightly_billing_counts(process_day: date):
@@ -122,7 +125,7 @@ def fetch_nightly_billing_counts(process_day: date):
         SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE
     }
 
-    query = db.session.query(
+    stmt = select(
         Service.name.label('service_name'),
         Notification.service_id.label('service_id'),
         Template.name.label('template_name'),
@@ -134,7 +137,7 @@ def fetch_nightly_billing_counts(process_day: date):
         Notification.notification_type.label('channel_type'),
         func.sum(Notification.segments_count).label('total_message_parts'),
         func.sum(Notification.cost_in_millicents).label('total_cost')
-    ).filter(
+    ).where(
         Notification.status.in_(billable_type_list[SMS_TYPE]),
         Notification.key_type != KEY_TYPE_TEST,
         Notification.created_at >= start_date,
@@ -158,11 +161,11 @@ def fetch_nightly_billing_counts(process_day: date):
         ServiceSmsSender, Notification.sms_sender_id == ServiceSmsSender.id
     )
 
-    return query.all()
+    return db.session.execute(stmt).all()
 
 
 def fetch_letter_costs_for_all_services(start_date, end_date):
-    query = db.session.query(
+    stmt = select(
         Organisation.name.label("organisation_name"),
         Organisation.id.label("organisation_id"),
         Service.name.label("service_name"),
@@ -174,7 +177,7 @@ def fetch_letter_costs_for_all_services(start_date, end_date):
         Service.organisation
     ).join(
         FactBilling, FactBilling.service_id == Service.id,
-    ).filter(
+    ).where(
         FactBilling.service_id == Service.id,
         FactBilling.bst_date >= start_date,
         FactBilling.bst_date <= end_date,
@@ -189,11 +192,11 @@ def fetch_letter_costs_for_all_services(start_date, end_date):
         Service.name
     )
 
-    return query.all()
+    return db.session.execute(stmt).all()
 
 
 def fetch_letter_line_items_for_all_services(start_date, end_date):
-    query = db.session.query(
+    stmt = select(
         Organisation.name.label("organisation_name"),
         Organisation.id.label("organisation_id"),
         Service.name.label("service_name"),
@@ -207,7 +210,7 @@ def fetch_letter_line_items_for_all_services(start_date, end_date):
         Service.organisation
     ).join(
         FactBilling, FactBilling.service_id == Service.id,
-    ).filter(
+    ).where(
         FactBilling.bst_date >= start_date,
         FactBilling.bst_date <= end_date,
         FactBilling.notification_type == LETTER_TYPE,
@@ -224,24 +227,26 @@ def fetch_letter_line_items_for_all_services(start_date, end_date):
         FactBilling.postage.desc(),
         FactBilling.rate,
     )
-    return query.all()
+
+    return db.session.execute(stmt).all()
 
 
 def fetch_billing_totals_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
     print(year_start_date, year_end_date)
+
     """
       Billing for email: only record the total number of emails.
       Billing for letters: The billing units is used to fetch the correct rate for the sheet count of the letter.
       Total cost is notifications_sent * rate.
       Rate multiplier does not apply to email or letters.
     """
-    email_and_letters = db.session.query(
+    email_and_letters_stmt = select(
         func.sum(FactBilling.notifications_sent).label("notifications_sent"),
         func.sum(FactBilling.notifications_sent).label("billable_units"),
         FactBilling.rate.label('rate'),
         FactBilling.notification_type.label('notification_type')
-    ).filter(
+    ).where(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
         # This works only for timezones to the west of GMT
@@ -251,15 +256,16 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.rate,
         FactBilling.notification_type
     )
+
     """
     Billing for SMS using the billing_units * rate_multiplier. Billing unit of SMS is the fragment count of a message
     """
-    sms = db.session.query(
+    sms_stmt = select(
         func.sum(FactBilling.notifications_sent).label("notifications_sent"),
         func.sum(FactBilling.billable_units * FactBilling.rate_multiplier).label("billable_units"),
         FactBilling.rate,
         FactBilling.notification_type
-    ).filter(
+    ).where(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
         FactBilling.bst_date < year_end_date.strftime("%Y-%m-%d"),  # This works only for timezones to the west of GMT
@@ -269,12 +275,10 @@ def fetch_billing_totals_for_year(service_id, year):
         FactBilling.notification_type
     )
 
-    yearly_data = email_and_letters.union_all(sms).order_by(
+    return db.session.execute(union_all(email_and_letters_stmt, sms_stmt).order_by(
         'notification_type',
         'rate'
-    ).all()
-
-    return yearly_data
+    )).all()
 
 
 def fetch_monthly_billing_for_year(service_id, year):
@@ -289,14 +293,14 @@ def fetch_monthly_billing_for_year(service_id, year):
             for d in data:
                 update_fact_billing(data=d, process_day=day)
 
-    email_and_letters = db.session.query(
+    email_and_letters_stmt = select(
         func.date_trunc('month', FactBilling.bst_date).cast(Date).label("month"),
         func.sum(FactBilling.notifications_sent).label("notifications_sent"),
         func.sum(FactBilling.notifications_sent).label("billable_units"),
         FactBilling.rate.label('rate'),
         FactBilling.notification_type.label('notification_type'),
         FactBilling.postage
-    ).filter(
+    ).where(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
         FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
@@ -308,14 +312,14 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     )
 
-    sms = db.session.query(
+    sms_stmt = select(
         func.date_trunc('month', FactBilling.bst_date).cast(Date).label("month"),
         func.sum(FactBilling.notifications_sent).label("notifications_sent"),
         func.sum(FactBilling.billable_units * FactBilling.rate_multiplier).label("billable_units"),
         FactBilling.rate,
         FactBilling.notification_type,
         FactBilling.postage
-    ).filter(
+    ).where(
         FactBilling.service_id == service_id,
         FactBilling.bst_date >= year_start_date.strftime("%Y-%m-%d"),
         FactBilling.bst_date <= year_end_date.strftime("%Y-%m-%d"),
@@ -327,25 +331,26 @@ def fetch_monthly_billing_for_year(service_id, year):
         FactBilling.postage
     )
 
-    yearly_data = email_and_letters.union_all(sms).order_by(
+    return db.session.execute(union_all(email_and_letters_stmt, sms_stmt).order_by(
         'month',
         'notification_type',
         'rate'
-    ).all()
-
-    return yearly_data
+    )).all()
 
 
-def delete_billing_data_for_service_for_day(process_day, service_id):
+def delete_billing_data_for_service_for_day(process_day, service_id) -> int:
     """
-    Delete all ft_billing data for a given service on a given bst_date
-
-    Returns how many rows were deleted
+    Delete all ft_billing data for a given service on a given bst_date, and return how many rows were deleted.
     """
-    return FactBilling.query.filter(
+
+    stmt = delete(FactBilling).where(
         FactBilling.bst_date == process_day,
         FactBilling.service_id == service_id
-    ).delete()
+    )
+
+    rows_deleted = db.session.execute(stmt).rowcount
+    db.session.commit()
+    return rows_deleted
 
 
 def fetch_billing_data_for_day(process_day, service_id=None):
@@ -356,7 +361,7 @@ def fetch_billing_data_for_day(process_day, service_id=None):
     current_app.logger.info("Populate ft_billing for {} to {}".format(start_date, end_date))
     transit_data = []
     if not service_id:
-        service_ids = [x.id for x in Service.query.all()]
+        service_ids = [x.id for x in db.session.scalars(select(Service)).all()]
     else:
         service_ids = [service_id]
     for id_of_service in service_ids:
@@ -389,7 +394,8 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
         EMAIL_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
         LETTER_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS
     }
-    query = db.session.query(
+
+    stmt = select(
         table.template_id,
         table.service_id,
         table.notification_type,
@@ -412,7 +418,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
         func.count().label('notifications_sent'),
         Service.crown,
         func.coalesce(table.postage, 'none').label('postage')
-    ).filter(
+    ).where(
         table.status.in_(billable_type_list[notification_type]),
         table.key_type != KEY_TYPE_TEST,
         table.created_at >= start_date,
@@ -432,24 +438,25 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
     ).join(
         Service
     )
-    return query.all()
+
+    return db.session.execute(stmt).all()
 
 
 def get_rates_for_billing():
-    non_letter_rates = Rate.query.order_by(desc(Rate.valid_from)).all()
-    letter_rates = LetterRate.query.order_by(desc(LetterRate.start_date)).all()
+    non_letter_rates = db.session.scalars(select(Rate).order_by(desc(Rate.valid_from))).all()
+    letter_rates = db.session.scalars(select(LetterRate).order_by(desc(LetterRate.start_date))).all()
     return non_letter_rates, letter_rates
 
 
 def get_service_ids_that_need_billing_populated(start_date, end_date):
-    return db.session.query(
-        NotificationHistory.service_id
-    ).filter(
+    stmt = select(NotificationHistory.service_id).where(
         NotificationHistory.created_at >= start_date,
         NotificationHistory.created_at <= end_date,
         NotificationHistory.notification_type.in_([SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]),
         NotificationHistory.billable_units != 0
-    ).distinct().all()
+    ).distinct()
+
+    return db.session.scalars(stmt).all()
 
 
 def get_rate(

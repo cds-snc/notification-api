@@ -196,7 +196,7 @@ def test_request_makes_vetext_call(mocker, monkeypatch, all_path_env_param_set, 
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_not_called()
@@ -220,7 +220,7 @@ def test_failed_vetext_call_goes_to_retry_sqs(mocker, event, monkeypatch, all_pa
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -245,7 +245,7 @@ def test_failed_vetext_call_throws_http_exception_goes_to_retry_sqs(mocker, even
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -266,7 +266,7 @@ def test_failed_vetext_call_throws_general_exception_goes_to_retry_sqs(mocker, e
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -288,7 +288,7 @@ def test_failed_sqs_invocation_call_throws_general_exception_goes_to_dead_letter
 
     assert response["statusCode"] == 500
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_not_called()
@@ -329,7 +329,7 @@ def test_eventbody_moved_to_retry_sqs_when_ssm_paramter_returns_empty_string(
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -354,7 +354,7 @@ def test_failed_getenv_vetext_api_endpoint_domain_property(
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -376,7 +376,7 @@ def test_failed_getenv_vetext_api_endpoint_path(
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -398,7 +398,7 @@ def test_failed_getenv_vetext_api_auth_ssm_path(
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_mock.assert_called_once()
@@ -432,7 +432,7 @@ def test_sqs_dead_letter_queue_called(
 
     assert response["statusCode"] == 200
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_dead_letter_mock.assert_called_once()
@@ -450,7 +450,7 @@ def test_loading_message_from_alb_fails(mocker, monkeypatch, all_path_env_param_
 
     assert response["statusCode"] == 500
     assert response["body"] == "<Response />"
-    assert response["headers"] != None
+    assert response["headers"] is not None
     assert response["headers"]["Content-Type"] == "text/xml"
 
     sqs_dead_letter_mock.assert_called_once()

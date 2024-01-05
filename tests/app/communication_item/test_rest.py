@@ -92,7 +92,7 @@ def test_get_all_communication_items(notify_db_session, admin_request):
     database, but it doesn't assume that only one instance exists because fixtures create them.
     """
 
-    communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=1, name="communication item tests")
+    communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=5, name="communication item tests")
     notify_db_session.session.add(communication_item)
     notify_db_session.session.commit()
 
@@ -202,7 +202,7 @@ def test_partially_update_communication_item_not_found(notify_db_session, admin_
 #############
 
 def test_delete_communication_item(notify_db_session, admin_request):
-    communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=1, name="communication item tests")
+    communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=5, name="communication item tests")
     communication_item_id = communication_item.id
     notify_db_session.session.add(communication_item)
     notify_db_session.session.commit()

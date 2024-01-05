@@ -10,6 +10,7 @@ import itertools
 from click_datetime import Datetime as click_dt
 from flask import current_app, json
 from notifications_utils.template import SMSMessageTemplate
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.statsd_decorators import statsd
@@ -97,7 +98,10 @@ def purge_functional_test_data(user_email_prefix):
 
     users, services, etc. Give an email prefix. Probably "notify-test-preview".
     """
-    users = User.query.filter(User.email_address.like("{}%".format(user_email_prefix))).all()
+
+    stmt = select(User).where(User.email_address.like(f"{user_email_prefix}%"))
+    users = db.session.scalars(stmt).all()
+
     for usr in users:
         # Make sure the full email includes a uuid in it
         # Just in case someone decides to use a similar email address.
@@ -249,11 +253,13 @@ def replay_service_callbacks(file_name, service_id, notification_status):
     file = open(file_name)
 
     for ref in file:
+        stmt = select(Notification).where(Notification.client_reference == ref.strip())
+
         try:
-            notification = Notification.query.filter_by(client_reference=ref.strip()).one()
+            notification = db.session.scalars(stmt).one()
             notifications.append(notification)
         except NoResultFound:
-            errors.append("Reference: {} was not found in notifications.".format(ref))
+            errors.append(f"Reference: {ref} was not found in notifications.")
 
     for e in errors:
         print(e)
@@ -647,7 +653,8 @@ def populate_organisations_from_file(file_name):
             email_branding = None
             email_branding_column = columns[5].strip()
             if len(email_branding_column) > 0:
-                email_branding = EmailBranding.query.filter(EmailBranding.name == email_branding_column).one()
+                stmt = select(EmailBranding).where(EmailBranding.name == email_branding_column)
+                email_branding = db.session.scalars(stmt).one()
             data = {
                 'name': columns[0],
                 'active': True,
@@ -713,12 +720,14 @@ def get_letter_details_from_zips_sent_file(file_paths):
 
 @notify_command(name='associate-services-to-organisations')
 def associate_services_to_organisations():
-    services = Service.get_history_model().query.filter_by(
-        version=1
-    ).all()
+    service_history_model = Service.get_history_model()
+    stmt = select(service_history_model).where(service_history_model.version == 1)
+    services = db.session.scalars(stmt).all()
 
     for s in services:
-        created_by_user = User.query.filter_by(id=s.created_by_id).first()
+        stmt = select(User).where(User.id == s.created_by_id)
+        created_by_user = db.session.scalars(stmt).first()
+
         organisation = dao_get_organisation_by_email_address(created_by_user.email_address)
         service = dao_fetch_service_by_id(service_id=s.id)
         if organisation:
@@ -788,15 +797,15 @@ def populate_go_live(file_name):
 
 @notify_command(name='fix-billable-units')
 def fix_billable_units():
-    query = Notification.query.filter(
+    stmt = select(Notification).where(
         Notification.notification_type == SMS_TYPE,
         Notification.status != NOTIFICATION_CREATED,
-        Notification.sent_at == None,  # noqa
+        Notification.sent_at.is_(None),
         Notification.billable_units == 0,
         Notification.key_type != KEY_TYPE_TEST,
     )
 
-    for notification in query.all():
+    for notification in db.session.scalars(stmt).all():
         template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
         template = SMSMessageTemplate(
@@ -807,10 +816,11 @@ def fix_billable_units():
         )
         print("Updating notification: {} with {} billable_units".format(notification.id, template.fragment_count))
 
-        Notification.query.filter(
-            Notification.id == notification.id
-        ).update(
-            {"billable_units": template.fragment_count}
+        stmt = update(Notification).where(Notification.id == notification.id).values(
+            billable_units=template.fragment_count
         )
+
+        db.session.execute(stmt)
+
     db.session.commit()
     print("End fix_billable_units")

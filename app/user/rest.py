@@ -4,13 +4,14 @@ import uuid
 import pickle  # nosec
 import pwnedpasswords
 import requests
-from datetime import (datetime, timedelta)
+from datetime import datetime, timedelta
 from fido2 import cbor
 from fido2.webauthn import AuthenticatorData, CollectedClientData
 from flask import (jsonify, request, Blueprint, current_app, abort)
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlencode
 
+from app import db
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
@@ -124,7 +125,7 @@ def update_user_attribute(user_id):
 
     save_user_attribute(user_to_update, update_dict=update_dct)
 
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     # Alert user that account change took place
     change_type = update_dct_to_str(update_dct)
@@ -342,7 +343,7 @@ def send_user_confirm_new_email(user_id):
         raise InvalidRequest(message=errors, status_code=400)
 
     template = dao_get_template_by_id(current_app.config['CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -370,7 +371,7 @@ def send_new_user_email_verification(user_id):
     user_to_send_to = get_user_by_id(user_id=user_id)
 
     template = dao_get_template_by_id(current_app.config['NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -396,7 +397,7 @@ def send_new_user_email_verification(user_id):
 def send_already_registered_email(user_id):
     to, errors = email_data_request_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config['ALREADY_REGISTERED_EMAIL_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -456,7 +457,7 @@ def send_support_email(user_id):
 def send_branding_request(user_id):
     to, errors = branding_request_data_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config['BRANDING_REQUEST_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -551,7 +552,7 @@ def send_user_reset_password():
     user_to_send_to = get_user_by_email(email['email'])
 
     template = dao_get_template_by_id(current_app.config['PASSWORD_RESET_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -754,7 +755,7 @@ def get_orgs_and_services(user):
 
 
 def _update_alert(user_to_update, change_type=""):
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
     reply_to = template.service.get_default_reply_to_email_address()

@@ -1,11 +1,12 @@
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import ServicePermission
+from sqlalchemy import delete, select
 
 
 def dao_fetch_service_permissions(service_id):
-    return ServicePermission.query.filter(
-        ServicePermission.service_id == service_id).all()
+    stmt = select(ServicePermission).where(ServicePermission.service_id == service_id)
+    return db.session.scalars(stmt).all()
 
 
 @transactional
@@ -15,8 +16,11 @@ def dao_add_service_permission(service_id, permission):
 
 
 def dao_remove_service_permission(service_id, permission):
-    deleted = ServicePermission.query.filter(
+    stmt = delete(ServicePermission).where(
         ServicePermission.service_id == service_id,
-        ServicePermission.permission == permission).delete()
+        ServicePermission.permission == permission
+    )
+
+    deleted = db.session.execute(stmt).rowcount
     db.session.commit()
     return deleted

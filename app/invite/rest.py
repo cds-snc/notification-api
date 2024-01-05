@@ -15,6 +15,7 @@ from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, Service
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schemas import invited_user_schema
 from app.errors import register_errors
+from app import db
 
 invite = Blueprint('invite', __name__, url_prefix='/service/<service_id>/invite')
 
@@ -30,7 +31,7 @@ def create_invited_user(service_id):
     invited_user_instance = save_invited_user(invited_user)
 
     template = dao_get_template_by_id(current_app.config['INVITATION_EMAIL_TEMPLATE_ID'])
-    service = Service.query.get(current_app.config['NOTIFY_SERVICE_ID'])
+    service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
 
     saved_notification = persist_notification(
         template_id=template.id,

@@ -1,7 +1,7 @@
 import datetime
 import uuid
 
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, select
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from app import DATETIME_FORMAT
@@ -93,7 +93,14 @@ class User(db.Model):
 
     @classmethod
     def find_by_idp(cls, idp_name: str, idp_id: str) -> 'User':
-        return cls.query.join(User.idp_ids).filter_by(idp_name=idp_name, idp_id=str(idp_id)).one()
+        stmt = select(cls).join(
+            cls.idp_ids
+        ).where(
+            IdentityProviderIdentifier.idp_name == idp_name,
+            IdentityProviderIdentifier.idp_id == str(idp_id)
+        )
+
+        return db.session.scalars(stmt).one()
 
     def save_to_db(self) -> None:
         db.session.add(self)

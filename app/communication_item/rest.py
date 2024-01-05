@@ -11,6 +11,7 @@ from app.models import CommunicationItem
 from app.schemas import communication_item_schema
 from flask import Blueprint, current_app, jsonify, request
 from jsonschema import validate, ValidationError
+from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 
 communication_item_blueprint = Blueprint("communication_item", __name__, url_prefix="/communication-item")
@@ -73,13 +74,13 @@ def create_communication_item():
 
 @communication_item_blueprint.route('', methods=["GET"])
 def get_all_communication_items():
-    communication_items = CommunicationItem.query.all()
+    communication_items = db.session.scalars(select(CommunicationItem)).all()
     return jsonify(data=communication_item_schema.dump(communication_items, many=True).data)
 
 
 @communication_item_blueprint.route("/<communication_item_id>", methods=["GET"])
 def get_communication_item(communication_item_id):
-    communication_item = CommunicationItem.query.get(communication_item_id)
+    communication_item = db.session.get(CommunicationItem, communication_item_id)
 
     if communication_item is None:
         return {
@@ -114,7 +115,7 @@ def partially_update_communication_item(communication_item_id):
             ]
         }, 400
 
-    communication_item = CommunicationItem.query.get(communication_item_id)
+    communication_item = db.session.get(CommunicationItem, communication_item_id)
 
     if communication_item is None:
         return {
@@ -164,10 +165,11 @@ def partially_update_communication_item(communication_item_id):
 
 @communication_item_blueprint.route("/<communication_item_id>", methods=["DELETE"])
 def delete_communication_item(communication_item_id):
-    rows_deleted = CommunicationItem.query.filter_by(id=communication_item_id).delete()
+    query = delete(CommunicationItem).where(CommunicationItem.id == communication_item_id)
+    rows_deleted = db.session.execute(query).rowcount
     db.session.commit()
 
-    if rows_deleted:
+    if rows_deleted > 0:
         return {}, 202
 
     return {

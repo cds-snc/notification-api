@@ -1,23 +1,21 @@
-from random import (SystemRandom)
-from datetime import (datetime, timedelta)
 import uuid
-from flask import current_app
-
-import sqlalchemy
-from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload
-from sqlalchemy.orm.exc import FlushError, NoResultFound
-from sqlalchemy.exc import IntegrityError
-
 from app import db
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
-from app.models import (VerifyCode)
+from app.models import VerifyCode
 from app.model import User, EMAIL_AUTH_TYPE
 from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
 from app.utils import escape_special_characters
+from datetime import datetime, timedelta
+from flask import current_app
+from random import SystemRandom
+from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.exc import FlushError, NoResultFound
+from sqlalchemy.exc import IntegrityError
+from typing import Optional
 
 
 def _remove_values_for_keys_if_present(dict, keys):
@@ -29,11 +27,13 @@ def create_secret_code():
     return ''.join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
 
-def save_user_attribute(usr, update_dict={}):
-    if "blocked" in update_dict and update_dict["blocked"]:
+def save_user_attribute(usr, update_dict):
+    # Check that it is there AND not empty
+    if update_dict.get("blocked"):
         update_dict.update({"current_session_id": '00000000-0000-0000-0000-000000000000'})
 
-    db.session.query(User).filter_by(id=usr.id).update(update_dict)
+    stmt = update(User).where(User.id == usr.id).values(update_dict)
+    db.session.execute(stmt)
     db.session.commit()
 
 
@@ -56,25 +56,34 @@ def create_user_code(user, code, code_type):
     return verify_code
 
 
-def get_user_code(user, code, code_type):
-    # Get the most recent codes to try and reduce the
-    # time searching for the correct code.
-    codes = VerifyCode.query.filter_by(
-        user=user, code_type=code_type).order_by(
-        VerifyCode.created_at.desc())
-    return next((x for x in codes if x.check_code(code)), None)
+def get_user_code(user, code, code_type) -> Optional[VerifyCode]:
+    """
+    Get the most recent codes to try and reduce the time searching for the correct code.
+    """
+
+    stmt = select(VerifyCode).where(
+        VerifyCode.user == user,
+        VerifyCode.code_type == code_type
+    ).order_by(
+        VerifyCode.created_at.desc()
+    )
+
+    for verify_code in db.session.scalars(stmt).all():
+        if verify_code.check_code(code):
+            return verify_code
+
+    return None
 
 
-def delete_codes_older_created_more_than_a_day_ago():
-    deleted = db.session.query(VerifyCode).filter(
-        VerifyCode.created_at < datetime.utcnow() - timedelta(hours=24)
-    ).delete()
+def delete_codes_older_created_more_than_a_day_ago() -> int:
+    stmt = delete(VerifyCode).where(VerifyCode.created_at < datetime.utcnow() - timedelta(hours=24))
+    rows_deleted = db.session.execute(stmt).rowcount
     db.session.commit()
-    return deleted
+    return rows_deleted
 
 
-def use_user_code(id):
-    verify_code = VerifyCode.query.get(id)
+def use_user_code(verify_code_id):
+    verify_code = db.session.get(VerifyCode, verify_code_id)
     verify_code.code_used = True
     db.session.add(verify_code)
     db.session.commit()
@@ -85,56 +94,68 @@ def delete_model_user(user):
     db.session.commit()
 
 
-def delete_user_verify_codes(user):
-    VerifyCode.query.filter_by(user=user).delete()
+def delete_user_verify_codes(user) -> int:
+    stmt = delete(VerifyCode).where(VerifyCode.user == user)
+    db.session.execute(stmt)
     db.session.commit()
 
 
-def count_user_verify_codes(user):
-    query = VerifyCode.query.filter(
+def count_user_verify_codes(user) -> int:
+    stmt = select(func.count()).select_from(VerifyCode).where(
         VerifyCode.user == user,
         VerifyCode.expiry_datetime > datetime.utcnow(),
         VerifyCode.code_used.is_(False)
     )
-    return query.count()
+
+    return db.session.scalar(stmt)
 
 
 def verify_within_time(user, age=timedelta(seconds=30)):
-    query = VerifyCode.query.filter(
+    stmt = select(func.count()).select_from(VerifyCode).where(
         VerifyCode.user == user,
         VerifyCode.code_used.is_(False),
         VerifyCode.created_at > (datetime.utcnow() - age)
     )
-    return query.count()
+
+    return db.session.scalar(stmt)
 
 
 def get_user_by_id(user_id=None):
-    if user_id:
-        return User.query.filter_by(id=user_id).one()
-    return User.query.filter_by().all()
+    if user_id is None:
+        # Get all users.
+        return db.session.scalars(select(User)).all()
+
+    # Get one user, or raise an exception.
+    stmt = select(User).where(User.id == user_id)
+    return db.session.scalars(stmt).one()
 
 
 def get_user_by_email(email):
-    return User.query.filter(func.lower(User.email_address) == func.lower(email)).one()
+    stmt = select(User).where(func.lower(User.email_address) == email.lower())
+    return db.session.scalars(stmt).one()
 
 
 def get_users_by_partial_email(email):
     email = escape_special_characters(email)
-    return User.query.filter(User.email_address.ilike("%{}%".format(email))).all()
+    stmt = select(User).where(User.email_address.ilike(f"%{email}%"))
+    return db.session.scalars(stmt).all()
 
 
 def get_user_by_identity_provider_user_id(identity_provider_user_id):
-    return User.query.filter(
-        func.lower(User.identity_provider_user_id) == func.lower(identity_provider_user_id)
-    ).one()
+    stmt = select(User).where(
+        func.lower(User.identity_provider_user_id) == identity_provider_user_id.lower()
+    )
+
+    return db.session.scalars(stmt).one()
 
 
 @transactional
 def update_user_identity_provider_user_id(email, identity_provider_user_id):
     email_matches_condition = func.lower(User.email_address) == func.lower(email)
     id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(str(identity_provider_user_id))
+    stmt = select(User).where(or_(email_matches_condition, id_matches_condition))
+    user = db.session.scalars(stmt).one()
 
-    user = User.query.filter(or_(email_matches_condition, id_matches_condition)).one()
     if user.identity_provider_user_id is None:
         current_app.logger.info(
             f'User {user.id} matched by email. Creating account with '
@@ -159,7 +180,7 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
 def create_or_retrieve_user(email_address, identity_provider_user_id, name):
     try:
         return update_user_identity_provider_user_id(email_address, identity_provider_user_id)
-    except sqlalchemy.orm.exc.NoResultFound:
+    except NoResultFound:
         data = {
             'email_address': email_address,
             'identity_provider_user_id': identity_provider_user_id,
@@ -220,16 +241,18 @@ def update_user_password(user, password):
 
 
 def get_user_and_accounts(user_id):
-    return User.query.filter(
-        User.id == user_id
-    ).options(
+    stmt = select(User).options(
         # eagerly load the user's services and organisations, and also the service's org and vice versa
         # (so we can see if the user knows about it)
         joinedload('services'),
         joinedload('organisations'),
         joinedload('organisations.services'),
         joinedload('services.organisation'),
-    ).one()
+    ).where(
+        User.id == user_id
+    )
+
+    return db.session.scalars(stmt).unique().one()
 
 
 @transactional

@@ -1,33 +1,29 @@
-from sqlalchemy import desc
-
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import ServiceLetterContact, Template
+from sqlalchemy import desc, select, update
 
 
 def dao_get_letter_contacts_by_service_id(service_id):
-    letter_contacts = db.session.query(
-        ServiceLetterContact
-    ).filter(
+    stmt = select(ServiceLetterContact).where(
         ServiceLetterContact.service_id == service_id,
-        ServiceLetterContact.archived == False  # noqa
+        ServiceLetterContact.archived.is_(False)
     ).order_by(
         desc(ServiceLetterContact.is_default),
         desc(ServiceLetterContact.created_at)
-    ).all()
+    )
 
-    return letter_contacts
+    return db.session.scalars(stmt).all()
 
 
 def dao_get_letter_contact_by_id(service_id, letter_contact_id):
-    letter_contact = db.session.query(
-        ServiceLetterContact
-    ).filter(
+    stmt = select(ServiceLetterContact).where(
         ServiceLetterContact.service_id == service_id,
         ServiceLetterContact.id == letter_contact_id,
-        ServiceLetterContact.archived == False  # noqa
-    ).one()
-    return letter_contact
+        ServiceLetterContact.archived.is_(False)
+    )
+
+    return db.session.scalars(stmt).one()
 
 
 @transactional
@@ -52,7 +48,7 @@ def update_letter_contact(service_id, letter_contact_id, contact_block, is_defau
     if is_default:
         _reset_old_default_to_false(old_default)
 
-    letter_contact_update = ServiceLetterContact.query.get(letter_contact_id)
+    letter_contact_update = db.session.get(ServiceLetterContact, letter_contact_id)
     letter_contact_update.contact_block = contact_block
     letter_contact_update.is_default = is_default
     db.session.add(letter_contact_update)
@@ -61,19 +57,17 @@ def update_letter_contact(service_id, letter_contact_id, contact_block, is_defau
 
 @transactional
 def archive_letter_contact(service_id, letter_contact_id):
-    letter_contact_to_archive = ServiceLetterContact.query.filter_by(
-        id=letter_contact_id,
-        service_id=service_id
-    ).one()
+    db.session.execute(update(Template).where(
+        Template.service_letter_contact_id == letter_contact_id
+    ).values(service_letter_contact_id=None))
 
-    Template.query.filter_by(
-        service_letter_contact_id=letter_contact_id
-    ).update({
-        'service_letter_contact_id': None
-    })
+    stmt = select(ServiceLetterContact).where(
+        ServiceLetterContact.id == letter_contact_id,
+        ServiceLetterContact.service_id == service_id
+    )
 
+    letter_contact_to_archive = db.session.scalars(stmt).one()
     letter_contact_to_archive.archived = True
-
     db.session.add(letter_contact_to_archive)
     return letter_contact_to_archive
 

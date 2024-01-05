@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from app import db
@@ -8,9 +9,8 @@ from app.models import DailySortedLetter
 
 
 def dao_get_daily_sorted_letter_by_billing_day(billing_day):
-    return DailySortedLetter.query.filter_by(
-        billing_day=billing_day
-    ).first()
+    stmt = select(DailySortedLetter).where(DailySortedLetter.billing_day == billing_day)
+    return db.session.scalar(stmt)
 
 
 @transactional

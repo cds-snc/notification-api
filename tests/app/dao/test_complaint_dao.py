@@ -129,12 +129,12 @@ def test_fetch_complaint_by_id(sample_email_notification):
         created_at=datetime(2018, 1, 1)
     )
 
-    complaints_from_db = fetch_complaint_by_id(complaint.id)
+    complaints_from_db = fetch_complaint_by_id(complaint.id).all()
 
     assert complaints_from_db[0].id == complaint.id
 
 
 def test_fetch_complaint_by_id_does_not_return_anything(sample_email_notification):
-    complaints_from_db = fetch_complaint_by_id(uuid.uuid4())
+    complaints_from_db = fetch_complaint_by_id(uuid.uuid4()).all()
 
-    assert complaints_from_db.count() == 0
+    assert len(complaints_from_db) == 0

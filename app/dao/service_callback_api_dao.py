@@ -1,10 +1,13 @@
-from datetime import datetime
-
 from app import db, create_uuid
 from app.dao.dao_utils import transactional, version_class
-from app.models import ServiceCallback
-
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE
+from app.models import (
+    COMPLAINT_CALLBACK_TYPE,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    INBOUND_SMS_CALLBACK_TYPE,
+    ServiceCallback,
+)
+from datetime import datetime
+from sqlalchemy import select
 
 
 @transactional
@@ -36,40 +39,51 @@ def store_service_callback_api(service_callback_api):
 
 
 def get_service_callbacks(service_id):
-    return ServiceCallback.query.filter_by(service_id=service_id).all()
+    stmt = select(ServiceCallback).where(ServiceCallback.service_id == service_id)
+    return db.session.scalars(stmt).all()
 
 
 ###
 # Not to be used in rest controllers where we need to operate within a service user has permissions for
 ###
 def get_service_callback(service_callback_id):
-    return ServiceCallback.query.get(service_callback_id)
+    return db.session.get(ServiceCallback, service_callback_id)
 
 
 def query_service_callback(service_id, service_callback_id):
-    return ServiceCallback.query.filter_by(service_id=service_id, id=service_callback_id).one()
+    stmt = select(ServiceCallback).where(
+        ServiceCallback.service_id == service_id,
+        ServiceCallback.id == service_callback_id
+    )
+    return db.session.scalars(stmt).one()
 
 
 def get_service_delivery_status_callback_api_for_service(service_id, notification_status):
-    return db.session.query(ServiceCallback).filter(
+    stmt = select(ServiceCallback).where(
         ServiceCallback.notification_statuses.contains([notification_status]),
         ServiceCallback.service_id == service_id,
         ServiceCallback.callback_type == DELIVERY_STATUS_CALLBACK_TYPE
-    ).first()
+    )
+
+    return db.session.scalars(stmt).first()
 
 
 def get_service_complaint_callback_api_for_service(service_id):
-    return ServiceCallback.query.filter_by(
-        service_id=service_id,
-        callback_type=COMPLAINT_CALLBACK_TYPE
-    ).first()
+    stmt = select(ServiceCallback).where(
+        ServiceCallback.service_id == service_id,
+        ServiceCallback.callback_type == COMPLAINT_CALLBACK_TYPE
+    )
+
+    return db.session.scalars(stmt).first()
 
 
 def get_service_inbound_sms_callback_api_for_service(service_id):
-    return ServiceCallback.query.filter_by(
-        service_id=service_id,
-        callback_type=INBOUND_SMS_CALLBACK_TYPE
-    ).first()
+    stmt = select(ServiceCallback).where(
+        ServiceCallback.service_id == service_id,
+        ServiceCallback.callback_type == INBOUND_SMS_CALLBACK_TYPE
+    )
+
+    return db.session.scalars(stmt).first()
 
 
 @transactional

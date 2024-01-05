@@ -6,10 +6,10 @@ from datetime import (
 import pytz
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import notify_celery, performance_platform_client, zendesk_client
+from app import db, notify_celery, performance_platform_client, zendesk_client
 from app.aws import s3
 from app.celery.service_callback_tasks import (
     send_delivery_status_to_service,
@@ -270,12 +270,18 @@ def raise_alert_if_letter_notifications_still_sending():
         offset_days = 4
     else:
         offset_days = 2
-    still_sending = Notification.query.filter(
-        Notification.notification_type == LETTER_TYPE,
-        Notification.status == NOTIFICATION_SENDING,
-        Notification.key_type == KEY_TYPE_NORMAL,
-        func.date(Notification.sent_at) <= today - timedelta(days=offset_days)
-    ).count()
+
+    stmt = (
+        select([func.count()])
+        .select_from(Notification)
+        .where(
+            Notification.notification_type == LETTER_TYPE,
+            Notification.status == NOTIFICATION_SENDING,
+            Notification.key_type == KEY_TYPE_NORMAL,
+            func.date(Notification.sent_at) <= today - timedelta(days=offset_days)
+        )
+    )
+    still_sending = db.session.scalar(stmt)
 
     if still_sending:
         message = "There are {} letters in the 'sending' state from {}".format(

@@ -6,11 +6,11 @@ from datetime import (
 import boto3
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery, zendesk_client
+from app import db, notify_celery, zendesk_client
 from app.celery.tasks import process_job
 from app.config import QueueNames, TaskNames
 from app.dao.invited_org_user_dao import delete_org_invitations_created_more_than_two_days_ago
@@ -116,10 +116,15 @@ def check_job_status():
     thirty_minutes_ago = datetime.utcnow() - timedelta(minutes=30)
     thirty_five_minutes_ago = datetime.utcnow() - timedelta(minutes=35)
 
-    jobs_not_complete_after_30_minutes = Job.query.filter(
-        Job.job_status == JOB_STATUS_IN_PROGRESS,
-        and_(thirty_five_minutes_ago < Job.processing_started, Job.processing_started < thirty_minutes_ago)
-    ).order_by(Job.processing_started).all()
+    stmt = (
+        select(Job)
+        .where(
+            Job.job_status == JOB_STATUS_IN_PROGRESS,
+            and_(thirty_five_minutes_ago < Job.processing_started, Job.processing_started < thirty_minutes_ago)
+        )
+        .order_by(Job.processing_started)
+    )
+    jobs_not_complete_after_30_minutes = db.session.scalars(stmt).all()
 
     # temporarily mark them as ERROR so that they don't get picked up by future check_job_status tasks
     # if they haven't been re-processed in time.

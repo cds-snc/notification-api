@@ -103,7 +103,7 @@ def test_update_fact_notification_status(notify_db_session):
     assert new_fact_data[2].notification_count == 1
 
 
-def test__update_fact_notification_status_updates_row(notify_db_session):
+def test_update_fact_notification_status_updates_row(notify_db_session):
     first_service = create_service(service_name='First Service')
     first_template = create_template(service=first_service)
     create_notification(template=first_template, status='delivered')

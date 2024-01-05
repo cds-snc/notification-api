@@ -1,17 +1,12 @@
-from datetime import datetime, timedelta
-import uuid
-
-from freezegun import freeze_time
-from sqlalchemy.exc import DataError, IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
 import pytest
-
-from app import db
+import uuid
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
+    create_user_code,
     save_model_user,
     save_user_attribute,
     get_user_by_id,
+    get_user_code,
     delete_model_user,
     increment_failed_login_count,
     reset_failed_login_count,
@@ -22,15 +17,20 @@ from app.dao.users_dao import (
     create_secret_code,
     user_can_be_archived,
     dao_archive_user,
-    verify_within_time, get_user_by_identity_provider_user_id, update_user_identity_provider_user_id,
+    verify_within_time,
+    get_user_by_identity_provider_user_id,
+    update_user_identity_provider_user_id,
     create_or_retrieve_user,
-    retrieve_match_or_create_user
+    retrieve_match_or_create_user,
 )
 from app.errors import InvalidRequest
-from app.models import VerifyCode
 from app.model import User, EMAIL_AUTH_TYPE
+from app.models import SMS_TYPE, VerifyCode
 from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
-
+from datetime import datetime, timedelta
+from freezegun import freeze_time
+from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 from tests.app.db import create_permissions, create_service, create_template_folder, create_user
 
 
@@ -42,6 +42,28 @@ def test_email():
 @pytest.fixture
 def test_name():
     return 'Test User'
+
+
+def test_get_user_code(notify_db_session, sample_user):
+    verify_code = make_verify_code(
+        notify_db_session,
+        sample_user,
+        age=timedelta(hours=23, minutes=59, seconds=59),
+        code="test"
+    )
+
+    verify_code_from_dao = get_user_code(sample_user, "test", SMS_TYPE)
+    assert verify_code.id == verify_code_from_dao.id
+
+
+def test_create_user_code(notify_db_session, sample_user):
+    verify_code = create_user_code(sample_user, "test", SMS_TYPE)
+    assert verify_code.user_id == sample_user.id
+    assert verify_code.check_code("test")
+    assert verify_code.code_type == SMS_TYPE
+    assert isinstance(verify_code.expiry_datetime, datetime)
+    assert not verify_code.code_used
+    assert isinstance(verify_code.created_at, datetime)
 
 
 @pytest.mark.parametrize('phone_number', [
@@ -170,43 +192,46 @@ def test_get_user_by_email_is_case_insensitive(sample_user):
     assert sample_user == user_from_db
 
 
-def test_should_delete_all_verification_codes_more_than_one_day_old(sample_user):
-    make_verify_code(sample_user, age=timedelta(hours=24), code="54321")
-    make_verify_code(sample_user, age=timedelta(hours=24), code="54321")
+def test_should_delete_all_verification_codes_more_than_one_day_old(notify_db_session, sample_user):
+    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code="54321")
+    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code="54321")
     assert VerifyCode.query.count() == 2
     delete_codes_older_created_more_than_a_day_ago()
     assert VerifyCode.query.count() == 0
 
 
-def test_should_not_delete_verification_codes_less_than_one_day_old(sample_user):
-    make_verify_code(sample_user, age=timedelta(hours=23, minutes=59, seconds=59), code="12345")
-    make_verify_code(sample_user, age=timedelta(hours=24), code="54321")
+def test_should_not_delete_verification_codes_less_than_one_day_old(notify_db_session, sample_user):
+    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=23, minutes=59, seconds=59), code="12345")
+    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code="54321")
 
     assert VerifyCode.query.count() == 2
     delete_codes_older_created_more_than_a_day_ago()
-    assert VerifyCode.query.one()._code == "12345"
+    assert VerifyCode.query.one().check_code("12345")
 
 
-def test_will_find_verify_codes_sent_within_seconds(notify_api, notify_db, notify_db_session, sample_user):
-    make_verify_code(sample_user)
-    make_verify_code(sample_user, timedelta(seconds=10))
-    make_verify_code(sample_user, timedelta(seconds=32))
-    make_verify_code(sample_user, timedelta(hours=1))
+def test_will_find_verify_codes_sent_within_seconds(notify_db_session, sample_user):
+    make_verify_code(notify_db_session, sample_user)
+    make_verify_code(notify_db_session, sample_user, timedelta(seconds=10))
+    make_verify_code(notify_db_session, sample_user, timedelta(seconds=32))
+    make_verify_code(notify_db_session, sample_user, timedelta(hours=1))
     count = verify_within_time(sample_user)
     assert count == 2
 
 
-def make_verify_code(user, age=timedelta(hours=0), expiry_age=timedelta(0), code="12335", code_used=False):
+def make_verify_code(
+    notify_db_session, user, age=timedelta(hours=0), expiry_age=timedelta(0), code="12335", code_used=False
+):
     verify_code = VerifyCode(
-        code_type='sms',
-        _code=code,
+        code_type=SMS_TYPE,
+        code=code,
         created_at=datetime.utcnow() - age,
         expiry_datetime=datetime.utcnow() - expiry_age,
         user=user,
         code_used=code_used
     )
-    db.session.add(verify_code)
-    db.session.commit()
+    notify_db_session.session.add(verify_code)
+    notify_db_session.session.commit()
+    return verify_code
 
 
 @pytest.mark.parametrize('user_attribute, user_value', [
@@ -223,7 +248,7 @@ def test_update_user_attribute(client, sample_user, user_attribute, user_value):
     assert getattr(sample_user, user_attribute) == user_value
 
 
-def test_update_user_attribute_blocked():
+def test_update_user_attribute_blocked(notify_api):
     user = create_user(email='allowed@test.com', mobile_number="+4407700900460")
     assert user.current_session_id is None
     save_user_attribute(user, {"blocked": True, "mobile_number": "+2407700900460"})
@@ -238,11 +263,11 @@ def test_update_user_password(notify_api, notify_db, notify_db_session, sample_u
     assert sample_user.check_password(password)
 
 
-def test_count_user_verify_codes(sample_user):
+def test_count_user_verify_codes(notify_db_session, sample_user):
     with freeze_time(datetime.utcnow() + timedelta(hours=1)):
-        make_verify_code(sample_user, code_used=True)
-        make_verify_code(sample_user, expiry_age=timedelta(hours=2))
-        [make_verify_code(sample_user) for i in range(5)]
+        make_verify_code(notify_db_session, sample_user, code_used=True)
+        make_verify_code(notify_db_session, sample_user, expiry_age=timedelta(hours=2))
+        [make_verify_code(notify_db_session, sample_user) for i in range(5)]
 
     assert count_user_verify_codes(sample_user) == 5
 

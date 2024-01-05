@@ -96,7 +96,8 @@ def get_reader_session():
 
     Example Usage:
         with get_reader_session() as session:
-            result = session.query(Service).filter_by(id=service_id).one()
+            query = select(Service).where(Service.id == service_id)
+            result = session.scalars(query).one()
     """
     engine = db.engines['read-db']
     session = scoped_session(sessionmaker(bind=engine))

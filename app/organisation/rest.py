@@ -1,6 +1,8 @@
 from flask import abort, Blueprint, jsonify, request, current_app
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from app import db
 from app.config import QueueNames
 from app.dao.organisation_dao import (
     dao_create_organisation,
@@ -141,7 +143,8 @@ def get_organisation_users(organisation_id):
 def is_organisation_name_unique():
     organisation_id, name = check_request_args(request)
 
-    name_exists = Organisation.query.filter(Organisation.name.ilike(name)).first()
+    stmt = select(Organisation).where(Organisation.name.ilike(name))
+    name_exists = db.session.scalar(stmt)
 
     result = (not name_exists) or str(name_exists.id) == organisation_id
     return jsonify(result=result), 200

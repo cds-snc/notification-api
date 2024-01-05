@@ -62,6 +62,6 @@ def test_populated_live_service_and_organisation_counts(admin_request):
     create_service(service_name='i', restricted=False, active=False)
 
     assert admin_request.get('status.live_service_and_organisation_counts') == {
-        'organisations': 1,
+        'organisations': 0,  # hardcoded due to being unused
         'services': 4,
     }

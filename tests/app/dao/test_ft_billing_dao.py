@@ -603,7 +603,7 @@ def test_fetch_sms_free_allowance_remainder_with_two_services(notify_db_session)
         service=service_2, template=template_2, utc_date=datetime(2016, 5, 20), notification_type=SMS_TYPE,
         billable_unit=3, rate=0.11
     )
-    results = fetch_sms_free_allowance_remainder(datetime(2016, 5, 1)).all()
+    results = db.session.execute(fetch_sms_free_allowance_remainder(datetime(2016, 5, 1))).all()
     assert len(results) == 2
     service_result = [row for row in results if row[0] == service.id]
     assert service_result[0] == (service.id, 10, 2, 8)
