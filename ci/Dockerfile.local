@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN adduser -h /app -D vanotify
 WORKDIR /app
 
-COPY --chown=vanotify requirements-app.txt .
+COPY --chown=vanotify requirements.txt .
 
 RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev \
   && apk add --no-cache --virtual .build-deps musl-dev rust cargo git \
@@ -20,9 +20,9 @@ RUN apk add --no-cache bash build-base postgresql-dev libffi-dev libmagic libcur
   && pip install "Cython<3.0" \
   && pip install "pyyaml==6.0.0" --no-build-isolation \
   && pip install --upgrade setuptools==65.5.1 \
-  && pip install --no-cache-dir -r requirements-app.txt \
+  && pip install --no-cache-dir -r requirements.txt \
   # Remove build dependencies.
-  && rm requirements-app.txt \
+  && rm requirements.txt \
   && apk del --no-cache .build-deps
 
 # Bind the projects's root directory to the image.  See also docker-compose-local.yml.
