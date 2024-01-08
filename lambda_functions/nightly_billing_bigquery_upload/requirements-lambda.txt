@@ -1,2 +1,0 @@
-# https://github.com/googleapis/python-bigquery/blob/main/CHANGELOG.md
-google-cloud-bigquery==3.10.0

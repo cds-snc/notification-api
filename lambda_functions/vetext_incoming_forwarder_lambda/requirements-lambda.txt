@@ -1,2 +1,0 @@
-requests ~= 2.28.2
-twilio ~= 8.8.0

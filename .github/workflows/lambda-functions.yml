@@ -91,16 +91,7 @@ jobs:
       - name: Package and deploy VA Profile opt-in/out lambda function
         if: ${{ (inputs.lambdaName == 'ProfileOptInOut') || (inputs.lambdaName == 'All') }}
         run: |
-          cd va_profile/
-          python3 -m venv venv_va_profile_opt_in_out
-          source venv_va_profile_opt_in_out/bin/activate
-          pip install PyJWT~=2.6.0
-          pip install cryptography~=37.0.4
-          deactivate
-          cd venv_va_profile_opt_in_out/lib/python3.8/site-packages
-          zip -r9 ../../../../va_profile_opt_in_out_lambda.zip .
-          cd ../../../../
-          zip -ugj va_profile_opt_in_out_lambda va_profile_opt_in_out_lambda.py
+          zip -j va_profile_opt_in_out_lambda va_profile/va_profile_opt_in_out_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
         # This function uses lambda layers for dependencies.
@@ -131,7 +122,7 @@ jobs:
           zip -j vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda/vetext_incoming_forwarder_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
 
-        # This function does not have any dependencies.
+        # This function uses lambda layers for dependencies.
       - name: Package and deploy delivery status processing lambda
         if: ${{ (inputs.lambdaName == 'DeliveryStatusProcessor') || (inputs.lambdaName == 'All') }}
         run: |
