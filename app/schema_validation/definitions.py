@@ -4,74 +4,54 @@ If the definition is specific to a version put it in a definition file in the ve
 """
 
 uuid = {
-    "type": "string",
-    "format": "validate_uuid",
-    "validationMessage": "is not a valid UUID",
-    "code": "1001",  # yet to be implemented
-    "link": "link to our error documentation not yet implemented"
+    'type': 'string',
+    'format': 'validate_uuid',
+    'validationMessage': 'is not a valid UUID',
+    'code': '1001',  # yet to be implemented
+    'link': 'link to our error documentation not yet implemented',
 }
 
 nullable_uuid = {
-    "type": ["string", "null"],
-    "format": "validate_uuid",
-    "validationMessage": "is not a valid UUID",
-    "code": "1001",  # yet to be implemented
-    "link": "link to our error documentation not yet implemented"
+    'type': ['string', 'null'],
+    'format': 'validate_uuid',
+    'validationMessage': 'is not a valid UUID',
+    'code': '1001',  # yet to be implemented
+    'link': 'link to our error documentation not yet implemented',
 }
 
 personalisation = {
-    "type": "object",
-    "patternProperties": {
-        "^.*$": {
-            "type:": "object",
-            "properties": {
-                "file": {
-                    "type": "string",
-                    "binaryEncoding": "base64",
+    'type': 'object',
+    'patternProperties': {
+        '^.*$': {
+            'type:': 'object',
+            'properties': {
+                'file': {
+                    'type': 'string',
+                    'binaryEncoding': 'base64',
                 },
-                "filename": {
-                    "minLength": 3,
-                    "maxLength": 255
-                },
-                "sending_method": {
-                    "type": "string",
-                    "enum": ["attach", "link"]
-                }
+                'filename': {'minLength': 3, 'maxLength': 255},
+                'sending_method': {'type': 'string', 'enum': ['attach', 'link']},
             },
-            "required": [
-                "file", "filename"
-            ]
+            'required': ['file', 'filename'],
         }
-    }
+    },
 }
 
 letter_personalisation = dict(
     personalisation,
     properties={
-        "address_line_1": {
-            "type": "string",
-            "minLength": 1,
-            "validationMessage": "address_line_1 is required"
-        },
-        "address_line_2": {
-            "type": "string",
-            "minLength": 1,
-            "validationMessage": "address_line_2 is required"
-        },
-        "postcode": {
-            "type": "string",
-            "minLength": 1,
-            "validationMessage": "postcode is required"
-        },
+        'address_line_1': {'type': 'string', 'minLength': 1, 'validationMessage': 'address_line_1 is required'},
+        'address_line_2': {'type': 'string', 'minLength': 1, 'validationMessage': 'address_line_2 is required'},
+        'postcode': {'type': 'string', 'minLength': 1, 'validationMessage': 'postcode is required'},
     },
-    required=["address_line_1", "address_line_2", "postcode"],
+    required=['address_line_1', 'address_line_2', 'postcode'],
 )
 
 https_url = {
-    "type": "string",
-    "format": "uri",
-    "pattern": "^https.*",
-    "validationMessage": "is not a valid https url",
-    "code": "1001",  # yet to be implemented
-    "link": "link to our error documentation not yet implemented"
+    'type': 'string',
+    'format': 'uri',
+    'pattern': '^https.*',
+    'validationMessage': 'is not a valid https url',
+    'code': '1001',  # yet to be implemented
+    'link': 'link to our error documentation not yet implemented',
 }

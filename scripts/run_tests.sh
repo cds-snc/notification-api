@@ -20,7 +20,7 @@ function display_result {
   fi
 }
 
-flake8 .
+ruff check .
 display_result $? 1 "Code style check"
 
 # Run tests with four concurrent threads.  Also see the configuration in ../pytest.ini and ../setup.cfg.

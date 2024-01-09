@@ -25,16 +25,10 @@ ses_configuration_sets = {
     'development': 'dev-configuration-set',
     'staging': 'staging-configuration-set',
     'production': 'prod-configuration-set',
-    'performance': 'perf-configuration-set'
+    'performance': 'perf-configuration-set',
 }
 
-env_name_map = {
-    'development': 'dev',
-    'test': 'test',
-    'staging': 'staging',
-    'production': 'prod',
-    'performance': 'perf'
-}
+env_name_map = {'development': 'dev', 'test': 'test', 'staging': 'staging', 'production': 'prod', 'performance': 'perf'}
 
 
 class QueueNames(object):
@@ -83,7 +77,7 @@ class QueueNames(object):
             QueueNames.DELIVERY_RECEIPTS,
             QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
             QueueNames.SEND_ONSITE_NOTIFICATION,
-            QueueNames.DELIVERY_STATUS_RESULT_TASKS
+            QueueNames.DELIVERY_STATUS_RESULT_TASKS,
         ]
 
 
@@ -109,16 +103,16 @@ class Config(object):
 
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
-    SQLALCHEMY_BINDS = {"read-db": os.getenv('SQLALCHEMY_DATABASE_URI_READ')}
+    SQLALCHEMY_BINDS = {'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ')}
 
     # MMG API Key
     MMG_API_KEY = os.getenv('MMG_API_KEY')
 
     # Firetext API Key
-    FIRETEXT_API_KEY = os.getenv("FIRETEXT_API_KEY")
+    FIRETEXT_API_KEY = os.getenv('FIRETEXT_API_KEY')
 
     # Firetext simluation key
-    LOADTESTING_API_KEY = os.getenv("LOADTESTING_API_KEY")
+    LOADTESTING_API_KEY = os.getenv('LOADTESTING_API_KEY')
 
     # Hosted graphite statsd prefix
     STATSD_PREFIX = os.getenv('STATSD_PREFIX')
@@ -154,18 +148,18 @@ class Config(object):
     CRONITOR_KEYS = json.loads(os.getenv('CRONITOR_KEYS', '{}'))
 
     # PII check
-    SCAN_FOR_PII = os.getenv("SCAN_FOR_PII", False)
+    SCAN_FOR_PII = os.getenv('SCAN_FOR_PII', False)
 
     ###########################
     # Default config values ###
     ###########################
 
-    NOTIFY_ENVIRONMENT = os.getenv("NOTIFY_ENVIRONMENT", "development")
-    ADMIN_CLIENT_USER_NAME = os.getenv("ADMIN_CLIENT_USER_NAME", "test")
-    AWS_REGION = os.getenv("AWS_REGION", "us-gov-west-1")
-    AWS_ROUTE53_ZONE = os.getenv("AWS_ROUTE53_ZONE", "Z2OW036USASMAK")
-    AWS_SES_REGION = os.getenv("AWS_SES_REGION", AWS_REGION)
-    AWS_SES_SMTP = os.getenv("AWS_SES_SMTP", "email-smtp.us-east-1.amazonaws.com")
+    NOTIFY_ENVIRONMENT = os.getenv('NOTIFY_ENVIRONMENT', 'development')
+    ADMIN_CLIENT_USER_NAME = os.getenv('ADMIN_CLIENT_USER_NAME', 'test')
+    AWS_REGION = os.getenv('AWS_REGION', 'us-gov-west-1')
+    AWS_ROUTE53_ZONE = os.getenv('AWS_ROUTE53_ZONE', 'Z2OW036USASMAK')
+    AWS_SES_REGION = os.getenv('AWS_SES_REGION', AWS_REGION)
+    AWS_SES_SMTP = os.getenv('AWS_SES_SMTP', 'email-smtp.us-east-1.amazonaws.com')
     AWS_SES_ACCESS_KEY = os.getenv('AWS_SES_ACCESS_KEY')
     AWS_SES_SECRET_KEY = os.getenv('AWS_SES_SECRET_KEY')
     AWS_SES_EMAIL_FROM_DOMAIN = os.getenv('AWS_SES_EMAIL_FROM_DOMAIN', 'notifications.va.gov')
@@ -176,13 +170,15 @@ class Config(object):
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'https://s3-fips.us-gov-west-1.amazonaws.com')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID', 'df55c01206b742d2946ef226410af94f')
     AWS_SQS_URL = os.getenv('AWS_SQS_URL', '')
-    DAILY_STATS_BUCKET_NAME = os.getenv('DAILY_STATS_BUCKET_NAME',
-                                        f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-va-gov-daily-stats')
-    CSV_UPLOAD_BUCKET_NAME = os.getenv('CSV_UPLOAD_BUCKET_NAME',
-                                       f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-csv-upload')
+    DAILY_STATS_BUCKET_NAME = os.getenv(
+        'DAILY_STATS_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-va-gov-daily-stats'
+    )
+    CSV_UPLOAD_BUCKET_NAME = os.getenv(
+        'CSV_UPLOAD_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-csv-upload'
+    )
     DAILY_BILLING_STATS_BUCKET_NAME = os.getenv(
-        'DAILY_BILLING_STATS_BUCKET_NAME',
-        f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-daily-billing-stats')
+        'DAILY_BILLING_STATS_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-daily-billing-stats'
+    )
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'dev-notifications-va-gov-assets')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2
@@ -199,12 +195,10 @@ class Config(object):
     ONE_OFF_MESSAGE_FILENAME = 'Report'
     MAX_VERIFY_CODE_COUNT = 10
     EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL = os.getenv(
-        'EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL',
-        HighestPriorityStrategy.get_label()
+        'EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL', HighestPriorityStrategy.get_label()
     )
     SMS_PROVIDER_SELECTION_STRATEGY_LABEL = os.getenv(
-        'SMS_PROVIDER_SELECTION_STRATEGY_LABEL',
-        HighestPriorityStrategy.get_label()
+        'SMS_PROVIDER_SELECTION_STRATEGY_LABEL', HighestPriorityStrategy.get_label()
     )
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
@@ -238,17 +232,17 @@ class Config(object):
     EMAIL_COMPLAINT_TEMPLATE_ID = '064e85da-c238-47a3-b9a7-21493ea23dd3'
 
     CELERY_SETTINGS = {
-        'broker_url': os.getenv("BROKER_URL", 'sqs://sqs.us-gov-west-1.amazonaws.com'),
+        'broker_url': os.getenv('BROKER_URL', 'sqs://sqs.us-gov-west-1.amazonaws.com'),
         'broker_transport_options': {
             'region': AWS_REGION,
             'polling_interval': 1,  # 1 second
             'visibility_timeout': 310,
             'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX,
-            'is_secure': os.getenv("BROKER_SSL_ENABLED", 'True') == 'True',
+            'is_secure': os.getenv('BROKER_SSL_ENABLED', 'True') == 'True',
         },
         'worker_enable_remote_control': False,
         'enable_utc': True,
-        'timezone': os.getenv("TIMEZONE", "America/New_York"),
+        'timezone': os.getenv('TIMEZONE', 'America/New_York'),
         'accept_content': ['json', 'pickle'],
         'task_serializer': 'json',
         'imports': (
@@ -266,73 +260,73 @@ class Config(object):
             'run-scheduled-jobs': {
                 'task': 'run-scheduled-jobs',
                 'schedule': crontab(minute=1),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'delete-verify-codes': {
                 'task': 'delete-verify-codes',
                 'schedule': timedelta(minutes=63),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'delete-invitations': {
                 'task': 'delete-invitations',
                 'schedule': timedelta(minutes=66),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'check-job-status': {
                 'task': 'check-job-status',
                 'schedule': crontab(),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'replay-created-notifications': {
                 'task': 'replay-created-notifications',
                 'schedule': crontab(minute='0, 15, 30, 45'),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             # app/celery/nightly_tasks.py
             'timeout-sending-notifications': {
                 'task': 'timeout-sending-notifications',
                 'schedule': crontab(hour=0, minute=5),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'create-nightly-billing': {
                 'task': 'create-nightly-billing',
                 'schedule': crontab(hour=0, minute=15),
-                'options': {'queue': QueueNames.REPORTING}
+                'options': {'queue': QueueNames.REPORTING},
             },
             'create-nightly-notification-status': {
                 'task': 'create-nightly-notification-status',
                 'schedule': crontab(hour=0, minute=30),
-                'options': {'queue': QueueNames.REPORTING}
+                'options': {'queue': QueueNames.REPORTING},
             },
             'delete-sms-notifications': {
                 'task': 'delete-sms-notifications',
                 'schedule': crontab(hour=4, minute=15),  # after 'create-nightly-notification-status'
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'delete-email-notifications': {
                 'task': 'delete-email-notifications',
                 'schedule': crontab(hour=4, minute=30),  # after 'create-nightly-notification-status'
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'delete-letter-notifications': {
                 'task': 'delete-letter-notifications',
                 'schedule': crontab(hour=4, minute=45),  # after 'create-nightly-notification-status'
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'delete-inbound-sms': {
                 'task': 'delete-inbound-sms',
                 'schedule': crontab(hour=1, minute=40),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'send-daily-performance-platform-stats': {
                 'task': 'send-daily-performance-platform-stats',
                 'schedule': crontab(hour=2, minute=0),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'remove_transformed_dvla_files': {
                 'task': 'remove_transformed_dvla_files',
                 'schedule': crontab(hour=3, minute=40),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
             'remove_sms_email_jobs': {
                 'task': 'remove_sms_email_jobs',
@@ -343,14 +337,14 @@ class Config(object):
                 'task': 'send-scheduled-comp-and-pen-sms',
                 # At every minute past every hour from 13 through 21 on every day-of-month from 21 through 31
                 'schedule': crontab(hour='13-21', day_of_month='21-31'),
-                'options': {'queue': QueueNames.PERIODIC}
+                'options': {'queue': QueueNames.PERIODIC},
             },
         },
-        "task_queues": [Queue(queue, Exchange("default"), routing_key=queue) for queue in QueueNames.all_queues()],
-        "task_routes": {
-            "app.celery.v3.notification_tasks.v3_process_notification": {"queue": QueueNames.NOTIFY},
-            "app.celery.v3.notification_tasks.v3_send_email_notification": {"queue": QueueNames.SEND_EMAIL},
-            "app.celery.v3.notification_tasks.v3_send_sms_notification": {"queue": QueueNames.SEND_SMS},
+        'task_queues': [Queue(queue, Exchange('default'), routing_key=queue) for queue in QueueNames.all_queues()],
+        'task_routes': {
+            'app.celery.v3.notification_tasks.v3_process_notification': {'queue': QueueNames.NOTIFY},
+            'app.celery.v3.notification_tasks.v3_send_email_notification': {'queue': QueueNames.SEND_EMAIL},
+            'app.celery.v3.notification_tasks.v3_send_sms_notification': {'queue': QueueNames.SEND_SMS},
         },
     }
 
@@ -374,7 +368,7 @@ class Config(object):
 
     DVLA_BUCKETS = {
         'job': '{}-dvla-file-per-job'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development')),
-        'notification': '{}-dvla-letter-api-files'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development'))
+        'notification': '{}-dvla-letter-api-files'.format(os.getenv('NOTIFY_ENVIRONMENT', 'development')),
     }
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
@@ -400,9 +394,9 @@ class Config(object):
     VETEXT_USERNAME = os.environ.get('VETEXT_USERNAME', '')
     VETEXT_PASSWORD = os.environ.get('VETEXT_PASSWORD', '')
 
-    NOTIFY_EMAIL_FROM_DOMAIN = os.getenv("NOTIFY_EMAIL_FROM_DOMAIN", "messages.va.gov")
-    NOTIFY_EMAIL_FROM_USER = os.getenv("NOTIFY_EMAIL_FROM_USER", "notifications")
-    NOTIFY_EMAIL_FROM_NAME = os.getenv("NOTIFY_EMAIL_FROM_NAME", "U.S. Department of Veterans Affairs")
+    NOTIFY_EMAIL_FROM_DOMAIN = os.getenv('NOTIFY_EMAIL_FROM_DOMAIN', 'messages.va.gov')
+    NOTIFY_EMAIL_FROM_USER = os.getenv('NOTIFY_EMAIL_FROM_USER', 'notifications')
+    NOTIFY_EMAIL_FROM_NAME = os.getenv('NOTIFY_EMAIL_FROM_NAME', 'U.S. Department of Veterans Affairs')
 
     ROUTE_SECRET_KEY_1 = os.getenv('ROUTE_SECRET_KEY_1', '')
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
@@ -422,8 +416,8 @@ class Config(object):
     DOCUMENT_DOWNLOAD_API_HOST = os.getenv('DOCUMENT_DOWNLOAD_API_HOST', 'http://localhost:7000')
     DOCUMENT_DOWNLOAD_API_KEY = os.getenv('DOCUMENT_DOWNLOAD_API_KEY', 'auth-token')
 
-    MMG_URL = os.getenv("MMG_URL", "https://api.mmg.co.uk/json/api.php")
-    FIRETEXT_URL = os.getenv("FIRETEXT_URL", "https://www.firetext.co.uk/api/sendsms/json")
+    MMG_URL = os.getenv('MMG_URL', 'https://api.mmg.co.uk/json/api.php')
+    FIRETEXT_URL = os.getenv('FIRETEXT_URL', 'https://www.firetext.co.uk/api/sendsms/json')
 
     VANOTIFY_SSL_CERT_PATH = os.getenv('VANOTIFY_SSL_CERT_PATH', './certs/vanotify_ssl.cert')
     VANOTIFY_SSL_KEY_PATH = os.getenv('VANOTIFY_SSL_KEY_PATH', './certs/vanotify_ssl.key')
@@ -432,7 +426,8 @@ class Config(object):
 
     FIDO2_SERVER = Fido2Server(
         PublicKeyCredentialRpEntity(os.getenv('FIDO2_DOMAIN', 'localhost'), 'Notification'),
-        verify_origin=lambda x: True)
+        verify_origin=lambda x: True,
+    )
 
     # OAuth
     GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
@@ -468,6 +463,7 @@ class Config(object):
     ATTACHMENTS_BUCKET = os.getenv('ATTACHMENTS_BUCKET', 'dev-notifications-va-gov-attachments')
     MAX_CONTENT_LENGTH = 1024 * 1024  # = 1024 KB
 
+
 ######################
 # Config overrides ###
 ######################
@@ -492,15 +488,15 @@ class Development(Config):
     MMG_INBOUND_SMS_AUTH = ['testkey']
     MMG_INBOUND_SMS_USERNAME = ['username']
 
-    NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "vanotify-")
+    NOTIFICATION_QUEUE_PREFIX = os.getenv('NOTIFICATION_QUEUE_PREFIX', 'vanotify-')
 
     SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
-        "SQLALCHEMY_DATABASE_URI",
-        'postgresql://postgres@localhost/notification_api')
+        'SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/notification_api'
+    )
 
-    SQLALCHEMY_BINDS = {"read-db": os.getenv(
-        "SQLALCHEMY_DATABASE_URI_READ",
-        'postgresql://postgres@localhost/notification_api')}
+    SQLALCHEMY_BINDS = {
+        'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ', 'postgresql://postgres@localhost/notification_api')
+    }
 
     ANTIVIRUS_ENABLED = os.getenv('ANTIVIRUS_ENABLED') == '1'
 
@@ -523,20 +519,17 @@ class Test(Development):
 
     # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
-        'SQLALCHEMY_DATABASE_URI',
-        'postgresql://postgres@localhost/test_notification_api'
+        'SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/test_notification_api'
     )
-    SQLALCHEMY_BINDS = {"read-db": os.getenv(
-        "SQLALCHEMY_DATABASE_URI_READ",
-        'postgresql://postgres@localhost/notification_api')}
-
-    CELERY_SETTINGS = {
-        'broker_url': 'you-forgot-to-mock-celery-in-your-tests://'
+    SQLALCHEMY_BINDS = {
+        'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ', 'postgresql://postgres@localhost/notification_api')
     }
+
+    CELERY_SETTINGS = {'broker_url': 'you-forgot-to-mock-celery-in-your-tests://'}
 
     ANTIVIRUS_ENABLED = True
 
-    API_HOST_NAME = "http://localhost:6011"
+    API_HOST_NAME = 'http://localhost:6011'
 
     SMS_INBOUND_WHITELIST = ['203.0.113.195']
     FIRETEXT_INBOUND_SMS_AUTH = ['testkey']
@@ -550,14 +543,14 @@ class Test(Development):
 
     GOOGLE_ANALYTICS_ENABLED = True
 
-    AWS_REGION = "us-gov-west-1"
+    AWS_REGION = 'us-gov-west-1'
     AWS_SES_EMAIL_FROM_DOMAIN = 'test domain'
     AWS_SES_EMAIL_FROM_USER = 'test from user'
     AWS_SES_DEFAULT_REPLY_TO = 'default-ses@reply.to'
     AWS_SES_CONFIGURATION_SET = 'test-configuration-set'
-    AWS_SES_ENDPOINT_URL = "https://test.ses.endpoint"
+    AWS_SES_ENDPOINT_URL = 'https://test.ses.endpoint'
 
-    VA_SSO_AUTHORIZE_URL = "https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize"
+    VA_SSO_AUTHORIZE_URL = 'https://int.fed.eauth.va.gov/oauthi/sps/oauth/oauth20/authorize'
 
 
 class Staging(Config):
@@ -567,9 +560,9 @@ class Staging(Config):
 
     SESSION_COOKIE_SECURE = True
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
-    SQLALCHEMY_BINDS = {"read-db": os.getenv("SQLALCHEMY_DATABASE_URI_READ")}
+    SQLALCHEMY_BINDS = {'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ')}
     if SQLALCHEMY_BINDS['read-db'] is None:
-        logging.critical("Missing SQLALCHEMY_DATABASE_URI_READ")
+        logging.critical('Missing SQLALCHEMY_DATABASE_URI_READ')
 
 
 class Production(Config):
@@ -590,9 +583,9 @@ class Production(Config):
     SESSION_COOKIE_SECURE = True
 
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI')
-    SQLALCHEMY_BINDS = {"read-db": os.getenv("SQLALCHEMY_DATABASE_URI_READ")}
+    SQLALCHEMY_BINDS = {'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ')}
     if SQLALCHEMY_BINDS['read-db'] is None:
-        logging.critical("Missing SQLALCHEMY_DATABASE_URI_READ")
+        logging.critical('Missing SQLALCHEMY_DATABASE_URI_READ')
 
 
 configs = {
@@ -600,5 +593,5 @@ configs = {
     'test': Test,
     'staging': Staging,
     'production': Production,
-    'performance': Production
+    'performance': Production,
 }

@@ -15,7 +15,7 @@ from ..celery.service_callback_tasks import publish_complaint
 from ..dao.complaint_dao import save_complaint
 from ..models import Notification, Complaint
 
-govdelivery_callback_blueprint = Blueprint("govdelivery_callback", __name__, url_prefix="/notifications/govdelivery")
+govdelivery_callback_blueprint = Blueprint('govdelivery_callback', __name__, url_prefix='/notifications/govdelivery')
 register_errors(govdelivery_callback_blueprint)
 
 
@@ -24,7 +24,7 @@ def process_govdelivery_response():
     try:
         data = validate(request.form, govdelivery_webhook_schema)
         sid = data['sid']
-        reference = data['message_url'].split("/")[-1]
+        reference = data['message_url'].split('/')[-1]
         govdelivery_status = data['status']
         notify_status = govdelivery_status_map[govdelivery_status]
 
@@ -51,8 +51,7 @@ def process_govdelivery_response():
             )
             if data.get('error_message'):
                 current_app.logger.info(
-                    f"Govdelivery error_message for notification {notification.id}: "
-                    f"{data['error_message']}"
+                    f"Govdelivery error_message for notification {notification.id}: " f"{data['error_message']}"
                 )
 
             notifications_dao._update_notification_status(notification, notify_status)
@@ -61,7 +60,8 @@ def process_govdelivery_response():
 
             if notification.sent_at:
                 statsd_client.timing_with_dates(
-                    'callback.govdelivery.elapsed-time', datetime.utcnow(), notification.sent_at)
+                    'callback.govdelivery.elapsed-time', datetime.utcnow(), notification.sent_at
+                )
 
             if govdelivery_status == 'blacklisted':
                 complaint = create_complaint(data, notification)
@@ -70,7 +70,10 @@ def process_govdelivery_response():
     return jsonify(result='success'), 200
 
 
-def create_complaint(data: dict, notification: Notification) -> Complaint:
+def create_complaint(
+    data: dict,
+    notification: Notification,
+) -> Complaint:
     current_app.logger.info(
         f'Govdelivery sent to blacklisted email. Creating complaint for notification {notification.id}'
     )
@@ -82,7 +85,7 @@ def create_complaint(data: dict, notification: Notification) -> Complaint:
         service_id=notification.service_id,
         feedback_id=data['sid'],
         complaint_type=data['message_type'],
-        complaint_date=parser.parse(complaint_date) if complaint_date else datetime.now()
+        complaint_date=parser.parse(complaint_date) if complaint_date else datetime.now(),
     )
 
     save_complaint(complaint)

@@ -3,12 +3,13 @@ from flask import Blueprint
 from jsonschema import ValidationError
 from werkzeug.exceptions import BadRequest
 
-v3_blueprint = Blueprint("v3", __name__, url_prefix='/v3')
+v3_blueprint = Blueprint('v3', __name__, url_prefix='/v3')
 
 
 ########################################
 # Error handlers common to all v3 routes
 ########################################
+
 
 @v3_blueprint.errorhandler(AuthError)
 def auth_error(error):
@@ -27,10 +28,10 @@ def bad_request(error):
     """
 
     return {
-        "errors": [
+        'errors': [
             {
-                "error": "BadRequest",
-                "message": str(error.__cause__) if (error.__cause__ is not None) else str(error),
+                'error': 'BadRequest',
+                'message': str(error.__cause__) if (error.__cause__ is not None) else str(error),
             }
         ]
     }, 400
@@ -42,17 +43,17 @@ def schema_validation_error(error):
     This is for schema validation errors, which should result in a 400 response.
     """
 
-    if "is not valid under any of the given schemas" in error.message and "anyOfValidationMessage" in error.schema:
+    if 'is not valid under any of the given schemas' in error.message and 'anyOfValidationMessage' in error.schema:
         # This is probably a failure of an "anyOf" clause, and the default error message is not helpful.
-        error_message = error.schema["anyOfValidationMessage"]
+        error_message = error.schema['anyOfValidationMessage']
     else:
         error_message = error.message
 
     return {
-        "errors": [
+        'errors': [
             {
-                "error": "ValidationError",
-                "message": error_message,
+                'error': 'ValidationError',
+                'message': error_message,
             }
         ]
     }, 400
@@ -61,10 +62,10 @@ def schema_validation_error(error):
 @v3_blueprint.errorhandler(NotImplementedError)
 def not_implemented_error(error):
     return {
-        "errors": [
+        'errors': [
             {
-                "error": "NotImplementedError",
-                "message": str(error),
+                'error': 'NotImplementedError',
+                'message': str(error),
             }
         ]
     }, 501

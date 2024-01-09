@@ -6,11 +6,10 @@ from app.provider_details.load_balancing_strategy import LoadBalancingStrategy
 
 
 class TestValidate:
-
     def test_validate_passes_if_there_are_providers_with_weights_for_notification_type(self, mocker):
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[mocker.Mock(ProviderDetails)]
+            return_value=[mocker.Mock(ProviderDetails)],
         )
 
         some_notification_type = mocker.Mock(NotificationType)
@@ -21,7 +20,7 @@ class TestValidate:
     def test_validate_throws_if_there_are_no_providers_with_weights_for_notification_type(self, mocker):
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[]
+            return_value=[],
         )
 
         some_notification_type = mocker.Mock(NotificationType)
@@ -33,18 +32,15 @@ class TestValidate:
 
 
 class TestGetProvider:
-
     def test_returns_single_provider(self, mocker):
         mock_provider = mocker.Mock(ProviderDetails, load_balancing_weight=10)
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[mock_provider]
+            return_value=[mock_provider],
         )
 
         mock_notification = mocker.Mock(
-            Notification,
-            notification_type=NotificationType.EMAIL.value,
-            international=False
+            Notification, notification_type=NotificationType.EMAIL.value, international=False
         )
 
         assert LoadBalancingStrategy.get_provider(mock_notification) == mock_provider
@@ -54,7 +50,7 @@ class TestGetProvider:
     def test_handles_no_providers(self, mocker):
         mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[]
+            return_value=[],
         )
 
         mock_notification = mocker.Mock(Notification, notification_type=NotificationType.EMAIL.value)
@@ -66,31 +62,29 @@ class TestGetProvider:
         mock_provider_2 = mocker.Mock(ProviderDetails, load_balancing_weight=90)
         mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[mock_provider_1, mock_provider_2]
+            return_value=[mock_provider_1, mock_provider_2],
         )
 
         mock_choices = mocker.patch(
-            'app.provider_details.load_balancing_strategy.choices',
-            return_value=[mock_provider_2]
+            'app.provider_details.load_balancing_strategy.choices', return_value=[mock_provider_2]
         )
 
-        mock_notification = mocker.Mock(
-            Notification,
-            notification_type=NotificationType.EMAIL.value
-        )
+        mock_notification = mocker.Mock(Notification, notification_type=NotificationType.EMAIL.value)
 
         assert LoadBalancingStrategy.get_provider(mock_notification) == mock_provider_2
 
         mock_choices.assert_called_with([mock_provider_1, mock_provider_2], [10, 90])
 
-    @pytest.mark.skip('Due to randomness, there is a very small chance that this test will fail. '
-                      'Leaving it here as peace of mind that our approach works')
+    @pytest.mark.skip(
+        'Due to randomness, there is a very small chance that this test will fail. '
+        'Leaving it here as peace of mind that our approach works'
+    )
     def test_random_distribution(self, mocker):
         mock_provider_1 = mocker.Mock(ProviderDetails, load_balancing_weight=10)
         mock_provider_2 = mocker.Mock(ProviderDetails, load_balancing_weight=90)
         mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
-            return_value=[mock_provider_1, mock_provider_2]
+            return_value=[mock_provider_1, mock_provider_2],
         )
 
         mock_notification = mocker.Mock(Notification, notification_type=NotificationType.EMAIL.value)

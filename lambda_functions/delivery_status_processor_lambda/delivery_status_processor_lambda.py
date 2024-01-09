@@ -10,51 +10,48 @@ import boto3
 from twilio.request_validator import RequestValidator
 from urllib.parse import parse_qs
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-CELERY_TASK = os.getenv("CELERY_TASK_NAME", "process-delivery-status-result")
-ROUTING_KEY = os.getenv("ROUTING_KEY", "delivery-status-result-tasks")
-DELIVERY_STATUS_RESULT_TASK_QUEUE = os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE")
-DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER = os.getenv("DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER")
-TWILIO_AUTH_TOKEN_SSM_NAME = os.getenv("TWILIO_AUTH_TOKEN_SSM_NAME")
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+CELERY_TASK = os.getenv('CELERY_TASK_NAME', 'process-delivery-status-result')
+ROUTING_KEY = os.getenv('ROUTING_KEY', 'delivery-status-result-tasks')
+DELIVERY_STATUS_RESULT_TASK_QUEUE = os.getenv('DELIVERY_STATUS_RESULT_TASK_QUEUE')
+DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER = os.getenv('DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER')
+TWILIO_AUTH_TOKEN_SSM_NAME = os.getenv('TWILIO_AUTH_TOKEN_SSM_NAME')
 
 SQS_DELAY_SECONDS = 10
 
 if DELIVERY_STATUS_RESULT_TASK_QUEUE is None:
-    sys.exit("A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE")
+    sys.exit('A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE')
 
 if DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER is None:
-    sys.exit("A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER")
+    sys.exit('A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER')
 
 if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT':
-    sys.exit("A required environment variable is not set. Please set TWILIO_AUTH_TOKEN_SSM_NAME")
+    sys.exit('A required environment variable is not set. Please set TWILIO_AUTH_TOKEN_SSM_NAME')
 
-sqs_client = boto3.client("sqs", region_name="us-gov-west-1")
+sqs_client = boto3.client('sqs', region_name='us-gov-west-1')
 
-logger = logging.getLogger("delivery-status-processor-lambda")
+logger = logging.getLogger('delivery-status-processor-lambda')
 
 try:
     logger.setLevel(LOG_LEVEL)
 except ValueError:
-    logger.setLevel("INFO")
-    logger.warning("Invalid log level specified, defaulting to INFO")
+    logger.setLevel('INFO')
+    logger.warning('Invalid log level specified, defaulting to INFO')
 
 
 def get_twilio_token() -> str:
     """
-        Is run on instantiation.
-        Defined here and in vetext_incoming_forwarder
-        @return: Twilio Token from SSM
-        """
+    Is run on instantiation.
+    Defined here and in vetext_incoming_forwarder
+    @return: Twilio Token from SSM
+    """
     try:
         if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test':
             return 'bad_twilio_auth'
-        ssm_client = boto3.client("ssm", "us-gov-west-1")
+        ssm_client = boto3.client('ssm', 'us-gov-west-1')
 
-        response = ssm_client.get_parameter(
-            Name=TWILIO_AUTH_TOKEN_SSM_NAME,
-            WithDecryption=True
-        )
-        return response.get("Parameter").get("Value")
+        response = ssm_client.get_parameter(Name=TWILIO_AUTH_TOKEN_SSM_NAME, WithDecryption=True)
+        return response.get('Parameter').get('Value')
     except Exception as e:
         logger.error('Failed to retrieve Twilio Auth with: %s', e)
         return None
@@ -70,89 +67,86 @@ def validate_twilio_event(event: dict) -> bool:
     @param: event
     @return: bool
     """
-    logger.info("validating twilio delivery event")
+    logger.info('validating twilio delivery event')
 
     try:
-        signature = event["headers"].get("x-twilio-signature", "")
+        signature = event['headers'].get('x-twilio-signature', '')
 
         validator = RequestValidator(auth_token)
         uri = f"https://{event['headers']['host']}/vanotify/sms/deliverystatus"
-        decoded = base64.b64decode(event.get("body")).decode()
+        decoded = base64.b64decode(event.get('body')).decode()
         params = parse_qs(decoded)
         params = {k: v[0] for k, v in sorted(params.items())}
-        return validator.validate(
-            uri=uri,
-            params=params,
-            signature=signature
-        )
+        return validator.validate(uri=uri, params=params, signature=signature)
     except Exception as e:
-        logger.error("Error validating request origin: %s", e)
+        logger.error('Error validating request origin: %s', e)
         return False
 
 
-def delivery_status_processor_lambda_handler(event: any, context: any):
+def delivery_status_processor_lambda_handler(
+    event: any,
+    context: any,
+):
     """this method takes in an event passed in by either an alb.
     @param: event   -  contains data pertaining to an sms delivery status from the external provider
     @param: context -  AWS context sent by ALB to all events. Over ridden by unit tests as skip trigger.
     """
     """
-    Synthetic monitors sometimes hit this endpoint to look for anomalous performance. 
+    Synthetic monitors sometimes hit this endpoint to look for anomalous performance.
     Do not process what they send, just respond with a 200
     """
     try:
-        if "sec-datadog" in event["headers"]:
-            return {"statusCode": 200}
+        if 'sec-datadog' in event['headers']:
+            return {'statusCode': 200}
     except Exception as e:
-        logger.info("Passing on issue with synthetic test payload: %s", e)
+        logger.info('Passing on issue with synthetic test payload: %s', e)
 
     try:
-        logger.debug("Event: %s", event)
+        logger.debug('Event: %s', event)
 
         if not valid_event(event):
-            logger.error("Invalid event: %s", event)
-            raise Exception("Invalid event")
+            logger.error('Invalid event: %s', event)
+            raise Exception('Invalid event')
 
-        logger.info("Valid ALB request received")
-        logger.debug(event["body"])
-        if "TwilioProxy" in event["headers"]["user-agent"] \
-                and context \
-                and not validate_twilio_event(event):
-            logger.error("Returning 403 on unauthenticated Twilio request")
+        logger.info('Valid ALB request received')
+        logger.debug(event['body'])
+        if 'TwilioProxy' in event['headers']['user-agent'] and context and not validate_twilio_event(event):
+            logger.error('Returning 403 on unauthenticated Twilio request')
             return {
-                "statusCode": 403,
+                'statusCode': 403,
             }
         else:
-            logger.info("Authenticated Twilio request")
+            logger.info('Authenticated Twilio request')
 
         celery_body = event_to_celery_body_mapping(event)
 
         if celery_body is None:
-            logger.error("Unable to generate the celery body for event: %s", event)
-            raise Exception("Unable to generate celery body from event")
+            logger.error('Unable to generate the celery body for event: %s', event)
+            raise Exception('Unable to generate celery body from event')
 
-        logger.info("Successfully generated celery body")
+        logger.info('Successfully generated celery body')
         logger.debug(celery_body)
 
         celery_task_body = celery_body_to_celery_task(celery_body)
 
-        logger.info("Successfully generated celery task")
+        logger.info('Successfully generated celery task')
         logger.debug(celery_task_body)
 
         push_to_sqs(celery_task_body, DELIVERY_STATUS_RESULT_TASK_QUEUE, True)
 
-        logger.info("Processing of request complete")
+        logger.info('Processing of request complete')
 
         return {
-            "statusCode": 200,
+            'statusCode': 200,
         }
 
     except Exception as e:
         # Place request on dead letter queue so that it can be analyzed
         #   for potential processing at a later time
-        logger.critical("Unknown Failure: %s", e)
+        logger.critical('Unknown Failure: %s', e)
         push_to_sqs(event, DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER, False)
         return {
-            "statusCode": 500,
+            'statusCode': 500,
         }
 
 
@@ -163,11 +157,11 @@ def valid_event(event: dict) -> bool:
     """
 
     if event is None:
-        logger.error("event is None: %s", event)
-    elif "body" not in event or "headers" not in event:
-        logger.error("Missing from event object: %s", event)
-    elif "user-agent" not in event["headers"]:
-        logger.error("Missing 'user-agent' from: %s", event.get("headers"))
+        logger.error('event is None: %s', event)
+    elif 'body' not in event or 'headers' not in event:
+        logger.error('Missing from event object: %s', event)
+    elif 'user-agent' not in event['headers']:
+        logger.error("Missing 'user-agent' from: %s", event.get('headers'))
     else:
         return True
 
@@ -178,8 +172,8 @@ def event_to_celery_body_mapping(event: dict) -> Optional[dict]:
     """
     Determines which SQS queue to send the message to based on the message type
     """
-    if "TwilioProxy" in event["headers"]["user-agent"]:
-        return {"body": event["body"], "provider": "twilio"}
+    if 'TwilioProxy' in event['headers']['user-agent']:
+        return {'body': event['body'], 'provider': 'twilio'}
     else:
         return None
 
@@ -191,67 +185,71 @@ def celery_body_to_celery_task(task_message: dict) -> dict:
     The task is used to route the message to the proper method in the app
     """
     task = {
-        "task": CELERY_TASK,
-        "id": str(uuid.uuid4()),
-        "args": [{"message": task_message}],
-        "kwargs": {},
-        "retries": 0,
-        "eta": None,
-        "expires": None,
-        "utc": True,
-        "callbacks": None,
-        "errbacks": None,
-        "timelimit": [None, None],
-        "taskset": None,
-        "chord": None,
+        'task': CELERY_TASK,
+        'id': str(uuid.uuid4()),
+        'args': [{'message': task_message}],
+        'kwargs': {},
+        'retries': 0,
+        'eta': None,
+        'expires': None,
+        'utc': True,
+        'callbacks': None,
+        'errbacks': None,
+        'timelimit': [None, None],
+        'taskset': None,
+        'chord': None,
     }
     envelope = {
-        "body": base64.b64encode(bytes(json.dumps(task), "utf-8")).decode("utf-8"),
-        "content-encoding": "utf-8",
-        "content-type": "application/json",
-        "headers": {},
-        "properties": {
-            "reply_to": str(uuid.uuid4()),
-            "correlation_id": str(uuid.uuid4()),
-            "delivery_mode": 2,
-            "delivery_info": {"priority": 0, "exchange": "default", "routing_key": ROUTING_KEY},
-            "body_encoding": "base64",
-            "delivery_tag": str(uuid.uuid4()),
+        'body': base64.b64encode(bytes(json.dumps(task), 'utf-8')).decode('utf-8'),
+        'content-encoding': 'utf-8',
+        'content-type': 'application/json',
+        'headers': {},
+        'properties': {
+            'reply_to': str(uuid.uuid4()),
+            'correlation_id': str(uuid.uuid4()),
+            'delivery_mode': 2,
+            'delivery_info': {'priority': 0, 'exchange': 'default', 'routing_key': ROUTING_KEY},
+            'body_encoding': 'base64',
+            'delivery_tag': str(uuid.uuid4()),
         },
     }
 
     return envelope
 
 
-def push_to_sqs(push_data: dict, queue_url: str, encode: bool) -> None:
+def push_to_sqs(
+    push_data: dict,
+    queue_url: str,
+    encode: bool,
+) -> None:
     """
     Pushes an inbound sms or entire event to SQS. Sends to RETRY or DEAD LETTER queue dependent
     on is_retry variable.
     """
 
-    logger.info("Pushing to the %s queue . . .", queue_url)
-    logger.debug("SQS push data: %s", push_data)
+    logger.info('Pushing to the %s queue . . .', queue_url)
+    logger.debug('SQS push data: %s', push_data)
 
     if push_data is None:
-        logger.critical("Unable to push data to SQS.  The data is being dropped: %s", push_data)
+        logger.critical('Unable to push data to SQS.  The data is being dropped: %s', push_data)
         return
 
     try:
         if encode:
-            queue_msg = base64.b64encode(bytes(json.dumps(push_data), "utf-8")).decode("utf-8")
+            queue_msg = base64.b64encode(bytes(json.dumps(push_data), 'utf-8')).decode('utf-8')
         else:
             queue_msg = json.dumps(push_data)
 
     except TypeError as e:
         # Unable enqueue the data in any queue.  Don't try sending it to the dead letter queue.
         logger.exception(e)
-        logger.critical(". . . Unable to generate queue_msg. The data is being dropped: %s", push_data)
+        logger.critical('. . . Unable to generate queue_msg. The data is being dropped: %s', push_data)
         return
 
     except Exception as e:
         # Unable enqueue the data in any queue.  Don't try sending it to the dead letter queue.
         logger.exception(e)
-        logger.critical(". . . Unable to generate queue_msg. The data is being dropped: %s", push_data)
+        logger.critical('. . . Unable to generate queue_msg. The data is being dropped: %s', push_data)
         return
 
     # NOTE: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html
@@ -259,8 +257,8 @@ def push_to_sqs(push_data: dict, queue_url: str, encode: bool) -> None:
     try:
         sqs_client.send_message(QueueUrl=queue_url, MessageBody=queue_msg, DelaySeconds=SQS_DELAY_SECONDS)
 
-        logger.info(". . . Completed the SQS push.")
+        logger.info('. . . Completed the SQS push.')
 
     except Exception as e:
         logger.exception(e)
-        logger.critical(". . . Failed to push to SQS with data: %s", push_data)
+        logger.critical('. . . Failed to push to SQS with data: %s', push_data)

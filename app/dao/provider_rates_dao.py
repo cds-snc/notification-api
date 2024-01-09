@@ -5,7 +5,11 @@ from sqlalchemy import select
 
 
 @transactional
-def create_provider_rates(provider_identifier, valid_from, rate):
+def create_provider_rates(
+    provider_identifier,
+    valid_from,
+    rate,
+):
     stmt = select(ProviderDetails).where(ProviderDetails.identifier == provider_identifier)
     provider = db.session.scalars(stmt).one()
 

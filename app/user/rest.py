@@ -7,7 +7,7 @@ import requests
 from datetime import datetime, timedelta
 from fido2 import cbor
 from fido2.webauthn import AuthenticatorData, CollectedClientData
-from flask import (jsonify, request, Blueprint, current_app, abort)
+from flask import jsonify, request, Blueprint, current_app, abort
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlencode
 
@@ -91,8 +91,8 @@ def handle_integrity_error(exc):
 def create_user():
     req_json = request.get_json()
     user_to_create, errors = create_user_schema.load(req_json)
-    identity_provider_user_id = req_json.get("identity_provider_user_id")
-    password = req_json.get("password")
+    identity_provider_user_id = req_json.get('identity_provider_user_id')
+    password = req_json.get('password')
 
     # These blocks cover instances of None and the empty string.  Not testing explicitly
     # for "None" is intentional.
@@ -153,12 +153,12 @@ def update_user_attribute(user_id):
                 'name': user_to_update.name,
                 'servicemanagername': updated_by.name,
                 'email address': user_to_update.email_address,
-                'change_type': change_type
+                'change_type': change_type,
             },
             notification_type=template.template_type,
             api_key_id=None,
             key_type=KEY_TYPE_NORMAL,
-            reply_to_text=reply_to
+            reply_to_text=reply_to,
         )
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -206,11 +206,8 @@ def verify_user_password(user_id):
 
     if user_to_verify.check_password(txt_pwd):
         reset_failed_login_count(user_to_verify)
-        if "loginData" in data and data["loginData"] != {}:
-            save_login_event(LoginEvent(
-                user_id=user_id,
-                data=data["loginData"]
-            ))
+        if 'loginData' in data and data['loginData'] != {}:
+            save_login_event(LoginEvent(user_id=user_id, data=data['loginData']))
         return jsonify({}), 204
     else:
         increment_failed_login_count(user_to_verify)
@@ -228,19 +225,19 @@ def verify_user_code(user_id):
 
     code = get_user_code(user_to_verify, data['code'], data['code_type'])
 
-    if (verify_within_time(user_to_verify) >= 2):
-        raise InvalidRequest("Code already sent", status_code=400)
+    if verify_within_time(user_to_verify) >= 2:
+        raise InvalidRequest('Code already sent', status_code=400)
 
     if user_to_verify.failed_login_count >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
-        raise InvalidRequest("Code not found", status_code=404)
+        raise InvalidRequest('Code not found', status_code=404)
     if not code:
         # only relevant from sms
         increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code not found", status_code=404)
+        raise InvalidRequest('Code not found', status_code=404)
     if datetime.utcnow() > code.expiry_datetime or code.code_used:
         # sms and email
         increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has expired", status_code=400)
+        raise InvalidRequest('Code has expired', status_code=400)
 
     user_to_verify.current_session_id = str(uuid.uuid4())
     user_to_verify.logged_in_at = datetime.utcnow()
@@ -252,15 +249,18 @@ def verify_user_code(user_id):
 
 
 @user_blueprint.route('/<uuid:user_id>/<code_type>-code', methods=['POST'])
-def send_user_2fa_code(user_id, code_type):
+def send_user_2fa_code(
+    user_id,
+    code_type,
+):
     user_to_send_to = get_user_by_id(user_id=user_id)
 
-    if (verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1):
-        raise InvalidRequest("Code already sent, wait 10 seconds", status_code=400)
+    if verify_within_time(user_to_send_to, age=timedelta(seconds=10)) >= 1:
+        raise InvalidRequest('Code already sent, wait 10 seconds', status_code=400)
 
     if count_user_verify_codes(user_to_send_to) >= current_app.config.get('MAX_VERIFY_CODE_COUNT'):
         # Prevent more than `MAX_VERIFY_CODE_COUNT` active verify codes at a time
-        current_app.logger.warning("Too many verify codes created for user %s", user_to_send_to.id)
+        current_app.logger.warning('Too many verify codes created for user %s', user_to_send_to.id)
     else:
         data = request.get_json()
         if code_type == SMS_TYPE:
@@ -275,40 +275,44 @@ def send_user_2fa_code(user_id, code_type):
     return '{}', 204
 
 
-def send_user_sms_code(user_to_send_to, data):
+def send_user_sms_code(
+    user_to_send_to,
+    data,
+):
     recipient = data.get('to') or user_to_send_to.mobile_number
 
     secret_code = create_secret_code()
     personalisation = {'verify_code': secret_code}
 
     create_2fa_code(
-        current_app.config['SMS_CODE_TEMPLATE_ID'],
-        user_to_send_to,
-        secret_code,
-        recipient,
-        personalisation
+        current_app.config['SMS_CODE_TEMPLATE_ID'], user_to_send_to, secret_code, recipient, personalisation
     )
 
 
-def send_user_email_code(user_to_send_to, data):
+def send_user_email_code(
+    user_to_send_to,
+    data,
+):
     recipient = user_to_send_to.email_address
 
     secret_code = str(uuid.uuid4())
     personalisation = {
         'name': user_to_send_to.name,
-        'url': _create_2fa_url(user_to_send_to, secret_code, data.get('next'), data.get('email_auth_link_host'))
+        'url': _create_2fa_url(user_to_send_to, secret_code, data.get('next'), data.get('email_auth_link_host')),
     }
 
     create_2fa_code(
-        current_app.config['EMAIL_2FA_TEMPLATE_ID'],
-        user_to_send_to,
-        secret_code,
-        recipient,
-        personalisation
+        current_app.config['EMAIL_2FA_TEMPLATE_ID'], user_to_send_to, secret_code, recipient, personalisation
     )
 
 
-def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, personalisation):
+def create_2fa_code(
+    template_id,
+    user_to_send_to,
+    secret_code,
+    recipient,
+    personalisation,
+):
     template = dao_get_template_by_id(template_id)
 
     # save the code in the VerifyCode table
@@ -327,7 +331,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=reply_to
+        reply_to_text=reply_to,
     )
     # Assume that we never want to observe the Notify service's research mode
     # setting for this notification - we still need to be able to log into the
@@ -353,12 +357,12 @@ def send_user_confirm_new_email(user_id):
         personalisation={
             'name': user_to_send_to.name,
             'url': _create_confirmation_url(user=user_to_send_to, email_address=email['email']),
-            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support'
+            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support',
         },
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -378,14 +382,11 @@ def send_new_user_email_verification(user_id):
         template_version=template.version,
         recipient=user_to_send_to.email_address,
         service_id=service.id,
-        personalisation={
-            'name': user_to_send_to.name,
-            'url': _create_verification_url(user_to_send_to)
-        },
+        personalisation={'name': user_to_send_to.name, 'url': _create_verification_url(user_to_send_to)},
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -407,12 +408,12 @@ def send_already_registered_email(user_id):
         personalisation={
             'signin_url': current_app.config['ADMIN_BASE_URL'] + '/sign-in',
             'forgot_password_url': current_app.config['ADMIN_BASE_URL'] + '/forgot-password',
-            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support'
+            'feedback_url': current_app.config['ADMIN_BASE_URL'] + '/support',
         },
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -429,28 +430,25 @@ def send_support_email(user_id):
 
     ticket = {
         'product_id': 61000000046,
-        'subject': data["support_type"] if "support_type" in data else "Support Request",
+        'subject': data['support_type'] if 'support_type' in data else 'Support Request',
         'description': data['message'],
-        'email': data["email"],
+        'email': data['email'],
         'priority': 1,
         'status': 2,
     }
 
     response = requests.post(
-        "{}/api/v2/tickets".format(API_URL),
-        json=ticket,
-        auth=requests.HTTPBasicAuth(API_KEY, "x"),
-        timeout=(3.05, 1)
+        '{}/api/v2/tickets'.format(API_URL), json=ticket, auth=requests.HTTPBasicAuth(API_KEY, 'x'), timeout=(3.05, 1)
     )
 
     if response.status_code != 201:
-        print("Failed to create ticket, errors are displayed below")
+        print('Failed to create ticket, errors are displayed below')
         content = json.loads(response.content)
-        print(content["errors"])
-        print("x-request-id : {}".format(content.headers['x-request-id']))
-        print("Status Code : {}".format(str(content.status_code)))
+        print(content['errors'])
+        print('x-request-id : {}'.format(content.headers['x-request-id']))
+        print('Status Code : {}'.format(str(content.status_code)))
 
-    return jsonify({"status_code": response.status_code}), 204
+    return jsonify({'status_code': response.status_code}), 204
 
 
 @user_blueprint.route('/<uuid:user_id>/branding-request', methods=['POST'])
@@ -468,12 +466,12 @@ def send_branding_request(user_id):
             'email': to['email'],
             'serviceID': to['serviceID'],
             'service_name': to['service_name'],
-            'filename': to['filename']
+            'filename': to['filename'],
         },
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+        reply_to_text=service.get_default_reply_to_email_address(),
     )
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
@@ -489,8 +487,11 @@ def get_user(user_id=None):
 
 
 @user_blueprint.route('/<uuid:user_id>/service/<uuid:service_id>/permission', methods=['POST'])
-def set_permissions(user_id, service_id):
-    """ This route requires admin authorization.  This is setup in app/__init__.py. """
+def set_permissions(
+    user_id,
+    service_id,
+):
+    """This route requires admin authorization.  This is setup in app/__init__.py."""
 
     service_user = dao_get_service_user(user_id, service_id)
     user = service_user.user
@@ -500,12 +501,11 @@ def set_permissions(user_id, service_id):
     validate(data, post_set_permissions_schema)
 
     permission_list = [
-        Permission(service_id=service_id, user_id=user_id, permission=p['permission'])
-        for p in data['permissions']
+        Permission(service_id=service_id, user_id=user_id, permission=p['permission']) for p in data['permissions']
     ]
 
-    service_key = "service_id_{}".format(service_id)
-    change_dict = {service_key: service_id, "permissions": permission_list}
+    service_key = 'service_id_{}'.format(service_id)
+    change_dict = {service_key: service_id, 'permissions': permission_list}
 
     try:
         _update_alert(user, update_dct_to_str(change_dict))
@@ -560,12 +560,12 @@ def send_user_reset_password():
         service_id=service.id,
         personalisation={
             'user_name': user_to_send_to.name,
-            'url': _create_reset_password_url(user_to_send_to.email_address)
+            'url': _create_reset_password_url(user_to_send_to.email_address),
         },
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address()
+        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -588,7 +588,7 @@ def update_password(user_id):
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
-    change_type = update_dct_to_str({'password': "password updated"})
+    change_type = update_dct_to_str({'password': 'password updated'})
 
     try:
         _update_alert(user, change_type)
@@ -615,14 +615,14 @@ def list_fido2_keys_user(user_id):
 def create_fido2_keys_user(user_id):
     user = get_user_and_accounts(user_id)
     data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+    cbor_data = cbor.decode(base64.b64decode(data['payload']))
     validate(data, fido2_key_schema)
 
     id = uuid.uuid4()
     key = decode_and_register(cbor_data, get_fido2_session(user_id))
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data['name'], key=key))
     _update_alert(user)
-    return jsonify({"id": id})
+    return jsonify({'id': id})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/register', methods=['POST'])
@@ -633,15 +633,19 @@ def fido2_keys_user_register(user_id):
     # It is safe to do pickle.loads as we ensure the data represents FIDO key when storing
     credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))  # nosec
 
-    registration_data, state = Config.FIDO2_SERVER.register_begin({
-        'id': user.id.bytes,
-        'name': user.name,
-        'displayName': user.name,
-    }, credentials, user_verification='discouraged')
+    registration_data, state = Config.FIDO2_SERVER.register_begin(
+        {
+            'id': user.id.bytes,
+            'name': user.name,
+            'displayName': user.name,
+        },
+        credentials,
+        user_verification='discouraged',
+    )
     create_fido2_session(user_id, state)
 
     # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode('utf8')})
+    return jsonify({'data': base64.b64encode(cbor.encode(registration_data)).decode('utf8')})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/authenticate', methods=['POST'])
@@ -655,7 +659,7 @@ def fido2_keys_user_authenticate(user_id):
     create_fido2_session(user_id, state)
 
     # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
+    return jsonify({'data': base64.b64encode(cbor.encode(auth_data)).decode('utf8')})
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/validate', methods=['POST'])
@@ -666,7 +670,7 @@ def fido2_keys_user_validate(user_id):
     credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))  # nosec
 
     data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+    cbor_data = cbor.decode(base64.b64decode(data['payload']))
 
     credential_id = cbor_data['credentialId']
     client_data = CollectedClientData(cbor_data['clientDataJSON'])
@@ -674,12 +678,7 @@ def fido2_keys_user_validate(user_id):
     signature = cbor_data['signature']
 
     Config.FIDO2_SERVER.authenticate_complete(
-        get_fido2_session(user_id),
-        credentials,
-        credential_id,
-        client_data,
-        auth_data,
-        signature
+        get_fido2_session(user_id), credentials, credential_id, client_data, auth_data, signature
     )
 
     user_to_verify = get_user_by_id(user_id=user_id)
@@ -692,11 +691,14 @@ def fido2_keys_user_validate(user_id):
 
 
 @user_blueprint.route('/<uuid:user_id>/fido2_keys/<uuid:key_id>', methods=['DELETE'])
-def delete_fido2_keys_user(user_id, key_id):
+def delete_fido2_keys_user(
+    user_id,
+    key_id,
+):
     user = get_user_and_accounts(user_id)
     delete_fido2_key(user_id, key_id)
     _update_alert(user)
-    return jsonify({"id": key_id})
+    return jsonify({'id': key_id})
 
 
 @user_blueprint.route('/<uuid:user_id>/login_events', methods=['GET'])
@@ -717,13 +719,21 @@ def _create_verification_url(user):
     return url_with_token(data, url, current_app.config)
 
 
-def _create_confirmation_url(user, email_address):
+def _create_confirmation_url(
+    user,
+    email_address,
+):
     data = json.dumps({'user_id': str(user.id), 'email': email_address})
     url = '/user-profile/email/confirm/'
     return url_with_token(data, url, current_app.config)
 
 
-def _create_2fa_url(user, secret_code, next_redir, email_auth_link_host):
+def _create_2fa_url(
+    user,
+    secret_code,
+    next_redir,
+    email_auth_link_host,
+):
     data = json.dumps({'user_id': str(user.id), 'secret_code': secret_code})
     url = '/email-auth/'
     ret = url_with_token(data, url, current_app.config, base_url=email_auth_link_host)
@@ -740,7 +750,8 @@ def get_orgs_and_services(user):
                 'id': org.id,
                 'count_of_live_services': len(org.live_services),
             }
-            for org in user.organisations if org.active
+            for org in user.organisations
+            if org.active
         ],
         'services': [
             {
@@ -749,12 +760,16 @@ def get_orgs_and_services(user):
                 'restricted': service.restricted,
                 'organisation': service.organisation.id if service.organisation else None,
             }
-            for service in user.services if service.active
-        ]
+            for service in user.services
+            if service.active
+        ],
     }
 
 
-def _update_alert(user_to_update, change_type=""):
+def _update_alert(
+    user_to_update,
+    change_type='',
+):
     service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
@@ -768,12 +783,12 @@ def _update_alert(user_to_update, change_type=""):
         personalisation={
             'base_url': Config.ADMIN_BASE_URL,
             'contact_us_url': f'{Config.ADMIN_BASE_URL}/support/ask-question-give-feedback',
-            'change_type': change_type
+            'change_type': change_type,
         },
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=reply_to
+        reply_to_text=reply_to,
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)

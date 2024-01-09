@@ -9,7 +9,7 @@ from unittest.mock import ANY
 
 from app import aws_sns_client, mmg_client, ProviderService
 from app.clients.email import EmailClient
-from app.dao import (provider_details_dao, notifications_dao)
+from app.dao import provider_details_dao, notifications_dao
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
 from app.delivery.send_to_providers import load_provider
@@ -39,7 +39,7 @@ from tests.app.db import (
     create_notification,
     create_reply_to_email,
     create_service_sms_sender,
-    create_service_with_defined_sms_sender
+    create_service_with_defined_sms_sender,
 )
 
 from tests.conftest import set_config_values
@@ -49,8 +49,7 @@ from tests.conftest import set_config_values
 def mock_source_email_address(mocker):
     source_email_address = '"Some Name" <some-user@some.domain>'
     mock_compute_function = mocker.patch(
-        'app.delivery.send_to_providers.compute_source_email_address',
-        return_value=source_email_address
+        'app.delivery.send_to_providers.compute_source_email_address', return_value=source_email_address
     )
     return (source_email_address, mock_compute_function)
 
@@ -87,39 +86,35 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 def test_should_not_use_active_but_disabled_provider(mocker):
     active_provider = mocker.Mock(active=True)
     mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_notification_type',
-        return_value=[active_provider]
+        'app.delivery.send_to_providers.get_provider_details_by_notification_type', return_value=[active_provider]
     )
 
-    mocker.patch(
-        'app.delivery.send_to_providers.is_provider_enabled',
-        return_value=False
-    )
+    mocker.patch('app.delivery.send_to_providers.is_provider_enabled', return_value=False)
 
-    with pytest.raises(Exception, match="No active email providers"):
+    with pytest.raises(Exception, match='No active email providers'):
         send_to_providers.client_to_use(mocker.Mock(Notification, notification_type=EMAIL_TYPE))
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
-    sample_sms_template_with_html,
-    mock_sms_client
+    sample_sms_template_with_html, mock_sms_client
 ):
-    db_notification = create_notification(template=sample_sms_template_with_html,
-                                          to_field="+16502532222", personalisation={"name": "Jo"},
-                                          status='created',
-                                          reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender())
-
-    send_to_providers.send_sms_to_provider(
-        db_notification
+    db_notification = create_notification(
+        template=sample_sms_template_with_html,
+        to_field='+16502532222',
+        personalisation={'name': 'Jo'},
+        status='created',
+        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
     )
 
+    send_to_providers.send_sms_to_provider(db_notification)
+
     mock_sms_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number("+16502532222"),
-        content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
+        to=validate_and_format_phone_number('+16502532222'),
+        content='Sample service: Hello Jo\nHere is <em>some HTML</em> & entities',
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER'],
         service_id=ANY,
-        sms_sender_id=ANY
+        sms_sender_id=ANY,
     )
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
@@ -128,21 +123,15 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_sms_client.get_name()
     assert notification.billable_units == 1
-    assert notification.personalisation == {"name": "Jo"}
-    assert notification.reference == "some-reference"
+    assert notification.personalisation == {'name': 'Jo'}
+    assert notification.reference == 'some-reference'
 
 
 def test_send_email_to_provider_should_compute_source_email_address(
-    sample_email_template_with_html,
-    mock_email_client,
-    mocked_build_ga_pixel_url,
-    notify_api,
-    mock_source_email_address
+    sample_email_template_with_html, mock_email_client, mocked_build_ga_pixel_url, notify_api, mock_source_email_address
 ):
     db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': 'Jo'}
+        template=sample_email_template_with_html, to_field='jo.smith@example.com', personalisation={'name': 'Jo'}
     )
     mock_compute_email_from = mock_source_email_address[1]
 
@@ -152,21 +141,13 @@ def test_send_email_to_provider_should_compute_source_email_address(
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
-    sample_email_template_with_html,
-    mock_email_client,
-    mocked_build_ga_pixel_url,
-    notify_api,
-    mock_source_email_address
+    sample_email_template_with_html, mock_email_client, mocked_build_ga_pixel_url, notify_api, mock_source_email_address
 ):
     db_notification = create_notification(
-        template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': 'Jo'}
+        template=sample_email_template_with_html, to_field='jo.smith@example.com', personalisation={'name': 'Jo'}
     )
 
-    with set_config_values(notify_api, {
-        'NOTIFY_EMAIL_FROM_NAME': 'Default Name'
-    }):
+    with set_config_values(notify_api, {'NOTIFY_EMAIL_FROM_NAME': 'Default Name'}):
         send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once_with(
@@ -176,7 +157,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
         html_body=ANY,
         reply_to_address=None,
-        attachments=[]
+        attachments=[],
     )
 
     assert '<!DOCTYPE html' in mock_email_client.send_email.call_args[1]['html_body']
@@ -186,14 +167,11 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert notification.status == 'sending'
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_email_client.get_name()
-    assert notification.personalisation == {"name": "Jo"}
+    assert notification.personalisation == {'name': 'Jo'}
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notification_is_in_tech_failure(
-        sample_service,
-        sample_notification,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_service, sample_notification, mock_email_client, mocked_build_ga_pixel_url
 ):
     sample_service.active = False
 
@@ -204,9 +182,10 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
 
-@pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms", "app.mmg_client.send_sms"])
+@pytest.mark.parametrize('client_send', ['app.aws_sns_client.send_sms', 'app.mmg_client.send_sms'])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
-        sample_service, sample_notification, mocker, client_send):
+    sample_service, sample_notification, mocker, client_send
+):
     sample_service.active = False
     send_mock = mocker.patch(client_send, return_value='reference')
 
@@ -217,33 +196,34 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
     assert Notification.query.get(sample_notification.id).status == 'technical-failure'
 
 
-def test_send_sms_should_use_template_version_from_notification_not_latest(
-        sample_template,
-        mock_sms_client):
-    db_notification = create_notification(template=sample_template, to_field='+16502532222', status='created',
-                                          reply_to_text=sample_template.service.get_default_sms_sender())
+def test_send_sms_should_use_template_version_from_notification_not_latest(sample_template, mock_sms_client):
+    db_notification = create_notification(
+        template=sample_template,
+        to_field='+16502532222',
+        status='created',
+        reply_to_text=sample_template.service.get_default_sms_sender(),
+    )
 
     sample_template.service.prefix_sms = True
     version_on_notification = sample_template.version
 
     # Change the template
     from app.dao.templates_dao import dao_update_template, dao_get_template_by_id
-    sample_template.content = sample_template.content + " another version of the template"
+
+    sample_template.content = sample_template.content + ' another version of the template'
     dao_update_template(sample_template)
     t = dao_get_template_by_id(sample_template.id)
     assert t.version > version_on_notification
 
-    send_to_providers.send_sms_to_provider(
-        db_notification
-    )
+    send_to_providers.send_sms_to_provider(db_notification)
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number("+16502532222"),
-        content="Sample service: This is a template:\nwith a newline",
+        to=validate_and_format_phone_number('+16502532222'),
+        content='Sample service: This is a template:\nwith a newline',
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER'],
         service_id=ANY,
-        sms_sender_id=ANY
+        sms_sender_id=ANY,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
@@ -255,12 +235,9 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     assert not persisted_notification.personalisation
 
 
-@pytest.mark.parametrize('research_mode,key_type', [
-    (True, KEY_TYPE_NORMAL),
-    (False, KEY_TYPE_TEST)
-])
+@pytest.mark.parametrize('research_mode,key_type', [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
 def test_should_call_send_sms_response_task_if_research_mode(
-        notify_db, sample_service, sample_notification, mocker, mock_sms_client, research_mode, key_type
+    notify_db, sample_service, sample_notification, mocker, mock_sms_client, research_mode, key_type
 ):
     mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
@@ -272,9 +249,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     sample_notification.key_type = key_type
     sample_notification.reference = None
 
-    send_to_providers.send_sms_to_provider(
-        sample_notification
-    )
+    send_to_providers.send_sms_to_provider(sample_notification)
     assert not mock_sms_client.send_sms.called
 
     app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
@@ -297,24 +272,17 @@ def test_should_have_sent_status_if_fake_callback_function_fails(sample_notifica
     sample_notification.key_type = KEY_TYPE_TEST
 
     with pytest.raises(HTTPError):
-        send_to_providers.send_sms_to_provider(
-            sample_notification
-        )
+        send_to_providers.send_sms_to_provider(sample_notification)
     assert sample_notification.status == NOTIFICATION_SENDING
     assert sample_notification.sent_by == mock_sms_client.get_name()
 
 
-def test_should_not_send_to_provider_when_status_is_not_created(
-    sample_template,
-    mocker
-):
+def test_should_not_send_to_provider_when_status_is_not_created(sample_template, mocker):
     notification = create_notification(template=sample_template, status='sending')
     mocker.patch('app.aws_sns_client.send_sms')
     response_mock = mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
-    send_to_providers.send_sms_to_provider(
-        notification
-    )
+    send_to_providers.send_sms_to_provider(notification)
 
     app.aws_sns_client.send_sms.assert_not_called()
     response_mock.assert_not_called()
@@ -323,32 +291,21 @@ def test_should_not_send_to_provider_when_status_is_not_created(
 def test_should_send_sms_with_downgraded_content(notify_db_session, mock_sms_client):
     # é, o, and u are in GSM.
     # á, ï, grapes, tabs, zero width space and ellipsis are not
-    msg = "á é ï o u 🍇 foo\tbar\u200bbaz((misc))…"
+    msg = 'á é ï o u 🍇 foo\tbar\u200bbaz((misc))…'
     placeholder = '∆∆∆abc'
-    gsm_message = "?odz Housing Service: a é i o u ? foo barbaz???abc..."
+    gsm_message = '?odz Housing Service: a é i o u ? foo barbaz???abc...'
     service = create_service(service_name='Łódź Housing Service', prefix_sms=True)
     template = create_template(service, content=msg)
-    db_notification = create_notification(
-        template=template,
-        personalisation={'misc': placeholder}
-    )
+    db_notification = create_notification(template=template, personalisation={'misc': placeholder})
 
     send_to_providers.send_sms_to_provider(db_notification)
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=ANY,
-        content=gsm_message,
-        reference=ANY,
-        sender=ANY,
-        service_id=ANY,
-        sms_sender_id=ANY
+        to=ANY, content=gsm_message, reference=ANY, sender=ANY, service_id=ANY, sms_sender_id=ANY
     )
 
 
-def test_send_sms_should_use_service_sms_sender(
-        sample_service,
-        sample_template,
-        mock_sms_client):
+def test_send_sms_should_use_service_sms_sender(sample_service, sample_template, mock_sms_client):
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender='123456', is_default=False)
     db_notification = create_notification(template=sample_template, reply_to_text=sms_sender.sms_sender)
 
@@ -357,32 +314,16 @@ def test_send_sms_should_use_service_sms_sender(
     )
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=ANY,
-        content=ANY,
-        reference=ANY,
-        sender=sms_sender.sms_sender,
-        service_id=ANY,
-        sms_sender_id=ANY
+        to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender, service_id=ANY, sms_sender_id=ANY
     )
 
 
-@pytest.mark.parametrize('research_mode,key_type', [
-    (True, KEY_TYPE_NORMAL),
-    (False, KEY_TYPE_TEST)
-])
+@pytest.mark.parametrize('research_mode,key_type', [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
 def test_send_email_to_provider_should_call_research_mode_task_response_task_if_research_mode(
-        sample_service,
-        sample_email_template,
-        mocker,
-        mock_email_client,
-        mocked_build_ga_pixel_url,
-        research_mode,
-        key_type):
+    sample_service, sample_email_template, mocker, mock_email_client, mocked_build_ga_pixel_url, research_mode, key_type
+):
     notification = create_notification(
-        template=sample_email_template,
-        to_field="john@smith.com",
-        key_type=key_type,
-        billable_units=0
+        template=sample_email_template, to_field='john@smith.com', key_type=key_type, billable_units=0
     )
     sample_service.research_mode = research_mode
 
@@ -390,9 +331,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     mocker.patch('app.uuid.uuid4', return_value=reference)
     mocker.patch('app.delivery.send_to_providers.send_email_response')
 
-    send_to_providers.send_email_to_provider(
-        notification
-    )
+    send_to_providers.send_email_to_provider(notification)
 
     assert not mock_email_client.send_email.called
     app.delivery.send_to_providers.send_email_response.assert_called_once_with(str(reference), 'john@smith.com')
@@ -407,26 +346,18 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     assert persisted_notification.billable_units == 0
 
 
-def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_created(
-    sample_email_template,
-    mocker
-):
+def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_created(sample_email_template, mocker):
     notification = create_notification(template=sample_email_template, status='sending')
     mocker.patch('app.aws_ses_client.send_email')
     mocker.patch('app.delivery.send_to_providers.send_email_response')
 
-    send_to_providers.send_sms_to_provider(
-        notification
-    )
+    send_to_providers.send_sms_to_provider(notification)
     app.aws_ses_client.send_email.assert_not_called()
     app.delivery.send_to_providers.send_email_response.assert_not_called()
 
 
 def test_send_email_should_use_service_reply_to_email(
-        sample_service,
-        sample_email_template,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_service, sample_email_template, mock_email_client, mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(template=sample_email_template, reply_to_text='foo@bar.com')
     create_reply_to_email(service=sample_service, email_address='foo@bar.com')
@@ -438,12 +369,9 @@ def test_send_email_should_use_service_reply_to_email(
 
 
 def test_get_html_email_renderer_should_return_for_normal_service(
-        sample_notification_model_with_organization,
-        mock_email_client
+    sample_notification_model_with_organization, mock_email_client
 ):
-    options = send_to_providers.get_html_email_options(
-        sample_notification_model_with_organization,
-        mock_email_client)
+    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
     assert options['default_banner'] is True
     assert 'brand_colour' not in options.keys()
     assert 'brand_logo' not in options.keys()
@@ -452,18 +380,12 @@ def test_get_html_email_renderer_should_return_for_normal_service(
     assert 'ga_pixel_url' in options.keys()
 
 
-@pytest.mark.parametrize('branding_type, default_banner', [
-    (BRANDING_ORG, False),
-    (BRANDING_BOTH, True),
-    (BRANDING_ORG_BANNER, False)
-])
+@pytest.mark.parametrize(
+    'branding_type, default_banner', [(BRANDING_ORG, False), (BRANDING_BOTH, True), (BRANDING_ORG_BANNER, False)]
+)
 def test_get_html_email_renderer_with_branding_details(
-        branding_type,
-        default_banner,
-        sample_notification_model_with_organization,
-        mock_email_client
+    branding_type, default_banner, sample_notification_model_with_organization, mock_email_client
 ):
-
     email_branding = EmailBranding(
         brand_type=branding_type,
         colour='#000000',
@@ -473,10 +395,7 @@ def test_get_html_email_renderer_with_branding_details(
     )
     sample_notification_model_with_organization.service.email_branding = email_branding
 
-    options = send_to_providers.get_html_email_options(
-        sample_notification_model_with_organization,
-        mock_email_client
-    )
+    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
 
     assert options['default_banner'] == default_banner
     assert options['brand_colour'] == '#000000'
@@ -490,23 +409,17 @@ def test_get_html_email_renderer_with_branding_details(
 
 
 def test_get_html_email_renderer_with_branding_details_and_render_default_banner_only(
-        sample_notification_model_with_organization,
-        mock_email_client
+    sample_notification_model_with_organization, mock_email_client
 ):
     sample_notification_model_with_organization.service.email_branding = None
 
-    options = send_to_providers.get_html_email_options(
-        sample_notification_model_with_organization,
-        mock_email_client
-    )
+    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
 
     assert {'default_banner': True, 'brand_banner': False}.items() <= options.items()
 
 
 def test_get_html_email_renderer_prepends_logo_path(
-        notify_api,
-        sample_notification_model_with_organization,
-        mock_email_client
+    notify_api, sample_notification_model_with_organization, mock_email_client
 ):
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG,
@@ -518,14 +431,12 @@ def test_get_html_email_renderer_prepends_logo_path(
     sample_notification_model_with_organization.service.email_branding = email_branding
 
     renderer = send_to_providers.get_html_email_options(sample_notification_model_with_organization, mock_email_client)
-    domain = "https://dev-notifications-va-gov-assets.s3.amazonaws.com"
-    assert renderer['brand_logo'] == "{}{}".format(domain, '/justice-league.png')
+    domain = 'https://dev-notifications-va-gov-assets.s3.amazonaws.com'
+    assert renderer['brand_logo'] == '{}{}'.format(domain, '/justice-league.png')
 
 
 def test_get_html_email_renderer_handles_email_branding_without_logo(
-        notify_api,
-        sample_notification_model_with_organization,
-        mock_email_client
+    notify_api, sample_notification_model_with_organization, mock_email_client
 ):
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_BANNER,
@@ -547,31 +458,30 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(
     assert renderer['brand_name'] == 'Justice League'
 
 
-@pytest.mark.parametrize('base_url, expected_url', [
-    # don't change localhost to prevent errors when testing locally
-    ('http://localhost:6012', 'filename.png'),
-    ('https://www.notifications.service.gov.uk', 'filename.png'),
-])
+@pytest.mark.parametrize(
+    'base_url, expected_url',
+    [
+        # don't change localhost to prevent errors when testing locally
+        ('http://localhost:6012', 'filename.png'),
+        ('https://www.notifications.service.gov.uk', 'filename.png'),
+    ],
+)
 def test_get_logo_url_works_for_different_environments(base_url, expected_url):
     logo_file = 'filename.png'
 
     logo_url = send_to_providers.get_logo_url(base_url, logo_file)
-    domain = "dev-notifications-va-gov-assets.s3.amazonaws.com"
-    assert logo_url == "https://{}/{}".format(domain, expected_url)
+    domain = 'dev-notifications-va-gov-assets.s3.amazonaws.com'
+    assert logo_url == 'https://{}/{}'.format(domain, expected_url)
 
 
-def test_should_not_update_notification_if_research_mode_on_exception(
-        sample_service, sample_notification, mocker
-):
+def test_should_not_update_notification_if_research_mode_on_exception(sample_service, sample_notification, mocker):
     mocker.patch('app.delivery.send_to_providers.send_sms_response', side_effect=Exception())
     update_mock = mocker.patch('app.delivery.send_to_providers.update_notification_to_sending')
     sample_service.research_mode = True
     sample_notification.billable_units = 0
 
     with pytest.raises(Exception):
-        send_to_providers.send_sms_to_provider(
-            sample_notification
-        )
+        send_to_providers.send_sms_to_provider(sample_notification)
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.billable_units == 0
@@ -583,33 +493,30 @@ def __update_notification(notification_to_update, research_mode, expected_status
         notification_to_update.status = expected_status
 
 
-@pytest.mark.parametrize('research_mode,key_type, billable_units, expected_status', [
-    (True, KEY_TYPE_NORMAL, 0, NOTIFICATION_DELIVERED),
-    (False, KEY_TYPE_NORMAL, 1, NOTIFICATION_SENDING),
-    (False, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
-    (True, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
-    (True, KEY_TYPE_TEAM, 0, NOTIFICATION_DELIVERED),
-    (False, KEY_TYPE_TEAM, 1, NOTIFICATION_SENDING)
-])
+@pytest.mark.parametrize(
+    'research_mode,key_type, billable_units, expected_status',
+    [
+        (True, KEY_TYPE_NORMAL, 0, NOTIFICATION_DELIVERED),
+        (False, KEY_TYPE_NORMAL, 1, NOTIFICATION_SENDING),
+        (False, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
+        (True, KEY_TYPE_TEST, 0, NOTIFICATION_SENDING),
+        (True, KEY_TYPE_TEAM, 0, NOTIFICATION_DELIVERED),
+        (False, KEY_TYPE_TEAM, 1, NOTIFICATION_SENDING),
+    ],
+)
 def test_should_update_billable_units_and_status_according_to_research_mode_and_key_type(
-    sample_template,
-    mocker,
-    mock_sms_client,
-    research_mode,
-    key_type,
-    billable_units,
-    expected_status
+    sample_template, mocker, mock_sms_client, research_mode, key_type, billable_units, expected_status
 ):
     notification = create_notification(template=sample_template, billable_units=0, status='created', key_type=key_type)
-    mocker.patch('app.delivery.send_to_providers.send_sms_response',
-                 side_effect=__update_notification(notification, research_mode, expected_status))
+    mocker.patch(
+        'app.delivery.send_to_providers.send_sms_response',
+        side_effect=__update_notification(notification, research_mode, expected_status),
+    )
 
     if research_mode:
         sample_template.service.research_mode = True
 
-    send_to_providers.send_sms_to_provider(
-        notification
-    )
+    send_to_providers.send_sms_to_provider(notification)
     assert notification.billable_units == billable_units
     assert notification.status == expected_status
 
@@ -631,12 +538,9 @@ def test_should_set_notification_billable_units_if_sending_to_provider_fails(
     assert not mock_toggle_provider.called
 
 
-@pytest.mark.skip(reason="Currently not supporting international providers")
+@pytest.mark.skip(reason='Currently not supporting international providers')
 def test_should_send_sms_to_international_providers(
-    restore_provider_details,
-    sample_sms_template_with_html,
-    sample_user,
-    mocker
+    restore_provider_details, sample_sms_template_with_html, sample_user, mocker
 ):
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
 
@@ -644,47 +548,43 @@ def test_should_send_sms_to_international_providers(
 
     db_notification_uk = create_notification(
         template=sample_sms_template_with_html,
-        to_field="+16135555555",
-        personalisation={"name": "Jo"},
+        to_field='+16135555555',
+        personalisation={'name': 'Jo'},
         status='created',
         international=False,
-        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender()
+        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
     )
 
     db_notification_international = create_notification(
         template=sample_sms_template_with_html,
-        to_field="+1613555555",
-        personalisation={"name": "Jo"},
+        to_field='+1613555555',
+        personalisation={'name': 'Jo'},
         status='created',
         international=False,
-        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender()
+        reply_to_text=sample_sms_template_with_html.service.get_default_sms_sender(),
     )
 
     mocker.patch('app.aws_sns_client.send_sms')
     mocker.patch('app.mmg_client.send_sms')
 
-    send_to_providers.send_sms_to_provider(
-        db_notification_uk
-    )
+    send_to_providers.send_sms_to_provider(db_notification_uk)
 
     mmg_client.send_sms.assert_called_once_with(
-        to="16135555555",
+        to='16135555555',
         content=ANY,
         reference=str(db_notification_uk.id),
         sender=current_app.config['FROM_NUMBER'],
-        sms_sender_id=ANY
+        sms_sender_id=ANY,
     )
 
-    send_to_providers.send_sms_to_provider(
-        db_notification_international
-    )
+    send_to_providers.send_sms_to_provider(db_notification_international)
 
     aws_sns_client.send_sms.assert_called_once_with(
-        to="601117224412",
+        to='601117224412',
         content=ANY,
         reference=str(db_notification_international.id),
         sender=current_app.config['FROM_NUMBER'],
-        sms_sender_id=ANY
+        sms_sender_id=ANY,
     )
 
     notification_uk = Notification.query.filter_by(id=db_notification_uk.id).one()
@@ -696,22 +596,20 @@ def test_should_send_sms_to_international_providers(
     assert notification_int.sent_by == 'mmg'
 
 
-@pytest.mark.parametrize('sms_sender, expected_sender, prefix_sms, expected_content', [
-    ('foo', 'foo', False, 'bar'),
-    ('foo', 'foo', True, 'Sample service: bar'),
-    # if 40604 is actually in DB then treat that as if entered manually
-    ('40604', '40604', False, 'bar'),
-    # 'testing' is the FROM_NUMBER during unit tests
-    ('testing', 'testing', True, 'Sample service: bar'),
-    ('testing', 'testing', False, 'bar'),
-])
+@pytest.mark.parametrize(
+    'sms_sender, expected_sender, prefix_sms, expected_content',
+    [
+        ('foo', 'foo', False, 'bar'),
+        ('foo', 'foo', True, 'Sample service: bar'),
+        # if 40604 is actually in DB then treat that as if entered manually
+        ('40604', '40604', False, 'bar'),
+        # 'testing' is the FROM_NUMBER during unit tests
+        ('testing', 'testing', True, 'Sample service: bar'),
+        ('testing', 'testing', False, 'bar'),
+    ],
+)
 def test_should_handle_sms_sender_and_prefix_message(
-    mock_sms_client,
-    sms_sender,
-    prefix_sms,
-    expected_sender,
-    expected_content,
-    notify_db_session
+    mock_sms_client, sms_sender, prefix_sms, expected_sender, expected_content, notify_db_session
 ):
     service = create_service_with_defined_sms_sender(sms_sender_value=sms_sender, prefix_sms=prefix_sms)
     template = create_template(service, content='bar')
@@ -720,39 +618,30 @@ def test_should_handle_sms_sender_and_prefix_message(
     send_to_providers.send_sms_to_provider(notification)
 
     mock_sms_client.send_sms.assert_called_once_with(
-        content=expected_content,
-        sender=expected_sender,
-        to=ANY,
-        reference=ANY,
-        service_id=ANY,
-        sms_sender_id=ANY
+        content=expected_content, sender=expected_sender, to=ANY, reference=ANY, service_id=ANY, sms_sender_id=ANY
     )
 
 
 def test_send_email_to_provider_uses_reply_to_from_notification(
-        sample_email_template,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_email_template, mock_email_client, mocked_build_ga_pixel_url
 ):
-    db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com")
+    db_notification = create_notification(template=sample_email_template, reply_to_text='test@test.com')
 
     send_to_providers.send_email_to_provider(db_notification)
 
     _, kwargs = mock_email_client.send_email.call_args
-    assert kwargs['reply_to_address'] == "test@test.com"
+    assert kwargs['reply_to_address'] == 'test@test.com'
 
 
 def test_send_email_to_provider_should_format_reply_to_email_address(
-        sample_email_template,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_email_template, mock_email_client, mocked_build_ga_pixel_url
 ):
-    db_notification = create_notification(template=sample_email_template, reply_to_text="test@test.com\t")
+    db_notification = create_notification(template=sample_email_template, reply_to_text='test@test.com\t')
 
     send_to_providers.send_email_to_provider(db_notification)
 
     _, kwargs = mock_email_client.send_email.call_args
-    assert kwargs['reply_to_address'] == "test@test.com"
+    assert kwargs['reply_to_address'] == 'test@test.com'
 
 
 def test_send_sms_to_provider_should_format_phone_number(sample_notification, mock_sms_client):
@@ -766,9 +655,7 @@ def test_send_sms_to_provider_should_format_phone_number(sample_notification, mo
 
 
 def test_send_email_to_provider_should_format_email_address(
-        sample_email_notification,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_email_notification, mock_email_client, mocked_build_ga_pixel_url
 ):
     sample_email_notification.to = 'test@example.com\t'
 
@@ -780,16 +667,14 @@ def test_send_email_to_provider_should_format_email_address(
 
 def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sample_service_full_permissions):
     template = create_template(
-        template_type='email',
-        content='Here is your ((file))',
-        service=sample_service_full_permissions
+        template_type='email', content='Here is your ((file))', service=sample_service_full_permissions
     )
     personalisation = {
-        "file": {
-            "file_name": "some_file.pdf",
-            "sending_method": "attach",
-            "id": str(uuid.uuid4()),
-            "encryption_key": str(bytes(32))
+        'file': {
+            'file_name': 'some_file.pdf',
+            'sending_method': 'attach',
+            'id': str(uuid.uuid4()),
+            'encryption_key': str(bytes(32)),
         }
     }
 
@@ -804,11 +689,11 @@ def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sa
     _, kwargs = mock_attachment_store.get.call_args
     assert kwargs == {
         'service_id': sample_service_full_permissions.id,
-        'sending_method': personalisation["file"]["sending_method"],
-        'attachment_id': personalisation["file"]["id"],
-        'decryption_key': personalisation["file"]["encryption_key"],
+        'sending_method': personalisation['file']['sending_method'],
+        'attachment_id': personalisation['file']['id'],
+        'decryption_key': personalisation['file']['encryption_key'],
     }
-    attachments = [{'data': 'request_content'.encode(), 'name': "some_file.pdf"}]
+    attachments = [{'data': 'request_content'.encode(), 'name': 'some_file.pdf'}]
 
     _, kwargs = mock_email_client.send_email.call_args
     assert kwargs['attachments'] == attachments
@@ -817,21 +702,23 @@ def test_notification_document_with_pdf_attachment(mocker, mock_email_client, sa
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
-        sample_email_template_with_html,
-        mocker,
-        notify_api):
-    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value='reference')
+    sample_email_template_with_html, mocker, notify_api
+):
+    send_mock = mocker.patch('app.aws_ses_client.send_email', return_value='reference')
     mocker.patch('app.googleanalytics.pixels.build_ga_pixel_url', return_value='url')
 
     db_notification = create_notification(
         template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': '046-454-286'}
+        to_field='jo.smith@example.com',
+        personalisation={'name': '046-454-286'},
     )
 
-    with set_config_values(notify_api, {
-        'SCAN_FOR_PII': "True",
-    }):
+    with set_config_values(
+        notify_api,
+        {
+            'SCAN_FOR_PII': 'True',
+        },
+    ):
         with pytest.raises(NotificationTechnicalFailureException) as e:
             send_to_providers.send_email_to_provider(db_notification)
             assert db_notification.id in e.value
@@ -842,14 +729,12 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
-        sample_email_template_with_html,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_email_template_with_html, mock_email_client, mocked_build_ga_pixel_url
 ):
     db_notification = create_notification(
         template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': '123-456-789'}
+        to_field='jo.smith@example.com',
+        personalisation={'name': '123-456-789'},
     )
 
     send_to_providers.send_email_to_provider(db_notification)
@@ -860,15 +745,12 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
 
 
 def test_notification_passes_if_message_contains_phone_number(
-        sample_email_template_with_html,
-        mock_email_client,
-        mocked_build_ga_pixel_url
+    sample_email_template_with_html, mock_email_client, mocked_build_ga_pixel_url
 ):
-
     db_notification = create_notification(
         template=sample_email_template_with_html,
-        to_field="jo.smith@example.com",
-        personalisation={'name': '123-456-7890'}
+        to_field='jo.smith@example.com',
+        personalisation={'name': '123-456-7890'},
     )
 
     send_to_providers.send_email_to_provider(db_notification)
@@ -881,7 +763,7 @@ def test_notification_passes_if_message_contains_phone_number(
 def test_load_provider_throws_exception_if_provider_is_inactive(fake_uuid, mocker):
     mocker.patch(
         'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mocker.Mock(ProviderDetails, active=False)
+        return_value=mocker.Mock(ProviderDetails, active=False),
     )
 
     with pytest.raises(InvalidProviderException, match=f'^provider {fake_uuid} is not active$'):
@@ -889,10 +771,7 @@ def test_load_provider_throws_exception_if_provider_is_inactive(fake_uuid, mocke
 
 
 def test_load_provider_throws_exception_if_provider_is_not_found(fake_uuid, mocker):
-    mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=None
-    )
+    mocker.patch('app.delivery.send_to_providers.get_provider_details_by_id', return_value=None)
 
     with pytest.raises(InvalidProviderException, match=f'^provider {fake_uuid} could not be found'):
         load_provider(fake_uuid)
@@ -901,26 +780,19 @@ def test_load_provider_throws_exception_if_provider_is_not_found(fake_uuid, mock
 def test_load_provider_returns_provider_details_if_provider_is_active(fake_uuid, mocker):
     mocked_provider_details = mocker.Mock(ProviderDetails, active=True)
 
-    mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mocked_provider_details
-    )
+    mocker.patch('app.delivery.send_to_providers.get_provider_details_by_id', return_value=mocked_provider_details)
 
     provider_details = load_provider(fake_uuid)
     assert provider_details == mocked_provider_details
 
 
 def test_client_to_use_should_return_template_provider(mocker, monkeypatch):
-    monkeypatch.setenv("TEMPLATE_SERVICE_PROVIDERS_ENABLED", "True")
+    monkeypatch.setenv('TEMPLATE_SERVICE_PROVIDERS_ENABLED', 'True')
     client_name = 'template-client'
     mocked_client = mocker.Mock(EmailClient)
     mocker.patch.object(mocked_client, 'get_name', return_value=client_name)
 
-    mocked_template_provider_details = mocker.Mock(
-        ProviderDetails,
-        active=True,
-        identifier=client_name
-    )
+    mocked_template_provider_details = mocker.Mock(ProviderDetails, active=True, identifier=client_name)
 
     template_provider_id = uuid.uuid4()
     mocked_template = mocker.Mock(Template, provider_id=template_provider_id)
@@ -928,12 +800,10 @@ def test_client_to_use_should_return_template_provider(mocker, monkeypatch):
     mocked_notification = mocker.Mock(Notification, notification_type=EMAIL_TYPE, template=mocked_template)
 
     mocked_get_provider_details_by_id = mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mocked_template_provider_details
+        'app.delivery.send_to_providers.get_provider_details_by_id', return_value=mocked_template_provider_details
     )
     mocked_get_client_by_name_and_type = mocker.patch(
-        'app.delivery.send_to_providers.clients.get_client_by_name_and_type',
-        return_value=mocked_client
+        'app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client
     )
 
     client = send_to_providers.client_to_use(mocked_notification)
@@ -945,22 +815,18 @@ def test_client_to_use_should_return_template_provider(mocker, monkeypatch):
 
 
 def test_uses_provider_service_if_enabled(mocker, monkeypatch):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, "True")
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'True')
 
     mock_provider_service = mocker.Mock(ProviderService)
     mock_provider = mocker.Mock(ProviderDetails, identifier='some-identifier')
     mock_provider_service.get_provider.return_value = mock_provider
     mocker.patch('app.delivery.send_to_providers.provider_service', new=mock_provider_service)
 
-    mocked_notification = mocker.Mock(
-        Notification,
-        notification_type=EMAIL_TYPE
-    )
+    mocked_notification = mocker.Mock(Notification, notification_type=EMAIL_TYPE)
 
     mocked_client = mocker.Mock(EmailClient)
     mocked_get_client_by_name_and_type = mocker.patch(
-        'app.delivery.send_to_providers.clients.get_client_by_name_and_type',
-        return_value=mocked_client
+        'app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client
     )
 
     client = send_to_providers.client_to_use(mocked_notification)
@@ -972,8 +838,8 @@ def test_uses_provider_service_if_enabled(mocker, monkeypatch):
 
 
 def test_returns_service_provider_if_template_has_no_provider(fake_uuid, mocker, monkeypatch):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, "False")
-    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, "True")
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
+    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'True')
 
     mocked_template = mocker.Mock(Template, provider_id=None)
 
@@ -981,26 +847,17 @@ def test_returns_service_provider_if_template_has_no_provider(fake_uuid, mocker,
     mocked_service = mocker.Mock(Service, email_provider_id=service_provider_id)
 
     mocked_notification = mocker.Mock(
-        Notification,
-        notification_type=EMAIL_TYPE,
-        template=mocked_template,
-        service=mocked_service
+        Notification, notification_type=EMAIL_TYPE, template=mocked_template, service=mocked_service
     )
 
-    mock_provider_details = mocker.Mock(
-        ProviderDetails,
-        active=True,
-        identifier='some-identifier'
-    )
+    mock_provider_details = mocker.Mock(ProviderDetails, active=True, identifier='some-identifier')
     mocked_get_provider_details_by_id = mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mock_provider_details
+        'app.delivery.send_to_providers.get_provider_details_by_id', return_value=mock_provider_details
     )
 
     mocked_client = mocker.Mock(EmailClient)
     mocked_get_client_by_name_and_type = mocker.patch(
-        'app.delivery.send_to_providers.clients.get_client_by_name_and_type',
-        return_value=mocked_client
+        'app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client
     )
 
     client = send_to_providers.client_to_use(mocked_notification)
@@ -1012,34 +869,25 @@ def test_returns_service_provider_if_template_has_no_provider(fake_uuid, mocker,
 
 
 def test_should_return_template_provider_if_template_and_service_have_providers(mocker, monkeypatch):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, "False")
-    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, "True")
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
+    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'True')
 
     template_provider_id = uuid.uuid4()
     mocked_template = mocker.Mock(Template, provider_id=template_provider_id)
     mocked_service = mocker.Mock(Service, email_provider_id=uuid.uuid4())
 
     mocked_notification = mocker.Mock(
-        Notification,
-        notification_type=EMAIL_TYPE,
-        template=mocked_template,
-        service=mocked_service
+        Notification, notification_type=EMAIL_TYPE, template=mocked_template, service=mocked_service
     )
 
-    mock_provider_details = mocker.Mock(
-        ProviderDetails,
-        active=True,
-        identifier='some-identifier'
-    )
+    mock_provider_details = mocker.Mock(ProviderDetails, active=True, identifier='some-identifier')
     mocked_get_provider_details_by_id = mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mock_provider_details
+        'app.delivery.send_to_providers.get_provider_details_by_id', return_value=mock_provider_details
     )
 
     mocked_client = mocker.Mock(EmailClient)
     mocked_get_client_by_name_and_type = mocker.patch(
-        'app.delivery.send_to_providers.clients.get_client_by_name_and_type',
-        return_value=mocked_client
+        'app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client
     )
 
     client = send_to_providers.client_to_use(mocked_notification)
@@ -1051,28 +899,21 @@ def test_should_return_template_provider_if_template_and_service_have_providers(
 
 
 def test_should_raise_exception_if_template_provider_is_inactive(mocker, monkeypatch):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, "False")
-    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, "True")
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
+    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'True')
 
     template_provider_id = uuid.uuid4()
-    mocked_template_provider_details = mocker.Mock(
-        ProviderDetails,
-        active=False
-    )
+    mocked_template_provider_details = mocker.Mock(ProviderDetails, active=False)
 
     mocked_template = mocker.Mock(Template, provider_id=template_provider_id)
     mocked_service = mocker.Mock(Service, email_provider_id=uuid.uuid4())
 
     mocked_notification = mocker.Mock(
-        Notification,
-        notification_type=EMAIL_TYPE,
-        template=mocked_template,
-        service=mocked_service
+        Notification, notification_type=EMAIL_TYPE, template=mocked_template, service=mocked_service
     )
 
     mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_id',
-        return_value=mocked_template_provider_details
+        'app.delivery.send_to_providers.get_provider_details_by_id', return_value=mocked_template_provider_details
     )
 
     mocked_get_client_by_name_and_type = mocker.patch(
@@ -1086,22 +927,17 @@ def test_should_raise_exception_if_template_provider_is_inactive(mocker, monkeyp
 
 
 def test_template_or_service_provider_is_not_used_when_feature_flag_is_off(mocker, monkeypatch, fake_uuid):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, "False")
-    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, "False")
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
+    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'False')
     mocked_client = mocker.Mock(EmailClient)
 
-    mocker.patch(
-        'app.delivery.send_to_providers.clients.get_client_by_name_and_type',
-        return_value=mocked_client
-    )
+    mocker.patch('app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client)
 
-    mock_load_provider = mocker.patch(
-        'app.delivery.send_to_providers.load_provider'
-    )
+    mock_load_provider = mocker.patch('app.delivery.send_to_providers.load_provider')
 
     mocker.patch(
         'app.delivery.send_to_providers.get_provider_details_by_notification_type',
-        return_value=[mocker.Mock(ProviderDetails, active=True)]
+        return_value=[mocker.Mock(ProviderDetails, active=True)],
     )
 
     send_to_providers.client_to_use(mocker.Mock(Notification))

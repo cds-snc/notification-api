@@ -1,15 +1,7 @@
-from flask import (
-    Blueprint,
-    request,
-    jsonify,
-    current_app)
+from flask import Blueprint, request, jsonify, current_app
 
 from app.config import QueueNames
-from app.dao.invited_user_dao import (
-    save_invited_user,
-    get_invited_user,
-    get_invited_users_for_service
-)
+from app.dao.invited_user_dao import save_invited_user, get_invited_user, get_invited_users_for_service
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, Service
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
@@ -36,11 +28,11 @@ def create_invited_user(service_id):
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
-        recipient=invited_user["email_address"],
+        recipient=invited_user['email_address'],
         service_id=service.id,
         personalisation={
-            'user_name': invited_user["from_user"].name,
-            'service_name': invited_user["service"].name,
+            'user_name': invited_user['from_user'].name,
+            'service_name': invited_user['service'].name,
             'url': invited_user_url(
                 invited_user_instance.id,
                 request_json.get('invite_link_host'),
@@ -49,13 +41,13 @@ def create_invited_user(service_id):
         notification_type=EMAIL_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=invited_user["from_user"].email_address
+        reply_to_text=invited_user['from_user'].email_address,
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     invited_user_data = invited_user_schema.dump(invited_user).data
-    invited_user_data["id"] = invited_user_instance.id
+    invited_user_data['id'] = invited_user_instance.id
     return jsonify(data=invited_user_data), 201
 
 
@@ -66,17 +58,24 @@ def get_invited_users_by_service(service_id):
 
 
 @invite.route('/<invited_user_id>', methods=['POST'])
-def update_invited_user(service_id, invited_user_id):
+def update_invited_user(
+    service_id,
+    invited_user_id,
+):
     fetched = get_invited_user(service_id=service_id, invited_user_id=invited_user_id)
     current_data = dict(invited_user_schema.dump(fetched).data.items())
     current_data.update(request.get_json())
-    fetched.status = current_data["status"]
+    fetched.status = current_data['status']
     save_invited_user(fetched)
     return jsonify(data=invited_user_schema.dump(fetched).data), 200
 
 
-def invited_user_url(invited_user_id, invite_link_host=None):
+def invited_user_url(
+    invited_user_id,
+    invite_link_host=None,
+):
     from notifications_utils.url_safe_token import generate_token
+
     token = generate_token(str(invited_user_id), current_app.config['SECRET_KEY'], current_app.config['DANGEROUS_SALT'])
 
     if invite_link_host is None:

@@ -24,16 +24,10 @@ from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (
     determine_notification_bounce_type,
     handle_ses_complaint,
-    handle_smtp_complaint
+    handle_smtp_complaint,
 )
-from app.celery.service_callback_tasks import (
-    check_and_queue_callback_task,
-    _check_and_queue_complaint_callback_task
-)
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
+from app.celery.service_callback_tasks import check_and_queue_callback_task, _check_and_queue_complaint_callback_task
+from app.errors import register_errors, InvalidRequest
 from cachelib import SimpleCache
 import validatesns
 
@@ -85,17 +79,17 @@ def sns_callback_handler():
     try:
         verify_message_type(message_type)
     except InvalidMessageTypeException:
-        raise InvalidRequest("SES-SNS callback failed: invalid message type", 400)
+        raise InvalidRequest('SES-SNS callback failed: invalid message type', 400)
 
     try:
         message = json.loads(request.data)
     except decoder.JSONDecodeError:
-        raise InvalidRequest("SES-SNS callback failed: invalid JSON given", 400)
+        raise InvalidRequest('SES-SNS callback failed: invalid JSON given', 400)
 
     try:
         validatesns.validate(message, get_certificate=get_certificate)
     except validatesns.ValidationError:
-        raise InvalidRequest("SES-SNS callback failed: validation failed", 400)
+        raise InvalidRequest('SES-SNS callback failed: validation failed', 400)
 
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
@@ -103,18 +97,14 @@ def sns_callback_handler():
             response = requests.get(url, timeout=(3.05, 1))
             response.raise_for_status()
         except requests.RequestException as e:
-            current_app.logger.warning("Response: %s", response.text)
+            current_app.logger.warning('Response: %s', response.text)
             raise e
 
-        return jsonify(
-            result="success", message="SES-SNS auto-confirm callback succeeded"
-        ), 200
+        return jsonify(result='success', message='SES-SNS auto-confirm callback succeeded'), 200
 
-    process_ses_results.apply_async([{"Message": message.get("Message")}], queue=QueueNames.NOTIFY)
+    process_ses_results.apply_async([{'Message': message.get('Message')}], queue=QueueNames.NOTIFY)
 
-    return jsonify(
-        result="success", message="SES-SNS callback succeeded"
-    ), 200
+    return jsonify(result='success', message='SES-SNS callback succeeded'), 200
 
 
 @ses_smtp_callback_blueprint.route('/notifications/email/ses-smtp', methods=['POST'])
@@ -123,17 +113,17 @@ def sns_smtp_callback_handler():
     try:
         verify_message_type(message_type)
     except InvalidMessageTypeException:
-        raise InvalidRequest("SES-SNS SMTP callback failed: invalid message type", 400)
+        raise InvalidRequest('SES-SNS SMTP callback failed: invalid message type', 400)
 
     try:
         message = json.loads(request.data)
     except decoder.JSONDecodeError:
-        raise InvalidRequest("SES-SNS SMTP callback failed: invalid JSON given", 400)
+        raise InvalidRequest('SES-SNS SMTP callback failed: invalid JSON given', 400)
 
     try:
         validatesns.validate(message, get_certificate=get_certificate)
     except validatesns.ValidationError:
-        raise InvalidRequest("SES-SNS SMTP callback failed: validation failed", 400)
+        raise InvalidRequest('SES-SNS SMTP callback failed: validation failed', 400)
 
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
@@ -141,23 +131,22 @@ def sns_smtp_callback_handler():
             response = requests.get(url, timeout=(3.05, 1))
             response.raise_for_status()
         except requests.RequestException as e:
-            current_app.logger.warning("Response: %s", response.text)
+            current_app.logger.warning('Response: %s', response.text)
             raise e
 
-        return jsonify(
-            result="success", message="SES-SNS auto-confirm callback succeeded"
-        ), 200
+        return jsonify(result='success', message='SES-SNS auto-confirm callback succeeded'), 200
 
-    process_ses_smtp_results.apply_async([{"Message": message.get("Message")}], queue=QueueNames.NOTIFY)
+    process_ses_smtp_results.apply_async([{'Message': message.get('Message')}], queue=QueueNames.NOTIFY)
 
-    return jsonify(
-        result="success", message="SES-SNS callback succeeded"
-    ), 200
+    return jsonify(result='success', message='SES-SNS callback succeeded'), 200
 
 
-@notify_celery.task(bind=True, name="process-ses-result", max_retries=5, default_retry_delay=300)
-@statsd(namespace="tasks")
-def process_ses_results(self, response):
+@notify_celery.task(bind=True, name='process-ses-result', max_retries=5, default_retry_delay=300)
+@statsd(namespace='tasks')
+def process_ses_results(  # noqa: C901
+    self,
+    response,
+):
     try:
         ses_message = json.loads(response['Message'])
         notification_type = ses_message.get('eventType')
@@ -181,24 +170,22 @@ def process_ses_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             else:
                 current_app.logger.warning(
-                    "notification not found for reference: %s (update to %s)", reference, notification_status
+                    'notification not found for reference: %s (update to %s)', reference, notification_status
                 )
             return
 
         # Add status reason to notification if the status is some kind of failure
         if 'temporary-failure' in notification_status:
-            notification.status_reason = "Temporarily failed to deliver email due to soft bounce"
+            notification.status_reason = 'Temporarily failed to deliver email due to soft bounce'
             notifications_dao.dao_update_notification(notification)
             current_app.logger.info(
-                "temporary-failure - soft bounce - in process_ses_results for notification %s",
-                notification.id
+                'temporary-failure - soft bounce - in process_ses_results for notification %s', notification.id
             )
         elif 'permanent-failure' in notification_status:
-            notification.status_reason = "Failed to deliver email due to hard bounce"
+            notification.status_reason = 'Failed to deliver email due to hard bounce'
             notifications_dao.dao_update_notification(notification)
             current_app.logger.info(
-                "permanent-failure - hard bounce - in process_ses_results for notification %s",
-                notification.id
+                'permanent-failure - hard bounce - in process_ses_results for notification %s', notification.id
             )
 
         if notification.status not in {NOTIFICATION_SENDING, NOTIFICATION_PENDING}:
@@ -209,16 +196,14 @@ def process_ses_results(self, response):
 
         if not aws_response_dict['success']:
             current_app.logger.info(
-                "SES delivery failed: notification id %s and reference %s has error found. Status %s",
+                'SES delivery failed: notification id %s and reference %s has error found. Status %s',
                 notification.id,
                 reference,
-                aws_response_dict['message']
+                aws_response_dict['message'],
             )
         else:
             current_app.logger.info(
-                'SES callback return status of %s for notification: %s',
-                notification_status,
-                notification.id
+                'SES callback return status of %s for notification: %s', notification_status, notification.id
             )
 
         statsd_client.incr('callback.ses.{}'.format(notification_status))
@@ -239,9 +224,12 @@ def process_ses_results(self, response):
         self.retry(queue=QueueNames.RETRY)
 
 
-@notify_celery.task(bind=True, name="process-ses-smtp-results", max_retries=5, default_retry_delay=300)
-@statsd(namespace="tasks")
-def process_ses_smtp_results(self, response):
+@notify_celery.task(bind=True, name='process-ses-smtp-results', max_retries=5, default_retry_delay=300)
+@statsd(namespace='tasks')
+def process_ses_smtp_results(
+    self,
+    response,
+):
     try:
         ses_message = json.loads(response['Message'])
 
@@ -259,39 +247,38 @@ def process_ses_smtp_results(self, response):
 
         try:
             # Get service based on SMTP name
-            service = services_dao.dao_services_by_partial_smtp_name(source.split("@")[-1])
+            service = services_dao.dao_services_by_partial_smtp_name(source.split('@')[-1])
 
             # Create a sent notification based on details from the payload
             template = templates_dao.dao_get_template_by_id(current_app.config['SMTP_TEMPLATE_ID'])
 
             for recipient in recipients:
-
-                message = "".join((
-                                'A message was sent from: \n',  # noqa: E126
-                                source,
-                                '\n\n to: \n',
-                                recipient,
-                                '\n\n on: \n',
-                                headers["date"],
-                                '\n\n with the subject: \n',
-                                headers["subject"]))
+                message = ''.join(
+                    (
+                        'A message was sent from: \n',  # noqa: E126
+                        source,
+                        '\n\n to: \n',
+                        recipient,
+                        '\n\n on: \n',
+                        headers['date'],
+                        '\n\n with the subject: \n',
+                        headers['subject'],
+                    )
+                )
 
                 notification = process_notifications.persist_notification(
                     template_id=template.id,
                     template_version=template.version,
                     recipient=recipient,
                     service_id=service.id,
-                    personalisation={
-                        'subject': headers["subject"],
-                        'message': message
-                    },
+                    personalisation={'subject': headers['subject'], 'message': message},
                     notification_type=EMAIL_TYPE,
                     api_key_id=None,
                     key_type=KEY_TYPE_NORMAL,
                     reply_to_text=recipient,
-                    created_at=headers["date"],
+                    created_at=headers['date'],
                     status=notification_status,
-                    reference=ses_message['mail']['messageId']
+                    reference=ses_message['mail']['messageId'],
                 )
 
                 if notification_type == 'Complaint':
@@ -302,7 +289,7 @@ def process_ses_smtp_results(self, response):
         except NoResultFound:
             reference = ses_message['mail']['messageId']
             current_app.logger.warning(
-                "SMTP service not found for reference: %s (update to %s)", reference, notification_status
+                'SMTP service not found for reference: %s (update to %s)', reference, notification_status
             )
             return
 

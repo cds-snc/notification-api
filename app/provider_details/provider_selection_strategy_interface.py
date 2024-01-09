@@ -14,7 +14,10 @@ class ProviderSelectionStrategyInterface:
     We import strategies in the provider_details module __init__.py to achieve this.
     """
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(
+        cls,
+        **kwargs,
+    ):
         super().__init_subclass__(**kwargs)
         STRATEGY_REGISTRY[cls.get_label()] = cls
 

@@ -15,7 +15,7 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     DELIVERY_STATUS_CALLBACK_TYPE,
     CALLBACK_CHANNEL_TYPES,
-    EMAIL_AUTH_TYPE
+    EMAIL_AUTH_TYPE,
 )
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -44,7 +44,10 @@ from sqlalchemy.orm.exc import NoResultFound
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
 
-def _validate_positive_number(value, msg="Not a positive integer"):
+def _validate_positive_number(
+    value,
+    msg='Not a positive integer',
+):
     try:
         page_int = int(value)
     except ValueError:
@@ -53,38 +56,61 @@ def _validate_positive_number(value, msg="Not a positive integer"):
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_more_than_96_hours_in_future(dte, msg="Date cannot be more than 96hrs in the future"):
+def _validate_datetime_not_more_than_96_hours_in_future(
+    dte,
+    msg='Date cannot be more than 96hrs in the future',
+):
     if dte > datetime.utcnow() + timedelta(hours=96):
         raise ValidationError(msg)
 
 
-def _validate_not_in_future(dte, msg="Date cannot be in the future"):
+def _validate_not_in_future(
+    dte,
+    msg='Date cannot be in the future',
+):
     if dte > date.today():
         raise ValidationError(msg)
 
 
-def _validate_not_in_past(dte, msg="Date cannot be in the past"):
+def _validate_not_in_past(
+    dte,
+    msg='Date cannot be in the past',
+):
     if dte < date.today():
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_in_future(dte, msg="Date cannot be in the future"):
+def _validate_datetime_not_in_future(
+    dte,
+    msg='Date cannot be in the future',
+):
     if dte > datetime.utcnow():
         raise ValidationError(msg)
 
 
-def _validate_datetime_not_in_past(dte, msg="Date cannot be in the past"):
+def _validate_datetime_not_in_past(
+    dte,
+    msg='Date cannot be in the past',
+):
     if dte < datetime.utcnow():
         raise ValidationError(msg)
 
 
 class BaseSchema(ma.SQLAlchemyAutoSchema):
-    def __init__(self, load_json=False, *args, **kwargs):
+    def __init__(
+        self,
+        load_json=False,
+        *args,
+        **kwargs,
+    ):
         self.load_json = load_json
         super(BaseSchema, self).__init__(*args, **kwargs)
 
     @post_load
-    def make_instance(self, data):
+    def make_instance(
+        self,
+        data,
+    ):
         """
         Deserialize data to an instance of the model. Update an existing row
         if specified in `self.instance` or loaded by primary key(s) in the data;
@@ -98,7 +124,7 @@ class BaseSchema(ma.SQLAlchemyAutoSchema):
 
 
 class UserSchema(BaseSchema):
-    permissions = fields.Method("user_permissions", dump_only=True)
+    permissions = fields.Method('user_permissions', dump_only=True)
     password_changed_at = field_for(User, 'password_changed_at', format=DATE_FORMAT)
     created_at = field_for(User, 'created_at', format=DATE_FORMAT)
     auth_type = field_for(User, 'auth_type')
@@ -107,18 +133,20 @@ class UserSchema(BaseSchema):
     class Meta:
         model = User
         exclude = (
-            "updated_at",
-            "created_at",
-            "user_to_service",
-            "user_to_organisation",
-            "_password",
-            "verify_codes"
-            "_identity_provider_user_id"
+            'updated_at',
+            'created_at',
+            'user_to_service',
+            'user_to_organisation',
+            '_password',
+            'verify_codes' '_identity_provider_user_id',
         )
         strict = True
         load_instance = True
 
-    def user_permissions(self, usr):
+    def user_permissions(
+        self,
+        usr,
+    ):
         retval = {}
         for x in permission_dao.get_permissions_by_user_id(usr.id):
             service_id = str(x.service_id)
@@ -128,19 +156,28 @@ class UserSchema(BaseSchema):
         return retval
 
     @validates('name')
-    def validate_name(self, value):
+    def validate_name(
+        self,
+        value,
+    ):
         if not value:
             raise ValidationError('Invalid name')
 
     @validates('email_address')
-    def validate_email_address(self, value):
+    def validate_email_address(
+        self,
+        value,
+    ):
         try:
             validate_email_address(value)
         except InvalidEmailError as e:
             raise ValidationError(str(e))
 
     @validates('mobile_number')
-    def validate_mobile_number(self, value):
+    def validate_mobile_number(
+        self,
+        value,
+    ):
         try:
             if value is not None:
                 validate_phone_number(value, international=True)
@@ -155,25 +192,44 @@ class UserUpdateAttributeSchema(BaseSchema):
     class Meta:
         model = User
         exclude = (
-            'id', 'updated_at', 'created_at', 'user_to_service',
-            '_password', 'verify_codes', 'logged_in_at', 'password_changed_at',
-            'failed_login_count', 'state', 'platform_admin', '_identity_provider_user_id')
+            'id',
+            'updated_at',
+            'created_at',
+            'user_to_service',
+            '_password',
+            'verify_codes',
+            'logged_in_at',
+            'password_changed_at',
+            'failed_login_count',
+            'state',
+            'platform_admin',
+            '_identity_provider_user_id',
+        )
         strict = True
 
     @validates('name')
-    def validate_name(self, value):
+    def validate_name(
+        self,
+        value,
+    ):
         if not value:
             raise ValidationError('Invalid name')
 
     @validates('email_address')
-    def validate_email_address(self, value):
+    def validate_email_address(
+        self,
+        value,
+    ):
         try:
             validate_email_address(value)
         except InvalidEmailError as e:
             raise ValidationError(str(e))
 
     @validates('mobile_number')
-    def validate_mobile_number(self, value):
+    def validate_mobile_number(
+        self,
+        value,
+    ):
         try:
             if value is not None:
                 validate_phone_number(value, international=True)
@@ -181,7 +237,11 @@ class UserUpdateAttributeSchema(BaseSchema):
             raise ValidationError('Invalid phone number: {}'.format(error))
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(
+        self,
+        data,
+        original_data,
+    ):
         for key in original_data:
             if key not in self.fields:
                 raise ValidationError('Unknown field name {}'.format(key))
@@ -190,11 +250,15 @@ class UserUpdateAttributeSchema(BaseSchema):
 class UserUpdatePasswordSchema(BaseSchema):
     class Meta:
         model = User
-        only = ('password')
+        only = 'password'
         strict = True
 
     @validates_schema(pass_original=True)
-    def check_unknown_fields(self, data, original_data):
+    def check_unknown_fields(
+        self,
+        data,
+        original_data,
+    ):
         for key in original_data:
             if key not in self.fields:
                 raise ValidationError('Unknown field name {}'.format(key))
@@ -205,7 +269,7 @@ class ProviderDetailsSchema(BaseSchema):
 
     class Meta:
         model = models.ProviderDetails
-        exclude = ("provider_rates", "provider_stats")
+        exclude = ('provider_rates', 'provider_stats')
         strict = True
 
 
@@ -214,7 +278,7 @@ class ProviderDetailsHistorySchema(BaseSchema):
 
     class Meta:
         model = models.ProviderDetailsHistory
-        exclude = ("provider_rates", "provider_stats")
+        exclude = ('provider_rates', 'provider_stats')
         strict = True
 
 
@@ -222,19 +286,25 @@ class ServiceSchema(BaseSchema):
     created_by = field_for(models.Service, 'created_by', required=True)
     organisation_type = field_for(models.Service, 'organisation_type')
     letter_logo_filename = None
-    permissions = fields.Method("service_permissions")
+    permissions = fields.Method('service_permissions')
     email_branding = field_for(models.Service, 'email_branding')
     organisation = field_for(models.Service, 'organisation')
     override_flag = False
-    letter_contact_block = fields.Method(serialize="get_letter_contact")
+    letter_contact_block = fields.Method(serialize='get_letter_contact')
     go_live_at = field_for(models.Service, 'go_live_at', format=DATE_FORMAT)
     email_provider_id = field_for(models.Service, 'email_provider_id')
     sms_provider_id = field_for(models.Service, 'sms_provider_id')
 
-    def service_permissions(self, service):
+    def service_permissions(
+        self,
+        service,
+    ):
         return [p.permission for p in service.permissions]
 
-    def get_letter_contact(self, service):
+    def get_letter_contact(
+        self,
+        service,
+    ):
         return service.get_default_letter_contact()
 
     class Meta:
@@ -256,14 +326,17 @@ class ServiceSchema(BaseSchema):
             'complaints',
             'email_provider',
             'sms_provider',
-            'inbound_sms'
+            'inbound_sms',
         )
         strict = True
         load_instance = True
         include_relationships = True
 
     @validates('permissions')
-    def validate_permissions(self, value):
+    def validate_permissions(
+        self,
+        value,
+    ):
         permissions = [v.permission for v in value]
         for p in permissions:
             if p not in models.SERVICE_PERMISSION_TYPES:
@@ -274,22 +347,31 @@ class ServiceSchema(BaseSchema):
             raise ValidationError('Duplicate Service Permission: {}'.format(duplicates))
 
     @validates('email_provider_id')
-    def validate_email_provider_id(self, value):
+    def validate_email_provider_id(
+        self,
+        value,
+    ):
         if value and not validate_providers.is_provider_valid(value, EMAIL_TYPE):
-            raise ValidationError(f"Invalid email_provider_id: {value}")
+            raise ValidationError(f'Invalid email_provider_id: {value}')
 
     @validates('sms_provider_id')
-    def validate_sms_provider_id(self, value):
+    def validate_sms_provider_id(
+        self,
+        value,
+    ):
         if value and not validate_providers.is_provider_valid(value, SMS_TYPE):
-            raise ValidationError(f"Invalid sms_provider_id: {value}")
+            raise ValidationError(f'Invalid sms_provider_id: {value}')
 
     @pre_load()
-    def format_for_data_model(self, in_data):
+    def format_for_data_model(
+        self,
+        in_data,
+    ):
         if isinstance(in_data, dict) and 'permissions' in in_data:
             str_permissions = in_data['permissions']
             permissions = []
             for p in str_permissions:
-                permission = ServicePermission(service_id=in_data["id"], permission=p)
+                permission = ServicePermission(service_id=in_data['id'], permission=p)
                 permissions.append(permission)
 
             in_data['permissions'] = permissions
@@ -311,14 +393,17 @@ class ServiceCallbackSchema(BaseSchema):
             'bearer_token',
             'callback_type',
             'callback_channel',
-            'include_provider_payload'
+            'include_provider_payload',
         )
         load_only = ['_bearer_token', 'bearer_token']
         strict = True
         load_instance = True
 
     @validates_schema
-    def validate_schema(self, data):
+    def validate_schema(
+        self,
+        data,
+    ):
         if 'callback_type' in data and 'notification_statuses' in data:
             if data['callback_type'] != DELIVERY_STATUS_CALLBACK_TYPE and data['notification_statuses'] is not None:
                 raise ValidationError(f"Callback type {data['callback_type']} should not have notification statuses")
@@ -328,34 +413,37 @@ class ServiceCallbackSchema(BaseSchema):
                 raise ValidationError(f"Callback channel {data['callback_channel']} should have bearer_token")
 
     @validates('callback_channel')
-    def validate_callback_channel(self, value):
-        validator = validate.OneOf(
-            choices=CALLBACK_CHANNEL_TYPES,
-            error="Invalid callback channel"
-        )
+    def validate_callback_channel(
+        self,
+        value,
+    ):
+        validator = validate.OneOf(choices=CALLBACK_CHANNEL_TYPES, error='Invalid callback channel')
         validator(value)
 
     @validates('notification_statuses')
-    def validate_notification_statuses(self, value):
+    def validate_notification_statuses(
+        self,
+        value,
+    ):
         validator = validate.ContainsOnly(
-            choices=NOTIFICATION_STATUS_TYPES_COMPLETED,
-            error="Invalid notification statuses"
+            choices=NOTIFICATION_STATUS_TYPES_COMPLETED, error='Invalid notification statuses'
         )
         validator(value)
 
     @validates('url')
-    def validate_url(self, value):
-        validator = validate.URL(
-            relative=False,
-            error="Invalid URL.",
-            schemes={'https'},
-            require_tld=False
-        )
+    def validate_url(
+        self,
+        value,
+    ):
+        validator = validate.URL(relative=False, error='Invalid URL.', schemes={'https'}, require_tld=False)
         validator(value)
 
     @validates('bearer_token')
-    def validate_bearer_token(self, value):
-        validator = validate.Length(min=10, error="Invalid bearer token.")
+    def validate_bearer_token(
+        self,
+        value,
+    ):
+        validator = validate.Length(min=10, error='Invalid bearer token.')
         validator(value)
 
 
@@ -387,7 +475,7 @@ class DetailedServiceSchema(BaseSchema):
             'sms_sender',
             'permissions',
             'inbound_number',
-            'inbound_sms'
+            'inbound_sms',
         )
 
 
@@ -396,26 +484,38 @@ class NotificationModelSchema(BaseSchema):
         model = models.Notification
         load_instance = True
         strict = True
-        exclude = ('_personalisation', 'job', 'service', 'template', 'api_key',)
+        exclude = (
+            '_personalisation',
+            'job',
+            'service',
+            'template',
+            'api_key',
+        )
 
     status = fields.String(required=False)
 
 
 class BaseTemplateSchema(BaseSchema):
-    reply_to = fields.Method("get_reply_to", allow_none=True)
-    reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    reply_to = fields.Method('get_reply_to', allow_none=True)
+    reply_to_text = fields.Method('get_reply_to_text', allow_none=True)
     provider_id = field_for(models.Template, 'provider_id')
     communication_item_id = field_for(models.Template, 'communication_item_id')
 
-    def get_reply_to(self, template):
+    def get_reply_to(
+        self,
+        template,
+    ):
         return template.reply_to
 
-    def get_reply_to_text(self, template):
+    def get_reply_to_text(
+        self,
+        template,
+    ):
         return template.get_reply_to_text()
 
     class Meta:
         model = models.Template
-        exclude = ("service_id", "jobs", "service_letter_contact_id", "provider")
+        exclude = ('service_id', 'jobs', 'service_letter_contact_id', 'provider')
         strict = True
         include_relationships = True
         load_instance = True
@@ -424,42 +524,57 @@ class BaseTemplateSchema(BaseSchema):
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, 'created_by', required=True)
     process_type = field_for(models.Template, 'process_type')
-    redact_personalisation = fields.Method("redact")
+    redact_personalisation = fields.Method('redact')
 
-    def redact(self, template):
+    def redact(
+        self,
+        template,
+    ):
         return template.redact_personalisation
 
     @validates('communication_item_id')
-    def validate_communication_item_id(self, value):
+    def validate_communication_item_id(
+        self,
+        value,
+    ):
         if value is not None:
             try:
                 get_communication_item(value)
             except NoResultFound:
-                raise ValidationError(f"Invalid communication item id: {value}")
+                raise ValidationError(f'Invalid communication item id: {value}')
 
     @validates_schema
-    def validate_type(self, data):
+    def validate_type(
+        self,
+        data,
+    ):
         if data.get('template_type') in [models.EMAIL_TYPE, models.LETTER_TYPE]:
             subject = data.get('subject')
             if not subject or subject.strip() == '':
                 raise ValidationError('Invalid template subject', 'subject')
         provider_id = data.get('provider_id')
         if provider_id is not None and not validate_providers.is_provider_valid(provider_id, data.get('template_type')):
-            raise ValidationError(f"Invalid provider id: {provider_id}", 'provider_id')
+            raise ValidationError(f'Invalid provider id: {provider_id}', 'provider_id')
 
 
 class TemplateHistorySchema(BaseSchema):
-    reply_to = fields.Method("get_reply_to", allow_none=True)
-    reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    reply_to = fields.Method('get_reply_to', allow_none=True)
+    reply_to_text = fields.Method('get_reply_to_text', allow_none=True)
     provider_id = field_for(models.Template, 'provider_id')
 
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
     created_at = field_for(models.Template, 'created_at', format=DATE_FORMAT)
 
-    def get_reply_to(self, template):
+    def get_reply_to(
+        self,
+        template,
+    ):
         return template.reply_to
 
-    def get_reply_to_text(self, template):
+    def get_reply_to_text(
+        self,
+        template,
+    ):
         return template.get_reply_to_text()
 
     class Meta:
@@ -472,34 +587,35 @@ class ApiKeySchema(BaseSchema):
 
     class Meta:
         model = models.ApiKey
-        exclude = ("service", "_secret")
+        exclude = ('service', '_secret')
         strict = True
         load_instance = True
 
 
 class JobSchema(BaseSchema):
-    created_by_user = fields.Nested(UserSchema, attribute="created_by",
-                                    dump_to="created_by", only=["id", "name"], dump_only=True)
+    created_by_user = fields.Nested(
+        UserSchema, attribute='created_by', dump_to='created_by', only=['id', 'name'], dump_only=True
+    )
     created_by = field_for(models.Job, 'created_by', required=True, load_only=True)
 
     job_status = field_for(models.JobStatus, 'name', required=False)
 
     scheduled_for = fields.DateTime()
     service_name = fields.Nested(
-        ServiceSchema, attribute="service", dump_to="service_name", only=["name"], dump_only=True)
+        ServiceSchema, attribute='service', dump_to='service_name', only=['name'], dump_only=True
+    )
 
     @validates('scheduled_for')
-    def validate_scheduled_for(self, value):
+    def validate_scheduled_for(
+        self,
+        value,
+    ):
         _validate_datetime_not_in_past(value)
         _validate_datetime_not_more_than_96_hours_in_future(value)
 
     class Meta:
         model = models.Job
-        exclude = (
-            'notifications',
-            'notifications_sent',
-            'notifications_delivered',
-            'notifications_failed')
+        exclude = ('notifications', 'notifications_sent', 'notifications_delivered', 'notifications_failed')
         strict = True
 
 
@@ -516,14 +632,20 @@ class SmsNotificationSchema(NotificationSchema):
     sms_sender_id = fields.UUID(required=True)
 
     @validates('to')
-    def validate_to(self, value):
+    def validate_to(
+        self,
+        value,
+    ):
         try:
             validate_phone_number(value, international=True)
         except InvalidPhoneError as error:
             raise ValidationError('Invalid phone number: {}'.format(error))
 
     @post_load
-    def format_phone_number(self, item):
+    def format_phone_number(
+        self,
+        item,
+    ):
         item['to'] = validate_and_format_phone_number(item['to'], international=True)
         return item
 
@@ -533,7 +655,10 @@ class EmailNotificationSchema(NotificationSchema):
     template = fields.Str(required=True)
 
     @validates('to')
-    def validate_to(self, value):
+    def validate_to(
+        self,
+        value,
+    ):
         try:
             validate_email_address(value)
         except InvalidEmailError as e:
@@ -575,11 +700,11 @@ class NotificationWithTemplateSchema(BaseSchema):
             'content',
             'subject',
             'redact_personalisation',
-            'is_precompiled_letter'
+            'is_precompiled_letter',
         ],
-        dump_only=True
+        dump_only=True,
     )
-    job = fields.Nested(JobSchema, only=["id", "original_file_name"], dump_only=True)
+    job = fields.Nested(JobSchema, only=['id', 'original_file_name'], dump_only=True)
     created_by = fields.Nested(UserSchema, only=['id', 'name', 'email_address'], dump_only=True)
     status = fields.String(required=False)
     personalisation = fields.Dict(required=False)
@@ -587,7 +712,10 @@ class NotificationWithTemplateSchema(BaseSchema):
     key_name = fields.String()
 
     @pre_dump
-    def add_api_key_name(self, in_data):
+    def add_api_key_name(
+        self,
+        in_data,
+    ):
         if in_data.api_key:
             in_data.key_name = in_data.api_key.name
         else:
@@ -596,28 +724,52 @@ class NotificationWithTemplateSchema(BaseSchema):
 
 
 class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
-    template_history = fields.Nested(TemplateHistorySchema, attribute="template",
-                                     only=['id', 'name', 'template_type', 'content', 'subject', 'version'],
-                                     dump_only=True)
+    template_history = fields.Nested(
+        TemplateHistorySchema,
+        attribute='template',
+        only=['id', 'name', 'template_type', 'content', 'subject', 'version'],
+        dump_only=True,
+    )
 
     class Meta(NotificationWithTemplateSchema.Meta):
         # mark as many fields as possible as required since this is a public api.
         # WARNING: Does _not_ reference fields computed in handle_template_merge, such as
         # 'body', 'subject' [for emails], and 'content_char_count'
         fields = (
-            'id', 'to', 'job_row_number', 'template_version', 'billable_units', 'notification_type', 'created_at',
-            'sent_at', 'sent_by', 'updated_at', 'status', 'reference', 'personalisation', 'service', 'job', 'api_key',
-            'template_history', 'sms_sender_id'
+            'id',
+            'to',
+            'job_row_number',
+            'template_version',
+            'billable_units',
+            'notification_type',
+            'created_at',
+            'sent_at',
+            'sent_by',
+            'updated_at',
+            'status',
+            'reference',
+            'personalisation',
+            'service',
+            'job',
+            'api_key',
+            'template_history',
+            'sms_sender_id',
         )
         include_relationships = True
 
     @pre_dump
-    def handle_personalisation_property(self, in_data):
+    def handle_personalisation_property(
+        self,
+        in_data,
+    ):
         self.personalisation = in_data.personalisation
         return in_data
 
     @post_dump
-    def handle_template_merge(self, in_data):
+    def handle_template_merge(
+        self,
+        in_data,
+    ):
         in_data['template'] = in_data.pop('template_history')
         template = get_template_instance(in_data['template'], in_data['personalisation'])
         in_data['body'] = str(template)
@@ -642,7 +794,10 @@ class InvitedUserSchema(BaseSchema):
         include_relationships = True
 
     @validates('email_address')
-    def validate_to(self, value):
+    def validate_to(
+        self,
+        value,
+    ):
         try:
             validate_email_address(value)
         except InvalidEmailError as e:
@@ -655,12 +810,18 @@ class EmailDataSchema(ma.Schema):
 
     email = fields.Str(required=True)
 
-    def __init__(self, partial_email=False):
+    def __init__(
+        self,
+        partial_email=False,
+    ):
         super().__init__()
         self.partial_email = partial_email
 
     @validates('email')
-    def validate_email(self, value):
+    def validate_email(
+        self,
+        value,
+    ):
         if self.partial_email:
             return
         try:
@@ -678,12 +839,18 @@ class SupportEmailDataSchema(ma.Schema):
     message = fields.Str(required=True)
     support_type = fields.Str(required=False)
 
-    def __init__(self, partial_email=False):
+    def __init__(
+        self,
+        partial_email=False,
+    ):
         super().__init__()
         self.partial_email = partial_email
 
     @validates('email')
-    def validate_email(self, value):
+    def validate_email(
+        self,
+        value,
+    ):
         if self.partial_email:
             return
         try:
@@ -701,12 +868,18 @@ class BrandingRequestDataSchema(ma.Schema):
     service_name = fields.Str(required=True)
     filename = fields.Str(required=True)
 
-    def __init__(self, partial_email=False):
+    def __init__(
+        self,
+        partial_email=False,
+    ):
         super().__init__()
         self.partial_email = partial_email
 
     @validates('email')
-    def validate_email(self, value):
+    def validate_email(
+        self,
+        value,
+    ):
         if self.partial_email:
             return
         try:
@@ -733,30 +906,42 @@ class NotificationsFilterSchema(ma.Schema):
     count_pages = fields.Boolean(required=False)
 
     @pre_load
-    def handle_multidict(self, in_data):
+    def handle_multidict(
+        self,
+        in_data,
+    ):
         if isinstance(in_data, dict) and hasattr(in_data, 'getlist'):
             out_data = dict([(k, in_data.get(k)) for k in in_data.keys()])
             if 'template_type' in in_data:
                 out_data['template_type'] = [{'template_type': x} for x in in_data.getlist('template_type')]
             if 'status' in in_data:
-                out_data['status'] = [{"status": x} for x in in_data.getlist('status')]
+                out_data['status'] = [{'status': x} for x in in_data.getlist('status')]
 
         return out_data
 
     @post_load
-    def convert_schema_object_to_field(self, in_data: dict) -> dict:
+    def convert_schema_object_to_field(
+        self,
+        in_data: dict,
+    ) -> dict:
         if 'template_type' in in_data:
-            in_data["template_type"] = [x.template_type for x in in_data["template_type"]]
+            in_data['template_type'] = [x.template_type for x in in_data['template_type']]
         if 'status' in in_data:
             in_data['status'] = [x.status for x in in_data['status']]
         return in_data
 
     @validates('page')
-    def validate_page(self, value):
+    def validate_page(
+        self,
+        value,
+    ):
         _validate_positive_number(value)
 
     @validates('page_size')
-    def validate_page_size(self, value):
+    def validate_page_size(
+        self,
+        value,
+    ):
         _validate_positive_number(value)
 
 
@@ -796,7 +981,10 @@ class DaySchema(ma.Schema):
     day = fields.Date(required=True)
 
     @validates('day')
-    def validate_day(self, value):
+    def validate_day(
+        self,
+        value,
+    ):
         _validate_not_in_future(value)
 
 
@@ -804,13 +992,15 @@ class UnarchivedTemplateSchema(BaseSchema):
     archived = fields.Boolean(required=True)
 
     @validates_schema
-    def validate_archived(self, data):
+    def validate_archived(
+        self,
+        data,
+    ):
         if data['archived']:
             raise ValidationError('Template has been deleted', 'template')
 
 
 class CommunicationItemSchema(BaseSchema):
-
     class Meta:
         model = models.CommunicationItem
 

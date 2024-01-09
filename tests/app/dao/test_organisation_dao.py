@@ -16,23 +16,15 @@ from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
     dao_get_invited_organisation_user,
     dao_get_users_for_organisation,
-    dao_add_user_to_organisation
+    dao_add_user_to_organisation,
 )
-from app.dao.services_dao import (dao_create_service, dao_add_user_to_service)
+from app.dao.services_dao import dao_create_service, dao_add_user_to_service
 from app.models import Organisation, OrganisationTypes, Service
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from tests.app.db import (
-    create_domain,
-    create_email_branding,
-    create_organisation,
-    create_service,
-    create_user
-)
+from tests.app.db import create_domain, create_email_branding, create_organisation, create_service, create_user
 
 
-def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(
-    notify_db_session
-):
+def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(notify_db_session):
     m_active_org = create_organisation(name='m_active_organisation')
     z_inactive_org = create_organisation(name='z_inactive_organisation', active=False)
     a_inactive_org = create_organisation(name='a_inactive_organisation', active=False)
@@ -64,13 +56,13 @@ def test_update_organisation(notify_db_session):
 
     data = {
         'name': 'new name',
-        "crown": True,
-        "organisation_type": 'other',
-        "agreement_signed": True,
-        "agreement_signed_at": datetime.datetime.utcnow(),
-        "agreement_signed_by_id": user.id,
-        "agreement_signed_version": 999.99,
-        "email_branding_id": email_branding.id,
+        'crown': True,
+        'organisation_type': 'other',
+        'agreement_signed': True,
+        'agreement_signed_at': datetime.datetime.utcnow(),
+        'agreement_signed_by_id': user.id,
+        'agreement_signed_version': 999.99,
+        'email_branding_id': email_branding.id,
     }
 
     for attribute, value in data.items():
@@ -88,16 +80,16 @@ def test_update_organisation(notify_db_session):
     assert organisation.updated_at
 
 
-@pytest.mark.parametrize('domain_list, expected_domains', (
-    (['abc', 'def'], {'abc', 'def'}),
-    (['ABC', 'DEF'], {'abc', 'def'}),
-    ([], set()),
-    (None, {'123', '456'}),
-    pytest.param(
-        ['abc', 'ABC'], {'abc'},
-        marks=pytest.mark.xfail(raises=IntegrityError)
+@pytest.mark.parametrize(
+    'domain_list, expected_domains',
+    (
+        (['abc', 'def'], {'abc', 'def'}),
+        (['ABC', 'DEF'], {'abc', 'def'}),
+        ([], set()),
+        (None, {'123', '456'}),
+        pytest.param(['abc', 'ABC'], {'abc'}, marks=pytest.mark.xfail(raises=IntegrityError)),
     ),
-))
+)
 def test_update_organisation_domains_lowercases(
     notify_db_session,
     domain_list,
@@ -117,9 +109,7 @@ def test_update_organisation_domains_lowercases(
 
 
 def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is_not_provided(
-    sample_service,
-    sample_organisation,
-    notify_db_session
+    sample_service, sample_organisation, notify_db_session
 ):
     sample_service.organisation_type = 'other'
     sample_organisation.organisation_type = 'other'
@@ -135,7 +125,7 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
     assert sample_service.organisation_type == 'other'
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope='function')
 def setup_org_type(notify_db_session):
     org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
     notify_db_session.session.add(org_type)
@@ -143,16 +133,16 @@ def setup_org_type(notify_db_session):
     return org_type
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope='function')
 def setup_service(
-        notify_db_session,
-        service_name="Sample service",
-        user=None,
-        restricted=False,
-        limit=1000,
-        email_from=None,
-        permissions=None,
-        research_mode=None
+    notify_db_session,
+    service_name='Sample service',
+    user=None,
+    restricted=False,
+    limit=1000,
+    email_from=None,
+    permissions=None,
+    research_mode=None,
 ):
     if user is None:
         user = create_user()
@@ -165,7 +155,7 @@ def setup_service(
         'restricted': restricted,
         'email_from': email_from,
         'created_by': user,
-        'crown': True
+        'crown': True,
     }
     service = Service.query.filter_by(name=service_name).first()
     if not service:
@@ -183,10 +173,7 @@ def setup_service(
 
 
 def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
-    setup_service,
-    sample_organisation,
-    setup_org_type,
-    notify_db_session
+    setup_service, sample_organisation, setup_org_type, notify_db_session
 ):
     setup_service.organisation_type = setup_org_type.name
     sample_organisation.organisation_type = setup_org_type.name
@@ -198,17 +185,16 @@ def test_update_organisation_updates_the_service_org_type_if_org_type_is_provide
 
     assert sample_organisation.organisation_type == 'other'
     assert setup_service.organisation_type == 'other'
-    assert Service.get_history_model().query.filter_by(
-        id=setup_service.id,
-        version=2
-    ).one().organisation_type == 'other'
+    assert (
+        Service.get_history_model().query.filter_by(id=setup_service.id, version=2).one().organisation_type == 'other'
+    )
 
 
 def test_add_service_to_organisation(sample_service, sample_organisation):
     assert sample_organisation.services == []
 
-    sample_service.organisation_type = "other"
-    sample_organisation.organisation_type = "other"
+    sample_service.organisation_type = 'other'
+    sample_organisation.organisation_type = 'other'
     sample_organisation.crown = False
 
     dao_add_service_to_organisation(sample_service, sample_organisation.id)
@@ -218,10 +204,10 @@ def test_add_service_to_organisation(sample_service, sample_organisation):
 
     assert sample_service.organisation_type == sample_organisation.organisation_type
     assert sample_service.crown == sample_organisation.crown
-    assert Service.get_history_model().query.filter_by(
-        id=sample_service.id,
-        version=2
-    ).one().organisation_type == sample_organisation.organisation_type
+    assert (
+        Service.get_history_model().query.filter_by(id=sample_service.id, version=2).one().organisation_type
+        == sample_organisation.organisation_type
+    )
     assert sample_service.organisation_id == sample_organisation.id
 
 
@@ -315,15 +301,14 @@ def test_add_user_to_organisation_when_organisation_does_not_exist(sample_user):
         dao_add_user_to_organisation(organisation_id=uuid.uuid4(), user_id=sample_user.id)
 
 
-@pytest.mark.parametrize('domain, expected_org', (
-    ('unknown.gov.uk', False),
-    ('example.gov.uk', True),
-))
-def test_get_organisation_by_email_address(
-    domain,
-    expected_org,
-    notify_db_session
-):
+@pytest.mark.parametrize(
+    'domain, expected_org',
+    (
+        ('unknown.gov.uk', False),
+        ('example.gov.uk', True),
+    ),
+)
+def test_get_organisation_by_email_address(domain, expected_org, notify_db_session):
     org = create_organisation()
     create_domain('example.gov.uk', org.id)
     create_domain('test.gov.uk', org.id)

@@ -23,7 +23,7 @@ from app.models import (
     ServiceCallback,
     COMPLAINT_CALLBACK_TYPE,
     QUEUE_CHANNEL_TYPE,
-    WEBHOOK_CHANNEL_TYPE
+    WEBHOOK_CHANNEL_TYPE,
 )
 from app.va.identifier import IdentifierType
 
@@ -34,75 +34,77 @@ from tests.app.db import (
     create_reply_to_email,
     create_letter_contact,
     create_template,
-    create_template_folder
+    create_template_folder,
 )
 
 
-@pytest.mark.parametrize('mobile_number', [
-    '650 253 2222',
-    '+1 650 253 2222'
-])
+@pytest.mark.parametrize('mobile_number', ['650 253 2222', '+1 650 253 2222'])
 def test_should_build_service_whitelist_from_mobile_number(mobile_number):
     service_whitelist = ServiceWhitelist.from_string('service_id', MOBILE_TYPE, mobile_number)
 
     assert service_whitelist.recipient == mobile_number
 
 
-@pytest.mark.parametrize('email_address', [
-    'test@example.com'
-])
+@pytest.mark.parametrize('email_address', ['test@example.com'])
 def test_should_build_service_whitelist_from_email_address(email_address):
     service_whitelist = ServiceWhitelist.from_string('service_id', EMAIL_TYPE, email_address)
 
     assert service_whitelist.recipient == email_address
 
 
-@pytest.mark.parametrize('contact, recipient_type', [
-    ('', None),
-    ('07700dsadsad', MOBILE_TYPE),
-    ('gmail.com', EMAIL_TYPE)
-])
+@pytest.mark.parametrize(
+    'contact, recipient_type', [('', None), ('07700dsadsad', MOBILE_TYPE), ('gmail.com', EMAIL_TYPE)]
+)
 def test_should_not_build_service_whitelist_from_invalid_contact(recipient_type, contact):
     with pytest.raises(ValueError):
         ServiceWhitelist.from_string('service_id', recipient_type, contact)
 
 
-@pytest.mark.parametrize('initial_statuses, expected_statuses', [
-    # passing in single statuses as strings
-    (NOTIFICATION_FAILED, NOTIFICATION_STATUS_TYPES_FAILED),
-    (NOTIFICATION_STATUS_LETTER_ACCEPTED, [NOTIFICATION_SENDING, NOTIFICATION_CREATED]),
-    (NOTIFICATION_CREATED, [NOTIFICATION_CREATED]),
-    (NOTIFICATION_TECHNICAL_FAILURE, [NOTIFICATION_TECHNICAL_FAILURE]),
-    # passing in lists containing single statuses
-    ([NOTIFICATION_FAILED], NOTIFICATION_STATUS_TYPES_FAILED),
-    ([NOTIFICATION_CREATED], [NOTIFICATION_CREATED]),
-    ([NOTIFICATION_TECHNICAL_FAILURE], [NOTIFICATION_TECHNICAL_FAILURE]),
-    (NOTIFICATION_STATUS_LETTER_RECEIVED, NOTIFICATION_DELIVERED),
-    # passing in lists containing multiple statuses
-    ([NOTIFICATION_FAILED, NOTIFICATION_CREATED], NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_CREATED]),
-    ([NOTIFICATION_CREATED, NOTIFICATION_PENDING], [NOTIFICATION_CREATED, NOTIFICATION_PENDING]),
-    ([NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE], [NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE]),
-    (
-        [NOTIFICATION_FAILED, NOTIFICATION_STATUS_LETTER_ACCEPTED],
-        NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_SENDING, NOTIFICATION_CREATED]
-    ),
-    # checking we don't end up with duplicates
-    (
-        [NOTIFICATION_FAILED, NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE],
-        NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_CREATED]
-    ),
-])
+@pytest.mark.parametrize(
+    'initial_statuses, expected_statuses',
+    [
+        # passing in single statuses as strings
+        (NOTIFICATION_FAILED, NOTIFICATION_STATUS_TYPES_FAILED),
+        (NOTIFICATION_STATUS_LETTER_ACCEPTED, [NOTIFICATION_SENDING, NOTIFICATION_CREATED]),
+        (NOTIFICATION_CREATED, [NOTIFICATION_CREATED]),
+        (NOTIFICATION_TECHNICAL_FAILURE, [NOTIFICATION_TECHNICAL_FAILURE]),
+        # passing in lists containing single statuses
+        ([NOTIFICATION_FAILED], NOTIFICATION_STATUS_TYPES_FAILED),
+        ([NOTIFICATION_CREATED], [NOTIFICATION_CREATED]),
+        ([NOTIFICATION_TECHNICAL_FAILURE], [NOTIFICATION_TECHNICAL_FAILURE]),
+        (NOTIFICATION_STATUS_LETTER_RECEIVED, NOTIFICATION_DELIVERED),
+        # passing in lists containing multiple statuses
+        ([NOTIFICATION_FAILED, NOTIFICATION_CREATED], NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_CREATED]),
+        ([NOTIFICATION_CREATED, NOTIFICATION_PENDING], [NOTIFICATION_CREATED, NOTIFICATION_PENDING]),
+        (
+            [NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE],
+            [NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE],
+        ),
+        (
+            [NOTIFICATION_FAILED, NOTIFICATION_STATUS_LETTER_ACCEPTED],
+            NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_SENDING, NOTIFICATION_CREATED],
+        ),
+        # checking we don't end up with duplicates
+        (
+            [NOTIFICATION_FAILED, NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE],
+            NOTIFICATION_STATUS_TYPES_FAILED + [NOTIFICATION_CREATED],
+        ),
+    ],
+)
 def test_status_conversion(initial_statuses, expected_statuses):
     converted_statuses = Notification.substitute_status(initial_statuses)
     assert len(converted_statuses) == len(expected_statuses)
     assert set(converted_statuses) == set(expected_statuses)
 
 
-@freeze_time("2016-01-01 11:09:00.000000")
-@pytest.mark.parametrize('template_type, recipient', [
-    ('sms', '+16502532222'),
-    ('email', 'foo@bar.com'),
-])
+@freeze_time('2016-01-01 11:09:00.000000')
+@pytest.mark.parametrize(
+    'template_type, recipient',
+    [
+        ('sms', '+16502532222'),
+        ('email', 'foo@bar.com'),
+    ],
+)
 def test_notification_for_csv_returns_correct_type(sample_service, template_type, recipient):
     template = create_template(sample_service, template_type=template_type)
     notification = create_notification(template, to_field=recipient)
@@ -111,7 +113,7 @@ def test_notification_for_csv_returns_correct_type(sample_service, template_type
     assert serialized['template_type'] == template_type
 
 
-@freeze_time("2016-01-01 11:09:00.000000")
+@freeze_time('2016-01-01 11:09:00.000000')
 def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     notification = create_notification(sample_job.template, sample_job, job_row_number=0)
 
@@ -119,26 +121,24 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
     assert serialized['row_number'] == 1
 
 
-@freeze_time("2016-01-30 12:39:58.321312")
-@pytest.mark.parametrize('template_type, status, expected_status', [
-    ('email', 'failed', 'Failed'),
-    ('email', 'technical-failure', 'Technical failure'),
-    ('email', 'temporary-failure', 'Inbox not accepting messages right now'),
-    ('email', 'permanent-failure', 'Email address doesn’t exist'),
-    ('sms', 'temporary-failure', 'Phone not accepting messages right now'),
-    ('sms', 'permanent-failure', 'Phone number doesn’t exist'),
-    ('sms', 'sent', 'Sent internationally'),
-    ('letter', 'created', 'Accepted'),
-    ('letter', 'sending', 'Accepted'),
-    ('letter', 'technical-failure', 'Technical failure'),
-    ('letter', 'delivered', 'Received')
-])
-def test_notification_for_csv_returns_formatted_status(
-        sample_service,
-        template_type,
-        status,
-        expected_status
-):
+@freeze_time('2016-01-30 12:39:58.321312')
+@pytest.mark.parametrize(
+    'template_type, status, expected_status',
+    [
+        ('email', 'failed', 'Failed'),
+        ('email', 'technical-failure', 'Technical failure'),
+        ('email', 'temporary-failure', 'Inbox not accepting messages right now'),
+        ('email', 'permanent-failure', 'Email address doesn’t exist'),
+        ('sms', 'temporary-failure', 'Phone not accepting messages right now'),
+        ('sms', 'permanent-failure', 'Phone number doesn’t exist'),
+        ('sms', 'sent', 'Sent internationally'),
+        ('letter', 'created', 'Accepted'),
+        ('letter', 'sending', 'Accepted'),
+        ('letter', 'technical-failure', 'Technical failure'),
+        ('letter', 'delivered', 'Received'),
+    ],
+)
+def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
     template = create_template(sample_service, template_type=template_type)
     notification = create_notification(template, status=status)
 
@@ -146,7 +146,7 @@ def test_notification_for_csv_returns_formatted_status(
     assert serialized['status'] == expected_status
 
 
-@freeze_time("2017-03-26 23:01:53.321312")
+@freeze_time('2017-03-26 23:01:53.321312')
 def test_notification_for_csv_returns_est_correctly(sample_template):
     notification = create_notification(sample_template)
 
@@ -166,10 +166,7 @@ def test_notification_personalisation_getter_always_returns_empty_dict():
     assert noti.personalisation == {}
 
 
-@pytest.mark.parametrize('input_value', [
-    None,
-    {}
-])
+@pytest.mark.parametrize('input_value', [None, {}])
 def test_notification_personalisation_setter_always_sets_empty_dict(input_value):
     noti = Notification()
     noti.personalisation = input_value
@@ -193,7 +190,7 @@ def test_letter_notification_serializes_with_address(client, sample_letter_notif
         'address_line_1': 'foo',
         'address_line_3': 'bar',
         'address_line_5': None,
-        'postcode': 'SW1 1AA'
+        'postcode': 'SW1 1AA',
     }
     res = sample_letter_notification.serialize()
     assert res['line_1'] == 'foo'
@@ -234,7 +231,7 @@ def test_letter_notification_serializes_with_subject(client, sample_letter_templ
 def test_user_service_role_serializes_without_updated(client, sample_user_service_role, sample_user, sample_service):
     res = sample_user_service_role.serialize()
     assert res['id'] is not None
-    assert res['role'] == "admin"
+    assert res['role'] == 'admin'
     assert res['user_id'] == str(sample_user.id)
     assert res['service_id'] == str(sample_service.id)
     assert res['updated_at'] is None
@@ -243,7 +240,7 @@ def test_user_service_role_serializes_without_updated(client, sample_user_servic
 def test_user_service_role_serializes_with_updated(client, sample_service_role_udpated, sample_user, sample_service):
     res = sample_service_role_udpated.serialize()
     assert res['id'] is not None
-    assert res['role'] == "admin"
+    assert res['role'] == 'admin'
     assert res['user_id'] == str(sample_user.id)
     assert res['service_id'] == str(sample_service.id)
     assert res['updated_at'] == sample_service_role_udpated.updated_at.isoformat() + 'Z'
@@ -263,14 +260,8 @@ def test_notification_references_template_history(client, sample_template):
 
 def test_email_notification_serializes_with_recipient_identifiers(client, sample_email_template):
     recipient_identifiers = [
-        {
-            "id_type": IdentifierType.VA_PROFILE_ID.value,
-            "id_value": "some vaprofileid"
-        },
-        {
-            "id_type": IdentifierType.ICN.value,
-            "id_value": "some icn"
-        }
+        {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'some vaprofileid'},
+        {'id_type': IdentifierType.ICN.value, 'id_value': 'some icn'},
     ]
 
     noti = create_notification(sample_email_template, recipient_identifiers=recipient_identifiers)
@@ -313,7 +304,7 @@ def test_inbound_number_returns_none_when_no_inbound_number(client, notify_db_se
 
 
 def test_service_get_default_reply_to_email_address(sample_service):
-    create_reply_to_email(service=sample_service, email_address="default@email.com")
+    create_reply_to_email(service=sample_service, email_address='default@email.com')
 
     assert sample_service.get_default_reply_to_email_address() == 'default@email.com'
 
@@ -405,28 +396,23 @@ class TestServiceCallback:
         ['callback_channel', 'callback_strategy_path'],
         [
             (QUEUE_CHANNEL_TYPE, 'app.callback.queue_callback_strategy.QueueCallbackStrategy'),
-            (WEBHOOK_CHANNEL_TYPE, 'app.callback.webhook_callback_strategy.WebhookCallbackStrategy')
-        ]
+            (WEBHOOK_CHANNEL_TYPE, 'app.callback.webhook_callback_strategy.WebhookCallbackStrategy'),
+        ],
     )
     def test_service_callback_send_uses_queue_strategy(
-            self, mocker, sample_service, callback_channel, callback_strategy_path
+        self, mocker, sample_service, callback_channel, callback_strategy_path
     ):
         service_callback = ServiceCallback(  # nosec
             service_id=sample_service.id,
-            url="https://something.com",
-            bearer_token="some_super_secret",
+            url='https://something.com',
+            bearer_token='some_super_secret',
             updated_by_id=sample_service.users[0].id,
             callback_type=COMPLAINT_CALLBACK_TYPE,
-            callback_channel=callback_channel
+            callback_channel=callback_channel,
         )
 
         mock_callback_strategy = mocker.patch(callback_strategy_path)
 
-        service_callback.send(
-            payload={},
-            logging_tags={}
-        )
+        service_callback.send(payload={}, logging_tags={})
 
-        mock_callback_strategy.send_callback.assert_called_with(
-            service_callback, {}, {}
-        )
+        mock_callback_strategy.send_callback.assert_called_with(service_callback, {}, {})

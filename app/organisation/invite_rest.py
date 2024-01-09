@@ -1,15 +1,11 @@
-from flask import (
-    Blueprint,
-    request,
-    jsonify,
-    current_app)
+from flask import Blueprint, request, jsonify, current_app
 from notifications_utils.url_safe_token import generate_token
 
 from app.config import QueueNames
 from app.dao.invited_org_user_dao import (
     save_invited_org_user,
     get_invited_org_user,
-    get_invited_org_users_for_organisation
+    get_invited_org_users_for_organisation,
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import register_errors
@@ -18,12 +14,12 @@ from app.notifications.process_notifications import persist_notification, send_n
 from app.schema_validation import validate
 from app.organisation.organisation_schema import (
     post_create_invited_org_user_status_schema,
-    post_update_invited_org_user_status_schema
+    post_update_invited_org_user_status_schema,
 )
 
 organisation_invite_blueprint = Blueprint(
-    'organisation_invite', __name__,
-    url_prefix='/organisation/<uuid:organisation_id>/invite')
+    'organisation_invite', __name__, url_prefix='/organisation/<uuid:organisation_id>/invite'
+)
 
 register_errors(organisation_invite_blueprint)
 
@@ -34,9 +30,7 @@ def invite_user_to_org(organisation_id):
     validate(data, post_create_invited_org_user_status_schema)
 
     invited_org_user = InvitedOrganisationUser(
-        email_address=data['email_address'],
-        invited_by_id=data['invited_by'],
-        organisation_id=organisation_id
+        email_address=data['email_address'], invited_by_id=data['invited_by'], organisation_id=organisation_id
     )
     save_invited_org_user(invited_org_user)
 
@@ -58,7 +52,7 @@ def invite_user_to_org(organisation_id):
         notification_type=EMAIL_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=invited_org_user.invited_by.email_address
+        reply_to_text=invited_org_user.invited_by.email_address,
     )
 
     send_notification_to_queue(saved_notification, research_mode=False, queue=QueueNames.NOTIFY)
@@ -73,7 +67,10 @@ def get_invited_org_users_by_organisation(organisation_id):
 
 
 @organisation_invite_blueprint.route('/<invited_org_user_id>', methods=['POST'])
-def update_org_invite_status(organisation_id, invited_org_user_id):
+def update_org_invite_status(
+    organisation_id,
+    invited_org_user_id,
+):
     fetched = get_invited_org_user(organisation_id=organisation_id, invited_org_user_id=invited_org_user_id)
 
     data = request.get_json()
@@ -85,11 +82,12 @@ def update_org_invite_status(organisation_id, invited_org_user_id):
     return jsonify(data=fetched.serialize()), 200
 
 
-def invited_org_user_url(invited_org_user_id, invite_link_host=None):
+def invited_org_user_url(
+    invited_org_user_id,
+    invite_link_host=None,
+):
     token = generate_token(
-        str(invited_org_user_id),
-        current_app.config['SECRET_KEY'],
-        current_app.config['DANGEROUS_SALT']
+        str(invited_org_user_id), current_app.config['SECRET_KEY'], current_app.config['DANGEROUS_SALT']
     )
 
     if invite_link_host is None:

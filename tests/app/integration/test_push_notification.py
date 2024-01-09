@@ -15,26 +15,27 @@ def push_notification_toggle_enabled(mocker):
     mock_feature_flag(mocker, FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, 'True')
 
 
-def test_mobile_app_push_notification_delivered(client, notify_db_session,
-                                                push_notification_toggle_enabled, rmock, mocker):
+def test_mobile_app_push_notification_delivered(
+    client, notify_db_session, push_notification_toggle_enabled, rmock, mocker
+):
     sample_service = create_service(service_permissions=[PUSH_TYPE])
     rmock.register_uri(
-        'POST',
-        f"{client.application.config['VETEXT_URL']}/mobile/push/send",
-        json={'result': 'success'}
+        'POST', f"{client.application.config['VETEXT_URL']}/mobile/push/send", json={'result': 'success'}
     )
 
-    push_request_body = {'mobile_app': 'VETEXT', 'template_id': 'some-template-id',
-                         'recipient_identifier': {"id_type": "ICN", "id_value": "some-icn"},
-                         'personalisation': {"%FOO%": "bar"}}
+    push_request_body = {
+        'mobile_app': 'VETEXT',
+        'template_id': 'some-template-id',
+        'recipient_identifier': {'id_type': 'ICN', 'id_value': 'some-icn'},
+        'personalisation': {'%FOO%': 'bar'},
+    }
 
-    mocker.patch.dict(os.environ, {"VETEXT_SID": "1234", "VA_FLAGSHIP_APP_SID": "1234"})
+    mocker.patch.dict(os.environ, {'VETEXT_SID': '1234', 'VA_FLAGSHIP_APP_SID': '1234'})
 
     response = client.post(
         url_for('v2_notifications.send_push_notification', service_id=sample_service.id),
         data=json.dumps(push_request_body),
-        headers=[('Content-Type', 'application/json'),
-                 create_authorization_header(service_id=sample_service.id)],
+        headers=[('Content-Type', 'application/json'), create_authorization_header(service_id=sample_service.id)],
     )
 
     assert rmock.called

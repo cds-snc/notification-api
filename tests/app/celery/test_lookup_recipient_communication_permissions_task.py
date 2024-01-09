@@ -4,7 +4,7 @@ import uuid
 
 from app.celery.lookup_recipient_communication_permissions_task import (
     lookup_recipient_communication_permissions,
-    recipient_has_given_permission
+    recipient_has_given_permission,
 )
 from app.models import NOTIFICATION_PREFERENCES_DECLINED, SMS_TYPE, CommunicationItem, RecipientIdentifier, Notification
 from app.va.va_profile.va_profile_client import VAProfileClient, CommunicationItemNotFoundException
@@ -16,8 +16,10 @@ def mock_communication_item(mocker):
     mock_communication_item = mocker.Mock()
     mock_communication_item.va_profile_item_id = 5
     mock_communication_item.default_send_indicator = True
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.get_communication_item',
-                 return_value=mock_communication_item)
+    mocker.patch(
+        'app.celery.lookup_recipient_communication_permissions_task.get_communication_item',
+        return_value=mock_communication_item,
+    )
 
 
 def mock_notification_with_vaprofile_id(mocker, notification_type=SMS_TYPE) -> Notification:
@@ -30,11 +32,11 @@ def mock_notification_with_vaprofile_id(mocker, notification_type=SMS_TYPE) -> N
         notification_type=notification_type,
         template=template,
         recipient_identifiers={
-            f"{IdentifierType.VA_PROFILE_ID.value}": RecipientIdentifier(
-                notification_id=id,
-                id_type=IdentifierType.VA_PROFILE_ID.value,
-                id_value='va-profile-id'),
-        })
+            f'{IdentifierType.VA_PROFILE_ID.value}': RecipientIdentifier(
+                notification_id=id, id_type=IdentifierType.VA_PROFILE_ID.value, id_value='va-profile-id'
+            ),
+        },
+    )
 
 
 def mock_notification_without_vaprofile_id(mocker, notification_type=SMS_TYPE) -> Notification:
@@ -47,23 +49,23 @@ def mock_notification_without_vaprofile_id(mocker, notification_type=SMS_TYPE) -
         notification_type=notification_type,
         template=template,
         recipient_identifiers={
-            f"{IdentifierType.PID.value}": RecipientIdentifier(
-                notification_id=id,
-                id_type=IdentifierType.PID.value,
-                id_value='pid-id'),
-        })
+            f'{IdentifierType.PID.value}': RecipientIdentifier(
+                notification_id=id, id_type=IdentifierType.PID.value, id_value='pid-id'
+            ),
+        },
+    )
 
 
 def test_lookup_recipient_communication_permissions_should_not_update_notification_status_if_recipient_has_permissions(
-        client, mocker
+    client, mocker
 ):
     notification = mock_notification_with_vaprofile_id(mocker)
 
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
-                 return_value=None)
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
-        return_value=notification
+        'app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission', return_value=None
+    )
+    mocker.patch(
+        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id', return_value=notification
     )
 
     update_notification = mocker.patch(
@@ -76,15 +78,16 @@ def test_lookup_recipient_communication_permissions_should_not_update_notificati
 
 
 def test_lookup_recipient_communication_permissions_updates_notification_status_if_recipient_does_not_have_permissions(
-        client, mocker
+    client, mocker
 ):
     notification = mock_notification_with_vaprofile_id(mocker)
 
-    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
-                 return_value="Contact preferences set to false")
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
-        return_value=notification
+        'app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
+        return_value='Contact preferences set to false',
+    )
+    mocker.patch(
+        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id', return_value=notification
     )
 
     update_notification = mocker.patch(
@@ -94,37 +97,33 @@ def test_lookup_recipient_communication_permissions_updates_notification_status_
     lookup_recipient_communication_permissions(str(notification.id))
 
     update_notification.assert_called_with(
-        str(notification.id),
-        NOTIFICATION_PREFERENCES_DECLINED,
-        status_reason="Contact preferences set to false"
+        str(notification.id), NOTIFICATION_PREFERENCES_DECLINED, status_reason='Contact preferences set to false'
     )
 
 
 def test_recipient_has_given_permission_should_return_status_message_if_user_denies_permissions(
-        client, mocker, mock_communication_item
+    client, mocker, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=False)
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client',
-        new=mocked_va_profile_client
+        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client', new=mocked_va_profile_client
     )
 
     mock_task = mocker.Mock()
     permission_message = recipient_has_given_permission(
         mock_task, 'VAPROFILEID', '1', 'some-notification-id', SMS_TYPE, 'some-communication-id'
     )
-    assert permission_message == "Contact preferences set to false"
+    assert permission_message == 'Contact preferences set to false'
 
 
 def test_recipient_has_given_permission_should_return_none_if_user_grants_permissions(
-        client, mocker, mock_communication_item
+    client, mocker, mock_communication_item
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(return_value=True)
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client',
-        new=mocked_va_profile_client
+        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client', new=mocked_va_profile_client
     )
 
     mock_task = mocker.Mock()
@@ -135,19 +134,15 @@ def test_recipient_has_given_permission_should_return_none_if_user_grants_permis
 
 
 def test_recipient_has_given_permission_should_return_none_if_user_permissions_not_set_and_no_com_item(
-        client, mocker, fake_uuid
+    client, mocker, fake_uuid
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(side_effect=CommunicationItemNotFoundException)
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client',
-        new=mocked_va_profile_client
+        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client', new=mocked_va_profile_client
     )
 
-    mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_communication_item',
-        return_value=None
-    )
+    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.get_communication_item', return_value=None)
 
     mock_task = mocker.Mock()
     permission_message = recipient_has_given_permission(
@@ -157,33 +152,24 @@ def test_recipient_has_given_permission_should_return_none_if_user_permissions_n
 
 
 @pytest.mark.parametrize(
-    ('send_indicator'),
-    [True, False],
-    ids=[
-        "default_send_indicator is True",
-        "default_send_indicator is False"
-    ]
+    ('send_indicator'), [True, False], ids=['default_send_indicator is True', 'default_send_indicator is False']
 )
 def test_recipient_has_given_permission_with_default_send_indicator_and_no_preference_set(
-        client, mocker, send_indicator: bool
+    client, mocker, send_indicator: bool
 ):
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(side_effect=CommunicationItemNotFoundException)
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client',
-        new=mocked_va_profile_client
+        'app.celery.lookup_recipient_communication_permissions_task.va_profile_client', new=mocked_va_profile_client
     )
 
     test_communication_item = CommunicationItem(
-        id=uuid.uuid4(),
-        va_profile_item_id=1,
-        name="name",
-        default_send_indicator=send_indicator
+        id=uuid.uuid4(), va_profile_item_id=1, name='name', default_send_indicator=send_indicator
     )
 
     mocker.patch(
         'app.celery.lookup_recipient_communication_permissions_task.get_communication_item',
-        return_value=test_communication_item
+        return_value=test_communication_item,
     )
 
     mock_task = mocker.Mock()
@@ -194,33 +180,27 @@ def test_recipient_has_given_permission_with_default_send_indicator_and_no_prefe
     if send_indicator:
         assert permission_message is None
     else:
-        assert permission_message == "No recipient opt-in found for explicit preference"
+        assert permission_message == 'No recipient opt-in found for explicit preference'
 
 
 @pytest.mark.parametrize(('notification_type'), ['sms', 'email'])
-def test_recipient_has_given_permission_is_called_with_va_profile_id(
-    client, mocker, notification_type
-):
+def test_recipient_has_given_permission_is_called_with_va_profile_id(client, mocker, notification_type):
     notification = mock_notification_with_vaprofile_id(mocker, notification_type)
 
-    mock = mocker.patch('app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission',
-                        return_value=False)
-    mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id'
+    mock = mocker.patch(
+        'app.celery.lookup_recipient_communication_permissions_task.recipient_has_given_permission', return_value=False
     )
+    mocker.patch('app.celery.lookup_recipient_communication_permissions_task.update_notification_status_by_id')
 
     non_va_profile_id_type = IdentifierType.PID.value
     non_va_profile_id_value = 'pid-id'
 
-    notification.recipient_identifiers[f"{non_va_profile_id_type}"] = RecipientIdentifier(
-        notification_id=notification.id,
-        id_type=non_va_profile_id_type,
-        id_value=non_va_profile_id_value
+    notification.recipient_identifiers[f'{non_va_profile_id_type}'] = RecipientIdentifier(
+        notification_id=notification.id, id_type=non_va_profile_id_type, id_value=non_va_profile_id_value
     )
 
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
-        return_value=notification
+        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id', return_value=notification
     )
 
     lookup_recipient_communication_permissions(str(notification.id))
@@ -233,17 +213,15 @@ def test_recipient_has_given_permission_is_called_with_va_profile_id(
         id_value,
         str(notification.id),
         notification_type,
-        notification.template.communication_item_id)
+        notification.template.communication_item_id,
+    )
 
 
-def test_lookup_recipient_communication_permissions_raises_exception_with_non_va_profile_id(
-    client, mocker
-):
+def test_lookup_recipient_communication_permissions_raises_exception_with_non_va_profile_id(client, mocker):
     notification = mock_notification_without_vaprofile_id(mocker)
 
     mocker.patch(
-        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id',
-        return_value=notification
+        'app.celery.lookup_recipient_communication_permissions_task.get_notification_by_id', return_value=notification
     )
 
     with pytest.raises(Exception):

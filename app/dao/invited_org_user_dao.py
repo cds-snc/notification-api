@@ -10,25 +10,23 @@ def save_invited_org_user(invited_org_user):
     db.session.commit()
 
 
-def get_invited_org_user(organisation_id, invited_org_user_id):
+def get_invited_org_user(
+    organisation_id,
+    invited_org_user_id,
+):
     stmt = select(InvitedOrganisationUser).where(
-        InvitedOrganisationUser.organisation_id == organisation_id,
-        InvitedOrganisationUser.id == invited_org_user_id
+        InvitedOrganisationUser.organisation_id == organisation_id, InvitedOrganisationUser.id == invited_org_user_id
     )
     return db.session.scalars(stmt).one()
 
 
 def get_invited_org_user_by_id(invited_org_user_id):
-    stmt = select(InvitedOrganisationUser).where(
-        InvitedOrganisationUser.id == invited_org_user_id
-    )
+    stmt = select(InvitedOrganisationUser).where(InvitedOrganisationUser.id == invited_org_user_id)
     return db.session.scalars(stmt).one()
 
 
 def get_invited_org_users_for_organisation(organisation_id):
-    stmt = select(InvitedOrganisationUser).where(
-        InvitedOrganisationUser.organisation_id == organisation_id
-    )
+    stmt = select(InvitedOrganisationUser).where(InvitedOrganisationUser.organisation_id == organisation_id)
     return db.session.scalars(stmt).all()
 
 

@@ -8,14 +8,13 @@ from app.clients.performance_platform.performance_platform_client import Perform
 @pytest.fixture(scope='function')
 def perf_client(client, mocker):
     perf_client = PerformancePlatformClient()
-    current_app = mocker.Mock(config={
-        'PERFORMANCE_PLATFORM_ENABLED': True,
-        'PERFORMANCE_PLATFORM_ENDPOINTS': {
-            'foo': 'my_token',
-            'bar': 'other_token'
-        },
-        'PERFORMANCE_PLATFORM_URL': 'https://performance-platform-url/'
-    })
+    current_app = mocker.Mock(
+        config={
+            'PERFORMANCE_PLATFORM_ENABLED': True,
+            'PERFORMANCE_PLATFORM_ENDPOINTS': {'foo': 'my_token', 'bar': 'other_token'},
+            'PERFORMANCE_PLATFORM_URL': 'https://performance-platform-url/',
+        }
+    )
     perf_client.init_app(current_app)
     return perf_client
 
@@ -38,10 +37,7 @@ def test_should_call_datatype_endpoint_if_enabled(perf_client):
     assert request_mock.last_request.method == 'POST'
 
 
-@pytest.mark.parametrize('dataset, token', [
-    ('foo', 'my_token'),
-    ('bar', 'other_token')
-])
+@pytest.mark.parametrize('dataset, token', [('foo', 'my_token'), ('bar', 'other_token')])
 def test_should_use_correct_token(perf_client, dataset, token):
     with requests_mock.Mocker() as request_mock:
         request_mock.post('https://performance-platform-url/foo', json={}, status_code=200)

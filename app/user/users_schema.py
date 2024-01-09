@@ -2,12 +2,9 @@ post_verify_code_schema = {
     '$schema': 'http://json-schema.org/draft-04/schema#',
     'description': 'POST schema for verifying a 2fa code',
     'type': 'object',
-    'properties': {
-        'code': {'type': 'string'},
-        'code_type': {'type': 'string'}
-    },
+    'properties': {'code': {'type': 'string'}, 'code_type': {'type': 'string'}},
     'required': ['code', 'code_type'],
-    'additionalProperties': False
+    'additionalProperties': False,
 }
 
 
@@ -26,7 +23,7 @@ post_send_user_email_code_schema = {
         'next': {'type': ['string', 'null']},
     },
     'required': [],
-    'additionalProperties': False
+    'additionalProperties': False,
 }
 
 
@@ -38,30 +35,30 @@ post_send_user_sms_code_schema = {
         'to': {'type': ['string', 'null']},
     },
     'required': [],
-    'additionalProperties': False
+    'additionalProperties': False,
 }
 
 
 post_set_permissions_schema = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "description": "POST schema for setting user permissions",
-    "type": "object",
-    "properties": {
-        "permissions": {"type": "array", "items": {"type": "object"}},
-        "folder_permissions": {"type": "array", "items": {"type": "string"}}
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'description': 'POST schema for setting user permissions',
+    'type': 'object',
+    'properties': {
+        'permissions': {'type': 'array', 'items': {'type': 'object'}},
+        'folder_permissions': {'type': 'array', 'items': {'type': 'string'}},
     },
-    "required": ["permissions"],
-    "additionalProperties": False
+    'required': ['permissions'],
+    'additionalProperties': False,
 }
 
 
 fido2_key_schema = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "description": "POST schema for adding a fido2 key",
-    "type": "object",
-    "properties": {
+    '$schema': 'http://json-schema.org/draft-07/schema#',
+    'description': 'POST schema for adding a fido2 key',
+    'type': 'object',
+    'properties': {
         'payload': {'type': ['string', 'null']},
     },
-    "required": ["payload"],
-    "additionalProperties": False
+    'required': ['payload'],
+    'additionalProperties': False,
 }

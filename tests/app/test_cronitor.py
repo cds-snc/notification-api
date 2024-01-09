@@ -9,14 +9,16 @@ from tests.conftest import set_config_values
 
 
 def _cronitor_url(key, command):
-    return parse.urlunparse(parse.ParseResult(
-        scheme='https',
-        netloc='cronitor.link',
-        path='{}/{}'.format(key, command),
-        params='',
-        query=parse.urlencode({'host': 'http://localhost:6011'}),
-        fragment=''
-    ))
+    return parse.urlunparse(
+        parse.ParseResult(
+            scheme='https',
+            netloc='cronitor.link',
+            path='{}/{}'.format(key, command),
+            params='',
+            query=parse.urlencode({'host': 'http://localhost:6011'}),
+            fragment='',
+        )
+    )
 
 
 RUN_LINK = _cronitor_url('secret', 'run')
@@ -38,10 +40,7 @@ def test_cronitor_sends_run_and_complete(notify_api, rmock):
     rmock.get(RUN_LINK, status_code=200)
     rmock.get(COMPLETE_LINK, status_code=200)
 
-    with set_config_values(notify_api, {
-        'CRONITOR_ENABLED': True,
-        'CRONITOR_KEYS': {'hello': 'secret'}
-    }):
+    with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'hello': 'secret'}}):
         assert successful_task() == 1
 
     assert rmock.call_count == 2
@@ -53,10 +52,7 @@ def test_cronitor_sends_run_and_fail_if_exception(notify_api, rmock):
     rmock.get(RUN_LINK, status_code=200)
     rmock.get(FAIL_LINK, status_code=200)
 
-    with set_config_values(notify_api, {
-        'CRONITOR_ENABLED': True,
-        'CRONITOR_KEYS': {'hello': 'secret'}
-    }):
+    with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'hello': 'secret'}}):
         with pytest.raises(ValueError):
             crashing_task()
 
@@ -66,20 +62,14 @@ def test_cronitor_sends_run_and_fail_if_exception(notify_api, rmock):
 
 
 def test_cronitor_does_nothing_if_cronitor_not_enabled(notify_api, rmock):
-    with set_config_values(notify_api, {
-        'CRONITOR_ENABLED': False,
-        'CRONITOR_KEYS': {'hello': 'secret'}
-    }):
+    with set_config_values(notify_api, {'CRONITOR_ENABLED': False, 'CRONITOR_KEYS': {'hello': 'secret'}}):
         assert successful_task() == 1
 
     assert not rmock.called
 
 
 def test_cronitor_does_nothing_if_name_not_recognised(notify_api, rmock, caplog):
-    with set_config_values(notify_api, {
-        'CRONITOR_ENABLED': True,
-        'CRONITOR_KEYS': {'not-hello': 'other'}
-    }):
+    with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'not-hello': 'other'}}):
         assert successful_task() == 1
 
     error_log = caplog.records[0]
@@ -92,10 +82,7 @@ def test_cronitor_doesnt_crash_if_request_fails(notify_api, rmock):
     rmock.get(RUN_LINK, exc=requests.exceptions.ConnectTimeout)
     rmock.get(COMPLETE_LINK, status_code=500)
 
-    with set_config_values(notify_api, {
-        'CRONITOR_ENABLED': True,
-        'CRONITOR_KEYS': {'hello': 'secret'}
-    }):
+    with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'hello': 'secret'}}):
         assert successful_task() == 1
 
     assert rmock.call_count == 2

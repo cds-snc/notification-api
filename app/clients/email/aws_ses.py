@@ -5,36 +5,36 @@ from notifications_utils.recipients import InvalidEmailError
 from unidecode import unidecode
 
 from app.clients import STATISTICS_DELIVERED, STATISTICS_FAILURE
-from app.clients.email import (EmailClientException, EmailClient)
+from app.clients.email import EmailClientException, EmailClient
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
 ses_response_map = {
     'Permanent': {
-        "message": 'Hard bounced',
-        "success": False,
-        "notification_status": 'permanent-failure',
-        "notification_statistics_status": STATISTICS_FAILURE
+        'message': 'Hard bounced',
+        'success': False,
+        'notification_status': 'permanent-failure',
+        'notification_statistics_status': STATISTICS_FAILURE,
     },
     'Temporary': {
-        "message": 'Soft bounced',
-        "success": False,
-        "notification_status": 'temporary-failure',
-        "notification_statistics_status": STATISTICS_FAILURE
+        'message': 'Soft bounced',
+        'success': False,
+        'notification_status': 'temporary-failure',
+        'notification_statistics_status': STATISTICS_FAILURE,
     },
     'Delivery': {
-        "message": 'Delivered',
-        "success": True,
-        "notification_status": 'delivered',
-        "notification_statistics_status": STATISTICS_DELIVERED
+        'message': 'Delivered',
+        'success': True,
+        'notification_status': 'delivered',
+        'notification_statistics_status': STATISTICS_DELIVERED,
     },
     'Complaint': {
-        "message": 'Complaint',
-        "success": True,
-        "notification_status": 'delivered',
-        "notification_statistics_status": STATISTICS_DELIVERED
-    }
+        'message': 'Complaint',
+        'success': True,
+        'notification_status': 'delivered',
+        'notification_statistics_status': STATISTICS_DELIVERED,
+    },
 }
 
 
@@ -51,12 +51,23 @@ class AwsSesClientThrottlingSendRateException(AwsSesClientException):
 
 
 class AwsSesClient(EmailClient):
-    '''
+    """
     Amazon SES email client.
-    '''
+    """
 
-    def init_app(self, region, logger, statsd_client, email_from_domain=None, email_from_user=None,
-                 default_reply_to=None, configuration_set=None, endpoint_url=None, *args, **kwargs):
+    def init_app(
+        self,
+        region,
+        logger,
+        statsd_client,
+        email_from_domain=None,
+        email_from_user=None,
+        default_reply_to=None,
+        configuration_set=None,
+        endpoint_url=None,
+        *args,
+        **kwargs,
+    ):
         self._client = boto3.client('ses', region_name=region, endpoint_url=endpoint_url)
         super(AwsSesClient, self).__init__(*args, **kwargs)
         self.name = 'ses'
@@ -78,7 +89,7 @@ class AwsSesClient(EmailClient):
     def email_from_user(self):
         return self._email_from_user
 
-    def send_email(
+    def send_email(  # noqa: C901
         self,
         source,
         to_addresses,
@@ -88,17 +99,23 @@ class AwsSesClient(EmailClient):
         reply_to_address=None,
         attachments=None,
     ):
-        def create_mime_base(attachments, html):
+        def create_mime_base(
+            attachments,
+            html,
+        ):
             msg_type = 'mixed' if attachments or (not attachments and not html) else 'alternative'
             ret = MIMEMultipart(msg_type)
             ret['Subject'] = subject
             ret['From'] = source
-            ret['To'] = ",".join([punycode_encode_email(addr) for addr in to_addresses])
+            ret['To'] = ','.join([punycode_encode_email(addr) for addr in to_addresses])
             if reply_to_address:
                 ret.add_header('reply-to', punycode_encode_email(reply_to_address))
             return ret
 
-        def attach_html(m, content):
+        def attach_html(
+            m,
+            content,
+        ):
             if content:
                 parts = MIMEText(content, 'html')
                 m.attach(parts)
@@ -139,41 +156,41 @@ class AwsSesClient(EmailClient):
                 attach_html(msg, html_body)
 
             for attachment in attachments:
-                attachment_part = MIMEApplication(attachment["data"])
-                attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment["name"])
+                attachment_part = MIMEApplication(attachment['data'])
+                attachment_part.add_header('Content-Disposition', 'attachment', filename=attachment['name'])
                 msg.attach(attachment_part)
 
-            response = self._client.send_raw_email(
-                Source=source,
-                RawMessage={'Data': msg.as_string()},
-                **kwargs
-            )
+            response = self._client.send_raw_email(Source=source, RawMessage={'Data': msg.as_string()}, **kwargs)
         except botocore.exceptions.ClientError as e:
             self._check_error_code(e, to_addresses)
         except Exception as e:
-            self.statsd_client.incr("clients.ses.error")
+            self.statsd_client.incr('clients.ses.error')
             raise AwsSesClientException(str(e))
         else:
-            self.statsd_client.incr("clients.ses.success")
+            self.statsd_client.incr('clients.ses.success')
             return response['MessageId']
         finally:
             elapsed_time = monotonic() - start_time
-            self.logger.info("AWS SES request finished in {}".format(elapsed_time))
-            self.statsd_client.timing("clients.ses.request-time", elapsed_time)
+            self.logger.info('AWS SES request finished in {}'.format(elapsed_time))
+            self.statsd_client.timing('clients.ses.request-time', elapsed_time)
 
-    def _check_error_code(self, e, to_addresses):
+    def _check_error_code(
+        self,
+        e,
+        to_addresses,
+    ):
         # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
         if e.response['Error']['Code'] == 'InvalidParameterValue':
-            self.statsd_client.incr("clients.ses.error.invalid-email")
+            self.statsd_client.incr('clients.ses.error.invalid-email')
             raise InvalidEmailError('message: "{}"'.format(e.response['Error']['Message']))
         elif (
-                e.response['Error']['Code'] == 'Throttling'
-                and e.response['Error']['Message'] == 'Maximum sending rate exceeded.'
+            e.response['Error']['Code'] == 'Throttling'
+            and e.response['Error']['Message'] == 'Maximum sending rate exceeded.'
         ):
-            self.statsd_client.incr("clients.ses.error.throttling")
+            self.statsd_client.incr('clients.ses.error.throttling')
             raise AwsSesClientThrottlingSendRateException(str(e))
         else:
-            self.statsd_client.incr("clients.ses.error")
+            self.statsd_client.incr('clients.ses.error')
             raise AwsSesClientException(str(e))
 
 

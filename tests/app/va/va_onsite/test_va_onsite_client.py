@@ -17,29 +17,23 @@ def test_va_onsite_client(mocker):
     mock_secret_key = '-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIC9j+V0ZhWgB/KFFCiRhgVA+ZWBSjeVwtHToFDgeEi0HoAoGCCqGSM49\nAwEHoUQDQgAEDDDYZTvCx957Uj9AHrt/wRt+eThZqj0tjTyOkhaOJ1TTFVtgPMqG\nwnYZ/dBhHpmyafvss+L4/Hq/D1XXnVwq3A==\n-----END EC PRIVATE KEY-----'  # noqa: E501
 
     test_va_onsite_client = VAOnsiteClient()
-    test_va_onsite_client.init_app(
-        mock_logger,
-        MOCK_VA_ONSITE_URL,
-        mock_secret_key
-    )
+    test_va_onsite_client.init_app(mock_logger, MOCK_VA_ONSITE_URL, mock_secret_key)
 
     return test_va_onsite_client
 
 
 def test_post_onsite_notification_returns_200(rmock, test_va_onsite_client):
     resp = {
-        'data':
-        {
+        'data': {
             'id': '1',
             'type': 'onsite_notifications',
-            'attributes':
-            {
+            'attributes': {
                 'template_id': 'some-templat-id',
                 'va_profile_id': '1',
                 'dismissed': False,
                 'created_at': '2022-06-14T18:00:57.036Z',
-                'updated_at': '2022-06-14T18:00:57.036Z'
-            }
+                'updated_at': '2022-06-14T18:00:57.036Z',
+            },
         }
     }
 
@@ -47,9 +41,10 @@ def test_post_onsite_notification_returns_200(rmock, test_va_onsite_client):
 
     response = test_va_onsite_client.post_onsite_notification(
         {
-            "template_id": "f9947b27-df3b-4b09-875c-7f76594d766d",
-            "va_profile_id": "1"  # "505193" this is the example number from api docs
-        })
+            'template_id': 'f9947b27-df3b-4b09-875c-7f76594d766d',
+            'va_profile_id': '1',  # "505193" this is the example number from api docs
+        }
+    )
 
     assert rmock.called
 

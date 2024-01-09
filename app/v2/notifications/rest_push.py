@@ -4,16 +4,12 @@ from app import authenticated_service, vetext_client
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.mobile_app import MobileAppRegistry, MobileAppType, DEAFULT_MOBILE_APP_TYPE
 
-from app.models import (
-    PUSH_TYPE
-)
+from app.models import PUSH_TYPE
 from app.schema_validation import validate
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
-from app.v2.notifications.notification_schemas import (
-    push_notification_request
-)
-from app.va.vetext import (VETextRetryableException, VETextNonRetryableException, VETextBadRequestException)
+from app.v2.notifications.notification_schemas import push_notification_request
+from app.va.vetext import VETextRetryableException, VETextNonRetryableException, VETextBadRequestException
 from app.utils import get_public_notify_type_text
 
 
@@ -23,8 +19,9 @@ def send_push_notification():
         raise NotImplementedError()
 
     if not authenticated_service.has_permissions(PUSH_TYPE):
-        raise BadRequestError(message="Service is not allowed to send {}".format(
-            get_public_notify_type_text(PUSH_TYPE, plural=True)))
+        raise BadRequestError(
+            message='Service is not allowed to send {}'.format(get_public_notify_type_text(PUSH_TYPE, plural=True))
+        )
 
     req_json = validate(request.get_json(), push_notification_request)
     registry = MobileAppRegistry()
@@ -41,11 +38,11 @@ def send_push_notification():
             app_instance.sid,
             req_json['template_id'],
             req_json['recipient_identifier']['id_value'],
-            req_json.get('personalisation')
+            req_json.get('personalisation'),
         )
     except VETextBadRequestException as e:
         raise BadRequestError(message=e.message, status_code=400)
     except (VETextNonRetryableException, VETextRetryableException):
-        return jsonify(result='error', message="Invalid response from downstream service"), 502
+        return jsonify(result='error', message='Invalid response from downstream service'), 502
     else:
         return jsonify(result='success'), 201

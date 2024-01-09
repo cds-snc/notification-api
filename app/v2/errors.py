@@ -12,27 +12,25 @@ from app.errors import InvalidRequest
 
 
 class JobIncompleteError(Exception):
-    def __init__(self, message):
+    def __init__(
+        self,
+        message,
+    ):
         self.message = message
         self.status_code = 500
 
     def to_dict_v2(self):
-        return {
-            'status_code': self.status_code,
-            "errors": [
-                {
-                    "error": 'JobIncompleteError',
-                    "message": self.message
-                }
-            ]
-        }
+        return {'status_code': self.status_code, 'errors': [{'error': 'JobIncompleteError', 'message': self.message}]}
 
 
 class TooManyRequestsError(InvalidRequest):
     status_code = 429
     message_template = 'Exceeded send limits ({}) for today'
 
-    def __init__(self, sending_limit):
+    def __init__(
+        self,
+        sending_limit,
+    ):
         self.message = self.message_template.format(sending_limit)
 
 
@@ -41,7 +39,12 @@ class RateLimitError(InvalidRequest):
     message_template = 'Exceeded rate limit for key type {} of {} requests per {} seconds'
     message_template_without_key_type = 'Exceeded rate limit of {} requests per {} seconds'
 
-    def __init__(self, sending_limit, interval, key_type=None):
+    def __init__(
+        self,
+        sending_limit,
+        interval,
+        key_type=None,
+    ):
         # normal keys are spoken of as "live" in the documentation
         # so using this in the error messaging
         if key_type and key_type == 'normal':
@@ -55,9 +58,14 @@ class RateLimitError(InvalidRequest):
 
 
 class BadRequestError(InvalidRequest):
-    message = "An error occurred"
+    message = 'An error occurred'
 
-    def __init__(self, fields=[], message=None, status_code=400):
+    def __init__(
+        self,
+        fields=[],
+        message=None,
+        status_code=400,
+    ):
         self.status_code = status_code
         self.fields = fields
         self.message = message if message else self.message
@@ -74,8 +82,7 @@ def register_errors(blueprint):
         # Note that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone.
         # Work should be done in the utils app to tidy up these errors.
         current_app.logger.info(error)
-        return jsonify(status_code=400,
-                       errors=[{"error": error.__class__.__name__, "message": str(error)}]), 400
+        return jsonify(status_code=400, errors=[{'error': error.__class__.__name__, 'message': str(error)}]), 400
 
     @blueprint.errorhandler(InvalidRequest)
     def invalid_data(error):
@@ -90,8 +97,7 @@ def register_errors(blueprint):
     @blueprint.errorhandler(UnsupportedMimeTypeException)
     def unsupported_mime_type(error):
         current_app.logger.info(error)
-        return jsonify(status_code=400,
-                       errors=[{"error": error.__class__.__name__, "message": str(error)}]), 400
+        return jsonify(status_code=400, errors=[{'error': error.__class__.__name__, 'message': str(error)}]), 400
 
     @blueprint.errorhandler(JobIncompleteError)
     def job_incomplete_error(error):
@@ -101,25 +107,21 @@ def register_errors(blueprint):
     @blueprint.errorhandler(DataError)
     def no_result_found(e):
         current_app.logger.info(e)
-        return jsonify(status_code=404,
-                       errors=[{"error": e.__class__.__name__, "message": "No result found"}]), 404
+        return jsonify(status_code=404, errors=[{'error': e.__class__.__name__, 'message': 'No result found'}]), 404
 
     @blueprint.errorhandler(AuthError)
     def auth_error(error):
-        current_app.logger.info("API AuthError, client: %s error: %s", request.headers.get("User-Agent"), error)
+        current_app.logger.info('API AuthError, client: %s error: %s', request.headers.get('User-Agent'), error)
         return jsonify(error.to_dict_v2()), error.code
 
     @blueprint.errorhandler(NotImplementedError)
     def not_implemented(e):
         current_app.logger.warning(e)
-        return jsonify(
-            status_code=501,
-            errors=[{"error": e.__class__.__name__, "message": "Not implemented"}]
-        ), 501
+        return jsonify(status_code=501, errors=[{'error': e.__class__.__name__, 'message': 'Not implemented'}]), 501
 
     @blueprint.errorhandler(413)
     def request_entity_too_large(_e):
         return jsonify(
             status_code=413,
-            errors=[{"error": "Request entity too large", "message": "Uploaded attachment exceeds file size limit"}]
+            errors=[{'error': 'Request entity too large', 'message': 'Uploaded attachment exceeds file size limit'}],
         ), 413

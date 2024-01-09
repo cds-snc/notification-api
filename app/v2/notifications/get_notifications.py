@@ -6,9 +6,9 @@ from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import get_notifications_request, notification_by_id
 
 
-@v2_notification_blueprint.route("/<notification_id>", methods=['GET'])
+@v2_notification_blueprint.route('/<notification_id>', methods=['GET'])
 def get_notification_by_id(notification_id):
-    _data = {"notification_id": notification_id}
+    _data = {'notification_id': notification_id}
     validate(_data, notification_by_id)
     notification = notifications_dao.get_notification_with_personalisation(
         authenticated_service.id, notification_id, key_type=None
@@ -16,7 +16,7 @@ def get_notification_by_id(notification_id):
     return jsonify(notification.serialize()), 200
 
 
-@v2_notification_blueprint.route("", methods=['GET'])
+@v2_notification_blueprint.route('', methods=['GET'])
 def get_notifications():
     _data = request.args.to_dict(flat=False)
 
@@ -41,21 +41,21 @@ def get_notifications():
         older_than=data.get('older_than'),
         client_reference=data.get('reference'),
         page_size=current_app.config.get('API_PAGE_SIZE'),
-        include_jobs=data.get('include_jobs')
+        include_jobs=data.get('include_jobs'),
     )
 
     def _build_links(notifications):
         _links = {
-            'current': url_for(".get_notifications", _external=True, **data),
+            'current': url_for('.get_notifications', _external=True, **data),
         }
 
         if len(notifications):
             next_query_params = dict(data, older_than=notifications[-1].id)
-            _links['next'] = url_for(".get_notifications", _external=True, **next_query_params)
+            _links['next'] = url_for('.get_notifications', _external=True, **next_query_params)
 
         return _links
 
     return jsonify(
         notifications=[notification.serialize() for notification in paginated_notifications.items],
-        links=_build_links(paginated_notifications.items)
+        links=_build_links(paginated_notifications.items),
     ), 200

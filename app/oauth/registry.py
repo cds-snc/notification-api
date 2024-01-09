@@ -11,14 +11,10 @@ oauth_registry.register(  # nosec
     authorize_url='https://github.com/login/oauth/authorize',
     authorize_params=None,
     api_base_url='https://api.github.com/',
-    client_kwargs={'scope': 'read:user, user:email, read:org'}
+    client_kwargs={'scope': 'read:user, user:email, read:org'},
 )
 
 # Reads all configuration from .well-known endpointed defined in VA_SSO_SERVER_METADATA_URL config
 oauth_registry.register(
-    name='va_sso',
-    client_kwargs={
-        'scope': 'openid',
-        'token_endpoint_auth_method': 'client_secret_post'
-    }
+    name='va_sso', client_kwargs={'scope': 'openid', 'token_endpoint_auth_method': 'client_secret_post'}
 )

@@ -1,20 +1,9 @@
-from flask import (
-    Blueprint,
-    jsonify,
-    request,
-    current_app
-)
+from flask import Blueprint, jsonify, request, current_app
 
 from app import api_user, authenticated_service
 from app.config import QueueNames
-from app.dao import (
-    templates_dao,
-    notifications_dao
-)
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
+from app.dao import templates_dao, notifications_dao
+from app.errors import register_errors, InvalidRequest
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
@@ -26,18 +15,18 @@ from app.models import (
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
-    simulated_recipient
+    simulated_recipient,
 )
 from app.notifications.validators import (
     check_template_is_for_notification_type,
     check_template_is_active,
-    check_rate_limiting
+    check_rate_limiting,
 )
 from app.schemas import (
     email_notification_schema,
     sms_template_notification_schema,
     notification_with_personalisation_schema,
-    notifications_filter_schema
+    notifications_filter_schema,
 )
 from app.service.utils import service_allowed_to_send_to
 from app.utils import pagination_links, get_template_instance, get_public_notify_type_text
@@ -53,12 +42,10 @@ register_errors(notifications)
 @notifications.route('/notifications/<uuid:notification_id>', methods=['GET'])
 def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
-        str(authenticated_service.id),
-        notification_id,
-        key_type=None
+        str(authenticated_service.id), notification_id, key_type=None
     )
 
-    return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification).data}), 200
+    return jsonify(data={'notification': notification_with_personalisation_schema.dump(notification).data}), 200
 
 
 @notifications.route('/notifications', methods=['GET'])
@@ -77,16 +64,13 @@ def get_all_notifications():
         page_size=page_size,
         limit_days=limit_days,
         key_type=api_user.key_type,
-        include_jobs=include_jobs)
+        include_jobs=include_jobs,
+    )
     return jsonify(
         notifications=notification_with_personalisation_schema.dump(pagination.items, many=True).data,
         page_size=page_size,
         total=pagination.total,
-        links=pagination_links(
-            pagination,
-            '.get_all_notifications',
-            **request.args.to_dict()
-        )
+        links=pagination_links(pagination, '.get_all_notifications', **request.args.to_dict()),
     ), 200
 
 
@@ -97,8 +81,8 @@ def send_notification(notification_type):
     """
 
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
-        msg = "{} notification type is not supported".format(notification_type)
-        msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
+        msg = '{} notification type is not supported'.format(notification_type)
+        msg = msg + ', please use the latest version of the client' if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
     notification_form, errors = (
@@ -111,8 +95,8 @@ def send_notification(notification_type):
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
-        template_id=notification_form['template'],
-        service_id=authenticated_service.id)
+        template_id=notification_form['template'], service_id=authenticated_service.id
+    )
 
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
@@ -123,8 +107,8 @@ def send_notification(notification_type):
     _service_allowed_to_send_to(notification_form, authenticated_service)
     if not authenticated_service.has_permissions(notification_type):
         raise InvalidRequest(
-            {'service': ["Cannot send {}".format(get_public_notify_type_text(notification_type, plural=True))]},
-            status_code=400
+            {'service': ['Cannot send {}'.format(get_public_notify_type_text(notification_type, plural=True))]},
+            status_code=400,
         )
 
     if notification_type == SMS_TYPE:
@@ -147,55 +131,55 @@ def send_notification(notification_type):
         key_type=api_user.key_type,
         simulated=simulated,
         reply_to_text=template.get_reply_to_text(),
-        sms_sender_id=notification_form.get("sms_sender_id")
+        sms_sender_id=notification_form.get('sms_sender_id'),
     )
 
     if simulated:
-        current_app.logger.debug("POST simulated notification for id: %s", notification_model.id)
+        current_app.logger.debug('POST simulated notification for id: %s', notification_model.id)
     else:
         queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
         send_notification_to_queue(
-            notification=notification_model,
-            research_mode=authenticated_service.research_mode,
-            queue=queue_name
+            notification=notification_model, research_mode=authenticated_service.research_mode, queue=queue_name
         )
 
-    notification_form["template_version"] = template.version
+    notification_form['template_version'] = template.version
 
-    return jsonify(
-        data=get_notification_return_data(
-            notification_model.id,
-            notification_form,
-            template_object)
-    ), 201
+    return jsonify(data=get_notification_return_data(notification_model.id, notification_form, template_object)), 201
 
 
-def get_notification_return_data(notification_id, notification, template):
+def get_notification_return_data(
+    notification_id,
+    notification,
+    template,
+):
     output = {
         'body': str(template),
         'template_version': notification['template_version'],
-        'notification': {'id': notification_id}
+        'notification': {'id': notification_id},
     }
 
     if template.template_type == EMAIL_TYPE:
         output.update({'subject': template.subject})
     elif template.template_type == SMS_TYPE:
-        output["notification"]["sms_sender_id"] = notification["sms_sender_id"]
+        output['notification']['sms_sender_id'] = notification['sms_sender_id']
 
     return output
 
 
-def _service_can_send_internationally(service, number):
+def _service_can_send_internationally(
+    service,
+    number,
+):
     phone_info = get_international_phone_info(number)
 
     if phone_info.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
-        raise InvalidRequest(
-            {'to': ["Cannot send to international mobile numbers"]},
-            status_code=400
-        )
+        raise InvalidRequest({'to': ['Cannot send to international mobile numbers']}, status_code=400)
 
 
-def _service_allowed_to_send_to(notification, service):
+def _service_allowed_to_send_to(
+    notification,
+    service,
+):
     if not service_allowed_to_send_to(notification['to'], service, api_user.key_type):
         if api_user.key_type == KEY_TYPE_TEAM:
             message = 'Can’t send to this recipient using a team-only API key'
@@ -204,24 +188,21 @@ def _service_allowed_to_send_to(notification, service):
                 'Can’t send to this recipient when service is in trial mode '
                 '– see https://www.notifications.service.gov.uk/trial-mode'
             )
-        raise InvalidRequest(
-            {'to': [message]},
-            status_code=400
-        )
+        raise InvalidRequest({'to': [message]}, status_code=400)
 
 
-def create_template_object_for_notification(template, personalisation):
+def create_template_object_for_notification(
+    template,
+    personalisation,
+):
     template_object = get_template_instance(template.__dict__, personalisation)
 
     if template_object.missing_data:
-        message = 'Missing personalisation: {}'.format(", ".join(template_object.missing_data))
+        message = 'Missing personalisation: {}'.format(', '.join(template_object.missing_data))
         errors = {'template': [message]}
         raise InvalidRequest(errors, status_code=400)
 
-    if (
-        template_object.template_type == SMS_TYPE
-        and template_object.content_count > SMS_CHAR_COUNT_LIMIT
-    ):
+    if template_object.template_type == SMS_TYPE and template_object.content_count > SMS_CHAR_COUNT_LIMIT:
         message = 'Content has a character count greater than the limit of {}'.format(SMS_CHAR_COUNT_LIMIT)
         errors = {'content': [message]}
         raise InvalidRequest(errors, status_code=400)

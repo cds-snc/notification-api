@@ -11,7 +11,7 @@ def test_can_create_user_with_idp_id():
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': 'some_id'
+        'idp_id': 'some_id',
     }
     user = User(**data)
 
@@ -27,7 +27,7 @@ def test_create_user_casts_idp_id_to_str():
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': 1234
+        'idp_id': 1234,
     }
     user = User(**data)
 
@@ -43,7 +43,7 @@ def test_can_save_to_db(notify_db_session):
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': 'some_id'
+        'idp_id': 'some_id',
     }
     test_user = User(**data)
     test_user.save_to_db()
@@ -61,7 +61,7 @@ def test_can_find_by_idp_id(notify_db_session):
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': 'some_id'
+        'idp_id': 'some_id',
     }
     test_user = User(**data)
     notify_db_session.session.add(test_user)
@@ -76,7 +76,7 @@ def test_find_by_idp_id_casts_to_str(notify_db_session):
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': '1234'
+        'idp_id': '1234',
     }
     test_user = User(**data)
     notify_db_session.session.add(test_user)
@@ -91,7 +91,7 @@ def test_find_by_idp_id_raises_exception_if_not_found(notify_db_session):
         'email_address': 'email@test.com',
         'password': 'password',
         'idp_name': 'va_sso',
-        'idp_id': 'some_id'
+        'idp_id': 'some_id',
     }
     test_user = User(**data)
     notify_db_session.session.add(test_user)
@@ -101,22 +101,26 @@ def test_find_by_idp_id_raises_exception_if_not_found(notify_db_session):
 
 
 def test_cannot_create_users_with_same_idp_id(notify_db_session):
-    test_user_1 = User(**{
-        'name': 'Foo Bar',
-        'email_address': 'test@email.com',
-        'password': 'password',
-        'idp_name': 'va_sso',
-        'idp_id': 'some_id'
-    })
+    test_user_1 = User(
+        **{
+            'name': 'Foo Bar',
+            'email_address': 'test@email.com',
+            'password': 'password',
+            'idp_name': 'va_sso',
+            'idp_id': 'some_id',
+        }
+    )
     test_user_1.save_to_db()
 
-    test_user_2 = User(**{
-        'name': 'Winnie the Pooh',
-        'email_address': 'test_2@email.com',
-        'password': 'other_password',
-        'idp_name': 'va_sso',
-        'idp_id': 'some_id'
-    })
+    test_user_2 = User(
+        **{
+            'name': 'Winnie the Pooh',
+            'email_address': 'test_2@email.com',
+            'password': 'other_password',
+            'idp_name': 'va_sso',
+            'idp_id': 'some_id',
+        }
+    )
     with pytest.raises(IntegrityError):
         test_user_2.save_to_db()
 

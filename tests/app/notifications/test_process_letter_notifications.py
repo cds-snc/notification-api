@@ -35,7 +35,7 @@ def test_create_letter_notification_sets_reference(sample_letter_template, sampl
             'address_line_2': 'Buckingham Palace',
             'postcode': 'SW1 1AA',
         },
-        'reference': 'foo'
+        'reference': 'foo',
     }
 
     notification = create_letter_notification(data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED)
@@ -52,7 +52,8 @@ def test_create_letter_notification_sets_billable_units(sample_letter_template, 
         },
     }
 
-    notification = create_letter_notification(data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED,
-                                              billable_units=3)
+    notification = create_letter_notification(
+        data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED, billable_units=3
+    )
 
     assert notification.billable_units == 3

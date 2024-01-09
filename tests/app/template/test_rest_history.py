@@ -1,7 +1,7 @@
 import json
 import pytest
 from app.dao.templates_dao import dao_update_template
-from datetime import (datetime, date)
+from datetime import datetime, date
 from flask import url_for
 from tests import create_authorization_header
 from tests.app.db import create_letter_contact
@@ -15,11 +15,9 @@ def test_template_history_version(notify_api, sample_user, sample_template):
                 'template.get_template_version',
                 service_id=sample_template.service.id,
                 template_id=sample_template.id,
-                version=1)
-            resp = client.get(
-                endpoint,
-                headers=[('Content-Type', 'application/json'), auth_header]
+                version=1,
             )
+            resp = client.get(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
             assert resp.status_code == 200
             json_resp = json.loads(resp.get_data(as_text=True))
             assert json_resp['data']['id'] == str(sample_template.id)
@@ -31,7 +29,7 @@ def test_template_history_version(notify_api, sample_user, sample_template):
 
 def test_previous_template_history_version(notify_api, sample_template):
     old_content = sample_template.content
-    sample_template.content = "New content"
+    sample_template.content = 'New content'
     dao_update_template(sample_template)
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
@@ -40,11 +38,9 @@ def test_previous_template_history_version(notify_api, sample_template):
                 'template.get_template_version',
                 service_id=sample_template.service.id,
                 template_id=sample_template.id,
-                version=1)
-            resp = client.get(
-                endpoint,
-                headers=[('Content-Type', 'application/json'), auth_header]
+                version=1,
             )
+            resp = client.get(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
             assert resp.status_code == 200
             json_resp = json.loads(resp.get_data(as_text=True))
             assert json_resp['data']['id'] == str(sample_template.id)
@@ -60,35 +56,28 @@ def test_404_missing_template_version(notify_api, sample_template):
                 'template.get_template_version',
                 service_id=sample_template.service.id,
                 template_id=sample_template.id,
-                version=2)
-            resp = client.get(
-                endpoint,
-                headers=[('Content-Type', 'application/json'), auth_header]
+                version=2,
             )
+            resp = client.get(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
             assert resp.status_code == 404
 
 
-@pytest.mark.xfail(reason="Failing after Flask upgrade.  Not fixed because not used.", run=False)
+@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
 def test_all_versions_of_template(notify_api, sample_template):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             old_content = sample_template.content
-            newer_content = "Newer content"
-            newest_content = "Newest content"
+            newer_content = 'Newer content'
+            newest_content = 'Newest content'
             sample_template.content = newer_content
             dao_update_template(sample_template)
             sample_template.content = newest_content
             dao_update_template(sample_template)
             auth_header = create_authorization_header()
             endpoint = url_for(
-                'template.get_template_versions',
-                service_id=sample_template.service.id,
-                template_id=sample_template.id
+                'template.get_template_versions', service_id=sample_template.service.id, template_id=sample_template.id
             )
-            resp = client.get(
-                endpoint,
-                headers=[('Content-Type', 'application/json'), auth_header]
-            )
+            resp = client.get(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
             json_resp = json.loads(resp.get_data(as_text=True))
             assert len(json_resp['data']) == 3
             assert json_resp['data'][0]['content'] == newest_content
@@ -100,14 +89,14 @@ def test_all_versions_of_template(notify_api, sample_template):
 
 def test_update_template_reply_to_updates_history(client, sample_letter_template):
     auth_header = create_authorization_header()
-    letter_contact = create_letter_contact(sample_letter_template.service, "Edinburgh, ED1 1AA")
+    letter_contact = create_letter_contact(sample_letter_template.service, 'Edinburgh, ED1 1AA')
 
     sample_letter_template.reply_to = letter_contact.id
     dao_update_template(sample_letter_template)
 
     resp = client.get(
         '/service/{}/template/{}/version/2'.format(sample_letter_template.service_id, sample_letter_template.id),
-        headers=[auth_header]
+        headers=[auth_header],
     )
     assert resp.status_code == 200
 

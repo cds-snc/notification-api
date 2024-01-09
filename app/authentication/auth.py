@@ -17,7 +17,13 @@ from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
 
 class AuthError(Exception):
-    def __init__(self, message, code, service_id=None, api_key_id=None):
+    def __init__(
+        self,
+        message,
+        code,
+        service_id=None,
+        api_key_id=None,
+    ):
         self.message = message
         self.short_message = message
         self.code = code
@@ -28,15 +34,7 @@ class AuthError(Exception):
         return 'AuthError({message}, {code}, service_id={service_id}, api_key_id={api_key_id})'.format(**self.__dict__)
 
     def to_dict_v2(self):
-        return {
-            'status_code': self.code,
-            "errors": [
-                {
-                    "error": "AuthError",
-                    "message": self.short_message
-                }
-            ]
-        }
+        return {'status_code': self.code, 'errors': [{'error': 'AuthError', 'message': self.short_message}]}
 
     def to_dict_v3(self):
         """
@@ -44,17 +42,10 @@ class AuthError(Exception):
         """
 
         error_message = self.short_message
-        if error_message.lower().startswith("invalid token:"):
-            error_message = "Invalid token"
+        if error_message.lower().startswith('invalid token:'):
+            error_message = 'Invalid token'
 
-        return {
-            "errors": [
-                {
-                    "error": "AuthError",
-                    "message": error_message
-                }
-            ]
-        }
+        return {'errors': [{'error': 'AuthError', 'message': error_message}]}
 
 
 def get_auth_token(req):
@@ -88,9 +79,7 @@ def validate_admin_auth():
 
 
 def create_validator_for_user_in_service_or_admin(required_permission: str = None) -> Callable:
-
     def _validate_user_in_service_or_platform_admin():
-
         # when fetching data, the browser may send a pre-flight OPTIONS request.
         # the W3 spec for CORS pre-flight requests states that user credentials should be excluded.
         # hence, for OPTIONS requests, we should skip authentication
@@ -101,7 +90,7 @@ def create_validator_for_user_in_service_or_admin(required_permission: str = Non
         service_id = request.view_args.get('service_id')
         verify_jwt_in_request()
 
-        if (not any(service.id == service_id for service in current_user.services) and not current_user.platform_admin):
+        if not any(service.id == service_id for service in current_user.services) and not current_user.platform_admin:
             raise AuthError('User is not a member of the specified service', 403, service_id=service_id)
 
         if required_permission and not current_user.platform_admin:
@@ -113,7 +102,6 @@ def create_validator_for_user_in_service_or_admin(required_permission: str = Non
 
 
 def create_validator_for_admin_auth_or_user_in_service(required_permission: str = None) -> Callable:
-
     def _validate_admin_auth_or_user_in_service():
         try:
             validate = create_validator_for_user_in_service_or_admin(required_permission)
@@ -128,12 +116,17 @@ def create_validator_for_admin_auth_or_user_in_service(required_permission: str 
 def requires_user_in_service_or_admin(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(
+            *args,
+            **kwargs,
+        ):
             validate = create_validator_for_user_in_service_or_admin(required_permission)
             validate()
 
             return function(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -141,12 +134,17 @@ def requires_user_in_service_or_admin(required_permission: str = None):
 def requires_admin_auth_or_user_in_service(required_permission: str = None):
     def decorator(function):
         @functools.wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(
+            *args,
+            **kwargs,
+        ):
             validate = create_validator_for_admin_auth_or_user_in_service(required_permission)
             validate()
 
             return function(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -154,14 +152,19 @@ def requires_admin_auth_or_user_in_service(required_permission: str = None):
 def requires_admin_auth():
     def decorator(function):
         @functools.wraps(function)
-        def wrapper(*args, **kwargs):
+        def wrapper(
+            *args,
+            **kwargs,
+        ):
             validate_admin_auth()
             return function(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
-def validate_service_api_key_auth():
+def validate_service_api_key_auth():  # noqa: C901
     request_helper.check_proxy_header_before_request()
 
     auth_token = get_auth_token(request)
@@ -170,15 +173,15 @@ def validate_service_api_key_auth():
     try:
         service = dao_fetch_service_by_id_with_api_keys(client)
     except DataError:
-        raise AuthError("Invalid token: service id is not the right data type", 403)
+        raise AuthError('Invalid token: service id is not the right data type', 403)
     except NoResultFound:
-        raise AuthError("Invalid token: service not found", 403)
+        raise AuthError('Invalid token: service not found', 403)
 
     if not service.api_keys:
-        raise AuthError("Invalid token: service has no API keys", 403, service_id=service.id)
+        raise AuthError('Invalid token: service has no API keys', 403, service_id=service.id)
 
     if not service.active:
-        raise AuthError("Invalid token: service is archived", 403, service_id=service.id)
+        raise AuthError('Invalid token: service is archived', 403, service_id=service.id)
 
     for api_key in service.api_keys:
         try:
@@ -186,43 +189,44 @@ def validate_service_api_key_auth():
         except TokenDecodeError:
             continue
         except TokenExpiredError:
-            err_msg = (
-                "Error: Your system clock must be accurate to within 30 seconds"
-            )
+            err_msg = 'Error: Your system clock must be accurate to within 30 seconds'
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
         if api_key.expiry_date:
-            raise AuthError("Invalid token: API key revoked", 403, service_id=service.id, api_key_id=api_key.id)
+            raise AuthError('Invalid token: API key revoked', 403, service_id=service.id, api_key_id=api_key.id)
 
         g.service_id = api_key.service_id
         g.api_user = api_key
         g.authenticated_service = service
         current_app.logger.info(
-            "API authorised for service %s with api key %s, using client %s",
+            'API authorised for service %s with api key %s, using client %s',
             service.id,
             api_key.id,
-            request.headers.get('User-Agent')
+            request.headers.get('User-Agent'),
         )
         return
     else:
         # service has API keys, but none matching the one the user provided
-        raise AuthError("Invalid token: signature, api token not found", 403, service_id=service.id)
+        raise AuthError('Invalid token: signature, api token not found', 403, service_id=service.id)
 
 
 def __get_token_issuer(auth_token):
     try:
         client = get_token_issuer(auth_token)
     except TokenIssuerError:
-        raise AuthError("Invalid token: iss field not provided", 403)
+        raise AuthError('Invalid token: iss field not provided', 403)
     except TokenDecodeError:
-        raise AuthError("Invalid token: signature, api token is not valid", 403)
+        raise AuthError('Invalid token: signature, api token is not valid', 403)
     return client
 
 
-def handle_admin_key(auth_token, secret):
+def handle_admin_key(
+    auth_token,
+    secret,
+):
     try:
         decode_jwt_token(auth_token, secret)
     except TokenExpiredError:
-        raise AuthError("Invalid token: expired, check that your system clock is accurate", 403)
+        raise AuthError('Invalid token: expired, check that your system clock is accurate', 403)
     except TokenDecodeError:
-        raise AuthError("Invalid token: signature, api token is not valid", 403)
+        raise AuthError('Invalid token: signature, api token is not valid', 403)

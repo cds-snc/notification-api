@@ -1,6 +1,6 @@
 from .exceptions import (  # noqa: F401
     VETextRetryableException,
     VETextNonRetryableException,
-    VETextBadRequestException
+    VETextBadRequestException,
 )
 from .client import VETextClient  # noqa: F401

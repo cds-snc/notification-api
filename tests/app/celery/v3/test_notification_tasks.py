@@ -21,6 +21,7 @@ from uuid import uuid4
 # Test non-schema validations.
 ############################################################################################
 
+
 # TODO - Make the Notification.template_id field nullable?  Have a default template?
 def test_v3_process_notification_no_template(notify_db_session, mocker, sample_service):
     """
@@ -28,24 +29,24 @@ def test_v3_process_notification_no_template(notify_db_session, mocker, sample_s
     """
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": EMAIL_TYPE,
-        "email_address": "test@va.gov",
-        "template_id": "22222222-2222-2222-2222-222222222222"
+        'id': str(uuid4()),
+        'notification_type': EMAIL_TYPE,
+        'email_address': 'test@va.gov',
+        'template_id': '22222222-2222-2222-2222-222222222222',
     }
 
-    v3_send_email_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_email_notification.delay")
+    v3_send_email_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_email_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_email_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "The template does not exist."
-    assert body.get("phone_number") is None
-    assert body.get("email_address") == "test@va.gov"
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'The template does not exist.'
+    assert body.get('phone_number') is None
+    assert body.get('email_address') == 'test@va.gov'
 
 
 def test_v3_process_notification_template_owner_mismatch(
@@ -61,22 +62,22 @@ def test_v3_process_notification_template_owner_mismatch(
     assert other_sample_template.service_id != sample_service.id
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": other_sample_template.id,
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': other_sample_template.id,
     }
 
-    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_sms_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "The service does not own the template."
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'The service does not own the template.'
 
 
 def test_v3_process_notification_template_type_mismatch_1(notify_db_session, mocker, sample_service, sample_template):
@@ -87,24 +88,24 @@ def test_v3_process_notification_template_type_mismatch_1(notify_db_session, moc
     assert sample_template.template_type == SMS_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": EMAIL_TYPE,
-        "email_address": "test@va.gov",
-        "template_id": sample_template.id,
+        'id': str(uuid4()),
+        'notification_type': EMAIL_TYPE,
+        'email_address': 'test@va.gov',
+        'template_id': sample_template.id,
     }
 
-    v3_send_email_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_email_notification.delay")
+    v3_send_email_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_email_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_email_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "The template type does not match the notification type."
-    assert body.get("phone_number") is None
-    assert body.get("email_address") == "test@va.gov"
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'The template type does not match the notification type.'
+    assert body.get('phone_number') is None
+    assert body.get('email_address') == 'test@va.gov'
 
 
 def test_v3_process_notification_template_type_mismatch_2(
@@ -117,27 +118,28 @@ def test_v3_process_notification_template_type_mismatch_2(
     assert sample_email_template.template_type == EMAIL_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": sample_email_template.id,
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': sample_email_template.id,
     }
 
-    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_sms_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "The template type does not match the notification type."
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'The template type does not match the notification type.'
 
 
 ############################################################################################
 # Test sending e-mail notifications.
 ############################################################################################
+
 
 def test_v3_process_notification_valid_email(notify_db_session, mocker, sample_service, sample_email_template):
     """
@@ -148,13 +150,13 @@ def test_v3_process_notification_valid_email(notify_db_session, mocker, sample_s
     assert sample_email_template.template_type == EMAIL_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": EMAIL_TYPE,
-        "email_address": "test@va.gov",
-        "template_id": sample_email_template.id,
+        'id': str(uuid4()),
+        'notification_type': EMAIL_TYPE,
+        'email_address': 'test@va.gov',
+        'template_id': sample_email_template.id,
     }
 
-    v3_send_email_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_email_notification.delay")
+    v3_send_email_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_email_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_email_notification_mock.assert_called_once()
     assert isinstance(v3_send_email_notification_mock.call_args.args[0], Notification)
@@ -164,9 +166,9 @@ def test_v3_send_email_notification(notify_db_session, mocker, sample_email_noti
     assert sample_email_notification.notification_type == EMAIL_TYPE
 
     client_mock = mocker.Mock()
-    client_mock.send_email = mocker.Mock(return_value="provider reference")
-    client_mock.get_name = mocker.Mock(return_value="client name")
-    mocker.patch("app.celery.v3.notification_tasks.clients.get_email_client", return_value=client_mock)
+    client_mock.send_email = mocker.Mock(return_value='provider reference')
+    client_mock.get_name = mocker.Mock(return_value='client name')
+    mocker.patch('app.celery.v3.notification_tasks.clients.get_email_client', return_value=client_mock)
 
     query = select(Template).where(Template.id == sample_email_notification.template_id)
     template = notify_db_session.session.execute(query).one().Template
@@ -177,13 +179,14 @@ def test_v3_send_email_notification(notify_db_session, mocker, sample_email_noti
     query = select(Notification).where(Notification.id == sample_email_notification.id)
     notification = notify_db_session.session.execute(query).one().Notification
     assert notification.status == NOTIFICATION_SENT
-    assert notification.reference == "provider reference"
-    assert notification.sent_by == "client name"
+    assert notification.reference == 'provider reference'
+    assert notification.sent_by == 'client name'
 
 
 ############################################################################################
 # Test sending SMS notifications.
 ############################################################################################
+
 
 def test_v3_process_notification_valid_sms_with_sender_id(
     notify_db_session, mocker, sample_service, sample_template, sample_sms_sender
@@ -196,19 +199,16 @@ def test_v3_process_notification_valid_sms_with_sender_id(
     assert sample_template.template_type == SMS_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": sample_template.id,
-        "sms_sender_id": sample_sms_sender.id,
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': sample_template.id,
+        'sms_sender_id': sample_sms_sender.id,
     }
 
-    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
-    v3_send_sms_notification_mock.assert_called_once_with(
-        mocker.ANY,
-        sample_sms_sender.sms_sender
-    )
+    v3_send_sms_notification_mock.assert_called_once_with(mocker.ANY, sample_sms_sender.sms_sender)
     assert isinstance(v3_send_sms_notification_mock.call_args.args[0], Notification)
 
 
@@ -223,27 +223,21 @@ def test_v3_process_notification_valid_sms_without_sender_id(
     assert sample_template.template_type == SMS_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": sample_template.id,
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': sample_template.id,
     }
 
-    v3_send_sms_notification_mock = mocker.patch(
-        "app.celery.v3.notification_tasks.v3_send_sms_notification.delay"
-    )
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
 
     get_default_sms_sender_id_mock = mocker.patch(
-        "app.celery.v3.notification_tasks.get_default_sms_sender_id",
-        return_value=(None, sample_sms_sender.id)
+        'app.celery.v3.notification_tasks.get_default_sms_sender_id', return_value=(None, sample_sms_sender.id)
     )
 
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
 
-    v3_send_sms_notification_mock.assert_called_once_with(
-        mocker.ANY,
-        sample_sms_sender.sms_sender
-    )
+    v3_send_sms_notification_mock.assert_called_once_with(mocker.ANY, sample_sms_sender.sms_sender)
 
     _notification = v3_send_sms_notification_mock.call_args.args[0]
     assert isinstance(_notification, Notification)
@@ -265,32 +259,32 @@ def test_v3_process_notification_valid_sms_with_invalid_sender_id(
     assert sample_template.template_type == SMS_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": sample_template.id,
-        "sms_sender_id": "11111111-1111-1111-1111-111111111111",
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': sample_template.id,
+        'sms_sender_id': '11111111-1111-1111-1111-111111111111',
     }
 
-    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_sms_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "SMS sender does not exist."
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'SMS sender does not exist.'
 
 
 def test_v3_send_sms_notification(notify_db_session, mocker, sample_notification, sample_sms_sender):
     assert sample_notification.notification_type == SMS_TYPE
 
     client_mock = mocker.Mock()
-    client_mock.send_sms = mocker.Mock(return_value="provider reference")
-    client_mock.get_name = mocker.Mock(return_value="client name")
-    mocker.patch("app.celery.v3.notification_tasks.clients.get_sms_client", return_value=client_mock)
+    client_mock.send_sms = mocker.Mock(return_value='provider reference')
+    client_mock.get_name = mocker.Mock(return_value='client name')
+    mocker.patch('app.celery.v3.notification_tasks.clients.get_sms_client', return_value=client_mock)
 
     v3_send_sms_notification(sample_notification, sample_sms_sender.sms_sender)
     client_mock.send_sms.assert_called_once_with(
@@ -298,14 +292,14 @@ def test_v3_send_sms_notification(notify_db_session, mocker, sample_notification
         sample_notification.content,
         sample_notification.client_reference,
         True,
-        sample_sms_sender.sms_sender
+        sample_sms_sender.sms_sender,
     )
 
     query = select(Notification).where(Notification.id == sample_notification.id)
     notification = notify_db_session.session.execute(query).one().Notification
     assert notification.status == NOTIFICATION_SENT
-    assert notification.reference == "provider reference"
-    assert notification.sent_by == "client name"
+    assert notification.reference == 'provider reference'
+    assert notification.sent_by == 'client name'
 
 
 def test_v3_process_sms_notification_with_non_existent_template(
@@ -317,22 +311,22 @@ def test_v3_process_sms_notification_with_non_existent_template(
     assert sample_template.template_type == SMS_TYPE
 
     request_data = {
-        "id": str(uuid4()),
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": "11111111-1111-1111-1111-111111111111",
-        "sms_sender_id": "11111111-1111-1111-1111-111111111111",
+        'id': str(uuid4()),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': '11111111-1111-1111-1111-111111111111',
+        'sms_sender_id': '11111111-1111-1111-1111-111111111111',
     }
 
-    v3_send_sms_notification_mock = mocker.patch("app.celery.v3.notification_tasks.v3_send_sms_notification.delay")
+    v3_send_sms_notification_mock = mocker.patch('app.celery.v3.notification_tasks.v3_send_sms_notification.delay')
     v3_process_notification(request_data, sample_service.id, None, KEY_TYPE_TEST)
     v3_send_sms_notification_mock.assert_not_called()
 
-    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data["id"])
+    query = select(NotificationFailures).where(NotificationFailures.notification_id == request_data['id'])
     notification_failure = notify_db_session.session.execute(query).one()[0]
     body = notification_failure.body
 
-    assert body.get("status") == NOTIFICATION_PERMANENT_FAILURE
-    assert body.get("status_reason") == "The template does not exist."
-    assert body.get("phone_number") == "+18006982411"
-    assert body.get("email_address") is None
+    assert body.get('status') == NOTIFICATION_PERMANENT_FAILURE
+    assert body.get('status_reason') == 'The template does not exist.'
+    assert body.get('phone_number') == '+18006982411'
+    assert body.get('email_address') is None

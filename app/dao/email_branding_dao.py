@@ -23,7 +23,10 @@ def dao_create_email_branding(email_branding):
 
 
 @transactional
-def dao_update_email_branding(email_branding, **kwargs):
+def dao_update_email_branding(
+    email_branding,
+    **kwargs,
+):
     for key, value in kwargs.items():
         setattr(email_branding, key, value or None)
     db.session.add(email_branding)

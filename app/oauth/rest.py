@@ -16,8 +16,12 @@ from app.model import User
 from app.dao.users_dao import create_or_retrieve_user, get_user_by_email, retrieve_match_or_create_user
 from app.errors import register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from .exceptions import IdpAssignmentException, OAuthException, IncorrectGithubIdException, \
-    InsufficientGithubScopesException
+from .exceptions import (
+    IdpAssignmentException,
+    OAuthException,
+    IncorrectGithubIdException,
+    InsufficientGithubScopesException,
+)
 from app.oauth.registry import oauth_registry
 from app.schema_validation import validate
 from .auth_schema import password_login_request
@@ -36,7 +40,7 @@ def _assert_toggle_enabled(feature: FeatureFlag):
 @oauth_blueprint.route('/login', methods=['GET'])
 def login():
     idp = request.args.get('idp')
-    if (idp == 'va'):
+    if idp == 'va':
         _assert_toggle_enabled(FeatureFlag.VA_SSO_ENABLED)
         redirect_uri = url_for('oauth.callback', _external=True)
         return oauth_registry.va_sso.authorize_redirect(redirect_uri)
@@ -56,21 +60,13 @@ def login_with_password():
     try:
         fetched_user = get_user_by_email(request_json['email_address'])
     except NoResultFound:
-        current_app.logger.info(
-            "No user was found with email address: %s",
-            request_json['email_address']
-        )
+        current_app.logger.info('No user was found with email address: %s', request_json['email_address'])
     else:
         if fetched_user.check_password(request_json['password']):
-            jwt_token = create_access_token(
-                identity=fetched_user
-            )
+            jwt_token = create_access_token(identity=fetched_user)
             return jsonify(result='success', token=jwt_token), 200
         else:
-            current_app.logger.info(
-                "wrong password for %s",
-                request_json['email_address']
-            )
+            current_app.logger.info('wrong password for %s', request_json['email_address'])
 
     return jsonify(result='error', message='Failed to login'), 401
 
@@ -85,11 +81,11 @@ def authorize():
         user_resp = make_github_get_request('/user', github_token)
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
     except OAuthError as e:
-        current_app.logger.error("User denied authorization: %s", e)
+        current_app.logger.error('User denied authorization: %s', e)
         statsd_client.incr('oauth.authorization.denied')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure?denied_authorization"))
     except (OAuthException, HTTPError) as e:
-        current_app.logger.error("Authorization exception raised:\n%s\n", e)
+        current_app.logger.error('Authorization exception raised:\n%s\n', e)
         statsd_client.incr('oauth.authorization.failure')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     except InsufficientGithubScopesException as e:
@@ -102,15 +98,14 @@ def authorize():
                 email=verified_email,
                 name=verified_name,
                 identity_provider='github',
-                identity_provider_user_id=verified_user_id
+                identity_provider_user_id=verified_user_id,
             )
         else:
             # TODO: Remove below code once VA_SSO_ENABLED toggles is removed
             try:
                 user = create_or_retrieve_user(
-                    email_address=verified_email,
-                    identity_provider_user_id=verified_user_id,
-                    name=verified_name)
+                    email_address=verified_email, identity_provider_user_id=verified_user_id, name=verified_name
+                )
                 return _successful_sso_login_response(user)
             except IncorrectGithubIdException as e:
                 current_app.logger.error(e)
@@ -131,10 +126,7 @@ def get_services_by_user(user_id):
         if service_id not in permissions_by_service:
             permissions_by_service[service_id] = []
         permissions_by_service[service_id].append(user_permission.permission)
-    data = {
-        "services": service_schema.dump(services, many=True).data,
-        "permissions": permissions_by_service
-    }
+    data = {'services': service_schema.dump(services, many=True).data, 'permissions': permissions_by_service}
     return jsonify(data=data)
 
 
@@ -147,7 +139,7 @@ def callback():
             email=user_info['email'],
             name=f"{user_info['given_name']} {user_info['family_name']}",
             identity_provider='va_sso',
-            identity_provider_user_id=user_info['sub']
+            identity_provider_user_id=user_info['sub'],
         )
     except OAuthError as e:
         current_app.logger.exception(e)
@@ -161,13 +153,18 @@ def callback():
         return response
 
 
-def _process_sso_user(email: str, name: str, identity_provider: str, identity_provider_user_id: str) -> Response:
+def _process_sso_user(
+    email: str,
+    name: str,
+    identity_provider: str,
+    identity_provider_user_id: str,
+) -> Response:
     try:
         user = retrieve_match_or_create_user(
             email_address=email,
             name=name,
             identity_provider=identity_provider,
-            identity_provider_user_id=identity_provider_user_id
+            identity_provider_user_id=identity_provider_user_id,
         )
     except IdpAssignmentException as e:
         current_app.logger.exception(e)
@@ -187,23 +184,21 @@ def _successful_sso_login_response(user: User) -> Response:
     response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
     response.set_cookie(
         current_app.config['JWT_ACCESS_COOKIE_NAME'],
-        create_access_token(
-            identity=user
-        ),
+        create_access_token(identity=user),
         httponly=True,
         secure=current_app.config['SESSION_COOKIE_SECURE'],
-        samesite=current_app.config['SESSION_COOKIE_SAMESITE']
+        samesite=current_app.config['SESSION_COOKIE_SAMESITE'],
     )
     statsd_client.incr('oauth.authorization.success')
-    current_app.logger.info("Successful SSO authorization for %s", user.id)
+    current_app.logger.info('Successful SSO authorization for %s', user.id)
     return response
 
 
-def make_github_get_request(endpoint: str, github_token) -> json:
-    resp = oauth_registry.github.get(
-        endpoint,
-        token=github_token
-    )
+def make_github_get_request(
+    endpoint: str,
+    github_token,
+) -> json:
+    resp = oauth_registry.github.get(endpoint, token=github_token)
 
     if not does_user_have_sufficient_scope(resp):
         raise InsufficientGithubScopesException
@@ -211,11 +206,11 @@ def make_github_get_request(endpoint: str, github_token) -> json:
     if resp.status_code in [403, 404]:
         exception = OAuthException
         exception.status_code = 401
-        exception.message = "User Account not found."
+        exception.message = 'User Account not found.'
         raise exception
 
     if resp.status_code == 304:
-        raise OAuthException(Exception("Fail to retrieve required information to complete authorization"))
+        raise OAuthException(Exception('Fail to retrieve required information to complete authorization'))
 
     resp.raise_for_status()
 
@@ -232,9 +227,13 @@ def does_user_have_sufficient_scope(response: RequestsResponse) -> bool:
         return True
 
 
-def _extract_github_user_info(email_resp: json, user_resp: json) -> Tuple[str, str, str]:
-    verified_email = next(email.get('email') for email in email_resp.json()
-                          if email.get('primary') and email.get('verified'))
+def _extract_github_user_info(
+    email_resp: json,
+    user_resp: json,
+) -> Tuple[str, str, str]:
+    verified_email = next(
+        email.get('email') for email in email_resp.json() if email.get('primary') and email.get('verified')
+    )
 
     verified_name = user_resp.json().get('name') or user_resp.json().get('login')
     verified_user_id = user_resp.json().get('id')

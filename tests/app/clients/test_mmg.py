@@ -66,10 +66,7 @@ def test_send_sms_calls_mmg_correctly(notify_api, mocker):
 
 def test_send_sms_raises_if_mmg_rejects(notify_api, mocker):
     to = content = reference = 'foo'
-    response_dict = {
-        'Error': 206,
-        'Description': 'Some kind of error'
-    }
+    response_dict = {'Error': 206, 'Description': 'Some kind of error'}
 
     with pytest.raises(SmsClientResponseException) as exc, requests_mock.Mocker() as request_mock:
         request_mock.post('https://example.com/mmg', json=response_dict, status_code=400)
@@ -104,7 +101,10 @@ def test_send_sms_raises_if_mmg_fails_to_return_json(notify_api, mocker):
         request_mock.post('https://example.com/mmg', text=response_dict, status_code=200)
         mmg_client.send_sms(to, content, reference)
 
-    assert 'Code 200 text NOT AT ALL VALID JSON {"key" : "value"}} exception Expecting value: line 1 column 1 (char 0)' in str(exc.value)  # noqa
+    assert (
+        'Code 200 text NOT AT ALL VALID JSON {"key" : "value"}} exception Expecting value: line 1 column 1 (char 0)'
+        in str(exc.value)
+    )  # noqa
     assert exc.value.status_code == 200
     assert exc.value.text == 'NOT AT ALL VALID JSON {"key" : "value"}}'
 

@@ -21,70 +21,70 @@ def bad_request_helper(response: Response):
 
     assert response.status_code == 400
     response_json = response.get_json()
-    assert response_json["errors"][0]["error"] == "BadRequest"
-    assert "message" in response_json["errors"][0]
+    assert response_json['errors'][0]['error'] == 'BadRequest'
+    assert 'message' in response_json['errors'][0]
 
 
 @pytest.mark.parametrize(
-    "request_data, expected_status_code",
+    'request_data, expected_status_code',
     (
         (
             {
-                "notification_type": SMS_TYPE,
-                "phone_number": "+18006982411",
-                "sms_sender_id": "4f365dd4-332e-454d-94ff-e393463602db",
-                "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+                'notification_type': SMS_TYPE,
+                'phone_number': '+18006982411',
+                'sms_sender_id': '4f365dd4-332e-454d-94ff-e393463602db',
+                'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
             },
             202,
         ),
         (
             {
-                "notification_type": EMAIL_TYPE,
-                "email_address": "test@va.gov",
-                "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+                'notification_type': EMAIL_TYPE,
+                'email_address': 'test@va.gov',
+                'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
             },
             202,
         ),
         (
             {
-                "notification_type": SMS_TYPE,
-                "recipient_identifier": {
-                    "id_type": "VAPROFILEID",
-                    "id_value": "some value",
+                'notification_type': SMS_TYPE,
+                'recipient_identifier': {
+                    'id_type': 'VAPROFILEID',
+                    'id_value': 'some value',
                 },
-                "sms_sender_id": "4f365dd4-332e-454d-94ff-e393463602db",
-                "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+                'sms_sender_id': '4f365dd4-332e-454d-94ff-e393463602db',
+                'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
             },
             202,
         ),
         (
             {
-                "notification_type": EMAIL_TYPE,
-                "recipient_identifier": {
-                    "id_type": "EDIPI",
-                    "id_value": "some value",
+                'notification_type': EMAIL_TYPE,
+                'recipient_identifier': {
+                    'id_type': 'EDIPI',
+                    'id_value': 'some value',
                 },
-                "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+                'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
             },
             202,
         ),
         (
             {
-                "notification_type": EMAIL_TYPE,
-                "email_address": "test@va.gov",
-                "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
-                "something": 42,
+                'notification_type': EMAIL_TYPE,
+                'email_address': 'test@va.gov',
+                'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
+                'something': 42,
             },
             400,
         ),
     ),
     ids=(
-        "SMS with phone number",
-        "e-mail with e-mail address",
-        "SMS with recipient ID",
-        "e-mail with recipient ID",
-        "additional properties not allowed",
-    )
+        'SMS with phone number',
+        'e-mail with e-mail address',
+        'SMS with recipient ID',
+        'e-mail with recipient ID',
+        'additional properties not allowed',
+    ),
 )
 def test_post_v3_notifications(notify_db_session, client, mocker, sample_service, request_data, expected_status_code):
     """
@@ -98,20 +98,20 @@ def test_post_v3_notifications(notify_db_session, client, mocker, sample_service
     Tests for authentication are in tests/app/test_route_authentication.py.
     """
 
-    celery_mock = mocker.patch("app.v3.notifications.rest.v3_process_notification.delay")
+    celery_mock = mocker.patch('app.v3.notifications.rest.v3_process_notification.delay')
     auth_header = create_authorization_header(service_id=sample_service.id, key_type=KEY_TYPE_TEAM)
     response = client.post(
         path=url_for(f"v3.v3_notifications.v3_post_notification_{request_data['notification_type']}"),
         data=dumps(request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     response_json = response.get_json()
     assert response.status_code == expected_status_code, response_json
     service_data = ServiceData(sample_service)
 
     if expected_status_code == 202:
-        assert isinstance(UUID(response_json["id"]), UUID)
-        request_data["id"] = response_json["id"]
+        assert isinstance(UUID(response_json['id']), UUID)
+        request_data['id'] = response_json['id']
         celery_mock.assert_called_once_with(
             request_data, sample_service.id, sample_service.api_keys[0].id, KEY_TYPE_TEAM
         )
@@ -119,14 +119,14 @@ def test_post_v3_notifications(notify_db_session, client, mocker, sample_service
         # For the same request data, calling v3_send_notification directly, rather than through a route
         # handler, should also succeed.
         celery_mock.reset_mock()
-        del request_data["id"]
-        request_data["id"] = v3_send_notification(request_data, service_data)
-        assert isinstance(UUID(request_data["id"]), UUID)
+        del request_data['id']
+        request_data['id'] = v3_send_notification(request_data, service_data)
+        assert isinstance(UUID(request_data['id']), UUID)
         celery_mock.assert_called_once_with(
             request_data, sample_service.id, sample_service.api_keys[0].id, KEY_TYPE_TEAM
         )
     elif expected_status_code == 400:
-        assert response_json["errors"][0]["error"] == "ValidationError"
+        assert response_json['errors'][0]['error'] == 'ValidationError'
 
         # For the same request data, calling v3_send_notification directly, rather than through a route
         # handler, should also raise ValidationError.
@@ -144,24 +144,26 @@ def test_post_v3_notifications_email_denied(notify_db_session, client, mocker, s
 
     assert not sample_service_sms_permission.has_permissions(EMAIL_TYPE)
 
-    celery_mock = mocker.patch("app.v3.notifications.rest.v3_process_notification.delay")
+    celery_mock = mocker.patch('app.v3.notifications.rest.v3_process_notification.delay')
     auth_header = create_authorization_header(service_id=sample_service_sms_permission.id, key_type=KEY_TYPE_TEAM)
     response = client.post(
-        path=url_for(f"v3.v3_notifications.v3_post_notification_email"),
+        path=url_for('v3.v3_notifications.v3_post_notification_email'),
         data=dumps({}),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     assert response.status_code == 403
     response_json = response.get_json()
-    assert response_json["errors"][0]["error"] == "AuthError"
-    assert response_json["errors"][0]["message"] == \
-        "The service does not have permission to send this type of notification."
+    assert response_json['errors'][0]['error'] == 'AuthError'
+    assert (
+        response_json['errors'][0]['message']
+        == 'The service does not have permission to send this type of notification.'
+    )
     celery_mock.assert_not_called()
 
     # For the same request data, calling v3_send_notification directly, rather than through a route
     # handler, should also raise AuthError.
     with pytest.raises(AuthError):
-        v3_send_notification({"notification_type": EMAIL_TYPE}, ServiceData(sample_service_sms_permission))
+        v3_send_notification({'notification_type': EMAIL_TYPE}, ServiceData(sample_service_sms_permission))
     celery_mock.assert_not_called()
 
 
@@ -173,47 +175,49 @@ def test_post_v3_notifications_sms_denied(notify_db_session, client, mocker, sam
 
     assert not sample_service_email_permission.has_permissions(SMS_TYPE)
 
-    celery_mock = mocker.patch("app.v3.notifications.rest.v3_process_notification.delay")
+    celery_mock = mocker.patch('app.v3.notifications.rest.v3_process_notification.delay')
     auth_header = create_authorization_header(service_id=sample_service_email_permission.id, key_type=KEY_TYPE_TEAM)
     response = client.post(
-        path=url_for(f"v3.v3_notifications.v3_post_notification_sms"),
+        path=url_for('v3.v3_notifications.v3_post_notification_sms'),
         data=dumps({}),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     assert response.status_code == 403
     response_json = response.get_json()
-    assert response_json["errors"][0]["error"] == "AuthError"
-    assert response_json["errors"][0]["message"] == \
-        "The service does not have permission to send this type of notification."
+    assert response_json['errors'][0]['error'] == 'AuthError'
+    assert (
+        response_json['errors'][0]['message']
+        == 'The service does not have permission to send this type of notification.'
+    )
     celery_mock.assert_not_called()
 
     # For the same request data, calling v3_send_notification directly, rather than through a route
     # handler, should also raise AuthError.
     with pytest.raises(AuthError):
-        v3_send_notification({"notification_type": SMS_TYPE}, ServiceData(sample_service_email_permission))
+        v3_send_notification({'notification_type': SMS_TYPE}, ServiceData(sample_service_email_permission))
     celery_mock.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "request_data",
+    'request_data',
     (
         {
-            "notification_type": SMS_TYPE,
-            "phone_number": "This is not a phone number.",
-            "sms_sender_id": "4f365dd4-332e-454d-94ff-e393463602db",
-            "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+            'notification_type': SMS_TYPE,
+            'phone_number': 'This is not a phone number.',
+            'sms_sender_id': '4f365dd4-332e-454d-94ff-e393463602db',
+            'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
         },
         {
-            "notification_type": SMS_TYPE,
-            "phone_number": "+1270123456",
-            "sms_sender_id": "4f365dd4-332e-454d-94ff-e393463602db",
-            "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+            'notification_type': SMS_TYPE,
+            'phone_number': '+1270123456',
+            'sms_sender_id': '4f365dd4-332e-454d-94ff-e393463602db',
+            'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
         },
     ),
     ids=(
-        "not a phone number",
-        "not enough digits",
-    )
+        'not a phone number',
+        'not enough digits',
+    ),
 )
 def test_post_v3_notifications_phone_number_not_possible(notify_db_session, client, sample_service, request_data):
     """
@@ -222,9 +226,9 @@ def test_post_v3_notifications_phone_number_not_possible(notify_db_session, clie
 
     auth_header = create_authorization_header(service_id=sample_service.id, key_type=KEY_TYPE_TEAM)
     response = client.post(
-        path=url_for("v3.v3_notifications.v3_post_notification_sms"),
+        path=url_for('v3.v3_notifications.v3_post_notification_sms'),
         data=dumps(request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     bad_request_helper(response)
 
@@ -235,23 +239,23 @@ def test_post_v3_notifications_phone_number_not_valid(notify_db_session, client,
     """
 
     request_data = {
-        "notification_type": SMS_TYPE,
-        "phone_number": "+1555123456",
-        "sms_sender_id": "4f365dd4-332e-454d-94ff-e393463602db",
-        "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+        'notification_type': SMS_TYPE,
+        'phone_number': '+1555123456',
+        'sms_sender_id': '4f365dd4-332e-454d-94ff-e393463602db',
+        'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
     }
 
     auth_header = create_authorization_header(service_id=sample_service.id, key_type=KEY_TYPE_TEAM)
     response = client.post(
-        path=url_for("v3.v3_notifications.v3_post_notification_sms"),
+        path=url_for('v3.v3_notifications.v3_post_notification_sms'),
         data=dumps(request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     assert response.status_code == 400
 
     response_json = response.get_json()
-    assert response_json["errors"][0]["error"] == "BadRequest"
-    assert response_json["errors"][0]["message"].endswith("is not a valid phone number.")
+    assert response_json['errors'][0]['error'] == 'BadRequest'
+    assert response_json['errors'][0]['message'].endswith('is not a valid phone number.')
 
 
 def test_post_v3_notifications_scheduled_for(notify_db_session, client, mocker, sample_service):
@@ -259,20 +263,20 @@ def test_post_v3_notifications_scheduled_for(notify_db_session, client, mocker, 
     The scheduled time must not be in the past or more than a calendar day in the future.
     """
 
-    celery_mock = mocker.patch("app.v3.notifications.rest.v3_process_notification.delay")
+    celery_mock = mocker.patch('app.v3.notifications.rest.v3_process_notification.delay')
     auth_header = create_authorization_header(service_id=sample_service.id, key_type=KEY_TYPE_TEAM)
     scheduled_for = datetime.now(timezone.utc) + timedelta(hours=2)
     email_request_data = {
-        "notification_type": EMAIL_TYPE,
-        "email_address": "test@va.gov",
-        "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
-        "scheduled_for": scheduled_for.isoformat(),
+        'notification_type': EMAIL_TYPE,
+        'email_address': 'test@va.gov',
+        'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
+        'scheduled_for': scheduled_for.isoformat(),
     }
     sms_request_data = {
-        "notification_type": SMS_TYPE,
-        "phone_number": "+18006982411",
-        "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
-        "scheduled_for": scheduled_for.isoformat(),
+        'notification_type': SMS_TYPE,
+        'phone_number': '+18006982411',
+        'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
+        'scheduled_for': scheduled_for.isoformat(),
     }
 
     #######################################################################
@@ -280,15 +284,15 @@ def test_post_v3_notifications_scheduled_for(notify_db_session, client, mocker, 
     #######################################################################
 
     response = client.post(
-        path=url_for("v3.v3_notifications.v3_post_notification_email"),
+        path=url_for('v3.v3_notifications.v3_post_notification_email'),
         data=dumps(email_request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     response_json = response.get_json()
 
     # TODO - Delete when scheduled sending is implemented.
     assert response.status_code == 501, response_json
-    assert response_json["errors"][0]["message"] == "Scheduled sending is not implemented."
+    assert response_json['errors'][0]['message'] == 'Scheduled sending is not implemented.'
     celery_mock.assert_not_called()
 
     # TODO - Uncomment when scheduled sending is implemented.
@@ -301,15 +305,15 @@ def test_post_v3_notifications_scheduled_for(notify_db_session, client, mocker, 
     # del email_request_data["id"]
 
     response = client.post(
-        path=url_for("v3.v3_notifications.v3_post_notification_sms"),
+        path=url_for('v3.v3_notifications.v3_post_notification_sms'),
         data=dumps(sms_request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
     response_json = response.get_json()
 
     # TODO - Delete when scheduled sending is implemented.
     assert response.status_code == 501, response_json
-    assert response_json["errors"][0]["message"] == "Scheduled sending is not implemented."
+    assert response_json['errors'][0]['message'] == 'Scheduled sending is not implemented.'
     celery_mock.assert_not_called()
 
     # TODO - Uncomment when scheduled sending is implemented.
@@ -326,31 +330,31 @@ def test_post_v3_notifications_scheduled_for(notify_db_session, client, mocker, 
     #######################################################################
 
     for bad_scheduled_for in (scheduled_for + timedelta(days=2), scheduled_for - timedelta(days=5)):
-        email_request_data["scheduled_for"] = bad_scheduled_for.isoformat()
+        email_request_data['scheduled_for'] = bad_scheduled_for.isoformat()
         response = client.post(
-            path=url_for("v3.v3_notifications.v3_post_notification_email"),
+            path=url_for('v3.v3_notifications.v3_post_notification_email'),
             data=dumps(email_request_data),
-            headers=(("Content-Type", "application/json"), auth_header)
+            headers=(('Content-Type', 'application/json'), auth_header),
         )
         bad_request_helper(response)
         celery_mock.assert_not_called()
 
-        sms_request_data["scheduled_for"] = bad_scheduled_for.isoformat()
+        sms_request_data['scheduled_for'] = bad_scheduled_for.isoformat()
         response = client.post(
-            path=url_for("v3.v3_notifications.v3_post_notification_sms"),
+            path=url_for('v3.v3_notifications.v3_post_notification_sms'),
             data=dumps(sms_request_data),
-            headers=(("Content-Type", "application/json"), auth_header)
+            headers=(('Content-Type', 'application/json'), auth_header),
         )
         bad_request_helper(response)
         celery_mock.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "notification_type, error_message",
+    'notification_type, error_message',
     (
-        (EMAIL_TYPE, "You must provide an e-mail address or recipient identifier."),
-        (SMS_TYPE, "You must provide a phone number or recipient identifier."),
-    )
+        (EMAIL_TYPE, 'You must provide an e-mail address or recipient identifier.'),
+        (SMS_TYPE, 'You must provide a phone number or recipient identifier.'),
+    ),
 )
 def test_post_v3_notifications_custom_validation_error_messages(
     notify_db_session, client, sample_service, notification_type, error_message
@@ -362,16 +366,16 @@ def test_post_v3_notifications_custom_validation_error_messages(
 
     auth_header = create_authorization_header(service_id=sample_service.id, key_type=KEY_TYPE_TEAM)
     request_data = {
-        "notification_type": notification_type,
-        "template_id": "4f365dd4-332e-454d-94ff-e393463602db",
+        'notification_type': notification_type,
+        'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
     }
 
     response = client.post(
         path=url_for(f"v3.v3_notifications.v3_post_notification_{request_data['notification_type']}"),
         data=dumps(request_data),
-        headers=(("Content-Type", "application/json"), auth_header)
+        headers=(('Content-Type', 'application/json'), auth_header),
     )
 
     response_json = response.get_json()
     assert response.status_code == 400, response_json
-    assert response_json["errors"][0]["message"] == error_message
+    assert response_json['errors'][0]['message'] == error_message

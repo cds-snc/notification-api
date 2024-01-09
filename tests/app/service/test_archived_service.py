@@ -72,11 +72,7 @@ def test_deactivating_service_archives_templates(archived_service):
 
 def test_deactivating_service_creates_history(archived_service):
     ServiceHistory = Service.get_history_model()
-    history = ServiceHistory.query.filter_by(
-        id=archived_service.id
-    ).order_by(
-        ServiceHistory.version.desc()
-    ).first()
+    history = ServiceHistory.query.filter_by(id=archived_service.id).order_by(ServiceHistory.version.desc()).first()
 
     assert history.version == 2
     assert history.active is False

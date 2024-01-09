@@ -6,45 +6,52 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 
 
 class PerformancePlatformClient:
-
     @property
     def active(self):
         return self._active
 
-    def init_app(self, app):
+    def init_app(
+        self,
+        app,
+    ):
         self._active = app.config.get('PERFORMANCE_PLATFORM_ENABLED')
         if self.active:
             self.performance_platform_url = app.config.get('PERFORMANCE_PLATFORM_URL')
             self.performance_platform_endpoints = app.config.get('PERFORMANCE_PLATFORM_ENDPOINTS')
 
-    def send_stats_to_performance_platform(self, payload):
+    def send_stats_to_performance_platform(
+        self,
+        payload,
+    ):
         if self.active:
             bearer_token = self.performance_platform_endpoints[payload['dataType']]
-            headers = {
-                'Content-Type': "application/json",
-                'Authorization': 'Bearer {}'.format(bearer_token)
-            }
+            headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(bearer_token)}
             resp = requests.post(
-                self.performance_platform_url + payload['dataType'],
-                json=payload,
-                headers=headers,
-                timeout=(3.05, 1)
+                self.performance_platform_url + payload['dataType'], json=payload, headers=headers, timeout=(3.05, 1)
             )
 
             if resp.status_code == 200:
                 current_app.logger.info(
-                    "Updated performance platform successfully with payload %s", json.dumps(payload)
+                    'Updated performance platform successfully with payload %s', json.dumps(payload)
                 )
             else:
                 current_app.logger.error(
                     "Performance platform update request failed for payload with response details: %s '%d'",
                     json.dumps(payload),
-                    resp.status_code
+                    resp.status_code,
                 )
                 resp.raise_for_status()
 
     @staticmethod
-    def format_payload(*, dataset, start_time, group_name, group_value, count, period='day'):
+    def format_payload(
+        *,
+        dataset,
+        start_time,
+        group_name,
+        group_value,
+        count,
+        period='day',
+    ):
         """
         :param dataset - the name of the overall graph, as referred to in the endpoint.
         :param start_time - UTC midnight of the day we're sending stats for
@@ -65,16 +72,15 @@ class PerformancePlatformClient:
         return payload
 
     @staticmethod
-    def generate_payload_id(payload, group_name):
+    def generate_payload_id(
+        payload,
+        group_name,
+    ):
         """
         group_name is the name of the group - eg "channel" or "status"
         """
         payload_string = '{}{}{}{}{}'.format(
-            payload['_timestamp'],
-            payload['service'],
-            payload[group_name],
-            payload['dataType'],
-            payload['period']
+            payload['_timestamp'], payload['service'], payload[group_name], payload['dataType'], payload['period']
         )
         _id = base64.b64encode(payload_string.encode('utf-8'))
         return _id.decode('utf-8')

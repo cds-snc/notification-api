@@ -4,8 +4,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app.celery.process_pinpoint_inbound_sms import process_pinpoint_inbound_sms, CeleryEvent, \
-    PinpointInboundSmsMessage
+from app.celery.process_pinpoint_inbound_sms import process_pinpoint_inbound_sms, CeleryEvent, PinpointInboundSmsMessage
 from app.notifications.receive_notifications import NoSuitableServiceForInboundSms
 from app.config import QueueNames
 from app.feature_flags import FeatureFlag
@@ -27,11 +26,10 @@ def test_passes_if_toggle_disabled(mocker, notify_api):
 
 def test_fails_if_no_matching_service(mocker, notify_api, toggle_enabled):
     mock_fetch_potential_service = mocker.patch(
-        'app.celery.process_pinpoint_inbound_sms.fetch_potential_service',
-        side_effect=NoSuitableServiceForInboundSms
+        'app.celery.process_pinpoint_inbound_sms.fetch_potential_service', side_effect=NoSuitableServiceForInboundSms
     )
 
-    destination_number = "1234"
+    destination_number = '1234'
 
     with pytest.raises(NoSuitableServiceForInboundSms):
         process_pinpoint_inbound_sms(event=_pinpoint_inbound_sms_event(destination_number))
@@ -39,7 +37,7 @@ def test_fails_if_no_matching_service(mocker, notify_api, toggle_enabled):
     mock_fetch_potential_service.assert_called_with(destination_number, 'pinpoint')
 
 
-@freeze_time("2016-11-12 11:23:47")
+@freeze_time('2016-11-12 11:23:47')
 def test_creates_inbound_sms_object_with_correct_fields(mocker, notify_api, toggle_enabled):
     mock_service = mocker.Mock(Service)
     mocker.patch('app.celery.process_pinpoint_inbound_sms.fetch_potential_service', return_value=mock_service)
@@ -52,9 +50,7 @@ def test_creates_inbound_sms_object_with_correct_fields(mocker, notify_api, togg
     inbound_message_id = 'abc123'
 
     event = _pinpoint_inbound_sms_event(
-        message_body=message_body,
-        origination_number=origination_number,
-        inbound_message_id=inbound_message_id
+        message_body=message_body, origination_number=origination_number, inbound_message_id=inbound_message_id
     )
     process_pinpoint_inbound_sms(event=event)
 
@@ -86,18 +82,15 @@ def test_sends_inbound_sms_to_service(mocker, notify_api, toggle_enabled):
 
 
 def _pinpoint_inbound_sms_event(
-        message_body: str = 'some message body',
-        destination_number: str = '1234',
-        origination_number: str = '5678',
-        inbound_message_id: str = 'some id'
+    message_body: str = 'some message body',
+    destination_number: str = '1234',
+    origination_number: str = '5678',
+    inbound_message_id: str = 'some id',
 ) -> CeleryEvent:
-
     pinpoint_message: PinpointInboundSmsMessage = {
         'messageBody': message_body,
         'destinationNumber': destination_number,
         'originationNumber': origination_number,
-        'inboundMessageId': inbound_message_id
+        'inboundMessageId': inbound_message_id,
     }
-    return {
-        'Message': json.dumps(pinpoint_message)
-    }
+    return {'Message': json.dumps(pinpoint_message)}

@@ -1,9 +1,0 @@
-[flake8]
-# Rule definitions: http://flake8.pycqa.org/en/latest/user/error-codes.html
-# W503: line break before binary operator
-# T001: print statements
-# T003: pprint statements
-exclude = venv*,__pycache__,node_modules,cache,migrations,build,lambda_functions
-ignore = W503, T001, T003
-max-complexity = 14
-max-line-length = 120

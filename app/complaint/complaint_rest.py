@@ -20,11 +20,7 @@ def get_all_complaints():
 
     return jsonify(
         complaints=[x.serialize() for x in pagination.items],
-        links=pagination_links(
-            pagination,
-            '.get_all_complaints',
-            **request.args.to_dict()
-        )
+        links=pagination_links(pagination, '.get_all_complaints', **request.args.to_dict()),
     ), 200
 
 

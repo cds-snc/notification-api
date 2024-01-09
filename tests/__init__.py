@@ -16,12 +16,7 @@ def create_authorization_header(service_id=None, key_type=KEY_TYPE_NORMAL):
             secret = secrets[0].secret
         else:
             service = dao_fetch_service_by_id(service_id)
-            data = {
-                'service': service,
-                'name': uuid.uuid4(),
-                'created_by': service.created_by,
-                'key_type': key_type
-            }
+            data = {'service': service, 'name': uuid.uuid4(), 'created_by': service.created_by, 'key_type': key_type}
             api_key = ApiKey(**data)
             save_model_api_key(api_key)
             secret = api_key.secret

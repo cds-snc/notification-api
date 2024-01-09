@@ -42,8 +42,8 @@ from app.encryption import Encryption
 from app.attachments.store import AttachmentStore
 from app.db import db
 
-DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-DATE_FORMAT = "%Y-%m-%d"
+DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+DATE_FORMAT = '%Y-%m-%d'
 
 load_dotenv()
 
@@ -61,8 +61,8 @@ from app.clients.email.govdelivery_client import GovdeliveryClient  # noqa
 govdelivery_client = GovdeliveryClient()
 aws_sns_client = AwsSnsClient()
 twilio_sms_client = TwilioSMSClient(
-    account_sid=os.getenv("TWILIO_ACCOUNT_SID"),
-    auth_token=os.getenv("TWILIO_AUTH_TOKEN"),
+    account_sid=os.getenv('TWILIO_ACCOUNT_SID'),
+    auth_token=os.getenv('TWILIO_AUTH_TOKEN'),
 )
 aws_pinpoint_client = AwsPinpointClient()
 sqs_client = SQSClient()
@@ -89,23 +89,28 @@ api_user = LocalProxy(lambda: g.api_user)
 authenticated_service = LocalProxy(lambda: g.authenticated_service)
 
 
-def create_app(application, worker_id=None):
+def create_app(
+    application,
+    worker_id=None,
+):
     from app.config import configs
 
-    notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
+    notify_environment = os.getenv('NOTIFY_ENVIRONMENT', 'development')
 
     application.config.from_object(configs[notify_environment])
-    if notify_environment == "test":
+    if notify_environment == 'test':
         assert worker_id is not None
-        application.config["SQLALCHEMY_DATABASE_URI"] += f"_{worker_id}"
+        application.config['SQLALCHEMY_DATABASE_URI'] += f'_{worker_id}'
         # set read-db to be the same as write/default instance for testing
-        application.config["SQLALCHEMY_BINDS"] = {"read-db": application.config["SQLALCHEMY_DATABASE_URI"]}
-        assert "test_notification_api" in application.config["SQLALCHEMY_DATABASE_URI"], \
-            "Don't run tests against the main database."
-        assert "test_notification_api" in application.config["SQLALCHEMY_BINDS"]["read-db"], \
-            "Don't run tests against the main database."
+        application.config['SQLALCHEMY_BINDS'] = {'read-db': application.config['SQLALCHEMY_DATABASE_URI']}
+        assert (
+            'test_notification_api' in application.config['SQLALCHEMY_DATABASE_URI']
+        ), "Don't run tests against the main database."
+        assert (
+            'test_notification_api' in application.config['SQLALCHEMY_BINDS']['read-db']
+        ), "Don't run tests against the main database."
 
-    application.config["NOTIFY_APP_NAME"] = application.name
+    application.config['NOTIFY_APP_NAME'] = application.name
     init_app(application)
     request_helper.init_app(application)
 
@@ -121,64 +126,62 @@ def create_app(application, worker_id=None):
     loadtest_client.init_app(application, statsd_client=statsd_client)
     mmg_client.init_app(application, statsd_client=statsd_client)
     aws_sns_client.init_app(
-        aws_region=application.config["AWS_REGION"],
+        aws_region=application.config['AWS_REGION'],
         statsd_client=statsd_client,
         logger=application.logger,
     )
     aws_ses_client.init_app(
-        application.config["AWS_REGION"],
+        application.config['AWS_REGION'],
         logger=application.logger,
         statsd_client=statsd_client,
-        email_from_domain=application.config["AWS_SES_EMAIL_FROM_DOMAIN"],
-        email_from_user=application.config["AWS_SES_EMAIL_FROM_USER"],
-        default_reply_to=application.config["AWS_SES_DEFAULT_REPLY_TO"],
-        configuration_set=application.config["AWS_SES_CONFIGURATION_SET"],
-        endpoint_url=application.config["AWS_SES_ENDPOINT_URL"],
+        email_from_domain=application.config['AWS_SES_EMAIL_FROM_DOMAIN'],
+        email_from_user=application.config['AWS_SES_EMAIL_FROM_USER'],
+        default_reply_to=application.config['AWS_SES_DEFAULT_REPLY_TO'],
+        configuration_set=application.config['AWS_SES_CONFIGURATION_SET'],
+        endpoint_url=application.config['AWS_SES_ENDPOINT_URL'],
     )
     govdelivery_client.init_app(
-        application.config["GRANICUS_TOKEN"],
-        application.config["GRANICUS_URL"],
+        application.config['GRANICUS_TOKEN'],
+        application.config['GRANICUS_URL'],
         statsd_client,
     )
     twilio_sms_client.init_app(
         logger=application.logger,
-        callback_notify_url_host=application.config["API_HOST_NAME"],
-        environment=notify_environment
+        callback_notify_url_host=application.config['API_HOST_NAME'],
+        environment=notify_environment,
     )
     aws_pinpoint_client.init_app(
-        application.config["AWS_PINPOINT_APP_ID"],
-        application.config["AWS_REGION"],
+        application.config['AWS_PINPOINT_APP_ID'],
+        application.config['AWS_REGION'],
         application.logger,
-        application.config["FROM_NUMBER"],
+        application.config['FROM_NUMBER'],
         statsd_client,
     )
-    sqs_client.init_app(
-        application.config["AWS_REGION"], application.logger, statsd_client
-    )
+    sqs_client.init_app(application.config['AWS_REGION'], application.logger, statsd_client)
     va_onsite_client.init_app(
         application.logger,
-        application.config["VA_ONSITE_URL"],
-        application.config["VA_ONSITE_SECRET"],
+        application.config['VA_ONSITE_URL'],
+        application.config['VA_ONSITE_SECRET'],
     )
     va_profile_client.init_app(
         application.logger,
-        application.config["VA_PROFILE_URL"],
-        application.config["VANOTIFY_SSL_CERT_PATH"],
-        application.config["VANOTIFY_SSL_KEY_PATH"],
+        application.config['VA_PROFILE_URL'],
+        application.config['VANOTIFY_SSL_CERT_PATH'],
+        application.config['VANOTIFY_SSL_KEY_PATH'],
         statsd_client,
     )
     mpi_client.init_app(
         application.logger,
-        application.config["MPI_URL"],
-        application.config["VANOTIFY_SSL_CERT_PATH"],
-        application.config["VANOTIFY_SSL_KEY_PATH"],
+        application.config['MPI_URL'],
+        application.config['VANOTIFY_SSL_CERT_PATH'],
+        application.config['VANOTIFY_SSL_KEY_PATH'],
         statsd_client,
     )
     vetext_client.init_app(
-        application.config["VETEXT_URL"],
+        application.config['VETEXT_URL'],
         {
-            "username": application.config["VETEXT_USERNAME"],
-            "password": application.config["VETEXT_PASSWORD"],
+            'username': application.config['VETEXT_USERNAME'],
+            'password': application.config['VETEXT_PASSWORD'],
         },
         application.logger,
         statsd_client,
@@ -201,19 +204,15 @@ def create_app(application, worker_id=None):
     )
 
     provider_service.init_app(
-        email_provider_selection_strategy_label=application.config[
-            "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL"
-        ],
-        sms_provider_selection_strategy_label=application.config[
-            "SMS_PROVIDER_SELECTION_STRATEGY_LABEL"
-        ],
+        email_provider_selection_strategy_label=application.config['EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL'],
+        sms_provider_selection_strategy_label=application.config['SMS_PROVIDER_SELECTION_STRATEGY_LABEL'],
     )
 
     oauth_registry.init_app(application)
 
     attachment_store.init_app(
-        endpoint_url=application.config["AWS_S3_ENDPOINT_URL"],
-        bucket=application.config["ATTACHMENTS_BUCKET"],
+        endpoint_url=application.config['AWS_S3_ENDPOINT_URL'],
+        bucket=application.config['ATTACHMENTS_BUCKET'],
         logger=application.logger,
         statsd_client=statsd_client,
     )
@@ -276,10 +275,10 @@ def register_blueprint(application):
     from app.notifications.receive_notifications import receive_notifications_blueprint
     from app.communication_item.rest import communication_item_blueprint
 
-    application.register_blueprint(service_blueprint, url_prefix="/service")
+    application.register_blueprint(service_blueprint, url_prefix='/service')
 
     user_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(user_blueprint, url_prefix="/user")
+    application.register_blueprint(user_blueprint, url_prefix='/user')
 
     application.register_blueprint(template_blueprint)
 
@@ -308,7 +307,7 @@ def register_blueprint(application):
     application.register_blueprint(inbound_sms_blueprint)
 
     accept_invite.before_request(validate_admin_auth)
-    application.register_blueprint(accept_invite, url_prefix="/invite")
+    application.register_blueprint(accept_invite, url_prefix='/invite')
 
     template_statistics_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(template_statistics_blueprint)
@@ -317,17 +316,13 @@ def register_blueprint(application):
     application.register_blueprint(events_blueprint)
 
     provider_details_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(
-        provider_details_blueprint, url_prefix="/provider-details"
-    )
+    application.register_blueprint(provider_details_blueprint, url_prefix='/provider-details')
 
     email_branding_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(
-        email_branding_blueprint, url_prefix="/email-branding"
-    )
+    application.register_blueprint(email_branding_blueprint, url_prefix='/email-branding')
 
     api_key_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(api_key_blueprint, url_prefix="/api-key")
+    application.register_blueprint(api_key_blueprint, url_prefix='/api-key')
 
     letter_job.before_request(validate_admin_auth)
     application.register_blueprint(letter_job)
@@ -340,7 +335,7 @@ def register_blueprint(application):
     application.register_blueprint(service_whitelist_blueprint)
 
     organisation_blueprint.before_request(validate_admin_auth)
-    application.register_blueprint(organisation_blueprint, url_prefix="/organisations")
+    application.register_blueprint(organisation_blueprint, url_prefix='/organisations')
 
     organisation_invite_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(organisation_invite_blueprint)
@@ -348,9 +343,7 @@ def register_blueprint(application):
     complaint_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(complaint_blueprint)
 
-    application.register_blueprint(
-        platform_stats_blueprint, url_prefix="/platform-stats"
-    )
+    application.register_blueprint(platform_stats_blueprint, url_prefix='/platform-stats')
 
     template_folder_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(template_folder_blueprint)
@@ -366,7 +359,7 @@ def register_v2_blueprints(application):
     from app.v2.notifications.post_notifications import v2_notification_blueprint as v2_notifications  # Get is the same
     from app.v2.notifications.get_notifications import v2_notification_blueprint as get_notifications
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
-    from app.v2.template.post_template import v2_template_blueprint as post_template                   # Get is the same
+    from app.v2.template.post_template import v2_template_blueprint as post_template  # Get is the same
     from app.v2.template.get_template import v2_template_blueprint as get_template
     from app.authentication.auth import validate_service_api_key_auth
 
@@ -397,6 +390,7 @@ def register_v3_blueprints(application):
 
     # Notifications
     from app.v3.notifications.rest import v3_notifications_blueprint
+
     v3_notifications_blueprint.before_request(validate_service_api_key_auth)
     v3_blueprint.register_blueprint(v3_notifications_blueprint)
 
@@ -406,19 +400,14 @@ def register_v3_blueprints(application):
 def init_app(app):
     @app.before_request
     def record_user_agent():
-        statsd_client.incr(
-            "user-agent.{}".format(
-                process_user_agent(request.headers.get("User-Agent", None))
-            )
-        )
+        statsd_client.incr('user-agent.{}'.format(process_user_agent(request.headers.get('User-Agent', None))))
 
     @app.before_request
     def reject_payload_over_max_content_length():
         if (
-            request.headers.get("Content-Length")
-            and app.config.get("MAX_CONTENT_LENGTH")
-            and int(request.headers["Content-Length"])
-            > app.config["MAX_CONTENT_LENGTH"]
+            request.headers.get('Content-Length')
+            and app.config.get('MAX_CONTENT_LENGTH')
+            and int(request.headers['Content-Length']) > app.config['MAX_CONTENT_LENGTH']
         ):
             raise RequestEntityTooLarge()
 
@@ -429,19 +418,17 @@ def init_app(app):
 
     @app.errorhandler(WerkzeugHTTPException)
     def werkzeug_exception(e):
-        return make_response(
-            jsonify(result="error", message=e.description), e.code, e.get_headers()
-        )
+        return make_response(jsonify(result='error', message=e.description), e.code, e.get_headers())
 
     @app.errorhandler(404)
     def page_not_found(e):
-        msg = e.description or "Not found"
-        return jsonify(result="error", message=msg), 404
+        msg = e.description or 'Not found'
+        return jsonify(result='error', message=msg), 404
 
     @app.errorhandler(Exception)
     def exception(error):
         app.logger.exception(error)
-        return jsonify(result="error", message="Internal server error"), 500
+        return jsonify(result='error', message='Internal server error'), 500
 
 
 def create_uuid():
@@ -450,16 +437,16 @@ def create_uuid():
 
 def create_random_identifier():
     # the random.choice is used for letter reference number; is not used in security context
-    return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))  # nosec
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16))  # nosec
 
 
 def process_user_agent(user_agent_string):
-    if user_agent_string and user_agent_string.lower().startswith("notify"):
-        components = user_agent_string.split("/")
+    if user_agent_string and user_agent_string.lower().startswith('notify'):
+        components = user_agent_string.split('/')
         client_name = components[0].lower()
-        client_version = components[1].replace(".", "-")
-        return "{}.{}".format(client_name, client_version)
-    elif user_agent_string and not user_agent_string.lower().startswith("notify"):
-        return "non-notify-user-agent"
+        client_version = components[1].replace('.', '-')
+        return '{}.{}'.format(client_name, client_version)
+    elif user_agent_string and not user_agent_string.lower().startswith('notify'):
+        return 'non-notify-user-agent'
     else:
-        return "unknown"
+        return 'unknown'

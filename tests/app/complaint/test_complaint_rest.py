@@ -19,7 +19,9 @@ def test_get_all_complaints_returns_complaints_for_multiple_services(client, not
 
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True))['complaints'] == [
-        complaint_2.serialize(), complaint_1.serialize()]
+        complaint_2.serialize(),
+        complaint_1.serialize(),
+    ]
 
 
 def test_get_all_complaints_returns_empty_complaints_list(client):
@@ -44,7 +46,8 @@ def test_get_all_complaints_returns_pagination_links(mocker, client, notify_db_s
     assert json.loads(response.get_data(as_text=True))['links'] == {
         'last': '/complaint?page=3',
         'next': '/complaint?page=3',
-        'prev': '/complaint?page=1'}
+        'prev': '/complaint?page=1',
+    }
 
 
 def test_get_complaint_with_start_and_end_date_passes_these_to_dao_function(mocker, client):
@@ -53,7 +56,7 @@ def test_get_complaint_with_start_and_end_date_passes_these_to_dao_function(mock
     dao_mock = mocker.patch('app.complaint.complaint_rest.fetch_count_of_complaints', return_value=3)
     response = client.get(
         url_for('complaint.get_complaint_count', start_date=start_date, end_date=end_date),
-        headers=[create_authorization_header()]
+        headers=[create_authorization_header()],
     )
 
     dao_mock.assert_called_once_with(start_date=start_date, end_date=end_date)
@@ -61,7 +64,7 @@ def test_get_complaint_with_start_and_end_date_passes_these_to_dao_function(mock
     assert json.loads(response.get_data(as_text=True)) == 3
 
 
-@freeze_time("2018-06-01 11:00:00")
+@freeze_time('2018-06-01 11:00:00')
 def test_get_complaint_sets_start_and_end_date_to_today_if_not_specified(mocker, client):
     dao_mock = mocker.patch('app.complaint.complaint_rest.fetch_count_of_complaints', return_value=5)
     response = client.get(url_for('complaint.get_complaint_count'), headers=[create_authorization_header()])
@@ -74,8 +77,7 @@ def test_get_complaint_sets_start_and_end_date_to_today_if_not_specified(mocker,
 def test_get_complaint_with_invalid_data_returns_400_status_code(client):
     start_date = '1234-56-78'
     response = client.get(
-        url_for('complaint.get_complaint_count', start_date=start_date),
-        headers=[create_authorization_header()]
+        url_for('complaint.get_complaint_count', start_date=start_date), headers=[create_authorization_header()]
     )
 
     assert response.status_code == 400

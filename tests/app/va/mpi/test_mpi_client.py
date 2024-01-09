@@ -13,94 +13,55 @@ from app.va.mpi import (
     IdentifierNotFound,
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
-    BeneficiaryDeceasedException, NoSuchIdentifierException
+    BeneficiaryDeceasedException,
+    NoSuchIdentifierException,
 )
 from tests.app.factories.recipient_idenfier import sample_recipient_identifier
 
-SYSTEM_URN_OID = "urn:oid:2.16.840.1.113883.4.349"
+SYSTEM_URN_OID = 'urn:oid:2.16.840.1.113883.4.349'
 
 MPI_SECURITY_ERROR_RESPONSE = {
-    "severity": "error",
-    "code": "security",
-    "details": {
-        "text": "Invalid Profile Request"
-    },
-    "resourceType": "OperationOutcome",
-    "id": "2021-01-21 13:50:03"
+    'severity': 'error',
+    'code': 'security',
+    'details': {'text': 'Invalid Profile Request'},
+    'resourceType': 'OperationOutcome',
+    'id': '2021-01-21 13:50:03',
 }
 
 MPI_RESPONSE_WITH_NO_VA_PROFILE_ID = {
-    "resourceType": "Patient",
-    "id": "1008710501V455565",
-    "birthDate": "2010-06-03",
-    "name": [
-        {
-            "use": "official",
-            "family": "MOOSE",
-            "given": [
-                "MINNIE"
-            ]
-        }
+    'resourceType': 'Patient',
+    'id': '1008710501V455565',
+    'birthDate': '2010-06-03',
+    'name': [{'use': 'official', 'family': 'MOOSE', 'given': ['MINNIE']}],
+    'telecom': [{'system': 'phone', 'value': '(240)979-5003', 'use': 'home'}],
+    'identifier': [
+        {'system': SYSTEM_URN_OID, 'value': '1008710501V455565^NI^200M^USVHA^P'},
+        {'system': SYSTEM_URN_OID, 'value': '32315716^PI^200CORP^USVBA^A'},
+        {'system': SYSTEM_URN_OID, 'value': '15962^PI^200VETS^USDVA^H'},
+        {'system': SYSTEM_URN_OID, 'value': '418418001^PI^200BRLS^USVBA^A'},
+        {'system': SYSTEM_URN_OID, 'value': '418418001^AN^200CORP^USVBA^'},
+        {'system': 'http://hl7.org/fhir/sid/us-ssn', 'value': '500333153'},
     ],
-    "telecom": [
-        {
-            "system": "phone",
-            "value": "(240)979-5003",
-            "use": "home"
-        }
-    ],
-    "identifier": [
-        {
-            "system": SYSTEM_URN_OID,
-            "value": "1008710501V455565^NI^200M^USVHA^P"
-        },
-        {
-            "system": SYSTEM_URN_OID,
-            "value": "32315716^PI^200CORP^USVBA^A"
-        },
-        {
-            "system": SYSTEM_URN_OID,
-            "value": "15962^PI^200VETS^USDVA^H"
-        },
-        {
-            "system": SYSTEM_URN_OID,
-            "value": "418418001^PI^200BRLS^USVBA^A"
-        },
-        {
-            "system": SYSTEM_URN_OID,
-            "value": "418418001^AN^200CORP^USVBA^"
-        },
-        {
-            "system": "http://hl7.org/fhir/sid/us-ssn",
-            "value": "500333153"
-        }
-    ]
 }
 
-EXPECTED_VA_PROFILE_ID = "12345"
+EXPECTED_VA_PROFILE_ID = '12345'
 
 
 def response_with_one_active_va_profile_id():
     resp = deepcopy(MPI_RESPONSE_WITH_NO_VA_PROFILE_ID)
-    resp["identifier"].append({
-        "system": SYSTEM_URN_OID,
-        "value": f"{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A"
-    })
+    resp['identifier'].append({'system': SYSTEM_URN_OID, 'value': f'{EXPECTED_VA_PROFILE_ID}^PI^200VETS^USDVA^A'})
     return resp
 
 
 def response_with_two_active_va_profile_ids():
     resp = response_with_one_active_va_profile_id()
-    resp["identifier"].append({
-        "system": SYSTEM_URN_OID,
-        "value": "67890^PI^200VETS^USDVA^A"
-    })
+    resp['identifier'].append({'system': SYSTEM_URN_OID, 'value': '67890^PI^200VETS^USDVA^A'})
     return resp
 
 
 def response_with_deceased_beneficiary():
     resp = response_with_one_active_va_profile_id()
-    resp["deceasedDateTime"] = "2020-01-01"
+    resp['deceasedDateTime'] = '2020-01-01'
     return resp
 
 
@@ -121,36 +82,28 @@ def mpi_client(mocker):
     mock_statsd_client = mocker.Mock()
 
     mpi_client = MpiClient()
-    mpi_client.init_app(
-        mock_logger,
-        url,
-        mock_ssl_cert_path,
-        mock_ssl_key_path,
-        mock_statsd_client
-    )
+    mpi_client.init_app(mock_logger, url, mock_ssl_cert_path, mock_ssl_key_path, mock_statsd_client)
     return mpi_client
 
 
 class TestGetVaProfileId:
-
-    @pytest.mark.parametrize("recipient_identifiers", [
-        None,
-        [sample_recipient_identifier(IdentifierType.ICN), sample_recipient_identifier(IdentifierType.PID)]
-    ])
-    def test_should_raise_exception_if_not_exactly_one_identifier(self,
-                                                                  mpi_client,
-                                                                  sample_notification_model_with_organization,
-                                                                  recipient_identifiers):
+    @pytest.mark.parametrize(
+        'recipient_identifiers',
+        [None, [sample_recipient_identifier(IdentifierType.ICN), sample_recipient_identifier(IdentifierType.PID)]],
+    )
+    def test_should_raise_exception_if_not_exactly_one_identifier(
+        self, mpi_client, sample_notification_model_with_organization, recipient_identifiers
+    ):
         notification = sample_notification_model_with_organization
         if recipient_identifiers:
             for identifier in recipient_identifiers:
                 notification.recipient_identifiers.set(identifier)
         with pytest.raises(IncorrectNumberOfIdentifiersException) as e:
             mpi_client.get_va_profile_id(notification)
-        assert "Unexpected number of recipient_identifiers" in str(e.value)
+        assert 'Unexpected number of recipient_identifiers' in str(e.value)
 
     def test_should_make_request_to_mpi_using_non_transformed_identifier_and_return_va_profile_id(
-            self, mpi_client, rmock, mocker, sample_notification_model_with_organization
+        self, mpi_client, rmock, mocker, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
@@ -160,9 +113,11 @@ class TestGetVaProfileId:
 
         mocked_is_fhir_format = mocker.patch('app.va.mpi.mpi.is_fhir_format', return_value=True)
 
-        expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
-                        f"{quote(recipient_identifier.id_value)}"
-                        f"?-sender={MpiClient.SYSTEM_IDENTIFIER}")
+        expected_url = (
+            f'{mpi_client.base_url}/psim_webservice/fhir/Patient/'
+            f'{quote(recipient_identifier.id_value)}'
+            f'?-sender={MpiClient.SYSTEM_IDENTIFIER}'
+        )
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
@@ -172,7 +127,7 @@ class TestGetVaProfileId:
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
     def test_should_make_request_to_mpi_using_transformed_identifier_and_return_va_profile_id(
-            self, mpi_client, rmock, mocker, sample_notification_model_with_organization
+        self, mpi_client, rmock, mocker, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()
@@ -182,13 +137,14 @@ class TestGetVaProfileId:
 
         mocker.patch('app.va.mpi.mpi.is_fhir_format', return_value=False)
         mocked_transform_to_fhir_format = mocker.patch(
-            'app.va.mpi.mpi.transform_to_fhir_format',
-            return_value='some-transformed-fhir-identifier'
+            'app.va.mpi.mpi.transform_to_fhir_format', return_value='some-transformed-fhir-identifier'
         )
 
-        expected_url = (f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
-                        f"{quote('some-transformed-fhir-identifier')}"
-                        f"?-sender={MpiClient.SYSTEM_IDENTIFIER}")
+        expected_url = (
+            f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
+            f"{quote('some-transformed-fhir-identifier')}"
+            f"?-sender={MpiClient.SYSTEM_IDENTIFIER}"
+        )
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)
 
@@ -198,7 +154,7 @@ class TestGetVaProfileId:
         assert actual_va_profile_id == EXPECTED_VA_PROFILE_ID
 
     def test_should_throw_error_when_multiple_active_va_profile_ids_exist(
-            self, mpi_client, rmock, notification_with_recipient_identifier
+        self, mpi_client, rmock, notification_with_recipient_identifier
     ):
         rmock.get(ANY, json=response_with_two_active_va_profile_ids(), status_code=200)
 
@@ -206,39 +162,34 @@ class TestGetVaProfileId:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_throw_error_when_no_active_va_profile_id(
-            self, mpi_client, rmock, notification_with_recipient_identifier
+        self, mpi_client, rmock, notification_with_recipient_identifier
     ):
         rmock.get(ANY, json=MPI_RESPONSE_WITH_NO_VA_PROFILE_ID, status_code=200)
 
         with pytest.raises(IdentifierNotFound):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
-    @pytest.mark.parametrize("error_code, error_text, expected_exception",
-                             [("GCID01", 'Correlation Does Not Exist', NoSuchIdentifierException),
-                              ("GCID01", 'ICN/VPID Does Not Exist', NoSuchIdentifierException),
-                              ("557", 'Invalid VPID format', NoSuchIdentifierException),
-                              ("557", 'MVI[S]:INVALID REQUEST', NoSuchIdentifierException),
-                              ("BR001", 'No ACTIVE Correlation found', NoSuchIdentifierException),
-                              ("BRNOARG01", 'Invalid MVI Registration Identification', MpiNonRetryableException),
-                              ("556", 'A USVHA National Id can only be set by MVI(MPI/PSIM)', MpiNonRetryableException),
-                              ])
+    @pytest.mark.parametrize(
+        'error_code, error_text, expected_exception',
+        [
+            ('GCID01', 'Correlation Does Not Exist', NoSuchIdentifierException),
+            ('GCID01', 'ICN/VPID Does Not Exist', NoSuchIdentifierException),
+            ('557', 'Invalid VPID format', NoSuchIdentifierException),
+            ('557', 'MVI[S]:INVALID REQUEST', NoSuchIdentifierException),
+            ('BR001', 'No ACTIVE Correlation found', NoSuchIdentifierException),
+            ('BRNOARG01', 'Invalid MVI Registration Identification', MpiNonRetryableException),
+            ('556', 'A USVHA National Id can only be set by MVI(MPI/PSIM)', MpiNonRetryableException),
+        ],
+    )
     def test_should_throw_error_when_mpi_returns_error_response(
-            self, mpi_client, rmock, notification_with_recipient_identifier, error_code, error_text,
-            expected_exception
+        self, mpi_client, rmock, notification_with_recipient_identifier, error_code, error_text, expected_exception
     ):
         mpi_error_response = {
-            "severity": "error",
-            "code": "exception",
-            "details": {
-                "coding": [
-                    {
-                        "code": error_code
-                    }
-                ],
-                "text": error_text
-            },
-            "resourceType": "OperationOutcome",
-            "id": "2020-12-02 12:14:39"
+            'severity': 'error',
+            'code': 'exception',
+            'details': {'coding': [{'code': error_code}], 'text': error_text},
+            'resourceType': 'OperationOutcome',
+            'id': '2020-12-02 12:14:39',
         }
         rmock.get(ANY, json=mpi_error_response, status_code=200)
 
@@ -246,18 +197,18 @@ class TestGetVaProfileId:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
             assert str(mpi_error_response) in e
 
-    @pytest.mark.parametrize("http_status_code", [429, 500, 502, 503, 504])
+    @pytest.mark.parametrize('http_status_code', [429, 500, 502, 503, 504])
     def test_should_throw_mpi_retryable_exception_when_mpi_returns_retryable_http_errors(
-            self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
+        self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
     ):
         rmock.get(ANY, status_code=http_status_code)
 
         with pytest.raises(MpiRetryableException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
-    @pytest.mark.parametrize("http_status_code", [400, 401, 403, 404, 501])
+    @pytest.mark.parametrize('http_status_code', [400, 401, 403, 404, 501])
     def test_should_throw_mpi_non_retryable_exception_when_mpi_returns_non_retryable_http_errors(
-            self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
+        self, mpi_client, rmock, notification_with_recipient_identifier, http_status_code
     ):
         rmock.get(ANY, status_code=http_status_code)
 
@@ -265,39 +216,36 @@ class TestGetVaProfileId:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_throw_exception_when_beneficiary_deceased(
-            self, mpi_client, rmock, notification_with_recipient_identifier
+        self, mpi_client, rmock, notification_with_recipient_identifier
     ):
         rmock.get(ANY, json=response_with_deceased_beneficiary(), status_code=200)
 
         with pytest.raises(BeneficiaryDeceasedException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
-    def test_should_handle_security_exception(
-            self, mpi_client, rmock, notification_with_recipient_identifier
-    ):
+    def test_should_handle_security_exception(self, mpi_client, rmock, notification_with_recipient_identifier):
         rmock.get(ANY, json=MPI_SECURITY_ERROR_RESPONSE, status_code=200)
 
         with pytest.raises(MpiNonRetryableException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
     def test_should_treat_beneficiary_deceased_as_successful_call_to_mpi(
-            self, mpi_client, rmock, notification_with_recipient_identifier
+        self, mpi_client, rmock, notification_with_recipient_identifier
     ):
         rmock.get(ANY, json=response_with_deceased_beneficiary(), status_code=200)
 
         with pytest.raises(BeneficiaryDeceasedException):
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
-        mpi_client.statsd_client.incr.assert_any_call("clients.mpi.success")
-        mpi_client.statsd_client.incr.assert_called_with("clients.mpi.get_va_profile_id.beneficiary_deceased")
+        mpi_client.statsd_client.incr.assert_any_call('clients.mpi.success')
+        mpi_client.statsd_client.incr.assert_called_with('clients.mpi.get_va_profile_id.beneficiary_deceased')
 
     def test_should_throw_mpi_retryable_exception_when_request_exception_is_thrown(
-            self, mpi_client, notification_with_recipient_identifier, mocker):
+        self, mpi_client, notification_with_recipient_identifier, mocker
+    ):
         mocker.patch('app.va.mpi.mpi.requests.get', side_effect=RequestException)
 
         with pytest.raises(MpiRetryableException) as e:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
 
-            assert (
-                e.value.failure_reason == 'MPI returned RequestException while querying for FHIR identifier'
-            )
+            assert e.value.failure_reason == 'MPI returned RequestException while querying for FHIR identifier'

@@ -1,8 +1,4 @@
-from flask import (
-    jsonify,
-    current_app,
-    request,
-    json)
+from flask import jsonify, current_app, request, json
 from notifications_utils.recipients import InvalidEmailError
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
@@ -13,8 +9,10 @@ from app.exceptions import ArchiveValidationError
 
 
 class VirusScanError(Exception):
-    def __init__(self, message):
-
+    def __init__(
+        self,
+        message,
+    ):
         super().__init__(message)
 
 
@@ -22,7 +20,11 @@ class InvalidRequest(Exception):
     code = None
     fields = []
 
-    def __init__(self, message, status_code):
+    def __init__(
+        self,
+        message,
+        status_code,
+    ):
         super().__init__()
         self.message = message
         self.status_code = status_code
@@ -31,24 +33,19 @@ class InvalidRequest(Exception):
         return {'result': 'error', 'message': self.message}
 
     def to_dict_v2(self):
-        '''
+        """
         Version 2 of the public api error response.
-        '''
+        """
         return {
-            "status_code": self.status_code,
-            "errors": [
-                {
-                    "error": self.__class__.__name__,
-                    "message": self.message
-                }
-            ]
+            'status_code': self.status_code,
+            'errors': [{'error': self.__class__.__name__, 'message': self.message}],
         }
 
     def __str__(self):
         return str(self.to_dict())
 
 
-def register_errors(blueprint):
+def register_errors(blueprint):  # noqa: C901
     @blueprint.errorhandler(InvalidEmailError)
     def invalid_format(error):
         # Please not that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone,
@@ -57,11 +54,7 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(AuthError)
     def authentication_error(error):
-        current_app.logger.info(
-            "API AuthError, client: %s error: %s",
-            request.headers.get('User-Agent'),
-            error
-        )
+        current_app.logger.info('API AuthError, client: %s error: %s', request.headers.get('User-Agent'), error)
         return jsonify(result='error', message=error.message), error.code
 
     @blueprint.errorhandler(ValidationError)
@@ -88,18 +81,18 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(400)
     def bad_request(e):
-        msg = e.description or "Invalid request parameters"
+        msg = e.description or 'Invalid request parameters'
         current_app.logger.exception(msg)
         return jsonify(result='error', message=str(msg)), 400
 
     @blueprint.errorhandler(401)
     def unauthorized(e):
-        error_message = "Unauthorized, authentication token must be provided"
+        error_message = 'Unauthorized, authentication token must be provided'
         return jsonify(result='error', message=error_message), 401, [('WWW-Authenticate', 'Bearer')]
 
     @blueprint.errorhandler(403)
     def forbidden(e):
-        error_message = "Forbidden, invalid authentication token provided"
+        error_message = 'Forbidden, invalid authentication token provided'
         return jsonify(result='error', message=error_message), 403
 
     @blueprint.errorhandler(429)
@@ -111,12 +104,12 @@ def register_errors(blueprint):
     @blueprint.errorhandler(DataError)
     def no_result_found(e):
         current_app.logger.info(e)
-        return jsonify(result='error', message="No result found"), 404
+        return jsonify(result='error', message='No result found'), 404
 
     @blueprint.errorhandler(NotImplementedError)
     def not_implemented(e):
         current_app.logger.warning(e)
-        return jsonify(result='error', message="Not Implemented"), 501
+        return jsonify(result='error', message='Not Implemented'), 501
 
 
 def invalid_data_v2(error):

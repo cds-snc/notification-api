@@ -13,7 +13,7 @@ from app.dao.invited_user_dao import (
     get_invited_user,
     get_invited_users_for_service,
     get_invited_user_by_id,
-    delete_invitations_created_more_than_two_days_ago
+    delete_invitations_created_more_than_two_days_ago,
 )
 from tests.app.db import create_invited_user
 
@@ -28,7 +28,7 @@ def test_create_invited_user(notify_db, notify_db_session, sample_service):
         'email_address': email_address,
         'from_user': invite_from,
         'permissions': 'send_messages,manage_service',
-        'folder_permissions': []
+        'folder_permissions': [],
     }
 
     invited_user = InvitedUser(**data)
@@ -114,9 +114,7 @@ def test_save_invited_user_sets_status_to_cancelled(notify_db, notify_db_session
     assert cancelled_invited_user.status == 'cancelled'
 
 
-def test_should_delete_all_invitations_more_than_one_day_old(
-        sample_user,
-        sample_service):
+def test_should_delete_all_invitations_more_than_one_day_old(sample_user, sample_service):
     make_invitation(sample_user, sample_service, age=timedelta(hours=48))
     make_invitation(sample_user, sample_service, age=timedelta(hours=48))
     assert len(InvitedUser.query.all()) == 2
@@ -125,21 +123,19 @@ def test_should_delete_all_invitations_more_than_one_day_old(
     assert deleted == 2
 
 
-def test_should_not_delete_invitations_less_than_two_days_old(
-        sample_user,
-        sample_service):
-    make_invitation(sample_user, sample_service, age=timedelta(hours=47, minutes=59, seconds=59),
-                    email_address="valid@2.com")
-    make_invitation(sample_user, sample_service, age=timedelta(hours=48),
-                    email_address="expired@1.com")
+def test_should_not_delete_invitations_less_than_two_days_old(sample_user, sample_service):
+    make_invitation(
+        sample_user, sample_service, age=timedelta(hours=47, minutes=59, seconds=59), email_address='valid@2.com'
+    )
+    make_invitation(sample_user, sample_service, age=timedelta(hours=48), email_address='expired@1.com')
 
     assert len(InvitedUser.query.all()) == 2
     delete_invitations_created_more_than_two_days_ago()
     assert len(InvitedUser.query.all()) == 1
-    assert InvitedUser.query.first().email_address == "valid@2.com"
+    assert InvitedUser.query.first().email_address == 'valid@2.com'
 
 
-def make_invitation(user, service, age=timedelta(hours=0), email_address="test@test.com"):
+def make_invitation(user, service, age=timedelta(hours=0), email_address='test@test.com'):
     verify_code = InvitedUser(
         email_address=email_address,
         from_user=user,
@@ -147,7 +143,7 @@ def make_invitation(user, service, age=timedelta(hours=0), email_address="test@t
         status='pending',
         created_at=datetime.utcnow() - age,
         permissions='manage_settings',
-        folder_permissions=[str(uuid.uuid4())]
+        folder_permissions=[str(uuid.uuid4())],
     )
     db.session.add(verify_code)
     db.session.commit()

@@ -7,7 +7,12 @@ import time
 class VAOnsiteClient:
     __VA_ONSITE_USER = 'va_notify'
 
-    def init_app(self, logger, url: str, va_onsite_secret: str):
+    def init_app(
+        self,
+        logger,
+        url: str,
+        va_onsite_secret: str,
+    ):
         """Initializes the VAOnsiteClient with appropriate data.
 
         :param logger: the application logger
@@ -18,13 +23,16 @@ class VAOnsiteClient:
         self.url_base = url
         self.va_onsite_secret = va_onsite_secret
 
-    def post_onsite_notification(self, data: dict):
+    def post_onsite_notification(
+        self,
+        data: dict,
+    ):
         """Returns the JSON that is retrieved from the `POST` request sent to onsite_notifications
 
         :param data: The dict onsite_notifications is expecting to see
         """
-        self.logger.info(f"Calling VAOnsiteClient.post_onsite_notification")
-        self.logger.info("Sending this data with POST request to onsite_notifications: %s", data)
+        self.logger.info('Calling VAOnsiteClient.post_onsite_notification')
+        self.logger.info('Sending this data with POST request to onsite_notifications: %s', data)
 
         response = None
 
@@ -33,13 +41,11 @@ class VAOnsiteClient:
                 url=f'{ self.url_base }/v0/onsite_notifications',
                 data=json.dumps(data),
                 headers=self._build_header(),
-                timeout=(3.05, 1)
+                timeout=(3.05, 1),
             )
 
             self.logger.info(
-                "onsite_notifications POST response: status_code=%d, json=%s",
-                response.status_code,
-                response.json()
+                'onsite_notifications POST response: status_code=%d, json=%s', response.status_code, response.json()
             )
 
         except Exception as e:
@@ -51,10 +57,15 @@ class VAOnsiteClient:
         """Returns the dict of the header to be sent with the JWT"""
         return {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {self._encode_jwt(self.__VA_ONSITE_USER, self.va_onsite_secret)}'
+            'Authorization': f'Bearer {self._encode_jwt(self.__VA_ONSITE_USER, self.va_onsite_secret)}',
         }
 
-    def _encode_jwt(self, user: str, secret_key: str, algo: str = 'ES256'):
+    def _encode_jwt(
+        self,
+        user: str,
+        secret_key: str,
+        algo: str = 'ES256',
+    ):
         """Returns the JWT encoded using the given algorithm
 
         :param user: string that will be used for the `user` value in the `data` dict
@@ -62,10 +73,6 @@ class VAOnsiteClient:
         :param algo: algorithm used to encrypt the JWT
         """
         current_timestamp = int(time.time())
-        data = {
-            'user': user,
-            'iat': current_timestamp,
-            'exp': current_timestamp + 60
-        }
+        data = {'user': user, 'iat': current_timestamp, 'exp': current_timestamp + 60}
 
         return jwt.encode(data, secret_key, algorithm=algo)

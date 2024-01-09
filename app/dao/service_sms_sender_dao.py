@@ -11,44 +11,51 @@ from sqlalchemy import desc, select, update
 from typing import Optional
 
 
-def insert_service_sms_sender(service, sms_sender):
+def insert_service_sms_sender(
+    service,
+    sms_sender,
+):
     """
     This method is called from create_service, which is wrapped in a transaction.
     """
 
-    new_sms_sender = ServiceSmsSender(sms_sender=sms_sender,
-                                      service=service,
-                                      is_default=True
-                                      )
+    new_sms_sender = ServiceSmsSender(sms_sender=sms_sender, service=service, is_default=True)
     db.session.add(new_sms_sender)
 
 
-def dao_get_service_sms_sender_by_id(service_id, service_sms_sender_id):
+def dao_get_service_sms_sender_by_id(
+    service_id,
+    service_sms_sender_id,
+):
     stmt = select(ServiceSmsSender).where(
         ServiceSmsSender.id == service_sms_sender_id,
         ServiceSmsSender.service_id == service_id,
-        ServiceSmsSender.archived.is_(False)
+        ServiceSmsSender.archived.is_(False),
     )
 
     return db.session.scalars(stmt).one()
 
 
 def dao_get_sms_senders_by_service_id(service_id):
-    stmt = select(ServiceSmsSender).where(
-        ServiceSmsSender.service_id == service_id,
-        ServiceSmsSender.archived.is_(False)
-    ).order_by(desc(ServiceSmsSender.is_default))
+    stmt = (
+        select(ServiceSmsSender)
+        .where(ServiceSmsSender.service_id == service_id, ServiceSmsSender.archived.is_(False))
+        .order_by(desc(ServiceSmsSender.is_default))
+    )
 
     return db.session.scalars(stmt).all()
 
 
-def dao_get_service_sms_sender_by_service_id_and_number(service_id: str, number: str) -> Optional[ServiceSmsSender]:
-    """ Return an instance of ServiceSmsSender, if available. """
+def dao_get_service_sms_sender_by_service_id_and_number(
+    service_id: str,
+    number: str,
+) -> Optional[ServiceSmsSender]:
+    """Return an instance of ServiceSmsSender, if available."""
 
     stmt = select(ServiceSmsSender).where(
         ServiceSmsSender.service_id == service_id,
         ServiceSmsSender.sms_sender == number,
-        ServiceSmsSender.archived.is_(False)
+        ServiceSmsSender.archived.is_(False),
     )
 
     return db.session.scalars(stmt).first()
@@ -62,7 +69,7 @@ def dao_add_sms_sender_for_service(
     inbound_number_id=None,
     rate_limit=None,
     rate_limit_interval=None,
-    sms_sender_specifics={}
+    sms_sender_specifics={},
 ):
     default_sms_sender = _get_default_sms_sender_for_service(service_id=service_id)
 
@@ -73,15 +80,16 @@ def dao_add_sms_sender_for_service(
         _set_default_sms_sender_to_not_default(default_sms_sender)
 
     if rate_limit is not None and rate_limit < 1:
-        raise SmsSenderRateLimitIntegrityException("rate_limit cannot be less than 1.")
+        raise SmsSenderRateLimitIntegrityException('rate_limit cannot be less than 1.')
 
     if rate_limit_interval is not None and rate_limit_interval < 1:
-        raise SmsSenderRateLimitIntegrityException("rate_limit_interval cannot be less than 1.")
+        raise SmsSenderRateLimitIntegrityException('rate_limit_interval cannot be less than 1.')
 
     # TODO - Refactor validation after merging inbound number & sms_sender
-    if (rate_limit is not None and rate_limit_interval is None) or \
-            (rate_limit_interval is not None and rate_limit is None):
-        raise SmsSenderRateLimitIntegrityException("Provide both rate_limit and rate_limit_interval.")
+    if (rate_limit is not None and rate_limit_interval is None) or (
+        rate_limit_interval is not None and rate_limit is None
+    ):
+        raise SmsSenderRateLimitIntegrityException('Provide both rate_limit and rate_limit_interval.')
 
     if inbound_number_id is not None:
         inbound_number = _allocate_inbound_number_for_service(service_id, inbound_number_id)
@@ -99,7 +107,7 @@ def dao_add_sms_sender_for_service(
         inbound_number_id=inbound_number_id,
         rate_limit=rate_limit,
         rate_limit_interval=rate_limit_interval,
-        sms_sender_specifics=sms_sender_specifics
+        sms_sender_specifics=sms_sender_specifics,
     )
 
     db.session.add(new_sms_sender)
@@ -107,13 +115,17 @@ def dao_add_sms_sender_for_service(
 
 
 @transactional
-def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
+def dao_update_service_sms_sender(  # noqa: C901
+    service_id,
+    service_sms_sender_id,
+    **kwargs,
+):
     if 'is_default' in kwargs:
         default_sms_sender = _get_default_sms_sender_for_service(service_id)
         is_default = kwargs['is_default']
 
         if service_sms_sender_id == default_sms_sender.id and not is_default:
-            raise SmsSenderDefaultValidationException("You must have at least one SMS sender as the default.")
+            raise SmsSenderDefaultValidationException('You must have at least one SMS sender as the default.')
 
         if is_default:
             _set_default_sms_sender_to_not_default(default_sms_sender)
@@ -124,31 +136,33 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
     sms_sender_to_update = db.session.get(ServiceSmsSender, service_sms_sender_id)
 
     if 'rate_limit' in kwargs and kwargs['rate_limit'] is not None and kwargs['rate_limit'] < 1:
-        raise SmsSenderRateLimitIntegrityException(
-            "rate_limit cannot be less than 1."
-        )
+        raise SmsSenderRateLimitIntegrityException('rate_limit cannot be less than 1.')
     if 'rate_limit' in kwargs and kwargs['rate_limit_interval'] is not None and kwargs['rate_limit_interval'] < 1:
-        raise SmsSenderRateLimitIntegrityException(
-            "rate_limit_interval cannot be less than 1."
-        )
+        raise SmsSenderRateLimitIntegrityException('rate_limit_interval cannot be less than 1.')
 
-    if 'rate_limit' in kwargs and kwargs['rate_limit'] \
-            and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval']):
+    if (
+        'rate_limit' in kwargs
+        and kwargs['rate_limit']
+        and ('rate_limit_interval' not in kwargs or not kwargs['rate_limit_interval'])
+    ):
         if not sms_sender_to_update.rate_limit_interval:
             raise SmsSenderRateLimitIntegrityException(
-                "Cannot update sender to have only one of rate limit value and interval."
+                'Cannot update sender to have only one of rate limit value and interval.'
             )
 
-    if 'rate_limit_interval' in kwargs and kwargs['rate_limit_interval'] \
-            and ('rate_limit' not in kwargs or not kwargs['rate_limit']):
+    if (
+        'rate_limit_interval' in kwargs
+        and kwargs['rate_limit_interval']
+        and ('rate_limit' not in kwargs or not kwargs['rate_limit'])
+    ):
         if not sms_sender_to_update.rate_limit:
             raise SmsSenderRateLimitIntegrityException(
-                "Cannot update sender to have only one of rate limit value and interval."
+                'Cannot update sender to have only one of rate limit value and interval.'
             )
 
     if 'sms_sender' in kwargs and sms_sender_to_update.inbound_number_id:
         raise SmsSenderInboundNumberIntegrityException(
-            "You cannot update the number for this SMS sender because it has an associated Inbound Number."
+            'You cannot update the number for this SMS sender because it has an associated Inbound Number.'
         )
 
     for key, value in kwargs.items():
@@ -159,18 +173,20 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, **kwargs):
 
 
 @transactional
-def archive_sms_sender(service_id, sms_sender_id):
+def archive_sms_sender(
+    service_id,
+    sms_sender_id,
+):
     stmt = select(ServiceSmsSender).where(
-        ServiceSmsSender.id == sms_sender_id,
-        ServiceSmsSender.service_id == service_id
+        ServiceSmsSender.id == sms_sender_id, ServiceSmsSender.service_id == service_id
     )
 
     sms_sender_to_archive = db.session.scalars(stmt).one()
 
     if sms_sender_to_archive.inbound_number_id:
-        raise ArchiveValidationError("You cannot delete an inbound number.")
+        raise ArchiveValidationError('You cannot delete an inbound number.')
     if sms_sender_to_archive.is_default:
-        raise ArchiveValidationError("You cannot delete a default sms sender.")
+        raise ArchiveValidationError('You cannot delete a default sms sender.')
 
     sms_sender_to_archive.archived = True
 
@@ -186,8 +202,8 @@ def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender
             return old_default[0]
         else:
             raise SmsSenderDefaultValidationException(
-                f"There should only be one default sms sender for each service. "
-                f"Service {service_id} has {len(old_default)}."
+                f'There should only be one default sms sender for each service. '
+                f'Service {service_id} has {len(old_default)}.'
             )
     return None
 
@@ -198,16 +214,21 @@ def _set_default_sms_sender_to_not_default(existing_default_sms_sender: Optional
         db.session.add(existing_default_sms_sender)
 
 
-def _allocate_inbound_number_for_service(service_id, inbound_number_id) -> InboundNumber:
-    stmt = update(InboundNumber).where(
-        InboundNumber.id == inbound_number_id,
-        InboundNumber.active.is_(True),
-        InboundNumber.service_id.is_(None)
-    ).values(service_id=service_id)
+def _allocate_inbound_number_for_service(
+    service_id,
+    inbound_number_id,
+) -> InboundNumber:
+    stmt = (
+        update(InboundNumber)
+        .where(
+            InboundNumber.id == inbound_number_id, InboundNumber.active.is_(True), InboundNumber.service_id.is_(None)
+        )
+        .values(service_id=service_id)
+    )
 
     updated = db.session.execute(stmt)
 
     if updated.rowcount == 0:
-        raise SmsSenderInboundNumberIntegrityException(f"Inbound number: {inbound_number_id} is not available.")
+        raise SmsSenderInboundNumberIntegrityException(f'Inbound number: {inbound_number_id} is not available.')
 
     return db.session.get(InboundNumber, inbound_number_id)

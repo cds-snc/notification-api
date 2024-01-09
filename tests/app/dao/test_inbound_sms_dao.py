@@ -8,7 +8,7 @@ from app.dao.inbound_sms_dao import (
     delete_inbound_sms_older_than_retention,
     dao_get_inbound_sms_by_id,
     dao_get_paginated_inbound_sms_for_service_for_public_api,
-    dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service
+    dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service,
 )
 from tests.conftest import set_config
 from tests.app.db import create_inbound_sms, create_service, create_service_data_retention
@@ -90,7 +90,7 @@ def test_count_inbound_sms_for_service_filters_messages_older_than_n_days(sample
         assert dao_count_inbound_sms_for_service(sample_service.id, limit_days=7) == 1
 
 
-@freeze_time("2017-06-08 12:00:00")
+@freeze_time('2017-06-08 12:00:00')
 # This test assumes the local timezone is EST
 def test_should_delete_inbound_sms_according_to_data_retention(notify_db_session):
     no_retention_service = create_service(service_name='no retention')
@@ -119,15 +119,9 @@ def test_should_delete_inbound_sms_according_to_data_retention(notify_db_session
 
     # four deleted for the 3-day service, two for the default seven days one, one for the 30 day
     assert deleted_count == 7
-    assert {
-        x.created_at for x in dao_get_inbound_sms_for_service(short_retention_service.id)
-    } == set(dates[:1])
-    assert {
-        x.created_at for x in dao_get_inbound_sms_for_service(no_retention_service.id)
-    } == set(dates[:3])
-    assert {
-        x.created_at for x in dao_get_inbound_sms_for_service(long_retention_service.id)
-    } == set(dates[:4])
+    assert {x.created_at for x in dao_get_inbound_sms_for_service(short_retention_service.id)} == set(dates[:1])
+    assert {x.created_at for x in dao_get_inbound_sms_for_service(no_retention_service.id)} == set(dates[:3])
+    assert {x.created_at for x in dao_get_inbound_sms_for_service(long_retention_service.id)} == set(dates[:4])
 
 
 def test_get_inbound_sms_by_id_returns(sample_service):
@@ -171,9 +165,7 @@ def test_dao_get_paginated_inbound_sms_for_service_for_public_api_page_size_retu
     reversed_inbound_sms = sorted(inbound_sms_list, key=lambda sms: sms.created_at, reverse=True)
 
     inbound_from_db = dao_get_paginated_inbound_sms_for_service_for_public_api(
-        sample_service.id,
-        older_than=reversed_inbound_sms[1].id,
-        page_size=2
+        sample_service.id, older_than=reversed_inbound_sms[1].id, page_size=2
     )
 
     assert len(inbound_from_db) == 2
@@ -189,9 +181,7 @@ def test_dao_get_paginated_inbound_sms_for_service_for_public_api_older_than_ret
     reversed_inbound_sms = sorted(inbound_sms_list, key=lambda sms: sms.created_at, reverse=True)
 
     inbound_from_db = dao_get_paginated_inbound_sms_for_service_for_public_api(
-        sample_service.id,
-        older_than=reversed_inbound_sms[1].id,
-        page_size=2
+        sample_service.id, older_than=reversed_inbound_sms[1].id, page_size=2
     )
 
     expected_inbound_sms = reversed_inbound_sms[2:]
@@ -207,9 +197,7 @@ def test_dao_get_paginated_inbound_sms_for_service_for_public_api_older_than_end
     reversed_inbound_sms = sorted(inbound_sms_list, key=lambda sms: sms.created_at, reverse=True)
 
     inbound_from_db = dao_get_paginated_inbound_sms_for_service_for_public_api(
-        sample_service.id,
-        older_than=reversed_inbound_sms[1].id,
-        page_size=2
+        sample_service.id, older_than=reversed_inbound_sms[1].id, page_size=2
     )
 
     assert inbound_from_db == []
@@ -226,7 +214,9 @@ def test_most_recent_inbound_sms_only_returns_most_recent_for_each_number(notify
 
     with set_config(notify_api, 'PAGE_SIZE', 3):
         with freeze_time('2017-01-02'):
-            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(sample_service.id, limit_days=7, page=1)  # noqa
+            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(
+                sample_service.id, limit_days=7, page=1
+            )  # noqa
 
     assert len(res.items) == 2
     assert res.has_next is False
@@ -248,7 +238,9 @@ def test_most_recent_inbound_sms_paginates_properly(notify_api, sample_service):
     with set_config(notify_api, 'PAGE_SIZE', 2):
         with freeze_time('2017-01-02'):
             # first page has most recent 444 and 333
-            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(sample_service.id, limit_days=7, page=1)  # noqa
+            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(
+                sample_service.id, limit_days=7, page=1
+            )  # noqa
             assert len(res.items) == 2
             assert res.has_next is True
             assert res.per_page == 2
@@ -256,7 +248,9 @@ def test_most_recent_inbound_sms_paginates_properly(notify_api, sample_service):
             assert res.items[1].content == '333 2'
 
             # second page has no 444 or 333 - just most recent 222 and 111
-            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(sample_service.id, limit_days=7, page=2)  # noqa
+            res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(
+                sample_service.id, limit_days=7, page=2
+            )  # noqa
             assert len(res.items) == 2
             assert res.has_next is False
             assert res.items[0].content == '222 2'
@@ -271,7 +265,9 @@ def test_most_recent_inbound_sms_only_returns_values_within_7_days(sample_servic
     create_inbound_sms(sample_service, user_number='2', content='new', created_at=datetime(2017, 4, 3, 4, 0, 0))
 
     with freeze_time('Monday 10th April 2017 12:00:00'):
-        res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(sample_service.id, limit_days=7, page=1)  # noqa
+        res = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(
+            sample_service.id, limit_days=7, page=1
+        )  # noqa
 
     assert len(res.items) == 1
     assert res.items[0].content == 'new'

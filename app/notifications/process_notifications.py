@@ -8,7 +8,7 @@ from notifications_utils.clients import redis
 from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
-    format_email_address
+    format_email_address,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
@@ -22,7 +22,7 @@ from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_id,
-    dao_get_service_sms_sender_by_service_id_and_number
+    dao_get_service_sms_sender_by_service_id_and_number,
 )
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 
@@ -34,18 +34,23 @@ from app.models import (
     NOTIFICATION_CREATED,
     Notification,
     ScheduledNotification,
-    RecipientIdentifier)
+    RecipientIdentifier,
+)
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
-    dao_created_scheduled_notification)
+    dao_created_scheduled_notification,
+)
 
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
 from app.va.identifier import IdentifierType
 
 
-def create_content_for_notification(template, personalisation):
+def create_content_for_notification(
+    template,
+    personalisation,
+):
     template_object = get_template_instance(template.__dict__, personalisation)
     check_placeholders(template_object)
 
@@ -54,36 +59,36 @@ def create_content_for_notification(template, personalisation):
 
 def check_placeholders(template_object):
     if template_object.missing_data:
-        message = 'Missing personalisation: {}'.format(", ".join(template_object.missing_data))
+        message = 'Missing personalisation: {}'.format(', '.join(template_object.missing_data))
         raise BadRequestError(fields=[{'template': message}], message=message)
 
 
 def persist_notification(
-        *,
-        template_id,
-        template_version,
-        recipient=None,
-        service_id,
-        personalisation,
-        notification_type,
-        api_key_id,
-        key_type,
-        created_at=None,
-        job_id=None,
-        job_row_number=None,
-        reference=None,
-        client_reference=None,
-        notification_id=None,
-        simulated=False,
-        created_by_id=None,
-        status=NOTIFICATION_CREATED,
-        reply_to_text=None,
-        billable_units=None,
-        postage=None,
-        template_postage=None,
-        recipient_identifier=None,
-        billing_code=None,
-        sms_sender_id=None
+    *,
+    template_id,
+    template_version,
+    recipient=None,
+    service_id,
+    personalisation,
+    notification_type,
+    api_key_id,
+    key_type,
+    created_at=None,
+    job_id=None,
+    job_row_number=None,
+    reference=None,
+    client_reference=None,
+    notification_id=None,
+    simulated=False,
+    created_by_id=None,
+    status=NOTIFICATION_CREATED,
+    reply_to_text=None,
+    billable_units=None,
+    postage=None,
+    template_postage=None,
+    recipient_identifier=None,
+    billing_code=None,
+    sms_sender_id=None,
 ) -> Notification:
     notification_created_at = created_at or datetime.utcnow()
 
@@ -110,14 +115,14 @@ def persist_notification(
         reply_to_text=reply_to_text,
         billable_units=billable_units,
         billing_code=billing_code,
-        sms_sender_id=sms_sender_id
+        sms_sender_id=sms_sender_id,
     )
 
     if accept_recipient_identifiers_enabled() and recipient_identifier:
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
             id_type=recipient_identifier['id_type'],
-            id_value=recipient_identifier['id_value']
+            id_value=recipient_identifier['id_value'],
         )
 
         notification.recipient_identifiers.set(_recipient_identifier)
@@ -141,19 +146,13 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
 
-        current_app.logger.info(
-            "%s %s created at %s", notification_type, notification_id, notification_created_at
-        )
+        current_app.logger.info('%s %s created at %s', notification_type, notification_id, notification_created_at)
 
     return notification
 
 
 def send_notification_to_queue(
-        notification,
-        research_mode,
-        queue=None,
-        recipient_id_type: str = None,
-        sms_sender_id=None
+    notification, research_mode, queue=None, recipient_id_type: str = None, sms_sender_id=None
 ):
     """
     Create, enqueue, and asynchronously execute a Celery task to send a notification.
@@ -172,14 +171,16 @@ def send_notification_to_queue(
         # Including sms_sender_id is necessary so the correct sender can be chosen.
         # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
         tasks = [deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue)]
-        if (recipient_id_type and communication_item_id and
-           is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)):
-
+        if (
+            recipient_id_type
+            and communication_item_id
+            and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
+        ):
             tasks.insert(
                 0,
-                lookup_recipient_communication_permissions
-                .si(str(notification.id))
-                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions.si(str(notification.id)).set(
+                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+                ),
             )
 
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
@@ -194,10 +195,16 @@ def send_notification_to_queue(
         raise
 
     current_app.logger.debug(
-        "%s %s sent to the %s queue for delivery", notification.notification_type, notification.id, queue)
+        '%s %s sent to the %s queue for delivery', notification.notification_type, notification.id, queue
+    )
 
 
-def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender_id=None):
+def _get_delivery_task(
+    notification,
+    research_mode=False,
+    queue=None,
+    sms_sender_id=None,
+):
     """
     The return value "deliver_task" is a function decorated to be a Celery task.
     """
@@ -215,15 +222,11 @@ def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender
         # Otherwise, get the first one from the service.
         if sms_sender_id is not None:
             # This is an instance of ServiceSmsSender or None.
-            service_sms_sender = dao_get_service_sms_sender_by_id(
-                notification.service_id,
-                sms_sender_id
-            )
+            service_sms_sender = dao_get_service_sms_sender_by_id(notification.service_id, sms_sender_id)
         else:
             # This is an instance of ServiceSmsSender or None.
             service_sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
-                notification.service_id,
-                notification.reply_to_text
+                notification.service_id, notification.reply_to_text
             )
 
         if (
@@ -243,7 +246,7 @@ def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
     else:
-        error_message = f"Unrecognized notification type: {notification.notification_type}"
+        error_message = f'Unrecognized notification type: {notification.notification_type}'
         current_app.logger.error(error_message)
         raise RuntimeError(error_message)
 
@@ -251,54 +254,56 @@ def _get_delivery_task(notification, research_mode=False, queue=None, sms_sender
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
-        notification: Notification, id_type: str, id_value: str, communication_item_id: uuid,
-        onsite_enabled: bool = False
+    notification: Notification, id_type: str, id_value: str, communication_item_id: uuid, onsite_enabled: bool = False
 ) -> None:
     deliver_task, deliver_queue = _get_delivery_task(notification)
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
-            send_va_onsite_notification_task.s(id_value, str(notification.template.id), onsite_enabled)
-                                            .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
+            send_va_onsite_notification_task.s(id_value, str(notification.template.id), onsite_enabled).set(
+                queue=QueueNames.SEND_ONSITE_NOTIFICATION
+            ),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            deliver_task.si(notification.id).set(queue=deliver_queue)
+            deliver_task.si(notification.id).set(queue=deliver_queue),
         ]
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 len(tasks) - 1,
-                lookup_recipient_communication_permissions
-                .si(notification.id)
-                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions.si(notification.id).set(
+                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+                ),
             )
 
     else:
         tasks = [
             lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
-            send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled)
-                                            .set(queue=QueueNames.SEND_ONSITE_NOTIFICATION),
+            send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled).set(
+                queue=QueueNames.SEND_ONSITE_NOTIFICATION
+            ),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            deliver_task.si(notification.id).set(queue=deliver_queue)
+            deliver_task.si(notification.id).set(queue=deliver_queue),
         ]
 
         if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
             tasks.insert(
                 len(tasks) - 1,
-                lookup_recipient_communication_permissions
-                .si(notification.id)
-                .set(queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS)
+                lookup_recipient_communication_permissions.si(notification.id).set(
+                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+                ),
             )
 
     chain(*tasks).apply_async()
 
     current_app.logger.debug(
-        "{} {} passed to tasks: {}".format(
-            notification.notification_type,
-            notification.id,
-            [task.name for task in tasks]
+        '{} {} passed to tasks: {}'.format(
+            notification.notification_type, notification.id, [task.name for task in tasks]
         )
     )
 
 
-def simulated_recipient(to_address, notification_type):
+def simulated_recipient(
+    to_address,
+    notification_type,
+):
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [
             validate_and_format_phone_number(number) for number in current_app.config['SIMULATED_SMS_NUMBERS']
@@ -308,8 +313,10 @@ def simulated_recipient(to_address, notification_type):
         return to_address in current_app.config['SIMULATED_EMAIL_ADDRESSES']
 
 
-def persist_scheduled_notification(notification_id, scheduled_for):
-    scheduled_datetime = convert_local_timezone_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
-    scheduled_notification = ScheduledNotification(notification_id=notification_id,
-                                                   scheduled_for=scheduled_datetime)
+def persist_scheduled_notification(
+    notification_id,
+    scheduled_for,
+):
+    scheduled_datetime = convert_local_timezone_to_utc(datetime.strptime(scheduled_for, '%Y-%m-%d %H:%M'))
+    scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
     dao_created_scheduled_notification(scheduled_notification)

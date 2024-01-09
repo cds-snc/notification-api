@@ -26,9 +26,7 @@ def _validate_service_exists():
 
 
 service_sms_sender_blueprint = Blueprint(
-    'service_sms_sender',
-    __name__,
-    url_prefix='/service/<uuid:service_id>/sms-sender'
+    'service_sms_sender', __name__, url_prefix='/service/<uuid:service_id>/sms-sender'
 )
 service_sms_sender_blueprint.before_request(validate_admin_auth)
 service_sms_sender_blueprint.before_request(_validate_service_exists)
@@ -59,26 +57,30 @@ def add_service_sms_sender(service_id):
 
 
 @service_sms_sender_blueprint.route('/<uuid:sms_sender_id>', methods=['GET'])
-def get_service_sms_sender_by_id(service_id, sms_sender_id):
-    sms_sender = dao_get_service_sms_sender_by_id(
-        service_id=service_id,
-        service_sms_sender_id=sms_sender_id
-    )
+def get_service_sms_sender_by_id(
+    service_id,
+    sms_sender_id,
+):
+    sms_sender = dao_get_service_sms_sender_by_id(service_id=service_id, service_sms_sender_id=sms_sender_id)
     return jsonify(sms_sender.serialize()), 200
 
 
 @service_sms_sender_blueprint.route('/<uuid:sms_sender_id>', methods=['POST'])
-def update_service_sms_sender(service_id, sms_sender_id):
+def update_service_sms_sender(
+    service_id,
+    sms_sender_id,
+):
     form = validate(request.get_json(), update_service_sms_sender_request)
     updated_sms_sender = dao_update_service_sms_sender(
-        service_id=service_id,
-        service_sms_sender_id=sms_sender_id,
-        **form
+        service_id=service_id, service_sms_sender_id=sms_sender_id, **form
     )
     return jsonify(updated_sms_sender.serialize()), 200
 
 
 @service_sms_sender_blueprint.route('/<uuid:sms_sender_id>/archive', methods=['POST'])
-def delete_service_sms_sender(service_id, sms_sender_id):
+def delete_service_sms_sender(
+    service_id,
+    sms_sender_id,
+):
     sms_sender = archive_sms_sender(service_id, sms_sender_id)
     return jsonify(data=sms_sender.serialize()), 200

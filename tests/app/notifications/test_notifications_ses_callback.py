@@ -7,15 +7,19 @@ from app.models import Complaint, UNKNOWN_COMPLAINT_TYPE
 from app.notifications.notifications_ses_callback import handle_ses_complaint, handle_smtp_complaint
 
 from tests.app.db import (
-    create_notification, ses_complaint_callback_malformed_message_id,
+    create_notification,
+    ses_complaint_callback_malformed_message_id,
     ses_complaint_callback_with_missing_complaint_type,
     ses_complaint_callback,
-    create_notification_history
+    create_notification_history,
 )
 
 
 def test_ses_callback_should_not_set_status_once_status_is_delivered(sample_email_template):
-    notification = create_notification(sample_email_template, status='delivered', )
+    notification = create_notification(
+        sample_email_template,
+        status='delivered',
+    )
 
     assert get_notification_by_id(notification.id).status == 'delivered'
 

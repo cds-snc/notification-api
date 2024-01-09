@@ -20,9 +20,7 @@ def sample_recipient_identifier(identifier_type=None, notification_id=None):
         id_type = random.choice(IdentifierType.values())  # nosec
     id_value = get_random_alphanumeric_string()
     _notification_id = notification_id if notification_id else uuid4()
-    return RecipientIdentifier(notification_id=_notification_id,
-                               id_type=id_type,
-                               id_value=id_value)
+    return RecipientIdentifier(notification_id=_notification_id, id_type=id_type, id_value=id_value)
 
 
 def sample_va_profile_identifier(notification_id=None):

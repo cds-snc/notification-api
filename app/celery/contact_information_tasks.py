@@ -12,13 +12,21 @@ from notifications_utils.statsd_decorators import statsd
 from requests import Timeout
 
 
-@notify_celery.task(bind=True, name="lookup-contact-info-tasks",
-                    throws=(AutoRetryException, ),
-                    autoretry_for=(AutoRetryException, ),
-                    max_retries=2886, retry_backoff=True, retry_backoff_max=60)
-@statsd(namespace="tasks")
-def lookup_contact_info(self, notification_id):
-    current_app.logger.info(f"Looking up contact information for notification_id:{notification_id}.")
+@notify_celery.task(
+    bind=True,
+    name='lookup-contact-info-tasks',
+    throws=(AutoRetryException,),
+    autoretry_for=(AutoRetryException,),
+    max_retries=2886,
+    retry_backoff=True,
+    retry_backoff_max=60,
+)
+@statsd(namespace='tasks')
+def lookup_contact_info(
+    self,
+    notification_id,
+):
+    current_app.logger.info(f'Looking up contact information for notification_id:{notification_id}.')
 
     notification = get_notification_by_id(notification_id)
 
@@ -31,19 +39,20 @@ def lookup_contact_info(self, notification_id):
             recipient = va_profile_client.get_telephone(va_profile_id)
         else:
             raise NotImplementedError(
-                f"The task lookup_contact_info failed for notification {notification_id}. "
-                f"{notification.notification_type} is not supported")
+                f'The task lookup_contact_info failed for notification {notification_id}. '
+                f'{notification.notification_type} is not supported'
+            )
 
     except (Timeout, VAProfileRetryableException) as e:
         if can_retry(self.request.retries, self.max_retries, notification_id):
-            current_app.logger.warning("Unable to get contact info for notification id: %s, retrying", notification_id)
+            current_app.logger.warning('Unable to get contact info for notification id: %s, retrying', notification_id)
             raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
             msg = handle_max_retries_exceeded(notification_id, 'lookup_contact_info')
             raise NotificationTechnicalFailureException(msg)
     except NoContactInfoException as e:
         message = (
-            f'Can\'t proceed after querying VA Profile for contact information for {notification_id}. '
+            f"Can't proceed after querying VA Profile for contact information for {notification_id}. "
             'Stopping execution of following tasks. Notification has been updated to permanent-failure.'
         )
         current_app.logger.warning(f'{e.__class__.__name__} - {str(e)}: ' + message)

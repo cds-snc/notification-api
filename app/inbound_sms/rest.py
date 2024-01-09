@@ -1,8 +1,4 @@
-from flask import (
-    Blueprint,
-    jsonify,
-    request
-)
+from flask import Blueprint, jsonify, request
 
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
@@ -10,7 +6,7 @@ from app.dao.inbound_sms_dao import (
     dao_get_inbound_sms_for_service,
     dao_count_inbound_sms_for_service,
     dao_get_inbound_sms_by_id,
-    dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service
+    dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service,
 )
 from app.dao.service_data_retention_dao import fetch_service_data_retention_by_notification_type
 from app.errors import register_errors
@@ -18,11 +14,7 @@ from app.schema_validation import validate
 
 from app.inbound_sms.inbound_sms_schemas import get_inbound_sms_for_service_schema
 
-inbound_sms = Blueprint(
-    'inbound_sms',
-    __name__,
-    url_prefix='/service/<uuid:service_id>/inbound-sms'
-)
+inbound_sms = Blueprint('inbound_sms', __name__, url_prefix='/service/<uuid:service_id>/inbound-sms')
 
 register_errors(inbound_sms)
 
@@ -53,10 +45,7 @@ def get_most_recent_inbound_sms_for_service(service_id):
 
     # get most recent message for each user for service
     results = dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(service_id, int(page), limit_days)
-    return jsonify(
-        data=[row.serialize() for row in results.items],
-        has_next=results.has_next
-    )
+    return jsonify(data=[row.serialize() for row in results.items], has_next=results.has_next)
 
 
 @inbound_sms.route('/summary')
@@ -65,14 +54,14 @@ def get_inbound_sms_summary_for_service(service_id):
     count = dao_count_inbound_sms_for_service(service_id, limit_days=7)
     most_recent = dao_get_inbound_sms_for_service(service_id, limit=1)
 
-    return jsonify(
-        count=count,
-        most_recent=most_recent[0].created_at.isoformat() if most_recent else None
-    )
+    return jsonify(count=count, most_recent=most_recent[0].created_at.isoformat() if most_recent else None)
 
 
 @inbound_sms.route('/<uuid:inbound_sms_id>', methods=['GET'])
-def get_inbound_by_id(service_id, inbound_sms_id):
+def get_inbound_by_id(
+    service_id,
+    inbound_sms_id,
+):
     message = dao_get_inbound_sms_by_id(service_id, inbound_sms_id)
 
     return jsonify(message.serialize()), 200

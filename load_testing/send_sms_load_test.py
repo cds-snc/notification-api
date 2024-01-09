@@ -14,32 +14,30 @@ class SendSms(HttpUser):
         self.sms_sender_id = self.read_configuration('sms_sender_id')
         self.api_key = self.read_configuration('api_key')
 
-    def read_configuration(self, key: str) -> str:
-        if f"LOAD_TESTING_{self.short_env}_{key}" in os.environ:
-            return os.getenv(f"LOAD_TESTING_{self.short_env}_{key}")
+    def read_configuration(
+        self,
+        key: str,
+    ) -> str:
+        if f'LOAD_TESTING_{self.short_env}_{key}' in os.environ:
+            return os.getenv(f'LOAD_TESTING_{self.short_env}_{key}')
         else:
             return self.read_from_ssm(key)
 
-    def read_from_ssm(self, key: str) -> str:
+    def read_from_ssm(
+        self,
+        key: str,
+    ) -> str:
         if not hasattr(self, 'boto_client'):
             self.boto_client = boto3.client('ssm')
 
-        resp = self.boto_client.get_parameter(
-            Name=f"/utility/locust/{self.short_env}/{key}",
-            WithDecryption=True
-        )
-        return resp["Parameter"]["Value"]
+        resp = self.boto_client.get_parameter(Name=f'/utility/locust/{self.short_env}/{key}', WithDecryption=True)
+        return resp['Parameter']['Value']
 
     def _get_jwt(self) -> str:
         header = {'typ': 'JWT', 'alg': 'HS256'}
         combo = {}
         currentTimestamp = int(time.time())
-        data = {
-            'iss': self.service_id,
-            'iat': currentTimestamp,
-            'exp': currentTimestamp + 30,
-            'jti': 'jwt_nonce'
-        }
+        data = {'iss': self.service_id, 'iat': currentTimestamp, 'exp': currentTimestamp + 30, 'jti': 'jwt_nonce'}
         combo.update(data)
         combo.update(header)
         encoded_jwt = jwt.encode(combo, self.api_key, algorithm='HS256')
@@ -48,18 +46,10 @@ class SendSms(HttpUser):
     @task
     def send(self):
         encoded_jwt = self._get_jwt()
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {encoded_jwt}'
-        }
+        headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {encoded_jwt}'}
         payload = {
             'template_id': self.sms_template_id,
             'sms_sender_id': self.sms_sender_id,
-            'phone_number': '+14254147755'
+            'phone_number': '+14254147755',
         }
-        self.client.post(
-            '/v2/notifications/sms',
-            json=payload,
-            headers=headers,
-            verify=os.getenv('REQUESTS_CA_BUNDLE')
-        )
+        self.client.post('/v2/notifications/sms', json=payload, headers=headers, verify=os.getenv('REQUESTS_CA_BUNDLE'))

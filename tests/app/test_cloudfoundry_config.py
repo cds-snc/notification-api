@@ -8,21 +8,12 @@ from app.cloudfoundry_config import extract_cloudfoundry_config, set_config_env_
 
 @pytest.fixture
 def postgres_config():
-    return [
-        {
-            'credentials': {
-                'uri': 'postgres uri'
-            }
-        }
-    ]
+    return [{'credentials': {'uri': 'postgres uri'}}]
 
 
 @pytest.fixture
 def cloudfoundry_config(postgres_config):
-    return {
-        'postgres': postgres_config,
-        'user-provided': []
-    }
+    return {'postgres': postgres_config, 'user-provided': []}
 
 
 @pytest.fixture
@@ -44,9 +35,7 @@ def test_extract_cloudfoundry_config_populates_other_vars():
 @pytest.mark.usefixtures('os_environ', 'cloudfoundry_environ')
 def test_set_config_env_vars_ignores_unknown_configs(cloudfoundry_config):
     cloudfoundry_config['foo'] = {'credentials': {'foo': 'foo'}}
-    cloudfoundry_config['user-provided'].append({
-        'name': 'bar', 'credentials': {'bar': 'bar'}
-    })
+    cloudfoundry_config['user-provided'].append({'name': 'bar', 'credentials': {'bar': 'bar'}})
 
     set_config_env_vars(cloudfoundry_config)
 

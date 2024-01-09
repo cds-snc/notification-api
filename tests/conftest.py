@@ -55,10 +55,7 @@ def create_test_db(database_uri):
     postgres_db_uri = '/'.join(db_uri_parts[:-1] + ['postgres'])
 
     postgres_db = sqlalchemy.create_engine(
-        postgres_db_uri,
-        echo=False,
-        isolation_level='AUTOCOMMIT',
-        client_encoding='utf8'
+        postgres_db_uri, echo=False, isolation_level='AUTOCOMMIT', client_encoding='utf8'
     )
 
     try:
@@ -87,7 +84,7 @@ def notify_db(notify_api):
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
     config = Config(ALEMBIC_CONFIG + '/alembic.ini')
-    config.set_main_option("script_location", ALEMBIC_CONFIG)
+    config.set_main_option('script_location', ALEMBIC_CONFIG)
 
     with notify_api.app_context():
         upgrade(config, 'head')
@@ -111,19 +108,21 @@ def notify_db_session(notify_db):
 
     notify_db.session.remove()
     for tbl in reversed(notify_db.metadata.sorted_tables):
-        if tbl.name not in ["provider_details",
-                            "key_types",
-                            "branding_type",
-                            "job_status",
-                            "provider_details_history",
-                            "template_process_type",
-                            "notification_status_types",
-                            "organisation_types",
-                            "service_permission_types",
-                            "auth_type",
-                            "invite_status_type",
-                            "service_callback_type",
-                            "service_callback_channel"]:
+        if tbl.name not in [
+            'provider_details',
+            'key_types',
+            'branding_type',
+            'job_status',
+            'provider_details_history',
+            'template_process_type',
+            'notification_status_types',
+            'organisation_types',
+            'service_permission_types',
+            'auth_type',
+            'invite_status_type',
+            'service_callback_type',
+            'service_callback_channel',
+        ]:
             notify_db.engine.execute(tbl.delete())
     notify_db.session.commit()
 

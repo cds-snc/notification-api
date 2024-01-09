@@ -13,10 +13,7 @@ def validate_v0(json_to_validate, schema_filename):
     resolver = jsonschema.RefResolver('file://' + schema_dir + '/', None)
     with open(os.path.join(schema_dir, schema_filename)) as schema:
         jsonschema.validate(
-            json_to_validate,
-            json.load(schema),
-            format_checker=jsonschema.FormatChecker(),
-            resolver=resolver
+            json_to_validate, json.load(schema), format_checker=jsonschema.FormatChecker(), resolver=resolver
         )
 
 

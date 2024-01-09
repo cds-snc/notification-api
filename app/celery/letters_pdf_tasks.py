@@ -8,10 +8,7 @@ from base64 import urlsafe_b64encode
 from pypdf.errors import PdfReadError
 from botocore.exceptions import ClientError as BotoClientError
 from flask import current_app
-from requests import (
-    post as requests_post,
-    RequestException
-)
+from requests import post as requests_post, RequestException
 from celery.exceptions import MaxRetriesExceededError
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.s3 import s3upload
@@ -52,16 +49,19 @@ from app.cronitor import cronitor
 from json import JSONDecodeError
 
 
-@notify_celery.task(bind=True, name="create-letters-pdf", max_retries=15, default_retry_delay=300)
-@statsd(namespace="tasks")
-def create_letters_pdf(self, notification_id):
+@notify_celery.task(bind=True, name='create-letters-pdf', max_retries=15, default_retry_delay=300)
+@statsd(namespace='tasks')
+def create_letters_pdf(
+    self,
+    notification_id,
+):
     try:
         notification = get_notification_by_id(notification_id, _raise=True)
         pdf_data, billable_units = get_letters_pdf(
             notification.template,
             contact_block=notification.reply_to_text,
             filename=None,
-            values=notification.personalisation
+            values=notification.personalisation,
         )
 
         upload_letter_pdf(notification, pdf_data)
@@ -76,25 +76,22 @@ def create_letters_pdf(self, notification_id):
 
     except (RequestException, BotoClientError):
         try:
-            current_app.logger.exception(
-                "Letters PDF notification creation for id: %s failed", notification_id
-            )
+            current_app.logger.exception('Letters PDF notification creation for id: %s failed', notification_id)
             self.retry(queue=QueueNames.RETRY)
         except MaxRetriesExceededError:
             current_app.logger.error(
-                "RETRY FAILED: task create_letters_pdf failed for notification %s", notification_id
+                'RETRY FAILED: task create_letters_pdf failed for notification %s', notification_id
             )
-            update_notification_status_by_id(
-                notification_id, 'technical-failure',
-                status_reason="Retries exceeded"
-            )
+            update_notification_status_by_id(notification_id, 'technical-failure', status_reason='Retries exceeded')
 
 
-def get_letters_pdf(template, contact_block, filename, values):
-    template_for_letter_print = {
-        "subject": template.subject,
-        "content": template.content
-    }
+def get_letters_pdf(
+    template,
+    contact_block,
+    filename,
+    values,
+):
+    template_for_letter_print = {'subject': template.subject, 'content': template.content}
 
     data = {
         'letter_contact_block': contact_block,
@@ -107,56 +104,46 @@ def get_letters_pdf(template, contact_block, filename, values):
         '{}/print.pdf'.format(current_app.config['TEMPLATE_PREVIEW_API_HOST']),
         json=data,
         headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
-        timeout=(3.05, 1)
+        timeout=(3.05, 1),
     )
     resp.raise_for_status()
 
     pages_per_sheet = 2
-    billable_units = math.ceil(int(resp.headers.get("X-pdf-page-count", 0)) / pages_per_sheet)
+    billable_units = math.ceil(int(resp.headers.get('X-pdf-page-count', 0)) / pages_per_sheet)
 
     return resp.content, billable_units
 
 
 @notify_celery.task(name='collate-letter-pdfs-for-day')
-@cronitor("collate-letter-pdfs-for-day")
+@cronitor('collate-letter-pdfs-for-day')
 def collate_letter_pdfs_for_day(date=None):
     if not date:
         # Using the truncated date is ok because UTC to BST does not make a difference to the date,
         # since it is triggered mid afternoon.
-        date = datetime.utcnow().strftime("%Y-%m-%d")
+        date = datetime.utcnow().strftime('%Y-%m-%d')
 
     letter_pdfs = sorted(
-        s3.get_s3_bucket_objects(
-            current_app.config['LETTERS_PDF_BUCKET_NAME'],
-            subfolder=date
-        ),
-        key=lambda letter: letter['Key']
+        s3.get_s3_bucket_objects(current_app.config['LETTERS_PDF_BUCKET_NAME'], subfolder=date),
+        key=lambda letter: letter['Key'],
     )
     for i, letters in enumerate(group_letters(letter_pdfs)):
         filenames = [letter['Key'] for letter in letters]
 
         hash = urlsafe_b64encode(sha512(''.join(filenames).encode()).digest())[:20].decode()
         # eg NOTIFY.2018-12-31.001.Wjrui5nAvObjPd-3GEL-.ZIP
-        dvla_filename = 'NOTIFY.{date}.{num:03}.{hash}.ZIP'.format(
-            date=date,
-            num=i + 1,
-            hash=hash
-        )
+        dvla_filename = 'NOTIFY.{date}.{num:03}.{hash}.ZIP'.format(date=date, num=i + 1, hash=hash)
 
         current_app.logger.info(
             'Calling task zip-and-send-letter-pdfs for %d pdfs to upload %s with total size %s bytes',
             len(filenames),
             dvla_filename,
-            '{:,}'.format(sum(letter['Size'] for letter in letters))
+            '{:,}'.format(sum(letter['Size'] for letter in letters)),
         )
         notify_celery.send_task(
             name=TaskNames.ZIP_AND_SEND_LETTER_PDFS,
-            kwargs={
-                'filenames_to_zip': filenames,
-                'upload_filename': dvla_filename
-            },
+            kwargs={'filenames_to_zip': filenames, 'upload_filename': dvla_filename},
             queue=QueueNames.PROCESS_FTP,
-            compression='zlib'
+            compression='zlib',
         )
 
 
@@ -197,13 +184,16 @@ def letter_in_created_state(filename):
             'Collating letters for %s but notification with reference %s already in %s',
             subfolder,
             ref,
-            notifications[0].status
+            notifications[0].status,
         )
     return False
 
 
 @notify_celery.task(bind=True, name='process-virus-scan-passed', max_retries=15, default_retry_delay=300)
-def process_virus_scan_passed(self, filename):
+def process_virus_scan_passed(
+    self,
+    filename,
+):
     reference = get_reference_from_filename(filename)
     notification = dao_get_notification_by_reference(reference)
     current_app.logger.info('notification id %s Virus scan passed: %s', notification.id, filename)
@@ -227,11 +217,11 @@ def process_virus_scan_passed(self, filename):
     else:
         sanitise_response = sanitise_response.json()
         try:
-            new_pdf = base64.b64decode(sanitise_response["file"].encode())
+            new_pdf = base64.b64decode(sanitise_response['file'].encode())
         except JSONDecodeError:
             new_pdf = sanitise_response.content
 
-        redaction_failed_message = sanitise_response.get("redaction_failed_message")
+        redaction_failed_message = sanitise_response.get('redaction_failed_message')
         if redaction_failed_message and not is_test_key:
             current_app.logger.info(
                 '%s for notification id %s (%s)', redaction_failed_message, notification.id, filename
@@ -248,55 +238,50 @@ def process_virus_scan_passed(self, filename):
         _move_invalid_letter_and_update_status(notification, filename, scan_pdf_object)
         return
     else:
-        current_app.logger.info(
-            "Validation was successful for precompiled pdf %s (%s)", notification.id, filename)
+        current_app.logger.info('Validation was successful for precompiled pdf %s (%s)', notification.id, filename)
 
     current_app.logger.info('notification id %s (%s) sanitised and ready to send', notification.id, filename)
 
     try:
-        _upload_pdf_to_test_or_live_pdf_bucket(
-            new_pdf,
-            filename,
-            is_test_letter=is_test_key)
+        _upload_pdf_to_test_or_live_pdf_bucket(new_pdf, filename, is_test_letter=is_test_key)
 
         update_letter_pdf_status(
             reference=reference,
             status=NOTIFICATION_DELIVERED if is_test_key else NOTIFICATION_CREATED,
-            billable_units=billable_units
+            billable_units=billable_units,
         )
         scan_pdf_object.delete()
     except BotoClientError:
-        current_app.logger.exception(
-            "Error uploading letter to live pdf bucket for notification: %s", notification.id
-        )
+        current_app.logger.exception('Error uploading letter to live pdf bucket for notification: %s', notification.id)
         update_notification_status_by_id(
-            notification.id,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            status_reason="Internal server error"
+            notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Internal server error'
         )
 
 
-def _move_invalid_letter_and_update_status(notification, filename, scan_pdf_object):
+def _move_invalid_letter_and_update_status(
+    notification,
+    filename,
+    scan_pdf_object,
+):
     try:
         move_scan_to_invalid_pdf_bucket(filename)
         scan_pdf_object.delete()
 
         update_letter_pdf_status(
-            reference=notification.reference,
-            status=NOTIFICATION_VALIDATION_FAILED,
-            billable_units=0)
+            reference=notification.reference, status=NOTIFICATION_VALIDATION_FAILED, billable_units=0
+        )
     except BotoClientError:
-        current_app.logger.exception(
-            "Error when moving letter with id %s to invalid PDF bucket", notification.id
-        )
+        current_app.logger.exception('Error when moving letter with id %s to invalid PDF bucket', notification.id)
         update_notification_status_by_id(
-            notification.id,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            status_reason="Internal server error"
+            notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Internal server error'
         )
 
 
-def _upload_pdf_to_test_or_live_pdf_bucket(pdf_data, filename, is_test_letter):
+def _upload_pdf_to_test_or_live_pdf_bucket(
+    pdf_data,
+    filename,
+    is_test_letter,
+):
     target_bucket_config = 'TEST_LETTERS_BUCKET_NAME' if is_test_letter else 'LETTERS_PDF_BUCKET_NAME'
     target_bucket_name = current_app.config[target_bucket_config]
     target_filename = get_folder_name(datetime.utcnow(), is_test_letter) + filename
@@ -305,19 +290,25 @@ def _upload_pdf_to_test_or_live_pdf_bucket(pdf_data, filename, is_test_letter):
         filedata=pdf_data,
         region=current_app.config['AWS_REGION'],
         bucket_name=target_bucket_name,
-        file_location=target_filename
+        file_location=target_filename,
     )
 
 
-def _sanitise_precompiled_pdf(self, notification, precompiled_pdf):
+def _sanitise_precompiled_pdf(
+    self,
+    notification,
+    precompiled_pdf,
+):
     try:
         response = requests_post(
             '{}/precompiled/sanitise'.format(current_app.config['TEMPLATE_PREVIEW_API_HOST']),
             data=precompiled_pdf,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY']),
-                     'Service-ID': str(notification.service_id),
-                     'Notification-ID': str(notification.id)},
-            timeout=(3.05, 1)
+            headers={
+                'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY']),
+                'Service-ID': str(notification.service_id),
+                'Notification-ID': str(notification.id),
+            },
+            timeout=(3.05, 1),
         )
         response.raise_for_status()
         return response
@@ -325,20 +316,19 @@ def _sanitise_precompiled_pdf(self, notification, precompiled_pdf):
         current_app.logger.exception(e)
 
         if e.response is not None and e.response.status_code == 400:
-            message = f"sanitise_precompiled_pdf validation error for notification: {notification.id}."
-            if "message" in response.json():
-                message += ' ' + response.json()["message"]
+            message = f'sanitise_precompiled_pdf validation error for notification: {notification.id}.'
+            if 'message' in response.json():
+                message += ' ' + response.json()['message']
 
             current_app.logger.error(message)
             return None
 
         try:
-            current_app.logger.error("sanitise_precompiled_pdf failed for notification: %s", notification.id)
+            current_app.logger.error('sanitise_precompiled_pdf failed for notification: %s', notification.id)
             self.retry(queue=QueueNames.RETRY)
         except MaxRetriesExceededError:
             current_app.logger.error(
-                "RETRY FAILED: sanitise_precompiled_pdf failed for notification %s",
-                notification.id
+                'RETRY FAILED: sanitise_precompiled_pdf failed for notification %s', notification.id
             )
             notification.status = NOTIFICATION_TECHNICAL_FAILURE
             dao_update_notification(notification)
@@ -354,7 +344,7 @@ def process_virus_scan_failed(filename):
 
     if updated_count != 1:
         raise Exception(
-            "There should only be one letter notification for each reference. Found {} notifications".format(
+            'There should only be one letter notification for each reference. Found {} notifications'.format(
                 updated_count
             )
         )
@@ -373,7 +363,7 @@ def process_virus_scan_error(filename):
 
     if updated_count != 1:
         raise Exception(
-            "There should only be one letter notification for each reference. Found {} notifications".format(
+            'There should only be one letter notification for each reference. Found {} notifications'.format(
                 updated_count
             )
         )
@@ -382,14 +372,15 @@ def process_virus_scan_error(filename):
     raise error
 
 
-def update_letter_pdf_status(reference, status, billable_units):
+def update_letter_pdf_status(
+    reference,
+    status,
+    billable_units,
+):
     return dao_update_notifications_by_reference(
         references=[reference],
-        update_dict={
-            'status': status,
-            'billable_units': billable_units,
-            'updated_at': datetime.utcnow()
-        })[0]
+        update_dict={'status': status, 'billable_units': billable_units, 'updated_at': datetime.utcnow()},
+    )[0]
 
 
 def replay_letters_in_error(filename=None):
@@ -398,7 +389,7 @@ def replay_letters_in_error(filename=None):
     if filename:
         move_error_pdf_to_scan_bucket(filename)
         # call task to add the filename to anti virus queue
-        current_app.logger.info("Calling scan_file for: %s", filename)
+        current_app.logger.info('Calling scan_file for: %s', filename)
 
         if current_app.config['ANTIVIRUS_ENABLED']:
             notify_celery.send_task(
@@ -416,7 +407,7 @@ def replay_letters_in_error(filename=None):
         error_files = get_file_names_from_error_bucket()
         for item in error_files:
             moved_file_name = item.key.split('/')[1]
-            current_app.logger.info("Calling scan_file for: %s", moved_file_name)
+            current_app.logger.info('Calling scan_file for: %s', moved_file_name)
             move_error_pdf_to_scan_bucket(moved_file_name)
             # call task to add the filename to anti virus queue
             if current_app.config['ANTIVIRUS_ENABLED']:

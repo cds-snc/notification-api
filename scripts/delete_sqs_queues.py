@@ -25,15 +25,13 @@ import boto3
 import csv
 from datetime import datetime
 
-FILE_NAME = "/tmp/queues.csv"
+FILE_NAME = '/tmp/queues.csv'
 
 client = boto3.client('sqs', region_name='eu-west-1')
 
 
 def _formatted_date_from_timestamp(timestamp):
-    return datetime.fromtimestamp(
-        int(timestamp)
-    ).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S')
 
 
 def get_queues():
@@ -43,12 +41,7 @@ def get_queues():
 
 
 def get_queue_attributes(queue_name):
-    response = client.get_queue_attributes(
-        QueueUrl=queue_name,
-        AttributeNames=[
-            'All'
-        ]
-    )
+    response = client.get_queue_attributes(QueueUrl=queue_name, AttributeNames=['All'])
     queue_attributes = response['Attributes']
     queue_attributes.update({'QueueUrl': queue_name})
     return queue_attributes
@@ -56,15 +49,14 @@ def get_queue_attributes(queue_name):
 
 def delete_queue(queue_url):
     # Note that deleting a queue returns 200 OK if it doesn't exist
-    print("DELETEING {}".format(queue_url))
-    response = client.delete_queue(
-        QueueUrl=queue_url
-    )
+    print('DELETEING {}'.format(queue_url))
+    response = client.delete_queue(QueueUrl=queue_url)
     if response['ResponseMetadata']['HTTPStatusCode'] == 200:
         print('Deleted queue successfully {}'.format(response['ResponseMetadata']))
     else:
         print('Error occured when attempting to delete queue')
         from pprint import pprint
+
         pprint(response)
     return response
 
@@ -77,19 +69,21 @@ def output_to_csv(queue_attributes):
             'Number of Messages',
             'Number of Messages Delayed',
             'Number of Messages Not Visible',
-            'Created'
+            'Created',
         ]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
         for queue_attr in queue_attributes:
-            writer.writerow({
-                'Queue Name': queue_attr['QueueArn'],
-                'Queue URL': queue_attr['QueueUrl'],
-                'Number of Messages': queue_attr['ApproximateNumberOfMessages'],
-                'Number of Messages Delayed': queue_attr['ApproximateNumberOfMessagesDelayed'],
-                'Number of Messages Not Visible': queue_attr['ApproximateNumberOfMessagesNotVisible'],
-                'Created': _formatted_date_from_timestamp(queue_attr['CreatedTimestamp'])
-            })
+            writer.writerow(
+                {
+                    'Queue Name': queue_attr['QueueArn'],
+                    'Queue URL': queue_attr['QueueUrl'],
+                    'Number of Messages': queue_attr['ApproximateNumberOfMessages'],
+                    'Number of Messages Delayed': queue_attr['ApproximateNumberOfMessagesDelayed'],
+                    'Number of Messages Not Visible': queue_attr['ApproximateNumberOfMessagesNotVisible'],
+                    'Created': _formatted_date_from_timestamp(queue_attr['CreatedTimestamp']),
+                }
+            )
 
 
 def read_from_csv():
@@ -102,7 +96,7 @@ def read_from_csv():
     return queue_urls
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     arguments = docopt(__doc__)
 
     if arguments['<action>'] == 'list':
@@ -116,5 +110,5 @@ if __name__ == "__main__":
         for queue in queues_to_delete:
             delete_queue(queue)
     else:
-        print("UNKNOWN COMMAND")
+        print('UNKNOWN COMMAND')
         exit(1)

@@ -1,7 +1,4 @@
-from datetime import (
-    datetime,
-    timedelta
-)
+from datetime import datetime, timedelta
 
 import boto3
 from flask import current_app
@@ -43,20 +40,20 @@ from app.v2.errors import JobIncompleteError
 from app.va.identifier import IdentifierType
 
 
-@notify_celery.task(name="run-scheduled-jobs")
-@statsd(namespace="tasks")
+@notify_celery.task(name='run-scheduled-jobs')
+@statsd(namespace='tasks')
 def run_scheduled_jobs():
     try:
         for job in dao_set_scheduled_jobs_to_pending():
             process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
-            current_app.logger.info("Job ID {} added to process job queue".format(job.id))
+            current_app.logger.info('Job ID {} added to process job queue'.format(job.id))
     except SQLAlchemyError:
-        current_app.logger.exception("Failed to run scheduled jobs")
+        current_app.logger.exception('Failed to run scheduled jobs')
         raise
 
 
 @notify_celery.task(name='send-scheduled-notifications')
-@statsd(namespace="tasks")
+@statsd(namespace='tasks')
 def send_scheduled_notifications():
     try:
         scheduled_notifications = dao_get_scheduled_notifications()
@@ -64,43 +61,44 @@ def send_scheduled_notifications():
             send_notification_to_queue(notification, notification.service.research_mode)
             set_scheduled_notification_to_processed(notification.id)
         current_app.logger.info(
-            "Sent {} scheduled notifications to the provider queue".format(len(scheduled_notifications)))
+            'Sent {} scheduled notifications to the provider queue'.format(len(scheduled_notifications))
+        )
     except SQLAlchemyError:
-        current_app.logger.exception("Failed to send scheduled notifications")
+        current_app.logger.exception('Failed to send scheduled notifications')
         raise
 
 
-@notify_celery.task(name="delete-verify-codes")
-@statsd(namespace="tasks")
+@notify_celery.task(name='delete-verify-codes')
+@statsd(namespace='tasks')
 def delete_verify_codes():
     try:
         start = datetime.utcnow()
         deleted = delete_codes_older_created_more_than_a_day_ago()
         current_app.logger.info(
-            "Delete job started {} finished {} deleted {} verify codes".format(start, datetime.utcnow(), deleted)
+            'Delete job started {} finished {} deleted {} verify codes'.format(start, datetime.utcnow(), deleted)
         )
     except SQLAlchemyError:
-        current_app.logger.exception("Failed to delete verify codes")
+        current_app.logger.exception('Failed to delete verify codes')
         raise
 
 
-@notify_celery.task(name="delete-invitations")
-@statsd(namespace="tasks")
+@notify_celery.task(name='delete-invitations')
+@statsd(namespace='tasks')
 def delete_invitations():
     try:
         start = datetime.utcnow()
         deleted_invites = delete_invitations_created_more_than_two_days_ago()
         deleted_invites += delete_org_invitations_created_more_than_two_days_ago()
         current_app.logger.info(
-            "Delete job started {} finished {} deleted {} invitations".format(start, datetime.utcnow(), deleted_invites)
+            'Delete job started {} finished {} deleted {} invitations'.format(start, datetime.utcnow(), deleted_invites)
         )
     except SQLAlchemyError:
-        current_app.logger.exception("Failed to delete invitations")
+        current_app.logger.exception('Failed to delete invitations')
         raise
 
 
 @notify_celery.task(name='check-job-status')
-@statsd(namespace="tasks")
+@statsd(namespace='tasks')
 def check_job_status():
     """
     every x minutes do this check
@@ -120,7 +118,7 @@ def check_job_status():
         select(Job)
         .where(
             Job.job_status == JOB_STATUS_IN_PROGRESS,
-            and_(thirty_five_minutes_ago < Job.processing_started, Job.processing_started < thirty_minutes_ago)
+            and_(thirty_five_minutes_ago < Job.processing_started, Job.processing_started < thirty_minutes_ago),
         )
         .order_by(Job.processing_started)
     )
@@ -135,65 +133,63 @@ def check_job_status():
         job_ids.append(str(job.id))
 
     if job_ids:
-        notify_celery.send_task(
-            name=TaskNames.PROCESS_INCOMPLETE_JOBS,
-            args=(job_ids,),
-            queue=QueueNames.JOBS
-        )
-        raise JobIncompleteError("Job(s) {} have not completed.".format(job_ids))
+        notify_celery.send_task(name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=(job_ids,), queue=QueueNames.JOBS)
+        raise JobIncompleteError('Job(s) {} have not completed.'.format(job_ids))
 
 
 @notify_celery.task(name='replay-created-notifications')
-@statsd(namespace="tasks")
+@statsd(namespace='tasks')
 def replay_created_notifications():
     # if the notification has not be send after 24 hours + 15 minutes, then try to resend.
     resend_created_notifications_older_than = (60 * 60 * 24) + (60 * 15)
     for notification_type in (EMAIL_TYPE, SMS_TYPE):
-        notifications_to_resend = notifications_not_yet_sent(
-            resend_created_notifications_older_than,
-            notification_type
-        )
+        notifications_to_resend = notifications_not_yet_sent(resend_created_notifications_older_than, notification_type)
 
         if len(notifications_to_resend) > 0:
-            current_app.logger.info("Sending {} {} notifications "
-                                    "to the delivery queue because the notification "
-                                    "status was created.".format(len(notifications_to_resend), notification_type))
+            current_app.logger.info(
+                'Sending {} {} notifications '
+                'to the delivery queue because the notification '
+                'status was created.'.format(len(notifications_to_resend), notification_type)
+            )
 
         for n in notifications_to_resend:
             send_notification_to_queue(notification=n, research_mode=n.service.research_mode)
 
 
 @notify_celery.task(name='check-precompiled-letter-state')
-@statsd(namespace="tasks")
+@statsd(namespace='tasks')
 def check_precompiled_letter_state():
     letters = dao_precompiled_letters_still_pending_virus_check()
 
     if len(letters) > 0:
         letter_ids = [str(letter.id) for letter in letters]
 
-        msg = "{} precompiled letters have been pending-virus-check for over 90 minutes. " \
-              "Notifications: {}".format(len(letters), letter_ids)
+        msg = '{} precompiled letters have been pending-virus-check for over 90 minutes. ' 'Notifications: {}'.format(
+            len(letters), letter_ids
+        )
 
         current_app.logger.exception(msg)
 
         if current_app.config['NOTIFY_ENVIRONMENT'] in ['live', 'production', 'test']:
             zendesk_client.create_ticket(
-                subject="[{}] Letters still pending virus check".format(current_app.config['NOTIFY_ENVIRONMENT']),
+                subject='[{}] Letters still pending virus check'.format(current_app.config['NOTIFY_ENVIRONMENT']),
                 message=msg,
-                ticket_type=zendesk_client.TYPE_INCIDENT
+                ticket_type=zendesk_client.TYPE_INCIDENT,
             )
 
 
 @notify_celery.task(name='check-templated-letter-state')
-@statsd(namespace="tasks")
+@statsd(namespace='tasks')
 def check_templated_letter_state():
     letters = dao_old_letters_with_created_status()
 
     if len(letters) > 0:
         letter_ids = [str(letter.id) for letter in letters]
 
-        msg = "{} letters were created before 17.30 yesterday and still have 'created' status. " \
-              "Notifications: {}".format(len(letters), letter_ids)
+        msg = (
+            "{} letters were created before 17.30 yesterday and still have 'created' status. "
+            'Notifications: {}'.format(len(letters), letter_ids)
+        )
 
         current_app.logger.exception(msg)
 
@@ -201,11 +197,14 @@ def check_templated_letter_state():
             zendesk_client.create_ticket(
                 subject="[{}] Letters still in 'created' status".format(current_app.config['NOTIFY_ENVIRONMENT']),
                 message=msg,
-                ticket_type=zendesk_client.TYPE_INCIDENT
+                ticket_type=zendesk_client.TYPE_INCIDENT,
             )
 
 
-def _get_dynamodb_comp_pen_messages(table, message_limit: int) -> list:
+def _get_dynamodb_comp_pen_messages(
+    table,
+    message_limit: int,
+) -> list:
     """
     Helper function to get the Comp and Pen data from our dynamodb cache table.
 
@@ -214,17 +213,15 @@ def _get_dynamodb_comp_pen_messages(table, message_limit: int) -> list:
     :return: a list of entries from the table that have not been processed yet
     """
 
-    results = table.scan(
-        FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False),
-        Limit=message_limit
-    )
+    results = table.scan(FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False), Limit=message_limit)
 
     items: list = results.get('Items')
 
     if items is None:
         current_app.logger.critical(
             'Error in _get_dynamodb_comp_pen_messages trying to read "Items" from dynamodb table scan result. '
-            'Returned results does not include "Items" - results: %s', results
+            'Returned results does not include "Items" - results: %s',
+            results,
         )
         return []
 
@@ -233,7 +230,7 @@ def _get_dynamodb_comp_pen_messages(table, message_limit: int) -> list:
         results = table.scan(
             FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False),
             Limit=message_limit,
-            ExclusiveStartKey=results['LastEvaluatedKey']
+            ExclusiveStartKey=results['LastEvaluatedKey'],
         )
 
         items.extend(results['Items'])
@@ -267,7 +264,9 @@ def send_scheduled_comp_and_pen_sms():
     except Exception as e:
         current_app.logger.critical(
             'Exception trying to scan dynamodb table for send_scheduled_comp_and_pen_sms exception_type: %s - '
-            'exception_message: %s', type(e), e
+            'exception_message: %s',
+            type(e),
+            e,
         )
         return
 
@@ -276,7 +275,8 @@ def send_scheduled_comp_and_pen_sms():
     # stop if there are no messages
     if not comp_and_pen_messages:
         current_app.logger.info(
-            'No Comp and Pen messages to send via send_scheduled_comp_and_pen_sms task. Exiting task.')
+            'No Comp and Pen messages to send via send_scheduled_comp_and_pen_sms task. Exiting task.'
+        )
         return
 
     try:
@@ -285,19 +285,25 @@ def send_scheduled_comp_and_pen_sms():
     except NoResultFound as e:
         current_app.logger.error(
             'No results found in task send_scheduled_comp_and_pen_sms attempting to lookup service or template. Exiting'
-            ' - exception: %s', e)
+            ' - exception: %s',
+            e,
+        )
         return
     except Exception as e:
         current_app.logger.critical(
             'Error in task send_scheduled_comp_and_pen_sms attempting to lookup service or template Exiting - '
-            'exception: %s', e)
+            'exception: %s',
+            e,
+        )
         return
 
     # send messages and update entries in dynamodb table
     for item in comp_and_pen_messages:
         current_app.logger.info(
             'sending - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
-            item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id')
+            item.get('vaprofile_id'),
+            item.get('participant_id'),
+            item.get('payment_id'),
         )
 
         try:
@@ -310,7 +316,7 @@ def send_scheduled_comp_and_pen_sms():
                 sms_sender_id=service.get_default_sms_sender_id(),
                 recipient_item={
                     'id_type': IdentifierType.VA_PROFILE_ID.value,
-                    'id_value': str(item.get('vaprofile_id'))
+                    'id_value': str(item.get('vaprofile_id')),
                 },
             )
         except Exception as e:
@@ -318,26 +324,27 @@ def send_scheduled_comp_and_pen_sms():
                 'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
                 'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
                 'exception: %s',
-                item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id'), type(e), e
+                item.get('vaprofile_id'),
+                item.get('participant_id'),
+                item.get('payment_id'),
+                type(e),
+                e,
             )
         else:
             current_app.logger.info(
                 'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
-                item.get('vaprofile_id'), item.get('participant_id'), item.get('payment_id')
+                item.get('vaprofile_id'),
+                item.get('participant_id'),
+                item.get('payment_id'),
             )
 
         # update dynamodb entries
         try:
             updated_item = table.update_item(
-                Key={
-                    'participant_id': item.get('participant_id'),
-                    'payment_id': item.get('payment_id')
-                },
+                Key={'participant_id': item.get('participant_id'), 'payment_id': item.get('payment_id')},
                 UpdateExpression='SET is_processed = :val',
-                ExpressionAttributeValues={
-                    ':val': True
-                },
-                ReturnValues='ALL_NEW'
+                ExpressionAttributeValues={':val': True},
+                ReturnValues='ALL_NEW',
             )
 
             current_app.logger.info('updated_item from dynamodb ("is_processed" shouldb be "True"): %s', updated_item)
@@ -345,5 +352,8 @@ def send_scheduled_comp_and_pen_sms():
             current_app.logger.critical(
                 'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '
                 'exception_type: %s exception_message: %s',
-                item.get('participant_id'), item.get('payment_id'), type(e), e
+                item.get('participant_id'),
+                item.get('payment_id'),
+                type(e),
+                e,
             )

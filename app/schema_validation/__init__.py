@@ -15,7 +15,7 @@ from uuid import UUID
 format_checker = FormatChecker()
 
 
-@format_checker.checks("validate_uuid", raises=Exception)
+@format_checker.checks('validate_uuid', raises=Exception)
 def validate_uuid(instance):
     if isinstance(instance, str):
         UUID(instance)
@@ -39,8 +39,8 @@ def validate_schema_email_address(instance):
 @format_checker.checks('postage', raises=ValidationError)
 def validate_schema_postage(instance):
     if isinstance(instance, str):
-        if instance not in ["first", "second"]:
-            raise ValidationError("invalid. It must be either first or second.")
+        if instance not in ['first', 'second']:
+            raise ValidationError('invalid. It must be either first or second.')
     return True
 
 
@@ -50,25 +50,30 @@ def validate_schema_date_with_hour(instance):
         try:
             dt = iso8601.parse_date(instance).replace(tzinfo=None)
             if dt < datetime.utcnow():
-                raise ValidationError("datetime can not be in the past")
+                raise ValidationError('datetime can not be in the past')
             if dt > datetime.utcnow() + timedelta(hours=24):
-                raise ValidationError("datetime can only be 24 hours in the future")
+                raise ValidationError('datetime can only be 24 hours in the future')
         except ParseError:
-            raise ValidationError("datetime format is invalid. It must be a valid ISO8601 date time format, "
-                                  "https://en.wikipedia.org/wiki/ISO_8601")
+            raise ValidationError(
+                'datetime format is invalid. It must be a valid ISO8601 date time format, '
+                'https://en.wikipedia.org/wiki/ISO_8601'
+            )
     return True
 
 
-def validate(json_to_validate, schema):
+def validate(
+    json_to_validate,
+    schema,
+):
     validator = Draft7Validator(schema, format_checker=format_checker)
     errors = list(validator.iter_errors(json_to_validate))
     if len(errors) > 0:
-        if isinstance(json_to_validate, dict) and "personalisation" in json_to_validate:
-            if isinstance(json_to_validate["personalisation"], str):
-                json_to_validate["personalisation"] = "<redacted>"
-            elif isinstance(json_to_validate["personalisation"], dict):
-                json_to_validate["personalisation"] = {key: "<redacted>" for key in json_to_validate["personalisation"]}
-        current_app.logger.info("Validation failed for: %s", json_to_validate)
+        if isinstance(json_to_validate, dict) and 'personalisation' in json_to_validate:
+            if isinstance(json_to_validate['personalisation'], str):
+                json_to_validate['personalisation'] = '<redacted>'
+            elif isinstance(json_to_validate['personalisation'], dict):
+                json_to_validate['personalisation'] = {key: '<redacted>' for key in json_to_validate['personalisation']}
+        current_app.logger.info('Validation failed for: %s', json_to_validate)
         raise ValidationError(build_error_message(errors))
 
     # TODO - This assumes that json_to_validate is a dictionary.  It could raise AttributeError.
@@ -77,10 +82,7 @@ def validate(json_to_validate, schema):
             json_to_validate.get('personalisation', {})
         )
         if len(errors) > 0:
-            error_message = json.dumps({
-                "status_code": 400,
-                "errors": errors
-            })
+            error_message = json.dumps({'status_code': 400, 'errors': errors})
             raise ValidationError(error_message)
     return json_to_validate
 
@@ -99,11 +101,8 @@ def build_error_message(errors):
                 error_message = e.schema['validationMessage'][e.validator]
             else:
                 error_message = __format_message(e)
-        fields.append({"error": "ValidationError", "message": error_message})
-    message = {
-        "status_code": 400,
-        "errors": unique_errors(fields)
-    }
+        fields.append({'error': 'ValidationError', 'message': error_message})
+    message = {'status_code': 400, 'errors': unique_errors(fields)}
 
     return json.dumps(message)
 
@@ -135,6 +134,6 @@ def __format_message(e):
     path = get_path(e)
     message = get_error_message(e)
     if path:
-        return "{} {}".format(path, message)
+        return '{} {}'.format(path, message)
     else:
-        return "{}".format(message)
+        return '{}'.format(message)

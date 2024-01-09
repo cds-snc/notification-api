@@ -28,12 +28,7 @@ def test_should_be_none_if_unrecognised_status_code():
 
 def test_send_sms_successful_returns_firetext_response(mocker, mock_firetext_client):
     to = content = reference = 'foo'
-    response_dict = {
-        'data': [],
-        'description': 'SMS successfully queued',
-        'code': 0,
-        'responseData': 1
-    }
+    response_dict = {'data': [], 'description': 'SMS successfully queued', 'code': 0, 'responseData': 1}
 
     with requests_mock.Mocker() as request_mock:
         request_mock.post('https://example.com/firetext', json=response_dict, status_code=200)
@@ -71,12 +66,7 @@ def test_send_sms_calls_firetext_correctly(mocker, mock_firetext_client):
 
 def test_send_sms_raises_if_firetext_rejects(mocker, mock_firetext_client):
     to = content = reference = 'foo'
-    response_dict = {
-        'data': [],
-        'description': 'Some kind of error',
-        'code': 1,
-        'responseData': ''
-    }
+    response_dict = {'data': [], 'description': 'Some kind of error', 'code': 1, 'responseData': ''}
 
     with pytest.raises(SmsClientResponseException) as exc, requests_mock.Mocker() as request_mock:
         request_mock.post('https://example.com/firetext', json=response_dict, status_code=200)
@@ -89,7 +79,7 @@ def test_send_sms_raises_if_firetext_rejects(mocker, mock_firetext_client):
 
 def test_send_sms_raises_if_firetext_rejects_with_unexpected_data(mocker, mock_firetext_client):
     to = content = reference = 'foo'
-    response_dict = {"something": "gone bad"}
+    response_dict = {'something': 'gone bad'}
 
     with pytest.raises(SmsClientResponseException) as exc, requests_mock.Mocker() as request_mock:
         request_mock.post('https://example.com/firetext', json=response_dict, status_code=400)

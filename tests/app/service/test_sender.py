@@ -10,16 +10,9 @@ from tests.app.conftest import notify_service as create_notify_service
 from tests.app.db import create_service, create_template, create_user
 
 
-@pytest.mark.parametrize('notification_type', [
-    EMAIL_TYPE,
-    SMS_TYPE
-])
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 def test_send_notification_to_service_users_persists_notifications_correctly(
-    notify_db,
-    notify_db_session,
-    notification_type,
-    sample_service,
-    mocker
+    notify_db, notify_db_session, notification_type, sample_service, mocker
 ):
     mocker.patch('app.service.sender.send_notification_to_queue')
 
@@ -40,12 +33,7 @@ def test_send_notification_to_service_users_persists_notifications_correctly(
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
-def test_send_notification_to_service_users_sends_to_queue(
-    notify_db,
-    notify_db_session,
-    sample_service,
-    mocker
-):
+def test_send_notification_to_service_users_sends_to_queue(notify_db, notify_db_session, sample_service, mocker):
     send_mock = mocker.patch('app.service.sender.send_notification_to_queue')
 
     create_notify_service(notify_db, notify_db_session)
@@ -57,10 +45,7 @@ def test_send_notification_to_service_users_sends_to_queue(
 
 
 def test_send_notification_to_service_users_includes_user_fields_in_personalisation(
-    notify_db,
-    notify_db_session,
-    sample_service,
-    mocker
+    notify_db, notify_db_session, sample_service, mocker
 ):
     persist_mock = mocker.patch('app.service.sender.persist_notification')
     mocker.patch('app.service.sender.send_notification_to_queue')
@@ -70,9 +55,7 @@ def test_send_notification_to_service_users_includes_user_fields_in_personalisat
 
     template = create_template(sample_service, template_type=EMAIL_TYPE)
     send_notification_to_service_users(
-        service_id=sample_service.id,
-        template_id=template.id,
-        include_user_fields=['name', 'email_address', 'state']
+        service_id=sample_service.id, template_id=template.id, include_user_fields=['name', 'email_address', 'state']
     )
 
     persist_call = persist_mock.call_args_list[0][1]
@@ -85,11 +68,7 @@ def test_send_notification_to_service_users_includes_user_fields_in_personalisat
     }
 
 
-def test_send_notification_to_service_users_sends_to_active_users_only(
-    notify_db,
-    notify_db_session,
-    mocker
-):
+def test_send_notification_to_service_users_sends_to_active_users_only(notify_db, notify_db_session, mocker):
     mocker.patch('app.service.sender.send_notification_to_queue')
 
     create_notify_service(notify_db, notify_db_session)

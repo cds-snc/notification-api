@@ -11,4 +11,4 @@ def validate_communication_item_id(request: dict):
         try:
             get_communication_item(communication_item_id)
         except NoResultFound:
-            raise ValidationError(f"Invalid communication item id: {communication_item_id}")
+            raise ValidationError(f'Invalid communication item id: {communication_item_id}')

@@ -15,11 +15,8 @@ def save_complaint(complaint):
 
 
 def fetch_paginated_complaints(page=1):
-    return Complaint.query.order_by(
-        desc(Complaint.created_at)
-    ).paginate(
-        page=page,
-        per_page=current_app.config['PAGE_SIZE']
+    return Complaint.query.order_by(desc(Complaint.created_at)).paginate(
+        page=page, per_page=current_app.config['PAGE_SIZE']
     )
 
 
@@ -32,10 +29,16 @@ def fetch_complaints_by_service(service_id):
     return db.session.scalars(stmt).all()
 
 
-def fetch_count_of_complaints(start_date, end_date):
+def fetch_count_of_complaints(
+    start_date,
+    end_date,
+):
     start_date = get_local_timezone_midnight_in_utc(start_date)
     end_date = get_local_timezone_midnight_in_utc(end_date + timedelta(days=1))
 
-    stmt = select(func.count()).select_from(Complaint)\
-                               .where(Complaint.created_at >= start_date, Complaint.created_at < end_date)
+    stmt = (
+        select(func.count())
+        .select_from(Complaint)
+        .where(Complaint.created_at >= start_date, Complaint.created_at < end_date)
+    )
     return db.session.scalar(stmt)

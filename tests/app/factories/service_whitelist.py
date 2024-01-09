@@ -24,10 +24,7 @@ def sms_service_whitelist(service_id, phone_number=None):
 
 
 def a_service_whitelist(service_id):
-    generators = {
-        MOBILE_TYPE: sms_service_whitelist,
-        EMAIL_TYPE: email_service_whitelist
-    }
+    generators = {MOBILE_TYPE: sms_service_whitelist, EMAIL_TYPE: email_service_whitelist}
 
     type = choice(WHITELIST_RECIPIENT_TYPE)  # nosec
     return generators[type](service_id)

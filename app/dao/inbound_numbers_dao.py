@@ -21,7 +21,10 @@ def dao_get_inbound_numbers_for_service(service_id: str) -> List[InboundNumber]:
 
 
 @transactional
-def dao_set_inbound_number_active_flag(inbound_number_id: str, active: bool) -> None:
+def dao_set_inbound_number_active_flag(
+    inbound_number_id: str,
+    active: bool,
+) -> None:
     inbound_number = db.session.get(InboundNumber, inbound_number_id)
     inbound_number.active = active
 
@@ -34,7 +37,10 @@ def dao_create_inbound_number(inbound_number: InboundNumber):
 
 
 @transactional
-def dao_update_inbound_number(inbound_number_id: str, **kwargs) -> Optional[InboundNumber]:
+def dao_update_inbound_number(
+    inbound_number_id: str,
+    **kwargs,
+) -> Optional[InboundNumber]:
     stmt = update(InboundNumber).where(InboundNumber.id == inbound_number_id).values(**kwargs)
 
     db.session.execute(stmt)

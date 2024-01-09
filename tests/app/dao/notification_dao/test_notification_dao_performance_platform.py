@@ -51,11 +51,7 @@ def test_get_total_notifications_ignores_test_keys(sample_template):
 
 
 @freeze_time('2016-10-18T10:00')
-def test_get_total_notifications_ignores_letters(
-    sample_template,
-    sample_email_template,
-    sample_letter_template
-):
+def test_get_total_notifications_ignores_letters(sample_template, sample_email_template, sample_letter_template):
     # Creating multiple sms and email templates but only 1 letter template to
     # test that the count ignores letters
     create_notification(sample_template)

@@ -29,9 +29,9 @@ def test_get_email_branding_by_id_gets_correct_email_branding(notify_db, notify_
 
 
 def test_get_email_branding_by_name_gets_correct_email_branding(notify_db, notify_db_session):
-    email_branding = create_email_branding(name="Crystal Gems")
+    email_branding = create_email_branding(name='Crystal Gems')
 
-    email_branding_from_db = dao_get_email_branding_by_name("Crystal Gems")
+    email_branding_from_db = dao_get_email_branding_by_name('Crystal Gems')
 
     assert email_branding_from_db == email_branding
 

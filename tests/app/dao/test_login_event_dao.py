@@ -1,7 +1,4 @@
-from app.dao.login_event_dao import (
-    save_login_event,
-    list_login_events
-)
+from app.dao.login_event_dao import save_login_event, list_login_events
 from app.models import LoginEvent
 
 

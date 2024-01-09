@@ -16,6 +16,9 @@ def transform_user_to_identity_for_jwt(user: User):
 
 
 @jwt.user_lookup_loader
-def transform_jwt_to_user(_jwt_header, jwt_data) -> User:
+def transform_jwt_to_user(
+    _jwt_header,
+    jwt_data,
+) -> User:
     sub = jwt_data['sub']
     return get_user_by_id(user_id=sub['id'])

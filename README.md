@@ -116,6 +116,8 @@ This repository uses [pre-commit](https://pre-commit.com/) and [talisman](https:
 
 OSX users can run `brew bundle` and then `pre-commit install` to register the git hooks.  The configuration is stored in .pre-commit-config.yaml.
 
+Ruff has been added to the pre-commit hook in place of flake8. See [documentation](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/formatter.md) for setup.
+
 ### Building the production application container
 
 To verify that the production application container build should succeed during deployment, run:

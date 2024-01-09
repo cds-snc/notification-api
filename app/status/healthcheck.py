@@ -1,8 +1,4 @@
-from flask import (
-    jsonify,
-    Blueprint,
-    request
-)
+from flask import jsonify, Blueprint, request
 
 from app import db, version, provider_service
 from app.dao.services_dao import dao_count_live_services
@@ -18,18 +14,18 @@ status = Blueprint('status', __name__)
 @status.route('/_status', methods=['GET', 'POST'])
 def show_status():
     if request.args.get('simple', None):
-        return jsonify(status="ok"), 200
+        return jsonify(status='ok'), 200
     else:
         mobile_app_registry = MobileAppRegistry()
         return jsonify(
-            status="ok",  # This should be considered part of the public API
+            status='ok',  # This should be considered part of the public API
             git_commit=version.__git_commit__,
             build_time=version.__time__,
             email_strategy=provider_service.strategies[NotificationType.EMAIL].__name__,
             sms_strategy=provider_service.strategies[NotificationType.SMS].__name__,
             db_version=get_db_version(),
             redis=redis_check(),
-            mobile_apps=mobile_app_registry.get_registered_apps()
+            mobile_apps=mobile_app_registry.get_registered_apps(),
         ), 200
 
 

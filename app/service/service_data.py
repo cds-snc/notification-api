@@ -20,9 +20,9 @@ class ServiceDataException(Exception):
 
     def __init__(
         self,
-        message="Unable to create ServiceData object.",
+        message='Unable to create ServiceData object.',
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(message, *args, **kwargs)
 
@@ -55,7 +55,10 @@ class ServiceDataApiKey:
         updated_at (datetime): The timestamp when the API key was last updated.
     """
 
-    def __init__(self, key) -> None:
+    def __init__(
+        self,
+        key,
+    ) -> None:
         """
         Args:
             key (object): The object containing the necessary attributes for the API key.
@@ -69,9 +72,9 @@ class ServiceDataApiKey:
         self.secret = key.secret
 
         _service = {
-            "research_mode": key.service.research_mode,
-            "restricted": key.service.restricted,
-            "active": key.service.active,
+            'research_mode': key.service.research_mode,
+            'restricted': key.service.restricted,
+            'active': key.service.active,
         }
         self.service = SimpleNamespace(**_service)
         self.service_id = key.service_id
@@ -82,13 +85,18 @@ class ServiceDataApiKey:
         """
         Returns the User object for the API Key creator
         """
+
         # Without the wrapper function the ORM object detaches in some cases
         def lazyload():
             with get_reader_session() as session:
                 return session.execute(select(User).filter_by(id=self.created_by_id)).one()
+
         return lazyload
 
-    def __eq__(self, other: 'ServiceDataApiKey') -> bool:
+    def __eq__(
+        self,
+        other: 'ServiceDataApiKey',
+    ) -> bool:
         """
         Determines equality between two instances of ServiceDataApiKey.
 
@@ -108,12 +116,14 @@ class ServiceDataApiKey:
             bool: True if the instances have the same values for the relevant attributes, False otherwise.
         """
         if isinstance(other, ServiceDataApiKey):
-            return self.id == other.id\
-                and self.key_type == other.key_type\
-                and self.name == other.name\
-                and self.service_id == other.service_id\
-                and self.created_by_id == other.created_by_id\
+            return (
+                self.id == other.id
+                and self.key_type == other.key_type
+                and self.name == other.name
+                and self.service_id == other.service_id
+                and self.created_by_id == other.created_by_id
                 and self.secret == other.secret
+            )
         return False
 
 
@@ -144,7 +154,10 @@ class ServiceData:
         <List the methods here, if applicable>
     """
 
-    def __init__(self, result=None):
+    def __init__(
+        self,
+        result=None,
+    ):
         self.active = None
         self.permissions = None
         self.api_keys = None
@@ -162,7 +175,10 @@ class ServiceData:
             except Exception as err:
                 raise ServiceDataException(err)
 
-    def extract(self, result: Service) -> None:
+    def extract(
+        self,
+        result: Service,
+    ) -> None:
         """
         Extracts the necessary data from an authenticated service ORM object.
 
@@ -195,7 +211,10 @@ class ServiceData:
         """
         return json.dumps(self.__dict__)
 
-    def has_permissions(self, permissions_to_check_for: Union[str, List[str]]) -> bool:
+    def has_permissions(
+        self,
+        permissions_to_check_for: Union[str, List[str]],
+    ) -> bool:
         """
         Checks if the object has the specified permissions.
 
@@ -211,7 +230,10 @@ class ServiceData:
         return frozenset(permissions_to_check_for).issubset(frozenset(self.permissions))
 
     @classmethod
-    def deserialize(cls, json_string: str) -> 'ServiceData':
+    def deserialize(
+        cls,
+        json_string: str,
+    ) -> 'ServiceData':
         """
         Creates a new instance of the class using a JSON string.
         This method might be used after retrieval from caching, allowing the object to be reconstructed.

@@ -4,7 +4,7 @@ import pytest
 
 from lambda_functions.two_way_sms.two_way_sms_lambda import two_way_sms_handler
 
-VALID_TEST_RECIPIENT_PHONE_NUMBER = "+16502532222"
+VALID_TEST_RECIPIENT_PHONE_NUMBER = '+16502532222'
 
 
 @pytest.fixture(scope='function')
@@ -30,9 +30,9 @@ def test_handler_with_sns_and_start_keyword_success(mocker, mock_boto):
                 'access-control-allow-origin': '*',
                 'x-amz-apigw-id': 'other-id',
                 'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
+                'x-amzn-trace-id': 'trace-id',
             },
-            'RetryAttempts': 0
+            'RetryAttempts': 0,
         },
         'MessageResponse': {
             'ApplicationId': 'test-app-id',
@@ -42,10 +42,10 @@ def test_handler_with_sns_and_start_keyword_success(mocker, mock_boto):
                     'DeliveryStatus': 'SUCCESSFUL',
                     'MessageId': 'test-message-id',
                     'StatusCode': 200,
-                    'StatusMessage': 'MessageId: test-message-id'
+                    'StatusMessage': 'MessageId: test-message-id',
                 }
-            }
-        }
+            },
+        },
     }
 
     mock_sns.opt_in_phone_number.return_value = mock_success_response
@@ -68,30 +68,31 @@ def test_handler_with_sns_start_keyword_failure(mocker, mock_boto):
     mock_sns = mocker.Mock()
     failure_response = {
         'Error': {
-            "Code": 400,
+            'Code': 400,
             'Message': {
                 'RequestID': 'id',
-                'Message': "BadRequestException",
-            }
+                'Message': 'BadRequestException',
+            },
         },
         'ResponseMetadata': {
             'RequestId': 'request-id',
             'HTTPStatusCode': 400,
             'HTTPHeaders': {
                 'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
-                'content-type': 'application/json', 'content-length': '303',
+                'content-type': 'application/json',
+                'content-length': '303',
                 'connection': 'keep-alive',
                 'x-amzn-requestid': 'request-id',
                 'access-control-allow-origin': '*',
                 'x-amz-apigw-id': 'some-id',
                 'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
+                'x-amzn-trace-id': 'trace-id',
             },
-            'RetryAttempts': 0
-        }
+            'RetryAttempts': 0,
+        },
     }
 
-    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
+    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, 'exception')
 
     event = create_event('start')
 
@@ -100,7 +101,7 @@ def test_handler_with_sns_start_keyword_failure(mocker, mock_boto):
     with pytest.raises(Exception) as exception:
         two_way_sms_handler(event, mocker.Mock())
 
-    assert str(failure_response["ResponseMetadata"]["HTTPStatusCode"]) in str(exception.value)
+    assert str(failure_response['ResponseMetadata']['HTTPStatusCode']) in str(exception.value)
 
 
 def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
@@ -113,15 +114,16 @@ def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
             'HTTPStatusCode': 200,
             'HTTPHeaders': {
                 'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
-                'content-type': 'application/json', 'content-length': '303',
+                'content-type': 'application/json',
+                'content-length': '303',
                 'connection': 'keep-alive',
                 'x-amzn-requestid': 'request-id',
                 'access-control-allow-origin': '*',
                 'x-amz-apigw-id': 'Z4vkMEaxPHMFvkg=',
                 'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
+                'x-amzn-trace-id': 'trace-id',
             },
-            'RetryAttempts': 0
+            'RetryAttempts': 0,
         },
         'MessageResponse': {
             'ApplicationId': 'pinpoint-project-id',
@@ -131,9 +133,10 @@ def test_handler_with_sns_start_keyword_permanent_failure(mocker, mock_boto):
                     'DeliveryStatus': 'PERMANENT_FAILURE',
                     'MessageId': 'message-id',
                     'StatusCode': 400,
-                    'StatusMessage': 'Phone number is opted out'}
-            }
-        }
+                    'StatusMessage': 'Phone number is opted out',
+                }
+            },
+        },
     }
 
     mock_sns.opt_in_phone_number.return_value = mock_failure_response
@@ -158,36 +161,37 @@ def test_sns_submits_to_topic_when_opt_in_phone_number_throws_client_exception(m
 
     failure_response = {
         'Error': {
-            "Code": 400,
+            'Code': 400,
             'Message': {
                 'RequestID': 'id',
-                'Message': "InvalidParameter",
-            }
+                'Message': 'InvalidParameter',
+            },
         },
         'ResponseMetadata': {
             'RequestId': 'request-id',
             'HTTPStatusCode': 400,
             'HTTPHeaders': {
                 'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
-                'content-type': 'application/json', 'content-length': '303',
+                'content-type': 'application/json',
+                'content-length': '303',
                 'connection': 'keep-alive',
                 'x-amzn-requestid': 'request-id',
                 'access-control-allow-origin': '*',
                 'x-amz-apigw-id': 'some-id',
                 'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
+                'x-amzn-trace-id': 'trace-id',
             },
-            'RetryAttempts': 0
-        }
+            'RetryAttempts': 0,
+        },
     }
 
     expected_error_message = {
         'sns_opt_in_request_id': failure_response['ResponseMetadata']['RequestId'],
         'error_code': failure_response['Error']['Code'],
-        'error_message': failure_response['Error']['Message']
+        'error_message': failure_response['Error']['Message'],
     }
 
-    mock_sns.opt_in_phone_number.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
+    mock_sns.opt_in_phone_number.side_effect = botocore.exceptions.ClientError(failure_response, 'exception')
 
     event = create_event('start')
 
@@ -196,9 +200,7 @@ def test_sns_submits_to_topic_when_opt_in_phone_number_throws_client_exception(m
     two_way_sms_handler(event, mocker.Mock())
 
     mock_sns.publish.assert_called_once_with(
-        TopicArn='test-failure-topic-arn',
-        Message=json.dumps(expected_error_message),
-        Subject='AWS SNS Opt-in Failure'
+        TopicArn='test-failure-topic-arn', Message=json.dumps(expected_error_message), Subject='AWS SNS Opt-in Failure'
     )
 
 
@@ -211,15 +213,16 @@ def test_handler_with_sns_start_keyword_already_opted_in(mocker, mock_boto):
             'HTTPStatusCode': 200,
             'HTTPHeaders': {
                 'date': 'Fri, 29 Jan 2021 01:07:00 GMT',
-                'content-type': 'application/json', 'content-length': '303',
+                'content-type': 'application/json',
+                'content-length': '303',
                 'connection': 'keep-alive',
                 'x-amzn-requestid': 'request-id',
                 'access-control-allow-origin': '*',
                 'x-amz-apigw-id': 'some id',
                 'cache-control': 'no-store',
-                'x-amzn-trace-id': 'trace-id'
+                'x-amzn-trace-id': 'trace-id',
             },
-            'RetryAttempts': 0
+            'RetryAttempts': 0,
         }
     }
 
@@ -246,7 +249,7 @@ def test_handler_with_pinpoint_and_unsupported_keyword_success(mocker, mock_boto
                     'MessageId': 'test-message-id',
                     'StatusCode': 200,
                     'StatusMessage': 'MessageId: test-message-id',
-                    'UpdatedToken': 'some token'
+                    'UpdatedToken': 'some token',
                 }
             },
             'RequestId': 'request-id',
@@ -255,9 +258,9 @@ def test_handler_with_pinpoint_and_unsupported_keyword_success(mocker, mock_boto
                     'DeliveryStatus': 'SUCCESSFUL',
                     'MessageId': 'test-message-id',
                     'StatusCode': 200,
-                    'StatusMessage': 'MessageId: test-message-id'
+                    'StatusMessage': 'MessageId: test-message-id',
                 }
-            }
+            },
         }
     }
 
@@ -275,25 +278,25 @@ def test_handler_with_pinpoint_and_unsupported_keyword_failure(mocker, mock_boto
     mock_pinpoint = mocker.Mock()
     failure_response = {
         'Error': {
-            "Code": 400,
+            'Code': 400,
             'Message': {
                 'RequestID': 'id',
-                'Message': "BadRequestException",
-            }
+                'Message': 'BadRequestException',
+            },
         }
     }
 
     mock_boto.client.return_value = mock_pinpoint
 
-    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, "exception")
+    mock_boto.client.side_effect = botocore.exceptions.ClientError(failure_response, 'exception')
 
     event = create_event('other words')
 
     with pytest.raises(Exception) as exception:
         two_way_sms_handler(event, mocker.Mock())
 
-    assert str(failure_response["Error"]["Code"]) in str(exception.value)
-    assert str(failure_response["Error"]["Message"]["Message"]) in str(exception.value)
+    assert str(failure_response['Error']['Code']) in str(exception.value)
+    assert str(failure_response['Error']['Message']['Message']) in str(exception.value)
 
 
 def create_event(message_body: str) -> dict:
@@ -309,27 +312,22 @@ def create_event(message_body: str) -> dict:
                     'Signature': 'some signature',
                     'SigningCertUrl': 'some_url',
                     'MessageId': 'message-id',
-                    'Message': '{'f'\"originationNumber\":\"{VALID_TEST_RECIPIENT_PHONE_NUMBER}\",'
-                               '\"destinationNumber\":\"+from_number\",'
-                               '\"messageKeyword\":\"keyword_blah\",'
-                               f'\"messageBody\":\"{message_body}\",'
-                               '\"inboundMessageId\":\"inbound-message-id\",'
-                               '\"previousPublishedMessageId\":\"prev-pub-msg-id\"}',
+                    'Message': '{'
+                    f'"originationNumber":"{VALID_TEST_RECIPIENT_PHONE_NUMBER}",'
+                    '"destinationNumber":"+from_number",'
+                    '"messageKeyword":"keyword_blah",'
+                    f'"messageBody":"{message_body}",'
+                    '"inboundMessageId":"inbound-message-id",'
+                    '"previousPublishedMessageId":"prev-pub-msg-id"}',
                     'MessageAttributes': {
-                        'Test': {
-                            'Type': 'String',
-                            'Value': 'TestString'
-                        },
-                        'TestBinary': {
-                            'Type': 'Binary',
-                            'Value': 'TestBinary'
-                        }
+                        'Test': {'Type': 'String', 'Value': 'TestString'},
+                        'TestBinary': {'Type': 'Binary', 'Value': 'TestBinary'},
                     },
                     'Type': 'Notification',
                     'UnsubscribeUrl': 'some_url',
                     'TopicArn': 'some-arn',
-                    'Subject': 'some-test-thing'
-                }
+                    'Subject': 'some-test-thing',
+                },
             }
         ]
     }

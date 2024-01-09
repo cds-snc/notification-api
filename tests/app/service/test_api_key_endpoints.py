@@ -14,12 +14,14 @@ def test_api_key_should_create_new_api_key_for_service(notify_api, sample_servic
             data = {
                 'name': 'some secret name',
                 'created_by': str(sample_service.created_by.id),
-                'key_type': KEY_TYPE_NORMAL
+                'key_type': KEY_TYPE_NORMAL,
             }
             auth_header = create_authorization_header()
-            response = client.post(url_for('service.create_api_key', service_id=sample_service.id),
-                                   data=json.dumps(data),
-                                   headers=[('Content-Type', 'application/json'), auth_header])
+            response = client.post(
+                url_for('service.create_api_key', service_id=sample_service.id),
+                data=json.dumps(data),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response.status_code == 201
             assert 'data' in json.loads(response.get_data(as_text=True))
             saved_api_key = ApiKey.query.filter_by(service_id=sample_service.id).first()
@@ -31,23 +33,25 @@ def test_api_key_should_return_error_when_service_does_not_exist(notify_api, sam
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             import uuid
+
             missing_service_id = uuid.uuid4()
             auth_header = create_authorization_header()
-            response = client.post(url_for('service.create_api_key', service_id=missing_service_id),
-                                   headers=[('Content-Type', 'application/json'), auth_header])
+            response = client.post(
+                url_for('service.create_api_key', service_id=missing_service_id),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response.status_code == 404
 
 
 def test_create_api_key_without_key_type_rejects(notify_api, sample_service):
     with notify_api.test_request_context(), notify_api.test_client() as client:
-        data = {
-            'name': 'some secret name',
-            'created_by': str(sample_service.created_by.id)
-        }
+        data = {'name': 'some secret name', 'created_by': str(sample_service.created_by.id)}
         auth_header = create_authorization_header()
-        response = client.post(url_for('service.create_api_key', service_id=sample_service.id),
-                               data=json.dumps(data),
-                               headers=[('Content-Type', 'application/json'), auth_header])
+        response = client.post(
+            url_for('service.create_api_key', service_id=sample_service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'), auth_header],
+        )
         assert response.status_code == 400
         json_resp = json.loads(response.get_data(as_text=True))
         assert json_resp['result'] == 'error'
@@ -60,12 +64,8 @@ def test_revoke_should_expire_api_key_for_service(notify_api, sample_api_key):
             assert ApiKey.query.count() == 1
             auth_header = create_authorization_header()
             response = client.post(
-                url_for(
-                    'service.revoke_api_key',
-                    service_id=sample_api_key.service_id,
-                    api_key_id=sample_api_key.id
-                ),
-                headers=[auth_header]
+                url_for('service.revoke_api_key', service_id=sample_api_key.service_id, api_key_id=sample_api_key.id),
+                headers=[auth_header],
             )
 
             # "Accepted" status code
@@ -82,20 +82,24 @@ def test_api_key_should_create_multiple_new_api_key_for_service(notify_api, samp
             data = {
                 'name': 'some secret name',
                 'created_by': str(sample_service.created_by.id),
-                'key_type': KEY_TYPE_NORMAL
+                'key_type': KEY_TYPE_NORMAL,
             }
             auth_header = create_authorization_header()
-            response = client.post(url_for('service.create_api_key', service_id=sample_service.id),
-                                   data=json.dumps(data),
-                                   headers=[('Content-Type', 'application/json'), auth_header])
+            response = client.post(
+                url_for('service.create_api_key', service_id=sample_service.id),
+                data=json.dumps(data),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response.status_code == 201
             assert ApiKey.query.count() == 1
 
             data['name'] = 'another secret name'
             auth_header = create_authorization_header()
-            response2 = client.post(url_for('service.create_api_key', service_id=sample_service.id),
-                                    data=json.dumps(data),
-                                    headers=[('Content-Type', 'application/json'), auth_header])
+            response2 = client.post(
+                url_for('service.create_api_key', service_id=sample_service.id),
+                data=json.dumps(data),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response2.status_code == 201
             assert json.loads(response.get_data(as_text=True)) != json.loads(response2.get_data(as_text=True))
             assert ApiKey.query.count() == 2
@@ -118,9 +122,10 @@ def test_get_api_keys_should_return_all_keys_for_service(notify_api, sample_api_
             assert ApiKey.query.count() == 4
 
             auth_header = create_authorization_header()
-            response = client.get(url_for('service.get_api_keys',
-                                          service_id=sample_api_key.service_id),
-                                  headers=[('Content-Type', 'application/json'), auth_header])
+            response = client.get(
+                url_for('service.get_api_keys', service_id=sample_api_key.service_id),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response.status_code == 200
             json_resp = json.loads(response.get_data(as_text=True))
             assert len(json_resp['apiKeys']) == 3
@@ -130,10 +135,10 @@ def test_get_api_keys_should_return_one_key_for_service(notify_api, sample_api_k
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             auth_header = create_authorization_header()
-            response = client.get(url_for('service.get_api_keys',
-                                          service_id=sample_api_key.service_id,
-                                          key_id=sample_api_key.id),
-                                  headers=[('Content-Type', 'application/json'), auth_header])
+            response = client.get(
+                url_for('service.get_api_keys', service_id=sample_api_key.service_id, key_id=sample_api_key.id),
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
             assert response.status_code == 200
             json_resp = json.loads(response.get_data(as_text=True))
             assert len(json_resp['apiKeys']) == 1

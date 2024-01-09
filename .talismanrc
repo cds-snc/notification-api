@@ -1,3 +1,3 @@
 fileignoreconfig:
-  - filename: requirements.txt
-    checksum: d87d89892a2c545da7e94ecf4f6dbf891139c3cfcb254bb07a43dee582755f6a
+- filename: app/celery/letters_pdf_tasks.py
+  checksum: 3430294d1d4e37f8886c3103557355d4c89c13bf1186a97709b1cfb86b78b5a3

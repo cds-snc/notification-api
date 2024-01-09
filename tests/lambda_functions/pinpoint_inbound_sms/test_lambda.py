@@ -19,31 +19,31 @@ def test_lambda_sends_to_queue(mocker):
     mocker.patch('lambda_functions.pinpoint_inbound_sms.pinpoint_inbound_sms_lambda.boto3', new=mock_boto)
 
     event = {
-        "Records": [
+        'Records': [
             {
-                "EventVersion": "1.0",
-                "EventSubscriptionArn": "some_arn",
-                "EventSource": "aws:sns",
-                "Sns": {
-                    "SignatureVersion": "1",
-                    "Timestamp": "2019-01-02T12:45:07.000Z",
-                    "Signature": "some signature",
-                    "SigningCertUrl": "some_url",
-                    "MessageId": "95df01b4-ee98-5cb9-9903-4c221d41eb5e",
-                    "Message": {
-                        "originationNumber": "+14255550182",
-                        "destinationNumber": "+12125550101",
-                        "messageKeyword": "JOIN",
-                        "messageBody": "EXAMPLE",
-                        "inboundMessageId": "cae173d2-66b9-564c-8309-21f858e9fb84",
-                        "previousPublishedMessageId": "example-id"
+                'EventVersion': '1.0',
+                'EventSubscriptionArn': 'some_arn',
+                'EventSource': 'aws:sns',
+                'Sns': {
+                    'SignatureVersion': '1',
+                    'Timestamp': '2019-01-02T12:45:07.000Z',
+                    'Signature': 'some signature',
+                    'SigningCertUrl': 'some_url',
+                    'MessageId': '95df01b4-ee98-5cb9-9903-4c221d41eb5e',
+                    'Message': {
+                        'originationNumber': '+14255550182',
+                        'destinationNumber': '+12125550101',
+                        'messageKeyword': 'JOIN',
+                        'messageBody': 'EXAMPLE',
+                        'inboundMessageId': 'cae173d2-66b9-564c-8309-21f858e9fb84',
+                        'previousPublishedMessageId': 'example-id',
                     },
-                    "MessageAttributes": {},
-                    "Type": "Notification",
-                    "UnsubscribeUrl": "some_url",
-                    "TopicArn": "arn:aws:sns:us-east-2:123456789012:sns-lambda",
-                    "Subject": "TestInvoke"
-                }
+                    'MessageAttributes': {},
+                    'Type': 'Notification',
+                    'UnsubscribeUrl': 'some_url',
+                    'TopicArn': 'arn:aws:sns:us-east-2:123456789012:sns-lambda',
+                    'Subject': 'TestInvoke',
+                },
             }
         ]
     }
@@ -61,10 +61,10 @@ def test_lambda_sends_to_queue(mocker):
 
     assert body['task'] == 'process-pinpoint-inbound-sms'
     assert body['args'][0]['Message'] == {
-        "originationNumber": "+14255550182",
-        "destinationNumber": "+12125550101",
-        "messageKeyword": "JOIN",
-        "messageBody": "EXAMPLE",
-        "inboundMessageId": "cae173d2-66b9-564c-8309-21f858e9fb84",
-        "previousPublishedMessageId": "example-id"
+        'originationNumber': '+14255550182',
+        'destinationNumber': '+12125550101',
+        'messageKeyword': 'JOIN',
+        'messageBody': 'EXAMPLE',
+        'inboundMessageId': 'cae173d2-66b9-564c-8309-21f858e9fb84',
+        'previousPublishedMessageId': 'example-id',
     }

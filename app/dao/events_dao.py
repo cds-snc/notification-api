@@ -16,7 +16,7 @@ def dao_create_event(event):
     elif isinstance(event, Event):
         event_instance = event
     else:
-        raise TypeError(f"Event is of type {type(event)}.")
+        raise TypeError(f'Event is of type {type(event)}.')
 
     db.session.add(event_instance)
     db.session.commit()

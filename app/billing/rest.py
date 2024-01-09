@@ -9,22 +9,19 @@ from app.dao.annual_billing_dao import (
     dao_get_free_sms_fragment_limit_for_year,
     dao_get_all_free_sms_fragment_limit,
     dao_create_or_update_annual_billing_for_year,
-    dao_update_annual_billing_for_future_years
+    dao_update_annual_billing_for_future_years,
 )
 from app.dao.date_util import get_current_financial_year_start_year
 from app.dao.fact_billing_dao import (
-    fetch_monthly_billing_for_year, fetch_billing_totals_for_year,
+    fetch_monthly_billing_for_year,
+    fetch_billing_totals_for_year,
 )
 
 from app.errors import InvalidRequest
 from app.errors import register_errors
 from app.schema_validation import validate
 
-billing_blueprint = Blueprint(
-    'billing',
-    __name__,
-    url_prefix='/service/<uuid:service_id>/billing'
-)
+billing_blueprint = Blueprint('billing', __name__, url_prefix='/service/<uuid:service_id>/billing')
 
 
 register_errors(billing_blueprint)
@@ -55,9 +52,8 @@ def get_yearly_billing_usage_summary_from_ft_billing(service_id):
     return jsonify(data)
 
 
-@billing_blueprint.route('/free-sms-fragment-limit', methods=["GET"])
+@billing_blueprint.route('/free-sms-fragment-limit', methods=['GET'])
 def get_free_sms_fragment_limit(service_id):
-
     financial_year_start = request.args.get('financial_year_start')
 
     annual_billing = dao_get_free_sms_fragment_limit_for_year(service_id, financial_year_start)
@@ -77,45 +73,42 @@ def get_free_sms_fragment_limit(service_id):
 
             if int(financial_year_start) < get_current_financial_year_start_year():
                 # return the earliest historical entry
-                annual_billing = sms_list[0]   # The oldest entry
+                annual_billing = sms_list[0]  # The oldest entry
             else:
                 annual_billing = sms_list[-1]  # The newest entry
 
-                annual_billing = dao_create_or_update_annual_billing_for_year(service_id,
-                                                                              annual_billing.free_sms_fragment_limit,
-                                                                              financial_year_start)
+                annual_billing = dao_create_or_update_annual_billing_for_year(
+                    service_id, annual_billing.free_sms_fragment_limit, financial_year_start
+                )
 
     return jsonify(annual_billing.serialize_free_sms_items()), 200
 
 
-@billing_blueprint.route('/free-sms-fragment-limit', methods=["POST"])
+@billing_blueprint.route('/free-sms-fragment-limit', methods=['POST'])
 def create_or_update_free_sms_fragment_limit(service_id):
-
     req_args = request.get_json()
 
     form = validate(req_args, create_or_update_free_sms_fragment_limit_schema)
 
-    update_free_sms_fragment_limit_data(service_id,
-                                        free_sms_fragment_limit=form.get('free_sms_fragment_limit'),
-                                        financial_year_start=form.get('financial_year_start'))
+    update_free_sms_fragment_limit_data(
+        service_id,
+        free_sms_fragment_limit=form.get('free_sms_fragment_limit'),
+        financial_year_start=form.get('financial_year_start'),
+    )
     return jsonify(form), 201
 
 
-def update_free_sms_fragment_limit_data(service_id, free_sms_fragment_limit, financial_year_start):
+def update_free_sms_fragment_limit_data(
+    service_id,
+    free_sms_fragment_limit,
+    financial_year_start,
+):
     current_year = get_current_financial_year_start_year()
     if not financial_year_start:
         financial_year_start = current_year
 
-    dao_create_or_update_annual_billing_for_year(
-        service_id,
-        free_sms_fragment_limit,
-        financial_year_start
-    )
+    dao_create_or_update_annual_billing_for_year(service_id, free_sms_fragment_limit, financial_year_start)
     # if we're trying to update historical data, don't touch other rows.
     # Otherwise, make sure that future years will get the new updated value.
     if financial_year_start >= current_year:
-        dao_update_annual_billing_for_future_years(
-            service_id,
-            free_sms_fragment_limit,
-            financial_year_start
-        )
+        dao_update_annual_billing_for_future_years(service_id, free_sms_fragment_limit, financial_year_start)

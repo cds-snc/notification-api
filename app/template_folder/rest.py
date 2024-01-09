@@ -8,7 +8,7 @@ from app.dao.template_folder_dao import (
     dao_create_template_folder,
     dao_get_template_folder_by_id_and_service_id,
     dao_update_template_folder,
-    dao_delete_template_folder
+    dao_delete_template_folder,
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.service_user_dao import dao_get_active_service_users
@@ -23,9 +23,7 @@ from app.template_folder.template_folder_schema import (
 from app.schema_validation import validate
 
 template_folder_blueprint = Blueprint(
-    'template_folder',
-    __name__,
-    url_prefix='/service/<uuid:service_id>/template-folder'
+    'template_folder', __name__, url_prefix='/service/<uuid:service_id>/template-folder'
 )
 register_errors(template_folder_blueprint)
 
@@ -56,7 +54,7 @@ def create_template_folder(service_id):
             parent_folder = dao_get_template_folder_by_id_and_service_id(data['parent_id'], service_id)
             users_with_permission = parent_folder.users
         except NoResultFound:
-            raise InvalidRequest("parent_id not found", status_code=400)
+            raise InvalidRequest('parent_id not found', status_code=400)
     else:
         users_with_permission = dao_get_active_service_users(service_id)
     template_folder = TemplateFolder(
@@ -72,7 +70,10 @@ def create_template_folder(service_id):
 
 
 @template_folder_blueprint.route('/<uuid:template_folder_id>', methods=['POST'])
-def update_template_folder(service_id, template_folder_id):
+def update_template_folder(
+    service_id,
+    template_folder_id,
+):
     data = request.get_json()
 
     validate(data, post_update_template_folder_schema)
@@ -88,7 +89,10 @@ def update_template_folder(service_id, template_folder_id):
 
 
 @template_folder_blueprint.route('/<uuid:template_folder_id>', methods=['DELETE'])
-def delete_template_folder(service_id, template_folder_id):
+def delete_template_folder(
+    service_id,
+    template_folder_id,
+):
     template_folder = dao_get_template_folder_by_id_and_service_id(template_folder_id, service_id)
 
     # don't allow deleting if there's anything in the folder (even if it's just more empty subfolders)
@@ -103,7 +107,10 @@ def delete_template_folder(service_id, template_folder_id):
 @template_folder_blueprint.route('/contents', methods=['POST'])
 @template_folder_blueprint.route('/<uuid:target_template_folder_id>/contents', methods=['POST'])
 @transactional
-def move_to_template_folder(service_id, target_template_folder_id=None):
+def move_to_template_folder(
+    service_id,
+    target_template_folder_id=None,
+):
     data = request.get_json()
 
     validate(data, post_move_template_folder_schema)
@@ -117,10 +124,7 @@ def move_to_template_folder(service_id, target_template_folder_id=None):
         try:
             template_folder = dao_get_template_folder_by_id_and_service_id(template_folder_id, service_id)
         except NoResultFound:
-            msg = 'No folder found with id {} for service {}'.format(
-                template_folder_id,
-                service_id
-            )
+            msg = 'No folder found with id {} for service {}'.format(template_folder_id, service_id)
             raise InvalidRequest(msg, status_code=400)
         _validate_folder_move(target_template_folder, target_template_folder_id, template_folder, template_folder_id)
 
@@ -131,22 +135,23 @@ def move_to_template_folder(service_id, target_template_folder_id=None):
             template = dao_get_template_by_id_and_service_id(template_id, service_id)
         except NoResultFound:
             msg = 'Could not move to folder: No template found with id {} for service {}'.format(
-                template_id,
-                service_id
+                template_id, service_id
             )
             raise InvalidRequest(msg, status_code=400)
 
         if template.archived:
-            current_app.logger.info(
-                "Could not move to folder: Template %s is archived. (Skipping)",
-                template_id
-            )
+            current_app.logger.info('Could not move to folder: Template %s is archived. (Skipping)', template_id)
         else:
             template.folder = target_template_folder
     return '', 204
 
 
-def _validate_folder_move(target_template_folder, target_template_folder_id, template_folder, template_folder_id):
+def _validate_folder_move(
+    target_template_folder,
+    target_template_folder_id,
+    template_folder,
+    template_folder_id,
+):
     if str(target_template_folder_id) == str(template_folder_id):
         msg = 'You cannot move a folder to itself'
         raise InvalidRequest(msg, status_code=400)

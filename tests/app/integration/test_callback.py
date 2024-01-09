@@ -22,21 +22,23 @@ def sqs_stub():
 
 @pytest.fixture()
 def integration_celery_config(notify_api):
-    with set_config_values(notify_api, {
-        'CELERY_SETTINGS': {
-            'broker_url': 'sqs://',
-            'task_always_eager': True,
-            'imports': (
-                'app.celery.tasks',
-                'app.celery.scheduled_tasks',
-                'app.celery.reporting_tasks',
-                'app.celery.nightly_tasks',
-                'app.celery.process_pinpoint_receipt_tasks',
-                'app.celery.process_pinpoint_inbound_sms'
-                'app.celery.service_callback_tasks'
-            )
-        }
-    }):
+    with set_config_values(
+        notify_api,
+        {
+            'CELERY_SETTINGS': {
+                'broker_url': 'sqs://',
+                'task_always_eager': True,
+                'imports': (
+                    'app.celery.tasks',
+                    'app.celery.scheduled_tasks',
+                    'app.celery.reporting_tasks',
+                    'app.celery.nightly_tasks',
+                    'app.celery.process_pinpoint_receipt_tasks',
+                    'app.celery.process_pinpoint_inbound_sms' 'app.celery.service_callback_tasks',
+                ),
+            }
+        },
+    ):
         notify_celery.init_app(notify_api)
     yield
     notify_celery.init_app(notify_api)
@@ -49,7 +51,7 @@ def pinpoint_inbound_sms_toggle_enabled(mocker):
 
 class AnySms(object):
     def __init__(
-            self, id=ANY, source_number=ANY, destination_number=ANY, message=ANY, date_received=ANY, sms_sender_id=ANY
+        self, id=ANY, source_number=ANY, destination_number=ANY, message=ANY, date_received=ANY, sms_sender_id=ANY
     ):
         self.id = id
         self.source_number = source_number
@@ -62,64 +64,58 @@ class AnySms(object):
         other_dict = json.loads(other)
 
         return (
-            other_dict["source_number"] == self.source_number
-            and other_dict["destination_number"] == self.destination_number
-            and other_dict["message"] == self.message
-            and other_dict["sms_sender_id"] == self.sms_sender_id
+            other_dict['source_number'] == self.source_number
+            and other_dict['destination_number'] == self.destination_number
+            and other_dict['message'] == self.message
+            and other_dict['sms_sender_id'] == self.sms_sender_id
         )
 
 
-@pytest.mark.skip(reason="Integration test fails when run in suite, passes when run alone")
+@pytest.mark.skip(reason='Integration test fails when run in suite, passes when run alone')
 def test_sqs_callback(
-        integration_celery_config, sqs_stub, sample_service_full_permissions, client,
-        pinpoint_inbound_sms_toggle_enabled):
+    integration_celery_config, sqs_stub, sample_service_full_permissions, client, pinpoint_inbound_sms_toggle_enabled
+):
     sample_service = sample_service_full_permissions
     user = sample_service.users[0]
     permission_dao.set_user_service_permission(
-        user,
-        sample_service,
-        [Permission(
-            service_id=sample_service.id,
-            user_id=user.id,
-            permission=PLATFORM_ADMIN
-        )])
+        user, sample_service, [Permission(service_id=sample_service.id, user_id=user.id, permission=PLATFORM_ADMIN)]
+    )
     user.platform_admin = True
 
     data = {
-        "url": "https://some.queue/inbound-sms-endpoint",
-        "updated_by_id": str(sample_service.users[0].id),
-        "callback_type": INBOUND_SMS_CALLBACK_TYPE,
-        "callback_channel": QUEUE_CHANNEL_TYPE
+        'url': 'https://some.queue/inbound-sms-endpoint',
+        'updated_by_id': str(sample_service.users[0].id),
+        'callback_type': INBOUND_SMS_CALLBACK_TYPE,
+        'callback_channel': QUEUE_CHANNEL_TYPE,
     }
 
     client.post(
         url_for('service_callback.create_service_callback', service_id=sample_service.id),
         data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'),
-                 ('Authorization', f'Bearer {create_access_token(user)}')],
+        headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {create_access_token(user)}')],
     )
 
     message = {
-        "messageBody": "foo",
-        "destinationNumber": "12345",  # set by sample_service_full_permissions
-        "originationNumber": "123",
-        "inboundMessageId": "bar"
+        'messageBody': 'foo',
+        'destinationNumber': '12345',  # set by sample_service_full_permissions
+        'originationNumber': '123',
+        'inboundMessageId': 'bar',
     }
-    event: CeleryEvent = {"Message": json.dumps(message)}
+    event: CeleryEvent = {'Message': json.dumps(message)}
 
     sqs_stub.add_response(
         'send_message',
         expected_params={
-            'QueueUrl': data["url"],
+            'QueueUrl': data['url'],
             'MessageBody': AnySms(
-                message=message["messageBody"],
-                source_number=message["originationNumber"],
-                destination_number=message["destinationNumber"],
-                sms_sender_id=None
+                message=message['messageBody'],
+                source_number=message['originationNumber'],
+                destination_number=message['destinationNumber'],
+                sms_sender_id=None,
             ),
-            'MessageAttributes': ANY
+            'MessageAttributes': ANY,
         },
-        service_response={'MessageId': "foo"}
+        service_response={'MessageId': 'foo'},
     )
 
     process_pinpoint_inbound_sms(event)

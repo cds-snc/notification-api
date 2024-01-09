@@ -6,9 +6,7 @@ from app.dao.fact_notification_status_dao import fetch_notification_status_for_s
 from app.schemas import notification_with_template_schema
 from app.errors import register_errors, InvalidRequest
 
-template_statistics = Blueprint('template_statistics',
-                                __name__,
-                                url_prefix='/service/<service_id>/template-statistics')
+template_statistics = Blueprint('template_statistics', __name__, url_prefix='/service/<service_id>/template-statistics')
 
 register_errors(template_statistics)
 
@@ -29,21 +27,27 @@ def get_template_statistics_for_service_by_day(service_id):
         service_id, by_template=True, limit_days=whole_days
     )
 
-    return jsonify(data=[
-        {
-            'count': row.count,
-            'template_id': str(row.template_id),
-            'template_name': row.template_name,
-            'template_type': row.notification_type,
-            'is_precompiled_letter': row.is_precompiled_letter,
-            'status': row.status
-        }
-        for row in data
-    ])
+    return jsonify(
+        data=[
+            {
+                'count': row.count,
+                'template_id': str(row.template_id),
+                'template_name': row.template_name,
+                'template_type': row.notification_type,
+                'is_precompiled_letter': row.is_precompiled_letter,
+                'status': row.status,
+            }
+            for row in data
+        ]
+    )
+
 
 # TODO: Rename method (and endpoint?)
 @template_statistics.route('/<template_id>')
-def get_template_statistics_for_template_id(service_id, template_id):
+def get_template_statistics_for_template_id(
+    service_id,
+    template_id,
+):
     template = dao_get_template_by_id_and_service_id(template_id, service_id)
 
     data = None

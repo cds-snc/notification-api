@@ -12,20 +12,22 @@ from app import statsd_client
 
 class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
-    def send_callback(callback: ServiceCallback, payload: dict, logging_tags: dict) -> None:
-        tags = ', '.join([f"{key}: {value}" for key, value in logging_tags.items()])
+    def send_callback(
+        callback: ServiceCallback,
+        payload: dict,
+        logging_tags: dict,
+    ) -> None:
+        tags = ', '.join([f'{key}: {value}' for key, value in logging_tags.items()])
 
         try:
             sqs_client.send_message(
                 url=callback.url,
                 message_body=payload,
-                message_attributes={
-                    "CallbackType": {"StringValue": callback.callback_type, "DataType": "String"}
-                }
+                message_attributes={'CallbackType': {'StringValue': callback.callback_type, 'DataType': 'String'}},
             )
         except ClientError as e:
-            statsd_client.incr(f"callback.queue.{callback.callback_type}.non_retryable_error")
+            statsd_client.incr(f'callback.queue.{callback.callback_type}.non_retryable_error')
             raise NonRetryableException(e)
         else:
-            current_app.logger.info(f"Callback sent to {callback.url}, {tags}")
-            statsd_client.incr(f"callback.queue.{callback.callback_type}.success")
+            current_app.logger.info(f'Callback sent to {callback.url}, {tags}')
+            statsd_client.incr(f'callback.queue.{callback.callback_type}.success')

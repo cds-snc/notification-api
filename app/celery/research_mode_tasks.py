@@ -20,53 +20,54 @@ EMAIL_TEST_NOTIFY_WORKS = 'TEST <TEST@notify.works>'
 BOUNCE_EMAIL_AMAZON_SES_COM = 'bounce@simulator.amazonses.com'
 LAMBDA_TEST = 'lambda test'
 
-temp_fail = "7700900003"
-perm_fail = "7700900002"
-delivered = "7700900001"
+temp_fail = '7700900003'
+perm_fail = '7700900002'
+delivered = '7700900001'
 
-delivered_email = "delivered@simulator.notify"
-perm_fail_email = "perm-fail@simulator.notify"
-temp_fail_email = "temp-fail@simulator.notify"
+delivered_email = 'delivered@simulator.notify'
+perm_fail_email = 'perm-fail@simulator.notify'
+temp_fail_email = 'temp-fail@simulator.notify'
 
 
 # TODO: Add support for other providers - Twilio / Granicus
-def send_sms_response(provider, notification_id, to, reference=None):
+def send_sms_response(
+    provider,
+    notification_id,
+    to,
+    reference=None,
+):
     path = None
-    if provider == "mmg":
+    if provider == 'mmg':
         body = mmg_callback(notification_id, to)
-        headers = {"Content-type": "application/json"}
+        headers = {'Content-type': 'application/json'}
     elif provider == 'twilio':
         body = twilio_callback(notification_id, to)
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
+        headers = {'Content-type': 'application/x-www-form-urlencoded'}
         path = notification_id
     elif provider == 'sns':
         body = sns_callback(reference, to)
-        headers = {"Content-type": "application/json"}
+        headers = {'Content-type': 'application/json'}
     elif provider == 'pinpoint':
         body = pinpoint_notification_callback_record(reference)
-        process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async(
-            [body],
-            queue=QueueNames.RESEARCH_MODE
-        )
+        process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
         return
     else:
-        headers = {"Content-type": "application/x-www-form-urlencoded"}
+        headers = {'Content-type': 'application/x-www-form-urlencoded'}
         body = firetext_callback(notification_id, to)
         # to simulate getting a temporary_failure from firetext
         # we need to send a pending status updated then a permanent-failure
         if body['status'] == '2':  # pending status
             make_request(SMS_TYPE, provider, body, headers)
             # 1 is a declined status for firetext, will result in a temp-failure
-            body = {'mobile': to,
-                    'status': "1",
-                    'time': '2016-03-10 14:17:00',
-                    'reference': notification_id
-                    }
+            body = {'mobile': to, 'status': '1', 'time': '2016-03-10 14:17:00', 'reference': notification_id}
 
     make_request(SMS_TYPE, provider, body, headers, path)
 
 
-def send_email_response(reference, to):
+def send_email_response(
+    reference,
+    to,
+):
     if to == perm_fail_email:
         body = ses_hard_bounce_callback(reference)
     elif to == temp_fail_email:
@@ -77,90 +78,95 @@ def send_email_response(reference, to):
     process_ses_receipts_tasks.process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
 
 
-def make_request(notification_type, provider, data, headers, path=None):
+def make_request(
+    notification_type,
+    provider,
+    data,
+    headers,
+    path=None,
+):
     callback_url = f"{current_app.config['API_HOST_NAME']}/notifications/{notification_type}/{provider}"
     if path:
-        callback_url += f"/{path}"
+        callback_url += f'/{path}'
 
     try:
-        response = request(
-            "POST",
-            callback_url,
-            headers=headers,
-            data=data,
-            timeout=60
-        )
+        response = request('POST', callback_url, headers=headers, data=data, timeout=60)
         response.raise_for_status()
     except RequestException as e:
         api_error = HTTPError(e)
-        current_app.logger.error(
-            "API {} request on {} failed with {}".format(
-                "POST",
-                callback_url,
-                api_error.response
-            )
-        )
+        current_app.logger.error('API {} request on {} failed with {}'.format('POST', callback_url, api_error.response))
         raise api_error
     finally:
-        current_app.logger.info("Mocked provider callback request finished")
+        current_app.logger.info('Mocked provider callback request finished')
 
 
-def mmg_callback(notification_id, to):
+def mmg_callback(
+    notification_id,
+    to,
+):
     """
-        status: 3 - delivered
-        status: 4 - expired (temp failure)
-        status: 5 - rejected (perm failure)
+    status: 3 - delivered
+    status: 4 - expired (temp failure)
+    status: 5 - rejected (perm failure)
     """
 
     if to.strip().endswith(temp_fail):
-        status = "4"
+        status = '4'
     elif to.strip().endswith(perm_fail):
-        status = "5"
+        status = '5'
     else:
-        status = "3"
+        status = '3'
 
-    return json.dumps({"reference": "mmg_reference",
-                       "CID": str(notification_id),
-                       "MSISDN": to,
-                       "status": status,
-                       "deliverytime": "2016-04-05 16:01:07"})
+    return json.dumps(
+        {
+            'reference': 'mmg_reference',
+            'CID': str(notification_id),
+            'MSISDN': to,
+            'status': status,
+            'deliverytime': '2016-04-05 16:01:07',
+        }
+    )
 
 
-def firetext_callback(notification_id, to):
+def firetext_callback(
+    notification_id,
+    to,
+):
     """
-        status: 0 - delivered
-        status: 1 - perm failure
+    status: 0 - delivered
+    status: 1 - perm failure
     """
     if to.strip().endswith(perm_fail):
-        status = "1"
+        status = '1'
     elif to.strip().endswith(temp_fail):
-        status = "2"
+        status = '2'
     else:
-        status = "0"
-    return {
-        'mobile': to,
-        'status': status,
-        'time': '2016-03-10 14:17:00',
-        'reference': notification_id
-    }
+        status = '0'
+    return {'mobile': to, 'status': status, 'time': '2016-03-10 14:17:00', 'reference': notification_id}
 
 
-def twilio_callback(notification_id, to):
+def twilio_callback(
+    notification_id,
+    to,
+):
     if to.strip().endswith(temp_fail):
-        status = "failed"
+        status = 'failed'
     elif to.strip().endswith(perm_fail):
-        status = "undelivered"
+        status = 'undelivered'
     else:
-        status = "delivered"
+        status = 'delivered'
 
     return {
-        "To": to,
-        "MessageStatus": status,
-        "MessageSid": str(notification_id),
+        'To': to,
+        'MessageStatus': status,
+        'MessageSid': str(notification_id),
     }
 
 
-def sns_callback(reference, to):
+def sns_callback(
+    reference,
+    to,
+):
     from app.notifications.aws_sns_status_callback import SNS_STATUS_FAILURE, SNS_STATUS_SUCCESS
 
     if to.strip().endswith(temp_fail) or to.strip().endswith(perm_fail):
@@ -168,69 +174,64 @@ def sns_callback(reference, to):
     else:
         status = SNS_STATUS_SUCCESS
 
-    return json.dumps({
-        "notification": {
-            "messageId": reference,
-            "timestamp": f"{datetime.utcnow()}"
-        },
-        "delivery": {
-            "phoneCarrier": "My Phone Carrier",
-            "mnc": 270,
-            "destination": to,
-            "priceInUSD": 0.00645,
-            "smsType": "Transactional",
-            "mcc": 310,
-            "providerResponse": "Message has been accepted by phone carrier",
-            "dwellTimeMs": 599,
-            "dwellTimeMsUntilDeviceAck": 1344
-        },
-        "status": status
-    })
+    return json.dumps(
+        {
+            'notification': {'messageId': reference, 'timestamp': f'{datetime.utcnow()}'},
+            'delivery': {
+                'phoneCarrier': 'My Phone Carrier',
+                'mnc': 270,
+                'destination': to,
+                'priceInUSD': 0.00645,
+                'smsType': 'Transactional',
+                'mcc': 310,
+                'providerResponse': 'Message has been accepted by phone carrier',
+                'dwellTimeMs': 599,
+                'dwellTimeMsUntilDeviceAck': 1344,
+            },
+            'status': status,
+        }
+    )
 
 
-def pinpoint_notification_callback_record(reference, event_type='_SMS.SUCCESS', record_status='DELIVERED'):
+def pinpoint_notification_callback_record(
+    reference,
+    event_type='_SMS.SUCCESS',
+    record_status='DELIVERED',
+):
     pinpoint_message = {
-        "event_type": event_type,
-        "event_timestamp": 1553104954322,
-        "arrival_timestamp": 1553104954064,
-        "event_version": "3.1",
-        "application": {
-            "app_id": "123",
-            "sdk": {}
+        'event_type': event_type,
+        'event_timestamp': 1553104954322,
+        'arrival_timestamp': 1553104954064,
+        'event_version': '3.1',
+        'application': {'app_id': '123', 'sdk': {}},
+        'client': {'client_id': '123456789012'},
+        'device': {'platform': {}},
+        'session': {},
+        'attributes': {
+            'sender_request_id': 'e669df09-642b-4168-8563-3e5a4f9dcfbf',
+            'campaign_activity_id': '1234',
+            'origination_phone_number': '+15555555555',
+            'destination_phone_number': '+15555555555',
+            'record_status': record_status,
+            'iso_country_code': 'US',
+            'treatment_id': '0',
+            'number_of_message_parts': '1',
+            'message_id': reference,
+            'message_type': 'Transactional',
+            'campaign_id': '12345',
         },
-        "client": {
-            "client_id": "123456789012"
-        },
-        "device": {
-            "platform": {}
-        },
-        "session": {},
-        "attributes": {
-            "sender_request_id": 'e669df09-642b-4168-8563-3e5a4f9dcfbf',
-            "campaign_activity_id": "1234",
-            "origination_phone_number": "+15555555555",
-            "destination_phone_number": "+15555555555",
-            "record_status": record_status,
-            "iso_country_code": "US",
-            "treatment_id": "0",
-            "number_of_message_parts": "1",
-            "message_id": reference,
-            "message_type": "Transactional",
-            "campaign_id": "12345"
-        },
-        "metrics": {
-            "price_in_millicents_usd": 645.0
-        },
-        "awsAccountId": "123456789012"
+        'metrics': {'price_in_millicents_usd': 645.0},
+        'awsAccountId': '123456789012',
     }
 
-    return {
-        'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')
-    }
+    return {'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')}
 
 
-@notify_celery.task(bind=True, name="create-fake-letter-response-file", max_retries=5, default_retry_delay=300)
-def create_fake_letter_response_file(self, reference):
+@notify_celery.task(bind=True, name='create-fake-letter-response-file', max_retries=5, default_retry_delay=300)
+def create_fake_letter_response_file(
+    self,
+    reference,
+):
     now = datetime.utcnow()
     dvla_response_data = '{}|Sent|0|Sorted'.format(reference)
 
@@ -250,10 +251,13 @@ def create_fake_letter_response_file(self, reference):
         filedata=dvla_response_data,
         region=current_app.config['AWS_REGION'],
         bucket_name=current_app.config['DVLA_RESPONSE_BUCKET_NAME'],
-        file_location=upload_file_name
+        file_location=upload_file_name,
     )
-    current_app.logger.info("Fake DVLA response file {}, content [{}], uploaded to {}, created at {}".format(
-        upload_file_name, dvla_response_data, current_app.config['DVLA_RESPONSE_BUCKET_NAME'], now))
+    current_app.logger.info(
+        'Fake DVLA response file {}, content [{}], uploaded to {}, created at {}'.format(
+            upload_file_name, dvla_response_data, current_app.config['DVLA_RESPONSE_BUCKET_NAME'], now
+        )
+    )
 
     # on development we can't trigger SNS callbacks so we need to manually hit the DVLA callback endpoint
     if current_app.config['NOTIFY_ENVIRONMENT'] == 'development':
@@ -262,11 +266,7 @@ def create_fake_letter_response_file(self, reference):
 
 def _fake_sns_s3_callback(filename):
     message_contents = '{"Records":[{"s3":{"object":{"key":"%s"}}}]}' % (filename)  # noqa
-    return json.dumps({
-        "Type": "Notification",
-        "MessageId": "some-message-id",
-        "Message": message_contents
-    })
+    return json.dumps({'Type': 'Notification', 'MessageId': 'some-message-id', 'Message': message_contents})
 
 
 def ses_notification_callback(reference):
@@ -277,36 +277,24 @@ def ses_notification_callback(reference):
             'remoteMtaIp': '123.123.123.123',
             'reportingMTA': 'a7-32.smtp-out.eu-west-1.amazonses.com',
             'smtpResponse': '250 2.6.0 Message received',
-            'timestamp': '2017-11-17T12:14:03.646Z'
+            'timestamp': '2017-11-17T12:14:03.646Z',
         },
         'mail': {
             'commonHeaders': {
                 'from': [EMAIL_TEST_NOTIFY_WORKS],
                 'subject': LAMBDA_TEST,
-                'to': [EMAIL_SIMULATOR_AMAZON_SES_COM]
+                'to': [EMAIL_SIMULATOR_AMAZON_SES_COM],
             },
             'destination': [EMAIL_SIMULATOR_AMAZON_SES_COM],
             'headers': [
-                {
-                    'name': 'From',
-                    'value': EMAIL_TEST_NOTIFY_WORKS
-                },
-                {
-                    'name': 'To',
-                    'value': EMAIL_SIMULATOR_AMAZON_SES_COM
-                },
-                {
-                    'name': 'Subject',
-                    'value': LAMBDA_TEST
-                },
-                {
-                    'name': 'MIME-Version',
-                    'value': '1.0'
-                },
+                {'name': 'From', 'value': EMAIL_TEST_NOTIFY_WORKS},
+                {'name': 'To', 'value': EMAIL_SIMULATOR_AMAZON_SES_COM},
+                {'name': 'Subject', 'value': LAMBDA_TEST},
+                {'name': 'MIME-Version', 'value': '1.0'},
                 {
                     'name': 'Content-Type',
-                    'value': 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"'
-                }
+                    'value': 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"',
+                },
             ],
             'headersTruncated': False,
             'messageId': reference,
@@ -314,9 +302,9 @@ def ses_notification_callback(reference):
             'source': '"TEST" <TEST@notify.works>',
             'sourceArn': 'arn:aws:ses:eu-west-1:12341234:identity/notify.works',
             'sourceIp': '0.0.0.1',
-            'timestamp': '2017-11-17T12:14:01.643Z'
+            'timestamp': '2017-11-17T12:14:01.643Z',
         },
-        'eventType': 'Delivery'
+        'eventType': 'Delivery',
     }
 
     return {
@@ -330,7 +318,7 @@ def ses_notification_callback(reference):
         'Signature': '[REDACTED]',
         'SigningCertUrl': 'https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]',
-        'MessageAttributes': {}
+        'MessageAttributes': {},
     }
 
 
@@ -342,50 +330,43 @@ def ses_soft_bounce_callback(reference):
     return _ses_bounce_callback(reference, 'Temporary')
 
 
-def _ses_bounce_callback(reference, bounce_type):
+def _ses_bounce_callback(
+    reference,
+    bounce_type,
+):
     ses_message_body = {
         'bounce': {
             'bounceSubType': 'General',
             'bounceType': bounce_type,
-            'bouncedRecipients': [{
-                'action': 'failed',
-                'diagnosticCode': 'smtp; 550 5.1.1 user unknown',
-                'emailAddress': BOUNCE_EMAIL_AMAZON_SES_COM,
-                'status': '5.1.1'
-            }],
+            'bouncedRecipients': [
+                {
+                    'action': 'failed',
+                    'diagnosticCode': 'smtp; 550 5.1.1 user unknown',
+                    'emailAddress': BOUNCE_EMAIL_AMAZON_SES_COM,
+                    'status': '5.1.1',
+                }
+            ],
             'feedbackId': '0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000',
             'remoteMtaIp': '123.123.123.123',
             'reportingMTA': 'dsn; a7-31.smtp-out.eu-west-1.amazonses.com',
-            'timestamp': '2017-11-17T12:14:05.131Z'
+            'timestamp': '2017-11-17T12:14:05.131Z',
         },
         'mail': {
             'commonHeaders': {
                 'from': [EMAIL_TEST_NOTIFY_WORKS],
                 'subject': 'ses callback test',
-                'to': [BOUNCE_EMAIL_AMAZON_SES_COM]
+                'to': [BOUNCE_EMAIL_AMAZON_SES_COM],
             },
             'destination': [BOUNCE_EMAIL_AMAZON_SES_COM],
             'headers': [
-                {
-                    'name': 'From',
-                    'value': EMAIL_TEST_NOTIFY_WORKS
-                },
-                {
-                    'name': 'To',
-                    'value': BOUNCE_EMAIL_AMAZON_SES_COM
-                },
-                {
-                    'name': 'Subject',
-                    'value': 'lambda test'
-                },
-                {
-                    'name': 'MIME-Version',
-                    'value': '1.0'
-                },
+                {'name': 'From', 'value': EMAIL_TEST_NOTIFY_WORKS},
+                {'name': 'To', 'value': BOUNCE_EMAIL_AMAZON_SES_COM},
+                {'name': 'Subject', 'value': 'lambda test'},
+                {'name': 'MIME-Version', 'value': '1.0'},
                 {
                     'name': 'Content-Type',
-                    'value': 'multipart/alternative; boundary="----=_Part_596529_2039165601.1510920843367"'
-                }
+                    'value': 'multipart/alternative; boundary="----=_Part_596529_2039165601.1510920843367"',
+                },
             ],
             'headersTruncated': False,
             'messageId': reference,
@@ -393,9 +374,9 @@ def _ses_bounce_callback(reference, bounce_type):
             'source': '"TEST" <TEST@notify.works>',
             'sourceArn': 'arn:aws:ses:eu-west-1:12341234:identity/notify.works',
             'sourceIp': '0.0.0.1',
-            'timestamp': '2017-11-17T12:14:03.000Z'
+            'timestamp': '2017-11-17T12:14:03.000Z',
         },
-        'eventType': 'Bounce'
+        'eventType': 'Bounce',
     }
     return {
         'Type': 'Notification',
@@ -408,5 +389,5 @@ def _ses_bounce_callback(reference, bounce_type):
         'Signature': '[REDACTED]',  # noqa
         'SigningCertUrl': 'https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED]].pem',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REDACTED]]',
-        'MessageAttributes': {}
+        'MessageAttributes': {},
     }

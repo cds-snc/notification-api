@@ -5,13 +5,10 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_id,
     dao_update_provider_details,
     dao_get_provider_stats,
-    dao_get_provider_versions
+    dao_get_provider_versions,
 )
 from app.dao.users_dao import get_user_by_id
-from app.errors import (
-    register_errors,
-    InvalidRequest
-)
+from app.errors import register_errors, InvalidRequest
 
 provider_details = Blueprint('provider_details', __name__)
 register_errors(provider_details)
@@ -22,17 +19,19 @@ def get_providers():
     data = dao_get_provider_stats()
 
     provider_details = [
-        {'id': row.id,
-         'display_name': row.display_name,
-         'identifier': row.identifier,
-         'priority': row.priority,
-         'load_balancing_weight': row.load_balancing_weight,
-         'notification_type': row.notification_type,
-         'active': row.active,
-         'updated_at': row.updated_at,
-         'supports_international': row.supports_international,
-         'created_by_name': row.created_by_name,
-         'current_month_billable_sms': row.current_month_billable_sms}
+        {
+            'id': row.id,
+            'display_name': row.display_name,
+            'identifier': row.identifier,
+            'priority': row.priority,
+            'load_balancing_weight': row.load_balancing_weight,
+            'notification_type': row.notification_type,
+            'active': row.active,
+            'updated_at': row.updated_at,
+            'supports_international': row.supports_international,
+            'created_by_name': row.created_by_name,
+            'current_month_billable_sms': row.current_month_billable_sms,
+        }
         for row in data
     ]
 
@@ -48,10 +47,7 @@ def get_provider_by_id(provider_details_id):
 @provider_details.route('/<uuid:provider_details_id>/versions', methods=['GET'])
 def get_provider_versions(provider_details_id):
     versions = dao_get_provider_versions(provider_details_id)
-    data = provider_details_history_schema.dump(
-        versions,
-        many=True
-    ).data
+    data = provider_details_history_schema.dump(versions, many=True).data
     return jsonify(data=data)
 
 
@@ -62,7 +58,7 @@ def update_provider_details(provider_details_id):
 
     invalid_keys = req_json.keys() - valid_keys
     if invalid_keys:
-        message = "Not permitted to be updated"
+        message = 'Not permitted to be updated'
         errors = {key: [message] for key in invalid_keys}
         raise InvalidRequest(errors, status_code=400)
 

@@ -12,8 +12,8 @@ def test_validate_v2_notifications_redaction(notify_api, caplog):
 
     # This is not valid POST data.
     notification_POST_request_data = {
-        "personalisation": {
-            "sensitive_data": "Don't reveal this!",
+        'personalisation': {
+            'sensitive_data': "Don't reveal this!",
         },
     }
 
@@ -21,4 +21,4 @@ def test_validate_v2_notifications_redaction(notify_api, caplog):
         validate(notification_POST_request_data, post_sms_request)
 
     for record in caplog.records:
-        assert record.args["personalisation"]["sensitive_data"] == "<redacted>"
+        assert record.args['personalisation']['sensitive_data'] == '<redacted>'

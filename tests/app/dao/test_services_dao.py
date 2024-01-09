@@ -28,7 +28,7 @@ from app.dao.services_dao import (
     dao_fetch_active_users_for_service,
     dao_fetch_service_by_inbound_number,
     get_services_by_partial_name,
-    dao_services_by_partial_smtp_name
+    dao_services_by_partial_smtp_name,
 )
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import save_model_user, create_user_code
@@ -53,7 +53,7 @@ from app.models import (
     INTERNATIONAL_SMS_TYPE,
     LETTER_TYPE,
     user_folder_permissions,
-    Organisation
+    Organisation,
 )
 from app.model import User
 from tests.app.db import (
@@ -82,16 +82,18 @@ def test_should_have_decorated_services_dao_functions():
 def test_create_service(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      organisation_type='other',
-                      created_by=user)
+    service = Service(
+        name='service_name',
+        email_from='email_from',
+        message_limit=1000,
+        restricted=False,
+        organisation_type='other',
+        created_by=user,
+    )
     dao_create_service(service, user)
     assert Service.query.count() == 1
     service_db = Service.query.one()
-    assert service_db.name == "service_name"
+    assert service_db.name == 'service_name'
     assert service_db.id == service.id
     assert service_db.email_from == 'email_from'
     assert service_db.research_mode is False
@@ -106,19 +108,22 @@ def test_create_service(notify_db_session):
 def test_create_service_with_organisation(notify_db_session):
     user = create_user(email='local.authority@local-authority.gov.uk')
     organisation = create_organisation(
-        name='Some local authority', organisation_type='other', domains=['local-authority.gov.uk'])
+        name='Some local authority', organisation_type='other', domains=['local-authority.gov.uk']
+    )
     assert Service.query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      organisation_type='some-org-type',
-                      created_by=user)
+    service = Service(
+        name='service_name',
+        email_from='email_from',
+        message_limit=1000,
+        restricted=False,
+        organisation_type='some-org-type',
+        created_by=user,
+    )
     dao_create_service(service, user)
     assert Service.query.count() == 1
     service_db = Service.query.one()
     organisation = Organisation.query.get(organisation.id)
-    assert service_db.name == "service_name"
+    assert service_db.name == 'service_name'
     assert service_db.id == service.id
     assert service_db.email_from == 'email_from'
     assert service_db.research_mode is False
@@ -134,17 +139,17 @@ def test_create_service_with_organisation(notify_db_session):
 def test_cannot_create_two_services_with_same_name(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
-    service1 = Service(name="service_name",
-                       email_from="email_from1",
-                       message_limit=1000,
-                       restricted=False,
-                       created_by=user, )
+    service1 = Service(
+        name='service_name',
+        email_from='email_from1',
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+    )
 
-    service2 = Service(name="service_name",
-                       email_from="email_from2",
-                       message_limit=1000,
-                       restricted=False,
-                       created_by=user)
+    service2 = Service(
+        name='service_name', email_from='email_from2', message_limit=1000, restricted=False, created_by=user
+    )
     with pytest.raises(IntegrityError) as excinfo:
         dao_create_service(service1, user)
         dao_create_service(service2, user)
@@ -156,12 +161,12 @@ def test_cannot_create_service_with_non_existent_email_provider(notify_db_sessio
     dummy_email_provider_details_id = uuid.uuid4()
 
     service = Service(
-        name="service_name",
-        email_from="email_from1",
+        name='service_name',
+        email_from='email_from1',
         message_limit=1000,
         restricted=False,
         created_by=user,
-        email_provider_id=dummy_email_provider_details_id
+        email_provider_id=dummy_email_provider_details_id,
     )
 
     with pytest.raises(IntegrityError) as excinfo:
@@ -174,12 +179,12 @@ def test_cannot_create_service_with_non_existent_sms_provider(notify_db_session)
     dummy_sms_provider_details_id = uuid.uuid4()
 
     service = Service(
-        name="service_name",
-        email_from="email_from1",
+        name='service_name',
+        email_from='email_from1',
         message_limit=1000,
         restricted=False,
         created_by=user,
-        sms_provider_id=dummy_sms_provider_details_id
+        sms_provider_id=dummy_sms_provider_details_id,
     )
 
     with pytest.raises(IntegrityError) as excinfo:
@@ -191,18 +196,18 @@ def test_can_create_service_with_valid_email_provider(notify_db_session, ses_pro
     user = create_user()
 
     service = Service(
-        name="service_with_email_provider_name",
-        email_from="email_from",
+        name='service_with_email_provider_name',
+        email_from='email_from',
         message_limit=1000,
         restricted=False,
         created_by=user,
-        email_provider_id=ses_provider.id
+        email_provider_id=ses_provider.id,
     )
 
     try:
         dao_create_service(service, user)
     except IntegrityError:
-        pytest.fail("Could not create service with with valid email provider")
+        pytest.fail('Could not create service with with valid email provider')
     stored_service = dao_fetch_service_by_id(service.id)
     assert stored_service is not None
     assert stored_service.email_provider_id == ses_provider.id
@@ -212,17 +217,17 @@ def test_can_create_service_with_valid_sms_provider(notify_db_session, firetext_
     user = create_user()
 
     service = Service(
-        name="service_with_sms_provider_name",
+        name='service_with_sms_provider_name',
         message_limit=1000,
         restricted=False,
         created_by=user,
-        sms_provider_id=firetext_provider.id
+        sms_provider_id=firetext_provider.id,
     )
 
     try:
         dao_create_service(service, user)
     except IntegrityError:
-        pytest.fail("Could not create service with with valid sms provider")
+        pytest.fail('Could not create service with with valid sms provider')
     stored_service = dao_fetch_service_by_id(service.id)
     assert stored_service is not None
     assert stored_service.sms_provider_id == firetext_provider.id
@@ -232,18 +237,18 @@ def test_can_create_service_with_valid_email_and_sms_providers(notify_db_session
     user = create_user()
 
     service = Service(
-        name="service_with_sms_provider_name",
+        name='service_with_sms_provider_name',
         message_limit=1000,
         restricted=False,
         created_by=user,
         email_provider_id=ses_provider.id,
-        sms_provider_id=firetext_provider.id
+        sms_provider_id=firetext_provider.id,
     )
 
     try:
         dao_create_service(service, user)
     except IntegrityError:
-        pytest.fail("Could not create service with with valid email and sms providers")
+        pytest.fail('Could not create service with with valid email and sms providers')
 
     stored_service = dao_fetch_service_by_id(service.id)
     assert stored_service is not None
@@ -254,31 +259,25 @@ def test_can_create_service_with_valid_email_and_sms_providers(notify_db_session
 def test_can_create_two_services_with_same_email_from(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
-    service1 = Service(name="service_name1",
-                       email_from="email_from",
-                       message_limit=1000,
-                       restricted=False,
-                       created_by=user)
-    service2 = Service(name="service_name2",
-                       email_from="email_from",
-                       message_limit=1000,
-                       restricted=False,
-                       created_by=user)
+    service1 = Service(
+        name='service_name1', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
+    service2 = Service(
+        name='service_name2', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     try:
         dao_create_service(service1, user)
         dao_create_service(service2, user)
     except IntegrityError:
-        pytest.fail("Could not create two services with same email from")
+        pytest.fail('Could not create two services with same email from')
 
 
 def test_cannot_create_service_with_no_user(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     with pytest.raises(ValueError) as excinfo:
         dao_create_service(service, None)
     assert "Can't create a service without a user" in str(excinfo.value)
@@ -286,18 +285,16 @@ def test_cannot_create_service_with_no_user(notify_db_session):
 
 def test_should_add_user_to_service(notify_db_session):
     user = create_user()
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     dao_create_service(service, user)
     assert user in Service.query.first().users
     new_user = User(  # nosec
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
-        mobile_number='+16502532222'
+        mobile_number='+16502532222',
     )
     save_model_user(new_user)
     dao_add_user_to_service(service, new_user)
@@ -322,9 +319,7 @@ def test_dao_add_user_to_service_sets_folder_permissions(sample_user, sample_ser
 
 
 def test_dao_add_user_to_service_ignores_folders_which_do_not_exist_when_setting_permissions(
-    sample_user,
-    sample_service,
-    fake_uuid
+    sample_user, sample_service, fake_uuid
 ):
     valid_folder = create_template_folder(sample_service)
     folder_permissions = [fake_uuid, str(valid_folder.id)]
@@ -356,17 +351,15 @@ def test_dao_add_user_to_service_raises_error_if_adding_folder_permissions_for_a
 
 def test_should_remove_user_from_service(notify_db_session):
     user = create_user()
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     dao_create_service(service, user)
     new_user = User(  # nosec
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
-        mobile_number='+16502532222'
+        mobile_number='+16502532222',
     )
     save_model_user(new_user)
     dao_add_user_to_service(service, new_user)
@@ -377,12 +370,14 @@ def test_should_remove_user_from_service(notify_db_session):
 
 def test_should_remove_provider_from_service(notify_db_session, ses_provider):
     user = create_user()
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user,
-                      email_provider_id=ses_provider.id)
+    service = Service(
+        name='service_name',
+        email_from='email_from',
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+        email_provider_id=ses_provider.id,
+    )
     dao_create_service(service, user)
     stored_service = dao_fetch_service_by_id(service.id)
     stored_service.email_provider_id = None
@@ -460,18 +455,18 @@ def test_get_all_services_for_user(notify_db_session):
 
 
 def test_get_services_by_partial_name(notify_db_session):
-    create_service(service_name="Tadfield Police")
-    create_service(service_name="Tadfield Air Base")
-    create_service(service_name="London M25 Management Body")
-    services_from_db = get_services_by_partial_name("Tadfield")
+    create_service(service_name='Tadfield Police')
+    create_service(service_name='Tadfield Air Base')
+    create_service(service_name='London M25 Management Body')
+    services_from_db = get_services_by_partial_name('Tadfield')
     assert len(services_from_db) == 2
-    assert sorted([service.name for service in services_from_db]) == ["Tadfield Air Base", "Tadfield Police"]
+    assert sorted([service.name for service in services_from_db]) == ['Tadfield Air Base', 'Tadfield Police']
 
 
 def test_get_services_by_partial_name_is_case_insensitive(notify_db_session):
-    create_service(service_name="Tadfield Police")
-    services_from_db = get_services_by_partial_name("tadfield")
-    assert services_from_db[0].name == "Tadfield Police"
+    create_service(service_name='Tadfield Police')
+    services_from_db = get_services_by_partial_name('tadfield')
+    assert services_from_db[0].name == 'Tadfield Police'
 
 
 def test_get_all_user_services_only_returns_services_user_has_access_to(notify_db_session):
@@ -483,7 +478,7 @@ def test_get_all_user_services_only_returns_services_user_has_access_to(notify_d
         name='Test User',
         email_address='new_user@digital.cabinet-office.gov.uk',
         password=' ',
-        mobile_number='+16502532222'
+        mobile_number='+16502532222',
     )
     save_model_user(new_user)
     dao_add_user_to_service(service_3, new_user)
@@ -577,21 +572,37 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
     service = create_service(service_name='testing', email_from='testing', service_permissions=None)
 
     service = dao_fetch_service_by_id(service.id)
-    _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
-    ))
+    _assert_service_permissions(
+        service.permissions,
+        (
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ),
+    )
 
 
-@pytest.mark.parametrize("permission_to_remove, permissions_remaining", [
-    (SMS_TYPE, (
-        EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
-    )),
-    (EMAIL_TYPE, (
-        SMS_TYPE, INTERNATIONAL_SMS_TYPE,
-    )),
-])
+@pytest.mark.parametrize(
+    'permission_to_remove, permissions_remaining',
+    [
+        (
+            SMS_TYPE,
+            (
+                EMAIL_TYPE,
+                INTERNATIONAL_SMS_TYPE,
+            ),
+        ),
+        (
+            EMAIL_TYPE,
+            (
+                SMS_TYPE,
+                INTERNATIONAL_SMS_TYPE,
+            ),
+        ),
+    ],
+)
 def test_remove_permission_from_service_by_id_returns_service_with_correct_permissions(
-        notify_db_session, permission_to_remove, permissions_remaining
+    notify_db_session, permission_to_remove, permissions_remaining
 ):
     service = create_service(service_permissions=None)
     dao_remove_service_permission(service_id=service.id, permission=permission_to_remove)
@@ -618,27 +629,28 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
     dao_add_service_permission(service_id=service.id, permission=LETTER_TYPE)
 
     service = dao_fetch_service_by_id(service.id)
-    _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
-    ))
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
 
     dao_remove_service_permission(service_id=service.id, permission=LETTER_TYPE)
     service = dao_fetch_service_by_id(service.id)
 
-    _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
-    ))
+    _assert_service_permissions(
+        service.permissions,
+        (
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ),
+    )
 
 
 def test_create_service_creates_a_history_record_with_current_data(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     dao_create_service(service, user)
     assert Service.query.count() == 1
     assert Service.get_history_model().query.count() == 1
@@ -655,18 +667,14 @@ def test_create_service_creates_a_history_record_with_current_data(notify_db_ses
 
 
 def test_update_service_creates_a_history_record_with_current_data(
-        notify_db_session,
-        current_sms_provider,
-        ses_provider
+    notify_db_session, current_sms_provider, ses_provider
 ):
     user = create_user()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
     dao_create_service(service, user)
 
     assert Service.query.count() == 1
@@ -697,16 +705,18 @@ def test_update_service_permission_creates_a_history_record_with_current_data(no
     user = create_user()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
-    service = Service(name="service_name",
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
-    dao_create_service(service, user, service_permissions=[
-        SMS_TYPE,
-        EMAIL_TYPE,
-        INTERNATIONAL_SMS_TYPE,
-    ])
+    service = Service(
+        name='service_name', email_from='email_from', message_limit=1000, restricted=False, created_by=user
+    )
+    dao_create_service(
+        service,
+        user,
+        service_permissions=[
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ],
+    )
 
     service.permissions.append(ServicePermission(service_id=service.id, permission='letter'))
     dao_update_service(service)
@@ -718,9 +728,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(no
 
     assert service_from_db.version == 2
 
-    _assert_service_permissions(service.permissions, (
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
-    ))
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
 
     permission = [p for p in service.permissions if p.permission == 'sms'][0]
     service.permissions.remove(permission)
@@ -731,9 +739,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(no
 
     service_from_db = Service.query.first()
     assert service_from_db.version == 3
-    _assert_service_permissions(service.permissions, (
-        EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE
-    ))
+    _assert_service_permissions(service.permissions, (EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
 
     assert len(Service.get_history_model().query.filter_by(name='service_name').all()) == 3
     assert Service.get_history_model().query.filter_by(name='service_name').all()[2].version == 3
@@ -743,11 +749,7 @@ def test_create_service_and_history_is_transactional(notify_db_session):
     user = create_user()
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
-    service = Service(name=None,
-                      email_from="email_from",
-                      message_limit=1000,
-                      restricted=False,
-                      created_by=user)
+    service = Service(name=None, email_from='email_from', message_limit=1000, restricted=False, created_by=user)
 
     with pytest.raises(IntegrityError) as excinfo:
         dao_create_service(service, user)
@@ -767,9 +769,13 @@ def test_delete_service_and_associated_objects(notify_db_session):
     create_notification(template=template, api_key=api_key)
     create_invited_user(service=service)
 
-    assert ServicePermission.query.count() == len((
-        SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE,
-    ))
+    assert ServicePermission.query.count() == len(
+        (
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        )
+    )
 
     delete_service_and_all_associated_db_objects(service)
     assert VerifyCode.query.count() == 0
@@ -790,11 +796,9 @@ def test_delete_service_and_associated_objects(notify_db_session):
 def test_add_existing_user_to_another_service_doesnot_change_old_permissions(notify_db_session):
     user = create_user()
 
-    service_one = Service(name="service_one",
-                          email_from="service_one",
-                          message_limit=1000,
-                          restricted=False,
-                          created_by=user)
+    service_one = Service(
+        name='service_one', email_from='service_one', message_limit=1000, restricted=False, created_by=user
+    )
 
     dao_create_service(service_one, user)
     assert user.id == service_one.users[0].id
@@ -805,14 +809,12 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(not
         name='Other Test User',
         email_address='other_user@digital.cabinet-office.gov.uk',
         password=' ',
-        mobile_number='+447700900987'
+        mobile_number='+447700900987',
     )
     save_model_user(other_user)
-    service_two = Service(name="service_two",
-                          email_from="service_two",
-                          message_limit=1000,
-                          restricted=False,
-                          created_by=other_user)
+    service_two = Service(
+        name='service_two', email_from='service_two', message_limit=1000, restricted=False, created_by=other_user
+    )
     dao_create_service(service_two, other_user)
 
     assert other_user.id == service_two.users[0].id
@@ -840,11 +842,9 @@ def test_fetch_stats_filters_on_service(notify_db_session):
     service_one = create_service()
     create_notification(template=create_template(service=service_one))
 
-    service_two = Service(name="service_two",
-                          created_by=service_one.created_by,
-                          email_from="hello",
-                          restricted=False,
-                          message_limit=1000)
+    service_two = Service(
+        name='service_two', created_by=service_one.created_by, email_from='hello', restricted=False, message_limit=1000
+    )
     dao_create_service(service_two, service_one.created_by)
 
     stats = dao_fetch_stats_for_service(service_two.id, 7)
@@ -931,23 +931,28 @@ def test_fetch_stats_for_today_only_includes_today(notify_db_session):
     assert stats['created'] == 1
 
 
-@pytest.mark.parametrize('created_at, limit_days, rows_returned', [
-    ('Sunday 8th July 2018 12:00', 7, 0),
-    ('Sunday 8th July 2018 22:59', 7, 0),
-    ('Sunday 1th July 2018 12:00', 10, 0),
-    ('Monday 9th July 2018 04:00', 7, 1),
-    ('Monday 9th July 2018 09:00', 7, 1),
-    ('Monday 9th July 2018 15:00', 7, 1),
-    ('Monday 16th July 2018 12:00', 7, 1),
-    ('Sunday 8th July 2018 12:00', 10, 1),
-])
+@pytest.mark.parametrize(
+    'created_at, limit_days, rows_returned',
+    [
+        ('Sunday 8th July 2018 12:00', 7, 0),
+        ('Sunday 8th July 2018 22:59', 7, 0),
+        ('Sunday 1th July 2018 12:00', 10, 0),
+        ('Monday 9th July 2018 04:00', 7, 1),
+        ('Monday 9th July 2018 09:00', 7, 1),
+        ('Monday 9th July 2018 15:00', 7, 1),
+        ('Monday 16th July 2018 12:00', 7, 1),
+        ('Sunday 8th July 2018 12:00', 10, 1),
+    ],
+)
 # This test assumes the local timezone is EST
 def test_fetch_stats_should_not_gather_notifications_older_than_7_days(
-        sample_template, created_at, limit_days, rows_returned
+    sample_template, created_at, limit_days, rows_returned
 ):
     # It's monday today. Things made last monday should still show
     with freeze_time(created_at):
-        create_notification(sample_template, )
+        create_notification(
+            sample_template,
+        )
 
     with freeze_time('Monday 16th July 2018 12:00'):
         stats = dao_fetch_stats_for_service(sample_template.service_id, limit_days)
@@ -960,8 +965,7 @@ def test_dao_fetch_todays_total_message_count_returns_count_for_today(notify_db_
     assert fetch_todays_total_message_count(notification.service.id) == 1
 
 
-def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(notify_db,
-                                                                                   notify_db_session):
+def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(notify_db, notify_db_session):
     assert fetch_todays_total_message_count(uuid.uuid4()) == 0
 
 
@@ -1020,14 +1024,50 @@ def test_dao_fetch_todays_stats_for_all_services_groups_correctly(notify_db, not
 
     stats = dao_fetch_todays_stats_for_all_services()
     assert len(stats) == 4
-    assert (service1.id, service1.name, service1.restricted, service1.research_mode, service1.active,
-            service1.created_at, 'sms', 'created', 2) in stats
-    assert (service1.id, service1.name, service1.restricted, service1.research_mode, service1.active,
-            service1.created_at, 'sms', 'failed', 1) in stats
-    assert (service1.id, service1.name, service1.restricted, service1.research_mode, service1.active,
-            service1.created_at, 'email', 'created', 1) in stats
-    assert (service2.id, service2.name, service2.restricted, service2.research_mode, service2.active,
-            service2.created_at, 'sms', 'created', 1) in stats
+    assert (
+        service1.id,
+        service1.name,
+        service1.restricted,
+        service1.research_mode,
+        service1.active,
+        service1.created_at,
+        'sms',
+        'created',
+        2,
+    ) in stats
+    assert (
+        service1.id,
+        service1.name,
+        service1.restricted,
+        service1.research_mode,
+        service1.active,
+        service1.created_at,
+        'sms',
+        'failed',
+        1,
+    ) in stats
+    assert (
+        service1.id,
+        service1.name,
+        service1.restricted,
+        service1.research_mode,
+        service1.active,
+        service1.created_at,
+        'email',
+        'created',
+        1,
+    ) in stats
+    assert (
+        service2.id,
+        service2.name,
+        service2.restricted,
+        service2.research_mode,
+        service2.active,
+        service2.created_at,
+        'sms',
+        'created',
+        1,
+    ) in stats
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_keys_by_default(notify_db_session):
@@ -1160,6 +1200,6 @@ def create_email_sms_letter_template():
 
 
 def test_dao_services_by_partial_smtp_name(notify_db_session):
-    create_service(service_name="SMTP CHAMP", smtp_user="smtp_champ")
-    services_from_db = dao_services_by_partial_smtp_name("smtp")
-    assert services_from_db.name == "SMTP CHAMP"
+    create_service(service_name='SMTP CHAMP', smtp_user='smtp_champ')
+    services_from_db = dao_services_by_partial_smtp_name('smtp')
+    assert services_from_db.name == 'SMTP CHAMP'

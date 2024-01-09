@@ -8,19 +8,12 @@ repos:
       hooks:
           - id: bandit
             args: [-c, .bandit.yml, -r, -l]
-    - repo: https://gitlab.com/pycqa/flake8
-      rev: '3.7.9'
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      # Ruff version.
+      rev: v0.1.9
       hooks:
-          - id: flake8
-            args: [--config, .flake8]
-            exclude: |
-              (?x)(
-                ^venv*|
-                ^__pycache__|
-                ^node_modules|
-                ^cache|
-                ^migrations|
-                ^build|
-                ^lambda_functions
-              )
-            
+        # Run the linter.
+        - id: ruff
+          args: [ --fix ]
+        # Run the formatter.
+        - id: ruff-format

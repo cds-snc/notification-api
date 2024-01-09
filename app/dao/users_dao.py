@@ -18,7 +18,10 @@ from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
 
-def _remove_values_for_keys_if_present(dict, keys):
+def _remove_values_for_keys_if_present(
+    dict,
+    keys,
+):
     for key in keys:
         dict.pop(key, None)
 
@@ -27,17 +30,23 @@ def create_secret_code():
     return ''.join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
 
-def save_user_attribute(usr, update_dict):
+def save_user_attribute(
+    usr,
+    update_dict,
+):
     # Check that it is there AND not empty
-    if update_dict.get("blocked"):
-        update_dict.update({"current_session_id": '00000000-0000-0000-0000-000000000000'})
+    if update_dict.get('blocked'):
+        update_dict.update({'current_session_id': '00000000-0000-0000-0000-000000000000'})
 
     stmt = update(User).where(User.id == usr.id).values(update_dict)
     db.session.execute(stmt)
     db.session.commit()
 
 
-def save_model_user(usr, pwd=None):
+def save_model_user(
+    usr,
+    pwd=None,
+):
     if pwd:
         usr.password = pwd
         usr.password_changed_at = datetime.utcnow()
@@ -46,26 +55,31 @@ def save_model_user(usr, pwd=None):
     db.session.commit()
 
 
-def create_user_code(user, code, code_type):
-    verify_code = VerifyCode(code_type=code_type,
-                             expiry_datetime=datetime.utcnow() + timedelta(minutes=30),
-                             user=user)
+def create_user_code(
+    user,
+    code,
+    code_type,
+):
+    verify_code = VerifyCode(code_type=code_type, expiry_datetime=datetime.utcnow() + timedelta(minutes=30), user=user)
     verify_code.code = code
     db.session.add(verify_code)
     db.session.commit()
     return verify_code
 
 
-def get_user_code(user, code, code_type) -> Optional[VerifyCode]:
+def get_user_code(
+    user,
+    code,
+    code_type,
+) -> Optional[VerifyCode]:
     """
     Get the most recent codes to try and reduce the time searching for the correct code.
     """
 
-    stmt = select(VerifyCode).where(
-        VerifyCode.user == user,
-        VerifyCode.code_type == code_type
-    ).order_by(
-        VerifyCode.created_at.desc()
+    stmt = (
+        select(VerifyCode)
+        .where(VerifyCode.user == user, VerifyCode.code_type == code_type)
+        .order_by(VerifyCode.created_at.desc())
     )
 
     for verify_code in db.session.scalars(stmt).all():
@@ -101,20 +115,25 @@ def delete_user_verify_codes(user) -> int:
 
 
 def count_user_verify_codes(user) -> int:
-    stmt = select(func.count()).select_from(VerifyCode).where(
-        VerifyCode.user == user,
-        VerifyCode.expiry_datetime > datetime.utcnow(),
-        VerifyCode.code_used.is_(False)
+    stmt = (
+        select(func.count())
+        .select_from(VerifyCode)
+        .where(VerifyCode.user == user, VerifyCode.expiry_datetime > datetime.utcnow(), VerifyCode.code_used.is_(False))
     )
 
     return db.session.scalar(stmt)
 
 
-def verify_within_time(user, age=timedelta(seconds=30)):
-    stmt = select(func.count()).select_from(VerifyCode).where(
-        VerifyCode.user == user,
-        VerifyCode.code_used.is_(False),
-        VerifyCode.created_at > (datetime.utcnow() - age)
+def verify_within_time(
+    user,
+    age=timedelta(seconds=30),
+):
+    stmt = (
+        select(func.count())
+        .select_from(VerifyCode)
+        .where(
+            VerifyCode.user == user, VerifyCode.code_used.is_(False), VerifyCode.created_at > (datetime.utcnow() - age)
+        )
     )
 
     return db.session.scalar(stmt)
@@ -137,20 +156,21 @@ def get_user_by_email(email):
 
 def get_users_by_partial_email(email):
     email = escape_special_characters(email)
-    stmt = select(User).where(User.email_address.ilike(f"%{email}%"))
+    stmt = select(User).where(User.email_address.ilike(f'%{email}%'))
     return db.session.scalars(stmt).all()
 
 
 def get_user_by_identity_provider_user_id(identity_provider_user_id):
-    stmt = select(User).where(
-        func.lower(User.identity_provider_user_id) == identity_provider_user_id.lower()
-    )
+    stmt = select(User).where(func.lower(User.identity_provider_user_id) == identity_provider_user_id.lower())
 
     return db.session.scalars(stmt).one()
 
 
 @transactional
-def update_user_identity_provider_user_id(email, identity_provider_user_id):
+def update_user_identity_provider_user_id(
+    email,
+    identity_provider_user_id,
+):
     email_matches_condition = func.lower(User.email_address) == func.lower(email)
     id_matches_condition = func.lower(User.identity_provider_user_id) == func.lower(str(identity_provider_user_id))
     stmt = select(User).where(or_(email_matches_condition, id_matches_condition))
@@ -170,22 +190,20 @@ def update_user_identity_provider_user_id(email, identity_provider_user_id):
                 f' does not match id received from Github ({identity_provider_user_id})'
             )
 
-        current_app.logger.info(
-            f'User {user.id} matched by identity provider user id {user.identity_provider_user_id}'
-        )
+        current_app.logger.info(f'User {user.id} matched by identity provider user id {user.identity_provider_user_id}')
 
     return user
 
 
-def create_or_retrieve_user(email_address, identity_provider_user_id, name):
+def create_or_retrieve_user(
+    email_address,
+    identity_provider_user_id,
+    name,
+):
     try:
         return update_user_identity_provider_user_id(email_address, identity_provider_user_id)
     except NoResultFound:
-        data = {
-            'email_address': email_address,
-            'identity_provider_user_id': identity_provider_user_id,
-            'name': name
-        }
+        data = {'email_address': email_address, 'identity_provider_user_id': identity_provider_user_id, 'name': name}
         user = User(**data)
         save_model_user(user)
 
@@ -193,10 +211,9 @@ def create_or_retrieve_user(email_address, identity_provider_user_id, name):
 
 
 @transactional
-def retrieve_match_or_create_user(email_address: str,
-                                  name: str,
-                                  identity_provider: str,
-                                  identity_provider_user_id: str) -> User:
+def retrieve_match_or_create_user(
+    email_address: str, name: str, identity_provider: str, identity_provider_user_id: str
+) -> User:
     try:
         user = User.find_by_idp(identity_provider, identity_provider_user_id)
         return user
@@ -210,10 +227,7 @@ def retrieve_match_or_create_user(email_address: str,
             raise IdpAssignmentException from e
         except NoResultFound:
             user = User(
-                idp_name=identity_provider,
-                idp_id=identity_provider_user_id,
-                name=name,
-                email_address=email_address
+                idp_name=identity_provider, idp_id=identity_provider_user_id, name=name, email_address=email_address
             )
             user.save_to_db()
             return user
@@ -232,7 +246,10 @@ def reset_failed_login_count(user):
         db.session.commit()
 
 
-def update_user_password(user, password):
+def update_user_password(
+    user,
+    password,
+):
     # reset failed login count - they've just reset their password so should be fine
     user.password = password
     user.password_changed_at = datetime.utcnow()
@@ -241,15 +258,17 @@ def update_user_password(user, password):
 
 
 def get_user_and_accounts(user_id):
-    stmt = select(User).options(
-        # eagerly load the user's services and organisations, and also the service's org and vice versa
-        # (so we can see if the user knows about it)
-        joinedload('services'),
-        joinedload('organisations'),
-        joinedload('organisations.services'),
-        joinedload('services.organisation'),
-    ).where(
-        User.id == user_id
+    stmt = (
+        select(User)
+        .options(
+            # eagerly load the user's services and organisations, and also the service's org and vice versa
+            # (so we can see if the user knows about it)
+            joinedload('services'),
+            joinedload('organisations'),
+            joinedload('organisations.services'),
+            joinedload('services.organisation'),
+        )
+        .where(User.id == user_id)
     )
 
     return db.session.scalars(stmt).unique().one()
@@ -258,7 +277,7 @@ def get_user_and_accounts(user_id):
 @transactional
 def dao_archive_user(user):
     if not user_can_be_archived(user):
-        msg = "User can’t be removed from a service - check all services have another team member with manage_settings"
+        msg = 'User can’t be removed from a service - check all services have another team member with manage_settings'
         raise InvalidRequest(msg, 400)
 
     permission_dao.remove_user_service_permissions_for_all_services(user)
@@ -297,5 +316,5 @@ def user_can_be_archived(user):
 
 
 def get_archived_email_address(email_address):
-    date = datetime.utcnow().strftime("%Y-%m-%d")
+    date = datetime.utcnow().strftime('%Y-%m-%d')
     return '_archived_{}_{}'.format(date, email_address)

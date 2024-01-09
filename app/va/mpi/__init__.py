@@ -6,7 +6,7 @@ from .exceptions import (  # noqa: F401
     IncorrectNumberOfIdentifiersException,
     MultipleActiveVaProfileIdsException,
     BeneficiaryDeceasedException,
-    NoSuchIdentifierException
+    NoSuchIdentifierException,
 )
 
 from .mpi import MpiClient  # noqa: F401

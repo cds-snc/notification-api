@@ -4,7 +4,7 @@ import logging
 from time import monotonic
 from requests import request, RequestException
 
-from app.clients.sms import (SmsClient, SmsClientResponseException)
+from app.clients.sms import SmsClient, SmsClientResponseException
 
 logger = logging.getLogger(__name__)
 
@@ -13,11 +13,7 @@ logger = logging.getLogger(__name__)
 # If we get a pending (status = 2) delivery receipt followed by a declined (status = 1) delivery receipt we will set
 # the notification status to temporary-failure rather than permanent failure.
 #  See the code in the notification_dao.update_notifications_status_by_id
-firetext_responses = {
-    '0': 'delivered',
-    '1': 'permanent-failure',
-    '2': 'pending'
-}
+firetext_responses = {'0': 'delivered', '1': 'permanent-failure', '2': 'pending'}
 
 
 def get_firetext_responses(status):
@@ -25,25 +21,36 @@ def get_firetext_responses(status):
 
 
 class FiretextClientResponseException(SmsClientResponseException):
-    def __init__(self, response, exception):
+    def __init__(
+        self,
+        response,
+        exception,
+    ):
         status_code = response.status_code if response is not None else 504
-        text = response.text if response is not None else "Gateway Time-out"
+        text = response.text if response is not None else 'Gateway Time-out'
         self.status_code = status_code
         self.text = text
         self.exception = exception
 
     def __str__(self):
-        return "Code {} text {} exception {}".format(self.status_code, self.text, str(self.exception))
+        return 'Code {} text {} exception {}'.format(self.status_code, self.text, str(self.exception))
 
 
 class FiretextClient(SmsClient):
-    '''
+    """
     FireText sms client.
-    '''
+    """
+
     def __init__(self) -> None:
         self.name = 'firetext'
 
-    def init_app(self, current_app, statsd_client, *args, **kwargs):
+    def init_app(
+        self,
+        current_app,
+        statsd_client,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.current_app = current_app
         self.api_key = current_app.config.get('FIRETEXT_API_KEY')
@@ -54,40 +61,43 @@ class FiretextClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def record_outcome(self, success, response):
+    def record_outcome(
+        self,
+        success,
+        response,
+    ):
         status_code = response.status_code if response else 503
 
-        log_message = "API POST request {} on {} response status_code {}".format(
-            "succeeded" if success else "failed",
-            self.url,
-            status_code
+        log_message = 'API POST request {} on {} response status_code {}'.format(
+            'succeeded' if success else 'failed', self.url, status_code
         )
 
         if success:
             self.current_app.logger.info(log_message)
-            self.statsd_client.incr("clients.firetext.success")
+            self.statsd_client.incr('clients.firetext.success')
         else:
-            self.statsd_client.incr("clients.firetext.error")
+            self.statsd_client.incr('clients.firetext.error')
             self.current_app.logger.error(log_message)
 
-    def send_sms(self, to, content, reference, sender=None, **kwargs):
-
+    def send_sms(
+        self,
+        to,
+        content,
+        reference,
+        sender=None,
+        **kwargs,
+    ):
         data = {
-            "apiKey": self.api_key,
-            "from": self.from_number if sender is None else sender,
-            "to": to.replace('+', ''),
-            "message": content,
-            "reference": reference
+            'apiKey': self.api_key,
+            'from': self.from_number if sender is None else sender,
+            'to': to.replace('+', ''),
+            'message': content,
+            'reference': reference,
         }
 
         start_time = monotonic()
         try:
-            response = request(
-                "POST",
-                self.url,
-                data=data,
-                timeout=60
-            )
+            response = request('POST', self.url, data=data, timeout=60)
             response.raise_for_status()
             try:
                 json.loads(response.text)
@@ -102,6 +112,6 @@ class FiretextClient(SmsClient):
             raise FiretextClientResponseException(response=e.response, exception=e)
         finally:
             elapsed_time = monotonic() - start_time
-            self.current_app.logger.info("Firetext request for %s finished in %f", reference, elapsed_time)
-            self.statsd_client.timing("clients.firetext.request-time", elapsed_time)
+            self.current_app.logger.info('Firetext request for %s finished in %f', reference, elapsed_time)
+            self.statsd_client.timing('clients.firetext.request-time', elapsed_time)
         return response

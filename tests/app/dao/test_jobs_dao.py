@@ -17,10 +17,7 @@ from app.dao.jobs_dao import (
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
-from app.models import (
-    Job,
-    EMAIL_TYPE, SMS_TYPE, LETTER_TYPE
-)
+from app.models import Job, EMAIL_TYPE, SMS_TYPE, LETTER_TYPE
 from tests.app.db import create_job, create_service, create_template, create_notification
 
 
@@ -80,7 +77,7 @@ def test_create_sample_job(sample_template):
         'template_version': sample_template.version,
         'original_file_name': 'some.csv',
         'notification_count': 1,
-        'created_by': sample_template.created_by
+        'created_by': sample_template.created_by,
     }
 
     job = Job(**data)
@@ -101,7 +98,7 @@ def test_get_job_by_id(sample_job):
 def test_get_jobs_for_service(sample_template):
     one_job = create_job(sample_template)
 
-    other_service = create_service(service_name="other service")
+    other_service = create_service(service_name='other service')
     other_template = create_template(service=other_service)
     other_job = create_job(other_template)
 
@@ -263,16 +260,22 @@ def test_get_jobs_for_service_is_paginated(notify_db, notify_db_session, sample_
     assert res.items[1].created_at == datetime(2015, 1, 1, 7)
 
 
-@pytest.mark.parametrize('file_name', [
-    'Test message',
-    'Report',
-])
+@pytest.mark.parametrize(
+    'file_name',
+    [
+        'Test message',
+        'Report',
+    ],
+)
 def test_get_jobs_for_service_doesnt_return_test_messages(
-        sample_template,
-        sample_job,
-        file_name,
+    sample_template,
+    sample_job,
+    file_name,
 ):
-    create_job(sample_template, original_file_name=file_name,)
+    create_job(
+        sample_template,
+        original_file_name=file_name,
+    )
 
     jobs = dao_get_jobs_by_service_id(sample_job.service_id).items
 
@@ -290,9 +293,7 @@ def test_should_get_jobs_seven_days_old_filters_type(sample_service):
     create_job(sms_template, created_at=eight_days_ago)
     create_job(email_template, created_at=eight_days_ago)
 
-    jobs = dao_get_jobs_older_than_data_retention(
-        notification_types=[EMAIL_TYPE, SMS_TYPE]
-    )
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[EMAIL_TYPE, SMS_TYPE])
 
     assert len(jobs) == 2
     assert job_to_remain.id not in [job.id for job in jobs]
@@ -308,9 +309,7 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service):
     create_job(letter_template, created_at=eight_days_ago, scheduled_for=eight_days_ago)
     job_to_remain = create_job(letter_template, created_at=eight_days_ago, scheduled_for=six_days_ago)
 
-    jobs = dao_get_jobs_older_than_data_retention(
-        notification_types=[LETTER_TYPE]
-    )
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[LETTER_TYPE])
 
     assert len(jobs) == 2
     assert job_to_remain.id not in [job.id for job in jobs]
@@ -361,10 +360,10 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     create_notification(template=job.template, job=job, status='created')
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
-    assert errors == "It’s too late to cancel sending, these letters have already been sent."
+    assert errors == 'It’s too late to cancel sending, these letters have already been sent.'
 
 
-@pytest.mark.skip(reason="Letter feature")
+@pytest.mark.skip(reason='Letter feature')
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_already_sent_to_dvla(
     sample_letter_template, admin_request
 ):
@@ -375,7 +374,7 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_
     with freeze_time('2019-06-13 17:32'):
         result, errors = can_letter_job_be_cancelled(job)
     assert not result
-    assert errors == "It’s too late to cancel sending, these letters have already been sent."
+    assert errors == 'It’s too late to cancel sending, these letters have already been sent.'
     assert letter.status == 'created'
     assert job.job_status == 'finished'
 
@@ -388,18 +387,18 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_not_a_le
     create_notification(template=job.template, job=job, status='created')
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
-    assert errors == "Only letter jobs can be cancelled through this endpoint. This is not a letter job."
+    assert errors == 'Only letter jobs can be cancelled through this endpoint. This is not a letter job.'
 
 
 @freeze_time('2019-06-13 13:00')
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_job_not_finished(
     sample_letter_template, admin_request
 ):
-    job = create_job(template=sample_letter_template, notification_count=1, job_status="in progress")
+    job = create_job(template=sample_letter_template, notification_count=1, job_status='in progress')
     create_notification(template=job.template, job=job, status='created')
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
-    assert errors == "We are still processing these letters, please try again in a minute."
+    assert errors == 'We are still processing these letters, please try again in a minute.'
 
 
 @freeze_time('2019-06-13 13:00')
@@ -410,4 +409,4 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     create_notification(template=job.template, job=job, status='created')
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
-    assert errors == "We are still processing these letters, please try again in a minute."
+    assert errors == 'We are still processing these letters, please try again in a minute.'

@@ -10,39 +10,43 @@ import time
 def smtp_add(name):
     ses_client = boto3.client(
         'ses',
-        aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-        aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_SES_REGION"])
+        aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+        aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+        region_name=current_app.config['AWS_SES_REGION'],
+    )
     r53_client = boto3.client(
         'route53',
-        aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-        aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_SES_REGION"])
+        aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+        aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+        region_name=current_app.config['AWS_SES_REGION'],
+    )
     iam_client = boto3.client(
         'iam',
-        aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-        aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-        region_name=current_app.config["AWS_SES_REGION"])
+        aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+        aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+        region_name=current_app.config['AWS_SES_REGION'],
+    )
 
-    name = name + '.m.' + current_app.config["NOTIFY_EMAIL_FROM_DOMAIN"]
+    name = name + '.m.' + current_app.config['NOTIFY_EMAIL_FROM_DOMAIN']
 
     token = create_domain_identity(ses_client, name)
-    add_record(r53_client, '_amazonses.' + name, "\"%s\"" % token, "TXT")
+    add_record(r53_client, '_amazonses.' + name, '"%s"' % token, 'TXT')
 
     tokens = get_dkim(ses_client, name)
     for token in tokens:
         add_record(
             r53_client,
-            token + "._domainkey." + name,
-            token + ".dkim.amazonses.com",
+            token + '._domainkey.' + name,
+            token + '.dkim.amazonses.com',
         )
 
-    add_record(r53_client, name, "\"v=spf1 include:amazonses.com ~all\"", "TXT")
+    add_record(r53_client, name, '"v=spf1 include:amazonses.com ~all"', 'TXT')
     add_record(
         r53_client,
-        "_dmarc." + name,
-        "\"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca; ruf=mailto:dmarc@cyber.gc.ca\"",
-        "TXT")
+        '_dmarc.' + name,
+        '"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca; ruf=mailto:dmarc@cyber.gc.ca"',
+        'TXT',
+    )
 
     credentials = add_user(iam_client, name)
     return credentials
@@ -52,12 +56,13 @@ def smtp_get_user_key(name):
     try:
         iam_client = boto3.client(
             'iam',
-            aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-            aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_SES_REGION"])
+            aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+            aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+            region_name=current_app.config['AWS_SES_REGION'],
+        )
         return iam_client.list_access_keys(
             UserName=name,
-        )["AccessKeyMetadata"][0]["AccessKeyId"]
+        )['AccessKeyMetadata'][0]['AccessKeyId']
     except Exception as e:
         raise e
 
@@ -66,48 +71,44 @@ def smtp_remove(name):
     try:
         ses_client = boto3.client(
             'ses',
-            aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-            aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_SES_REGION"])
+            aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+            aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+            region_name=current_app.config['AWS_SES_REGION'],
+        )
         r53_client = boto3.client(
             'route53',
-            aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-            aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_SES_REGION"])
+            aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+            aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+            region_name=current_app.config['AWS_SES_REGION'],
+        )
         iam_client = boto3.client(
             'iam',
-            aws_access_key_id=current_app.config["AWS_SES_ACCESS_KEY"],
-            aws_secret_access_key=current_app.config["AWS_SES_SECRET_KEY"],
-            region_name=current_app.config["AWS_SES_REGION"])
+            aws_access_key_id=current_app.config['AWS_SES_ACCESS_KEY'],
+            aws_secret_access_key=current_app.config['AWS_SES_SECRET_KEY'],
+            region_name=current_app.config['AWS_SES_REGION'],
+        )
 
-        [domain, _] = name.split("-")
+        [domain, _] = name.split('-')
 
         policies = iam_client.list_user_policies(
             UserName=name,
-        )["PolicyNames"]
+        )['PolicyNames']
 
         for policy in policies:
-            iam_client.delete_user_policy(
-                UserName=name,
-                PolicyName=policy
-            )
+            iam_client.delete_user_policy(UserName=name, PolicyName=policy)
 
         keys = iam_client.list_access_keys(
             UserName=name,
-        )["AccessKeyMetadata"]
+        )['AccessKeyMetadata']
 
         for key in keys:
-            iam_client.delete_access_key(
-                UserName=name,
-                AccessKeyId=key["AccessKeyId"]
-            )
+            iam_client.delete_access_key(UserName=name, AccessKeyId=key['AccessKeyId'])
 
         iam_client.delete_user(UserName=name)
         ses_client.delete_identity(Identity=domain)
         records = r53_client.list_resource_record_sets(
-            HostedZoneId=current_app.config["AWS_ROUTE53_ZONE"],
-            StartRecordName=domain
-        )["ResourceRecordSets"]
+            HostedZoneId=current_app.config['AWS_ROUTE53_ZONE'], StartRecordName=domain
+        )['ResourceRecordSets']
 
         for record in records:
             delete_record(r53_client, record)
@@ -118,56 +119,54 @@ def smtp_remove(name):
         raise e
 
 
-def create_domain_identity(client, name):
+def create_domain_identity(
+    client,
+    name,
+):
     try:
-        return client.verify_domain_identity(
-            Domain=name
-        )['VerificationToken']
+        return client.verify_domain_identity(Domain=name)['VerificationToken']
     except Exception as e:
         raise e
 
 
-def get_dkim(client, name):
+def get_dkim(
+    client,
+    name,
+):
     try:
-        return client.verify_domain_dkim(
-            Domain=name
-        )['DkimTokens']
+        return client.verify_domain_dkim(Domain=name)['DkimTokens']
     except Exception as e:
         raise e
 
 
-def add_user(client, name):
+def add_user(
+    client,
+    name,
+):
     try:
-        user_name = name + "-" + str(int(time.time()))
+        user_name = name + '-' + str(int(time.time()))
         client.create_user(
             Path='/notification-smtp/',
             UserName=user_name,
             Tags=[
-                {
-                    'Key': 'SMTP-USER',
-                    'Value': name
-                },
-            ]
+                {'Key': 'SMTP-USER', 'Value': name},
+            ],
         )
 
         client.put_user_policy(
-            PolicyDocument=generate_user_policy(name),
-            PolicyName="SP-" + user_name,
-            UserName=user_name
+            PolicyDocument=generate_user_policy(name), PolicyName='SP-' + user_name, UserName=user_name
         )
 
-        response = client.create_access_key(
-            UserName=user_name
-        )
+        response = client.create_access_key(UserName=user_name)
 
         credentials = {
-            "iam": user_name,
-            "domain": name,
-            "name": current_app.config["AWS_SES_SMTP"],
-            "port": "465",
-            "tls": "Yes",
-            "username": response["AccessKey"]["AccessKeyId"],
-            "password": munge(response["AccessKey"]["SecretAccessKey"])
+            'iam': user_name,
+            'domain': name,
+            'name': current_app.config['AWS_SES_SMTP'],
+            'port': '465',
+            'tls': 'Yes',
+            'username': response['AccessKey']['AccessKeyId'],
+            'password': munge(response['AccessKey']['SecretAccessKey']),
         }
 
         return credentials
@@ -175,10 +174,15 @@ def add_user(client, name):
         raise e
 
 
-def add_record(client, name, value, record_type="CNAME"):
+def add_record(
+    client,
+    name,
+    value,
+    record_type='CNAME',
+):
     try:
         client.change_resource_record_sets(
-            HostedZoneId=current_app.config["AWS_ROUTE53_ZONE"],
+            HostedZoneId=current_app.config['AWS_ROUTE53_ZONE'],
             ChangeBatch={
                 'Comment': 'add %s -> %s' % (name, value),
                 'Changes': [
@@ -188,27 +192,24 @@ def add_record(client, name, value, record_type="CNAME"):
                             'Name': name,
                             'Type': record_type,
                             'TTL': 300,
-                            'ResourceRecords': [{'Value': value}]
-                        }
-                    }]
-            })
+                            'ResourceRecords': [{'Value': value}],
+                        },
+                    }
+                ],
+            },
+        )
     except Exception as e:
         raise e
 
 
-def delete_record(client, record):
+def delete_record(
+    client,
+    record,
+):
     try:
         client.change_resource_record_sets(
-            HostedZoneId=current_app.config["AWS_ROUTE53_ZONE"],
-            ChangeBatch={
-                'Comment': 'Deleted',
-                'Changes': [
-                    {
-                        'Action': 'DELETE',
-                        'ResourceRecordSet': record
-                    }
-                ]
-            }
+            HostedZoneId=current_app.config['AWS_ROUTE53_ZONE'],
+            ChangeBatch={'Comment': 'Deleted', 'Changes': [{'Action': 'DELETE', 'ResourceRecordSet': record}]},
         )
     except Exception as e:
         raise e
@@ -218,8 +219,10 @@ def generate_user_policy(name):
     policy = (
         '{"Version":"2012-10-17","Statement":'
         '[{"Effect":"Allow","Action":["ses:SendRawEmail"],"Resource":"*",'
-        '"Condition":{"StringLike":{"ses:FromAddress":"*@%s"}}}]}' % name)
+        '"Condition":{"StringLike":{"ses:FromAddress":"*@%s"}}}]}' % name
+    )
     return policy
+
 
 # Taken from https://docs.aws.amazon.com/ses/latest/DeveloperGuide/example-create-smtp-credentials.html
 

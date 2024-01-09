@@ -14,7 +14,10 @@ def send_processing_time_to_performance_platform(bst_date):
     send_processing_time_for_start_and_end(start_time, end_time)
 
 
-def send_processing_time_for_start_and_end(start_time, end_time):
+def send_processing_time_for_start_and_end(
+    start_time,
+    end_time,
+):
     result = dao_get_total_notifications_sent_per_day_for_performance_platform(start_time, end_time)
 
     current_app.logger.info(
@@ -27,13 +30,13 @@ def send_processing_time_for_start_and_end(start_time, end_time):
     send_processing_time_data(start_time, 'messages-within-10-secs', result.messages_within_10_secs)
 
 
-def send_processing_time_data(start_time, status, count):
+def send_processing_time_data(
+    start_time,
+    status,
+    count,
+):
     payload = performance_platform_client.format_payload(
-        dataset='processing-time',
-        start_time=start_time,
-        group_name='status',
-        group_value=status,
-        count=count
+        dataset='processing-time', start_time=start_time, group_name='status', group_value=status, count=count
     )
 
     performance_platform_client.send_stats_to_performance_platform(payload)

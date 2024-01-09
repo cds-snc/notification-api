@@ -4,13 +4,13 @@ from app.dao.email_branding_dao import (
     dao_create_email_branding,
     dao_get_email_branding_options,
     dao_get_email_branding_by_id,
-    dao_update_email_branding
+    dao_update_email_branding,
 )
 from app.errors import register_errors
 from app.models import EmailBranding
 from app.email_branding.email_branding_schema import (
     post_create_email_branding_schema,
-    post_update_email_branding_schema
+    post_update_email_branding_schema,
 )
 from app.schema_validation import validate
 

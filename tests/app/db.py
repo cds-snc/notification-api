@@ -10,10 +10,7 @@ from app.dao.inbound_sms_dao import dao_create_inbound_sms
 from app.dao.invited_org_user_dao import save_invited_org_user
 from app.dao.invited_user_dao import save_invited_user
 from app.dao.jobs_dao import dao_create_job
-from app.dao.notifications_dao import (
-    dao_create_notification,
-    dao_created_scheduled_notification
-)
+from app.dao.notifications_dao import dao_create_notification, dao_created_scheduled_notification
 from app.dao.organisation_dao import dao_create_organisation, dao_add_service_to_organisation
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_callback_api_dao import save_service_callback_api
@@ -58,21 +55,24 @@ from app.models import (
     TemplateFolder,
     Domain,
     NotificationHistory,
-    RecipientIdentifier, NOTIFICATION_STATUS_TYPES_COMPLETED,
-    DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE, CommunicationItem
+    RecipientIdentifier,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    WEBHOOK_CHANNEL_TYPE,
+    CommunicationItem,
 )
 from app.model import User
 
 
 def create_user(
-    mobile_number="+16502532222",
-    email="notify@digital.cabinet-office.gov.uk",
+    mobile_number='+16502532222',
+    email='notify@digital.cabinet-office.gov.uk',
     state='active',
     id_=None,
     identity_provider_user_id=None,
-    name="Test User",
+    name='Test User',
     blocked=False,
-    platform_admin=False
+    platform_admin=False,
 ):
     data = {
         'id': id_ or uuid.uuid4(),
@@ -93,33 +93,30 @@ def create_user(
 
 
 def create_permissions(user, service, *permissions):
-    permissions = [
-        Permission(service_id=service.id, user_id=user.id, permission=p)
-        for p in permissions
-    ]
+    permissions = [Permission(service_id=service.id, user_id=user.id, permission=p) for p in permissions]
 
     permission_dao.set_user_service_permission(user, service, permissions, _commit=True)
 
 
 def create_service(
-        user=None,
-        service_name="Sample service",
-        service_id=None,
-        restricted=False,
-        count_as_live=True,
-        service_permissions=[EMAIL_TYPE, SMS_TYPE],
-        research_mode=False,
-        active=True,
-        email_from=None,
-        prefix_sms=False,
-        message_limit=1000,
-        organisation_type='other',
-        check_if_service_exists=False,
-        go_live_user=None,
-        go_live_at=None,
-        crown=True,
-        organisation=None,
-        smtp_user=None
+    user=None,
+    service_name='Sample service',
+    service_id=None,
+    restricted=False,
+    count_as_live=True,
+    service_permissions=[EMAIL_TYPE, SMS_TYPE],
+    research_mode=False,
+    active=True,
+    email_from=None,
+    prefix_sms=False,
+    message_limit=1000,
+    organisation_type='other',
+    check_if_service_exists=False,
+    go_live_user=None,
+    go_live_at=None,
+    crown=True,
+    organisation=None,
+    smtp_user=None,
 ):
     if check_if_service_exists:
         service = Service.query.filter_by(name=service_name).first()
@@ -135,7 +132,7 @@ def create_service(
             go_live_user=go_live_user,
             go_live_at=go_live_at,
             crown=crown,
-            smtp_user=smtp_user
+            smtp_user=smtp_user,
         )
         dao_create_service(service, service.created_by, service_id, service_permissions=service_permissions)
 
@@ -149,10 +146,7 @@ def create_service(
     return service
 
 
-def create_service_with_inbound_number(
-        inbound_number='1234567',
-        *args, **kwargs
-):
+def create_service_with_inbound_number(inbound_number='1234567', *args, **kwargs):
     service = create_service(*args, **kwargs)
 
     sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
@@ -161,49 +155,43 @@ def create_service_with_inbound_number(
         service_id=service.id,
         service_sms_sender_id=sms_sender.id,
         sms_sender=inbound_number,
-        inbound_number_id=inbound.id
+        inbound_number_id=inbound.id,
     )
 
     return service
 
 
-def create_service_with_defined_sms_sender(
-        sms_sender_value='1234567',
-        *args, **kwargs
-):
+def create_service_with_defined_sms_sender(sms_sender_value='1234567', *args, **kwargs):
     service = create_service(*args, **kwargs)
 
     sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
-    dao_update_service_sms_sender(service_id=service.id,
-                                  service_sms_sender_id=sms_sender.id,
-                                  is_default=True,
-                                  sms_sender=sms_sender_value)
+    dao_update_service_sms_sender(
+        service_id=service.id, service_sms_sender_id=sms_sender.id, is_default=True, sms_sender=sms_sender_value
+    )
 
     return service
 
 
 def create_template(
-        service,
-        template_type=SMS_TYPE,
-        template_name=None,
-        subject='Template subject',
-        content='Dear Sir/Madam, Hello. Yours Truly, The Government.',
-        reply_to=None,
-        hidden=False,
-        archived=False,
-        folder=None,
-        postage=None,
-        process_type='normal',
-        reply_to_email=None,
-        onsite_notification=False
+    service,
+    template_type=SMS_TYPE,
+    template_name=None,
+    subject='Template subject',
+    content='Dear Sir/Madam, Hello. Yours Truly, The Government.',
+    reply_to=None,
+    hidden=False,
+    archived=False,
+    folder=None,
+    postage=None,
+    process_type='normal',
+    reply_to_email=None,
+    onsite_notification=False,
 ):
     # The CommunicationItem fields "va_profile_item_id" and "name" must be unique.  Using a UUID for
     # "name" is very unlikely to cause a collision.  If a test fails with a duplicate "va_profile_item_id",
     # rerun the test.  See #1106 for a more elegant solution.
     communication_item = CommunicationItem(
-        id=uuid.uuid4(),
-        va_profile_item_id=random.randint(1, 100000),
-        name=uuid.uuid4()
+        id=uuid.uuid4(), va_profile_item_id=random.randint(1, 100000), name=uuid.uuid4()
     )
     dao_create_communication_item(communication_item)
 
@@ -219,10 +207,10 @@ def create_template(
         'process_type': process_type,
         'communication_item_id': communication_item.id,
         'reply_to_email': reply_to_email,
-        'onsite_notification': onsite_notification
+        'onsite_notification': onsite_notification,
     }
     if template_type == LETTER_TYPE:
-        data["postage"] = postage or "second"
+        data['postage'] = postage or 'second'
     if template_type != SMS_TYPE:
         data['subject'] = subject
     template = Template(**data)
@@ -235,37 +223,37 @@ def create_template(
     return template
 
 
-def create_notification(
-        template=None,
-        job=None,
-        job_row_number=None,
-        to_field=None,
-        status='created',
-        status_reason=None,
-        reference=None,
-        created_at=None,
-        sent_at=None,
-        updated_at=None,
-        billable_units=1,
-        segments_count=0,
-        cost_in_millicents=0.000,
-        personalisation=None,
-        api_key=None,
-        key_type=KEY_TYPE_NORMAL,
-        sent_by=None,
-        client_reference=None,
-        rate_multiplier=None,
-        international=False,
-        phone_prefix=None,
-        scheduled_for=None,
-        normalised_to=None,
-        one_off=False,
-        reply_to_text=None,
-        created_by_id=None,
-        postage=None,
-        recipient_identifiers=None,
-        billing_code=None,
-        sms_sender_id=None
+def create_notification(  # noqa: C901
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status='created',
+    status_reason=None,
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    updated_at=None,
+    billable_units=1,
+    segments_count=0,
+    cost_in_millicents=0.000,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+    sent_by=None,
+    client_reference=None,
+    rate_multiplier=None,
+    international=False,
+    phone_prefix=None,
+    scheduled_for=None,
+    normalised_to=None,
+    one_off=False,
+    reply_to_text=None,
+    created_by_id=None,
+    postage=None,
+    recipient_identifiers=None,
+    billing_code=None,
+    sms_sender_id=None,
 ):
     assert job or template
     if job:
@@ -333,16 +321,17 @@ def create_notification(
             _recipient_identifier = RecipientIdentifier(
                 notification_id=notification.id,
                 id_type=recipient_identifier['id_type'],
-                id_value=recipient_identifier['id_value']
+                id_value=recipient_identifier['id_value'],
             )
             notification.recipient_identifiers.set(_recipient_identifier)
 
     dao_create_notification(notification)
     if scheduled_for:
-        scheduled_notification = ScheduledNotification(id=uuid.uuid4(),
-                                                       notification_id=notification.id,
-                                                       scheduled_for=datetime.strptime(scheduled_for,
-                                                                                       "%Y-%m-%d %H:%M"))
+        scheduled_notification = ScheduledNotification(
+            id=uuid.uuid4(),
+            notification_id=notification.id,
+            scheduled_for=datetime.strptime(scheduled_for, '%Y-%m-%d %H:%M'),
+        )
         if status != 'created':
             scheduled_notification.pending = False
         dao_created_scheduled_notification(scheduled_notification)
@@ -351,26 +340,26 @@ def create_notification(
 
 
 def create_notification_history(
-        template=None,
-        job=None,
-        job_row_number=None,
-        status='created',
-        reference=None,
-        created_at=None,
-        sent_at=None,
-        updated_at=None,
-        billable_units=1,
-        segments_count=1,
-        cost_in_millicents=0.001,
-        api_key=None,
-        key_type=KEY_TYPE_NORMAL,
-        sent_by=None,
-        client_reference=None,
-        rate_multiplier=None,
-        international=False,
-        phone_prefix=None,
-        created_by_id=None,
-        postage=None
+    template=None,
+    job=None,
+    job_row_number=None,
+    status='created',
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    updated_at=None,
+    billable_units=1,
+    segments_count=1,
+    cost_in_millicents=0.001,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+    sent_by=None,
+    client_reference=None,
+    rate_multiplier=None,
+    international=False,
+    phone_prefix=None,
+    created_by_id=None,
+    postage=None,
 ):
     assert job or template
     if job:
@@ -413,7 +402,7 @@ def create_notification_history(
         'international': international,
         'phone_prefix': phone_prefix,
         'created_by_id': created_by_id,
-        'postage': postage
+        'postage': postage,
     }
     notification_history = NotificationHistory(**data)
     db.session.add(notification_history)
@@ -423,14 +412,14 @@ def create_notification_history(
 
 
 def create_job(
-        template,
-        notification_count=1,
-        created_at=None,
-        job_status='pending',
-        scheduled_for=None,
-        processing_started=None,
-        original_file_name='some.csv',
-        archived=False
+    template,
+    notification_count=1,
+    created_at=None,
+    job_status='pending',
+    scheduled_for=None,
+    processing_started=None,
+    original_file_name='some.csv',
+    archived=False,
 ):
     data = {
         'id': uuid.uuid4(),
@@ -445,7 +434,7 @@ def create_job(
         'job_status': job_status,
         'scheduled_for': scheduled_for,
         'processing_started': processing_started,
-        'archived': archived
+        'archived': archived,
     }
     job = Job(**data)
     dao_create_job(job)
@@ -453,8 +442,7 @@ def create_job(
 
 
 def create_service_permission(service_id, permission=EMAIL_TYPE):
-    dao_add_service_permission(
-        service_id if service_id else create_service().id, permission)
+    dao_add_service_permission(service_id if service_id else create_service().id, permission)
 
     service_permissions = ServicePermission.query.all()
 
@@ -462,21 +450,21 @@ def create_service_permission(service_id, permission=EMAIL_TYPE):
 
 
 def create_inbound_sms(
-        service,
-        notify_number=None,
-        user_number='+16502532222',
-        provider_date=None,
-        provider_reference=None,
-        content='Hello',
-        provider="mmg",
-        created_at=None
+    service,
+    notify_number=None,
+    user_number='+16502532222',
+    provider_date=None,
+    provider_reference=None,
+    content='Hello',
+    provider='mmg',
+    created_at=None,
 ):
     if not service.inbound_numbers:
         create_inbound_number(
             # create random inbound number
             notify_number or '1{:10}'.format(random.randint(0, 1e9 - 1)),  # nosec
             provider=provider,
-            service_id=service.id
+            service_id=service.id,
         )
 
     inbound = InboundSms(
@@ -487,40 +475,42 @@ def create_inbound_sms(
         provider_date=provider_date or datetime.utcnow(),
         provider_reference=provider_reference or 'foo',
         content=content,
-        provider=provider
+        provider=provider,
     )
     dao_create_inbound_sms(inbound)
     return inbound
 
 
 def create_service_callback_api(  # nosec
-        service,
-        url="https://something.com",
-        bearer_token="some_super_secret",
-        callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
-        notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED,
-        callback_channel=WEBHOOK_CHANNEL_TYPE,
-        include_provider_payload=False
+    service,
+    url='https://something.com',
+    bearer_token='some_super_secret',
+    callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
+    notification_statuses=NOTIFICATION_STATUS_TYPES_COMPLETED,
+    callback_channel=WEBHOOK_CHANNEL_TYPE,
+    include_provider_payload=False,
 ):
     if callback_type == DELIVERY_STATUS_CALLBACK_TYPE:
-        service_callback_api = ServiceCallback(service_id=service.id,
-                                               url=url,
-                                               bearer_token=bearer_token,
-                                               updated_by_id=service.users[0].id,
-                                               callback_type=callback_type,
-                                               notification_statuses=notification_statuses,
-                                               callback_channel=callback_channel,
-                                               include_provider_payload=include_provider_payload
-                                               )
+        service_callback_api = ServiceCallback(
+            service_id=service.id,
+            url=url,
+            bearer_token=bearer_token,
+            updated_by_id=service.users[0].id,
+            callback_type=callback_type,
+            notification_statuses=notification_statuses,
+            callback_channel=callback_channel,
+            include_provider_payload=include_provider_payload,
+        )
     else:
-        service_callback_api = ServiceCallback(service_id=service.id,
-                                               url=url,
-                                               bearer_token=bearer_token,
-                                               updated_by_id=service.users[0].id,
-                                               callback_type=callback_type,
-                                               callback_channel=callback_channel,
-                                               include_provider_payload=include_provider_payload
-                                               )
+        service_callback_api = ServiceCallback(
+            service_id=service.id,
+            url=url,
+            bearer_token=bearer_token,
+            updated_by_id=service.users[0].id,
+            callback_type=callback_type,
+            callback_channel=callback_channel,
+            include_provider_payload=include_provider_payload,
+        )
     save_service_callback_api(service_callback_api)
     return service_callback_api
 
@@ -539,12 +529,7 @@ def create_email_branding(colour='blue', logo='test_x2.png', name='test_org_1', 
 
 
 def create_rate(start_date, value, notification_type):
-    rate = Rate(
-        id=uuid.uuid4(),
-        valid_from=start_date,
-        rate=value,
-        notification_type=notification_type
-    )
+    rate = Rate(id=uuid.uuid4(), valid_from=start_date, rate=value, notification_type=notification_type)
     db.session.add(rate)
     db.session.commit()
     return rate
@@ -560,7 +545,7 @@ def create_letter_rate(start_date=None, end_date=None, crown=True, sheet_count=1
         crown=crown,
         sheet_count=sheet_count,
         rate=rate,
-        post_class=post_class
+        post_class=post_class,
     )
     db.session.add(rate)
     db.session.commit()
@@ -573,12 +558,7 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
     name = key_name if key_name else '{} api key {}'.format(key_type, id_)
 
     api_key = ApiKey(
-        service=service,
-        name=name,
-        created_by=service.created_by,
-        key_type=key_type,
-        id=id_,
-        secret=uuid.uuid4()
+        service=service, name=name, created_by=service.created_by, key_type=key_type, id=id_, secret=uuid.uuid4()
     )
     db.session.add(api_key)
     db.session.commit()
@@ -587,7 +567,7 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
 
 def create_inbound_number(
     number,
-    provider="ses",
+    provider='ses',
     active=True,
     service_id=None,
     url_endpoint=None,
@@ -609,12 +589,7 @@ def create_inbound_number(
     return inbound_number
 
 
-def create_reply_to_email(
-        service,
-        email_address,
-        is_default=True,
-        archived=False
-):
+def create_reply_to_email(service, email_address, is_default=True, archived=False):
     data = {
         'service': service,
         'email_address': email_address,
@@ -630,12 +605,7 @@ def create_reply_to_email(
 
 
 def create_service_sms_sender(
-        service,
-        sms_sender,
-        is_default=True,
-        inbound_number_id=None,
-        archived=False,
-        sms_sender_specifics={}
+    service, sms_sender, is_default=True, inbound_number_id=None, archived=False, sms_sender_specifics={}
 ):
     data = {
         'service_id': service.id,
@@ -653,12 +623,7 @@ def create_service_sms_sender(
     return service_sms_sender
 
 
-def create_letter_contact(
-        service,
-        contact_block,
-        is_default=True,
-        archived=False
-):
+def create_letter_contact(service, contact_block, is_default=True, archived=False):
     data = {
         'service': service,
         'contact_block': contact_block,
@@ -673,13 +638,11 @@ def create_letter_contact(
     return letter_content
 
 
-def create_annual_billing(
-        service_id, free_sms_fragment_limit, financial_year_start
-):
+def create_annual_billing(service_id, free_sms_fragment_limit, financial_year_start):
     annual_billing = AnnualBilling(
         service_id=service_id,
         free_sms_fragment_limit=free_sms_fragment_limit,
-        financial_year_start=financial_year_start
+        financial_year_start=financial_year_start,
     )
     db.session.add(annual_billing)
     db.session.commit()
@@ -688,7 +651,6 @@ def create_annual_billing(
 
 
 def create_domain(domain, organisation_id):
-
     domain = Domain(domain=domain, organisation_id=organisation_id)
 
     db.session.add(domain)
@@ -727,15 +689,11 @@ def create_invited_org_user(organisation, invited_by, email_address='invite@exam
     return invited_org_user
 
 
-def create_daily_sorted_letter(billing_day=date(2018, 1, 18),
-                               file_name="Notify-20180118123.rs.txt",
-                               unsorted_count=0,
-                               sorted_count=0):
+def create_daily_sorted_letter(
+    billing_day=date(2018, 1, 18), file_name='Notify-20180118123.rs.txt', unsorted_count=0, sorted_count=0
+):
     daily_sorted_letter = DailySortedLetter(
-        billing_day=billing_day,
-        file_name=file_name,
-        unsorted_count=unsorted_count,
-        sorted_count=sorted_count
+        billing_day=billing_day, file_name=file_name, unsorted_count=unsorted_count, sorted_count=sorted_count
     )
 
     db.session.add(daily_sorted_letter)
@@ -744,34 +702,37 @@ def create_daily_sorted_letter(billing_day=date(2018, 1, 18),
     return daily_sorted_letter
 
 
-def create_ft_billing(utc_date,
-                      notification_type,
-                      template=None,
-                      service=None,
-                      provider='test',
-                      rate_multiplier=1,
-                      international=False,
-                      rate=0,
-                      billable_unit=1,
-                      notifications_sent=1,
-                      postage='none',
-                      ):
+def create_ft_billing(
+    utc_date,
+    notification_type,
+    template=None,
+    service=None,
+    provider='test',
+    rate_multiplier=1,
+    international=False,
+    rate=0,
+    billable_unit=1,
+    notifications_sent=1,
+    postage='none',
+):
     if not service:
         service = create_service()
     if not template:
         template = create_template(service=service, template_type=notification_type)
 
-    data = FactBilling(bst_date=utc_date,
-                       service_id=service.id,
-                       template_id=template.id,
-                       notification_type=notification_type,
-                       provider=provider,
-                       rate_multiplier=rate_multiplier,
-                       international=international,
-                       rate=rate,
-                       billable_units=billable_unit,
-                       notifications_sent=notifications_sent,
-                       postage=postage)
+    data = FactBilling(
+        bst_date=utc_date,
+        service_id=service.id,
+        template_id=template.id,
+        notification_type=notification_type,
+        provider=provider,
+        rate_multiplier=rate_multiplier,
+        international=international,
+        rate=rate,
+        billable_units=billable_unit,
+        notifications_sent=notifications_sent,
+        postage=postage,
+    )
     db.session.add(data)
     db.session.commit()
     return data
@@ -786,7 +747,7 @@ def create_ft_notification_status(
     key_type='normal',
     notification_status='delivered',
     status_reason='',
-    count=1
+    count=1,
 ):
     if job:
         template = job.template
@@ -807,7 +768,7 @@ def create_ft_notification_status(
         key_type=key_type,
         notification_status=notification_status,
         status_reason=status_reason,
-        notification_count=count
+        notification_count=count,
     )
     db.session.add(data)
     db.session.commit()
@@ -827,22 +788,21 @@ def create_service_whitelist(service, email_address=None, mobile_number=None):
     return whitelisted_user
 
 
-def create_complaint(service=None,
-                     notification=None,
-                     created_at=None):
+def create_complaint(service=None, notification=None, created_at=None):
     if not service:
         service = create_service()
     if not notification:
         template = create_template(service=service, template_type='email')
         notification = create_notification(template=template)
 
-    complaint = Complaint(notification_id=notification.id,
-                          service_id=service.id,
-                          feedback_id=str(uuid.uuid4()),
-                          complaint_type='abuse',
-                          complaint_date=datetime.utcnow(),
-                          created_at=created_at if created_at else datetime.now()
-                          )
+    complaint = Complaint(
+        notification_id=notification.id,
+        service_id=service.id,
+        feedback_id=str(uuid.uuid4()),
+        complaint_type='abuse',
+        complaint_date=datetime.utcnow(),
+        created_at=created_at if created_at else datetime.now(),
+    )
     db.session.add(complaint)
     db.session.commit()
     return complaint
@@ -851,12 +811,16 @@ def create_complaint(service=None,
 def ses_complaint_callback_malformed_message_id():
     return {
         'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
+        'SignatureVersion': '1',
+        'MessageAttributes': {},
+        'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
+        'TopicArn': 'arn:ses_notifications',
+        'Type': 'Notification',
+        'Timestamp': '2018-06-05T14:00:15.952Z',
+        'Subject': None,
         'Message': '{"eventType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","badMessageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
-        'SigningCertUrl': 'https://sns.pem'
+        'SigningCertUrl': 'https://sns.pem',
     }
 
 
@@ -866,12 +830,16 @@ def ses_complaint_callback_with_missing_complaint_type():
     """
     return {
         'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
+        'SignatureVersion': '1',
+        'MessageAttributes': {},
+        'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
+        'TopicArn': 'arn:ses_notifications',
+        'Type': 'Notification',
+        'Timestamp': '2018-06-05T14:00:15.952Z',
+        'Subject': None,
         'Message': '{"eventType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
-        'SigningCertUrl': 'https://sns.pem'
+        'SigningCertUrl': 'https://sns.pem',
     }
 
 
@@ -881,12 +849,16 @@ def ses_complaint_callback():
     """
     return {
         'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
+        'SignatureVersion': '1',
+        'MessageAttributes': {},
+        'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
+        'TopicArn': 'arn:ses_notifications',
+        'Type': 'Notification',
+        'Timestamp': '2018-06-05T14:00:15.952Z',
+        'Subject': None,
         'Message': '{"eventType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
-        'SigningCertUrl': 'https://sns.pem'
+        'SigningCertUrl': 'https://sns.pem',
     }
 
 
@@ -896,47 +868,57 @@ def ses_smtp_complaint_callback():
     """
     return {
         'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
+        'SignatureVersion': '1',
+        'MessageAttributes': {},
+        'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
-        'Message': "{\"eventType\":\"Complaint\",\"complaint\":{\"complaintSubType\":null,\"complainedRecipients\":[{\"emailAddress\":\"complaint@simulator.amazonses.com\"}],\"timestamp\":\"2020-02-18T14:34:53.000Z\",\"feedbackId\":\"0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000\",\"userAgent\":\"Amazon SES Mailbox Simulator\",\"complaintFeedbackType\":\"abuse\"},\"mail\":{\"timestamp\":\"2020-02-18T14:34:52.000Z\",\"source\":\"test@smtp_user\",\"sourceArn\":\"arn:aws:ses:us-east-1:248983331664:identity/smtp_user\",\"sourceIp\":\"\",\"sendingAccountId\":\"\",\"messageId\":\"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000\",\"destination\":[\"complaint@simulator.amazonses.com\"],\"headersTruncated\":false,\"headers\":[{\"name\":\"Received\",\"value\":\"from Maxs-MacBook-Pro.local (CPE704ca52f06e7-CMf81d0fa26620.cpe.net.cable.rogers.com []) by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)\"},{\"name\":\"Content-Type\",\"value\":\"multipart/alternative; boundary=\\\"--_NmP-959c1f6221c7e029-Part_1\\\"\"},{\"name\":\"From\",\"value\":\"Max Neuvians <test@smtp_user>\"},{\"name\":\"To\",\"value\":\"complaint@simulator.amazonses.com\"},{\"name\":\"Subject\",\"value\":\"Hello ✔\"},{\"name\":\"Message-ID\",\"value\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\"},{\"name\":\"Date\",\"value\":\"Tue, 18 Feb 2020 14:34:52 +0000\"},{\"name\":\"MIME-Version\",\"value\":\"1.0\"}],\"commonHeaders\":{\"from\":[\"Max Neuvians <test@smtp_user>\"],\"date\":\"Tue, 18 Feb 2020 14:34:52 +0000\",\"to\":[\"complaint@simulator.amazonses.com\"],\"messageId\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\",\"subject\":\"Hello ✔\"}}}",  # noqa
-        'SigningCertUrl': 'https://sns.pem'
+        'TopicArn': 'arn:ses_notifications',
+        'Type': 'Notification',
+        'Timestamp': '2018-06-05T14:00:15.952Z',
+        'Subject': None,
+        'Message': '{"eventType":"Complaint","complaint":{"complaintSubType":null,"complainedRecipients":[{"emailAddress":"complaint@simulator.amazonses.com"}],"timestamp":"2020-02-18T14:34:53.000Z","feedbackId":"0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000","userAgent":"Amazon SES Mailbox Simulator","complaintFeedbackType":"abuse"},"mail":{"timestamp":"2020-02-18T14:34:52.000Z","source":"test@smtp_user","sourceArn":"arn:aws:ses:us-east-1:248983331664:identity/smtp_user","sourceIp":"","sendingAccountId":"","messageId":"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000","destination":["complaint@simulator.amazonses.com"],"headersTruncated":false,"headers":[{"name":"Received","value":"from Maxs-MacBook-Pro.local (CPE704ca52f06e7-CMf81d0fa26620.cpe.net.cable.rogers.com []) by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)"},{"name":"Content-Type","value":"multipart/alternative; boundary=\\"--_NmP-959c1f6221c7e029-Part_1\\""},{"name":"From","value":"Max Neuvians <test@smtp_user>"},{"name":"To","value":"complaint@simulator.amazonses.com"},{"name":"Subject","value":"Hello ✔"},{"name":"Message-ID","value":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>"},{"name":"Date","value":"Tue, 18 Feb 2020 14:34:52 +0000"},{"name":"MIME-Version","value":"1.0"}],"commonHeaders":{"from":["Max Neuvians <test@smtp_user>"],"date":"Tue, 18 Feb 2020 14:34:52 +0000","to":["complaint@simulator.amazonses.com"],"messageId":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>","subject":"Hello ✔"}}}',  # noqa
+        'SigningCertUrl': 'https://sns.pem',
     }
 
 
 def ses_notification_callback():
-    return '{\n  "Type" : "Notification",\n  "MessageId" : "ref1",' \
-           '\n  "TopicArn" : "arn:aws:sns:eu-west-1:123456789012:testing",' \
-           '\n  "Message" : "{\\"eventType\\":\\"Delivery\\",' \
-           '\\"mail\\":{\\"timestamp\\":\\"2016-03-14T12:35:25.909Z\\",' \
-           '\\"source\\":\\"test@smtp_user\\",' \
-           '\\"sourceArn\\":\\"arn:aws:ses:eu-west-1:123456789012:identity/testing-notify\\",' \
-           '\\"sendingAccountId\\":\\"123456789012\\",' \
-           '\\"messageId\\":\\"ref1\\",' \
-           '\\"destination\\":[\\"testing@digital.cabinet-office.gov.uk\\"]},' \
-           '\\"delivery\\":{\\"timestamp\\":\\"2016-03-14T12:35:26.567Z\\",' \
-           '\\"processingTimeMillis\\":658,' \
-           '\\"recipients\\":[\\"testing@digital.cabinet-office.gov.uk\\"],' \
-           '\\"smtpResponse\\":\\"250 2.0.0 OK 1457958926 uo5si26480932wjc.221 - gsmtp\\",' \
-           '\\"reportingMTA\\":\\"a6-238.smtp-out.eu-west-1.amazonses.com\\"}}",' \
-           '\n  "Timestamp" : "2016-03-14T12:35:26.665Z",\n  "SignatureVersion" : "1",' \
-           '\n  "Signature" : "",' \
-           '\n  "SigningCertURL" : "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-bb750' \
-           'dd426d95ee9390147a5624348ee.pem",' \
-           '\n  "UnsubscribeURL" : "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&S' \
-           'subscriptionArn=arn:aws:sns:eu-west-1:302763885840:preview-emails:d6aad3ef-83d6-4cf3-a470-54e2e75916da"\n}'
+    return (
+        '{\n  "Type" : "Notification",\n  "MessageId" : "ref1",'
+        '\n  "TopicArn" : "arn:aws:sns:eu-west-1:123456789012:testing",'
+        '\n  "Message" : "{\\"eventType\\":\\"Delivery\\",'
+        '\\"mail\\":{\\"timestamp\\":\\"2016-03-14T12:35:25.909Z\\",'
+        '\\"source\\":\\"test@smtp_user\\",'
+        '\\"sourceArn\\":\\"arn:aws:ses:eu-west-1:123456789012:identity/testing-notify\\",'
+        '\\"sendingAccountId\\":\\"123456789012\\",'
+        '\\"messageId\\":\\"ref1\\",'
+        '\\"destination\\":[\\"testing@digital.cabinet-office.gov.uk\\"]},'
+        '\\"delivery\\":{\\"timestamp\\":\\"2016-03-14T12:35:26.567Z\\",'
+        '\\"processingTimeMillis\\":658,'
+        '\\"recipients\\":[\\"testing@digital.cabinet-office.gov.uk\\"],'
+        '\\"smtpResponse\\":\\"250 2.0.0 OK 1457958926 uo5si26480932wjc.221 - gsmtp\\",'
+        '\\"reportingMTA\\":\\"a6-238.smtp-out.eu-west-1.amazonses.com\\"}}",'
+        '\n  "Timestamp" : "2016-03-14T12:35:26.665Z",\n  "SignatureVersion" : "1",'
+        '\n  "Signature" : "",'
+        '\n  "SigningCertURL" : "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-bb750'
+        'dd426d95ee9390147a5624348ee.pem",'
+        '\n  "UnsubscribeURL" : "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&S'
+        'subscriptionArn=arn:aws:sns:eu-west-1:302763885840:preview-emails:d6aad3ef-83d6-4cf3-a470-54e2e75916da"\n}'
+    )
 
 
 def ses_smtp_notification_callback():
     return {
         'Signature': 'bb',
-        'SignatureVersion': '1', 'MessageAttributes': {}, 'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
+        'SignatureVersion': '1',
+        'MessageAttributes': {},
+        'MessageId': '98c6e927-af5d-5f3b-9522-bab736f2cbde',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com',
-        'TopicArn': 'arn:ses_notifications', 'Type': 'Notification',
-        'Timestamp': '2018-06-05T14:00:15.952Z', 'Subject': None,
-        'Message': "{\"eventType\":\"Delivery\",\"mail\":{\"timestamp\":\"2020-02-18T14:34:53.070Z\",\"source\":\"test@smtp_user\",\"sourceArn\":\"arn:aws:ses:us-east-1:248983331664:identity/smtp_user\",\"sourceIp\":\"\",\"sendingAccountId\":\"248983331664\",\"messageId\":\"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000\",\"destination\":[\"complaint@simulator.amazonses.com\"],\"headersTruncated\":false,\"headers\":[{\"name\":\"Received\",\"value\":\"from Maxs-MacBook-Pro.local () by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)\"},{\"name\":\"Content-Type\",\"value\":\"multipart/alternative; boundary=\\\"--_NmP-959c1f6221c7e029-Part_1\\\"\"},{\"name\":\"From\",\"value\":\"Max Neuvians <test@smtp_user>\"},{\"name\":\"To\",\"value\":\"complaint@simulator.amazonses.com\"},{\"name\":\"Subject\",\"value\":\"Hello ✔\"},{\"name\":\"Message-ID\",\"value\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\"},{\"name\":\"Date\",\"value\":\"Tue, 18 Feb 2020 14:34:52 +0000\"},{\"name\":\"MIME-Version\",\"value\":\"1.0\"}],\"commonHeaders\":{\"from\":[\"Max Neuvians <test@smtp_user>\"],\"date\":\"Tue, 18 Feb 2020 14:34:52 +0000\",\"to\":[\"complaint@simulator.amazonses.com\"],\"messageId\":\"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>\",\"subject\":\"Hello ✔\"}},\"delivery\":{\"timestamp\":\"2020-02-18T14:34:53.519Z\",\"processingTimeMillis\":449,\"recipients\":[\"complaint@simulator.amazonses.com\"],\"smtpResponse\":\"250 2.6.0 Message received\",\"remoteMtaIp\":\"34.204.216.130\",\"reportingMTA\":\"a8-90.smtp-out.amazonses.com\"}}",  # noqa
-        'SigningCertUrl': 'https://sns.pem'
+        'TopicArn': 'arn:ses_notifications',
+        'Type': 'Notification',
+        'Timestamp': '2018-06-05T14:00:15.952Z',
+        'Subject': None,
+        'Message': '{"eventType":"Delivery","mail":{"timestamp":"2020-02-18T14:34:53.070Z","source":"test@smtp_user","sourceArn":"arn:aws:ses:us-east-1:248983331664:identity/smtp_user","sourceIp":"","sendingAccountId":"248983331664","messageId":"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000","destination":["complaint@simulator.amazonses.com"],"headersTruncated":false,"headers":[{"name":"Received","value":"from Maxs-MacBook-Pro.local () by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)"},{"name":"Content-Type","value":"multipart/alternative; boundary=\\"--_NmP-959c1f6221c7e029-Part_1\\""},{"name":"From","value":"Max Neuvians <test@smtp_user>"},{"name":"To","value":"complaint@simulator.amazonses.com"},{"name":"Subject","value":"Hello ✔"},{"name":"Message-ID","value":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>"},{"name":"Date","value":"Tue, 18 Feb 2020 14:34:52 +0000"},{"name":"MIME-Version","value":"1.0"}],"commonHeaders":{"from":["Max Neuvians <test@smtp_user>"],"date":"Tue, 18 Feb 2020 14:34:52 +0000","to":["complaint@simulator.amazonses.com"],"messageId":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>","subject":"Hello ✔"}},"delivery":{"timestamp":"2020-02-18T14:34:53.519Z","processingTimeMillis":449,"recipients":["complaint@simulator.amazonses.com"],"smtpResponse":"250 2.6.0 Message received","remoteMtaIp":"34.204.216.130","reportingMTA":"a8-90.smtp-out.amazonses.com"}}',  # noqa
+        'SigningCertUrl': 'https://sns.pem',
     }
 
 
@@ -953,46 +935,36 @@ def _ses_bounce_callback(reference, bounce_type):
         'bounce': {
             'bounceSubType': 'General',
             'bounceType': bounce_type,
-            'bouncedRecipients': [{
-                'action': 'failed',
-                'diagnosticCode': 'smtp; 550 5.1.1 user unknown',
-                'emailAddress': 'bounce@simulator.amazonses.com',
-                'status': '5.1.1'
-            }],
+            'bouncedRecipients': [
+                {
+                    'action': 'failed',
+                    'diagnosticCode': 'smtp; 550 5.1.1 user unknown',
+                    'emailAddress': 'bounce@simulator.amazonses.com',
+                    'status': '5.1.1',
+                }
+            ],
             'feedbackId': '0102015fc9e676fb-12341234-1234-1234-1234-9301e86a4fa8-000000',
             'remoteMtaIp': '123.123.123.123',
             'reportingMTA': 'dsn; a7-31.smtp-out.eu-west-1.amazonses.com',
-            'timestamp': '2017-11-17T12:14:05.131Z'
+            'timestamp': '2017-11-17T12:14:05.131Z',
         },
         'mail': {
             'commonHeaders': {
                 'from': ['TEST <TEST@smtp_user>'],
                 'subject': 'ses callback test',
                 'to': ['bounce@simulator.amazonses.com'],
-                'date': 'Tue, 18 Feb 2020 14:34:52 +0000'
+                'date': 'Tue, 18 Feb 2020 14:34:52 +0000',
             },
             'destination': ['bounce@simulator.amazonses.com'],
             'headers': [
-                {
-                    'name': 'From',
-                    'value': 'TEST <TEST@smtp_user>'
-                },
-                {
-                    'name': 'To',
-                    'value': 'bounce@simulator.amazonses.com'
-                },
-                {
-                    'name': 'Subject',
-                    'value': 'lambda test'
-                },
-                {
-                    'name': 'MIME-Version',
-                    'value': '1.0'
-                },
+                {'name': 'From', 'value': 'TEST <TEST@smtp_user>'},
+                {'name': 'To', 'value': 'bounce@simulator.amazonses.com'},
+                {'name': 'Subject', 'value': 'lambda test'},
+                {'name': 'MIME-Version', 'value': '1.0'},
                 {
                     'name': 'Content-Type',
-                    'value': 'multipart/alternative; boundary="----=_Part_596529_2039165601.1510920843367"'
-                }
+                    'value': 'multipart/alternative; boundary="----=_Part_596529_2039165601.1510920843367"',
+                },
             ],
             'headersTruncated': False,
             'messageId': reference,
@@ -1000,9 +972,9 @@ def _ses_bounce_callback(reference, bounce_type):
             'source': 'TEST@smtp_user',
             'sourceArn': 'arn:aws:ses:eu-west-1:12341234:identity/smtp_user',
             'sourceIp': '0.0.0.1',
-            'timestamp': '2017-11-17T12:14:03.000Z'
+            'timestamp': '2017-11-17T12:14:03.000Z',
         },
-        'eventType': 'Bounce'
+        'eventType': 'Bounce',
     }
     return {
         'Type': 'Notification',
@@ -1015,26 +987,18 @@ def _ses_bounce_callback(reference, bounce_type):
         'Signature': '[REDACTED]',  # noqa
         'SigningCertUrl': 'https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED]].pem',
         'UnsubscribeUrl': 'https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REDACTED]]',
-        'MessageAttributes': {}
+        'MessageAttributes': {},
     }
 
 
-def create_service_data_retention(
-        service,
-        notification_type='sms',
-        days_of_retention=3
-):
+def create_service_data_retention(service, notification_type='sms', days_of_retention=3):
     data_retention = insert_service_data_retention(
-        service_id=service.id,
-        notification_type=notification_type,
-        days_of_retention=days_of_retention
+        service_id=service.id, notification_type=notification_type, days_of_retention=days_of_retention
     )
     return data_retention
 
 
-def create_invited_user(service=None,
-                        to_email_address=None):
-
+def create_invited_user(service=None, to_email_address=None):
     if service is None:
         service = create_service()
     if to_email_address is None:
@@ -1047,7 +1011,7 @@ def create_invited_user(service=None,
         'email_address': to_email_address,
         'from_user': from_user,
         'permissions': 'send_messages,manage_service,manage_api_keys',
-        'folder_permissions': [str(uuid.uuid4()), str(uuid.uuid4())]
+        'folder_permissions': [str(uuid.uuid4()), str(uuid.uuid4())],
     }
     invited_user = InvitedUser(**data)
     save_invited_user(invited_user)
@@ -1072,12 +1036,12 @@ def set_up_usage_data(start_date):
     letter_template = create_template(service=service, template_type='letter')
     sms_template_1 = create_template(service=service, template_type='sms')
     create_annual_billing(service_id=service.id, free_sms_fragment_limit=10, financial_year_start=year)
-    org = create_organisation(name="Org for {}".format(service.name))
+    org = create_organisation(name='Org for {}'.format(service.name))
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
 
     service_3 = create_service(service_name='c - letters only')
     template_3 = create_template(service=service_3)
-    org_3 = create_organisation(name="Org for {}".format(service_3.name))
+    org_3 = create_organisation(name='Org for {}'.format(service_3.name))
     dao_add_service_to_organisation(service=service_3, organisation_id=org_3.id)
 
     service_4 = create_service(service_name='d - service without org')
@@ -1087,41 +1051,121 @@ def set_up_usage_data(start_date):
     sms_template = create_template(service=service_sms_only, template_type='sms')
     create_annual_billing(service_id=service_sms_only.id, free_sms_fragment_limit=10, financial_year_start=year)
 
-    create_ft_billing(utc_date=one_week_earlier, service=service, notification_type='sms',
-                      template=sms_template_1, billable_unit=2, rate=0.11)
-    create_ft_billing(utc_date=start_date, service=service, notification_type='sms',
-                      template=sms_template_1, billable_unit=2, rate=0.11)
-    create_ft_billing(utc_date=two_days_later, service=service, notification_type='sms',
-                      template=sms_template_1, billable_unit=1, rate=0.11)
-    create_ft_billing(utc_date=one_week_later, service=service, notification_type='letter',
-                      template=letter_template,
-                      notifications_sent=2, billable_unit=1, rate=.35, postage='first')
-    create_ft_billing(utc_date=one_month_later, service=service, notification_type='letter',
-                      template=letter_template,
-                      notifications_sent=4, billable_unit=2, rate=.45, postage='second')
-    create_ft_billing(utc_date=one_week_later, service=service, notification_type='letter',
-                      template=letter_template,
-                      notifications_sent=2, billable_unit=2, rate=.45, postage='second')
+    create_ft_billing(
+        utc_date=one_week_earlier,
+        service=service,
+        notification_type='sms',
+        template=sms_template_1,
+        billable_unit=2,
+        rate=0.11,
+    )
+    create_ft_billing(
+        utc_date=start_date,
+        service=service,
+        notification_type='sms',
+        template=sms_template_1,
+        billable_unit=2,
+        rate=0.11,
+    )
+    create_ft_billing(
+        utc_date=two_days_later,
+        service=service,
+        notification_type='sms',
+        template=sms_template_1,
+        billable_unit=1,
+        rate=0.11,
+    )
+    create_ft_billing(
+        utc_date=one_week_later,
+        service=service,
+        notification_type='letter',
+        template=letter_template,
+        notifications_sent=2,
+        billable_unit=1,
+        rate=0.35,
+        postage='first',
+    )
+    create_ft_billing(
+        utc_date=one_month_later,
+        service=service,
+        notification_type='letter',
+        template=letter_template,
+        notifications_sent=4,
+        billable_unit=2,
+        rate=0.45,
+        postage='second',
+    )
+    create_ft_billing(
+        utc_date=one_week_later,
+        service=service,
+        notification_type='letter',
+        template=letter_template,
+        notifications_sent=2,
+        billable_unit=2,
+        rate=0.45,
+        postage='second',
+    )
 
-    create_ft_billing(utc_date=one_week_earlier, service=service_sms_only, notification_type='sms',
-                      template=sms_template, rate=0.11, billable_unit=12)
-    create_ft_billing(utc_date=two_days_later, service=service_sms_only, notification_type='sms',
-                      template=sms_template, rate=0.11)
-    create_ft_billing(utc_date=one_week_later, service=service_sms_only, notification_type='sms',
-                      template=sms_template, billable_unit=2, rate=0.11)
+    create_ft_billing(
+        utc_date=one_week_earlier,
+        service=service_sms_only,
+        notification_type='sms',
+        template=sms_template,
+        rate=0.11,
+        billable_unit=12,
+    )
+    create_ft_billing(
+        utc_date=two_days_later, service=service_sms_only, notification_type='sms', template=sms_template, rate=0.11
+    )
+    create_ft_billing(
+        utc_date=one_week_later,
+        service=service_sms_only,
+        notification_type='sms',
+        template=sms_template,
+        billable_unit=2,
+        rate=0.11,
+    )
 
-    create_ft_billing(utc_date=start_date, service=service_3, notification_type='letter',
-                      template=template_3,
-                      notifications_sent=2, billable_unit=3, rate=.50, postage='first')
-    create_ft_billing(utc_date=one_week_later, service=service_3, notification_type='letter',
-                      template=template_3,
-                      notifications_sent=8, billable_unit=5, rate=.65, postage='second')
-    create_ft_billing(utc_date=one_month_later, service=service_3, notification_type='letter',
-                      template=template_3,
-                      notifications_sent=12, billable_unit=5, rate=.65, postage='second')
+    create_ft_billing(
+        utc_date=start_date,
+        service=service_3,
+        notification_type='letter',
+        template=template_3,
+        notifications_sent=2,
+        billable_unit=3,
+        rate=0.50,
+        postage='first',
+    )
+    create_ft_billing(
+        utc_date=one_week_later,
+        service=service_3,
+        notification_type='letter',
+        template=template_3,
+        notifications_sent=8,
+        billable_unit=5,
+        rate=0.65,
+        postage='second',
+    )
+    create_ft_billing(
+        utc_date=one_month_later,
+        service=service_3,
+        notification_type='letter',
+        template=template_3,
+        notifications_sent=12,
+        billable_unit=5,
+        rate=0.65,
+        postage='second',
+    )
 
-    create_ft_billing(utc_date=two_days_later, service=service_4, notification_type='letter',
-                      template=template_4,
-                      notifications_sent=15, billable_unit=4, rate=.55, postage='second')
+    create_ft_billing(
+        utc_date=two_days_later,
+        service=service_4,
+        notification_type='letter',
+        template=template_4,
+        notifications_sent=15,
+        billable_unit=4,
+        rate=0.55,
+        postage='second',
+    )
 
     return org, org_3, service, service_3, service_4, service_sms_only

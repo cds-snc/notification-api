@@ -7,10 +7,14 @@ from flask import url_for
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
 from sqlalchemy import func
 
-local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
+local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/Toronto'))
 
 
-def pagination_links(pagination, endpoint, **kwargs):
+def pagination_links(
+    pagination,
+    endpoint,
+    **kwargs,
+):
     if 'page' in kwargs:
         kwargs.pop('page', None)
     links = {}
@@ -22,18 +26,28 @@ def pagination_links(pagination, endpoint, **kwargs):
     return links
 
 
-def url_with_token(data, url, config, base_url=None):
+def url_with_token(
+    data,
+    url,
+    config,
+    base_url=None,
+):
     from notifications_utils.url_safe_token import generate_token
+
     token = generate_token(data, config['SECRET_KEY'], config['DANGEROUS_SALT'])
     base_url = (base_url or config['ADMIN_BASE_URL']) + url
     return base_url + token
 
 
-def get_template_instance(template, values):
+def get_template_instance(
+    template,
+    values,
+):
     from app.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
-    return {
-        SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate
-    }[template['template_type']](template, values)
+
+    return {SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate}[
+        template['template_type']
+    ](template, values)
 
 
 def get_html_email_body_from_template(template_instance):
@@ -50,7 +64,7 @@ def get_html_email_body_from_template(template_instance):
 
 def get_local_timezone_midnight(date):
     """
-     Gets the local timezones midnight
+    Gets the local timezones midnight
     """
     if hasattr(date, 'astimezone') is False:
         date = datetime.combine(date, datetime.min.time())
@@ -63,14 +77,14 @@ def get_local_timezone_midnight(date):
 
 def get_local_timezone_midnight_in_utc(date):
     """
-     This function converts date to midnight as BST (British Standard Time) to UTC,
-     the tzinfo is lastly removed from the datetime because the database stores the timestamps without timezone.
-     :param date: the day to calculate the London midnight in UTC for
-     :return: the datetime of London midnight in UTC, for example 2016-06-17 = 2016-06-16 23:00:00
+    This function converts date to midnight as BST (British Standard Time) to UTC,
+    the tzinfo is lastly removed from the datetime because the database stores the timestamps without timezone.
+    :param date: the day to calculate the London midnight in UTC for
+    :return: the datetime of London midnight in UTC, for example 2016-06-17 = 2016-06-16 23:00:00
     """
-    return local_timezone.localize(datetime.combine(date, datetime.min.time())).astimezone(
-        pytz.UTC).replace(
-        tzinfo=None)
+    return (
+        local_timezone.localize(datetime.combine(date, datetime.min.time())).astimezone(pytz.UTC).replace(tzinfo=None)
+    )
 
 
 def get_midnight_for_day_before(date):
@@ -80,22 +94,25 @@ def get_midnight_for_day_before(date):
 
 def get_local_timezone_month_from_utc_column(column):
     """
-     Where queries need to count notifications by month it needs to be
-     the month in BST (British Summer Time).
-     The database stores all timestamps as UTC without the timezone.
-      - First set the timezone on created_at to UTC
-      - then convert the timezone to BST (or America/Toronto)
-      - lastly truncate the datetime to month with which we can group
-        queries
+    Where queries need to count notifications by month it needs to be
+    the month in BST (British Summer Time).
+    The database stores all timestamps as UTC without the timezone.
+     - First set the timezone on created_at to UTC
+     - then convert the timezone to BST (or America/Toronto)
+     - lastly truncate the datetime to month with which we can group
+       queries
     """
     return func.date_trunc(
-        "month",
-        func.timezone(os.getenv("TIMEZONE", "America/Toronto"), func.timezone("UTC", column))
+        'month', func.timezone(os.getenv('TIMEZONE', 'America/Toronto'), func.timezone('UTC', column))
     )
 
 
-def get_public_notify_type_text(notify_type, plural=False):
-    from app.models import (SMS_TYPE, UPLOAD_DOCUMENT, PRECOMPILED_LETTER, PUSH_TYPE)
+def get_public_notify_type_text(
+    notify_type,
+    plural=False,
+):
+    from app.models import SMS_TYPE, UPLOAD_DOCUMENT, PRECOMPILED_LETTER, PUSH_TYPE
+
     notify_type_text = notify_type
     if notify_type == SMS_TYPE:
         notify_type_text = 'text message'
@@ -118,16 +135,13 @@ def midnight_n_days_ago(number_of_days):
 
 def escape_special_characters(string):
     for special_character in ('\\', '_', '%', '/'):
-        string = string.replace(
-            special_character,
-            r'\{}'.format(special_character)
-        )
+        string = string.replace(special_character, r'\{}'.format(special_character))
     return string
 
 
 def update_dct_to_str(update_dct):
-    str = "\n"
+    str = '\n'
     for key in update_dct:
-        str += "- {}".format(key.replace("_", " "))
-        str += "\n"
+        str += '- {}'.format(key.replace('_', ' '))
+        str += '\n'
     return str
