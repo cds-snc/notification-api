@@ -32,6 +32,13 @@ Note that the `host` value can also be defined within the `User` classes such as
 
 You should not have to modify the configuration to run the stress-tests locally.
 
+### Default configuration
+
+- 10 users (set in `locust.conf`)
+- each user sends a bulk jon of 1000 emails once a minute (set in `locust-notifications.py`)
+- run time 10 minutes (set in `locust.conf`)
+So overall we ask to send 10000 emails per minute for 10 minutes, approx 100000 emails in total
+
 ## How to run the stress tests
 
 There are two ways to run Locust, with the UI or headless.
