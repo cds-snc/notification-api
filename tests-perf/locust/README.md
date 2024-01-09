@@ -49,10 +49,10 @@ PERF_TEST_SMS_TEMPLATE_ID =
 
 ### With the UI
 
-Locally, simply run:
+Locally, simply from the repo root directory:
 
 ```shell
-locust -f .\locust-notifications.py
+poetry run locust --config tests-perf/locust/locust.conf
 ```
 
 Follow the localhost address that the console will display to get to the UI. It will ask you how many total users and spawned users you want configured. Once setup, you can manually start the tests via the UI and follow the summary data and charts visually.
@@ -62,7 +62,7 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f .\locust-notifications.py --headless --users=5500 --spawn-rate=200 --run-time=10m
+poetry run locust --config tests-perf/locust/locust.conf --headless --users=10 --run-time=5m
 ```
 
 You can also modify the *locust.config* file to enable the headless mode and define the necessary users, spawn rate and run time.
