@@ -36,8 +36,8 @@ You should not have to modify the configuration to run the stress-tests locally.
 
 - 5 users (set in `locust.conf`)
 - each user sends a bulk jon of 2000 emails once a minute (set in `locust-notifications.py`)
-- run time 10 minutes (set in `locust.conf`)
-So overall we ask to send 10000 emails per minute for 10 minutes, approx 100000 emails in total
+- run time 40 minutes (set in `locust.conf`)
+So overall we queue to send 10000 emails per minute for 40 minutes, 400000 emails in total
 
 ## How to run the stress tests
 
