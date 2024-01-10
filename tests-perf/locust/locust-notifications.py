@@ -3,6 +3,8 @@
 """
 # flake8: noqa
 
+BULK_EMAIL_SIZE = 2000
+
 import os
 import sys
 from datetime import datetime
@@ -48,7 +50,7 @@ class NotifyApiUser(HttpUser):
         json = {
             "name": f"My bulk name {datetime.utcnow().isoformat()}",
             "template_id": self.template_group.bulk_email_id,
-            "csv": rows_to_csv([["email address", "application_file"], *job_line(self.email, 1000)])
+            "csv": rows_to_csv([["email address", "application_file"], *job_line(self.email, BULK_EMAIL_SIZE)])
         }
 
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
