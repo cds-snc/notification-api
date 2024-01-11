@@ -30,6 +30,11 @@ from celery.exceptions import Retry
 )
 @statsd(namespace="tasks")
 def process_ses_results(self, response):
+    # initialize these to None so error handling is simpler
+    notification = None
+    reference = None
+    notification_status = None
+
     try:
         ses_message = json.loads(response["Message"])
         notification_type = ses_message["notificationType"]
