@@ -61,5 +61,7 @@
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
 	"remoteUser": "vscode",
-	
+	"mounts": [
+		"source=/Users/wbanks/dev/projects/notification-utils/dist,target=/nutils,type=bind,consistency=cached"
+	]
 }
