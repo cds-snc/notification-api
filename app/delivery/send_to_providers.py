@@ -17,7 +17,7 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 from unidecode import unidecode
-from urllib3 import PoolManager, exceptions
+from urllib3 import PoolManager
 from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
@@ -253,11 +253,9 @@ def send_email_to_provider(notification: Notification):
                             "mime_type": mime_type,
                         }
                     )
-                except exceptions.MaxRetryError as e:
+                except Exception as e:
                     current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
                     del personalisation_data[key]
-                except exceptions.HTTPError as e:
-                    current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
 
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
