@@ -6,17 +6,17 @@ on:
       environment:
         description: 'Notification-api deployment environment to test (dev|perf|staging)'
         required: true
-        type: environment
+        type: string
   workflow_dispatch:
     inputs:
       environment:
         description: 'Notification-api deployment environment to test (dev|perf|staging)'
         required: true
-        type: environment
+        type: string
 
 jobs:
   trigger-regression-tests:
-    if: ${{ (inputs.environment == 'perf') || (inputs.environment == 'staging') || (inputs.environment == 'dev') }}
+    if: ${{ (inputs.environment == 'dev') || (inputs.environment == 'perf') || (inputs.environment == 'staging') }}
     name: "Run regression for ${{ inputs.environment }}"
     runs-on: ubuntu-latest
     steps:
