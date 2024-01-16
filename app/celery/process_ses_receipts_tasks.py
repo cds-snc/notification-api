@@ -29,7 +29,12 @@ from celery.exceptions import Retry
     default_retry_delay=300,
 )
 @statsd(namespace="tasks")
-def process_ses_results(self, response):
+def process_ses_results(self, response):  # noqa: C901
+    # initialize these to None so error handling is simpler
+    notification = None
+    reference = None
+    notification_status = None
+
     try:
         ses_message = json.loads(response["Message"])
         notification_type = ses_message["notificationType"]
@@ -50,6 +55,18 @@ def process_ses_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(f"notification not found for SES reference: {reference}. Giving up.")
+            return
+        except Exception as e:
+            try:
+                current_app.logger.warning(
+                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
+                    f"There was an Error: {e}. Adding task to retry queue"
+                )
+                self.retry(queue=QueueNames.RETRY)
+            except self.MaxRetriesExceededError:
+                current_app.logger.warning(
+                    f"notification not found for SES reference: {reference}. Error has persisted > number of retries. Giving up."
+                )
             return
 
         aws_response_dict = get_aws_responses(ses_message)

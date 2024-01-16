@@ -160,6 +160,21 @@ def test_ses_callback_should_retry_if_notification_is_new(notify_db, mocker):
         assert mock_retry.call_count == 1
 
 
+def test_process_ses_receipts_tasks_exception_handling(notify_db, mocker):
+    reference = "test_reference"
+    mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry", side_effect=MaxRetriesExceededError())
+    mock_warning = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.error")
+
+    with pytest.raises(Exception):
+        process_ses_results(ses_notification_callback(reference))
+        assert mock_warning.call_count == 2
+        assert "RETRY 5: notification not found for SES reference test_reference." in mock_warning.call_args_list[0][0][0]
+        assert (
+            "notification not found for SES reference: test_reference. Error has persisted > number of retries. Giving up."
+            in mock_warning.call_args_list[1][0][0]
+        )
+
+
 def test_ses_callback_should_retry_if_notification_is_missing(notify_db, mocker):
     mock_retry = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
     assert process_ses_results(ses_notification_callback(reference="ref")) is None
