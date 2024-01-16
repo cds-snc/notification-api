@@ -156,8 +156,6 @@ def _auth_by_api_key(auth_token):
     # orig_token = auth_token
 
     try:
-        # take last 36 chars of string so that it works even if the full key is provided.
-        auth_token = auth_token[-36:]
         api_key = get_api_key_by_secret(auth_token)
 
         # TODO: uncomment this when the grace period for the token prefix is over
