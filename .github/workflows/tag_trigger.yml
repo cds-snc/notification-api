@@ -44,3 +44,11 @@ jobs:
       environment: "perf"
       ref: "${{ needs.setup-env.outputs.git-tag }}"
     secrets: inherit
+
+  run-qa-suite:
+    needs: [run-deployment]
+    uses: ./.github/workflows/run-regression.yml
+    with:
+      environment: "perf"
+    secrets: inherit
+

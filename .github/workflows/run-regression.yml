@@ -1,0 +1,35 @@
+name: Call Notification API QA Regression Tests
+
+on: 
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Notification-api deployment environment to test (dev|perf|staging)'
+        required: true
+        type: environment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Notification-api deployment environment to test (dev|perf|staging)'
+        required: true
+        type: environment
+
+jobs:
+  trigger-regression-tests:
+    if: ${{ (inputs.environment == 'perf') || (inputs.environment == 'staging') || (inputs.environment == 'dev') }}
+    name: "Run regression for ${{ inputs.environment }}"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Trigger Regression Workflow
+      uses: actions/github-script@v7
+      env:
+        ENVIRONMENT: ${{ inputs.environment }}
+      with:
+        github-token: ${{ secrets.DISPATCH_PAT }}
+        script: |
+          const path = '.github/scripts/trigger-regression.js';
+          const triggerAndWait = require(path);
+          triggerAndWait({github, context, core});
+
