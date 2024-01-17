@@ -135,18 +135,20 @@ def test_admin_auth_should_not_allow_api_key_scheme(client, sample_api_key):
 @pytest.mark.parametrize("scheme", ["ApiKey-v1", "apikey-v1", "APIKEY-V1"])
 def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
     api_key_secret = get_unsigned_secret(sample_api_key.id)
-
-    response = client.get("/notifications", headers={"Authorization": f"{scheme} {api_key_secret}"})
+    unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{api_key_secret}"
+    response = client.get("/notifications", headers={"Authorization": f"{scheme} {unsigned_secret}"})
 
     assert response.status_code == 200
 
 
-def test_should_allow_auth_with_api_key_scheme_36_chars_or_longer(client, sample_api_key):
+def test_should_allow_NOT_allow_auth_with_api_key_scheme_with_incorrect_format(client, sample_api_key):
     api_key_secret = "fhsdkjhfdsfhsd" + get_unsigned_secret(sample_api_key.id)
 
     response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
 
-    assert response.status_code == 200
+    assert response.status_code == 403
+    error_message = json.loads(response.get_data())
+    assert error_message["message"] == {"token": ["Invalid token: API key not found"]}
 
 
 def test_should_not_allow_invalid_api_key(client, sample_api_key):
@@ -162,7 +164,9 @@ def test_should_not_allow_expired_api_key(client, sample_api_key):
 
     expire_api_key(service_id=sample_api_key.service_id, api_key_id=sample_api_key.id)
 
-    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
+    unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{api_key_secret}"
+
+    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {unsigned_secret}"})
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
