@@ -1568,7 +1568,6 @@ class TestSMSMessageCounter:
             api_key_secret = get_unsigned_secret(api_key.id)
             unsigned_secret = f"gcntfy-keyname-{api_key.service_id}-{api_key_secret}"
 
-
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
                     path="/v2/notifications/bulk",
