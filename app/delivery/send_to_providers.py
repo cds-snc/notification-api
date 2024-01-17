@@ -1,7 +1,7 @@
 import base64
-import logging
 import os
 import re
+import urllib.request
 from datetime import datetime
 from typing import Dict
 from uuid import UUID
@@ -17,8 +17,6 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 from unidecode import unidecode
-from urllib3 import PoolManager
-from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
@@ -233,30 +231,27 @@ def send_email_to_provider(notification: Notification):
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
             direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
-            filename = personalisation_data[key]["document"].get("filename")
-            mime_type = personalisation_data[key]["document"].get("mime_type")
             document_id = personalisation_data[key]["document"]["id"]
             scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
             check_for_malware_errors(scan_verdict_response.status_code, notification)
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
             if sending_method == "attach":
                 try:
-                    logging.getLogger("urllib3").setLevel(logging.DEBUG)
-                    retries = Retry(total=5)
-                    http = PoolManager(retries=retries)
-
-                    response = http.request("GET", url=direct_file_url)
-                    attachments.append(
-                        {
-                            "name": filename,
-                            "data": response.data,
-                            "mime_type": mime_type,
-                        }
-                    )
+                    req = urllib.request.Request(direct_file_url)
+                    with urllib.request.urlopen(req) as response:
+                        buffer = response.read()
+                        filename = personalisation_data[key]["document"].get("filename")
+                        mime_type = personalisation_data[key]["document"].get("mime_type")
+                        attachments.append(
+                            {
+                                "name": filename,
+                                "data": buffer,
+                                "mime_type": mime_type,
+                            }
+                        )
                 except Exception as e:
                     current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
-                    del personalisation_data[key]
-
+                del personalisation_data[key]
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 

@@ -1,9 +1,8 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
-from http.client import HTTPMessage
 from unittest import TestCase
-from unittest.mock import ANY, MagicMock, Mock, call
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from flask import current_app
@@ -885,82 +884,6 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
     )
 
 
-def test_file_attachment_retry(mocker, notify_db, notify_db_session):
-    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-
-    class mock_response:
-        status_code = 200
-
-        def json():
-            return {"av-status": "clean"}
-
-    mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
-
-    personalisation = {
-        "file": document_download_response(
-            {
-                "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "http://foo.bar/url",
-                "mime_type": "application/pdf",
-            }
-        )
-    }
-    personalisation["file"]["document"]["sending_method"] = "attach"
-    personalisation["file"]["document"]["filename"] = "file.txt"
-
-    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
-
-    mocker.patch("app.delivery.send_to_providers.statsd_client")
-    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-
-    getconn_mock = mocker.patch("urllib3.connectionpool.HTTPConnectionPool._new_conn")
-    getconn_mock.return_value.getresponse.side_effect = [
-        Mock(status=500, msg=HTTPMessage()),
-        Mock(status=429, msg=HTTPMessage()),
-        Mock(status=400, msg=HTTPMessage()),
-        Mock(status=404, msg=HTTPMessage()),
-        Mock(status=200, msg=HTTPMessage()),
-    ]
-
-    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
-    send_to_providers.send_email_to_provider(db_notification)
-    assert mock_logger.call_count == 0
-
-
-def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
-    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
-
-    class mock_response:
-        status_code = 200
-
-        def json():
-            return {"av-status": "clean"}
-
-    mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
-
-    personalisation = {
-        "file": document_download_response(
-            {
-                "direct_file_url": "http://foo.bar/direct_file_url",
-                "url": "http://foo.bar/url",
-                "mime_type": "application/pdf",
-            }
-        )
-    }
-    personalisation["file"]["document"]["sending_method"] = "attach"
-    personalisation["file"]["document"]["filename"] = "file.txt"
-
-    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
-
-    mocker.patch("app.delivery.send_to_providers.statsd_client")
-    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-
-    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
-    send_to_providers.send_email_to_provider(db_notification)
-    assert mock_logger.call_count == 1
-    assert "Max retries exceeded" in mock_logger.call_args[0][0]
-
-
 @pytest.mark.parametrize(
     "filename_attribute_present, filename, expected_filename",
     [
@@ -1007,26 +930,28 @@ def test_notification_document_with_pdf_attachment(
 
     statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
     send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
-    mocker.patch("app.delivery.send_to_providers.Retry")
-
-    response_return_mock = MagicMock()
-    response_return_mock.status = 200
-    response_return_mock.data = "Hello there!"
-
-    response_mock = mocker.patch(
-        "app.delivery.send_to_providers.PoolManager.request",
-        return_value=response_return_mock,
+    request_mock = mocker.patch(
+        "app.delivery.send_to_providers.urllib.request.Request",
+        return_value="request_mock",
     )
+    # See https://stackoverflow.com/a/34929900
+    cm = MagicMock()
+    cm.read.return_value = "request_content"
+    cm.__enter__.return_value = cm
+    cm.getcode = lambda: 200
+    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
+    urlopen_mock.return_value = cm
 
     send_to_providers.send_email_to_provider(db_notification)
 
     attachments = []
     if filename_attribute_present:
-        response_mock.assert_called_with("GET", url="http://foo.bar/direct_file_url")
+        request_mock.assert_called_once_with("http://foo.bar/direct_file_url")
+        urlopen_mock.assert_called_once_with("request_mock")
         attachments = [
             {
+                "data": "request_content",
                 "name": expected_filename,
-                "data": "Hello there!",
                 "mime_type": "application/pdf",
             }
         ]
@@ -1076,7 +1001,12 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
 
     db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
 
-    mocker.patch("app.delivery.send_to_providers.Retry")
+    # See https://stackoverflow.com/a/34929900
+    cm = MagicMock()
+    cm.read.return_value = "request_content"
+    cm.__enter__.return_value = cm
+    urlopen_mock = mocker.patch("app.delivery.send_to_providers.urllib.request.urlopen")
+    urlopen_mock.return_value = cm
 
     with pytest.raises(InvalidUrlException):
         send_to_providers.send_email_to_provider(db_notification)
