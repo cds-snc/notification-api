@@ -347,7 +347,7 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "1024",
+  "cpu": "2048",
   "memory": "4096",
   "tags": [
     {
@@ -356,7 +356,7 @@
     },
     {
       "key": "Environment",
-      "value": "production"
+      "value": "perf"
     },
     {
       "key": "Team",
