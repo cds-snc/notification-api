@@ -29,7 +29,7 @@ jobs:
     secrets: inherit
 
   run-qa-suite:
-    needs: [run-deployment]
+    needs: [pre-release]
     uses: ./.github/workflows/run-regression.yml
     with:
       environment: "staging"
