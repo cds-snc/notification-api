@@ -2,7 +2,6 @@ import base64
 import csv
 import functools
 import uuid
-from collections.abc import MutableMapping
 from datetime import datetime
 from io import StringIO
 
@@ -92,7 +91,7 @@ from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
-from app.utils import flatten_dct, get_delivery_queue_for_template
+from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (

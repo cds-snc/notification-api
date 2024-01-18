@@ -596,13 +596,13 @@ def decode_personalisation_files(json_personalisation):
             )
     return json_personalisation, errors
 
+
 def validate_notification_does_not_exceed_sqs_limit(notification):
     # SQS max payload size is 256KB
     if len(str(notification)) >= 262144:
         # find the largest value in the payload for logging and return message
         max_key, max_length = max(
-            ((key, len(str(value))) for key, value in flatten_dct(dict(notification)).items()),
-            key=lambda x: x[1]
+            ((key, len(str(value))) for key, value in flatten_dct(dict(notification)).items()), key=lambda x: x[1]
         )
         current_app.logger.debug(
             f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262144 bytes\nLikely culprit: {max_key}\nLargest value: {max_length} bytes"
