@@ -141,7 +141,7 @@ def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
     assert response.status_code == 200
 
 
-def test_should_allow_NOT_allow_auth_with_api_key_scheme_with_incorrect_format(client, sample_api_key):
+def test_should_NOT_allow_auth_with_api_key_scheme_with_incorrect_format(client, sample_api_key):
     api_key_secret = "fhsdkjhfdsfhsd" + get_unsigned_secret(sample_api_key.id)
 
     response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
