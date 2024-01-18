@@ -2,6 +2,7 @@ import base64
 import csv
 import functools
 import uuid
+from collections.abc import MutableMapping
 from datetime import datetime
 from io import StringIO
 
@@ -83,6 +84,7 @@ from app.notifications.validators import (
     increment_email_daily_count_send_warnings_if_needed,
     increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
+    validate_notification_does_not_exceed_sqs_limit,
     validate_template,
     validate_template_exists,
 )
@@ -90,7 +92,7 @@ from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
-from app.utils import get_delivery_queue_for_template
+from app.utils import flatten_dct, get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -414,6 +416,8 @@ def process_sms_or_email_notification(
         "client_reference": form.get("reference", None),
         "reply_to_text": reply_to_text,
     }
+
+    validate_notification_does_not_exceed_sqs_limit(_notification)
 
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}

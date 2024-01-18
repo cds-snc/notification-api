@@ -1,6 +1,7 @@
 import os
+from collections.abc import MutableMapping
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, List, Tuple
 
 import pytz
 from flask import current_app, url_for
@@ -140,6 +141,28 @@ def email_address_is_nhs(email_address):
             ".nhs.net",
         )
     )
+
+
+def flatten_dct(dictionary: MutableMapping[Any, Any], parent_key: str = "", separator: str = ".") -> dict:
+    """Recursively flattens a nested dict structure into a single level dict structure.
+    Composite keys are generated from the nested structure keys using the specified separator
+
+    Args:
+        dictionary: The dict to flatten
+        parent_key: Root level identifier for compositing keys, defaults to the top level key of the dict
+        separator: Separator used to when compositing keys.
+
+    Returns:
+        _type_: _description_
+    """
+    items: List[Tuple[str, Any]] = []
+    for key, value in dictionary.items():
+        new_key = parent_key + separator + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            items.extend(flatten_dct(value, new_key, separator=separator).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
 
 
 def update_dct_to_str(update_dct, lang):
