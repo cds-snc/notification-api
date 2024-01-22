@@ -90,9 +90,6 @@ class TestApiKeyRevocation:
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
         unsigned_secret = get_unsigned_secret(api_key_1.id)
 
-        # Create token expected from the frontend
-        unsigned_secret = f"gcntfy-keyname-{service.id}-{unsigned_secret}"
-
         sre_auth_header = create_sre_authorization_header()
         response = client.post(
             url_for("sre_tools.revoke_api_keys"),
@@ -101,7 +98,7 @@ class TestApiKeyRevocation:
         )
 
         # Get api key from DB
-        api_key_1 = get_api_key_by_secret(unsigned_secret)
+        api_key_1 = get_api_key_by_secret(api_key_1.secret)
         assert response.status_code == 201
         assert api_key_1.expiry_date is not None
         assert api_key_1.compromised_key_info["type"] == "cds-tester"
