@@ -599,7 +599,7 @@ def decode_personalisation_files(json_personalisation):
 
 def validate_notification_does_not_exceed_sqs_limit(notification):
     # SQS max payload size is 256KB
-    if len(str(notification)) >= 262144:
+    if len(str(notification)) >= current_app.config["MAX_SQS_PAYLOAD_SIZE"]:
         # find the largest value in the payload for logging and return message
         max_key, max_length = max(
             ((key, len(str(value))) for key, value in flatten_dct(dict(notification)).items()), key=lambda x: x[1]
