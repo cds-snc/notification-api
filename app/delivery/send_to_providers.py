@@ -241,7 +241,6 @@ def send_email_to_provider(notification: Notification):
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
             if sending_method == "attach":
                 try:
-                    logging.getLogger("urllib3").setLevel(logging.DEBUG)
                     retries = Retry(total=5)
                     http = PoolManager(retries=retries)
 
