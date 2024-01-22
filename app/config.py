@@ -359,7 +359,7 @@ class Config(object):
         "queue_name_prefix": NOTIFICATION_QUEUE_PREFIX,
     }
     CELERY_ENABLE_UTC = True
-    CELERY_TIMEZONE = os.getenv("TIMEZONE", "America/Toronto")
+    CELERY_TIMEZONE = os.getenv("TIMEZONE", "UTC")
     CELERY_ACCEPT_CONTENT = ["json"]
     CELERY_TASK_SERIALIZER = "json"
     CELERY_IMPORTS = (
