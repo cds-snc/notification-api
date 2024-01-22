@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import call
 
 import pytest
@@ -31,6 +32,7 @@ from app.notifications.validators import (
     increment_sms_daily_count_send_warnings_if_needed,
     service_can_send_to_recipient,
     validate_and_format_recipient,
+    validate_notification_does_not_exceed_sqs_limit,
 )
 from app.utils import get_document_url
 from app.v2.errors import (
@@ -698,3 +700,37 @@ def test_check_reply_to_sms_type(sample_service):
 def test_check_reply_to_letter_type(sample_service):
     letter_contact = create_letter_contact(service=sample_service, contact_block="123456")
     assert check_reply_to(sample_service.id, letter_contact.id, LETTER_TYPE) == "123456"
+
+
+def test_validate_notification_does_not_exceed_sqs_limit_exceeds_limit(mocker):
+    notification = {
+        "id": str(uuid.uuid4()),
+        "payload": {
+            "key1": "value1",
+            "key2": "value2" * 100000,  # Exceeds the SQS limit
+            "key3": "value3",
+        },
+    }
+    logger = mocker.patch("app.notifications.validators.current_app.logger.debug")
+
+    with pytest.raises(BadRequestError) as e:
+        validate_notification_does_not_exceed_sqs_limit(notification)
+
+    # We flatten the dict here so the key is composite
+    assert e.value.message == "Notification size cannot exceed 256Kb. Consider reducing the size of: payload.key2."
+    assert e.value.status_code == 413
+    logger.assert_called_once_with(
+        f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262144 bytes. Largest key: payload.key2 is {len(notification['payload']['key2'])} bytes."
+    )
+
+
+def test_validate_notification_does_not_exceed_sqs_limit_within_limit(mocker):
+    notification = {
+        "id": "123",
+        "payload": {
+            "key1": "value1",
+            "key2": "value2",
+            "key3": "value3",
+        },
+    }
+    assert validate_notification_does_not_exceed_sqs_limit(notification) is None

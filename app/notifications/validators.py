@@ -605,9 +605,8 @@ def validate_notification_does_not_exceed_sqs_limit(notification):
             ((key, len(str(value))) for key, value in flatten_dct(dict(notification)).items()), key=lambda x: x[1]
         )
         current_app.logger.debug(
-            f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262144 bytes\nLikely culprit: {max_key}\nLargest value: {max_length} bytes"
+            f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262144 bytes. Largest key: {max_key} is {max_length} bytes."
         )
-
         raise BadRequestError(
             message=f"Notification size cannot exceed 256Kb. Consider reducing the size of: {max_key}.", status_code=413
         )

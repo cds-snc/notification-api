@@ -3,6 +3,7 @@ from freezegun import freeze_time
 
 from app.dao.date_util import get_current_financial_year_start_year
 from app.service.utils import get_organisation_id_from_crm_org_notes
+from app.utils import flatten_dct
 
 
 # see get_financial_year for conversion of financial years.
@@ -39,3 +40,69 @@ def test_get_organisation_id_from_crm_org_notes(mocker, org_notes, expected_id):
     ]
     mocker.patch("app.service.utils.get_gc_organisation_data", return_value=mock_gc_org_data)
     assert get_organisation_id_from_crm_org_notes(org_notes) == expected_id
+
+
+@pytest.mark.parametrize(
+    "dictionary, expected_result",
+    [
+        (
+            {
+                "key1": {
+                    "nested_key1": {"deeply_nested_key1": "deeply_nested_value1", "deeply_nested_key2": "deeply_nested_value2"},
+                    "nested_key2": "nested_value2",
+                },
+                "key2": "value2",
+                "key3": {"nested_key3": "nested_value3"},
+            },
+            {
+                "key1.nested_key1.deeply_nested_key1": "deeply_nested_value1",
+                "key1.nested_key1.deeply_nested_key2": "deeply_nested_value2",
+                "key1.nested_key2": "nested_value2",
+                "key2": "value2",
+                "key3.nested_key3": "nested_value3",
+            },
+        ),
+        (
+            {
+                "key1": {
+                    "nested_key1": {
+                        "deeply_nested_key1": "deeply_nested_value1",
+                        "nested_key2": {
+                            "deeply_nested_key2": "deeply_nested_value2",
+                            "deeply_nested_key3": "deeply_nested_value3",
+                        },
+                    },
+                    "nested_key2": "nested_value2",
+                },
+                "key2": "value2",
+                "key3": {
+                    "nested_key1": {
+                        "deeply_nested_key1": "deeply_nested_value1",
+                        "nested_key2": {
+                            "deeply_nested_key2": "deeply_nested_value2",
+                            "deeply_nested_key3": "deeply_nested_value3",
+                        },
+                    },
+                },
+            },
+            {
+                "key1.nested_key1.deeply_nested_key1": "deeply_nested_value1",
+                "key1.nested_key1.nested_key2.deeply_nested_key2": "deeply_nested_value2",
+                "key1.nested_key1.nested_key2.deeply_nested_key3": "deeply_nested_value3",
+                "key1.nested_key2": "nested_value2",
+                "key2": "value2",
+                "key3.nested_key1.deeply_nested_key1": "deeply_nested_value1",
+                "key3.nested_key1.nested_key2.deeply_nested_key2": "deeply_nested_value2",
+                "key3.nested_key1.nested_key2.deeply_nested_key3": "deeply_nested_value3",
+            },
+        ),
+        (
+            {"key1": "value1", "key2": {"nested_key1": "nested_value1", "nested_key2": "nested_value2"}, "key3": "value3"},
+            {"key1": "value1", "key2.nested_key1": "nested_value1", "key2.nested_key2": "nested_value2", "key3": "value3"},
+        ),
+        ({"key1": "value1", "key2": "value2", "key3": "value3"}, {"key1": "value1", "key2": "value2", "key3": "value3"}),
+        ({}, {}),
+    ],
+)
+def test_flatten_dct_deeply_nested_dict(dictionary, expected_result):
+    assert flatten_dct(dictionary) == expected_result
