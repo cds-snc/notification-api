@@ -144,16 +144,18 @@ def email_address_is_nhs(email_address):
 
 
 def flatten_dct(dictionary: MutableMapping[Any, Any], parent_key: str = "", separator: str = ".") -> dict:
-    """Recursively flattens a nested dict structure into a single level dict structure.
-    Composite keys are generated from the nested structure keys using the specified separator
+    """Recursively flatten a nested dict structure into a single level dict structure.
+    Depth is represented by composite keys separated by the separator arg.
 
     Args:
-        dictionary: The dict to flatten
-        parent_key: Root level identifier for compositing keys, defaults to the top level key of the dict
-        separator: Separator used to when compositing keys.
+        dictionary `MutableMapping`: The dictionary to flatten
+        parent_key `str`: Top level key used when compositing keys, typically an object
+          identifier (notification, service, template, etc.)
+          Defaults to the top level key of the dict being flattened.
+        separator `str` : Separator used to delimit composited keys.
 
     Returns:
-        _type_: _description_
+        dict `dict`: The flattened dict with composite keys
     """
     items: List[Tuple[str, Any]] = []
     for key, value in dictionary.items():
