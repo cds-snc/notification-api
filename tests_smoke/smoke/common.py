@@ -79,7 +79,7 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
             token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
             headers = {"Authorization": f"Bearer {token}"}
         else:
-            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"}
+            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
 
         response = requests.get(
             uri,

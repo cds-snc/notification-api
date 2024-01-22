@@ -25,7 +25,7 @@ def test_api_bulk(notification_type: Notification_type):
             "template_id": template_id,
             "csv": rows_to_csv([[header, "var"], *job_line(to, 2)]),
         },
-        headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
+        headers={"Authorization": f"ApiKey-v1 {Config.API_KEY}"},
     )
     if response.status_code != 201:
         pretty_print(response.json())
