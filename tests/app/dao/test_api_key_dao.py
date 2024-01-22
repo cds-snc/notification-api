@@ -35,6 +35,7 @@ def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     assert len(all_api_keys) == 1
     assert all_api_keys[0] == api_key
     assert api_key.version == 1
+    assert api_key.last_used_timestamp is None
 
     all_history = api_key.get_history_model().query.all()
     assert len(all_history) == 1
