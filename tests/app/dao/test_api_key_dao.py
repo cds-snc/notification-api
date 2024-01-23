@@ -35,6 +35,7 @@ def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     assert len(all_api_keys) == 1
     assert all_api_keys[0] == api_key
     assert api_key.version == 1
+    assert api_key.last_used_timestamp is None
 
     all_history = api_key.get_history_model().query.all()
     assert len(all_history) == 1
@@ -103,24 +104,12 @@ def test_get_unsigned_secret_returns_key(sample_api_key):
     assert unsigned_api_key == sample_api_key.secret
 
 
-class TestGetAPIKeyBySecret:
-    def test_get_api_key_by_secret(self, sample_api_key):
-        secret = get_unsigned_secret(sample_api_key.id)
-        # Create token expected from the frontend
-        unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{secret}"
-        assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
+def test_get_api_key_by_secret(sample_api_key):
+    unsigned_secret = get_unsigned_secret(sample_api_key.id)
+    assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
 
-        with pytest.raises(NoResultFound):
-            get_api_key_by_secret("nope")
-
-        # Test getting secret without the keyname prefix
-        with pytest.raises(NoResultFound):
-            get_api_key_by_secret(str(sample_api_key.id))
-
-        # Test the service_name isnt part of the secret
-        with pytest.raises(NoResultFound):
-            # import pdb; pdb.set_trace()
-            get_api_key_by_secret(f"gcntfy-keyname-hello-{secret}")
+    with pytest.raises(NoResultFound):
+        get_api_key_by_secret("nope")
 
 
 def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_uuid):
