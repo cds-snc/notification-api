@@ -14,6 +14,7 @@ from app.dao.api_key_dao import (
     resign_api_keys,
     save_model_api_key,
     update_compromised_api_key_info,
+    update_last_used_api_key,
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests.app.db import create_api_key
@@ -59,6 +60,17 @@ def test_expire_api_key_should_update_the_api_key_and_create_history_record(noti
     sorted_all_history = sorted(all_history, key=lambda hist: hist.version)
     sorted_all_history[0].version = 1
     sorted_all_history[1].version = 2
+
+
+def test_last_used_should_update_the_api_key_and_not_create_history_record(notify_api, sample_api_key):
+    last_used = datetime.utcnow()
+    update_last_used_api_key(api_key_id=sample_api_key.id, last_used=last_used)
+    all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
+    assert len(all_api_keys) == 1
+    assert all_api_keys[0].last_used_timestamp == last_used
+
+    all_history = sample_api_key.get_history_model().query.all()
+    assert len(all_history) == 1
 
 
 def test_update_compromised_api_key_info_and_create_history_record(notify_api, sample_api_key):
