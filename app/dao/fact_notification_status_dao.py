@@ -348,9 +348,7 @@ def get_last_send_for_api_key(api_key_id):
     """
     # Fetch last_used_timestamp from api_keys table
     api_key_table = (
-        db.session.query(ApiKey.last_used_timestamp.label("last_notification_created"))
-        .filter(ApiKey.id == api_key_id)
-        .all()
+        db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
     if not api_key_table[0][0]:
         notification_table = (
