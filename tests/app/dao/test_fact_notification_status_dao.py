@@ -355,6 +355,15 @@ def test_get_total_notifications_sent_for_api_key(notify_db_session):
     api_key_stats_3 = get_total_notifications_sent_for_api_key(str(api_key.id))
     assert dict(api_key_stats_3) == dict([(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)])
 
+def test_get_last_send_for_api_key_check_last_used(notify_db_session):
+    service = create_service(service_name="First Service")
+    api_key = create_api_key(service, last_used=datetime.utcnow())
+    template_email = create_template(service=service, template_type=EMAIL_TYPE)
+    total_sends = 10
+
+    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
+    assert last_send == api_key.last_used_timestamp
+
 
 def test_get_last_send_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
