@@ -336,24 +336,35 @@ def get_total_notifications_sent_for_api_key(api_key_id):
 
 def get_last_send_for_api_key(api_key_id):
     """
+    SELECT last_used_timestamp as last_notification_created
+    FROM api_keys
+    WHERE id = 'api_key_id';
+
+    If last_used_timestamp is null, then check notifications table/ or notification_history.
     SELECT max(created_at) as last_notification_created
     FROM notifications
     WHERE api_key_id = 'api_key_id'
     GROUP BY api_key_id;
     """
-    notification_table = (
-        db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-        .filter(Notification.api_key_id == api_key_id)
-        .all()
+    # Fetch last_used_timestamp from api_keys table
+    api_key_table = (
+        db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
-    if not notification_table[0][0]:
+    if not api_key_table[0][0]:
         notification_table = (
-            db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
-            .filter(NotificationHistory.api_key_id == api_key_id)
+            db.session.query(func.max(Notification.created_at).label("last_notification_created"))
+            .filter(Notification.api_key_id == api_key_id)
             .all()
         )
-        notification_table = [] if notification_table[0][0] is None else notification_table
-    return notification_table
+        if not notification_table[0][0]:
+            notification_table = (
+                db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
+                .filter(NotificationHistory.api_key_id == api_key_id)
+                .all()
+            )
+            notification_table = [] if notification_table[0][0] is None else notification_table
+        return notification_table
+    return api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):

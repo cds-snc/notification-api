@@ -551,7 +551,7 @@ def create_letter_rate(
     return rate
 
 
-def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
+def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, last_used=None):
     id_ = uuid.uuid4()
 
     name = key_name if key_name else "{} api key {}".format(key_type, id_)
@@ -563,6 +563,7 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
         key_type=key_type,
         id=id_,
         secret=uuid.uuid4(),
+        last_used_timestamp=last_used,
     )
     db.session.add(api_key)
     db.session.commit()
