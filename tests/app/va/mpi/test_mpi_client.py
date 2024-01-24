@@ -243,7 +243,7 @@ class TestGetVaProfileId:
     def test_should_throw_mpi_retryable_exception_when_request_exception_is_thrown(
         self, mpi_client, notification_with_recipient_identifier, mocker
     ):
-        mocker.patch('app.va.mpi.mpi.requests.get', side_effect=RequestException)
+        mocker.patch('app.va.mpi.mpi.requests.session', side_effect=RequestException)
 
         with pytest.raises(MpiRetryableException) as e:
             mpi_client.get_va_profile_id(notification_with_recipient_identifier)
