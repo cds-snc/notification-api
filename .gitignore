@@ -72,9 +72,9 @@ target/
 # Mac
 *.DS_Store
 environment.sh
-.envrc
-.env
 .env*
+!.env.devcontainer
+!.env.example
 
 celerybeat-schedule
 celerybeat-schedule.*
