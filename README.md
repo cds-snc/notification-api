@@ -10,7 +10,7 @@ This repository implements:
 
 VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/master/documents/openapi/openapi.yaml).
 
-Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/scripts/postman).
+Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/documents/postman).
 
 Information about service callback setup is available [here](/app/callback/README.md).
 
@@ -447,6 +447,8 @@ follows:
 - api-key-id: not needed for local, should be in param store or 1Password for other environments
 
 ### Sending a notification
+
+Instructions are for internal vanotify developer use. Clients will not have access to most of the mentioned endpoints.
 
 A lot of our endpoints in Postman have some scripting that saves ids to environment variables, so you might see some
 of these variables populated after you make requests.
