@@ -181,7 +181,6 @@ def v3_process_notification(  # noqa: C901
     retry_backoff_max=60,
     max_retries=2886,
 )
-@notify_celery.task(serializer='pickle')
 def v3_send_email_notification(
     notification: Notification,
     template: Template,

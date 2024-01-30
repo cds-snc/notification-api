@@ -68,13 +68,13 @@ def test_cronitor_does_nothing_if_cronitor_not_enabled(notify_api, rmock):
     assert not rmock.called
 
 
-def test_cronitor_does_nothing_if_name_not_recognised(notify_api, rmock, caplog):
+def test_cronitor_does_nothing_if_name_not_recognised(notify_api, mocker, rmock):
+    mock_logger = mocker.patch('app.cronitor.current_app.logger.error')
+
     with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'not-hello': 'other'}}):
         assert successful_task() == 1
 
-    error_log = caplog.records[0]
-    assert error_log.levelname == 'ERROR'
-    assert error_log.getMessage() == 'Cronitor enabled but task_name hello not found in environment'
+    mock_logger.assert_called_with('Cronitor enabled but task_name %s not found in environment', 'hello')
     assert not rmock.called
 
 

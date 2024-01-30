@@ -140,24 +140,32 @@ def test_get_communication_item_not_found(notify_db_session, admin_request, comm
 
 
 @pytest.mark.parametrize(
-    'post_data,expected_status',
+    'post_data, starting_profile_id, expected_status',
     [
-        ({}, 400),
-        ({'name': 1}, 400),
-        ({'name': ''}, 400),
-        ({'name': 'communication item tests'}, 200),
-        ({'va_profile_item_id': 'not a number'}, 400),
-        ({'va_profile_item_id': -5}, 400),
-        ({'va_profile_item_id': 0}, 400),
-        ({'va_profile_item_id': 1}, 200),
-        ({'name': 'different name'}, 200),
-        ({'va_profile_item_id': 2}, 200),
-        ({'default_send_indicator': False}, 200),
-        ({'name': 'different name', 'va_profile_item_id': 2, 'default_send_indicator': False}, 200),
+        ({}, 999, 400),
+        ({'name': 1}, 999, 400),
+        ({'name': ''}, 999, 400),
+        ({'name': 'communication item tests'}, 800, 200),
+        ({'va_profile_item_id': 'not a number'}, 999, 400),
+        ({'va_profile_item_id': -5}, 999, 400),
+        ({'va_profile_item_id': 0}, 999, 400),
+        ({'va_profile_item_id': 801}, 801, 200),
+        ({'name': 'different name'}, 802, 200),
+        ({'va_profile_item_id': 2}, 803, 200),
+        ({'default_send_indicator': False}, 804, 200),
+        ({'name': 'different name', 'va_profile_item_id': 2, 'default_send_indicator': False}, 805, 200),
     ],
 )
-def test_partially_update_communication_item(notify_db_session, admin_request, post_data, expected_status):
-    communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=1, name='communication item tests')
+def test_partially_update_communication_item(
+    notify_db_session,
+    admin_request,
+    post_data,
+    starting_profile_id,
+    expected_status,
+):
+    communication_item = CommunicationItem(
+        id=uuid4(), va_profile_item_id=starting_profile_id, name='communication item tests'
+    )
     notify_db_session.session.add(communication_item)
     notify_db_session.session.commit()
     assert communication_item.default_send_indicator, 'Should be True by default.'

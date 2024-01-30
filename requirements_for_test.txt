@@ -6,13 +6,15 @@ ruff >= 0.1.9
 freezegun >= 1.2.2
 
 # This is a library for mocking AWS services.
-moto >= 4.1.7
+# 5.0 has breaking changes
+moto < 5.0.0
 
 # https://pyjwt.readthedocs.io/en/stable/installation.html#cryptographic-dependencies-optional
 # When this is upgraded, also upgrade the version in the kafka (commons) repo file lambda_layer_requirements/pyjwt-layer-requirements.txt
 PyJWT[crypto] ~= 2.8.0
 
-pytest >= 7.3.1
+# 8.0 has breaking changes
+pytest < 8.0.0
 pytest-cov >= 4.0.0
 pytest-env >= 0.8.1
 pytest-mock >= 3.10.0
