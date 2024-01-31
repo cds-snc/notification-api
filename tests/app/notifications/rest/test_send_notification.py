@@ -385,7 +385,7 @@ def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, not
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
+                "app.notifications.validators.check_service_over_api_rate_limit_and_update_rate",
                 side_effect=TooManyRequestsError(1),
             )
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -419,7 +419,7 @@ def test_should_block_api_call_if_over_day_limit_for_restricted_service(notify_d
         with notify_api.test_client() as client:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
+                "app.notifications.validators.check_email_daily_limit",
                 side_effect=TooManyRequestsError(1),
             )
 
