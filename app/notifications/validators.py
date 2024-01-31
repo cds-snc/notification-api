@@ -227,17 +227,12 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
 
 
 def increment_email_daily_count_send_warnings_if_needed(service: Service, requested_email=0) -> None:
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        return
-
     increment_todays_email_count(service.id, requested_email)
     send_warning_email_limit_emails_if_needed(service)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit_and_update_rate(service, api_key)
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        check_service_over_daily_message_limit(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):

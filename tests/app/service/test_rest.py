@@ -2225,9 +2225,7 @@ def test_update_service_updating_daily_limit_sends_notification_to_users(
     if expected_call:
         send_notification_mock.assert_called_once_with(
             service_id=service.id,
-            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-            if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-            else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
             personalisation={
                 "service_name": service.name,
                 "message_limit_en": "{:,}".format(new_limit),
