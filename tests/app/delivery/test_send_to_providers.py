@@ -1,9 +1,8 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
-from http.client import HTTPMessage
 from unittest import TestCase
-from unittest.mock import ANY, MagicMock, Mock, call
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from flask import current_app
@@ -907,24 +906,41 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
     }
     personalisation["file"]["document"]["sending_method"] = "attach"
     personalisation["file"]["document"]["filename"] = "file.txt"
+    personalisation["file"]["document"]["id"] = "1234"
 
     db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
 
     mocker.patch("app.delivery.send_to_providers.statsd_client")
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    getconn_mock = mocker.patch("urllib3.connectionpool.HTTPConnectionPool._new_conn")
-    getconn_mock.return_value.getresponse.side_effect = [
-        Mock(status=500, msg=HTTPMessage()),
-        Mock(status=429, msg=HTTPMessage()),
-        Mock(status=400, msg=HTTPMessage()),
-        Mock(status=404, msg=HTTPMessage()),
-        Mock(status=200, msg=HTTPMessage()),
+    # When a urllib3 request attempts retries and fails it will wrap the offending exception in a MaxRetryError
+    # thus we'll capture the logged exception and assert it's a MaxRetryError to verify that retries were attempted
+    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
+    logger_args = []
+
+    def mock_error(*args):
+        logger_args.append(args)
+
+    mock_logger.side_effect = mock_error
+
+    class MockHTTPResponse:
+        def __init__(self, status):
+            self.status = status
+            self.data = b"file content" if status == 200 else b""
+
+    mock_http = mocker.patch("urllib3.PoolManager")
+    mock_http.return_value.request.side_effect = [
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
     ]
 
-    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
     send_to_providers.send_email_to_provider(db_notification)
-    assert mock_logger.call_count == 0
+    exception = logger_args[0][0].split("Exception: ")[1]
+    assert mock_logger.call_count == 1
+    assert "Max retries exceeded" in exception
 
 
 def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
