@@ -156,7 +156,7 @@ def test_should_not_allow_invalid_api_key(client, sample_api_key):
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message["message"] == {"token": ["Invalid token: API key not found"]}
+    assert error_message["message"] == {"token": ["Invalid token: Enter your full API key"]}
 
 
 def test_should_not_allow_expired_api_key(client, sample_api_key):

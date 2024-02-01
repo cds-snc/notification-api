@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from flask import current_app
 from itsdangerous import BadSignature
 from sqlalchemy import func, or_
-from sqlalchemy.exc import DataError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -87,7 +86,7 @@ def update_compromised_api_key_info(service_id, api_key_id, compromised_info):
 def get_api_key_by_secret(secret, service_id=None):
     # Check the first part of the secret is the gc prefix
     if current_app.config["API_KEY_PREFIX"] != secret[: len(current_app.config["API_KEY_PREFIX"])]:
-        raise DataError()
+        raise ValueError()
 
     # Check if the remaining part of the secret is a the valid api key
     token = secret[-36:]
@@ -96,16 +95,16 @@ def get_api_key_by_secret(secret, service_id=None):
         try:
             api_key = db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
         except NoResultFound:
-            pass
+            raise NoResultFound()
 
     # Check the middle portion of the secret is the valid service id
-    if api_key.service_id:
+    if api_key and api_key.service_id:
         if len(secret) >= 79:
             service_id_from_token = str(secret[-73:-37])
             if str(api_key.service_id) != service_id_from_token:
-                raise DataError()
+                raise ValueError()
         else:
-            raise DataError()
+            raise ValueError()
     if api_key:
         return api_key
     raise NoResultFound()

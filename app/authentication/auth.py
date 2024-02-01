@@ -156,7 +156,7 @@ def _auth_by_api_key(auth_token):
         api_key = get_api_key_by_secret(auth_token)
     except NoResultFound:
         raise AuthError("Invalid token: API key not found", 403)
-    except DataError:
+    except ValueError:
         raise AuthError("Invalid token: Enter your full API key", 403)
     _auth_with_api_key(api_key, api_key.service)
 
