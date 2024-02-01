@@ -83,13 +83,30 @@ def update_compromised_api_key_info(service_id, api_key_id, compromised_info):
     db.session.add(api_key)
 
 
-def get_api_key_by_secret(secret):
-    signed_with_all_keys = signer_api_key.sign_with_all_keys(str(secret))
+def get_api_key_by_secret(secret, service_id=None):
+    # Check the first part of the secret is the gc prefix
+    if current_app.config["API_KEY_PREFIX"] != secret[: len(current_app.config["API_KEY_PREFIX"])]:
+        raise NoResultFound()
+
+    # Check if the remaining part of the secret is a the valid api key
+    token = secret[-36:]
+    signed_with_all_keys = signer_api_key.sign_with_all_keys(str(token))
     for signed_secret in signed_with_all_keys:
         try:
-            return db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
+            api_key = db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
         except NoResultFound:
             pass
+
+    # Check the middle portion of the secret is the valid service id
+    if api_key.service_id:
+        if len(secret) >= 79:
+            service_id_from_token = str(secret[-73:-37])
+            if str(api_key.service_id) != service_id_from_token:
+                raise NoResultFound()
+        else:
+            raise NoResultFound()
+    if api_key:
+        return api_key
     raise NoResultFound()
 
 
