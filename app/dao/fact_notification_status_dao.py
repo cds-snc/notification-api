@@ -239,13 +239,19 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    ft_start_date = utc_midnight_n_days_ago(limit_days)
+    if limit_days == 1:
+        ft_start_date = utc_midnight_n_days_ago(limit_days - 1)
+        # For daily stats, service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
+        start = utc_midnight_n_days_ago(0)
+        end = datetime.utcnow()
+    else:
+        ft_start_date = utc_midnight_n_days_ago(limit_days)
 
-    # The nightly task that populates ft_notification_status counts collects notifications from
-    # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
-    # we fetch notifications for the current day.
-    start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-    end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+        # The nightly task that populates ft_notification_status counts collects notifications from
+        # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
+        # we fetch notifications for the current day.
+        start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+        end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
 
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
@@ -312,6 +318,85 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
         all_stats_table.c.status,
     ).all()
 
+
+def fetch_daily_notification_status_for_service(service_id, by_template=False):
+    """
+    Fetches daily notification stats for a service
+
+    Service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
+    """
+    
+    start = utc_midnight_n_days_ago(1)
+    
+    stats_for_today = (
+        db.session.query(
+            Notification.notification_type.cast(db.Text),
+            Notification.status,
+            *([Notification.template_id] if by_template else []),
+            *([func.count().label("count")]),
+        )
+        .filter(
+            Notification.created_at >= start,
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+        )
+        .group_by(
+            Notification.notification_type,
+            *([Notification.template_id] if by_template else []),
+            Notification.status,
+        )
+    )
+
+    all_stats_table = stats_for_today.subquery()
+
+    query = db.session.query(
+        *(
+            [
+                Template.name.label("template_name"),
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+        func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+    )
+
+    if by_template:
+        query = query.filter(all_stats_table.c.template_id == Template.id)
+
+    return query.group_by(
+        *(
+            [
+                Template.name,
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+    ).all()
+
+    # if by_template:
+    #     query = query.filter(stats_for_today.c.template_id == Template.id)
+
+    # return query.group_by(
+    #     *(
+    #         [
+    #             Template.name,
+    #             Template.is_precompiled_letter,
+    #             stats_for_today.c.template_id,
+    #         ]
+    #         if by_template
+    #         else []
+    #     ),
+    #     stats_for_today.c.notification_type,
+    #     stats_for_today.c.status,
+    # ).all()
 
 def get_total_notifications_sent_for_api_key(api_key_id):
     """
