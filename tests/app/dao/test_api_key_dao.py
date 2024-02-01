@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from itsdangerous import BadSignature
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.api_key_dao import (
@@ -127,11 +127,11 @@ class TestGetAPIKeyBySecret:
             get_api_key_by_secret("nope")
 
         # Test getting secret without the keyname prefix
-        with pytest.raises(NoResultFound):
+        with pytest.raises(DataError):
             get_api_key_by_secret(str(sample_api_key.id))
 
         # Test the service_name isnt part of the secret
-        with pytest.raises(NoResultFound):
+        with pytest.raises(DataError):
             # import pdb; pdb.set_trace()
             get_api_key_by_secret(f"gcntfy-keyname-hello-{secret}")
 
