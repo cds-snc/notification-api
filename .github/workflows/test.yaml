@@ -67,7 +67,7 @@ jobs:
       run: |
         cp -f .env.example .env
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@2da7468 # 52.1.0
+      uses: cds-snc/notification-utils/.github/actions/waffles@2da74685e0ffb220f0403e1f2584e783be99bbad # 52.1.0
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'
