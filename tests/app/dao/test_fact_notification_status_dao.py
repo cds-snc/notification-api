@@ -1178,7 +1178,6 @@ def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
     )
     assert results[0][2] == 3
 
-
     results = sorted(
         fetch_notification_status_for_service_for_day(datetime(2018, 11, 1), service_1.id),
         key=lambda x: x.notification_status,

@@ -325,9 +325,9 @@ def fetch_daily_notification_status_for_service(service_id, by_template=False):
 
     Service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
     """
-    
+
     start = utc_midnight_n_days_ago(1)
-    
+
     stats_for_today = (
         db.session.query(
             Notification.notification_type.cast(db.Text),
@@ -397,6 +397,7 @@ def fetch_daily_notification_status_for_service(service_id, by_template=False):
     #     stats_for_today.c.notification_type,
     #     stats_for_today.c.status,
     # ).all()
+
 
 def get_total_notifications_sent_for_api_key(api_key_id):
     """
