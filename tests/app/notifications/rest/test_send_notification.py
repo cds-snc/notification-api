@@ -28,7 +28,11 @@ from app.models import (
     Template,
 )
 from app.utils import get_document_url
-from app.v2.errors import RateLimitError, TooManyRequestsError
+from app.v2.errors import (
+    RateLimitError,
+    TooManyRequestsError,
+    TrialServiceTooManyEmailRequestsError,
+)
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_api_key,
@@ -417,13 +421,14 @@ def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, not
 def test_should_block_api_call_if_over_day_limit_for_restricted_service(notify_db, notify_db_session, notify_api, mocker):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
-            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
             mocker.patch(
                 "app.notifications.validators.check_email_daily_limit",
-                side_effect=TooManyRequestsError(1),
+                side_effect=TrialServiceTooManyEmailRequestsError(1),
             )
 
             service = create_sample_service(notify_db, notify_db_session, limit=1, restricted=True)
+            create_sample_service_safelist(notify_db, notify_db_session, service=service, email_address="ok@ok.com")
             email_template = create_sample_email_template(notify_db, notify_db_session, service=service)
             create_sample_notification(
                 notify_db,
