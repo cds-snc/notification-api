@@ -342,9 +342,7 @@ def update_service(service_id):
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-        if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),
