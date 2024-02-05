@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from itsdangerous import BadSignature
-from sqlalchemy.exc import DataError, IntegrityError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.api_key_dao import (
