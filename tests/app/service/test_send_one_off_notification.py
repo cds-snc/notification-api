@@ -5,6 +5,7 @@ import pytest
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
+from app.config import QueueNames
 from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 from app.models import (
     EMAIL_TYPE,
@@ -20,7 +21,6 @@ from app.v2.errors import (
     BadRequestError,
     LiveServiceTooManyEmailRequestsError,
     LiveServiceTooManySMSRequestsError,
-    TooManyRequestsError,
 )
 from tests.app.db import (
     create_letter_contact,
@@ -30,7 +30,6 @@ from tests.app.db import (
     create_template,
     create_user,
 )
-from tests.conftest import set_config_values
 
 
 @pytest.fixture
@@ -60,7 +59,9 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
 
     assert resp == {"id": str(persist_mock.return_value.id)}
 
-    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(
+        notification=persist_mock.return_value, research_mode=False, queue=QueueNames.SEND_SMS_MEDIUM
+    )
 
 
 def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock, celery_mock, notify_db_session):
@@ -189,12 +190,37 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     assert celery_mock.call_args[1]["research_mode"] is True
 
 
-@pytest.mark.parametrize("process_type, expected_queue", [("priority", "priority"), ("bulk", "normal"), ("normal", "normal")])
-def test_send_one_off_notification_honors_process_type(
+@pytest.mark.parametrize(
+    "process_type, expected_queue",
+    [("priority", QueueNames.SEND_EMAIL_HIGH), ("bulk", QueueNames.SEND_EMAIL_MEDIUM), ("normal", QueueNames.SEND_EMAIL_MEDIUM)],
+)
+def test_send_one_off_email_notification_honors_process_type(
     notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
     service = create_service()
-    template = create_template(service=service)
+    template = create_template(service=service, template_type=EMAIL_TYPE)
+    template.process_type = process_type
+
+    post_data = {
+        "template_id": str(template.id),
+        "to": "test@test.com",
+        "created_by": str(service.created_by_id),
+    }
+
+    send_one_off_notification(service.id, post_data)
+
+    assert celery_mock.call_args[1]["queue"] == expected_queue
+
+
+@pytest.mark.parametrize(
+    "process_type, expected_queue",
+    [("priority", QueueNames.SEND_SMS_HIGH), ("bulk", QueueNames.SEND_SMS_MEDIUM), ("normal", QueueNames.SEND_SMS_MEDIUM)],
+)
+def test_send_one_off_sms_notification_honors_process_type(
+    notify_db_session, persist_mock, celery_mock, process_type, expected_queue
+):
+    service = create_service()
+    template = create_template(service=service, template_type=SMS_TYPE)
     template.process_type = process_type
 
     post_data = {
@@ -205,7 +231,7 @@ def test_send_one_off_notification_honors_process_type(
 
     send_one_off_notification(service.id, post_data)
 
-    assert celery_mock.call_args[1]["queue"] == f"{expected_queue}-tasks"
+    assert celery_mock.call_args[1]["queue"] == expected_queue
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(notify_db_session):
@@ -254,12 +280,12 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     assert "service is in trial mode" in e.value.message
 
 
-def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_session, mocker):
+def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_session, notify_api, mocker):
     service = create_service(message_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        "app.service.send_notification.check_service_over_daily_message_limit",
-        side_effect=TooManyRequestsError(1),
+        "app.service.send_notification.check_sms_daily_limit",
+        side_effect=LiveServiceTooManySMSRequestsError(1),
     )
 
     post_data = {
@@ -268,7 +294,7 @@ def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_sessi
         "created_by": str(service.created_by_id),
     }
 
-    with pytest.raises(TooManyRequestsError):
+    with pytest.raises(LiveServiceTooManySMSRequestsError):
         send_one_off_notification(service.id, post_data)
 
 
@@ -276,7 +302,7 @@ def test_send_one_off_notification_raises_if_over_email_limit(notify_db_session,
     service = create_service(message_limit=0)
     template = create_template(service=service, template_type=EMAIL_TYPE)
     mocker.patch(
-        "app.service.send_notification.check_email_limit_increment_redis_send_warnings_if_needed",
+        "app.service.send_notification.check_email_daily_limit",
         side_effect=LiveServiceTooManyEmailRequestsError(1),
     )
 
@@ -286,16 +312,15 @@ def test_send_one_off_notification_raises_if_over_email_limit(notify_db_session,
         "created_by": str(service.created_by_id),
     }
 
-    with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": True}):
-        with pytest.raises(LiveServiceTooManyEmailRequestsError):
-            send_one_off_notification(service.id, post_data)
+    with pytest.raises(LiveServiceTooManyEmailRequestsError):
+        send_one_off_notification(service.id, post_data)
 
 
 def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_session, mocker):
     service = create_service(sms_daily_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        "app.service.send_notification.check_sms_limit_increment_redis_send_warnings_if_needed",
+        "app.service.send_notification.check_sms_daily_limit",
         side_effect=LiveServiceTooManySMSRequestsError(1),
     )
 
@@ -354,7 +379,7 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 
     notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_EMAIL_MEDIUM)
     assert notification.reply_to_text == reply_to_email.email_address
 
 
@@ -370,7 +395,7 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
 
     notification_id = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.NORMAL)
 
     assert notification.reply_to_text == "Edinburgh, ED1 1AA"
 
@@ -405,7 +430,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_SMS_MEDIUM)
 
     assert notification.reply_to_text == "+16502532222"
 
@@ -423,7 +448,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
 
     notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue="normal-tasks")
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_SMS_MEDIUM)
 
     assert notification.reply_to_text == "+16502532222"
 

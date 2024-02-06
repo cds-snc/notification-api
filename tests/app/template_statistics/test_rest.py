@@ -12,7 +12,7 @@ def set_up_get_all_from_hash(mock_redis, side_effect):
     redis returns binary strings for both keys and values - so given a list of side effects (return values),
     make sure
     """
-    assert type(side_effect) == list
+    assert isinstance(side_effect, list)
     side_effects = []
     for ret_val in side_effect:
         if ret_val is None:

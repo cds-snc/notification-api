@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -43,7 +43,7 @@ jobs:
 
     - name: Login to ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@2f9f10ea3fa2eed41ac443fee8bfbd059af2d0a4 # v1.6.0
+      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
       with:
         registry-type: public
 
@@ -73,9 +73,26 @@ jobs:
     - name: Update images in staging
       run: |
         kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-primary celery-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-scalable celery-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-primary celery-sms-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-scalable celery-sms-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-primary celery-email-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-scalable celery-email-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+
+    - name: Restart deployments in staging
+      run: |
+        kubectl rollout restart deployment/api -n notification-canada-ca
+        kubectl rollout restart deployment/celery-beat -n notification-canada-ca
+        kubectl rollout restart deployment/celery-sms -n notification-canada-ca
+        kubectl rollout restart deployment/celery-primary -n notification-canada-ca
+        kubectl rollout restart deployment/celery-scalable -n notification-canada-ca
+        kubectl rollout restart deployment/celery-sms-send-primary -n notification-canada-ca
+        kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
+        kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
+        kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
 
     - name: my-app-install token
       id: notify-pr-bot
@@ -89,7 +106,7 @@ jobs:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
     - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@cfec0943e40dbb78cee115bbbe89dc17f07b7a0f # v2.1.3
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
       with:
         docker_image: "${{ env.DOCKER_SLUG }}:latest"
         dockerfile_path: "ci/Dockerfile"

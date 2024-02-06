@@ -26,6 +26,7 @@
 				"GitHub.copilot",
 				"GitHub.copilot-labs",
 				"googlecloudtools.cloudcode",
+				"kaiwood.center-editor-window",
 				"matangover.mypy",
 				"ms-azuretools.vscode-docker",
 				"ms-ossdata.vscode-postgresql",
@@ -35,6 +36,7 @@
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
 				"pmbenjamin.vscode-snyk",
+				"timonwong.shellcheck",
 				"usernamehw.errorlens",
 				"visualstudioexptteam.vscodeintellicode",
 				"wenfangdu.jump",
@@ -52,8 +54,12 @@
 			"version": "latest",
 			"helm": "latest",
 			"minikube": "none"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "14.17.4"
 		}
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-	"remoteUser": "vscode"
+	"remoteUser": "vscode",
+	
 }

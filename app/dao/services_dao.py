@@ -46,6 +46,7 @@ from app.models import (
     User,
     VerifyCode,
 )
+from app.service.utils import add_pt_data_retention, get_organisation_by_id
 from app.utils import (
     email_address_is_nhs,
     escape_special_characters,
@@ -273,6 +274,7 @@ def dao_create_service(
     user,
     service_id=None,
     service_permissions=None,
+    organisation_id=None,
 ):
     # the default property does not appear to work when there is a difference between the sqlalchemy schema and the
     # db schema (ie: during a migration), so we have to set sms_sender manually here. After the GOVUK sms_sender
@@ -284,7 +286,10 @@ def dao_create_service(
     if service_permissions is None:
         service_permissions = DEFAULT_SERVICE_PERMISSIONS
 
-    organisation = dao_get_organisation_by_email_address(user.email_address)
+    if organisation_id:
+        organisation = get_organisation_by_id(organisation_id)
+    else:
+        organisation = dao_get_organisation_by_email_address(user.email_address)
 
     from app.dao.permissions_dao import permission_dao
 
@@ -309,6 +314,9 @@ def dao_create_service(
 
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding
+
+        if organisation.organisation_type == "province_or_territory":
+            add_pt_data_retention(service.id)
 
     elif service.organisation_type in NHS_ORGANISATION_TYPES or email_address_is_nhs(user.email_address):
         service.email_branding = dao_get_email_branding_by_name("NHS")
@@ -435,7 +443,7 @@ def fetch_todays_total_message_count(service_id):
 def fetch_todays_total_sms_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     result = (
-        db.session.query(func.sum(Notification.billable_units).label("sum_billable_units"))
+        db.session.query(func.count(Notification.id).label("total_sms_notifications"))
         .filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
@@ -444,7 +452,7 @@ def fetch_todays_total_sms_count(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.sum_billable_units is None else result.sum_billable_units
+    return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
@@ -471,18 +479,7 @@ def _stats_for_service_query(service_id):
         db.session.query(
             Notification.notification_type,
             Notification.status,
-            *(
-                [
-                    case(
-                        [
-                            (Notification.notification_type == "email", func.count(Notification.id)),
-                        ],
-                        else_=func.sum(Notification.billable_units),
-                    ).label("count")
-                ]
-                if current_app.config["FF_SMS_PARTS_UI"]
-                else [func.count(Notification.id).label("count")]
-            ),
+            *([func.count(Notification.id).label("count")]),
         )
         .filter(
             Notification.service_id == service_id,

@@ -5,8 +5,10 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
@@ -129,7 +131,10 @@ from app.service.service_senders_schema import (
     add_service_letter_contact_block_request,
     add_service_sms_sender_request,
 )
-from app.service.utils import get_safelist_objects
+from app.service.utils import (
+    get_organisation_id_from_crm_org_notes,
+    get_safelist_objects,
+)
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
@@ -255,7 +260,13 @@ def create_service():
     # unpack valid json into service object
     valid_service = Service.from_json(data)
 
-    dao_create_service(valid_service, user)
+    organisation_id = (
+        get_organisation_id_from_crm_org_notes(data["organisation_notes"])
+        if ("organisation_notes" in data and data["organisation_notes"])
+        else None
+    )
+
+    dao_create_service(valid_service, user, organisation_id=organisation_id)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
         try:
@@ -294,12 +305,14 @@ def update_service(service_id):
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
+        redis_store.delete(near_email_daily_limit_cache_key(service_id))
+        redis_store.delete(over_email_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
-        if not fetched_service.restricted and current_app.config["FF_SPIKE_SMS_DAILY_LIMIT"]:
+        if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
 
     if service_going_live:
@@ -329,9 +342,7 @@ def update_service(service_id):
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-        if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),

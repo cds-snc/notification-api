@@ -13,6 +13,8 @@ from app.dao.api_key_dao import (
     get_unsigned_secrets,
     resign_api_keys,
     save_model_api_key,
+    update_compromised_api_key_info,
+    update_last_used_api_key,
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests.app.db import create_api_key
@@ -34,6 +36,7 @@ def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     assert len(all_api_keys) == 1
     assert all_api_keys[0] == api_key
     assert api_key.version == 1
+    assert api_key.last_used_timestamp is None
 
     all_history = api_key.get_history_model().query.all()
     assert len(all_history) == 1
@@ -49,6 +52,37 @@ def test_expire_api_key_should_update_the_api_key_and_create_history_record(noti
     assert all_api_keys[0].secret == sample_api_key.secret
     assert all_api_keys[0].id == sample_api_key.id
     assert all_api_keys[0].service_id == sample_api_key.service_id
+
+    all_history = sample_api_key.get_history_model().query.all()
+    assert len(all_history) == 2
+    assert all_history[0].id == sample_api_key.id
+    assert all_history[1].id == sample_api_key.id
+    sorted_all_history = sorted(all_history, key=lambda hist: hist.version)
+    sorted_all_history[0].version = 1
+    sorted_all_history[1].version = 2
+
+
+def test_last_used_should_update_the_api_key_and_not_create_history_record(notify_api, sample_api_key):
+    last_used = datetime.utcnow()
+    update_last_used_api_key(api_key_id=sample_api_key.id, last_used=last_used)
+    all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
+    assert len(all_api_keys) == 1
+    assert all_api_keys[0].last_used_timestamp == last_used
+
+    all_history = sample_api_key.get_history_model().query.all()
+    assert len(all_history) == 1
+
+
+def test_update_compromised_api_key_info_and_create_history_record(notify_api, sample_api_key):
+    update_compromised_api_key_info(
+        service_id=sample_api_key.service_id, api_key_id=sample_api_key.id, compromised_info={"key": "value"}
+    )
+    all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
+    assert len(all_api_keys) == 1
+    assert all_api_keys[0].secret == sample_api_key.secret
+    assert all_api_keys[0].id == sample_api_key.id
+    assert all_api_keys[0].service_id == sample_api_key.service_id
+    assert all_api_keys[0].compromised_key_info == {"key": "value"}
 
     all_history = sample_api_key.get_history_model().query.all()
     assert len(all_history) == 2

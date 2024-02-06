@@ -11,7 +11,9 @@ from freezegun import freeze_time
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_email_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_email_daily_limit_cache_key,
 )
 
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
@@ -1578,11 +1580,7 @@ def test_get_all_notifications_for_service_formatted_for_csv(client, sample_temp
     assert not resp["notifications"][0]["row_number"]
     assert resp["notifications"][0]["template_name"] == sample_template.name
     assert resp["notifications"][0]["template_type"] == notification.notification_type
-
-    if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-        assert resp["notifications"][0]["status"] == "In transit"
-    else:
-        assert resp["notifications"][0]["status"] == "Sending"
+    assert resp["notifications"][0]["status"] == "In transit"
 
 
 def test_get_notification_for_service_without_uuid(client, notify_db, notify_db_session):
@@ -2185,6 +2183,8 @@ def test_update_service_updating_daily_limit_clears_redis_cache(
             call(daily_limit_cache_key(service.id)),
             call(near_daily_limit_cache_key(service.id)),
             call(over_daily_limit_cache_key(service.id)),
+            call(near_email_daily_limit_cache_key(service.id)),
+            call(over_email_daily_limit_cache_key(service.id)),
         ]
     else:
         redis_delete.assert_not_called()
@@ -2225,9 +2225,7 @@ def test_update_service_updating_daily_limit_sends_notification_to_users(
     if expected_call:
         send_notification_mock.assert_called_once_with(
             service_id=service.id,
-            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-            if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-            else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
             personalisation={
                 "service_name": service.name,
                 "message_limit_en": "{:,}".format(new_limit),

@@ -8,6 +8,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
+from app.dao.date_util import tz_aware_midnight_n_days_ago, utc_midnight_n_days_ago
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -34,7 +35,6 @@ from app.models import (
 from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
-    midnight_n_days_ago,
 )
 
 
@@ -239,26 +239,28 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    start_date = midnight_n_days_ago(limit_days)
+    if limit_days == 1:
+        ft_start_date = utc_midnight_n_days_ago(limit_days - 1)
+        # For daily stats, service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
+        start = utc_midnight_n_days_ago(0)
+        end = datetime.utcnow()
+    else:
+        ft_start_date = utc_midnight_n_days_ago(limit_days)
+
+        # The nightly task that populates ft_notification_status counts collects notifications from
+        # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
+        # we fetch notifications for the current day.
+        start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+        end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
-        *(
-            [
-                case(
-                    [
-                        (FactNotificationStatus.notification_type == "email", FactNotificationStatus.notification_count),
-                    ],
-                    else_=FactNotificationStatus.billable_units,
-                ).label("count")
-            ]
-            if current_app.config["FF_SMS_PARTS_UI"]
-            else [FactNotificationStatus.notification_count.label("count")]
-        ),
+        *([FactNotificationStatus.notification_count.label("count")]),
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date >= ft_start_date,
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     )
 
@@ -267,21 +269,11 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.notification_type.cast(db.Text),
             Notification.status,
             *([Notification.template_id] if by_template else []),
-            *(
-                [
-                    case(
-                        [
-                            (Notification.notification_type == "email", func.count()),
-                        ],
-                        else_=func.sum(Notification.billable_units),
-                    ).label("count")
-                ]
-                if current_app.config["FF_SMS_PARTS_UI"]
-                else [func.count().label("count")]
-            ),
+            *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= midnight_n_days_ago(limit_days),
+            Notification.created_at >= start,
+            Notification.created_at <= end,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
@@ -350,18 +342,28 @@ def get_total_notifications_sent_for_api_key(api_key_id):
 
 def get_last_send_for_api_key(api_key_id):
     """
+    SELECT last_used_timestamp as last_notification_created
+    FROM api_keys
+    WHERE id = 'api_key_id';
+
+    If last_used_timestamp is null, then check notifications table/ or notification_history.
     SELECT max(created_at) as last_notification_created
     FROM notifications
     WHERE api_key_id = 'api_key_id'
     GROUP BY api_key_id;
     """
-
-    return (
-        db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-        .filter(Notification.api_key_id == api_key_id)
-        .group_by(Notification.api_key_id)
-        .all()
+    # Fetch last_used_timestamp from api_keys table
+    api_key_table = (
+        db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
+    if not api_key_table[0][0]:
+        notification_table = (
+            db.session.query(func.max(Notification.created_at).label("last_notification_created"))
+            .filter(Notification.api_key_id == api_key_id)
+            .all()
+        )
+        return [] if notification_table[0][0] is None else notification_table
+    return api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):

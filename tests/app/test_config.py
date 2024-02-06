@@ -27,7 +27,7 @@ def reload_config():
 def test_queue_names_all_queues_correct():
     # Need to ensure that all_queues() only returns queue names used in API
     queues = QueueNames.all_queues()
-    assert len(queues) == 17
+    assert len(queues) == 23
     assert set(
         [
             QueueNames.PRIORITY,
@@ -38,8 +38,14 @@ def test_queue_names_all_queues_correct():
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
             QueueNames.SEND_SMS,
+            QueueNames.SEND_SMS_HIGH,
+            QueueNames.SEND_SMS_MEDIUM,
+            QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL,
+            QueueNames.SEND_EMAIL_HIGH,
+            QueueNames.SEND_EMAIL_MEDIUM,
+            QueueNames.SEND_EMAIL_LOW,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,

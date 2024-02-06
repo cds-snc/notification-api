@@ -4,7 +4,7 @@ from notifications_utils.s3 import s3download as utils_s3download
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import create_random_identifier
-from app.config import QueueNames
+from app.config import Priorities, QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -33,13 +33,16 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from app.notifications.validators import (
-    check_email_limit_increment_redis_send_warnings_if_needed,
+    check_email_daily_limit,
     check_service_has_permission,
     check_service_over_daily_message_limit,
-    check_sms_limit_increment_redis_send_warnings_if_needed,
+    check_sms_daily_limit,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
 )
+from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 
 
@@ -64,14 +67,12 @@ def send_one_off_notification(service_id, post_data):
 
     _, template_with_content = validate_template(template.id, personalisation, service, template.template_type)
 
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            check_sms_limit_increment_redis_send_warnings_if_needed(service, template_with_content.fragment_count)
-    elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        check_email_limit_increment_redis_send_warnings_if_needed(service, 1)  # 1 email
+            check_sms_daily_limit(service, 1)
+    elif template.template_type == EMAIL_TYPE:
+        check_email_daily_limit(service, 1)  # 1 email
 
     validate_and_format_recipient(
         send_to=post_data["to"],
@@ -82,6 +83,13 @@ def send_one_off_notification(service_id, post_data):
     )
 
     validate_created_by(service, post_data["created_by"])
+
+    if template.template_type == SMS_TYPE:
+        is_test_notification = simulated_recipient(post_data["to"], template.template_type)
+        if not is_test_notification:
+            increment_sms_daily_count_send_warnings_if_needed(service, 1)
+    elif template.template_type == EMAIL_TYPE:
+        increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
     sender_id = post_data.get("sender_id", None)
     reply_to = get_reply_to_text(
@@ -111,11 +119,15 @@ def send_one_off_notification(service_id, post_data):
             NOTIFICATION_DELIVERED,
         )
     else:
+        # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
+        queue = get_delivery_queue_for_template(template)
+        if queue == QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.LOW]:
+            queue = QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.MEDIUM]
+
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
-            # allow one-off sends from admin to go quicker by using normal queue instead of bulk queue
-            queue=QueueNames.NORMAL if template.queue_to_use() == QueueNames.BULK else template.queue_to_use(),
+            queue=queue,
         )
 
     return {"id": str(notification.id)}

@@ -15,6 +15,7 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
@@ -36,7 +37,7 @@ from app.models import (
     Service,
 )
 from app.types import VerifiedNotification
-from app.utils import get_template_instance
+from app.utils import get_delivery_queue_for_template, get_template_instance
 from app.v2.errors import BadRequestError
 
 
@@ -110,13 +111,8 @@ def persist_notification(
         billable_units=billable_units,
     )
     template = dao_get_template_by_id(template_id, template_version, use_cache=True)
-    # if the template is obtained from cache a tuple will be returned where
-    # the first element is the Template object and the second the template cache data
-    # in the form of a dict
-    if isinstance(template, tuple):
-        template = template[0]
     notification.queue_name = choose_queue(
-        notification=notification, research_mode=service.research_mode, queue=template.queue_to_use()
+        notification=notification, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
     )
 
     if notification_type == SMS_TYPE:
@@ -138,6 +134,8 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
+        if api_key_id:
+            update_last_used_api_key(api_key_id, notification_created_at)
     return notification
 
 
@@ -215,7 +213,10 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name)
+        deliver_task.apply_async(
+            [str(notification.id)],
+            queue=notification.queue_name,
+        )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
@@ -232,10 +233,10 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
         if notification.sends_with_custom_number():
             queue = QueueNames.SEND_THROTTLED_SMS
         if not queue:
-            queue = QueueNames.SEND_SMS
+            queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
     if notification.notification_type == LETTER_TYPE:
         if not queue:
             queue = QueueNames.CREATE_LETTERS_PDF
@@ -266,10 +267,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             deliver_task = provider_tasks.deliver_throttled_sms
             queue = QueueNames.SEND_THROTTLED_SMS
         if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_SMS
+            queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
         if not queue or queue == QueueNames.NORMAL:
@@ -300,6 +301,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
     """
 
     lofnotifications = []
+    api_key_last_used = None
 
     for notification in notifications:
         notification_created_at = notification.get("created_at") or datetime.utcnow()
@@ -329,14 +331,9 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             billable_units=notification.get("billable_units"),  # type: ignore
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        if isinstance(template, tuple):
-            template = template[0]
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(
-            notification=notification_obj, research_mode=service.research_mode, queue=template.queue_to_use()
+            notification=notification_obj, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
         )
 
         if notification.get("notification_type") == SMS_TYPE:
@@ -364,7 +361,15 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
                 notification.get("notification_created_at"),  # type: ignore
             )
         )
+        # If the bulk message is sent using an api key, we want to keep track of the last time the api key was used
+        # We will only update the api key once
+        api_key_id = notification.get("api_key_id")
+        if api_key_id:
+            api_key_last_used = datetime.utcnow()
+    if api_key_last_used:
+        update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
+
     return lofnotifications
 
 

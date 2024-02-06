@@ -2,6 +2,7 @@ import os
 import sys
 import traceback
 
+import gunicorn  # type: ignore
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 
 newrelic.agent.initialize()  # noqa: E402
@@ -11,8 +12,10 @@ worker_class = "gevent"
 worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
+# Guincorn sets the server type on our app. We don't want to show it in the header in the response.
+gunicorn.SERVER = "Undisclosed"
 
-on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in ["production", "staging", "scratch"]
+on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in ["production", "staging", "scratch", "dev"]
 if on_aws:
     # To avoid load balancers reporting errors on shutdown instances, see AWS doc
     # > We also recommend that you configure the idle timeout of your application

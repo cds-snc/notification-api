@@ -1,6 +1,6 @@
+import base64
 import os
 import re
-import urllib.request
 from datetime import datetime
 from typing import Dict
 from uuid import UUID
@@ -15,6 +15,9 @@ from notifications_utils.template import (
     PlainTextEmailTemplate,
     SMSMessageTemplate,
 )
+from unidecode import unidecode
+from urllib3 import PoolManager
+from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
@@ -58,6 +61,7 @@ def send_sms_to_provider(notification):
         inactive_service_failure(notification=notification)
         return
 
+    # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(
             SMS_TYPE,
@@ -168,13 +172,10 @@ def check_for_malware_errors(document_download_response_code, notification):
 
 
 def check_service_over_bounce_rate(service_id: str):
-    if not current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-        return
-
     bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
     bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
     debug_data = bounce_rate_client.get_debug_data(service_id)
-    current_app.logger.info(
+    current_app.logger.debug(
         f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
     )
     if bounce_rate_status == BounceRateStatus.CRITICAL.value:
@@ -188,12 +189,36 @@ def check_service_over_bounce_rate(service_id: str):
         )
 
 
+def mime_encoded_word_syntax(encoded_text="", charset="utf-8", encoding="B") -> str:
+    """MIME encoded-word syntax is a way to encode non-ASCII characters in email headers.
+    It is described here:
+    https://docs.aws.amazon.com/ses/latest/dg/send-email-raw.html#send-email-mime-encoding-headers
+    """
+    return f"=?{charset}?{encoding}?{encoded_text}?="
+
+
+def get_from_address(friendly_from: str, email_from: str, sending_domain: str) -> str:
+    """
+    This function returns the from_address or source in MIME encoded-word syntax
+    friendly_from is the sender's display name and may contain accents so we need to encode it to base64
+    email_from and sending_domain should be ASCII only
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ses/client/send_raw_email.html
+    "If you want to use Unicode characters in the “friendly from” name, you must encode the “friendly from”
+    name using MIME encoded-word syntax, as described in Sending raw email using the Amazon SES API."
+    """
+    friendly_from_b64 = base64.b64encode(friendly_from.encode()).decode("utf-8")
+    friendly_from_mime = mime_encoded_word_syntax(encoded_text=friendly_from_b64, charset="utf-8", encoding="B")
+    return f'"{friendly_from_mime}" <{unidecode(email_from)}@{unidecode(sending_domain)}>'
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
     if not service.active:
         inactive_service_failure(notification=notification)
         return
+
+    # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(EMAIL_TYPE, notification.id)
 
@@ -207,27 +232,29 @@ def send_email_to_provider(notification: Notification):
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
             direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+            filename = personalisation_data[key]["document"].get("filename")
+            mime_type = personalisation_data[key]["document"].get("mime_type")
             document_id = personalisation_data[key]["document"]["id"]
             scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
             check_for_malware_errors(scan_verdict_response.status_code, notification)
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
             if sending_method == "attach":
                 try:
-                    req = urllib.request.Request(direct_file_url)
-                    with urllib.request.urlopen(req) as response:
-                        buffer = response.read()
-                        filename = personalisation_data[key]["document"].get("filename")
-                        mime_type = personalisation_data[key]["document"].get("mime_type")
-                        attachments.append(
-                            {
-                                "name": filename,
-                                "data": buffer,
-                                "mime_type": mime_type,
-                            }
-                        )
+                    retries = Retry(total=5)
+                    http = PoolManager(retries=retries)
+
+                    response = http.request("GET", url=direct_file_url)
+                    attachments.append(
+                        {
+                            "name": filename,
+                            "data": response.data,
+                            "mime_type": mime_type,
+                        }
+                    )
                 except Exception as e:
                     current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
-                del personalisation_data[key]
+                    del personalisation_data[key]
+
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
@@ -270,8 +297,9 @@ def send_email_to_provider(notification: Notification):
             else:
                 sending_domain = service.sending_domain
 
-            from_address = '"{}" <{}@{}>'.format(service.name, service.email_from, sending_domain)
-
+            from_address = get_from_address(
+                friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain
+            )
             email_reply_to = notification.reply_to_text
 
             reference = provider.send_email(
@@ -283,10 +311,9 @@ def send_email_to_provider(notification: Notification):
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
                 attachments=attachments,
             )
-            if current_app.config["FF_BOUNCE_RATE_BACKEND"]:
-                check_service_over_bounce_rate(service.id)
-                bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
-                current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
+            check_service_over_bounce_rate(service.id)
+            bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
+            current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
             current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
             notification.reference = reference
             update_notification_to_sending(notification, provider)

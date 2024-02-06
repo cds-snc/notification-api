@@ -65,7 +65,7 @@ class TestBuffer:
 class TestRedisQueue:
     @pytest.fixture(autouse=True)
     def app(self):
-        config: Config = Test()
+        config: Config = Test()  # type: ignore
         config.REDIS_ENABLED = True
         app = Flask(config.NOTIFY_ENVIRONMENT)
         create_app(app, config)
@@ -344,7 +344,7 @@ class TestMockQueue:
 class TestRedisQueueMetricUsage:
     @pytest.fixture(autouse=True)
     def app(self):
-        config: Config = Test()
+        config: Config = Test()  # type: ignore
         config.REDIS_ENABLED = True
         app = Flask(config.NOTIFY_ENVIRONMENT)
         create_app(app, config)

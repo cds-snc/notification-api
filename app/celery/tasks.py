@@ -35,7 +35,7 @@ from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
 )
-from app.config import Config, QueueNames
+from app.config import Config, Priorities, QueueNames
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -78,9 +78,8 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import check_service_over_daily_message_limit
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows
+from app.utils import get_csv_max_rows, get_delivery_queue_for_template
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -247,16 +246,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-            if isinstance(template, tuple):
-                template = template[0]
-        # if the template is obtained from cache a tuple will be returned where
-        # the first element is the Template object and the second the template cache data
-        # in the form of a dict
-        elif isinstance(template, tuple):
-            reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            template = template[0]
+        elif template.service:
+            reply_to_text = template.get_reply_to_text()
         else:
-            reply_to_text = template.get_reply_to_text()  # type: ignore
+            reply_to_text = service.get_default_sms_sender()  # type: ignore
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
@@ -268,7 +261,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": SMS_TYPE,
+            "notification_type": SMS_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
@@ -278,17 +271,17 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
-        process_type = template.process_type
+        process_type = template.process_type  # type: ignore
 
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.logger.debug(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
             acknowledge_receipt(SMS_TYPE, process_type, receipt)
-            current_app.logger.info(
+            current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
@@ -303,12 +296,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
-    current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
+    current_app.logger.debug(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 service.research_mode,
@@ -359,16 +350,11 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         else:
             if sender_id:
                 reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            elif isinstance(template, tuple):
-                reply_to_text = template[1].get("reply_to_text")  # type: ignore
-            else:
+            elif template.service:
                 reply_to_text = template.get_reply_to_text()  # type: ignore
+            else:
+                reply_to_text = service.get_default_reply_to_email_address()
 
-        if isinstance(template, tuple):
-            template = template[0]
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
             "notification_id": notification_id,
@@ -379,7 +365,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             "template_version": template.version,
             "recipient": _notification.get("to"),
             "personalisation": _notification.get("personalisation"),
-            "notification_type": EMAIL_TYPE,
+            "notification_type": EMAIL_TYPE,  # type: ignore
             "simulated": _notification.get("simulated", None),
             "api_key_id": _notification.get("api_key", None),
             "created_at": datetime.utcnow(),
@@ -394,7 +380,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.logger.debug(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
@@ -403,7 +389,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             # at this point in the code we have a list of notifications (saved_notifications)
             # which could use multiple templates
             acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
-            current_app.logger.info(
+            current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
@@ -426,7 +412,7 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     Loop through saved_notifications, check if the service has hit their daily rate limit,
     and if not, call send_notification_to_queue on notification
     """
-    current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+    current_app.logger.debug(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
     # todo: fix this potential bug
     # service is whatever it was set to last in the for loop above.
     # at this point in the code we have a list of notifications (saved_notifications)
@@ -434,9 +420,7 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
-            queue = notification_id_queue.get(notification_obj.id) or template.queue_to_use()  # type: ignore
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -457,9 +441,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
 def handle_batch_error_and_forward(
     task: Any,
     signed_and_verified: list[tuple[Any, Any]],
-    notification_type: str,
+    notification_type: Optional[str],
     exception,
-    receipt: UUID = None,
+    receipt: Optional[UUID] = None,
     template: Any = None,
 ):
     if receipt:
@@ -488,11 +472,6 @@ def handle_batch_error_and_forward(
             template = dao_get_template_by_id(
                 notification.get("template_id"), notification.get("template_version"), use_cache=True
             )
-            # if the template is obtained from cache a tuple will be returned where
-            # the first element is the Template object and the second the template cache data
-            # in the form of a dict
-            if isinstance(template, tuple):
-                template = template[0]
             process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
@@ -697,19 +676,14 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     queue: Optional[str] = process_type
 
     if notifications_count >= large_csv_threshold:
-        queue = QueueNames.BULK
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.LOW]
     # If priority is slow/bulk, but lower than threshold, let's make it
     # faster by switching to normal queue.
     elif process_type == BULK:
-        queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.MEDIUM]
     else:
         # If the size isn't a concern, fall back to the template's process type.
-        if process_type == PRIORITY:
-            queue = QueueNames.PRIORITY
-        elif process_type == BULK:
-            queue = QueueNames.BULK
-        else:
-            queue = QueueNames.SEND_NORMAL_QUEUE.format(notif_type)
+        queue = QueueNames.DELIVERY_QUEUES[notif_type][Priorities.to_lmh(process_type)]
     return queue
 
 
@@ -806,7 +780,7 @@ def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID
     ):
         return
     else:
-        current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")
+        current_app.logger.warning(f"acknowledge_receipt: receipt {receipt} not found in any queue")
 
 
 @notify_celery.task(name="seed-bounce-rate-in-redis")

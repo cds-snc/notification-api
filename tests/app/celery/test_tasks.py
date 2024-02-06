@@ -891,7 +891,7 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type)
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
 
@@ -920,7 +920,7 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": "send-{}-tasks".format(template_type),
+                "queue": QueueNames.SEND_SMS_MEDIUM if template_type == SMS_TYPE else QueueNames.SEND_EMAIL_MEDIUM,
                 "client_reference": reference,
                 "sender_id": str(sender_id) if sender_id else None,
             },
@@ -930,15 +930,15 @@ class TestProcessRows:
     @pytest.mark.parametrize(
         "csv_bulk_threshold, template_process_type, expected_queue",
         [
-            (1_000, PRIORITY, "priority-tasks"),  # keep priority when no thresholds are met
-            (1, PRIORITY, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
-            (1, NORMAL, "bulk-tasks"),  # autoswitch to bulk queue if bulk threshold is met.
-            (1_000, NORMAL, "send-email-tasks"),  # keep normal priority
-            (1, BULK, "bulk-tasks"),  # keep bulk priority
-            (1_000, BULK, "send-email-tasks"),  # autoswitch to normal queue if normal threshold is met.
+            (1_000, PRIORITY, QueueNames.SEND_EMAIL_HIGH),  # keep priority when no thresholds are met
+            (1, PRIORITY, QueueNames.SEND_EMAIL_LOW),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, QueueNames.SEND_EMAIL_LOW),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, QueueNames.SEND_EMAIL_MEDIUM),  # keep normal priority
+            (1, BULK, QueueNames.SEND_EMAIL_LOW),  # keep bulk priority
+            (1_000, BULK, QueueNames.SEND_EMAIL_MEDIUM),  # autoswitch to normal queue if normal threshold is met.
         ],
     )
-    def test_should_redirect_job_to_queue_depending_on_csv_threshold(
+    def test_should_redirect_email_job_to_queue_depending_on_csv_threshold(
         self,
         notify_api,
         sample_job,
@@ -967,6 +967,50 @@ class TestProcessRows:
 
         tasks.save_emails.apply_async.assert_called_once()
         args = mock_save_email.method_calls[0].args
+        signed_notification = [i for i in args[0]][1][0]
+        notification = signer_notification.verify(signed_notification)
+        assert expected_queue == notification.get("queue")
+
+    @pytest.mark.parametrize(
+        "csv_bulk_threshold, template_process_type, expected_queue",
+        [
+            (1_000, PRIORITY, QueueNames.SEND_SMS_HIGH),  # keep priority when no thresholds are met
+            (1, PRIORITY, QueueNames.SEND_SMS_LOW),  # autoswitch to bulk queue if bulk threshold is met, even if in priority.
+            (1, NORMAL, QueueNames.SEND_SMS_LOW),  # autoswitch to bulk queue if bulk threshold is met.
+            (1_000, NORMAL, QueueNames.SEND_SMS_MEDIUM),  # keep normal priority
+            (1, BULK, QueueNames.SEND_SMS_LOW),  # keep bulk priority
+            (1_000, BULK, QueueNames.SEND_SMS_MEDIUM),  # autoswitch to normal queue if normal threshold is met.
+        ],
+    )
+    def test_should_redirect_sms_job_to_queue_depending_on_csv_threshold(
+        self,
+        notify_api,
+        sample_job,
+        mocker,
+        fake_uuid,
+        csv_bulk_threshold,
+        template_process_type,
+        expected_queue,
+    ):
+        mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
+
+        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
+        job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
+        service = Mock(id=1, research_mode=False)
+
+        row = next(
+            RecipientCSV(
+                load_example_csv("sms"),
+                template_type=SMS_TYPE,
+            ).get_rows()
+        )
+
+        with set_config_values(notify_api, {"CSV_BULK_REDIRECT_THRESHOLD": csv_bulk_threshold}):
+            process_rows([row], template, job, service)
+
+        tasks.save_smss.apply_async.assert_called_once()
+        args = mock_save_sms.method_calls[0].args
         signed_notification = [i for i in args[0]][1][0]
         notification = signer_notification.verify(signed_notification)
         assert expected_queue == notification.get("queue")
@@ -1059,9 +1103,9 @@ class TestProcessRows:
                 "to": "recip",
                 "row_number": "row_num",
                 "personalisation": {"foo": "bar"},
-                "queue": "send-{}-tasks".format(template_type),
-                "client_reference": reference,
+                "queue": QueueNames.SEND_SMS_MEDIUM if template_type == SMS_TYPE else QueueNames.SEND_EMAIL_MEDIUM,
                 "sender_id": str(sender_id) if sender_id else None,
+                "client_reference": reference,
             },
         )
         task_mock.apply_async.assert_called_once()
@@ -1095,7 +1139,7 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
-        mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+        mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM)
 
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
     def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
@@ -1148,7 +1192,7 @@ class TestSaveSmss:
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else "send-sms-tasks"
+            [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
         )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
@@ -1191,15 +1235,20 @@ class TestSaveSmss:
             notification_id,
         )
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=f"{process_type}-tasks"
-        )
+        if process_type == "priority":
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_HIGH
+            )
+        else:
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+            )
         assert mocked_deliver_sms.called
 
     def test_should_route_save_sms_task_to_bulk_on_large_csv_file(self, notify_db, notify_db_session, mocker):
         service = create_service()
         template = create_template(service=service, process_type="normal")
-        notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+        notification = _notification_json(template, to="+1 650 253 2222", queue=QueueNames.SEND_SMS_LOW)
 
         mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
@@ -1211,7 +1260,9 @@ class TestSaveSmss:
             notification_id,
         )
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+        )
         assert mocked_deliver_sms.called
 
     def test_should_route_save_sms_task_to_throttled_queue_on_large_csv_file_if_custom_sms_sender(
@@ -1219,7 +1270,7 @@ class TestSaveSmss:
     ):
         service = create_service_with_defined_sms_sender(sms_sender_value="3433061234")
         template = create_template(service=service, process_type="normal")
-        notification = _notification_json(template, to="+1 650 253 2222", queue="bulk-tasks")
+        notification = _notification_json(template, to="+1 650 253 2222", queue=QueueNames.SEND_SMS_LOW)
 
         mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
         mocked_deliver_throttled_sms = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
@@ -1257,7 +1308,9 @@ class TestSaveSmss:
         assert not persisted_notification.job_id
         assert not persisted_notification.personalisation
         assert persisted_notification.notification_type == "sms"
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+        )
 
     def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(self, notify_db_session, mocker):
         service = create_service_with_defined_sms_sender(sms_sender_value="12345")
@@ -1275,12 +1328,11 @@ class TestSaveSmss:
     def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+
+        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1294,8 +1346,9 @@ class TestSaveSmss:
         assert persisted_notification.key_type == KEY_TYPE_NORMAL
         assert persisted_notification.notification_type == "sms"
 
-        provider_tasks.deliver_sms.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="send-sms-tasks")
-        mock_over_daily_limit.assert_called_once_with("normal", sample_job.service)
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+        )
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
         notification = _notification_json(sample_template, "+1 650 253 2222")
@@ -1527,7 +1580,7 @@ class TestSaveEmails:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "email"
-        mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue="send-email-tasks")
+        mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM)
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
 
@@ -1578,9 +1631,11 @@ class TestSaveEmails:
             [str(persisted_notification.id)], queue="research-mode-tasks"
         )
 
-    @pytest.mark.parametrize("process_type", ["priority", "bulk"])
+    @pytest.mark.parametrize(
+        "process_type,expected_queue", [("priority", QueueNames.SEND_EMAIL_HIGH), ("bulk", QueueNames.SEND_EMAIL_LOW)]
+    )
     def test_should_route_save_email_task_to_appropriate_queue_according_to_template_process_type(
-        self, notify_db_session, mocker, process_type
+        self, notify_db_session, mocker, process_type, expected_queue
     ):
         service = create_service()
         template = create_template(service=service, template_type="email", process_type=process_type)
@@ -1593,14 +1648,12 @@ class TestSaveEmails:
         save_emails(service.id, [signer_notification.sign(notification)], notification_id)
 
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=f"{process_type}-tasks"
-        )
+        provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue=expected_queue)
 
     def test_should_route_save_email_task_to_bulk_on_large_csv_file(self, notify_db_session, mocker):
         service = create_service()
         template = create_template(service=service, template_type="email", process_type="normal")
-        notification = _notification_json(template, to="test@test.com", queue="bulk-tasks")
+        notification = _notification_json(template, to="test@test.com", queue=QueueNames.SEND_EMAIL_LOW)
 
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
@@ -1609,13 +1662,14 @@ class TestSaveEmails:
         save_emails(service.id, [signer_notification.sign(notification)], notification_id)
 
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue="bulk-tasks")
+        provider_tasks.deliver_email.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_LOW
+        )
 
     def test_should_use_email_template_and_persist(
         self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
     ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         now = datetime(2016, 1, 1, 11, 9, 0)
         notification_id = uuid.uuid4()
@@ -1629,10 +1683,9 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-                save_emails(
-                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-                )
+            save_emails(
+                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+            )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"
@@ -1650,9 +1703,8 @@ class TestSaveEmails:
         assert persisted_notification.notification_type == "email"
 
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
-        mock_over_daily_limit.assert_called_once_with("normal", sample_email_template_with_placeholders.service)
 
     def test_save_email_should_use_template_version_from_job_not_latest(self, sample_email_template, mocker):
         notification = _notification_json(sample_email_template, "my_email@my_email.com")
@@ -1679,7 +1731,7 @@ class TestSaveEmails:
         assert not persisted_notification.sent_by
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
 
     def test_should_use_email_template_subject_placeholders(self, sample_email_template_with_placeholders, mocker):
@@ -1701,7 +1753,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
 
     def test_save_email_uses_the_reply_to_text_when_provided(self, sample_email_template, mocker):
@@ -1758,7 +1810,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-email-tasks"
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
 
     def test_save_email_should_go_to_retry_queue_if_database_errors(self, sample_email_template, mocker):
