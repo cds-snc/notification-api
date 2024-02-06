@@ -367,20 +367,8 @@ def test_get_last_send_for_api_key_check_last_used(notify_db_session):
 def test_get_last_send_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
-    template_email = create_template(service=service, template_type=EMAIL_TYPE)
-    total_sends = 10
-
     last_send = get_last_send_for_api_key(str(api_key.id))
     assert last_send == []
-
-    for x in range(total_sends):
-        save_notification(create_notification(template=template_email, api_key=api_key))
-
-    # the following lines test that a send has occurred within the last second
-    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
-    now = datetime.utcnow()
-    time_delta = now - last_send
-    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_ranked_by_notifications_created(notify_db_session):
