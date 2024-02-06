@@ -356,14 +356,7 @@ def get_last_send_for_api_key(api_key_id):
     api_key_table = (
         db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
-    if not api_key_table[0][0]:
-        notification_table = (
-            db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-            .filter(Notification.api_key_id == api_key_id)
-            .all()
-        )
-        return [] if notification_table[0][0] is None else notification_table
-    return api_key_table
+    return [] if api_key_table[0][0] is None else api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):
