@@ -1,9 +1,9 @@
 import pytest
 from flask import json
 
-from app.models import EMAIL_TYPE, SMS_TYPE, TEMPLATE_TYPES
+from app.models import EMAIL_TYPE, SMS_TYPE
 from tests import create_authorization_header
-from tests.app.db import create_template
+from tests.app.conftest import TEMPLATE_TYPES
 
 valid_personalisation = {'personalisation': {'Name': 'Jo'}}
 
@@ -43,7 +43,8 @@ valid_post = [
 @pytest.mark.parametrize('subject,content,post_data,expected_subject,expected_content', valid_post)
 def test_valid_post_template_returns_200(
     client,
-    sample_service,
+    sample_api_key,
+    sample_template,
     tmp_type,
     subject,
     content,
@@ -51,9 +52,10 @@ def test_valid_post_template_returns_200(
     expected_subject,
     expected_content,
 ):
-    template = create_template(sample_service, template_type=tmp_type, subject=subject, content=content)
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service, template_type=tmp_type, subject=subject, content=content)
 
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key)
 
     response = client.post(
         path='/v2/template/{}/preview'.format(template.id),
@@ -79,15 +81,23 @@ def test_valid_post_template_returns_200(
 
 
 @pytest.mark.parametrize('tmp_type', TEMPLATE_TYPES)
-def test_invalid_post_template_returns_400(client, sample_service, tmp_type):
-    template = create_template(
-        sample_service, template_type=tmp_type, content='Dear ((Name)), Hello ((Missing)). Yours Truly, The Government.'
+def test_invalid_post_template_returns_400(
+    client,
+    sample_api_key,
+    sample_template,
+    tmp_type,
+):
+    api_key = sample_api_key()
+    template = sample_template(
+        service=api_key.service,
+        template_type=tmp_type,
+        content='Dear ((Name)), Hello ((Missing)). Yours Truly, The Government.',
     )
 
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key)
 
     response = client.post(
-        path='/v2/template/{}/preview'.format(template.id),
+        path='/v2/template/{}/preview'.format(str(template.id)),
         data=json.dumps(valid_personalisation),
         headers=[('Content-Type', 'application/json'), auth_header],
     )
@@ -100,8 +110,12 @@ def test_invalid_post_template_returns_400(client, sample_service, tmp_type):
     assert 'Missing personalisation: Missing' in resp_json['errors'][0]['message']
 
 
-def test_post_template_with_non_existent_template_id_returns_404(client, fake_uuid, sample_service):
-    auth_header = create_authorization_header(service_id=sample_service.id)
+def test_post_template_with_non_existent_template_id_returns_404(
+    client,
+    fake_uuid,
+    sample_api_key,
+):
+    auth_header = create_authorization_header(sample_api_key())
 
     response = client.post(
         path='/v2/template/{}/preview'.format(fake_uuid),

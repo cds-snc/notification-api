@@ -36,7 +36,6 @@ if sqlalchemy_database_uri is None:
 def va_profile_remove_old_opt_outs_handler(
     event=None,
     context=None,
-    worker_id=None,
 ):
     """
     This function deletes any va_profile cache records that
@@ -49,7 +48,7 @@ def va_profile_remove_old_opt_outs_handler(
     # https://www.psycopg.org/docs/module.html#exceptions
     try:
         logger.info('Connecting to the database...')
-        connection = psycopg2.connect(sqlalchemy_database_uri + ('' if worker_id is None else f'_{worker_id}'))
+        connection = psycopg2.connect(sqlalchemy_database_uri)
         logger.info('. . . Connected to the database.')
 
         with connection.cursor() as c:

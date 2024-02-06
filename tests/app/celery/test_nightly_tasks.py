@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta, date
-from functools import partial
-from unittest.mock import call, patch, PropertyMock
-
 import pytest
 import pytz
+from datetime import datetime, timedelta, date
+from unittest.mock import call, patch, PropertyMock
+
 from flask import current_app
 from freezegun import freeze_time
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
@@ -32,10 +31,6 @@ from app.exceptions import NotificationTechnicalFailureException
 from app.models import LETTER_TYPE, SMS_TYPE, EMAIL_TYPE, NOTIFICATION_STATUS_TYPES_FAILED
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.db import (
-    create_notification,
-    create_service,
-    create_template,
-    create_job,
     create_service_callback_api,
     create_service_data_retention,
     create_ft_notification_status,
@@ -63,11 +58,13 @@ def mock_s3_get_list_diff(bucket_name, subfolder='', suffix='', last_modified=No
         return ['root/disoatch/NOTIFY.2018-01-11175007p.ACK.TXT', 'root/disoatch/NOTIFY.2018-01-11175008.ACK.TXT']
 
 
-@freeze_time('2016-10-18T10:00:00')
-def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_db_session, mocker, sample_template):
+@pytest.mark.serial
+@freeze_time('2016-05-18T10:00:00')
+def test_will_remove_csv_files_for_jobs_older_than_seven_days(mocker, sample_template, sample_job):
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
     """
+
     mocker.patch('app.celery.nightly_tasks.s3.remove_job_from_s3')
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
@@ -77,76 +74,91 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
     just_under_nine_days = nine_days_ago + timedelta(seconds=1)
     nine_days_one_second_ago = nine_days_ago - timedelta(seconds=1)
 
-    create_job(sample_template, created_at=nine_days_one_second_ago, archived=True)
-    job1_to_delete = create_job(sample_template, created_at=eight_days_ago)
-    job2_to_delete = create_job(sample_template, created_at=just_under_nine_days)
-    dont_delete_me_1 = create_job(sample_template, created_at=seven_days_ago)
-    create_job(sample_template, created_at=just_under_seven_days)
+    template = sample_template()
+    sample_job(template, created_at=nine_days_one_second_ago, archived=True)
+    job1_to_delete = sample_job(template, created_at=eight_days_ago)
+    job2_to_delete = sample_job(template, created_at=just_under_nine_days)
+    dont_delete_me_1 = sample_job(template, created_at=seven_days_ago)
+    sample_job(template, created_at=just_under_seven_days)
 
+    # requires serial - query intermittently grabs more to remove than expected
     remove_sms_email_csv_files()
 
-    assert s3.remove_job_from_s3.call_args_list == [
-        call(job1_to_delete.service_id, job1_to_delete.id),
-        call(job2_to_delete.service_id, job2_to_delete.id),
-    ]
-    assert job1_to_delete.archived is True
-    assert dont_delete_me_1.archived is False
+    assert (
+        s3.remove_job_from_s3.call_args_list == [
+            call(job1_to_delete.service_id, job1_to_delete.id),
+            call(job2_to_delete.service_id, job2_to_delete.id),
+        ]
+    )
+    assert job1_to_delete.archived
+    assert not dont_delete_me_1.archived
 
 
 @freeze_time('2016-10-18T10:00:00')
-def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, notify_db_session, mocker):
+def test_will_remove_csv_files_for_jobs_older_than_retention_period(
+    notify_db_session, mocker, sample_service, sample_template, sample_job
+):
     """
     Jobs older than retention period are deleted, but only two day's worth (two-day window)
     """
     mocker.patch('app.celery.nightly_tasks.s3.remove_job_from_s3')
-    service_1 = create_service(service_name='service 1')
-    service_2 = create_service(service_name='service 2')
-    create_service_data_retention(service=service_1, notification_type=SMS_TYPE, days_of_retention=3)
-    create_service_data_retention(service=service_2, notification_type=EMAIL_TYPE, days_of_retention=30)
-    sms_template_service_1 = create_template(service=service_1)
-    email_template_service_1 = create_template(service=service_1, template_type='email')
+    service_1 = sample_service(service_name='service 1')
+    service_2 = sample_service(service_name='service 2')
+    sdr1 = create_service_data_retention(service=service_1, notification_type=SMS_TYPE, days_of_retention=3)
+    sdr2 = create_service_data_retention(service=service_2, notification_type=EMAIL_TYPE, days_of_retention=30)
+    sms_template_service_1 = sample_template(service=service_1)
+    email_template_service_1 = sample_template(service=service_1, template_type=EMAIL_TYPE)
 
-    sms_template_service_2 = create_template(service=service_2)
-    email_template_service_2 = create_template(service=service_2, template_type='email')
+    sms_template_service_2 = sample_template(service=service_2)
+    email_template_service_2 = sample_template(service=service_2, template_type=EMAIL_TYPE)
 
     four_days_ago = datetime.utcnow() - timedelta(days=4)
     eight_days_ago = datetime.utcnow() - timedelta(days=8)
     thirty_one_days_ago = datetime.utcnow() - timedelta(days=31)
 
-    job1_to_delete = create_job(sms_template_service_1, created_at=four_days_ago)
-    job2_to_delete = create_job(email_template_service_1, created_at=eight_days_ago)
-    create_job(email_template_service_1, created_at=four_days_ago)
+    job1_to_delete = sample_job(sms_template_service_1, created_at=four_days_ago)
+    job2_to_delete = sample_job(email_template_service_1, created_at=eight_days_ago)
+    sample_job(email_template_service_1, created_at=four_days_ago)
 
-    create_job(email_template_service_2, created_at=eight_days_ago)
-    job3_to_delete = create_job(email_template_service_2, created_at=thirty_one_days_ago)
-    job4_to_delete = create_job(sms_template_service_2, created_at=eight_days_ago)
+    sample_job(email_template_service_2, created_at=eight_days_ago)
+    job3_to_delete = sample_job(email_template_service_2, created_at=thirty_one_days_ago)
+    job4_to_delete = sample_job(sms_template_service_2, created_at=eight_days_ago)
 
     remove_sms_email_csv_files()
 
-    s3.remove_job_from_s3.assert_has_calls(
-        [
-            call(job1_to_delete.service_id, job1_to_delete.id),
-            call(job2_to_delete.service_id, job2_to_delete.id),
-            call(job3_to_delete.service_id, job3_to_delete.id),
-            call(job4_to_delete.service_id, job4_to_delete.id),
-        ],
-        any_order=True,
-    )
+    try:
+        s3.remove_job_from_s3.assert_has_calls(
+            [
+                call(job1_to_delete.service_id, job1_to_delete.id),
+                call(job2_to_delete.service_id, job2_to_delete.id),
+                call(job3_to_delete.service_id, job3_to_delete.id),
+                call(job4_to_delete.service_id, job4_to_delete.id),
+            ],
+            any_order=True,
+        )
+    finally:
+        # Teardown
+        notify_db_session.session.delete(sdr1)
+        notify_db_session.session.delete(sdr2)
+        notify_db_session.session.commit()
 
 
+@pytest.mark.serial
 @freeze_time('2017-01-01 10:00:00')
-def test_remove_csv_files_filters_by_type(mocker, sample_service):
-    mocker.patch('app.celery.nightly_tasks.s3.remove_job_from_s3')
+def test_remove_csv_files_filters_by_type(mocker, sample_service, sample_template, sample_job):
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
     """
-    letter_template = create_template(service=sample_service, template_type=LETTER_TYPE)
-    sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+    mocker.patch('app.celery.nightly_tasks.s3.remove_job_from_s3')
+    service = sample_service()
+    letter_template = sample_template(service=service, template_type=LETTER_TYPE)
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
 
     eight_days_ago = datetime.utcnow() - timedelta(days=8)
 
-    job_to_delete = create_job(template=letter_template, created_at=eight_days_ago)
-    create_job(template=sms_template, created_at=eight_days_ago)
+    job_to_delete = sample_job(template=letter_template, created_at=eight_days_ago)
+    sample_job(template=sms_template, created_at=eight_days_ago)
 
     remove_letter_csv_files()
 
@@ -158,53 +170,67 @@ def test_remove_csv_files_filters_by_type(mocker, sample_service):
 def test_should_call_delete_sms_notifications_more_than_week_in_task(notify_api, mocker):
     mocked = mocker.patch('app.celery.nightly_tasks.delete_notifications_older_than_retention_by_type')
     delete_sms_notifications_older_than_retention()
-    mocked.assert_called_once_with('sms')
+    mocked.assert_called_once_with(SMS_TYPE)
 
 
 def test_should_call_delete_email_notifications_more_than_week_in_task(notify_api, mocker):
     mocked_notifications = mocker.patch('app.celery.nightly_tasks.delete_notifications_older_than_retention_by_type')
     delete_email_notifications_older_than_retention()
-    mocked_notifications.assert_called_once_with('email')
+    mocked_notifications.assert_called_once_with(EMAIL_TYPE)
 
 
 def test_should_call_delete_letter_notifications_more_than_week_in_task(notify_api, mocker):
     mocked = mocker.patch('app.celery.nightly_tasks.delete_notifications_older_than_retention_by_type')
     delete_letter_notifications_older_than_retention()
-    mocked.assert_called_once_with('letter')
+    mocked.assert_called_once_with(LETTER_TYPE)
 
 
-def test_update_status_of_notifications_after_timeout(notify_api, sample_template):
+@pytest.mark.serial
+def test_update_status_of_notifications_after_timeout(
+    notify_api,
+    notify_db_session,
+    sample_template,
+    sample_notification,
+):
+    template = sample_template()
     with notify_api.test_request_context():
-        not1 = create_notification(
-            template=sample_template,
+        time_diff = timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10)
+
+        not1 = sample_notification(
+            template=template,
             status='sending',
-            created_at=datetime.utcnow()
-            - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10),
+            created_at=datetime.utcnow() - time_diff,
         )
-        not2 = create_notification(
-            template=sample_template,
+        not2 = sample_notification(
+            template=template,
             status='created',
-            created_at=datetime.utcnow()
-            - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10),
+            created_at=datetime.utcnow() - time_diff,
         )
-        not3 = create_notification(
-            template=sample_template,
+        not3 = sample_notification(
+            template=template,
             status='pending',
-            created_at=datetime.utcnow()
-            - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10),
+            created_at=datetime.utcnow() - time_diff,
         )
+
         with pytest.raises(NotificationTechnicalFailureException) as e:
             timeout_notifications()
+
+        notify_db_session.session.refresh(not1)
+        notify_db_session.session.refresh(not2)
+        notify_db_session.session.refresh(not3)
+
         assert str(not2.id) in str(e.value)
         assert not1.status == 'temporary-failure'
         assert not2.status == 'technical-failure'
         assert not3.status == 'temporary-failure'
 
 
-def test_not_update_status_of_notification_before_timeout(notify_api, sample_template):
+@pytest.mark.serial
+def test_not_update_status_of_notification_before_timeout(notify_api, sample_template, sample_notification):
+    template = sample_template()
     with notify_api.test_request_context():
-        not1 = create_notification(
-            template=sample_template,
+        not1 = sample_notification(
+            template=template,
             status='sending',
             created_at=datetime.utcnow()
             - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') - 10),
@@ -213,10 +239,12 @@ def test_not_update_status_of_notification_before_timeout(notify_api, sample_tem
         assert not1.status == 'sending'
 
 
-def test_should_not_update_status_of_letter_notifications(client, sample_letter_template):
+@pytest.mark.serial
+def test_should_not_update_status_of_letter_notifications(client, sample_template, sample_notification,):
+    template = sample_template(template_type=LETTER_TYPE)
     created_at = datetime.utcnow() - timedelta(days=5)
-    not1 = create_notification(template=sample_letter_template, status='sending', created_at=created_at)
-    not2 = create_notification(template=sample_letter_template, status='created', created_at=created_at)
+    not1 = sample_notification(template=template, status='sending', created_at=created_at)
+    not2 = sample_notification(template=template, status='created', created_at=created_at)
 
     timeout_notifications()
 
@@ -224,22 +252,28 @@ def test_should_not_update_status_of_letter_notifications(client, sample_letter_
     assert not2.status == 'created'
 
 
-def test_timeout_notifications_sends_status_update_to_service(client, sample_template, mocker):
-    callback_api = create_service_callback_api(
-        service=sample_template.service, notification_statuses=NOTIFICATION_STATUS_TYPES_FAILED
-    )
+@pytest.mark.serial
+def test_timeout_notifications_sends_status_update_to_service(
+    client, sample_service, sample_template, mocker, sample_notification, notify_db_session,
+):
+    service = sample_service()
+    template = sample_template(service=service)
+    callback_api = create_service_callback_api(service=service, notification_statuses=NOTIFICATION_STATUS_TYPES_FAILED)
     callback_id = callback_api.id
     mocked = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
-    notification = create_notification(
-        template=sample_template,
+    notification = sample_notification(
+        template=template,
         status='sending',
         created_at=datetime.utcnow()
         - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10),
     )
-    timeout_notifications()
 
+    # serial-only method
+    timeout_notifications()
+    notify_db_session.session.refresh(notification)
     encrypted_data = create_delivery_status_callback_data(notification, callback_api)
-    mocked.assert_called_once_with([callback_id, str(notification.id), encrypted_data], queue=QueueNames.CALLBACKS)
+
+    mocked.assert_called_with([callback_id, str(notification.id), encrypted_data], queue=QueueNames.CALLBACKS)
 
 
 def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mocker):
@@ -256,28 +290,37 @@ def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mo
 
 @freeze_time('2016-06-11 02:00:00')
 def test_send_total_sent_notifications_to_performance_platform_calls_with_correct_totals(
-    notify_db_session, sample_template, sample_email_template, mocker
+    notify_db_session, sample_template, mocker
 ):
     perf_mock = mocker.patch(
         'app.celery.nightly_tasks.total_sent_notifications.send_total_notifications_sent_for_day_stats'
     )  # noqa
 
     today = date(2016, 6, 11)
-    create_ft_notification_status(utc_date=today, template=sample_template)
-    create_ft_notification_status(utc_date=today, template=sample_email_template)
+    template1 = sample_template(template_type=SMS_TYPE)
+    template2 = sample_template(template_type=EMAIL_TYPE)
+    fns1 = create_ft_notification_status(utc_date=today, template=template1)
+    fns2 = create_ft_notification_status(utc_date=today, template=template2)
 
-    # Create some notifications for the day before
+    # Create some notifications for the day before.
     yesterday = date(2016, 6, 10)
-    create_ft_notification_status(utc_date=yesterday, template=sample_template, count=2)
-    create_ft_notification_status(utc_date=yesterday, template=sample_email_template, count=3)
+    fns3 = create_ft_notification_status(utc_date=yesterday, template=template1, count=2)
+    fns4 = create_ft_notification_status(utc_date=yesterday, template=template2, count=3)
 
-    with patch.object(PerformancePlatformClient, 'active', new_callable=PropertyMock) as mock_active:
-        mock_active.return_value = True
-        send_total_sent_notifications_to_performance_platform(yesterday)
+    try:
+        with patch.object(PerformancePlatformClient, 'active', new_callable=PropertyMock) as mock_active:
+            mock_active.return_value = True
+            send_total_sent_notifications_to_performance_platform(yesterday)
 
-        perf_mock.assert_has_calls(
-            [call('2016-06-10', 'sms', 2), call('2016-06-10', 'email', 3), call('2016-06-10', 'letter', 0)]
-        )
+            perf_mock.assert_has_calls(
+                [call('2016-06-10', SMS_TYPE, 2), call('2016-06-10', EMAIL_TYPE, 3), call('2016-06-10', LETTER_TYPE, 0)]
+            )
+    finally:
+        notify_db_session.session.delete(fns1)
+        notify_db_session.session.delete(fns2)
+        notify_db_session.session.delete(fns3)
+        notify_db_session.session.delete(fns4)
+        notify_db_session.session.commit()
 
 
 def test_should_call_delete_inbound_sms(notify_api, mocker):
@@ -287,12 +330,10 @@ def test_should_call_delete_inbound_sms(notify_api, mocker):
 
 
 @freeze_time('2017-01-01 10:00:00')
-def test_remove_dvla_transformed_files_removes_expected_files(mocker, sample_service):
+def test_remove_dvla_transformed_files_removes_expected_files(mocker, sample_service, sample_template, sample_job):
     mocker.patch('app.celery.nightly_tasks.s3.remove_transformed_dvla_file')
-
-    letter_template = create_template(service=sample_service, template_type=LETTER_TYPE)
-
-    job = partial(create_job, template=letter_template)
+    service = sample_service()
+    letter_template = sample_template(service=service, template_type=LETTER_TYPE)
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
     just_under_seven_days = seven_days_ago + timedelta(seconds=1)
@@ -304,13 +345,13 @@ def test_remove_dvla_transformed_files_removes_expected_files(mocker, sample_ser
     just_over_nine_days = nine_days_ago - timedelta(seconds=1)
     just_over_ten_days = ten_days_ago - timedelta(seconds=1)
 
-    job(created_at=just_under_seven_days)
-    job(created_at=just_over_seven_days)
-    job_to_delete_1 = job(created_at=eight_days_ago)
-    job_to_delete_2 = job(created_at=nine_days_ago)
-    job_to_delete_3 = job(created_at=just_under_nine_days)
-    job_to_delete_4 = job(created_at=just_over_nine_days)
-    job(created_at=just_over_ten_days)
+    sample_job(letter_template, created_at=just_under_seven_days)
+    sample_job(letter_template, created_at=just_over_seven_days)
+    job_to_delete_1 = sample_job(letter_template, created_at=eight_days_ago)
+    job_to_delete_2 = sample_job(letter_template, created_at=nine_days_ago)
+    job_to_delete_3 = sample_job(letter_template, created_at=just_under_nine_days)
+    job_to_delete_4 = sample_job(letter_template, created_at=just_over_nine_days)
+    sample_job(letter_template, created_at=just_over_ten_days)
     remove_transformed_dvla_files()
 
     s3.remove_transformed_dvla_file.assert_has_calls(
@@ -324,22 +365,21 @@ def test_remove_dvla_transformed_files_removes_expected_files(mocker, sample_ser
     )
 
 
-def test_remove_dvla_transformed_files_does_not_remove_files(mocker, sample_service):
+def test_remove_dvla_transformed_files_does_not_remove_files(mocker, sample_service, sample_template, sample_job):
     mocker.patch('app.celery.nightly_tasks.s3.remove_transformed_dvla_file')
 
-    letter_template = create_template(service=sample_service, template_type=LETTER_TYPE)
-
-    job = partial(create_job, template=letter_template)
+    service = sample_service()
+    letter_template = sample_template(service=service, template_type=LETTER_TYPE)
 
     yesterday = datetime.utcnow() - timedelta(days=1)
     six_days_ago = datetime.utcnow() - timedelta(days=6)
     seven_days_ago = six_days_ago - timedelta(days=1)
     just_over_nine_days = seven_days_ago - timedelta(days=2, seconds=1)
 
-    job(created_at=yesterday)
-    job(created_at=six_days_ago)
-    job(created_at=seven_days_ago)
-    job(created_at=just_over_nine_days)
+    sample_job(letter_template, created_at=yesterday)
+    sample_job(letter_template, created_at=six_days_ago)
+    sample_job(letter_template, created_at=seven_days_ago)
+    sample_job(letter_template, created_at=just_over_nine_days)
 
     remove_transformed_dvla_files()
 
@@ -398,10 +438,12 @@ def test_delete_dvla_response_files_older_than_seven_days_does_not_remove_files(
     remove_s3_mock.assert_not_called()
 
 
+@pytest.mark.serial
 @freeze_time('2018-01-17 17:00:00')
-def test_alert_if_letter_notifications_still_sending(sample_letter_template, mocker):
+def test_alert_if_letter_notifications_still_sending(sample_template, mocker, sample_notification):
+    template = sample_template(template_type=LETTER_TYPE)
     two_days_ago = datetime(2018, 1, 15, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=two_days_ago)
+    sample_notification(template=template, status='sending', sent_at=two_days_ago)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -414,10 +456,11 @@ def test_alert_if_letter_notifications_still_sending(sample_letter_template, moc
     )
 
 
-def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_letter_template, mocker):
+def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_template, mocker, sample_notification):
+    template = sample_template(template_type=LETTER_TYPE)
     today = datetime.utcnow()
     one_day_ago = today - timedelta(days=1)
-    create_notification(template=sample_letter_template, status='sending', sent_at=one_day_ago)
+    sample_notification(template=template, status='sending', sent_at=one_day_ago)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -425,12 +468,14 @@ def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_l
     assert not mock_create_ticket.called
 
 
+@pytest.mark.serial
 @freeze_time('2018-01-17 17:00:00')
-def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_letter_template, mocker):
+def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_template, mocker, sample_notification):
+    template = sample_template(template_type=LETTER_TYPE)
     two_days_ago = datetime(2018, 1, 15, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=two_days_ago)
-    create_notification(template=sample_letter_template, status='delivered', sent_at=two_days_ago)
-    create_notification(template=sample_letter_template, status='failed', sent_at=two_days_ago)
+    sample_notification(template=template, status='sending', sent_at=two_days_ago)
+    sample_notification(template=template, status='delivered', sent_at=two_days_ago)
+    sample_notification(template=template, status='failed', sent_at=two_days_ago)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -443,10 +488,14 @@ def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_
     )
 
 
+@pytest.mark.serial
 @freeze_time('2018-01-17 17:00:00')
-def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offset(sample_letter_template, mocker):
+def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offset(
+    sample_template, mocker, sample_notification
+):
+    template = sample_template(template_type=LETTER_TYPE)
     three_days_ago = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=three_days_ago)
+    sample_notification(template=template, status='sending', sent_at=three_days_ago)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -460,9 +509,12 @@ def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offse
 
 
 @freeze_time('2018-01-14 17:00:00')
-def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend(sample_letter_template, mocker):
+def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend(
+    sample_template, mocker, sample_notification
+):
+    template = sample_template(template_type=LETTER_TYPE)
     yesterday = datetime(2018, 1, 13, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=yesterday)
+    sample_notification(template=template, status='sending', sent_at=yesterday)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -472,11 +524,14 @@ def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend
 
 
 @freeze_time('2018-01-15 17:00:00')
-def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_letters(sample_letter_template, mocker):
+def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_letters(
+    mocker, sample_template, sample_notification
+):
+    template = sample_template(template_type=LETTER_TYPE)
     thursday = datetime(2018, 1, 11, 13, 30)
     yesterday = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=thursday)
-    create_notification(template=sample_letter_template, status='sending', sent_at=yesterday)
+    sample_notification(template=template, status='sending', sent_at=thursday)
+    sample_notification(template=template, status='sending', sent_at=yesterday)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
@@ -490,11 +545,14 @@ def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_let
 
 
 @freeze_time('2018-01-16 17:00:00')
-def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_letters(sample_letter_template, mocker):
+def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_letters(
+    sample_template, mocker, sample_notification
+):
+    template = sample_template(template_type=LETTER_TYPE)
     friday = datetime(2018, 1, 12, 13, 30)
     yesterday = datetime(2018, 1, 14, 13, 30)
-    create_notification(template=sample_letter_template, status='sending', sent_at=friday)
-    create_notification(template=sample_letter_template, status='sending', sent_at=yesterday)
+    sample_notification(template=template, status='sending', sent_at=friday)
+    sample_notification(template=template, status='sending', sent_at=yesterday)
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 

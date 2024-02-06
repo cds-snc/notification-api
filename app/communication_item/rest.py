@@ -45,6 +45,7 @@ def create_communication_item():
     try:
         db.session.commit()
     except SQLAlchemyError as e:
+        db.session.rollback()
         return {
             'errors': [
                 {
@@ -54,6 +55,7 @@ def create_communication_item():
             ]
         }, 400
     except psycopg2.Error as e:
+        db.session.rollback()
         return {
             'errors': [
                 {
@@ -63,6 +65,7 @@ def create_communication_item():
             ]
         }, 400
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(e)
         raise
 
@@ -138,6 +141,7 @@ def partially_update_communication_item(communication_item_id):
     try:
         db.session.commit()
     except SQLAlchemyError as e:
+        db.session.rollback()
         return {
             'errors': [
                 {
@@ -147,6 +151,7 @@ def partially_update_communication_item(communication_item_id):
             ]
         }, 400
     except psycopg2.Error as e:
+        db.session.rollback()
         return {
             'errors': [
                 {
@@ -156,6 +161,7 @@ def partially_update_communication_item(communication_item_id):
             ]
         }, 400
     except Exception as e:
+        db.session.rollback()
         current_app.logger.exception(e)
         raise
 

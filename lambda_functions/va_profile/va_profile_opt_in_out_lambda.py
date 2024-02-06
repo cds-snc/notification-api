@@ -142,7 +142,7 @@ if not should_make_put_request:
 db_connection = None
 
 
-def make_database_connection(worker_id):
+def make_database_connection():
     """
     Return a connection to the database, or return None.
 
@@ -154,7 +154,7 @@ def make_database_connection(worker_id):
 
     try:
         logger.debug('Connecting to the database . . .')
-        connection = psycopg2.connect(sqlalchemy_database_uri + ('' if worker_id is None else f'_{worker_id}'))
+        connection = psycopg2.connect(sqlalchemy_database_uri)
         logger.debug('. . . Connected to the database.')
     except psycopg2.Warning as e:
         logger.warning(e)
@@ -168,7 +168,6 @@ def make_database_connection(worker_id):
 def va_profile_opt_in_out_lambda_handler(  # noqa: C901
     event: dict,
     context,
-    worker_id=None,
 ) -> dict:
     """
     Use the event data to process veterans' opt-in/out requests as relayed by VA Profile.  The event is as
@@ -193,10 +192,6 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
 
     "bios" is a list of dictionaries, but we only expect it to have one element for reasons documented here:
         https://github.com/department-of-veterans-affairs/notification-api/issues/704#issuecomment-1198427986
-
-    When this function is called from a unit test, the database URI will differ slightly from the environment
-    variable, SQLALCHEMY_DATABASE_URI.  The parameter worker_id is used to construct the modified name in the
-    same manner as in the tests/conftest.py::notify_db fixture.
     """
 
     logger.info('POST request received.')
@@ -314,7 +309,7 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
 
         if db_connection is None or db_connection.status != 0:
             # Attempt to (re-)establish a database connection.
-            db_connection = make_database_connection(worker_id)
+            db_connection = make_database_connection()
 
         if db_connection is None:
             raise RuntimeError('No database connection.')
@@ -390,7 +385,7 @@ def jwt_is_valid(
         return False
 
     if bearer.title() != 'Bearer':
-        logger.debug('Malformed Authorization header value: ', auth_header_value)
+        logger.debug('Malformed Authorization header value: %s', auth_header_value)
         return False
 
     options = {

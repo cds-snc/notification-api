@@ -52,13 +52,19 @@ class TestSetInboundNumberOff:
         dao_set_inbound_number_active_flag.assert_called_with(inbound_number_id, active=False)
 
 
+@pytest.mark.serial
 def test_get_available_inbound_numbers_returns_empty_list(admin_request):
     result = admin_request.get('inbound_number.get_available_inbound_numbers')
 
     assert result['data'] == []
 
 
-def test_get_available_inbound_numbers(admin_request, sample_inbound_numbers):
+@pytest.mark.serial
+def test_get_available_inbound_numbers(
+    admin_request,
+    sample_inbound_numbers,
+):
+    # serial method
     result = admin_request.get('inbound_number.get_available_inbound_numbers')
 
     assert len(result['data']) == 1

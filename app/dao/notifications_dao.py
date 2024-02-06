@@ -942,6 +942,7 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(
     key_type != 'test' AND
     notification_type != 'letter';
     """
+
     under_10_secs = Notification.sent_at - Notification.created_at <= timedelta(seconds=10)
     sum_column = functions.coalesce(func.sum(case([(under_10_secs, 1)], else_=0)), 0)
     stmt = select(

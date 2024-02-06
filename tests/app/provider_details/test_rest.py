@@ -1,17 +1,15 @@
 import pytest
 from flask import json
 from freezegun import freeze_time
+from uuid import uuid4
 from werkzeug.http import http_date
 
-from app.models import ProviderDetails, ProviderDetailsHistory
-
-from tests import create_authorization_header
-from tests.app.db import create_ft_billing
+from tests import create_admin_authorization_header
 
 
 def test_get_provider_details_returns_information_about_providers(client, notify_db, mocked_provider_stats, mocker):
     mocker.patch('app.provider_details.rest.dao_get_provider_stats', return_value=mocked_provider_stats)
-    response = client.get('/provider-details', headers=[create_authorization_header()])
+    response = client.get('/provider-details', headers=[create_admin_authorization_header()])
     assert response.status_code == 200
     json_resp = json.loads(response.get_data(as_text=True))['provider_details']
 
@@ -29,12 +27,19 @@ def test_get_provider_details_returns_information_about_providers(client, notify
         assert json_resp[idx]['current_month_billable_sms'] == provider.current_month_billable_sms
 
 
-def test_get_provider_details_by_id(client, notify_db):
-    response = client.get('/provider-details', headers=[create_authorization_header()])
+def test_get_provider_details_by_id(
+    client,
+    sample_provider,
+):
+    # Populate DB with a provider
+    sample_provider(str(uuid4()))
+
+    # Leaving all these get calls for now, even though we could reference the sample_provider's return
+    response = client.get('/provider-details', headers=[create_admin_authorization_header()])
     json_resp = json.loads(response.get_data(as_text=True))['provider_details']
 
     provider_resp = client.get(
-        '/provider-details/{}'.format(json_resp[0]['id']), headers=[create_authorization_header()]
+        '/provider-details/{}'.format(json_resp[0]['id']), headers=[create_admin_authorization_header()]
     )
 
     provider = json.loads(provider_resp.get_data(as_text=True))['provider_details']
@@ -42,10 +47,17 @@ def test_get_provider_details_by_id(client, notify_db):
 
 
 @freeze_time('2018-06-28 12:00')
-def test_get_provider_contains_correct_fields(client, sample_service, sample_template):
-    create_ft_billing('2018-06-01', 'sms', sample_template, sample_service, provider='mmg', billable_unit=1)
+def test_get_provider_contains_correct_fields(
+    client,
+    sample_ft_billing,
+    sample_provider,
+    sample_template,
+):
+    template = sample_template()
+    sample_ft_billing('2018-06-01', 'sms', template, template.service, provider='mmg', billable_unit=1)
 
-    response = client.get('/provider-details', headers=[create_authorization_header()])
+    sample_provider()
+    response = client.get('/provider-details', headers=[create_admin_authorization_header()])
     json_resp = json.loads(response.get_data(as_text=True))['provider_details']
     allowed_keys = {
         'id',
@@ -63,13 +75,19 @@ def test_get_provider_contains_correct_fields(client, sample_service, sample_tem
     assert allowed_keys == set(json_resp[0].keys())
 
 
+@pytest.mark.serial
 class TestUpdate:
-    def test_should_be_able_to_update_priority(self, client, restore_provider_details):
-        provider = ProviderDetails.query.first()
+    def test_should_be_able_to_update_priority(
+        self,
+        client,
+        sample_provider,
+        restore_provider_details,
+    ):
+        provider = sample_provider()
 
         update_resp = client.post(
             '/provider-details/{}'.format(provider.id),
-            headers=[('Content-Type', 'application/json'), create_authorization_header()],
+            headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({'priority': 5}),
         )
         assert update_resp.status_code == 200
@@ -78,12 +96,17 @@ class TestUpdate:
         assert update_json['priority'] == 5
         assert provider.priority == 5
 
-    def test_should_be_able_to_update_status(self, client, restore_provider_details):
-        provider = ProviderDetails.query.first()
+    def test_should_be_able_to_update_status(
+        self,
+        client,
+        sample_provider,
+        restore_provider_details,
+    ):
+        provider = sample_provider()
 
         update_resp_1 = client.post(
             '/provider-details/{}'.format(provider.id),
-            headers=[('Content-Type', 'application/json'), create_authorization_header()],
+            headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({'active': False}),
         )
         assert update_resp_1.status_code == 200
@@ -93,12 +116,19 @@ class TestUpdate:
         assert not provider.active
 
     @pytest.mark.parametrize('field,value', [('identifier', 'new'), ('version', 7), ('updated_at', None)])
-    def test_should_not_be_able_to_update_disallowed_fields(self, client, restore_provider_details, field, value):
-        provider = ProviderDetails.query.first()
+    def test_should_not_be_able_to_update_disallowed_fields(
+        self,
+        client,
+        sample_provider,
+        restore_provider_details,
+        field,
+        value,
+    ):
+        provider = sample_provider()
 
         resp = client.post(
             '/provider-details/{}'.format(provider.id),
-            headers=[('Content-Type', 'application/json'), create_authorization_header()],
+            headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({field: value}),
         )
         resp_json = json.loads(resp.get_data(as_text=True))
@@ -107,13 +137,21 @@ class TestUpdate:
         assert resp_json['result'] == 'error'
         assert resp.status_code == 400
 
-    def test_update_provider_should_store_user_id(self, client, restore_provider_details, sample_user):
-        provider = ProviderDetails.query.first()
+    def test_update_provider_should_store_user_id(
+        self,
+        client,
+        sample_provider,
+        sample_user,
+        restore_provider_details,
+    ):
+        user_start = sample_user()
+        user_update = sample_user()
+        provider = sample_provider(created_by=user_start)
 
         update_resp_1 = client.post(
             '/provider-details/{}'.format(provider.id),
-            headers=[('Content-Type', 'application/json'), create_authorization_header()],
-            data=json.dumps({'created_by': sample_user.id, 'active': False}),
+            headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
+            data=json.dumps({'created_by': user_update.id, 'active': False}),
         )
         assert update_resp_1.status_code == 200
         update_resp_1 = json.loads(update_resp_1.get_data(as_text=True))['provider_details']
@@ -121,12 +159,17 @@ class TestUpdate:
         assert not update_resp_1['active']
         assert not provider.active
 
-    def test_should_be_able_to_update_load_balancing_weight(self, client, restore_provider_details):
-        provider = ProviderDetails.query.first()
+    def test_should_be_able_to_update_load_balancing_weight(
+        self,
+        client,
+        sample_provider,
+        restore_provider_details,
+    ):
+        provider = sample_provider()
 
         update_resp_1 = client.post(
             '/provider-details/{}'.format(provider.id),
-            headers=[('Content-Type', 'application/json'), create_authorization_header()],
+            headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({'load_balancing_weight': 333}),
         )
         assert update_resp_1.status_code == 200
@@ -135,9 +178,15 @@ class TestUpdate:
         assert provider.load_balancing_weight == 333
 
 
-def test_get_provider_versions_contains_correct_fields(client, notify_db):
-    provider = ProviderDetailsHistory.query.first()
-    response = client.get('/provider-details/{}/versions'.format(provider.id), headers=[create_authorization_header()])
+def test_get_provider_versions_contains_correct_fields(
+    client,
+    sample_provider,
+):
+    provider = sample_provider()
+    response = client.get(
+        '/provider-details/{}/versions'.format(provider.id), headers=[create_admin_authorization_header()]
+    )
+
     json_resp = json.loads(response.get_data(as_text=True))['data']
     allowed_keys = {
         'id',

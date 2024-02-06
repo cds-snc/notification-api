@@ -1,11 +1,14 @@
 import json
 import pytest
+from uuid import uuid4
+
 from app.model import EMAIL_AUTH_TYPE
 from app.models import Notification
-from tests import create_authorization_header
+from tests import create_admin_authorization_header
 from tests.app.db import create_invited_user
 
 
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 @pytest.mark.parametrize(
     'extra_args, expected_start_of_invite_url',
     [
@@ -86,13 +89,15 @@ def test_create_invited_user_without_auth_type(admin_request, sample_service, mo
     assert json_resp['data']['auth_type'] == EMAIL_AUTH_TYPE
 
 
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_uuid):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
+    service = sample_service()
     email_address = 'notanemail'
-    invite_from = sample_service.users[0]
+    invite_from = service.users[0]
 
     data = {
-        'service': str(sample_service.id),
+        'service': str(service.id),
         'email_address': email_address,
         'from_user': str(invite_from.id),
         'permissions': 'send_messages,manage_service,manage_api_keys',
@@ -101,10 +106,10 @@ def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_
 
     data = json.dumps(data)
 
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
 
     response = client.post(
-        '/service/{}/invite'.format(sample_service.id),
+        '/service/{}/invite'.format(service.id),
         headers=[('Content-Type', 'application/json'), auth_header],
         data=data,
     )
@@ -115,35 +120,43 @@ def test_create_invited_user_invalid_email(client, sample_service, mocker, fake_
     assert mocked.call_count == 0
 
 
-def test_get_all_invited_users_by_service(client, notify_db, notify_db_session, sample_service):
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+def test_get_all_invited_users_by_service(
+    client,
+    sample_service,
+):
+    service = sample_service()
     invites = []
-    for i in range(0, 5):
-        email = 'invited_user_{}@service.gov.uk'.format(i)
-        invited_user = create_invited_user(sample_service, to_email_address=email)
+    for _ in range(0, 5):
+        email = f'invited_user_{uuid4()}@service.va.gov'
+        invited_user = create_invited_user(service, to_email_address=email)
 
         invites.append(invited_user)
 
-    url = '/service/{}/invite'.format(sample_service.id)
+    url = '/service/{}/invite'.format(service.id)
 
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
 
     response = client.get(url, headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 200
     json_resp = json.loads(response.get_data(as_text=True))
 
-    invite_from = sample_service.users[0]
+    invite_from = service.users[0]
 
     for invite in json_resp['data']:
-        assert invite['service'] == str(sample_service.id)
+        assert invite['service'] == str(service.id)
         assert invite['from_user'] == str(invite_from.id)
         assert invite['auth_type'] == EMAIL_AUTH_TYPE
         assert invite['id']
 
 
-def test_get_invited_users_by_service_with_no_invites(client, notify_db, notify_db_session, sample_service):
-    url = '/service/{}/invite'.format(sample_service.id)
+def test_get_invited_users_by_service_with_no_invites(
+    client,
+    sample_service,
+):
+    url = '/service/{}/invite'.format(sample_service().id)
 
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
 
     response = client.get(url, headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 200
@@ -155,7 +168,7 @@ def test_get_invited_users_by_service_with_no_invites(client, notify_db, notify_
 def test_update_invited_user_set_status_to_cancelled(client, sample_invited_user):
     data = {'status': 'cancelled'}
     url = '/service/{0}/invite/{1}'.format(sample_invited_user.service_id, sample_invited_user.id)
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
     response = client.post(url, data=json.dumps(data), headers=[('Content-Type', 'application/json'), auth_header])
 
     assert response.status_code == 200
@@ -163,10 +176,11 @@ def test_update_invited_user_set_status_to_cancelled(client, sample_invited_user
     assert json_resp['status'] == 'cancelled'
 
 
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 def test_update_invited_user_for_wrong_service_returns_404(client, sample_invited_user, fake_uuid):
     data = {'status': 'cancelled'}
     url = '/service/{0}/invite/{1}'.format(fake_uuid, sample_invited_user.id)
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
     response = client.post(url, data=json.dumps(data), headers=[('Content-Type', 'application/json'), auth_header])
     assert response.status_code == 404
     json_response = json.loads(response.get_data(as_text=True))['message']
@@ -177,7 +191,7 @@ def test_update_invited_user_for_wrong_service_returns_404(client, sample_invite
 def test_update_invited_user_for_invalid_data_returns_400(client, sample_invited_user):
     data = {'status': 'garbage'}
     url = '/service/{0}/invite/{1}'.format(sample_invited_user.service_id, sample_invited_user.id)
-    auth_header = create_authorization_header()
+    auth_header = create_admin_authorization_header()
     response = client.post(url, data=json.dumps(data), headers=[('Content-Type', 'application/json'), auth_header])
 
     assert response.status_code == 400

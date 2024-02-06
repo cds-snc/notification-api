@@ -1,32 +1,33 @@
 import pytest
-
-from flask import json
-
 from app import DATETIME_FORMAT
-from app.models import TEMPLATE_TYPES, EMAIL_TYPE, SMS_TYPE, LETTER_TYPE
+from app.models import TEMPLATE_TYPES, EMAIL_TYPE, SMS_TYPE
+from flask import json
 from tests import create_authorization_header
-from tests.app.db import create_template
 
 valid_version_params = [None, 1]
 
 
 @pytest.mark.parametrize(
-    'tmp_type, expected_name, expected_subject,postage',
+    'tmp_type',
     [
-        (SMS_TYPE, 'sms Template Name', None, None),
-        (EMAIL_TYPE, 'email Template Name', 'Template subject', None),
-        (LETTER_TYPE, 'letter Template Name', 'Template subject', 'second'),
+        SMS_TYPE,
+        EMAIL_TYPE,
     ],
 )
 @pytest.mark.parametrize('version', valid_version_params)
 def test_get_template_by_id_returns_200(
-    client, sample_service, tmp_type, expected_name, expected_subject, version, postage
+    client,
+    sample_api_key,
+    tmp_type,
+    version,
+    sample_template,
 ):
-    template = create_template(sample_service, template_type=tmp_type)
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service, template_type=tmp_type)
+    auth_header = create_authorization_header(api_key)
 
+    # Version does not store updated_at
     version_path = '/version/{}'.format(version) if version else ''
-
     response = client.get(
         path='/v2/template/{}{}'.format(template.id, version_path),
         headers=[('Content-Type', 'application/json'), auth_header],
@@ -41,14 +42,14 @@ def test_get_template_by_id_returns_200(
         'id': '{}'.format(template.id),
         'type': '{}'.format(template.template_type),
         'created_at': template.created_at.strftime(DATETIME_FORMAT),
-        'updated_at': None,
+        'updated_at': template.updated_at.strftime(DATETIME_FORMAT) if version is None else None,
         'version': template.version,
         'created_by': template.created_by.email_address,
         'body': template.content,
-        'subject': expected_subject,
-        'name': expected_name,
+        'subject': template.subject,
+        'name': template.name,
         'personalisation': {},
-        'postage': postage,
+        'postage': template.postage,
     }
 
     assert json_response == expected_response
@@ -78,36 +79,21 @@ def test_get_template_by_id_returns_200(
                 'content': {'required': True},
             },
         ),
-        (
-            {
-                'template_type': LETTER_TYPE,
-                'subject': '((letterSubject))',
-                'content': '((letter_content))',
-            },
-            {
-                'letterSubject': {
-                    'required': True,
-                },
-                'letter_content': {
-                    'required': True,
-                },
-                'contact block': {
-                    'required': True,
-                },
-            },
-        ),
     ],
 )
 @pytest.mark.parametrize('version', valid_version_params)
 def test_get_template_by_id_returns_placeholders(
     client,
-    sample_service_custom_letter_contact_block,
+    sample_api_key,
+    sample_template,
     version,
     create_template_args,
     expected_personalisation,
 ):
-    template = create_template(sample_service_custom_letter_contact_block, **create_template_args)
-    auth_header = create_authorization_header(service_id=sample_service_custom_letter_contact_block.id)
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service, **create_template_args)
+
+    auth_header = create_authorization_header(api_key)
 
     version_path = '/version/{}'.format(version) if version else ''
 
@@ -120,8 +106,12 @@ def test_get_template_by_id_returns_placeholders(
     assert json_response['personalisation'] == expected_personalisation
 
 
-def test_get_template_with_non_existent_template_id_returns_404(client, fake_uuid, sample_service):
-    auth_header = create_authorization_header(service_id=sample_service.id)
+def test_get_template_with_non_existent_template_id_returns_404(
+    client,
+    fake_uuid,
+    sample_api_key,
+):
+    auth_header = create_authorization_header(sample_api_key())
 
     response = client.get(
         path='/v2/template/{}'.format(fake_uuid), headers=[('Content-Type', 'application/json'), auth_header]
@@ -136,10 +126,16 @@ def test_get_template_with_non_existent_template_id_returns_404(client, fake_uui
 
 
 @pytest.mark.parametrize('tmp_type', TEMPLATE_TYPES)
-def test_get_template_with_non_existent_version_returns_404(client, sample_service, tmp_type):
-    template = create_template(sample_service, template_type=tmp_type)
+def test_get_template_with_non_existent_version_returns_404(
+    client,
+    sample_api_key,
+    sample_template,
+    tmp_type,
+):
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service, template_type=tmp_type)
 
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key)
 
     invalid_version = template.version + 1
 

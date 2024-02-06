@@ -21,7 +21,7 @@ from sqlalchemy import asc, desc, func, select, update
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
 def dao_create_template(template):
-    template.id = uuid.uuid4()  # must be set now so version history model can use same id
+    template.id = template.id or uuid.uuid4()  # must be set now so version history model can use same id
     template.archived = False
 
     redacted_dict = {

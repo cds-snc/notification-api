@@ -10,7 +10,6 @@ from app.v2.inbound_sms.inbound_sms_schemas import (
 from app.schema_validation import validate
 
 from tests import create_authorization_header
-from tests.app.db import create_inbound_sms
 
 valid_inbound_sms = {
     'user_number': '447700900111',
@@ -34,15 +33,21 @@ invalid_inbound_sms = {
 invalid_inbound_sms_list = {'received_text_messages': [invalid_inbound_sms]}
 
 
-def test_get_inbound_sms_contract(client, sample_service):
+def test_get_inbound_sms_contract(
+    client,
+    sample_inbound_sms,
+    sample_api_key,
+    sample_service,
+):
+    service = sample_service()
     all_inbound_sms = [
-        create_inbound_sms(service=sample_service, user_number='447700900113'),
-        create_inbound_sms(service=sample_service, user_number='447700900112'),
-        create_inbound_sms(service=sample_service, user_number='447700900111'),
+        sample_inbound_sms(service, user_number='447700900121'),
+        sample_inbound_sms(service, user_number='447700900131'),
+        sample_inbound_sms(service, user_number='447700900141'),
     ]
     reversed_inbound_sms = sorted(all_inbound_sms, key=lambda sms: sms.created_at, reverse=True)
 
-    auth_header = create_authorization_header(service_id=all_inbound_sms[0].service_id)
+    auth_header = create_authorization_header(sample_api_key(service=all_inbound_sms[0].service))
     response = client.get('/v2/received-text-messages', headers=[auth_header])
     response_json = json.loads(response.get_data(as_text=True))
 
@@ -64,19 +69,19 @@ def test_invalid_inbound_sms_request_json(client):
         validate({'user_number': '447700900111'}, get_inbound_sms_request)
 
 
-def test_valid_inbound_sms_response_json():
+def test_valid_inbound_sms_response_json(client):
     assert validate(valid_inbound_sms, get_inbound_sms_single_response) == valid_inbound_sms
 
 
-def test_valid_inbound_sms_list_response_json():
+def test_valid_inbound_sms_list_response_json(client):
     validate(valid_inbound_sms_list, get_inbound_sms_response)
 
 
-def test_invalid_inbound_sms_response_json():
+def test_invalid_inbound_sms_response_json(client):
     with pytest.raises(expected_exception=ValidationError):
         validate(invalid_inbound_sms, get_inbound_sms_single_response)
 
 
-def test_invalid_inbound_sms_list_response_json():
+def test_invalid_inbound_sms_list_response_json(client):
     with pytest.raises(expected_exception=ValidationError):
         validate(invalid_inbound_sms_list, get_inbound_sms_response)

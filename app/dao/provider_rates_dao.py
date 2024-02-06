@@ -15,3 +15,4 @@ def create_provider_rates(
 
     provider_rates = ProviderRates(provider_id=provider.id, valid_from=valid_from, rate=rate)
     db.session.add(provider_rates)
+    return provider_rates

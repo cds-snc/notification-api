@@ -2,7 +2,6 @@
 Tasks declared in this module must be configured in the CELERY_SETTINGS dictionary in app/config.py.
 """
 
-# TODO - Should I continue using notify_celery?  It has side-effects.
 from app import clients, db, notify_celery
 from app.clients.email.aws_ses import AwsSesClientException
 from app.clients.sms.aws_pinpoint import AwsPinpointException
@@ -61,7 +60,7 @@ def get_default_sms_sender_id(service_id: str) -> Tuple[Optional[str], Optional[
             return (None, sms_sender.id)
 
 
-# TODO - Error handler for sqlalchemy.exc.IntegrityError.  This happens when a foreign key references a nonexistent ID.
+# TODO 1534 - Error handler for sqlalchemy.exc.IntegrityError.  This happens when a foreign key references a nonexistent ID.
 @notify_celery.task(serializer='json')
 def v3_process_notification(  # noqa: C901
     request_data: dict,
@@ -78,31 +77,13 @@ def v3_process_notification(  # noqa: C901
     3. The given service owns the specified template.
     """
 
-    right_now = datetime.utcnow()
-    notification = Notification(
-        id=request_data['id'],
-        to=request_data.get('email_address' if request_data['notification_type'] == EMAIL_TYPE else 'phone_number'),
-        service_id=service_id,
-        template_id=request_data['template_id'],
-        template_version=0,
-        api_key_id=api_key_id,
-        key_type=api_key_type,
-        notification_type=request_data['notification_type'],
-        created_at=right_now,
-        updated_at=right_now,
-        status=NOTIFICATION_PERMANENT_FAILURE,
-        status_reason=None,
-        client_reference=request_data.get('client_reference'),
-        reference=request_data.get('reference'),
-        personalisation=request_data.get('personalisation'),
-        sms_sender_id=request_data.get('sms_sender_id'),
-        billing_code=request_data.get('billing_code'),
-    )
+    notification = v3_create_notification_instance(request_data, service_id, api_key_id, api_key_type)
 
-    # TODO - Catch db connection errors and retry?
+    # TODO 1534 - Catch db connection errors and retry?
     with get_reader_session() as reader_session:
         query = select(Template).where(Template.id == request_data['template_id'])
         try:
+            # TODO 1534 - This should intead use reader_session.get which returns an object or None
             template = reader_session.execute(query).one().Template
             notification.template_version = template.version
         except NoResultFound:
@@ -135,7 +116,7 @@ def v3_process_notification(  # noqa: C901
 
     if notification.to is None:
         # Launch a new task to get the contact information from VA Profile using the recipient ID.
-        # TODO
+        # TODO 1593
         notification.status = NOTIFICATION_TECHNICAL_FAILURE
         notification.status_reason = 'Sending with recipient_identifer is not yet implemented.'
         err = 'notification.to is None. Sending with recipient_identifer is not yet implemented.'
@@ -154,7 +135,7 @@ def v3_process_notification(  # noqa: C901
                 return
             notification.sms_sender_id = sms_sender_id
 
-        # TODO - Catch db connection errors and retry?
+        # TODO 1534 - Catch db connection errors and retry?
         query = select(ServiceSmsSender).where(
             (ServiceSmsSender.id == notification.sms_sender_id) & (ServiceSmsSender.service_id == service_id)
         )
@@ -162,13 +143,23 @@ def v3_process_notification(  # noqa: C901
             with get_reader_session() as reader_session:
                 sms_sender = reader_session.execute(query).one().ServiceSmsSender
                 v3_send_sms_notification.delay(notification, sms_sender.sms_sender)
-        except (MultipleResultsFound, NoResultFound):
+        except NoResultFound:
+            err = f"SMS sender with id '{notification.sms_sender_id}' does not exist."
+
             # Set sms_sender_id to None so persisting it doesn't raise sqlalchemy.exc.IntegrityError
             # This happens in case user provides invalid sms_sender_id in the request data
             notification.sms_sender_id = None
             notification.status = NOTIFICATION_PERMANENT_FAILURE
             notification.status_reason = 'SMS sender does not exist.'
-            err = f"SMS sender with id '{notification.sms_sender_id}' does not exist."
+            v3_persist_failed_notification(notification, err)
+        except MultipleResultsFound:
+            err = f'Multiple SMS sender ids matched with: {notification.sms_sender_id}'
+
+            # Set sms_sender_id to None so persisting it doesn't raise sqlalchemy.exc.IntegrityError
+            # This happens in case user provides invalid sms_sender_id in the request data
+            notification.sms_sender_id = None
+            notification.status = NOTIFICATION_PERMANENT_FAILURE
+            notification.status_reason = 'SMS sender is invalid'
             v3_persist_failed_notification(notification, err)
 
     return
@@ -185,7 +176,7 @@ def v3_send_email_notification(
     notification: Notification,
     template: Template,
 ):
-    # TODO - Determine the provider.  For now, assume SES.
+    # TODO 1505 - Determine the provider.  For now, assume SES.
     client = clients.get_email_client('ses')
     if client is None:
         notification.status = NOTIFICATION_TECHNICAL_FAILURE
@@ -196,6 +187,8 @@ def v3_send_email_notification(
     # Persist the notification so related model instances are available to downstream code.
     notification.status = NOTIFICATION_CREATED
     db.session.add(notification)
+    # TODO 1634 - Why is this necessary?  The template isn't being modified, and refreshing fails.
+    # Without this "add", e-mail doesn't actually send, but deleting it causes a unit test to fail.
     db.session.add(template)
     db.session.commit()
 
@@ -255,7 +248,7 @@ def v3_send_sms_notification(
     notification: Notification,
     sender_phone_number: str,
 ):
-    # TODO - Determine the provider.  For now, assume Pinpoint.
+    # TODO 1505 - Determine the provider.  For now, assume Pinpoint.
     client = clients.get_sms_client('pinpoint')
     if client is None:
         notification.status = NOTIFICATION_TECHNICAL_FAILURE
@@ -313,6 +306,7 @@ def v3_persist_failed_notification(
     """
     This is a helper to log and persist failed notifications that are not retriable.
     """
+
     assert notification.status is not None
     assert notification.status_reason is not None
 
@@ -327,3 +321,38 @@ def v3_persist_failed_notification(
         except Exception as err:
             db.session.rollback()
             current_app.logger.critical("Unable to save Notification '%s'. Error: '%s'", notification.id, err)
+
+
+def v3_create_notification_instance(
+    request_data: dict,
+    service_id: str,
+    api_key_id: str,
+    api_key_type: str,
+    template_version: int = None,
+) -> Notification:
+    """
+    Create and return a Notification instance, but do not persist it in the database.  The "template_version"
+    parameter is not None when used from unit tests that don't call v3_process_notification, which might change
+    the value of Notification.template_version to something other than 0.
+    """
+
+    right_now = datetime.utcnow()
+    return Notification(
+        id=request_data['id'],
+        to=request_data.get('email_address' if request_data['notification_type'] == EMAIL_TYPE else 'phone_number'),
+        service_id=service_id,
+        template_id=request_data['template_id'],
+        template_version=template_version if (template_version is not None) else 0,
+        api_key_id=api_key_id,
+        key_type=api_key_type,
+        notification_type=request_data['notification_type'],
+        created_at=right_now,
+        updated_at=right_now,
+        status=NOTIFICATION_PERMANENT_FAILURE,
+        status_reason=None,
+        client_reference=request_data.get('client_reference'),
+        reference=request_data.get('reference'),
+        personalisation=request_data.get('personalisation'),
+        sms_sender_id=request_data.get('sms_sender_id'),
+        billing_code=request_data.get('billing_code'),
+    )

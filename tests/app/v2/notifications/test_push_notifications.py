@@ -7,15 +7,7 @@ from app.va.vetext import VETextClient, VETextBadRequestException, VETextNonRetr
 import requests
 import requests_mock
 from tests.app.factories.feature_flag import mock_feature_flag
-from tests.app.db import (
-    create_service,
-)
 from . import post_send_notification
-
-
-@pytest.fixture
-def service_with_push_permission(notify_db_session):
-    return create_service(service_permissions=[PUSH_TYPE])
 
 
 @pytest.fixture(autouse=True)
@@ -32,18 +24,28 @@ def push_request_without(key: str) -> dict:
     return payload
 
 
-def test_returns_not_implemented_if_feature_flag_disabled(client, mocker, service_with_push_permission):
+def test_returns_not_implemented_if_feature_flag_disabled(
+    client,
+    mocker,
+    sample_api_key,
+    sample_service,
+):
     mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, enabled='False')
-
-    response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+    service = sample_service(service_permissions=[PUSH_TYPE])
+    response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
     assert response.status_code == 501
 
 
 class TestValidations:
-    def test_checks_service_permissions(self, client, notify_db_session):
-        service = create_service(service_permissions=[])
-        response = post_send_notification(client, service, 'push', push_request)
+    def test_checks_service_permissions(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+    ):
+        service = sample_service(service_permissions=[])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
@@ -57,8 +59,16 @@ class TestValidations:
             (push_request_without('recipient_identifier'), 'recipient_identifier is a required property'),
         ],
     )
-    def test_required_fields(self, client, service_with_push_permission, payload, error_msg):
-        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+    def test_required_fields(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        payload,
+        error_msg,
+    ):
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', payload)
 
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
@@ -73,32 +83,50 @@ class TestValidations:
             ({'id_type': 'PID', 'id_value': 'foo'}, 'recipient_identifier PID is not one of [ICN]'),
         ],
     )
-    def test_recipient_identifier(self, client, service_with_push_permission, recipient_identifier, error_msg):
+    def test_recipient_identifier(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        recipient_identifier,
+        error_msg,
+    ):
         payload = {**push_request}
         payload['recipient_identifier'] = recipient_identifier
-        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', payload)
 
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
         resp_json = response.get_json()
         assert {'error': 'ValidationError', 'message': error_msg} in resp_json['errors']
 
-    def test_accepts_only_mobile_app_enum(self, client, service_with_push_permission):
+    def test_accepts_only_mobile_app_enum(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+    ):
         payload = {**push_request}
         payload['mobile_app'] = 'some_mobile_app'
-
-        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', payload)
 
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
         resp_json = response.get_json()
         assert 'mobile_app some_mobile_app is not one of [VA_FLAGSHIP_APP, VETEXT]' in resp_json['errors'][0]['message']
 
-    def test_does_not_accept_extra_fields(self, client, service_with_push_permission):
+    def test_does_not_accept_extra_fields(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+    ):
         payload = {**push_request}
         payload['foo'] = 'bar'
-
-        response = post_send_notification(client, service_with_push_permission, 'push', payload)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', payload)
 
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
@@ -124,15 +152,30 @@ class TestPushSending:
         mocker.patch('app.v2.notifications.rest_push.vetext_client', client)
         return client
 
-    def test_returns_201(self, client, service_with_push_permission, vetext_client):
-        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+    def test_returns_201(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        vetext_client,
+    ):
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
         assert response.status_code == 201
 
-    def test_returns_201_after_read_timeout(self, client, service_with_push_permission, vetext_client):
+    def test_returns_201_after_read_timeout(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        vetext_client,
+    ):
         with requests_mock.Mocker() as m:
             m.post(f'{client.application.config["VETEXT_URL"]}/mobile/push/send', exc=requests.exceptions.ReadTimeout)
-        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
         assert response.status_code == 201
 
@@ -148,9 +191,17 @@ class TestPushSending:
         ],
     )
     def test_makes_call_to_vetext_client(
-        self, client, service_with_push_permission, vetext_client, payload, personalisation, app
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        vetext_client,
+        payload,
+        personalisation,
+        app,
     ):
-        post_send_notification(client, service_with_push_permission, 'push', payload)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        post_send_notification(client, sample_api_key(service), 'push', payload)
 
         vetext_client.send_push_notification.assert_called_once_with(
             f'some_sid_for_{app}', payload['template_id'], payload['recipient_identifier']['id_value'], personalisation
@@ -158,10 +209,16 @@ class TestPushSending:
 
     @pytest.mark.parametrize('exception', [VETextRetryableException, VETextNonRetryableException])
     def test_returns_502_on_exception_other_than_bad_request(
-        self, client, service_with_push_permission, vetext_client, exception
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        vetext_client,
+        exception,
     ):
         vetext_client.send_push_notification.side_effect = exception
-        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
         assert response.status_code == 502
         resp_json = response.get_json()
@@ -175,18 +232,31 @@ class TestPushSending:
             VETextBadRequestException(message='Invalid Template SID'),
         ],
     )
-    def test_maps_bad_request_exception(self, client, service_with_push_permission, vetext_client, exception):
+    def test_maps_bad_request_exception(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        vetext_client,
+        exception,
+    ):
         vetext_client.send_push_notification.side_effect = exception
-        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
 
         assert response.status_code == 400
         resp_json = response.get_json()
         assert {'error': 'BadRequestError', 'message': exception.message} in resp_json['errors']
 
     @pytest.mark.disable_autouse
-    def test_returns_503_if_mobile_app_not_initiliazed(self, client, service_with_push_permission):
-        response = post_send_notification(client, service_with_push_permission, 'push', push_request)
-
+    def test_returns_503_if_mobile_app_not_initiliazed(
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+    ):
+        service = sample_service(service_permissions=[PUSH_TYPE])
+        response = post_send_notification(client, sample_api_key(service), 'push', push_request)
         assert response.status_code == 503
         resp_json = response.get_json()
         assert resp_json == {'result': 'error', 'message': 'Mobile app is not initialized'}

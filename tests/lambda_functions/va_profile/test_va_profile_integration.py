@@ -1,6 +1,4 @@
 """
-notify_db and notify_db_session are fixtures in tests/conftest.py.
-
 https://docs.sqlalchemy.org/en/13/core/connections.html
 
 Test the stored function va_profile_opt_in_out by calling it directly, and test the lambda function associated
@@ -10,37 +8,29 @@ created or updated; otherwise, False.
 
 import jwt
 import pytest
+from app.models import VAProfileLocalCache
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_pem_x509_certificate
 from datetime import datetime, timedelta, timezone
 from json import dumps, loads
 from lambda_functions.va_profile.va_profile_opt_in_out_lambda import jwt_is_valid, va_profile_opt_in_out_lambda_handler
-from sqlalchemy import text
+from random import randint
+from sqlalchemy import delete, func, select, text
 
 
 # Base path for mocks
 LAMBDA_MODULE = 'lambda_functions.va_profile.va_profile_opt_in_out_lambda'
 
+# This is a call to a stored procedure.
 OPT_IN_OUT = text(
     """\
 SELECT va_profile_opt_in_out(:va_profile_id, :communication_item_id, \
 :communication_channel_id, :allowed, :source_datetime);"""
 )
 
-COUNT = r"""SELECT COUNT(*) FROM va_profile_local_cache;"""
 
-VA_PROFILE_TEST = text(
-    """\
-SELECT allowed
-FROM va_profile_local_cache
-WHERE va_profile_id=:va_profile_id \
-AND communication_item_id=:communication_item_id \
-AND communication_channel_id=:communication_channel_id;"""
-)
-
-
-@pytest.fixture()
+@pytest.fixture
 def put_mock(mocker):
     """
     Patch the function that makes a PUT request to VA Profile.  This facilitates inspecting
@@ -68,7 +58,7 @@ def public_key() -> Certificate:
     return load_pem_x509_certificate(public_key_bytes).public_key()
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_integration_testing_public_cert_mock(mocker, public_key):
     """
     Patch the function that loads the public certificate used for integration testing, and make it
@@ -87,17 +77,17 @@ def jwt_encoded(private_key):
     return jwt.encode({'some': 'payload', 'exp': exp, 'iat': iat}, private_key, algorithm='RS256')
 
 
-@pytest.fixture()
+@pytest.fixture
 def jwt_encoded_missing_exp(private_key):
     return jwt.encode({'some': 'payload', 'iat': datetime.now(tz=timezone.utc)}, private_key, algorithm='RS256')
 
 
-@pytest.fixture()
+@pytest.fixture
 def jwt_encoded_missing_iat(private_key):
     return jwt.encode({'some': 'payload', 'exp': datetime.now(tz=timezone.utc)}, private_key, algorithm='RS256')
 
 
-@pytest.fixture()
+@pytest.fixture
 def jwt_encoded_expired(private_key):
     """This is an invalid JWT encoding because it is expired."""
 
@@ -106,7 +96,7 @@ def jwt_encoded_expired(private_key):
     return jwt.encode({'some': 'payload', 'exp': exp, 'iat': iat}, private_key, algorithm='RS256')
 
 
-@pytest.fixture()
+@pytest.fixture
 def jwt_encoded_reversed(private_key):
     """
     This JWT encoding has an issue time later than the expiration time.  Both times are in the future.
@@ -117,14 +107,16 @@ def jwt_encoded_reversed(private_key):
     return jwt.encode({'some': 'payload', 'exp': exp, 'iat': iat}, private_key, algorithm='RS256')
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def event_dict(jwt_encoded) -> dict:
     """This is a valid event as a Python dictionary."""
 
-    return create_event('txAuditId', 'txAuditId', '2022-03-07T19:37:59.320Z', 1, 1, 5, True, jwt_encoded)
+    return create_event(
+        'txAuditId', 'txAuditId', '2022-03-07T19:37:59.320Z', randint(1000, 100000), 1, 5, True, jwt_encoded
+    )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def event_str(event_dict) -> dict:
     """This is a valid event with a JSON string for the body data."""
 
@@ -133,7 +125,7 @@ def event_str(event_dict) -> dict:
     return event
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def event_bytes(event_str) -> dict:
     """This is a valid event with JSON bytes for the body data."""
 
@@ -142,106 +134,49 @@ def event_bytes(event_str) -> dict:
     return event
 
 
-def verify_opt_in_status(identifier: int, opted_in: bool, connection):
-    """
-    Use this helper function to verify that a row's opt-in/out value has been set as expected.
-    """
-
-    va_profile_test = VA_PROFILE_TEST.bindparams(
-        va_profile_id=identifier, communication_item_id=5, communication_channel_id=1
-    )
-
-    profile_test_queryset = connection.execute(va_profile_test)
-    stored_preference = profile_test_queryset.fetchone()[0]
-    assert stored_preference == opted_in, 'The user opted {}.  (allowed={})'.format(
-        'in' if opted_in else 'out', opted_in
-    )
+def test_va_profile_cache_exists(notify_db_session):
+    assert notify_db_session.engine.has_table('va_profile_local_cache')
 
 
-def setup_db(connection):
-    """
-    Using the given connection, truncate the VA Profile local cache, and call the stored procedure to add a specific
-    row.  This establishes a known state for testing.
-
-    Truncating is necessary because the database side effects of executing the VA Profile lambda function are not
-    rolled back at the conclusion of a test.
-    """
-
-    connection.execute('truncate va_profile_local_cache;')
-
-    # Sanity check
-    count_queryset = connection.execute(COUNT)
-    assert count_queryset.fetchone()[0] == 0, 'The cache should be empty at the start.'
-
-    opt_in_out = OPT_IN_OUT.bindparams(
-        va_profile_id=0,
-        communication_item_id=5,
-        communication_channel_id=1,
-        allowed=False,
-        source_datetime='2022-03-07T19:37:59.320Z',
-    )
-
-    in_out_queryset = connection.execute(opt_in_out)
-    assert in_out_queryset.fetchone()[0], 'The stored function should return True.'
-
-    count_queryset = connection.execute(COUNT)
-    assert count_queryset.fetchone()[0] == 1, 'The stored function should have created a new row.'
-
-    verify_opt_in_status(0, False, connection)
-
-
-def test_va_profile_cache_exists(notify_db):
-    assert notify_db.engine.has_table('va_profile_local_cache')
-
-
-def test_va_profile_stored_function_older_date(notify_db_session):
+def test_va_profile_stored_function_older_date(notify_db_session, sample_va_profile_local_cache):
     """
     If the given date is older than the existing date, no update should occur.
     """
 
-    with notify_db_session.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False)
 
-        opt_in_out = OPT_IN_OUT.bindparams(
-            va_profile_id=0,
-            communication_item_id=5,
-            communication_channel_id=1,
-            allowed=True,
-            source_datetime='2022-02-07T19:37:59.320Z',  # Older date
-        )
+    opt_in_out = OPT_IN_OUT.bindparams(
+        va_profile_id=va_profile_local_cache.va_profile_id,
+        communication_item_id=va_profile_local_cache.communication_item_id,
+        communication_channel_id=va_profile_local_cache.communication_channel_id,
+        allowed=True,
+        source_datetime='2022-02-07T19:37:59.320Z',  # Older date
+    )
 
-        in_out_queryset = connection.execute(opt_in_out)
-        assert not in_out_queryset.fetchone()[0], 'The date is older than the existing entry.'
-
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 1, 'The stored function should not have created a new row.'
-
-        verify_opt_in_status(0, False, connection)
+    assert not notify_db_session.session.scalar(opt_in_out), 'The date is older than the existing entry.'
+    notify_db_session.session.refresh(va_profile_local_cache)
+    assert not va_profile_local_cache.allowed, 'The veteran should still be opted-out.'
 
 
-def test_va_profile_stored_function_newer_date(notify_db_session):
+def test_va_profile_stored_function_newer_date(notify_db_session, sample_va_profile_local_cache):
     """
     If the given date is newer than the existing date, an update should occur.
     """
 
-    with notify_db_session.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False)
+    assert va_profile_local_cache.source_datetime.month == 3
 
-        opt_in_out = OPT_IN_OUT.bindparams(
-            va_profile_id=0,
-            communication_item_id=5,
-            communication_channel_id=1,
-            allowed=True,
-            source_datetime='2022-04-07T19:37:59.320Z',  # Newer date
-        )
+    opt_in_out = OPT_IN_OUT.bindparams(
+        va_profile_id=va_profile_local_cache.va_profile_id,
+        communication_item_id=va_profile_local_cache.communication_item_id,
+        communication_channel_id=va_profile_local_cache.communication_channel_id,
+        allowed=True,
+        source_datetime='2022-04-07T19:37:59.320Z',  # Newer date
+    )
 
-        in_out_queryset = connection.execute(opt_in_out)
-        assert in_out_queryset.fetchone()[0], 'The date is newer than the existing entry.'
-
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 1, 'An existing entry should have been updated.'
-
-        verify_opt_in_status(0, True, connection)
+    assert notify_db_session.session.scalar(opt_in_out), 'The date is newer than the existing entry.'
+    notify_db_session.session.refresh(va_profile_local_cache)
+    assert va_profile_local_cache.source_datetime.month == 4, 'The date should have updated.'
 
 
 def test_va_profile_stored_function_new_row(notify_db_session):
@@ -249,24 +184,34 @@ def test_va_profile_stored_function_new_row(notify_db_session):
     Create a new row for a combination of identifiers not already in the database.
     """
 
-    with notify_db_session.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_id = randint(1000, 100000)
 
-        opt_in_out = OPT_IN_OUT.bindparams(
-            va_profile_id=1,
-            communication_item_id=5,
-            communication_channel_id=1,
-            allowed=True,
-            source_datetime='2022-02-07T19:37:59.320Z',
-        )
+    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
 
-        in_out_queryset = connection.execute(opt_in_out)
-        assert in_out_queryset.fetchone()[0], 'The stored function should have created a new row.'
+    assert notify_db_session.session.scalar(stmt) == 0
 
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 2, 'The stored function should have created a new row.'
+    opt_in_out = OPT_IN_OUT.bindparams(
+        va_profile_id=va_profile_id,
+        communication_item_id=5,
+        communication_channel_id=1,
+        allowed=True,
+        source_datetime='2022-02-07T19:37:59.320Z',
+    )
 
-        verify_opt_in_status(1, True, connection)
+    assert notify_db_session.session.scalar(opt_in_out), 'This should create a new row.'
+
+    # Verify one row was created using a delete statement that doubles as teardown.
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
 
 def test_jwt_is_valid(jwt_encoded, public_key):
@@ -361,7 +306,10 @@ def test_va_profile_opt_in_out_lambda_handler_malformed_json(jwt_encoded, event_
 
 
 def test_va_profile_opt_in_out_lambda_handler_valid_dict(
-    notify_db, event_dict, worker_id, put_mock, get_integration_testing_public_cert_mock
+    notify_db_session,
+    event_dict,
+    put_mock,
+    get_integration_testing_public_cert_mock,
 ):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
@@ -369,19 +317,10 @@ def test_va_profile_opt_in_out_lambda_handler_valid_dict(
     body that is a Python dictionary.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
-
     # Send a request that should result in a new row.
-    response = va_profile_opt_in_out_lambda_handler(event_dict, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event_dict, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 2, 'A new row should have been created.'
-
-        verify_opt_in_status(1, True, connection)
 
     expected_put_body = {
         'dateTime': '2022-03-07T19:37:59.320Z',
@@ -391,27 +330,30 @@ def test_va_profile_opt_in_out_lambda_handler_valid_dict(
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
     get_integration_testing_public_cert_mock.assert_not_called()
 
+    # Verify one row was created using a delete statement that doubles as teardown.
+    print(event_dict['body']['bios'][0]['vaProfileId'])
+    print(event_dict['body']['bios'][0]['communicationItemId'])
+    print(event_dict['body']['bios'][0]['communicationChannelId'])
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == event_dict['body']['bios'][0]['vaProfileId'],
+        VAProfileLocalCache.communication_item_id == event_dict['body']['bios'][0]['communicationItemId'],
+        VAProfileLocalCache.communication_channel_id == event_dict['body']['bios'][0]['communicationChannelId'],
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
-def test_va_profile_opt_in_out_lambda_handler_valid_str(notify_db, event_str, worker_id, put_mock):
+
+def test_va_profile_opt_in_out_lambda_handler_valid_str(notify_db_session, event_str, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.  The AWS lambda function should be able to handle and event
     body that is a JSON string.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
-
     # Send a request that should result in a new row.
-    response = va_profile_opt_in_out_lambda_handler(event_str, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event_str, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 2, 'A new row should have been created.'
-
-        verify_opt_in_status(1, True, connection)
 
     expected_put_body = {
         'dateTime': '2022-03-07T19:37:59.320Z',
@@ -420,27 +362,28 @@ def test_va_profile_opt_in_out_lambda_handler_valid_str(notify_db, event_str, wo
 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
+    # Verify one row was created using a delete statement that doubles as teardown.
+    event = loads(event_str['body'])['bios'][0]
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == event['vaProfileId'],
+        VAProfileLocalCache.communication_item_id == event['communicationItemId'],
+        VAProfileLocalCache.communication_channel_id == event['communicationChannelId'],
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
-def test_va_profile_opt_in_out_lambda_handler_valid_bytes(notify_db, event_bytes, worker_id, put_mock):
+
+def test_va_profile_opt_in_out_lambda_handler_valid_bytes(notify_db_session, event_bytes, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.  The AWS lambda function should be able to handle and event
     body that is JSON bytes.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
-
     # Send a request that should result in a new row.
-    response = va_profile_opt_in_out_lambda_handler(event_bytes, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event_bytes, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 2, 'A new row should have been created.'
-
-        verify_opt_in_status(1, True, connection)
 
     expected_put_body = {
         'dateTime': '2022-03-07T19:37:59.320Z',
@@ -449,27 +392,47 @@ def test_va_profile_opt_in_out_lambda_handler_valid_bytes(notify_db, event_bytes
 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
+    # Verify one row was created using a delete statement that doubles as teardown.
+    event = loads(event_bytes['body'].decode())['bios'][0]
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == event['vaProfileId'],
+        VAProfileLocalCache.communication_item_id == event['communicationItemId'],
+        VAProfileLocalCache.communication_channel_id == event['communicationChannelId'],
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
-def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_encoded, put_mock):
+
+def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db_session, jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by sending a valid request that should create
     a new row in the database.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_id = randint(1000, 100000)
+
+    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
+
+    assert notify_db_session.session.scalar(stmt) == 0
 
     # Send a request that should result in a new row.
-    event = create_event('txAuditId', 'txAuditId', '2022-03-07T19:37:59.320Z', 1, 1, 5, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    event = create_event(
+        'txAuditId',
+        'txAuditId',
+        '2022-03-07T19:37:59.320Z',
+        va_profile_id,
+        1,
+        5,
+        True,
+        jwt_encoded
+    )
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 2, 'A new row should have been created.'
-
-        verify_opt_in_status(1, True, connection)
 
     expected_put_body = {
         'dateTime': '2022-03-07T19:37:59.320Z',
@@ -478,26 +441,42 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db, worker_id, jwt_
 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
+    # Verify one row was created using a delete statement that doubles as teardown.
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
-def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, jwt_encoded, put_mock):
+
+def test_va_profile_opt_in_out_lambda_handler_older_date(
+    notify_db_session,
+    jwt_encoded,
+    put_mock,
+    sample_va_profile_local_cache,
+):
     """
     Test the VA Profile integration lambda by sending a valid request with an older date.
     No database update should occur.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False)
 
-    event = create_event('txAuditId', 'txAuditId', '2022-02-07T19:37:59.320Z', 0, 1, 5, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    event = create_event(
+        'txAuditId',
+        'txAuditId',
+        '2022-02-07T19:37:59.320Z',
+        va_profile_local_cache.va_profile_id,
+        va_profile_local_cache.communication_channel_id,
+        va_profile_local_cache.communication_item_id,
+        True,
+        jwt_encoded
+    )
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 1, 'A new row should not have been created.'
-
-        verify_opt_in_status(0, False, connection)
 
     expected_put_body = {
         'dateTime': '2022-02-07T19:37:59.320Z',
@@ -506,26 +485,37 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(notify_db, worker_id, j
 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
+    notify_db_session.session.refresh(va_profile_local_cache)
+    assert not va_profile_local_cache.allowed, 'This should not have been updated.'
 
-def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, jwt_encoded, put_mock):
+
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_newer_date(
+    notify_db_session,
+    jwt_encoded,
+    put_mock,
+    sample_va_profile_local_cache,
+):
     """
     Test the VA Profile integration lambda by sending a valid request with a newer date.
     A database update should occur.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False)
 
-    event = create_event('txAuditId', 'txAuditId', '2022-04-07T19:37:59.320Z', 0, 1, 5, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    event = create_event(
+        'txAuditId',
+        'txAuditId',
+        '2022-04-07T19:37:59.320Z',
+        va_profile_local_cache.va_profile_id,
+        va_profile_local_cache.communication_channel_id,
+        va_profile_local_cache.communication_item_id,
+        True,
+        jwt_encoded
+    )
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
-
-    with notify_db.engine.begin() as connection:
-        count_queryset = connection.execute(COUNT)
-        assert count_queryset.fetchone()[0] == 1, 'A new row should not have been created.'
-
-        verify_opt_in_status(0, True, connection)
 
     expected_put_body = {
         'dateTime': '2022-04-07T19:37:59.320Z',
@@ -534,17 +524,21 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(notify_db, worker_id, j
 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
+    notify_db_session.session.refresh(va_profile_local_cache)
+    assert va_profile_local_cache.allowed, 'This should have been updated.'
 
-def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, worker_id, put_mock):
+
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, put_mock):
     """
-    Test the VA Profile integration lambda by inspecting the PUT request is initiates to
+    Test the VA Profile integration lambda by inspecting the PUT request it initiates to
     VA Profile in response to a request.  This test should generate a KeyError in the handler
     that should be caught.
     """
 
     event = create_event('txAuditId', 'txAuditId', '2022-04-07T19:37:59.320Z', 0, 1, 5, True, jwt_encoded)
     del event['body']['bios'][0]['allowed']
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 400
 
@@ -563,7 +557,8 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, worker_id, 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, worker_id, put_mock):
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
     VA Profile in response to a request.  This test should generate a KeyError in the handler
@@ -572,7 +567,7 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, worker_id, 
 
     event = create_event('txAuditId', 'txAuditId', '2022-04-07T19:37:59.320Z', 0, 1, 5, True, jwt_encoded)
     del event['body']['bios'][0]['sourceDate']
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 400
 
@@ -591,13 +586,14 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, worker_id, 
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker_id, jwt_encoded, put_mock):
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(jwt_encoded, put_mock):
     """
     The lambda should ignore records in which communicationItemId is not 5.
     """
 
     event = create_event('txAuditId', 'txAuditId', '2022-04-27T16:57:16Z', 2, 1, 4, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
 
@@ -609,13 +605,14 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(worker
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(worker_id, jwt_encoded, put_mock):
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(jwt_encoded, put_mock):
     """
     The lambda should ignore records in which communicationChannelId is not 1.
     """
 
     event = create_event('txAuditId', 'txAuditId', '2022-04-27T16:57:16Z', 2, 2, 5, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
 
@@ -627,13 +624,14 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(wor
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_encoded, put_mock):
+@pytest.mark.serial
+def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(jwt_encoded, put_mock):
     """
     The request txAuditId should match a bios's txAuditId.
     """
 
     event = create_event('txAuditId', 'not_txAuditId', '2022-04-27T16:57:16Z', 0, 1, 5, True, jwt_encoded)
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
 
@@ -652,8 +650,12 @@ def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(worker_id, jwt_e
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
+@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_integration_testing(
-    notify_db, worker_id, jwt_encoded, put_mock, get_integration_testing_public_cert_mock
+    notify_db_session,
+    jwt_encoded,
+    put_mock,
+    get_integration_testing_public_cert_mock,
 ):
     """
     When the lambda handler is invoked with a path that includes the URL parameter "integration_test",
@@ -664,12 +666,20 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(
     This unit test verifies that the lambda code attempts to load this certificate.
     """
 
-    with notify_db.engine.begin() as connection:
-        setup_db(connection)
+    va_profile_id = randint(1000, 100000)
 
-    event = create_event('txAuditId', 'txAuditId', '2022-04-07T19:37:59.320Z', 0, 1, 5, True, jwt_encoded)
+    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
+
+    assert notify_db_session.session.scalar(stmt) == 0
+
+    event = create_event('txAuditId', 'txAuditId', '2022-04-07T19:37:59.320Z', va_profile_id, 1, 5, True, jwt_encoded)
     event['queryStringParameters'] = {'integration_test': "the value doesn't matter"}
-    response = va_profile_opt_in_out_lambda_handler(event, None, worker_id)
+    response = va_profile_opt_in_out_lambda_handler(event, None)
+
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
     assert response.get('headers', {}).get('Content-Type', '') == 'application/json'
@@ -684,6 +694,15 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
     get_integration_testing_public_cert_mock.assert_called_once()
     assert response_body['put_body'] == expected_put_body
+
+    # Verify one row was created using a delete statement that doubles as teardown.
+    stmt = delete(VAProfileLocalCache).where(
+        VAProfileLocalCache.va_profile_id == va_profile_id,
+        VAProfileLocalCache.communication_item_id == 5,
+        VAProfileLocalCache.communication_channel_id == 1,
+    )
+    assert notify_db_session.session.execute(stmt).rowcount == 1
+    notify_db_session.session.commit()
 
 
 def create_event(

@@ -107,7 +107,6 @@ def timeout_notifications():
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(
         current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD')
     )
-
     notifications = technical_failure_notifications + temporary_failure_notifications
     for notification in notifications:
         # queue callback task only if the service_callback_api exists
@@ -225,13 +224,10 @@ def raise_alert_if_letter_notifications_still_sending():
     today = datetime.utcnow().date()
 
     # Do nothing on the weekend
-    if today.isoweekday() in [6, 7]:
+    if today.isoweekday() in (6, 7):
         return
 
-    if today.isoweekday() in [1, 2]:
-        offset_days = 4
-    else:
-        offset_days = 2
+    offset_days = 4 if (today.isoweekday() in [1, 2]) else 2
 
     stmt = (
         select([func.count()])
@@ -249,7 +245,8 @@ def raise_alert_if_letter_notifications_still_sending():
         message = "There are {} letters in the 'sending' state from {}".format(
             still_sending, (today - timedelta(days=offset_days)).strftime('%A %d %B')
         )
-        # Only send alerts in production
+
+        # Only send alerts in production.
         if current_app.config['NOTIFY_ENVIRONMENT'] in ['live', 'production', 'test']:
             zendesk_client.create_ticket(
                 subject='[{}] Letters still sending'.format(current_app.config['NOTIFY_ENVIRONMENT']),

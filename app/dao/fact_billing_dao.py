@@ -19,11 +19,14 @@ from app.models import (
     Template,
 )
 from app.utils import get_local_timezone_midnight_in_utc
+from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
 from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy import func, case, delete, desc, Date, Integer, and_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
+from typing import Optional, Union
+from uuid import UUID
 
 
 def fetch_sms_free_allowance_remainder(start_date):
@@ -300,7 +303,7 @@ def fetch_billing_totals_for_year(
 
 
 def fetch_monthly_billing_for_year(
-    service_id,
+    service_id: str,
     year,
 ):
     year_start_date, year_end_date = get_financial_year(year)
@@ -372,18 +375,25 @@ def delete_billing_data_for_service_for_day(
 
 def fetch_billing_data_for_day(
     process_day,
-    service_id=None,
+    service_id: Optional[Union[str, Iterable[str], UUID, Iterable[UUID]]] = None,
 ):
+    """
+    service_id can be a single ID or an iterable of IDs.
+    """
+
     start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
     end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
-    current_app.logger.info('Populate ft_billing for {} to {}'.format(start_date, end_date))
+    current_app.logger.info('Populate ft_billing for %s to %s', start_date, end_date)
     transit_data = []
+
     if not service_id:
+        # This includes None and empty iterables.
         service_ids = [x.id for x in db.session.scalars(select(Service)).all()]
     else:
-        service_ids = [service_id]
+        service_ids = (service_id,) if isinstance(service_id, (str, UUID)) else service_id
+
     for id_of_service in service_ids:
         for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
             results = _query_for_billing_data(
@@ -393,7 +403,8 @@ def fetch_billing_data_for_day(
                 end_date=end_date,
                 service_id=id_of_service,
             )
-            # If data has been purged from Notification then use NotificationHistory
+
+            # If data has been purged from Notification, use NotificationHistory.
             if len(results) == 0:
                 results = _query_for_billing_data(
                     table=NotificationHistory,
@@ -403,7 +414,7 @@ def fetch_billing_data_for_day(
                     service_id=id_of_service,
                 )
 
-            transit_data = transit_data + results
+            transit_data.extend(results)
 
     return transit_data
 

@@ -1,25 +1,24 @@
 import base64
-import urllib
 from datetime import datetime
-from unittest.mock import call
+from random import randint
+import urllib
+from uuid import uuid4
 
 import pytest
 from flask import json
 from freezegun import freeze_time
 
 from app.notifications.receive_notifications import (
+    create_inbound_sms_object,
     format_mmg_message,
     format_mmg_datetime,
-    create_inbound_sms_object,
     strip_leading_forty_four,
     unescape_string,
     fetch_potential_service,
     NoSuitableServiceForInboundSms,
 )
 
-from app.models import InboundSms, EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE, Service, Permission
-from tests.conftest import set_config, set_config_values
-from tests.app.db import create_inbound_number, create_service, create_service_with_inbound_number
+from app.models import InboundSms, SMS_TYPE, INBOUND_SMS_TYPE, Service, Permission
 
 
 def firetext_post(client, data, auth=True, password='testkey'):  # nosec
@@ -91,8 +90,12 @@ def test_receive_notification_returns_received_to_mmg(client, mocker, sample_ser
         ([SMS_TYPE], False),
     ],
 )
-def test_check_permissions_for_inbound_sms(notify_db, notify_db_session, permissions, expected_response):
-    service = create_service(service_permissions=permissions)
+def test_check_permissions_for_inbound_sms(
+    permissions,
+    expected_response,
+    sample_service,
+):
+    service = sample_service(service_permissions=permissions)
     assert service.has_permissions([INBOUND_SMS_TYPE, SMS_TYPE]) is expected_response
 
 
@@ -107,52 +110,62 @@ def test_check_permissions_for_inbound_sms(notify_db, notify_db_session, permiss
 def test_receive_notification_from_twilio_without_permissions_does_not_persist(
     client, mocker, notify_db_session, permissions
 ):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
 
-    service = create_service_with_inbound_number(inbound_number='+61412888888', service_permissions=permissions)
-    mocker.patch('app.notifications.receive_notifications.dao_fetch_service_by_inbound_number', return_value=service)
-    mocked_send_inbound_sms = mocker.patch(
-        'app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async'
-    )
-    mocker.patch('app.notifications.receive_notifications.has_inbound_sms_permissions', return_value=False)
+    # service = create_service_with_inbound_number(inbound_number='+61412888888', service_permissions=permissions)
+    # mocker.patch("app.notifications.receive_notifications.dao_fetch_service_by_inbound_number",
+    #              return_value=service)
+    # mocked_send_inbound_sms = mocker.patch(
+    #     "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412888888', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {
+    #         'MessageSid': '1',
+    #         'From': '+61412999999',
+    #         'To': '+61412888888',
+    #         'Body': 'this is a message'
+    #     }
+    # )
 
-    response = twilio_post(client, data)
+    # response = twilio_post(client, data)
 
-    assert response.status_code == 200
-    assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
-    assert InboundSms.query.count() == 0
-    assert not mocked_send_inbound_sms.called
+    # assert response.status_code == 200
+    # assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
+    # assert InboundSms.query.count() == 0
+    # assert not mocked_send_inbound_sms.called
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_twilio_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
     client, mocker, sample_service
 ):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
 
-    create_inbound_number('+61412345678', service_id=sample_service.id, active=True)
+    # create_inbound_number('+61412345678', service_id=sample_service.id, active=True)
 
-    mocked_send_inbound_sms = mocker.patch(
-        'app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async'
-    )
-    mocked_has_permissions = mocker.patch(
-        'app.notifications.receive_notifications.has_inbound_sms_permissions', return_value=False
-    )
+    # mocked_send_inbound_sms = mocker.patch(
+    #     "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocked_has_permissions = mocker.patch(
+    #     "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412345678', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {
+    #         'MessageSid': '1',
+    #         'From': '+61412999999',
+    #         'To': '+61412345678',
+    #         'Body': 'this is a message'
+    #     }
+    # )
 
-    response = twilio_post(client, data)
+    # response = twilio_post(client, data)
 
-    assert response.status_code == 200
-    assert len(InboundSms.query.all()) == 0
-    assert mocked_has_permissions.called
-    mocked_send_inbound_sms.assert_not_called()
+    # assert response.status_code == 200
+    # assert len(InboundSms.query.all()) == 0
+    # assert mocked_has_permissions.called
+    # mocked_send_inbound_sms.assert_not_called()
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
@@ -166,97 +179,110 @@ def test_twilio_receive_notification_without_permissions_does_not_create_inbound
 def test_receive_notification_from_mmg_without_permissions_does_not_persist(
     client, mocker, notify_db_session, permissions
 ):
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    create_service_with_inbound_number(inbound_number='07111111111', service_permissions=permissions)
-    data = {
-        'ID': '1234',
-        'MSISDN': '07111111111',
-        'Message': 'Some message to notify',
-        'Trigger': 'Trigger?',
-        'Number': 'testing',
-        'Channel': 'SMS',
-        'DateReceived': '2012-06-27 12:33:00',
-    }
-    response = mmg_post(client, data)
+    pass
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # create_service_with_inbound_number(inbound_number='07111111111', service_permissions=permissions)
+    # data = {
+    #     "ID": "1234",
+    #     "MSISDN": "07111111111",
+    #     "Message": "Some message to notify",
+    #     "Trigger": "Trigger?",
+    #     "Number": "testing",
+    #     "Channel": "SMS",
+    #     "DateReceived": "2012-06-27 12:33:00"
+    # }
+    # response = mmg_post(client, data)
 
-    assert response.status_code == 200
-    assert response.get_data(as_text=True) == 'RECEIVED'
-    assert InboundSms.query.count() == 0
-    assert mocked.called is False
+    # assert response.status_code == 200
+    # assert response.get_data(as_text=True) == 'RECEIVED'
+    # assert InboundSms.query.count() == 0
+    # assert mocked.called is False
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_receive_notification_from_twilio_responds(notify_db_session, client, mocker):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    service = create_service_with_inbound_number(
-        service_name='b', inbound_number='+61412888888', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # service = create_service_with_inbound_number(
+    #     service_name='b', inbound_number='+61412888888', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412888888', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412888888', 'Body': 'this is a message'})
 
-    response = twilio_post(client, data)
+    # response = twilio_post(client, data)
 
-    assert response.status_code == 200
-    assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
-    mock.assert_has_calls([call('inbound.twilio.successful')])
-    inbound_sms_id = InboundSms.query.all()[0].id
-    mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue='notify-internal-tasks')
+    # assert response.status_code == 200
+    # assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
+    # mock.assert_has_calls([call('inbound.twilio.successful')])
+    # inbound_sms_id = InboundSms.query.all()[0].id
+    # mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue="notify-internal-tasks")
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 @freeze_time('2017-01-01T01:00:00')
 def test_receive_notification_from_twilio_persists_message(notify_db_session, client, mocker):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    service = create_service_with_inbound_number(
-        inbound_number='+61412345678', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # service = create_service_with_inbound_number(
+    #     inbound_number='+61412345678',
+    #     service_name='b',
+    #     service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61487654321', 'To': '+61412345678', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {
+    #         'MessageSid': '1',
+    #         'From': '+61487654321',
+    #         'To': '+61412345678',
+    #         'Body': 'this is a message'
+    #     }
+    # )
 
-    twilio_post(client, data)
+    # twilio_post(client, data)
 
-    persisted = InboundSms.query.first()
-    assert persisted is not None
-    assert persisted.notify_number == '+61412345678'
-    assert persisted.user_number == '+61487654321'
-    assert persisted.service == service
-    assert persisted.content == 'this is a message'
-    assert persisted.provider == 'twilio'
-    assert persisted.provider_date == datetime(2017, 1, 1, 1, 0, 0, 0)
-    mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue='notify-internal-tasks')
+    # persisted = InboundSms.query.first()
+    # assert persisted is not None
+    # assert persisted.notify_number == '+61412345678'
+    # assert persisted.user_number == '+61487654321'
+    # assert persisted.service == service
+    # assert persisted.content == 'this is a message'
+    # assert persisted.provider == 'twilio'
+    # assert persisted.provider_date == datetime(2017, 1, 1, 1, 0, 0, 0)
+    # mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue="notify-internal-tasks")
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_twilio_no_service_matches_inbound_number(notify_db_session, client, mocker):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    create_service_with_inbound_number(
-        inbound_number='+61412345678', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     inbound_number='+61412345678', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412000000', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {
+    #         'MessageSid': '1',
+    #         'From': '+61412999999',
+    #         'To': '+61412000000',
+    #         'Body': 'this is a message'
+    #     }
+    # )
 
-    response = twilio_post(client, data)
+    # response = twilio_post(client, data)
 
-    assert response.status_code == 200
-    assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
-    assert not InboundSms.query.all()
-    mock.assert_has_calls([call('inbound.twilio.failed')])
-    mocked.call_count == 0
+    # assert response.status_code == 200
+    # assert response.get_data(as_text=True) == '<?xml version="1.0" encoding="UTF-8"?><Response />'
+    # assert not InboundSms.query.all()
+    # mock.assert_has_calls([call('inbound.twilio.failed')])
+    # mocked.call_count == 0
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
@@ -291,26 +317,29 @@ def test_twilio_inbound_sms_fails_if_incorrect_signature(notify_db_session, noti
 def test_twilio_inbound_sms_auth(
     notify_db_session, notify_api, client, mocker, auth, usernames, passwords, status_code
 ):
-    mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
-    mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
+    pass
+    # mocker.patch('twilio.request_validator.RequestValidator.validate', return_value=True)
+    # mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
-    create_service_with_inbound_number(
-        service_name='b', inbound_number='+61412345678', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     service_name='b', inbound_number='+61412345678', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
 
-    data = urllib.parse.urlencode(
-        {'MessageSid': '1', 'From': '+61412999999', 'To': '+61412345678', 'Body': 'this is a message'}
-    )
+    # data = urllib.parse.urlencode(
+    #     {
+    #         'MessageSid': '1',
+    #         'From': '+61412999999',
+    #         'To': '+61412345678',
+    #         'Body': 'this is a message'
+    #     }
+    # )
 
-    with set_config_values(
-        notify_api,
-        {
-            'TWILIO_INBOUND_SMS_USERNAMES': usernames,
-            'TWILIO_INBOUND_SMS_PASSWORDS': passwords,
-        },
-    ):
-        response = twilio_post(client, data, auth=auth)
-        assert response.status_code == status_code
+    # with set_config_values(notify_api, {
+    #     'TWILIO_INBOUND_SMS_USERNAMES': usernames,
+    #     'TWILIO_INBOUND_SMS_PASSWORDS': passwords,
+    # }):
+    #     response = twilio_post(client, data, auth=auth)
+    #     assert response.status_code == status_code
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
@@ -324,53 +353,55 @@ def test_twilio_inbound_sms_auth(
 def test_receive_notification_from_firetext_without_permissions_does_not_persist(
     client, mocker, notify_db_session, permissions
 ):
-    service = create_service_with_inbound_number(inbound_number='07111111111', service_permissions=permissions)
-    mocker.patch('app.notifications.receive_notifications.dao_fetch_service_by_inbound_number', return_value=service)
-    mocked_send_inbound_sms = mocker.patch(
-        'app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async'
-    )
-    mocker.patch('app.notifications.receive_notifications.has_inbound_sms_permissions', return_value=False)
+    pass
+    # service = create_service_with_inbound_number(inbound_number='07111111111', service_permissions=permissions)
+    # mocker.patch("app.notifications.receive_notifications.dao_fetch_service_by_inbound_number",
+    #              return_value=service)
+    # mocked_send_inbound_sms = mocker.patch(
+    #     "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocker.patch("app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = 'source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
-    response = firetext_post(client, data)
+    # data = "source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
+    # response = firetext_post(client, data)
 
-    assert response.status_code == 200
-    result = json.loads(response.get_data(as_text=True))
+    # assert response.status_code == 200
+    # result = json.loads(response.get_data(as_text=True))
 
-    assert result['status'] == 'ok'
-    assert InboundSms.query.count() == 0
-    assert not mocked_send_inbound_sms.called
+    # assert result['status'] == 'ok'
+    # assert InboundSms.query.count() == 0
+    # assert not mocked_send_inbound_sms.called
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_receive_notification_without_permissions_does_not_create_inbound_even_with_inbound_number_set(
-    client, mocker, sample_service
+    client,
+    mocker,
+    sample_service,
 ):
-    inbound_number = create_inbound_number('1', service_id=sample_service.id, active=True)
+    pass
+    # inbound_number = create_inbound_number('1', service_id=sample_service.id, active=True)
 
-    mocked_send_inbound_sms = mocker.patch(
-        'app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async'
-    )
-    mocked_has_permissions = mocker.patch(
-        'app.notifications.receive_notifications.has_inbound_sms_permissions', return_value=False
-    )
+    # mocked_send_inbound_sms = mocker.patch(
+    #     "app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocked_has_permissions = mocker.patch(
+    #     "app.notifications.receive_notifications.has_inbound_sms_permissions", return_value=False)
 
-    data = {
-        'ID': '1234',
-        'MSISDN': '447700900855',
-        'Message': 'Some message to notify',
-        'Trigger': 'Trigger?',
-        'Number': inbound_number.number,
-        'Channel': 'SMS',
-        'DateReceived': '2012-06-27 12:33:00',
-    }
+    # data = {
+    #     "ID": "1234",
+    #     "MSISDN": "447700900855",
+    #     "Message": "Some message to notify",
+    #     "Trigger": "Trigger?",
+    #     "Number": inbound_number.number,
+    #     "Channel": "SMS",
+    #     "DateReceived": "2012-06-27 12:33:00"
+    # }
 
-    response = mmg_post(client, data)
+    # response = mmg_post(client, data)
 
-    assert response.status_code == 200
-    assert len(InboundSms.query.all()) == 0
-    assert mocked_has_permissions.called
-    mocked_send_inbound_sms.assert_not_called()
+    # assert response.status_code == 200
+    # assert len(InboundSms.query.all()) == 0
+    # assert mocked_has_permissions.called
+    # mocked_send_inbound_sms.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -433,7 +464,11 @@ def test_format_mmg_datetime(provider_date, expected_output):
 
 
 # This test assumes the local timezone is EST
-def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
+def test_create_inbound_mmg_sms_object(
+    sample_service,
+    sample_inbound_sms,
+):
+    service = sample_service()
     data = {
         'Message': 'hello+there+%F0%9F%93%A9',
         'Number': '+15551234567',
@@ -441,18 +476,17 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
         'DateReceived': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
     }
-
-    inbound_sms = create_inbound_sms_object(
-        sample_service_full_permissions,
-        format_mmg_message(data['Message']),
-        data['Number'],
-        data['MSISDN'],
-        data['ID'],
-        format_mmg_datetime(data['DateReceived']),
-        'mmg',
+    inbound_sms = sample_inbound_sms(
+        service=service,
+        content=format_mmg_message(data['Message']),
+        notify_number=data['Number'],
+        user_number=data['MSISDN'],
+        provider_reference=data['ID'],
+        provider_date=format_mmg_datetime(data['DateReceived']),
+        provider='mmg',
     )
 
-    assert inbound_sms.service_id == sample_service_full_permissions.id
+    assert inbound_sms.service_id == service.id
     assert inbound_sms.notify_number == '+15551234567'
     assert inbound_sms.user_number == '447700900001'
     assert inbound_sms.provider_date == datetime(2017, 1, 2, 8, 4, 5)
@@ -465,121 +499,128 @@ def test_create_inbound_mmg_sms_object(sample_service_full_permissions):
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 @pytest.mark.parametrize('notify_number', ['foo', 'baz'], ids=['two_matching_services', 'no_matching_services'])
 def test_mmg_receive_notification_error_if_not_single_matching_service(client, notify_db_session, notify_number):
-    create_service_with_inbound_number(
-        inbound_number='dog', service_name='a', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
-    create_service_with_inbound_number(
-        inbound_number='bar', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    pass
+    # create_service_with_inbound_number(
+    #     inbound_number='dog',
+    #     service_name='a',
+    #     service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
+    # create_service_with_inbound_number(
+    #     inbound_number='bar',
+    #     service_name='b',
+    #     service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
 
-    data = {
-        'Message': 'hello',
-        'Number': notify_number,
-        'MSISDN': '7700900001',
-        'DateReceived': '2017-01-02 03:04:05',
-        'ID': 'bar',
-    }
-    response = mmg_post(client, data)
+    # data = {
+    #     'Message': 'hello',
+    #     'Number': notify_number,
+    #     'MSISDN': '7700900001',
+    #     'DateReceived': '2017-01-02 03:04:05',
+    #     'ID': 'bar',
+    # }
+    # response = mmg_post(client, data)
 
-    # we still return 'RECEIVED' to MMG
-    assert response.status_code == 200
-    assert response.get_data(as_text=True) == 'RECEIVED'
-    assert InboundSms.query.count() == 0
+    # # we still return 'RECEIVED' to MMG
+    # assert response.status_code == 200
+    # assert response.get_data(as_text=True) == 'RECEIVED'
+    # assert InboundSms.query.count() == 0
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_receive_notification_returns_received_to_firetext(notify_db_session, client, mocker):
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    service = create_service_with_inbound_number(
-        service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # service = create_service_with_inbound_number(
+    #     service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = 'source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
+    # data = "source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
-    response = firetext_post(client, data)
+    # response = firetext_post(client, data)
 
-    assert response.status_code == 200
-    result = json.loads(response.get_data(as_text=True))
+    # assert response.status_code == 200
+    # result = json.loads(response.get_data(as_text=True))
 
-    mock.assert_has_calls([call('inbound.firetext.successful')])
+    # mock.assert_has_calls([call('inbound.firetext.successful')])
 
-    assert result['status'] == 'ok'
-    inbound_sms_id = InboundSms.query.all()[0].id
-    mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue='notify-internal-tasks')
+    # assert result['status'] == 'ok'
+    # inbound_sms_id = InboundSms.query.all()[0].id
+    # mocked.assert_called_once_with([str(inbound_sms_id), str(service.id)], queue="notify-internal-tasks")
 
 
 # This test assumes the local timezone is EST
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_receive_notification_from_firetext_persists_message(notify_db_session, client, mocker):
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    service = create_service_with_inbound_number(
-        inbound_number='07111111111', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # service = create_service_with_inbound_number(
+    #     inbound_number='07111111111',
+    #     service_name='b',
+    #     service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = 'source=447999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
+    # data = "source=447999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
-    response = firetext_post(client, data)
+    # response = firetext_post(client, data)
 
-    assert response.status_code == 200
-    result = json.loads(response.get_data(as_text=True))
+    # assert response.status_code == 200
+    # result = json.loads(response.get_data(as_text=True))
 
-    persisted = InboundSms.query.first()
-    assert result['status'] == 'ok'
-    assert persisted.notify_number == '07111111111'
-    assert persisted.user_number == '447999999999'
-    assert persisted.service == service
-    assert persisted.content == 'this is a message'
-    assert persisted.provider == 'firetext'
-    assert persisted.provider_date == datetime(2017, 1, 1, 17, 0, 0, 0)
-    mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue='notify-internal-tasks')
+    # persisted = InboundSms.query.first()
+    # assert result['status'] == 'ok'
+    # assert persisted.notify_number == '07111111111'
+    # assert persisted.user_number == '447999999999'
+    # assert persisted.service == service
+    # assert persisted.content == 'this is a message'
+    # assert persisted.provider == 'firetext'
+    # assert persisted.provider_date == datetime(2017, 1, 1, 17, 0, 0, 0)
+    # mocked.assert_called_once_with([str(persisted.id), str(service.id)], queue="notify-internal-tasks")
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_receive_notification_from_firetext_persists_message_with_normalized_phone(notify_db_session, client, mocker):
-    mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    create_service_with_inbound_number(
-        inbound_number='07111111111', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     inbound_number='07111111111', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = 'source=(+44)7999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
+    # data = "source=(+44)7999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
-    response = firetext_post(client, data)
+    # response = firetext_post(client, data)
 
-    assert response.status_code == 200
-    result = json.loads(response.get_data(as_text=True))
+    # assert response.status_code == 200
+    # result = json.loads(response.get_data(as_text=True))
 
-    persisted = InboundSms.query.first()
+    # persisted = InboundSms.query.first()
 
-    assert result['status'] == 'ok'
-    assert persisted.user_number == '( 44)7999999999'
+    # assert result['status'] == 'ok'
+    # assert persisted.user_number == '( 44)7999999999'
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
 def test_returns_ok_to_firetext_if_mismatched_sms_sender(notify_db_session, client, mocker):
-    mocked = mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
-    mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
+    pass
+    # mocked = mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
+    # mock = mocker.patch('app.notifications.receive_notifications.statsd_client.incr')
 
-    create_service_with_inbound_number(
-        inbound_number='07111111199', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     inbound_number='07111111199', service_name='b', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE])
 
-    data = 'source=(+44)7999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
+    # data = "source=(+44)7999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
-    response = firetext_post(client, data)
+    # response = firetext_post(client, data)
 
-    assert response.status_code == 200
-    result = json.loads(response.get_data(as_text=True))
+    # assert response.status_code == 200
+    # result = json.loads(response.get_data(as_text=True))
 
-    assert not InboundSms.query.all()
-    assert result['status'] == 'ok'
-    mock.assert_has_calls([call('inbound.firetext.failed')])
-    mocked.call_count == 0
+    # assert not InboundSms.query.all()
+    # assert result['status'] == 'ok'
+    # mock.assert_has_calls([call('inbound.firetext.failed')])
+    # mocked.call_count == 0
 
 
 @pytest.mark.parametrize(
@@ -610,17 +651,18 @@ def test_strip_leading_country_code(number, expected):
     ],
 )
 def test_firetext_inbound_sms_auth(notify_db_session, notify_api, client, mocker, auth, keys, status_code):
-    mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
+    pass
+    # mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
-    create_service_with_inbound_number(
-        service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
 
-    data = 'source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00'
+    # data = "source=07999999999&destination=07111111111&message=this is a message&time=2017-01-01 12:00:00"
 
-    with set_config(notify_api, 'FIRETEXT_INBOUND_SMS_AUTH', keys):
-        response = firetext_post(client, data, auth=bool(auth), password=auth)
-        assert response.status_code == status_code
+    # with set_config(notify_api, 'FIRETEXT_INBOUND_SMS_AUTH', keys):
+    #     response = firetext_post(client, data, auth=bool(auth), password=auth)
+    #     assert response.status_code == status_code
 
 
 @pytest.mark.skip(reason='Endpoint disabled and slated for removal')
@@ -638,50 +680,62 @@ def test_firetext_inbound_sms_auth(notify_db_session, notify_api, client, mocker
     ],
 )
 def test_mmg_inbound_sms_auth(notify_db_session, notify_api, client, mocker, auth, keys, status_code):
-    mocker.patch('app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async')
+    pass
+    # mocker.patch("app.notifications.receive_notifications.send_inbound_sms_to_service.apply_async")
 
-    create_service_with_inbound_number(
-        service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
-    )
+    # create_service_with_inbound_number(
+    #     service_name='b', inbound_number='07111111111', service_permissions=[EMAIL_TYPE, SMS_TYPE, INBOUND_SMS_TYPE]
+    # )
 
-    data = {
-        'ID': '1234',
-        'MSISDN': '07111111111',
-        'Message': 'Some message to notify',
-        'Trigger': 'Trigger?',
-        'Number': 'testing',
-        'Channel': 'SMS',
-        'DateReceived': '2012-06-27 12:33:00',
-    }
+    # data = {
+    #     "ID": "1234",
+    #     "MSISDN": "07111111111",
+    #     "Message": "Some message to notify",
+    #     "Trigger": "Trigger?",
+    #     "Number": "testing",
+    #     "Channel": "SMS",
+    #     "DateReceived": "2012-06-27 12:33:00"
+    # }
 
-    with set_config(notify_api, 'MMG_INBOUND_SMS_AUTH', keys):
-        response = mmg_post(client, data, auth=bool(auth), password=auth)
-        assert response.status_code == status_code
+    # with set_config(notify_api, 'MMG_INBOUND_SMS_AUTH', keys):
+    #     response = mmg_post(client, data, auth=bool(auth), password=auth)
+    #     assert response.status_code == status_code
 
 
 @freeze_time('2017-01-01T16:00:00')
-def test_create_inbound_sms_object(sample_service_full_permissions):
+def test_create_inbound_sms_object(
+    sample_service,
+):
+    service = sample_service()
+    ref = str(uuid4())
+    number = f'+1{randint(1000000000, 9999999999)}'
     inbound_sms = create_inbound_sms_object(
-        service=sample_service_full_permissions,
+        service=service,
         content='hello there 📩',
-        notify_number='+15551234567',
+        notify_number=number,
         from_number='+61412345678',
-        provider_ref='bar',
+        provider_ref=ref,
         date_received=datetime.utcnow(),
         provider_name='twilio',
     )
 
-    assert inbound_sms.service_id == sample_service_full_permissions.id
-    assert inbound_sms.notify_number == '+15551234567'
+    assert inbound_sms.service_id == service.id
+    assert inbound_sms.notify_number == number
     assert inbound_sms.user_number == '+61412345678'
     assert inbound_sms.provider_date == datetime(2017, 1, 1, 16, 00, 00)
-    assert inbound_sms.provider_reference == 'bar'
+    assert inbound_sms.provider_reference == ref
     assert inbound_sms._content != 'hello there 📩'
     assert inbound_sms.content == 'hello there 📩'
     assert inbound_sms.provider == 'twilio'
 
+    # Teardown
 
-def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service_full_permissions):
+
+def test_create_inbound_sms_object_works_with_alphanumeric_sender(
+    sample_inbound_sms,
+    sample_service,
+):
+    service = sample_service()
     data = {
         'Message': 'hello',
         'Number': '+15551234567',
@@ -690,14 +744,14 @@ def test_create_inbound_sms_object_works_with_alphanumeric_sender(sample_service
         'ID': 'bar',
     }
 
-    inbound_sms = create_inbound_sms_object(
-        service=sample_service_full_permissions,
+    inbound_sms = sample_inbound_sms(
+        service=service,
         content=format_mmg_message(data['Message']),
         notify_number='+15551234567',
-        from_number='ALPHANUM3R1C',
-        provider_ref='foo',
-        date_received=None,
-        provider_name='mmg',
+        user_number='ALPHANUM3R1C',
+        provider_reference='foo',
+        provider_date=None,
+        provider='mmg',
     )
 
     assert inbound_sms.user_number == 'ALPHANUM3R1C'

@@ -1,24 +1,32 @@
 import os
-import pytest
-import sqlalchemy
+
 from alembic.command import upgrade
 from alembic.config import Config
 from app import create_app, db, schemas
 from contextlib import contextmanager
 from flask import Flask
+import pytest
+import sqlalchemy
+from sqlalchemy import delete, text as sa_text
+from sqlalchemy.exc import SAWarning
+import warnings
 
 
-@pytest.fixture(scope='session')
-def notify_api(worker_id):
+application = None
+
+
+def pytest_sessionstart(session):
     """
-    Initialize a Flask application with the Flask-SQLAlchemy extension.
+    A pytest hook that runs before any test.
+    Initialize a Flask application with the Flask-SQLAlchemy extension then creates the DB and prepares it for use.
 
-    https://flask.palletsprojects.com/en/2.2.x/testing/
+    https://flask.palletsprojects.com/en/2.3.x/testing/
     https://flask-sqlalchemy.palletsprojects.com/en/3.0.x/quickstart/
     """
+    global application
 
     app = Flask('test')
-    create_app(app, worker_id)
+    application = create_app(app)
 
     # deattach server-error error handlers - error_handler_spec looks like:
     #   {'blueprint_name': {
@@ -36,12 +44,26 @@ def notify_api(worker_id):
             if error_handlers[None] == []:
                 error_handlers.pop(None)
 
-    ctx = app.app_context()
-    ctx.push()
+    create_test_db(application.config['SQLALCHEMY_DATABASE_URI'])
 
-    yield app
+    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+    ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
+    config = Config(ALEMBIC_CONFIG + '/alembic.ini')
+    config.set_main_option('script_location', ALEMBIC_CONFIG)
 
-    ctx.pop()
+    with application.app_context():
+        upgrade(config, 'head')
+        database_prep()
+
+
+@pytest.fixture(scope='session')
+def notify_api():
+    """
+    yields application context
+    """
+
+    with application.app_context():
+        yield application
 
 
 @pytest.fixture(scope='function')
@@ -58,14 +80,15 @@ def create_test_db(database_uri):
         postgres_db_uri, echo=False, isolation_level='AUTOCOMMIT', client_encoding='utf8'
     )
 
-    try:
-        result = postgres_db.execute(sqlalchemy.sql.text('CREATE DATABASE {}'.format(db_uri_parts[-1])))
-        result.close()
-    except sqlalchemy.exc.ProgrammingError:
-        # The database "test_notification_api" already exists.
-        pass
-    finally:
-        postgres_db.dispose()
+    with postgres_db.connect() as conn:
+        db_names = [name[0] for name in conn.execute(sa_text("""SELECT datname FROM pg_database;""")).all()]
+        db_name = db_uri_parts[-1]
+        if db_name not in db_names:
+            print(f'\nmaking database: {db_name}')
+            result = conn.execute(sa_text(f"""CREATE DATABASE {db_name};"""))
+            result.close()
+
+    postgres_db.dispose()
 
 
 @pytest.fixture(scope='session')
@@ -73,57 +96,24 @@ def notify_db(notify_api):
     """
     Yield an instance of flask_sqlalchemy.SQLAlchemy.
         https://flask-sqlalchemy.palletsprojects.com/en/2.x/api/#flask_sqlalchemy.SQLAlchemy
+
+    Use this fixture in other session-scoped fixtures.
     """
-
-    # Import current_app only after the app has been created and initialized via the notify_api fixture.
-    from flask import current_app
-
-    # Create a database for this worker thread.
-    create_test_db(current_app.config['SQLALCHEMY_DATABASE_URI'])
-
-    BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-    ALEMBIC_CONFIG = os.path.join(BASE_DIR, 'migrations')
-    config = Config(ALEMBIC_CONFIG + '/alembic.ini')
-    config.set_main_option('script_location', ALEMBIC_CONFIG)
-
-    with notify_api.app_context():
-        upgrade(config, 'head')
 
     yield db
 
     db.session.remove()
     db.engine.dispose()
 
-    # TODO - Properly delete the database after all workers finish?
 
-
-@pytest.fixture(scope='function')
+@pytest.fixture
 def notify_db_session(notify_db):
     """
-    This is the notify_db fixture with additional teardown code that
-    deletes a subset of tables.
+    Use this fixture with other function-scoped fixtures.
     """
 
     yield notify_db
-
     notify_db.session.remove()
-    for tbl in reversed(notify_db.metadata.sorted_tables):
-        if tbl.name not in [
-            'provider_details',
-            'key_types',
-            'branding_type',
-            'job_status',
-            'provider_details_history',
-            'template_process_type',
-            'notification_status_types',
-            'organisation_types',
-            'service_permission_types',
-            'auth_type',
-            'invite_status_type',
-            'service_callback_type',
-            'service_callback_channel',
-        ]:
-            notify_db.engine.execute(tbl.delete())
     notify_db.session.commit()
 
 
@@ -190,3 +180,63 @@ schemas.template_schema = schemas.TemplateSchema(session=db.session)
 schemas.api_key_schema = schemas.ApiKeySchema(session=db.session)
 schemas.job_schema = schemas.JobSchema(session=db.session)
 schemas.invited_user_schema = schemas.InvitedUserSchema(session=db.session)
+
+
+def database_prep():
+    """
+    This clears out all the residuals that built up over the years from the test DB.
+    Only ran at the very start of the tests and is automatic due to autouse=True.
+    """
+    # Setup metadata with reflection so we can get tables from their string names
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=SAWarning)
+        meta_data = db.MetaData(bind=db.engine)
+        db.MetaData.reflect(meta_data)
+
+    notify_service_id = application.config['NOTIFY_SERVICE_ID']
+    notify_user_id = application.config['NOTIFY_USER_ID']
+
+    # Used this format to refence the tables because model availability is inconsistent and it's best not to mix styles
+    AB = meta_data.tables['annual_billing']
+    db.session.execute(delete(AB).where(AB.c.service_id == notify_service_id))
+
+    C = meta_data.tables['communication_items']
+    db.session.execute(delete(C))
+
+    SERT = meta_data.tables['service_email_reply_to']
+    db.session.execute(delete(SERT).where(SERT.c.service_id == notify_service_id))
+
+    SP = meta_data.tables['service_permissions']
+    db.session.execute(delete(SP).where(SP.c.service_id == notify_service_id))
+
+    SSS = meta_data.tables['service_sms_senders']
+    db.session.execute(delete(SSS).where(SSS.c.service_id == notify_service_id))
+
+    SH = meta_data.tables['services_history']
+    db.session.execute(delete(SH).where(SH.c.id == notify_service_id))
+
+    UtS = meta_data.tables['user_to_service']
+    db.session.execute(delete(UtS).where(UtS.c.service_id == notify_service_id))
+
+    TR = meta_data.tables['template_redacted']
+    db.session.execute(delete(TR).where(TR.c.updated_by_id == notify_user_id))
+
+    TH = meta_data.tables['templates_history']
+    db.session.execute(delete(TH).where(TH.c.service_id == notify_service_id))
+
+    T = meta_data.tables['templates']
+    db.session.execute(delete(T).where(T.c.service_id == notify_service_id))
+
+    S = meta_data.tables['services']
+    db.session.execute(delete(S).where(S.c.id == notify_service_id))
+
+    U = meta_data.tables['users']
+    db.session.execute(delete(U).where(U.c.id == notify_user_id))
+
+    R = meta_data.tables['rates']
+    db.session.execute(delete(R))
+
+    LR = meta_data.tables['letter_rates']
+    db.session.execute(delete(LR))
+
+    db.session.commit()

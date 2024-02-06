@@ -1,4 +1,11 @@
 #!/usr/bin/env python
+
+"""
+This is the application entry point called from Dockerfile (for AWS environments) or from
+scripts/run_app.sh via Dockerfile.local (for local containers).  It creates the Flask
+application instance and calls create_app to configure this instance.
+"""
+
 from __future__ import print_function
 import os
 

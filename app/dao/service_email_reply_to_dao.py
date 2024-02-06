@@ -12,7 +12,6 @@ def dao_get_reply_to_by_service_id(service_id):
         .where(ServiceEmailReplyTo.service_id == service_id, ServiceEmailReplyTo.archived.is_(False))
         .order_by(desc(ServiceEmailReplyTo.is_default), desc(ServiceEmailReplyTo.created_at))
     )
-
     return db.session.scalars(stmt).all()
 
 

@@ -18,6 +18,8 @@ pytest < 8.0.0
 pytest-cov >= 4.0.0
 pytest-env >= 0.8.1
 pytest-mock >= 3.10.0
+
+# This provides the "-n" Pytest flag used to run tests with mutliple threads and the worker_id fixture.
 pytest-xdist >= 3.2.1
 
 # Mock out responses from the "requests" package

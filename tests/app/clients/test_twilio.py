@@ -416,14 +416,16 @@ def test_send_sms_calls_twilio_correctly(notify_db_session, requests_mock):
 
 
 @pytest.mark.parametrize('sms_sender_id', ['test_sender_id', None], ids=['has sender id', 'no sender id'])
-def test_send_sms_call_with_sender_id_and_specifics(sample_service, notify_api, mocker, sms_sender_id, requests_mock):
+def test_send_sms_call_with_sender_id_and_specifics(
+    notify_db_session, sample_service, notify_api, mocker, sms_sender_id, requests_mock
+):
     to = '+61412345678'
     content = 'my message'
     reference = 'my reference'
     sms_sender_specifics_info = {'messaging_service_sid': 'test-service-sid-123'}
 
-    create_service_sms_sender(
-        service=sample_service,
+    service_sms_sender = create_service_sms_sender(
+        service=sample_service(),
         sms_sender='test_sender',
         is_default=False,
         sms_sender_specifics=sms_sender_specifics_info,
@@ -454,18 +456,23 @@ def test_send_sms_call_with_sender_id_and_specifics(sample_service, notify_api, 
         to, content, reference, service_id='test_service_id', sender='test_sender', sms_sender_id=sms_sender_id
     )
 
-    assert response_dict['sid'] == twilio_sid
+    try:
+        assert response_dict['sid'] == twilio_sid
 
-    assert requests_mock.call_count == 1
-    req = requests_mock.request_history[0]
-    assert req.url == 'https://api.twilio.com/2010-04-01/Accounts/TWILIO_TEST_ACCOUNT_SID_XXX/Messages.json'
-    assert req.method == 'POST'
+        assert requests_mock.call_count == 1
+        req = requests_mock.request_history[0]
+        assert req.url == 'https://api.twilio.com/2010-04-01/Accounts/TWILIO_TEST_ACCOUNT_SID_XXX/Messages.json'
+        assert req.method == 'POST'
 
-    d = dict(parse_qsl(req.text))
+        d = dict(parse_qsl(req.text))
 
-    assert d['To'] == '+61412345678'
-    assert d['Body'] == 'my message'
-    assert d['MessagingServiceSid'] == 'test-service-sid-123'
+        assert d['To'] == to
+        assert d['Body'] == content
+        assert d['MessagingServiceSid'] == sms_sender_specifics_info['messaging_service_sid']
+    finally:
+        # Teardown
+        notify_db_session.session.delete(service_sms_sender)
+        notify_db_session.session.commit()
 
 
 def test_send_sms_sends_from_hardcoded_number(notify_api, mocker, requests_mock):
@@ -595,5 +602,6 @@ def test_send_sms_twilio_callback(mocker, service_sms_sender, environment, expec
         # Assert the correct callback URL is used in the request
         expected_callback_url = build_callback_url(expected_prefix, twilio_sms_client)
         assert d['StatusCallback'] == expected_callback_url
+
         # Assert the expected Twilio SID is returned
         assert response_dict['sid'] == twilio_sid

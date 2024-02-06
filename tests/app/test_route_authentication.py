@@ -3,7 +3,7 @@ from flask import url_for
 from werkzeug.routing import UUIDConverter, UnicodeConverter, IntegerConverter, PathConverter
 
 
-def test_all_routes_have_authentication(client, notify_db_session):
+def test_all_routes_have_authentication(client):
     routes_without_authentication = set()
 
     # Populate the set with routes that do not enforce authentication.

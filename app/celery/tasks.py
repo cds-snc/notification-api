@@ -81,7 +81,7 @@ def process_job(
     if not service.active:
         job.job_status = JOB_STATUS_CANCELLED
         dao_update_job(job)
-        current_app.logger.warning('Job {} has been cancelled, service {} is inactive'.format(job_id, service.id))
+        current_app.logger.warning('Job %s has been cancelled, service %s is inactive', job_id, service.id)
         return
 
     if __sending_limits_for_job_exceeded(service, job, job_id):
@@ -96,7 +96,7 @@ def process_job(
     TemplateClass = get_template_class(db_template.template_type)
     template = TemplateClass(db_template.__dict__)
 
-    current_app.logger.debug('Starting job {} processing {} notifications'.format(job_id, job.notification_count))
+    current_app.logger.debug('Starting job %s processing %s notifications', job_id, job.notification_count)
 
     for row in RecipientCSV(
         s3.get_job_from_s3(str(service.id), str(job_id)),
@@ -120,10 +120,10 @@ def job_complete(
     dao_update_job(job)
 
     if resumed:
-        current_app.logger.info('Resumed Job {} completed at {}'.format(job.id, job.created_at))
+        current_app.logger.info('Resumed Job %s completed at %s', job.id, job.created_at)
     else:
         current_app.logger.info(
-            'Job {} created at {} started at {} finished at {}'.format(job.id, job.created_at, start, finished)
+            'Job %s created at %s started at %s finished at %s', job.id, job.created_at, start, finished
         )
 
 
@@ -177,9 +177,7 @@ def __sending_limits_for_job_exceeded(
         job.processing_finished = datetime.utcnow()
         dao_update_job(job)
         current_app.logger.info(
-            'Job {} size {} error. Sending limits {} exceeded'.format(
-                job_id, job.notification_count, service.message_limit
-            )
+            'Job %s size %s error. Sending limits %s exceeded', job_id, job.notification_count, service.message_limit
         )
         return True
     return False
@@ -204,7 +202,7 @@ def save_sms(
         reply_to_text = template.get_reply_to_text()
 
     if not service_allowed_to_send_to(notification['to'], service, KEY_TYPE_NORMAL):
-        current_app.logger.debug('SMS {} failed as restricted service'.format(notification_id))
+        current_app.logger.debug('SMS %s failed as restricted service', notification_id)
         return
 
     try:
@@ -240,9 +238,10 @@ def save_sms(
             )
 
         current_app.logger.debug(
-            'SMS {} created at {} for job {}'.format(
-                saved_notification.id, saved_notification.created_at, notification.get('job', None)
-            )
+            'SMS %s created at %s for job %s',
+            saved_notification.id,
+            saved_notification.created_at,
+            notification.get('job', None)
         )
 
     except SQLAlchemyError as e:
@@ -269,7 +268,7 @@ def save_email(
         reply_to_text = template.get_reply_to_text()
 
     if not service_allowed_to_send_to(notification['to'], service, KEY_TYPE_NORMAL):
-        current_app.logger.info('Email {} failed as restricted service'.format(notification_id))
+        current_app.logger.info('Email %s failed as restricted service', notification_id)
         return
 
     try:
@@ -294,7 +293,7 @@ def save_email(
             queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE,
         )
 
-        current_app.logger.debug('Email {} created at {}'.format(saved_notification.id, saved_notification.created_at))
+        current_app.logger.debug('Email %s created at %s', saved_notification.id, saved_notification.created_at)
     except SQLAlchemyError as e:
         handle_exception(self, notification, notification_id, e)
 
@@ -349,7 +348,7 @@ def save_letter(
         else:
             update_notification_status_by_reference(saved_notification.reference, 'delivered')
 
-        current_app.logger.debug('Letter {} created at {}'.format(saved_notification.id, saved_notification.created_at))
+        current_app.logger.debug('Letter %s created at %s', saved_notification.id, saved_notification.created_at)
     except SQLAlchemyError as e:
         handle_exception(self, notification, notification_id, e)
 
@@ -360,7 +359,10 @@ def update_letter_notifications_to_sent_to_dvla(
     self,
     notification_references,
 ):
-    # This task will be called by the FTP app to update notifications as sent to DVLA
+    """
+    The FTP app calls this task to update notifications as sent to DVLA.
+    """
+
     provider = get_current_provider(LETTER_TYPE)
 
     updated_count, _ = dao_update_notifications_by_reference(
@@ -373,7 +375,7 @@ def update_letter_notifications_to_sent_to_dvla(
         },
     )
 
-    current_app.logger.info('Updated {} letter notifications to sending'.format(updated_count))
+    current_app.logger.info('Updated %s letter notifications to sending', updated_count)
 
 
 @notify_celery.task(bind=True, name='update-letter-notifications-to-error')
@@ -409,11 +411,11 @@ def handle_exception(
         # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
         # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
         # send to the retry queue.
-        current_app.logger.exception('Retry' + retry_msg)
+        current_app.logger.exception('Retry %s', retry_msg)
         try:
             task.retry(queue=QueueNames.RETRY, exc=exc)
         except task.MaxRetriesExceededError:
-            current_app.logger.error('Max retry failed' + retry_msg)
+            current_app.logger.error('Max retry failed %s', retry_msg)
 
 
 def get_template_class(template_type):
@@ -552,7 +554,7 @@ def process_incomplete_jobs(job_ids):
         job.processing_started = datetime.utcnow()
         dao_update_job(job)
 
-    current_app.logger.info('Resuming Job(s) {}'.format(job_ids))
+    current_app.logger.info('Resuming Job(s) %s', job_ids)
     for job_id in job_ids:
         process_incomplete_job(job_id)
 
@@ -567,7 +569,7 @@ def process_incomplete_job(job_id):
     else:
         resume_from_row = -1  # The first row in the csv with a number is row 0
 
-    current_app.logger.info('Resuming job {} from row {}'.format(job_id, resume_from_row))
+    current_app.logger.info('Resuming job %s from row %s', job_id, resume_from_row)
 
     db_template = dao_get_template_by_id(job.template_id, job.template_version)
 
@@ -593,7 +595,8 @@ def process_returned_letters_list(notification_references):
     )
 
     current_app.logger.info(
-        'Updated {} letter notifications ({} history notifications, from {} references) to returned-letter'.format(
-            updated, updated_history, len(notification_references)
-        )
+        'Updated %s letter notifications (%s history notifications, from %s references) to returned-letter',
+        updated,
+        updated_history,
+        len(notification_references)
     )

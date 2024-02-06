@@ -12,7 +12,7 @@ from app.service.service_senders_schema import update_service_sms_sender_request
 from jsonschema import ValidationError
 
 
-def test_service_inbound_api_schema_validates():
+def test_service_inbound_api_schema_validates(client):
     under_test = {
         'url': 'https://some_url.for_service',
         'bearer_token': 'something_ten_chars',
@@ -23,7 +23,7 @@ def test_service_inbound_api_schema_validates():
 
 
 @pytest.mark.parametrize('url', ['not a url', 'https not a url', 'http://valid.com'])
-def test_service_inbound_api_schema_errors_for_url_not_valid_url(url):
+def test_service_inbound_api_schema_errors_for_url_not_valid_url(client, url):
     under_test = {
         'url': url,
         'bearer_token': 'something_ten_chars',
@@ -37,7 +37,7 @@ def test_service_inbound_api_schema_errors_for_url_not_valid_url(url):
     assert errors[0]['message'] == 'url is not a valid https url'
 
 
-def test_service_inbound_api_schema_bearer_token_under_ten_char():
+def test_service_inbound_api_schema_bearer_token_under_ten_char(client):
     under_test = {
         'url': 'https://some_url.for_service',
         'bearer_token': 'shorty',
@@ -51,7 +51,7 @@ def test_service_inbound_api_schema_bearer_token_under_ten_char():
     assert errors[0]['message'] == 'bearer_token shorty is too short'
 
 
-def test_create_service_callback_api_schema_validate_succeeds():
+def test_create_service_callback_api_schema_validate_succeeds(client):
     under_test = {
         'url': 'https://some_url.for_service',
         'bearer_token': 'something_ten_chars',
@@ -64,7 +64,7 @@ def test_create_service_callback_api_schema_validate_succeeds():
 
 
 @pytest.mark.parametrize('key, value', [(None, None)])
-def test_create_service_callback_api_schema_validate_fails_when_missing_properties(key, value):
+def test_create_service_callback_api_schema_validate_fails_when_missing_properties(client, key, value):
     under_test = {key: value}
 
     with pytest.raises(ValidationError) as e:
@@ -83,7 +83,7 @@ def test_create_service_callback_api_schema_validate_fails_when_missing_properti
         ('url', 'urls', 'https://some_url.for_service'),
     ],
 )
-def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(key, wrong_key, value):
+def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(client, key, wrong_key, value):
     under_test = {
         'url': 'https://some_url.for_service',
         'bearer_token': 'something_ten_chars',
@@ -103,7 +103,7 @@ def test_create_service_callback_api_schema_validate_fails_with_misspelled_keys(
     assert errors[0]['message'] == f'{key} is a required property'
 
 
-def test_update_service_callback_api_schema_validate_succeeds():
+def test_update_service_callback_api_schema_validate_succeeds(client):
     under_test = {
         'url': 'https://some_url.for_service',
         'bearer_token': 'something_ten_chars',
@@ -112,7 +112,7 @@ def test_update_service_callback_api_schema_validate_succeeds():
     assert validate(under_test, update_service_callback_api_request_schema) == under_test
 
 
-def test_update_service_callback_api_schema_validate_fails_with_invalid_keys():
+def test_update_service_callback_api_schema_validate_fails_with_invalid_keys(client):
     under_test = {
         'bearers_token': 'something_ten_chars',
     }
@@ -126,7 +126,7 @@ def test_update_service_callback_api_schema_validate_fails_with_invalid_keys():
     assert 'bearers_token' in errors[0]['message']
 
 
-def test_update_service_sms_sender_request_schema_validates():
+def test_update_service_sms_sender_request_schema_validates(client):
     under_test = {
         'sms_sender': 'sender',
         'sms_sender_specifics': {

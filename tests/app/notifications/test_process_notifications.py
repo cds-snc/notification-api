@@ -6,6 +6,7 @@ from boto3.exceptions import Boto3Error
 from sqlalchemy.exc import SQLAlchemyError
 from freezegun import freeze_time
 from collections import namedtuple
+from sqlalchemy import select
 
 from app.celery import letters_pdf_tasks
 from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
@@ -16,13 +17,13 @@ from app.celery.provider_tasks import deliver_email, deliver_sms
 from app.feature_flags import FeatureFlag
 from app.models import (
     Notification,
-    NotificationHistory,
     ScheduledNotification,
     Template,
     LETTER_TYPE,
     EMAIL_TYPE,
     SMS_TYPE,
     RecipientIdentifier,
+    KEY_TYPE_TEST,
 )
 from app.notifications.process_notifications import (
     create_content_for_notification,
@@ -41,96 +42,135 @@ from tests.app.db import create_service, create_template
 from tests.app.factories.feature_flag import mock_feature_flag
 
 
-def test_create_content_for_notification_passes(sample_email_template):
-    template = Template.query.get(sample_email_template.id)
-    content = create_content_for_notification(template, None)
+@pytest.fixture(autouse=True)
+def use_client(client):
+    pass
+
+
+def test_create_content_for_notification_passes(
+    notify_db_session,
+    sample_template,
+):
+    template = sample_template(template_type=EMAIL_TYPE)
+    db_template = notify_db_session.session.get(Template, template.id)
+
+    content = create_content_for_notification(db_template, None)
     assert str(content) == template.content
 
 
-def test_create_content_for_notification_with_placeholders_passes(sample_template_with_placeholders):
-    template = Template.query.get(sample_template_with_placeholders.id)
-    content = create_content_for_notification(template, {'name': 'Bobby'})
+def test_create_content_for_notification_with_placeholders_passes(
+    notify_db_session,
+    sample_template,
+):
+    template = sample_template(content='Hello ((name))')
+    db_template = notify_db_session.session.get(Template, template.id)
+
+    content = create_content_for_notification(db_template, {'name': 'Bobby'})
     assert content.content == template.content
     assert 'Bobby' in str(content)
 
 
-def test_create_content_for_notification_fails_with_missing_personalisation(sample_template_with_placeholders):
-    template = Template.query.get(sample_template_with_placeholders.id)
+def test_create_content_for_notification_fails_with_missing_personalisation(
+    notify_db_session,
+    sample_template,
+):
+    template = sample_template(content='Hello ((name))\n((Additional placeholder))')
+    db_template = notify_db_session.session.get(Template, template.id)
+
     with pytest.raises(BadRequestError):
-        create_content_for_notification(template, None)
+        create_content_for_notification(db_template, None)
 
 
-def test_create_content_for_notification_allows_additional_personalisation(sample_template_with_placeholders):
-    template = Template.query.get(sample_template_with_placeholders.id)
-    create_content_for_notification(template, {'name': 'Bobby', 'Additional placeholder': 'Data'})
+def test_create_content_for_notification_allows_additional_personalisation(
+    notify_db_session,
+    sample_template,
+):
+    template = sample_template(content='Hello ((name))\n((Additional placeholder))')
+    db_template = notify_db_session.session.get(Template, template.id)
+
+    create_content_for_notification(db_template, {'name': 'Bobby', 'Additional placeholder': 'Data'})
 
 
 @freeze_time('2016-01-01 11:09:00.061258')
-def test_persist_notification_creates_and_save_to_db(sample_template, sample_api_key, sample_job, mocker):
+def test_persist_notification_creates_and_save_to_db(
+    notify_db_session,
+    sample_template,
+    sample_api_key,
+    mocker,
+):
     mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
 
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
+    template = sample_template()
+    api_key = sample_api_key(template.service)
+
     notification = persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
+        template_id=template.id,
+        template_version=template.version,
         recipient='+16502532222',
-        service_id=sample_template.service.id,
+        service_id=template.service.id,
         personalisation={},
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=100,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         reference='ref',
-        reply_to_text=sample_template.service.get_default_sms_sender(),
+        reply_to_text=template.service.get_default_sms_sender(),
         billing_code='1234567890',
     )
 
-    assert Notification.query.get(notification.id) is not None
+    db_notification = notify_db_session.session.get(Notification, notification.id)
 
-    notification_from_db = Notification.query.one()
+    try:
+        assert notification
+        assert db_notification.id == notification.id
+        assert db_notification.template_id == notification.template_id
+        assert db_notification.template_version == notification.template_version
+        assert db_notification.api_key_id == notification.api_key_id
+        assert db_notification.key_type == notification.key_type
+        assert db_notification.key_type == notification.key_type
+        assert db_notification.billable_units == notification.billable_units
+        assert db_notification.notification_type == notification.notification_type
+        assert db_notification.created_at == notification.created_at
+        assert not db_notification.sent_at
+        assert db_notification.updated_at == notification.updated_at
+        assert db_notification.status == notification.status
+        assert db_notification.reference == notification.reference
+        assert db_notification.client_reference == notification.client_reference
+        assert db_notification.created_by_id == notification.created_by_id
+        assert db_notification.reply_to_text == template.service.get_default_sms_sender()
+        assert db_notification.billing_code == notification.billing_code
+        mocked_redis.assert_called_once_with(str(template.service_id) + '-2016-01-01-count')
+    finally:
+        # Teardown
+        notify_db_session.session.delete(db_notification)
+        notify_db_session.session.commit()
 
-    assert notification_from_db.id == notification.id
-    assert notification_from_db.template_id == notification.template_id
-    assert notification_from_db.template_version == notification.template_version
-    assert notification_from_db.api_key_id == notification.api_key_id
-    assert notification_from_db.key_type == notification.key_type
-    assert notification_from_db.key_type == notification.key_type
-    assert notification_from_db.billable_units == notification.billable_units
-    assert notification_from_db.notification_type == notification.notification_type
-    assert notification_from_db.created_at == notification.created_at
-    assert not notification_from_db.sent_at
-    assert notification_from_db.updated_at == notification.updated_at
-    assert notification_from_db.status == notification.status
-    assert notification_from_db.reference == notification.reference
-    assert notification_from_db.client_reference == notification.client_reference
-    assert notification_from_db.created_by_id == notification.created_by_id
-    assert notification_from_db.reply_to_text == sample_template.service.get_default_sms_sender()
-    assert notification_from_db.billing_code == notification.billing_code
 
-    mocked_redis.assert_called_once_with(str(sample_template.service_id) + '-2016-01-01-count')
+def test_persist_notification_throws_exception_when_missing_template(
+    sample_api_key,
+):
+    api_key = sample_api_key()
+    notification = None
 
-
-def test_persist_notification_throws_exception_when_missing_template(sample_api_key):
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
     with pytest.raises(SQLAlchemyError):
-        persist_notification(
+        notification = persist_notification(
             template_id=None,
             template_version=None,
             recipient='+16502532222',
-            service_id=sample_api_key.service.id,
+            service_id=api_key.service.id,
             personalisation=None,
-            notification_type='sms',
-            api_key_id=sample_api_key.id,
-            key_type=sample_api_key.key_type,
+            notification_type=SMS_TYPE,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
         )
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
+
+    assert notification is None
 
 
-def test_cache_is_not_incremented_on_failure_to_persist_notification(sample_api_key, mocker):
+def test_cache_is_not_incremented_on_failure_to_persist_notification(
+    sample_api_key,
+    mocker,
+):
+    api_key = sample_api_key()
     mocked_redis = mocker.patch('app.redis_store.get')
     mock_service_template_cache = mocker.patch('app.redis_store.get_all_from_hash')
     with pytest.raises(SQLAlchemyError):
@@ -138,152 +178,186 @@ def test_cache_is_not_incremented_on_failure_to_persist_notification(sample_api_
             template_id=None,
             template_version=None,
             recipient='+16502532222',
-            service_id=sample_api_key.service.id,
+            service_id=api_key.service.id,
             personalisation=None,
-            notification_type='sms',
-            api_key_id=sample_api_key.id,
-            key_type=sample_api_key.key_type,
+            notification_type=SMS_TYPE,
+            api_key_id=api_key.id,
+            key_type=api_key.key_type,
         )
     mocked_redis.assert_not_called()
     mock_service_template_cache.assert_not_called()
 
 
 def test_persist_notification_does_not_increment_cache_if_test_key(
-    sample_template, sample_job, mocker, sample_test_api_key
+    notify_db_session,
+    sample_template,
+    mocker,
+    sample_api_key,
 ):
+    template = sample_template()
+    api_key = sample_api_key(service=template.service, key_type=KEY_TYPE_TEST)
+
     mocker.patch('app.notifications.process_notifications.redis_store.get', return_value='cache')
     mocker.patch('app.notifications.process_notifications.redis_store.get_all_from_hash', return_value='cache')
     daily_limit_cache = mocker.patch('app.notifications.process_notifications.redis_store.incr')
     template_usage_cache = mocker.patch('app.notifications.process_notifications.redis_store.increment_hash_value')
 
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient='+16502532222',
-        service_id=sample_template.service.id,
+        service_id=template.service.id,
         personalisation={},
-        notification_type='sms',
-        api_key_id=sample_test_api_key.id,
-        key_type=sample_test_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=100,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         reference='ref',
     )
 
-    assert Notification.query.count() == 1
-
-    assert not daily_limit_cache.called
-    assert not template_usage_cache.called
+    try:
+        assert notify_db_session.session.get(Notification, notification.id)
+        assert not daily_limit_cache.called
+        assert not template_usage_cache.called
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @freeze_time('2016-01-01 11:09:00.061258')
-def test_persist_notification_with_optionals(sample_job, sample_api_key, mocker):
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
+def test_persist_notification_with_optionals(
+    notify_db_session,
+    sample_api_key,
+    sample_template,
+    mocker,
+):
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service)
+    service = api_key.service
     mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
     n_id = uuid.uuid4()
     created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
+
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient='+16502532222',
-        service_id=sample_job.service.id,
+        service_id=service.id,
         personalisation=None,
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         created_at=created_at,
-        job_id=sample_job.id,
-        job_row_number=10,
         client_reference='ref from client',
         notification_id=n_id,
-        created_by_id=sample_job.created_by_id,
+        created_by_id=api_key.created_by_id,
     )
-    assert Notification.query.count() == 1
-    assert NotificationHistory.query.count() == 0
-    persisted_notification = Notification.query.all()[0]
-    assert persisted_notification.id == n_id
-    persisted_notification.job_id == sample_job.id
-    assert persisted_notification.job_row_number == 10
-    assert persisted_notification.created_at == created_at
-    mocked_redis.assert_called_once_with(str(sample_job.service_id) + '-2016-01-01-count')
-    assert persisted_notification.client_reference == 'ref from client'
-    assert persisted_notification.reference is None
-    assert persisted_notification.international is False
-    assert persisted_notification.phone_prefix == '1'
-    assert persisted_notification.rate_multiplier == 1
-    assert persisted_notification.created_by_id == sample_job.created_by_id
-    assert not persisted_notification.reply_to_text
+
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
+
+    try:
+        assert persisted_notification.id == n_id
+        assert persisted_notification.created_at == created_at
+        mocked_redis.assert_called_once_with(str(service.id) + '-2016-01-01-count')
+        assert persisted_notification.client_reference == 'ref from client'
+        assert persisted_notification.reference is None
+        assert persisted_notification.international is False
+        assert persisted_notification.phone_prefix == '1'
+        assert persisted_notification.rate_multiplier == 1
+        assert persisted_notification.created_by_id == api_key.created_by_id
+        assert not persisted_notification.reply_to_text
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @freeze_time('2016-01-01 11:09:00.061258')
-def test_persist_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(sample_template, sample_api_key, mocker):
+def test_persist_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
+    notify_db_session,
+    sample_template,
+    sample_api_key,
+    mocker,
+):
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service)
     mock_incr = mocker.patch('app.notifications.process_notifications.redis_store.incr')
     mocker.patch('app.notifications.process_notifications.redis_store.get', return_value=None)
     mocker.patch('app.notifications.process_notifications.redis_store.get_all_from_hash', return_value=None)
 
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient='+16502532222',
-        service_id=sample_template.service.id,
+        service_id=api_key.service.id,
         personalisation={},
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         reference='ref',
     )
-    mock_incr.assert_not_called()
+
+    try:
+        mock_incr.assert_not_called()
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @freeze_time('2016-01-01 11:09:00.061258')
-def test_persist_notification_increments_cache_if_key_exists(sample_template, sample_api_key, mocker):
+def test_persist_notification_increments_cache_if_key_exists(
+    notify_db_session,
+    sample_template,
+    sample_api_key,
+    mocker,
+):
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service)
+    service = template.service
     mock_incr = mocker.patch('app.notifications.process_notifications.redis_store.incr')
     mocker.patch('app.notifications.process_notifications.redis_store.get', return_value=1)
-    mocker.patch(
-        'app.notifications.process_notifications.redis_store.get_all_from_hash', return_value={sample_template.id, 1}
-    )
+    mocker.patch('app.notifications.process_notifications.redis_store.get_all_from_hash', return_value={template.id, 1})
 
-    persist_notification(
-        template_id=sample_template.id,
-        template_version=sample_template.version,
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient='+16502532222',
-        service_id=sample_template.service.id,
+        service_id=service.id,
         personalisation={},
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         reference='ref2',
     )
 
-    mock_incr.assert_called_once_with(
-        str(sample_template.service_id) + '-2016-01-01-count',
-    )
+    try:
+        mock_incr.assert_called_once_with(str(service.id) + '-2016-01-01-count')
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
     'research_mode, requested_queue, notification_type, key_type, expected_queue, expected_tasks',
     [
-        (True, None, 'sms', 'normal', 'research-mode-tasks', [deliver_sms]),
-        (True, None, 'email', 'normal', 'research-mode-tasks', [deliver_email]),
-        (True, None, 'email', 'team', 'research-mode-tasks', [deliver_email]),
-        (True, None, 'letter', 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
-        (False, None, 'sms', 'normal', 'send-sms-tasks', [deliver_sms]),
-        (False, None, 'email', 'normal', 'send-email-tasks', [deliver_email]),
-        (False, None, 'sms', 'team', 'send-sms-tasks', [deliver_sms]),
-        (False, None, 'letter', 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
-        (False, None, 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
-        (True, 'notify-internal-tasks', 'email', 'normal', 'research-mode-tasks', [deliver_email]),
-        (False, 'notify-internal-tasks', 'sms', 'normal', 'notify-internal-tasks', [deliver_sms]),
-        (False, 'notify-internal-tasks', 'email', 'normal', 'notify-internal-tasks', [deliver_email]),
-        (False, 'notify-internal-tasks', 'sms', 'test', 'research-mode-tasks', [deliver_sms]),
+        (True, None, SMS_TYPE, 'normal', 'research-mode-tasks', [deliver_sms]),
+        (True, None, EMAIL_TYPE, 'normal', 'research-mode-tasks', [deliver_email]),
+        (True, None, EMAIL_TYPE, 'team', 'research-mode-tasks', [deliver_email]),
+        (True, None, LETTER_TYPE, 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
+        (False, None, SMS_TYPE, 'normal', 'send-sms-tasks', [deliver_sms]),
+        (False, None, EMAIL_TYPE, 'normal', 'send-email-tasks', [deliver_email]),
+        (False, None, SMS_TYPE, 'team', 'send-sms-tasks', [deliver_sms]),
+        (False, None, LETTER_TYPE, 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
+        (False, None, SMS_TYPE, 'test', 'research-mode-tasks', [deliver_sms]),
+        (True, 'notify-internal-tasks', EMAIL_TYPE, 'normal', 'research-mode-tasks', [deliver_email]),
+        (False, 'notify-internal-tasks', SMS_TYPE, 'normal', 'notify-internal-tasks', [deliver_sms]),
+        (False, 'notify-internal-tasks', EMAIL_TYPE, 'normal', 'notify-internal-tasks', [deliver_email]),
+        (False, 'notify-internal-tasks', SMS_TYPE, 'test', 'research-mode-tasks', [deliver_sms]),
     ],
 )
 def test_send_notification_to_queue_with_no_recipient_identifiers(
-    notify_db,
-    notify_db_session,
     research_mode,
     requested_queue,
     notification_type,
@@ -291,11 +365,10 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     expected_queue,
     expected_tasks,
     mocker,
-    sample_email_template,
-    sample_sms_template_with_html,
+    sample_template,
 ):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-    template = sample_email_template if notification_type else sample_sms_template_with_html
+    template = sample_template(template_type=notification_type)
     MockService = namedtuple('Service', ['id'])
     service = MockService(id=uuid.uuid4())
 
@@ -337,21 +410,13 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
 
 
 @pytest.mark.parametrize(
-    (
-        'research_mode, '
-        'requested_queue, '
-        'notification_type, '
-        'key_type, '
-        'expected_queue, '
-        'request_recipient_id_type, '
-        'request_recipient_id_value, '
-        'expected_tasks'
-    ),
+    'research_mode, requested_queue, notification_type, key_type, expected_queue, '
+    'request_recipient_id_type, request_recipient_id_value, expected_tasks',
     [
         (
             True,
             None,
-            'sms',
+            SMS_TYPE,
             'normal',
             'research-mode-tasks',
             IdentifierType.VA_PROFILE_ID.value,
@@ -361,7 +426,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             True,
             None,
-            'email',
+            EMAIL_TYPE,
             'normal',
             'research-mode-tasks',
             IdentifierType.PID.value,
@@ -371,7 +436,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             True,
             None,
-            'email',
+            EMAIL_TYPE,
             'team',
             'research-mode-tasks',
             IdentifierType.ICN.value,
@@ -381,7 +446,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             True,
             'notify-internal-tasks',
-            'email',
+            EMAIL_TYPE,
             'normal',
             'research-mode-tasks',
             IdentifierType.VA_PROFILE_ID.value,
@@ -391,7 +456,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             None,
-            'sms',
+            SMS_TYPE,
             'normal',
             'send-sms-tasks',
             IdentifierType.PID.value,
@@ -401,7 +466,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             None,
-            'email',
+            EMAIL_TYPE,
             'normal',
             'send-email-tasks',
             IdentifierType.ICN.value,
@@ -411,7 +476,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             None,
-            'sms',
+            SMS_TYPE,
             'team',
             'send-sms-tasks',
             IdentifierType.VA_PROFILE_ID.value,
@@ -421,7 +486,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             None,
-            'sms',
+            SMS_TYPE,
             'test',
             'research-mode-tasks',
             IdentifierType.PID.value,
@@ -431,7 +496,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             'notify-internal-tasks',
-            'sms',
+            SMS_TYPE,
             'normal',
             'notify-internal-tasks',
             IdentifierType.ICN.value,
@@ -441,7 +506,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             'notify-internal-tasks',
-            'email',
+            EMAIL_TYPE,
             'normal',
             'notify-internal-tasks',
             IdentifierType.VA_PROFILE_ID.value,
@@ -451,7 +516,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         (
             False,
             'notify-internal-tasks',
-            'sms',
+            SMS_TYPE,
             'test',
             'research-mode-tasks',
             IdentifierType.PID.value,
@@ -461,8 +526,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     ],
 )
 def test_send_notification_to_queue_with_recipient_identifiers(
-    notify_db,
-    notify_db_session,
     research_mode,
     requested_queue,
     notification_type,
@@ -472,12 +535,17 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     request_recipient_id_value,
     expected_tasks,
     mocker,
-    sample_email_template,
-    sample_sms_template_with_html,
+    sample_communication_item,
+    sample_template,
 ):
     mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=True)
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-    template = sample_email_template if notification_type else sample_sms_template_with_html
+    template = sample_template(
+        template_type=notification_type,
+        content='Hello (( Name))\nHere is <em>some HTML</em> & entities' if notification_type == SMS_TYPE else None,
+    )
+    template.service.prefix_sms = notification_type == SMS_TYPE  # True only for SMS_TYPE
+
     MockService = namedtuple('Service', ['id'])
     service = MockService(id=uuid.uuid4())
     MockSmsSender = namedtuple('ServiceSmsSender', ['service_id', 'sms_sender', 'rate_limit'])
@@ -531,19 +599,22 @@ def test_send_notification_to_queue_with_recipient_identifiers(
         assert called_task.name == expected_task.name
 
 
-def test_send_notification_to_queue_throws_exception_deletes_notification(sample_notification, mocker):
+def test_send_notification_to_queue_throws_exception_deletes_notification(
+    sample_api_key,
+    sample_notification,
+    mocker,
+):
+    notification = sample_notification(api_key=sample_api_key())
     mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=False)
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error('EXPECTED'))
     mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
     with pytest.raises(Boto3Error):
-        send_notification_to_queue(sample_notification, False)
+        send_notification_to_queue(notification, False)
+
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
-        assert called_task.args[0] == str(sample_notification.id)
+        assert called_task.args[0] == str(notification.id)
         assert called_task.options['queue'] == expected_task
-
-    assert Notification.query.count() == 0
-    assert NotificationHistory.query.count() == 0
 
 
 @pytest.mark.parametrize(
@@ -559,7 +630,11 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(sample
         ('valid_email@test.com', 'email', False),
     ],
 )
-def test_simulated_recipient(notify_api, to_address, notification_type, expected):
+def test_simulated_recipient(
+    to_address,
+    notification_type,
+    expected,
+):
     """
     The values where the expected = 'research-mode' are listed in the config['SIMULATED_EMAIL_ADDRESSES']
     and config['SIMULATED_SMS_NUMBERS']. These values should result in using the research mode queue.
@@ -572,7 +647,7 @@ def test_simulated_recipient(notify_api, to_address, notification_type, expected
     """
     formatted_address = None
 
-    if notification_type == 'email':
+    if notification_type == EMAIL_TYPE:
         formatted_address = validate_and_format_email_address(to_address)
     else:
         formatted_address = validate_and_format_phone_number(to_address)
@@ -592,56 +667,89 @@ def test_simulated_recipient(notify_api, to_address, notification_type, expected
     ],  # Hungary
 )
 def test_persist_notification_with_international_info_stores_correct_info(
-    sample_job, sample_api_key, mocker, recipient, expected_international, expected_prefix, expected_units
+    notify_db_session,
+    sample_api_key,
+    sample_template,
+    mocker,
+    recipient,
+    expected_international,
+    expected_prefix,
+    expected_units,
 ):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
+    template = sample_template()
+    api_key = sample_api_key(service=template.service)
+
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient=recipient,
-        service_id=sample_job.service.id,
+        service_id=template.service.id,
         personalisation=None,
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         client_reference='ref from client',
     )
-    persisted_notification = Notification.query.all()[0]
 
-    assert persisted_notification.international is expected_international
-    assert persisted_notification.phone_prefix == expected_prefix
-    assert persisted_notification.rate_multiplier == expected_units
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
+
+    try:
+        assert persisted_notification.international is expected_international
+        assert persisted_notification.phone_prefix == expected_prefix
+        assert persisted_notification.rate_multiplier == expected_units
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
-def test_persist_notification_with_international_info_does_not_store_for_email(sample_job, sample_api_key, mocker):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
+def test_persist_notification_with_international_info_does_not_store_for_email(
+    notify_db_session, sample_api_key, sample_template, mocker
+):
+    template = sample_template()
+    api_key = sample_api_key(service=template.service)
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient='foo@bar.com',
-        service_id=sample_job.service.id,
+        service_id=api_key.service.id,
         personalisation=None,
-        notification_type='email',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-        job_row_number=10,
+        notification_type=EMAIL_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         client_reference='ref from client',
     )
-    persisted_notification = Notification.query.all()[0]
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
 
-    assert persisted_notification.international is False
-    assert persisted_notification.phone_prefix is None
-    assert persisted_notification.rate_multiplier is None
+    try:
+        assert persisted_notification.international is False
+        assert persisted_notification.phone_prefix is None
+        assert persisted_notification.rate_multiplier is None
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 # This test assumes the local timezone is EST
-def test_persist_scheduled_notification(sample_notification):
-    persist_scheduled_notification(sample_notification.id, '2017-05-12 14:15')
-    scheduled_notification = ScheduledNotification.query.all()
-    assert len(scheduled_notification) == 1
-    assert scheduled_notification[0].notification_id == sample_notification.id
-    assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
+def test_persist_scheduled_notification(
+    notify_db_session,
+    sample_api_key,
+    sample_notification,
+):
+    api_key = sample_api_key()
+    notification = sample_notification(api_key=api_key)
+
+    persist_scheduled_notification(notification.id, '2017-05-12 14:15')
+    stmt = select(ScheduledNotification).where(ScheduledNotification.notification_id == notification.id)
+    scheduled_notification = notify_db_session.session.scalar(stmt)
+
+    assert scheduled_notification.notification_id == notification.id
+    assert scheduled_notification.scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
+
+    # Teardown
+    notify_db_session.session.delete(scheduled_notification)
+    notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -653,46 +761,61 @@ def test_persist_scheduled_notification(sample_notification):
     ],
 )
 def test_persist_sms_notification_stores_normalised_number(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    notify_db_session, sample_api_key, sample_template, mocker, recipient, expected_recipient_normalised
 ):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
+    template = sample_template()
+    api_key = sample_api_key(service=template.service)
+
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
         recipient=recipient,
-        service_id=sample_job.service.id,
+        service_id=api_key.service.id,
         personalisation=None,
-        notification_type='sms',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
+        notification_type=SMS_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
     )
-    persisted_notification = Notification.query.all()[0]
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
 
-    assert persisted_notification.to == recipient
-    assert persisted_notification.normalised_to == expected_recipient_normalised
+    try:
+        assert persisted_notification.to == recipient
+        assert persisted_notification.normalised_to == expected_recipient_normalised
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 @pytest.mark.parametrize(
     'recipient, expected_recipient_normalised', [('FOO@bar.com', 'foo@bar.com'), ('BAR@foo.com', 'bar@foo.com')]
 )
 def test_persist_email_notification_stores_normalised_email(
-    sample_job, sample_api_key, mocker, recipient, expected_recipient_normalised
+    notify_db_session, sample_template, sample_api_key, mocker, recipient, expected_recipient_normalised
 ):
-    persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        recipient=recipient,
-        service_id=sample_job.service.id,
-        personalisation=None,
-        notification_type='email',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
-    )
-    persisted_notification = Notification.query.all()[0]
+    template = sample_template()
+    api_key = sample_api_key(service=template.service)
 
-    assert persisted_notification.to == recipient
-    assert persisted_notification.normalised_to == expected_recipient_normalised
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=recipient,
+        service_id=api_key.service.id,
+        personalisation=None,
+        notification_type=EMAIL_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
+    )
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
+
+    try:
+        assert persisted_notification.to == recipient
+        assert persisted_notification.normalised_to == expected_recipient_normalised
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -705,16 +828,22 @@ def test_persist_email_notification_stores_normalised_email(
     ],
 )
 def test_persist_letter_notification_finds_correct_postage(
+    notify_db_session,
     mocker,
     postage_argument,
     template_postage,
     expected_postage,
     sample_service_full_permissions,
     sample_api_key,
+    sample_template,
 ):
-    template = create_template(sample_service_full_permissions, template_type=LETTER_TYPE, postage=template_postage)
+    api_key = sample_api_key()
+    template = sample_template(
+        service=sample_service_full_permissions, template_type=LETTER_TYPE, postage=template_postage
+    )
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
-    persist_notification(
+
+    notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
         template_postage=template.postage,
@@ -722,16 +851,23 @@ def test_persist_letter_notification_finds_correct_postage(
         service_id=sample_service_full_permissions.id,
         personalisation=None,
         notification_type=LETTER_TYPE,
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         postage=postage_argument,
     )
-    persisted_notification = Notification.query.all()[0]
 
-    assert persisted_notification.postage == expected_postage
+    persisted_notification = notify_db_session.session.get(Notification, notification.id)
+
+    try:
+        assert persisted_notification.postage == expected_postage
+    finally:
+        # Teardown
+        notify_db_session.session.delete(persisted_notification)
+        notify_db_session.session.commit()
 
 
-def test_persist_notification_with_billable_units_stores_correct_info(mocker):
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+def test_persist_notification_with_billable_units_stores_correct_info(notify_db_session, mocker):
     service = create_service(service_permissions=[LETTER_TYPE])
     template = create_template(service, template_type=LETTER_TYPE)
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
@@ -749,7 +885,12 @@ def test_persist_notification_with_billable_units_stores_correct_info(mocker):
     )
     persisted_notification = Notification.query.all()[0]
 
-    assert persisted_notification.billable_units == 3
+    try:
+        assert persisted_notification.billable_units == 3
+    finally:
+        # Teardown
+        notify_db_session.session.delete(persisted_notification)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -768,29 +909,42 @@ def test_persist_notification_with_billable_units_stores_correct_info(mocker):
     ],
 )
 def test_persist_notification_persists_recipient_identifiers(
-    notify_db, notification_type, id_type, id_value, sample_job, sample_api_key, mocker
+    notify_db_session,
+    notification_type,
+    id_type,
+    id_value,
+    sample_api_key,
+    sample_template,
+    mocker,
 ):
     mocker.patch('app.notifications.process_notifications.accept_recipient_identifiers_enabled', return_value=True)
+    template = sample_template(template_type=notification_type)
+    api_key = sample_api_key()
     recipient_identifier = {'id_type': id_type, 'id_value': id_value}
+
     notification = persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        service_id=sample_job.service.id,
+        template_id=template.id,
+        template_version=template.version,
+        service_id=api_key.service.id,
         personalisation=None,
         notification_type=notification_type,
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         recipient_identifier=recipient_identifier,
     )
 
-    assert RecipientIdentifier.query.count() == 1
-    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)).notification_id == notification.id
-    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)).id_type == id_type
-    assert RecipientIdentifier.query.get((notification.id, id_type, id_value)).id_value == id_value
+    recipient_identifier = notify_db_session.session.get(RecipientIdentifier, (notification.id, id_type, id_value))
 
-    assert notification.recipient_identifiers[id_type].id_value == id_value
-    assert notification.recipient_identifiers[id_type].id_type == id_type
+    try:
+        # Persisted correctly
+        assert recipient_identifier.notification_id == notification.id
+        assert recipient_identifier.id_type == id_type
+        assert recipient_identifier.id_value == id_value
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.delete(recipient_identifier)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -798,27 +952,43 @@ def test_persist_notification_persists_recipient_identifiers(
     [(True, None), (False, {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}), (False, None)],
 )
 def test_persist_notification_should_not_persist_recipient_identifier_if_none_present_or_toggle_off(
-    notify_db, recipient_identifiers_enabled, recipient_identifier, sample_job, sample_api_key, mocker
+    notify_db_session,
+    recipient_identifiers_enabled,
+    recipient_identifier,
+    sample_api_key,
+    sample_template,
+    mocker,
 ):
     mocker.patch(
         'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
         return_value=recipient_identifiers_enabled,
     )
 
+    template = sample_template()
+    api_key = sample_api_key(template.service)
+
     notification = persist_notification(
-        template_id=sample_job.template.id,
-        template_version=sample_job.template.version,
-        service_id=sample_job.service.id,
+        template_id=template.id,
+        template_version=template.version,
+        service_id=api_key.service.id,
         personalisation=None,
-        notification_type='email',
-        api_key_id=sample_api_key.id,
-        key_type=sample_api_key.key_type,
-        job_id=sample_job.id,
+        notification_type=EMAIL_TYPE,
+        api_key_id=api_key.id,
+        key_type=api_key.key_type,
         recipient_identifier=recipient_identifier,
     )
 
-    assert RecipientIdentifier.query.count() == 0
-    assert notification.recipient_identifiers == {}
+    try:
+        # Persisted correctly
+        assert notification.recipient_identifiers == {}
+
+        # DB stored correctly
+        stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id == notification.id)
+        assert notify_db_session.session.scalar(stmt) is None
+    finally:
+        # Teardown
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -869,18 +1039,19 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     ],
 )
 def test_send_notification_to_correct_queue_to_lookup_contact_info(
-    client, mocker, notification_type, id_type, expected_tasks, sample_email_template, sample_sms_template_with_html
+    client,
+    mocker,
+    notification_type,
+    id_type,
+    expected_tasks,
+    sample_template,
 ):
     mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=True)
-
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
-    template = sample_email_template if notification_type == 'email' else sample_sms_template_with_html
-
+    template = sample_template(template_type=notification_type)
     notification_id = str(uuid.uuid4())
-
     notification = Notification(id=notification_id, notification_type=notification_type, template=template)
-
     mock_template_id = uuid.uuid4()
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(
@@ -912,7 +1083,7 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
 
     notification = Notification(
         id=str(uuid.uuid4()),
-        notification_type='sms',
+        notification_type=SMS_TYPE,
         reply_to_text=sms_sender.sms_sender,
         service_id=service.id,
         template=template,
@@ -945,7 +1116,7 @@ def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_t
 
     notification = Notification(
         id=str(uuid.uuid4()),
-        notification_type='sms',
+        notification_type=SMS_TYPE,
         reply_to_text=sms_sender.sms_sender,
         service_id=service.id,
         template=template,

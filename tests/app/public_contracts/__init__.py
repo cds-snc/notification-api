@@ -4,10 +4,6 @@ from flask import json
 from jsonschema import Draft4Validator
 
 
-def return_json_from_response(response):
-    return response.get_json()
-
-
 def validate_v0(json_to_validate, schema_filename):
     schema_dir = os.path.join(os.path.dirname(__file__), 'schemas/v0')
     resolver = jsonschema.RefResolver('file://' + schema_dir + '/', None)

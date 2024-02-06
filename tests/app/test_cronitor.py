@@ -1,11 +1,8 @@
-from urllib import parse
-
-import requests
 import pytest
-
+import requests
 from app.cronitor import cronitor
-
 from tests.conftest import set_config_values
+from urllib import parse
 
 
 def _cronitor_url(key, command):
@@ -74,7 +71,7 @@ def test_cronitor_does_nothing_if_name_not_recognised(notify_api, mocker, rmock)
     with set_config_values(notify_api, {'CRONITOR_ENABLED': True, 'CRONITOR_KEYS': {'not-hello': 'other'}}):
         assert successful_task() == 1
 
-    mock_logger.assert_called_with('Cronitor enabled but task_name %s not found in environment', 'hello')
+    mock_logger.assert_called_with('Cronitor enabled, but task_name %s not found in environment.', 'hello')
     assert not rmock.called
 
 

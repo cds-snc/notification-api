@@ -48,6 +48,7 @@ from app.models import (
 from app.model import User
 from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc, midnight_n_days_ago
 
+# Do not confuse this with "default_service_permissions" in app/dao/permissions_dao.py.
 DEFAULT_SERVICE_PERMISSIONS = [
     SMS_TYPE,
     EMAIL_TYPE,
@@ -127,7 +128,7 @@ def dao_fetch_live_services_data():
         .outerjoin(Service.organisation)
         .outerjoin(this_year_ft_stmt, Service.id == this_year_ft_stmt.c.service_id)
         .outerjoin(User, Service.go_live_user_id == User.id)
-        .filter(
+        .where(
             Service.count_as_live.is_(True),
             Service.active.is_(True),
             Service.restricted.is_(False),
@@ -428,20 +429,12 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 
 def fetch_todays_total_message_count(service_id):
-    stmt = (
-        select(func.count(Notification.id).label('count'))
-        .where(
-            Notification.service_id == service_id,
-            Notification.key_type != KEY_TYPE_TEST,
-            func.date(Notification.created_at) == date.today(),
-        )
-        .group_by(
-            Notification.notification_type,
-            Notification.status,
-        )
+    stmt = select(func.count(Notification.id).label('count')).where(
+        Notification.service_id == service_id,
+        Notification.key_type != KEY_TYPE_TEST,
+        func.date(Notification.created_at) == date.today(),
     )
-    result = db.session.execute(stmt).first()
-    return 0 if result is None else result.count
+    return db.session.scalar(stmt)
 
 
 def _stats_for_service_query(service_id):

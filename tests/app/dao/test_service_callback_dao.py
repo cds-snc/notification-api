@@ -5,15 +5,19 @@ from app.models import ServiceCallback, WEBHOOK_CHANNEL_TYPE, NOTIFICATION_SENT,
 
 
 @pytest.mark.parametrize('include_provider_payload', [True, False])
-def test_dao_get_callback_include_payload_status(sample_service, include_provider_payload):
+def test_dao_get_callback_include_payload_status(
+    sample_service,
+    include_provider_payload,
+):
     """Test that we can correctly determine if payload should be included"""
+    service = sample_service()
 
     # build a service callback
     service_callback_api = ServiceCallback(
-        service_id=sample_service.id,
+        service_id=service.id,
         url='https://some_service/callback_endpoint',
         bearer_token='some_unique_string',
-        updated_by_id=sample_service.users[0].id,
+        updated_by_id=service.users[0].id,
         callback_type=DELIVERY_STATUS_CALLBACK_TYPE,
         notification_statuses=NOTIFICATION_SENT,
         callback_channel=WEBHOOK_CHANNEL_TYPE,

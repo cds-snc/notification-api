@@ -15,7 +15,13 @@ def test_check_provider_exists(notify_db, fake_uuid):
     [(True, SMS_TYPE, EMAIL_TYPE, False), (False, EMAIL_TYPE, EMAIL_TYPE, False), (True, EMAIL_TYPE, EMAIL_TYPE, True)],
 )
 def test_check_provider_is_active(
-    mocker, fake_uuid, is_active, notification_type, checked_notification_type, expected_result
+    notify_api,
+    mocker,
+    fake_uuid,
+    is_active,
+    notification_type,
+    checked_notification_type,
+    expected_result,
 ):
     mocked_provider_details = mocker.Mock(ProviderDetails)
     mocked_provider_details.active = is_active

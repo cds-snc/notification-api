@@ -60,14 +60,14 @@ invalid_json_post_args = [
 
 valid_json_post_response = {
     'id': str(uuid.uuid4()),
-    'type': 'email',
+    'type': EMAIL_TYPE,
     'version': 1,
     'body': 'some body',
 }
 
 valid_json_post_response_with_optionals = {
     'id': str(uuid.uuid4()),
-    'type': 'email',
+    'type': EMAIL_TYPE,
     'version': 1,
     'body': 'some body',
     'subject': 'some subject',
@@ -81,7 +81,11 @@ def test_get_template_request_schema_against_valid_args_is_valid(args):
 
 
 @pytest.mark.parametrize('args,error_message', invalid_request_args)
-def test_get_template_request_schema_against_invalid_args_is_invalid(args, error_message):
+def test_get_template_request_schema_against_invalid_args_is_invalid(
+    notify_api,
+    args,
+    error_message,
+):
     with pytest.raises(ValidationError) as e:
         validate(args, get_template_by_id_request)
     errors = json.loads(str(e.value))
@@ -109,7 +113,11 @@ def test_post_template_preview_against_valid_args_is_valid():
 
 
 @pytest.mark.parametrize('args,error_messages', invalid_json_post_args)
-def test_post_template_preview_against_invalid_args_is_invalid(args, error_messages):
+def test_post_template_preview_against_invalid_args_is_invalid(
+    notify_api,
+    args,
+    error_messages,
+):
     with pytest.raises(ValidationError) as e:
         validate(args, post_template_preview_request)
     errors = json.loads(str(e.value))

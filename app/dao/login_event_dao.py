@@ -12,4 +12,4 @@ def list_login_events(user_id):
 
 @transactional
 def save_login_event(login_event):
-    return db.session.add(login_event)
+    db.session.add(login_event)

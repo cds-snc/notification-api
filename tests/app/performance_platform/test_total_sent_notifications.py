@@ -6,7 +6,7 @@ from app.performance_platform.total_sent_notifications import (
     get_total_sent_notifications_for_day,
 )
 
-from tests.app.db import create_template, create_ft_notification_status
+from tests.app.db import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 
 
 # This test assumes the local timezone is EST
@@ -33,23 +33,29 @@ def test_send_total_notifications_sent_for_day_stats_stats_creates_correct_call(
 
 
 @freeze_time('2018-06-10 01:00')
-def test_get_total_sent_notifications_yesterday_returns_expected_totals_dict(sample_service):
-    sms = create_template(sample_service, template_type='sms')
-    email = create_template(sample_service, template_type='email')
-    letter = create_template(sample_service, template_type='letter')
+def test_get_total_sent_notifications_yesterday_returns_expected_totals_dict(
+    sample_ft_notification_status,
+    sample_service,
+    sample_template,
+    sample_job,
+):
+    service = sample_service()
+    sms = sample_template(service=service, template_type=SMS_TYPE)
+    email = sample_template(service=service, template_type=EMAIL_TYPE)
+    letter = sample_template(service=service, template_type=LETTER_TYPE)
 
     today = date(2018, 6, 10)
     yesterday = date(2018, 6, 9)
 
     # todays is excluded
-    create_ft_notification_status(utc_date=today, template=sms)
-    create_ft_notification_status(utc_date=today, template=email)
-    create_ft_notification_status(utc_date=today, template=letter)
+    sample_ft_notification_status(today, sample_job(sms))
+    sample_ft_notification_status(today, sample_job(email))
+    sample_ft_notification_status(today, sample_job(letter))
 
     # yesterdays is included
-    create_ft_notification_status(utc_date=yesterday, template=sms, count=2)
-    create_ft_notification_status(utc_date=yesterday, template=email, count=3)
-    create_ft_notification_status(utc_date=yesterday, template=letter, count=1)
+    sample_ft_notification_status(yesterday, sample_job(sms), count=2)
+    sample_ft_notification_status(yesterday, sample_job(email), count=3)
+    sample_ft_notification_status(yesterday, sample_job(letter), count=1)
 
     total_count_dict = get_total_sent_notifications_for_day(yesterday)
 

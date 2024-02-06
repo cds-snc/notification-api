@@ -9,7 +9,9 @@ def mock_logger(mocker):
     return app_context_mock.logger
 
 
-def test_registry_is_singleton():
+def test_registry_is_singleton(
+    client,
+):
     registry = MobileAppRegistry()
     another_registry = MobileAppRegistry()
     assert registry == another_registry
@@ -23,7 +25,12 @@ def test_registry_is_singleton():
         ([MobileAppType.VA_FLAGSHIP_APP], ['flagsip_sid']),
     ],
 )
-def test_registry_initilizes_mobile_apps(mocker, apps, sids):
+def test_registry_initilizes_mobile_apps(
+    client,
+    mocker,
+    apps,
+    sids,
+):
     for app, sid in zip(apps, sids):
         mocker.patch.dict(os.environ, {f'{app.value}_SID': sid})
 
@@ -42,7 +49,12 @@ def test_registry_initilizes_mobile_apps(mocker, apps, sids):
         ({'VETEXT_SID': '', 'VA_FLAGSHIP_APP_SID': ''}, None),
     ],
 )
-def test_registry_initilizes_only_apps_with_sids_in_env(mocker, env, registered_app):
+def test_registry_initilizes_only_apps_with_sids_in_env(
+    client,
+    mocker,
+    env,
+    registered_app,
+):
     mocker.patch.dict(os.environ, env)
     registry = MobileAppRegistry()
 
@@ -50,7 +62,11 @@ def test_registry_initilizes_only_apps_with_sids_in_env(mocker, env, registered_
     assert registry.get_registered_apps() == expected_list
 
 
-def test_should_log_error_for_uninitilized_apps(mock_logger, mocker):
+def test_should_log_error_for_uninitilized_apps(
+    client,
+    mock_logger,
+    mocker,
+):
     for app in MobileAppType.values():
         mocker.patch.dict(os.environ, {f'{app}_SID': ''})
     MobileAppRegistry()

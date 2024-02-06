@@ -8,13 +8,6 @@ from app.models import SMS_TYPE, EMAIL_TYPE, NOTIFICATION_DELIVERED
 from tests.app.factories.feature_flag import mock_feature_flag
 from app.feature_flags import FeatureFlag
 from app.platform_stats.rest import get_monthly_platform_stats, validate_date_range_is_within_a_financial_year
-from tests.app.db import (
-    create_service,
-    create_template,
-    create_ft_notification_status,
-    create_notification,
-    set_up_usage_data,
-)
 
 
 @freeze_time('2018-06-01')
@@ -47,17 +40,25 @@ def test_get_platform_stats_validates_the_date(admin_request):
     assert response['errors'][0]['message'] == 'start_date month must be in 1..12'
 
 
+@pytest.mark.serial
 @freeze_time('2018-10-31 14:00')
-def test_get_platform_stats_with_real_query(admin_request, notify_db_session):
-    service_1 = create_service(service_name='service_1')
-    sms_template = create_template(service=service_1, template_type=SMS_TYPE)
-    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
-    create_ft_notification_status(date(2018, 10, 29), 'sms', service_1, count=10)
-    create_ft_notification_status(date(2018, 10, 29), 'email', service_1, count=3)
+def test_get_platform_stats_with_real_query(
+    admin_request,
+    sample_ft_notification_status,
+    sample_notification,
+    sample_service,
+    sample_template,
+    sample_job,
+):
+    service = sample_service()
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
+    email_template = sample_template(service=service, template_type=EMAIL_TYPE)
+    sample_ft_notification_status(date(2018, 10, 29), sample_job(sms_template), count=10)
+    sample_ft_notification_status(date(2018, 10, 29), sample_job(email_template), count=3)
 
-    create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0), key_type='test')
-    create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status='delivered')
-    create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status='delivered')
+    sample_notification(template=sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0), key_type='test')
+    sample_notification(template=sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status='delivered')
+    sample_notification(template=email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status='delivered')
 
     response = admin_request.get(
         'platform_stats.get_platform_stats',
@@ -98,33 +99,37 @@ def test_get_platform_stats_with_real_query(admin_request, notify_db_session):
 
 
 @freeze_time('2020-01-25 00:00')
-def test_get_platform_stats_response_when_toggle_is_on(notify_db_session, mocker):
+def test_get_platform_stats_response_when_toggle_is_on(
+    sample_ft_notification_status,
+    sample_service,
+    sample_template,
+    sample_job,
+    mocker,
+):
     mock_feature_flag(mocker, FeatureFlag.PLATFORM_STATS_ENABLED, 'True')
 
-    sample_service = create_service(service_name='service_1')
-    sms_template = create_template(service=sample_service, template_type='sms', template_name='a')
-    email_template = create_template(service=sample_service, template_type='email', template_name='b')
+    service = sample_service()
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
+    email_template = sample_template(service=service, template_type=EMAIL_TYPE)
+    email_job = sample_job(email_template)
 
-    create_ft_notification_status(
-        utc_date=date(2022, 1, 1),
-        service=sample_service,
-        template=email_template,
+    sample_ft_notification_status(
+        date(2022, 1, 1),
+        email_job,
         notification_status=NOTIFICATION_DELIVERED,
         count=1,
     )
 
-    create_ft_notification_status(
-        utc_date=date(2021, 12, 1),
-        service=sample_service,
-        template=email_template,
+    sample_ft_notification_status(
+        date(2021, 12, 1),
+        email_job,
         notification_status=NOTIFICATION_DELIVERED,
         count=29,
     )
 
-    create_ft_notification_status(
-        utc_date=date(2022, 1, 1),
-        service=sample_service,
-        template=sms_template,
+    sample_ft_notification_status(
+        date(2022, 1, 1),
+        sample_job(sms_template),
         notification_status=NOTIFICATION_DELIVERED,
         count=14,
     )
@@ -181,12 +186,16 @@ def test_validate_date_is_within_a_financial_year_when_input_is_not_a_date(start
     assert e.value.status_code == 400
 
 
-def test_get_usage_for_all_services(notify_db_session, admin_request):
-    org, org_2, service, service_2, service_3, service_sms_only = set_up_usage_data(datetime(2019, 5, 1))
+def test_get_usage_for_all_services(
+    admin_request,
+    set_up_usage_data,
+):
+    org, org_2, service, service_2, service_3, service_sms_only = set_up_usage_data(datetime(1995, 5, 1))
     response = admin_request.get(
-        'platform_stats.get_usage_for_all_services', start_date='2019-05-01', end_date='2019-06-30'
+        'platform_stats.get_usage_for_all_services', start_date='1995-05-01', end_date='1995-06-30'
     )
     assert len(response) == 4
+
     assert response[0]['organisation_id'] == str(org.id)
     assert response[0]['service_id'] == str(service.id)
     assert response[0]['sms_cost'] == 0
@@ -202,15 +211,15 @@ def test_get_usage_for_all_services(notify_db_session, admin_request):
     assert response[1]['letter_breakdown'] == '20 second class letters at 65p\n2 first class letters at 50p\n'
 
     assert response[2]['organisation_id'] == ''
-    assert response[2]['service_id'] == str(service_sms_only.id)
-    assert response[2]['sms_cost'] == 0.33
-    assert response[2]['sms_fragments'] == 3
-    assert response[2]['letter_cost'] == 0
-    assert response[2]['letter_breakdown'] == ''
+    assert response[2]['service_id'] == str(service_3.id)
+    assert response[2]['sms_cost'] == 0
+    assert response[2]['sms_fragments'] == 0
+    assert response[2]['letter_cost'] == 8.25
+    assert response[2]['letter_breakdown'] == '15 second class letters at 55p\n'
 
     assert response[3]['organisation_id'] == ''
-    assert response[3]['service_id'] == str(service_3.id)
-    assert response[3]['sms_cost'] == 0
-    assert response[3]['sms_fragments'] == 0
-    assert response[3]['letter_cost'] == 8.25
-    assert response[3]['letter_breakdown'] == '15 second class letters at 55p\n'
+    assert response[3]['service_id'] == str(service_sms_only.id)
+    assert response[3]['sms_cost'] == 0.33
+    assert response[3]['sms_fragments'] == 3
+    assert response[3]['letter_cost'] == 0
+    assert response[3]['letter_breakdown'] == ''

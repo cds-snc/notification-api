@@ -6,7 +6,7 @@ from app.provider_details.highest_priority_strategy import HighestPriorityStrate
 
 
 class TestValidate:
-    def test_validate_passes_if_there_is_a_highest_priority_active_provider(self, mocker):
+    def test_validate_passes_if_there_is_a_highest_priority_active_provider(self, client, mocker):
         mock_dao_get_provider = mocker.patch(
             'app.provider_details.highest_priority_strategy.get_highest_priority_active_provider_by_notification_type',
             return_value=mocker.Mock(ProviderDetails),
@@ -17,7 +17,7 @@ class TestValidate:
 
         mock_dao_get_provider.assert_called_with(some_notification_type)
 
-    def test_validate_throws_if_there_is_no_highest_priority_active_provider(self, mocker):
+    def test_validate_throws_if_there_is_no_highest_priority_active_provider(self, client, mocker):
         mock_dao_get_provider = mocker.patch(
             'app.provider_details.highest_priority_strategy.get_highest_priority_active_provider_by_notification_type',
             return_value=None,
@@ -32,7 +32,7 @@ class TestValidate:
 
 
 class TestGetProvider:
-    def test_get_provider_returns_highest_priority_provider(self, mocker):
+    def test_get_provider_returns_highest_priority_provider(self, client, mocker):
         mock_provider = mocker.Mock(ProviderDetails)
         mock_dao_get_provider = mocker.patch(
             'app.provider_details.highest_priority_strategy.get_highest_priority_active_provider_by_notification_type',

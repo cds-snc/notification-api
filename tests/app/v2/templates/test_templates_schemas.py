@@ -3,10 +3,11 @@ import uuid
 import pytest
 from flask import json
 
-from app.models import EMAIL_TYPE, SMS_TYPE, TEMPLATE_TYPES
+from app.models import EMAIL_TYPE, SMS_TYPE
 from app.v2.templates.templates_schemas import get_all_template_request, get_all_template_response
 from app.schema_validation import validate
 from jsonschema.exceptions import ValidationError
+from tests.app.conftest import TEMPLATE_TYPES
 
 
 valid_json_get_all_response = [
@@ -264,7 +265,7 @@ def test_get_all_template_request_schema_against_valid_args_is_valid(template_ty
 
 
 @pytest.mark.parametrize('template_type', TEMPLATE_TYPES)
-def test_get_all_template_request_schema_against_invalid_args_is_invalid(template_type):
+def test_get_all_template_request_schema_against_invalid_args_is_invalid(client, template_type):
     data = {'type': 'unknown'}
 
     with pytest.raises(ValidationError) as e:
@@ -282,7 +283,7 @@ def test_valid_get_all_templates_response_schema_is_valid(response):
 
 
 @pytest.mark.parametrize('response,error_messages', invalid_json_get_all_response)
-def test_invalid_get_all_templates_response_schema_is_invalid(response, error_messages):
+def test_invalid_get_all_templates_response_schema_is_invalid(client, response, error_messages):
     with pytest.raises(ValidationError) as e:
         validate(response, get_all_template_response)
     errors = json.loads(str(e.value))

@@ -12,7 +12,7 @@ def cronitor(task_name):
 
             task_slug = current_app.config['CRONITOR_KEYS'].get(task_name)
             if not task_slug:
-                current_app.logger.error('Cronitor enabled but task_name %s not found in environment', task_name)
+                current_app.logger.error('Cronitor enabled, but task_name %s not found in environment.', task_name)
                 return
 
             if command not in {'run', 'complete', 'fail'}:
@@ -20,7 +20,7 @@ def cronitor(task_name):
 
             try:
                 resp = requests.get(
-                    'https://cronitor.link/{}/{}'.format(task_slug, command),
+                    f'https://cronitor.link/{task_slug}/{command}',
                     # cronitor limits msg to 1000 characters
                     params={
                         'host': current_app.config['API_HOST_NAME'],

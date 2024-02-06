@@ -69,11 +69,9 @@ def dao_get_jobs_by_service_id(
         query_filter.append(Job.created_at >= midnight_n_days_ago(limit_days))
     if statuses is not None and statuses != ['']:
         query_filter.append(Job.job_status.in_(statuses))
-    return (
-        Job.query.filter(*query_filter)
-        .order_by(Job.processing_started.desc(), Job.created_at.desc())
-        .paginate(page=page, per_page=page_size)
-    )
+
+    stmt = select(Job).where(*query_filter).order_by(Job.processing_started.desc(), Job.created_at.desc())
+    return db.paginate(stmt, page=page, per_page=page_size)
 
 
 def dao_get_job_by_id(job_id):
@@ -94,12 +92,14 @@ def dao_set_scheduled_jobs_to_pending():
     the transaction so that if the task is run more than once concurrently, one task will block the other select
     from completing until it commits.
     """
-    stmt = (
-        select(Job)
-        .where(Job.job_status == JOB_STATUS_SCHEDULED, Job.scheduled_for < datetime.utcnow())
-        .order_by(asc(Job.scheduled_for))
-        .with_for_update()
-    )
+
+    stmt = select(Job).where(
+        Job.job_status == JOB_STATUS_SCHEDULED,
+        Job.scheduled_for < datetime.utcnow()
+    ).order_by(
+        asc(Job.scheduled_for)
+    ).with_for_update()
+
     jobs = db.session.scalars(stmt).all()
 
     for job in jobs:

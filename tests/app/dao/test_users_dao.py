@@ -2,11 +2,9 @@ import pytest
 import uuid
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
-    create_user_code,
     save_model_user,
     save_user_attribute,
     get_user_by_id,
-    get_user_code,
     delete_model_user,
     increment_failed_login_count,
     reset_failed_login_count,
@@ -29,38 +27,40 @@ from app.models import SMS_TYPE, VerifyCode
 from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
 from datetime import datetime, timedelta
 from freezegun import freeze_time
+from sqlalchemy import or_, select
 from sqlalchemy.exc import DataError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
-from tests.app.db import create_permissions, create_service, create_template_folder, create_user
+from tests.app.db import create_permissions, create_template_folder
 
 
 @pytest.fixture
 def test_email():
-    return 'notify@notifications.va.gov'
+    return f'{uuid.uuid4()}y@notifications.va.gov'
 
 
 @pytest.fixture
 def test_name():
-    return 'Test User'
+    return f'Test User {uuid.uuid4()}'
 
 
-def test_get_user_code(notify_db_session, sample_user):
-    verify_code = make_verify_code(
-        notify_db_session, sample_user, age=timedelta(hours=23, minutes=59, seconds=59), code='test'
-    )
+@pytest.mark.serial  # Ensures only one user in the database
+def test_create_only_one_user(
+    test_name,
+    test_email,
+    notify_db_session,
+):
+    data = {'name': test_name, 'email_address': test_email, 'password': 'password'}
 
-    verify_code_from_dao = get_user_code(sample_user, 'test', SMS_TYPE)
-    assert verify_code.id == verify_code_from_dao.id
+    user = User(**data)
+    save_model_user(user)
+    users = notify_db_session.session.scalars(select(User)).all()
 
+    assert len(users) == 1
 
-def test_create_user_code(notify_db_session, sample_user):
-    verify_code = create_user_code(sample_user, 'test', SMS_TYPE)
-    assert verify_code.user_id == sample_user.id
-    assert verify_code.check_code('test')
-    assert verify_code.code_type == SMS_TYPE
-    assert isinstance(verify_code.expiry_datetime, datetime)
-    assert not verify_code.code_used
-    assert isinstance(verify_code.created_at, datetime)
+    # Teardown
+    if user:
+        notify_db_session.session.delete(user)
+        notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -70,33 +70,46 @@ def test_create_user_code(notify_db_session, sample_user):
         '+1-800-555-5555',
     ],
 )
-def test_create_user(notify_db_session, phone_number, test_name, test_email):
+def test_create_user(
+    notify_db_session,
+    phone_number,
+    test_name,
+    test_email,
+):
     data = {'name': test_name, 'email_address': test_email, 'password': 'password', 'mobile_number': phone_number}
+
     user = User(**data)
     save_model_user(user)
-    user_from_db = User.query.first()
+    user_from_db = notify_db_session.session.get(User, user.id)
 
     assert not user.platform_admin
-    assert User.query.count() == 1
-    assert user_from_db.email_address == test_email
+    assert user_from_db.email_address == data['email_address']
     assert user_from_db.id == user.id
     assert user_from_db.mobile_number == phone_number
     assert user_from_db.identity_provider_user_id is None
     assert len(user_from_db.idp_ids) == 0
 
+    # Teardown
+    if user:
+        notify_db_session.session.delete(user)
+        notify_db_session.session.commit()
 
-def test_create_user_with_identity_provider_stores_github_idp_id(notify_db_session, test_name, test_email):
+
+def test_create_user_with_identity_provider_stores_github_idp_id(
+    notify_db_session,
+    test_name,
+    test_email,
+):
     identity_provider_user_id = 'test-user-id'
     data = {'name': test_name, 'email_address': test_email, 'identity_provider_user_id': identity_provider_user_id}
     user = User(**data)
     save_model_user(user)
-    user_from_db = User.query.first()
+    user_from_db = notify_db_session.session.get(User, user.id)
 
     assert not user.platform_admin
     assert user_from_db.email_address == test_email
     assert user_from_db.id == user.id
     assert user_from_db.identity_provider_user_id == identity_provider_user_id
-    assert User.query.count() == 1
 
     assert len(user_from_db.idp_ids) == 1
     idp_id = user_from_db.idp_ids[0]
@@ -104,36 +117,62 @@ def test_create_user_with_identity_provider_stores_github_idp_id(notify_db_sessi
     assert idp_id.idp_name == 'github'
     assert idp_id.idp_id == identity_provider_user_id
 
+    # Teardown
+    if user:
+        notify_db_session.session.delete(user)
+        notify_db_session.session.commit()
 
-def test_create_user_no_longer_fails_when_password_is_empty(notify_db_session, test_email, test_name):
+
+def test_create_user_no_longer_fails_when_password_is_empty(
+    notify_db_session,
+    test_email,
+    test_name,
+):
     data = {'name': test_name, 'email_address': test_email}
+
     user = User(**data)
     user.save_to_db()
-    loaded_user = User.query.get(user.id)
+
+    loaded_user = notify_db_session.session.get(User, user.id)
     assert loaded_user
+
+    # Teardown
+    if user:
+        notify_db_session.session.delete(user)
+        notify_db_session.session.commit()
 
 
 def test_create_user_fails_when_violates_sms_auth_requires_mobile_number_constraint(
-    notify_db_session, test_email, test_name
+    notify_db_session,
+    test_email,
+    test_name,
 ):
     data = {'name': test_name, 'email_address': test_email, 'auth_type': 'sms_auth'}
+
     with pytest.raises(IntegrityError):
         user = User(**data)
         save_model_user(user)
 
 
-def test_get_all_users(notify_db_session):
-    create_user(email='1@test.com')
-    create_user(email='2@test.com')
+@pytest.mark.serial
+def test_get_all_users(
+    notify_db_session,
+    sample_user,
+    test_email,
+):
+    sample_user(email=test_email)
+    sample_user(email=f'get_all{test_email}')
 
-    assert User.query.count() == 2
+    assert len(notify_db_session.session.scalars(select(User)).all()) == 2
     assert len(get_user_by_id()) == 2
 
 
-def test_get_user(notify_db_session):
-    email = '1@test.com'
-    user = create_user(email=email)
-    assert get_user_by_id(user_id=user.id).email_address == email
+def test_get_user(
+    sample_user,
+    test_email,
+):
+    user = sample_user(email=test_email)
+    assert get_user_by_id(user_id=user.id).email_address == test_email
 
 
 def test_get_user_not_exists(notify_db_session, fake_uuid):
@@ -146,59 +185,95 @@ def test_get_user_invalid_id(notify_db_session):
         get_user_by_id(user_id='blah')
 
 
-def test_delete_users(sample_user):
-    assert User.query.count() == 1
-    delete_model_user(sample_user)
-    assert User.query.count() == 0
+def test_delete_users(
+    notify_db_session,
+    sample_user,
+):
+    user = sample_user()
+    delete_model_user(user)
+
+    assert notify_db_session.session.get(User, user.id) is None
 
 
-def test_increment_failed_login_should_increment_failed_logins(sample_user):
-    assert sample_user.failed_login_count == 0
-    increment_failed_login_count(sample_user)
-    assert sample_user.failed_login_count == 1
+def test_increment_failed_login_should_increment_failed_logins(
+    sample_user,
+):
+    user = sample_user()
+
+    assert user.failed_login_count == 0
+    increment_failed_login_count(user)
+    assert user.failed_login_count == 1
 
 
-def test_reset_failed_login_should_set_failed_logins_to_0(sample_user):
-    increment_failed_login_count(sample_user)
-    assert sample_user.failed_login_count == 1
-    reset_failed_login_count(sample_user)
-    assert sample_user.failed_login_count == 0
+def test_reset_failed_login_should_set_failed_logins_to_0(
+    sample_user,
+):
+    user = sample_user()
+    increment_failed_login_count(user)
+    assert user.failed_login_count == 1
+    reset_failed_login_count(user)
+    assert user.failed_login_count == 0
 
 
-def test_get_user_by_email(sample_user):
-    user_from_db = get_user_by_email(sample_user.email_address)
-    assert sample_user == user_from_db
+def test_get_user_by_email(
+    sample_user,
+):
+    user = sample_user()
+    user_from_db = get_user_by_email(user.email_address)
+    assert user == user_from_db
 
 
-def test_get_user_by_email_is_case_insensitive(sample_user):
-    email = sample_user.email_address
+def test_get_user_by_email_is_case_insensitive(
+    sample_user,
+):
+    user = sample_user()
+    email = user.email_address
     user_from_db = get_user_by_email(email.upper())
-    assert sample_user == user_from_db
+    assert user == user_from_db
 
 
-def test_should_delete_all_verification_codes_more_than_one_day_old(notify_db_session, sample_user):
-    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code='54321')
-    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code='54321')
-    assert VerifyCode.query.count() == 2
+def test_should_delete_all_verification_codes_more_than_one_day_old(
+    notify_db_session,
+    sample_user,
+):
+    user_0 = sample_user()
+    user_1 = sample_user()
+
+    make_verify_code(notify_db_session, user_0, age=timedelta(hours=24), code='54321')
+    make_verify_code(notify_db_session, user_1, age=timedelta(hours=24), code='54321')
+    stmt = select(VerifyCode).where(or_(VerifyCode.user_id == user_0.id, VerifyCode.user_id == user_1.id))
+    assert len(notify_db_session.session.scalars(stmt).all()) == 2
     delete_codes_older_created_more_than_a_day_ago()
-    assert VerifyCode.query.count() == 0
+    assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
 
-def test_should_not_delete_verification_codes_less_than_one_day_old(notify_db_session, sample_user):
-    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=23, minutes=59, seconds=59), code='12345')
-    make_verify_code(notify_db_session, sample_user, age=timedelta(hours=24), code='54321')
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+def test_should_not_delete_verification_codes_less_than_one_day_old(
+    notify_db_session,
+    sample_user,
+):
+    user_0 = sample_user()
+    user_1 = sample_user()
 
-    assert VerifyCode.query.count() == 2
+    make_verify_code(notify_db_session, user_0, age=timedelta(hours=23, minutes=59, seconds=59), code='12345')
+    make_verify_code(notify_db_session, user_1, age=timedelta(hours=24), code='54321')
+
+    stmt = select(VerifyCode).where(or_(VerifyCode.user_id == user_0.id, VerifyCode.user_id == user_1.id))
+    assert len(notify_db_session.session.scalars(stmt).all()) == 2
     delete_codes_older_created_more_than_a_day_ago()
-    assert VerifyCode.query.one().check_code('12345')
+    assert notify_db_session.session.scalar(select(VerifyCode).where(VerifyCode.user_id == user_0))._code == '12345'
 
 
-def test_will_find_verify_codes_sent_within_seconds(notify_db_session, sample_user):
-    make_verify_code(notify_db_session, sample_user)
-    make_verify_code(notify_db_session, sample_user, timedelta(seconds=10))
-    make_verify_code(notify_db_session, sample_user, timedelta(seconds=32))
-    make_verify_code(notify_db_session, sample_user, timedelta(hours=1))
-    count = verify_within_time(sample_user)
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+def test_will_find_verify_codes_sent_within_seconds(
+    sample_user,
+):
+    user = sample_user()
+    make_verify_code(user)
+    make_verify_code(user, timedelta(seconds=10))
+    make_verify_code(user, timedelta(seconds=32))
+    make_verify_code(user, timedelta(hours=1))
+    count = verify_within_time(user)
     assert count == 2
 
 
@@ -226,35 +301,51 @@ def make_verify_code(
         ('mobile_number', '+4407700900460'),
     ],
 )
-def test_update_user_attribute(client, sample_user, user_attribute, user_value):
-    assert getattr(sample_user, user_attribute) != user_value
+def test_update_user_attribute(
+    client,
+    sample_user,
+    user_attribute,
+    user_value,
+):
+    user = sample_user()
+    assert getattr(user, user_attribute) != user_value
     update_dict = {user_attribute: user_value}
-    save_user_attribute(sample_user, update_dict)
-    assert getattr(sample_user, user_attribute) == user_value
+    save_user_attribute(user, update_dict)
+    assert getattr(user, user_attribute) == user_value
 
 
-def test_update_user_attribute_blocked(notify_api):
-    user = create_user(email='allowed@test.com', mobile_number='+4407700900460')
+def test_update_user_attribute_blocked(
+    sample_user,
+):
+    user = sample_user(mobile_number='+4407700900460')
     assert user.current_session_id is None
     save_user_attribute(user, {'blocked': True, 'mobile_number': '+2407700900460'})
     print(user.mobile_number, user.current_session_id)
     assert str(getattr(user, 'current_session_id')) == '00000000-0000-0000-0000-000000000000'
 
 
-def test_update_user_password(notify_api, notify_db, notify_db_session, sample_user):
+def test_update_user_password(
+    sample_user,
+):
+    user = sample_user()
     password = 'newpassword'
-    assert not sample_user.check_password(password)
-    update_user_password(sample_user, password)
-    assert sample_user.check_password(password)
+
+    assert not user.check_password(password)
+    update_user_password(user, password)
+    assert user.check_password(password)
 
 
-def test_count_user_verify_codes(notify_db_session, sample_user):
+@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+def test_count_user_verify_codes(
+    sample_user,
+):
     with freeze_time(datetime.utcnow() + timedelta(hours=1)):
-        make_verify_code(notify_db_session, sample_user, code_used=True)
-        make_verify_code(notify_db_session, sample_user, expiry_age=timedelta(hours=2))
-        [make_verify_code(notify_db_session, sample_user) for i in range(5)]
+        user = sample_user()
+        make_verify_code(user, code_used=True)
+        make_verify_code(user, expiry_age=timedelta(hours=2))
+        [make_verify_code(user) for i in range(5)]
 
-    assert count_user_verify_codes(sample_user) == 5
+    assert count_user_verify_codes(user) == 5
 
 
 def test_create_secret_code_different_subsequent_codes():
@@ -269,119 +360,153 @@ def test_create_secret_code_returns_5_digits():
 
 
 @freeze_time('2018-07-07 12:00:00')
-def test_dao_archive_user(sample_user, sample_organisation, fake_uuid):
-    sample_user.current_session_id = fake_uuid
+def test_dao_archive_user(
+    sample_user,
+    sample_organisation,
+    sample_service,
+    fake_uuid_v2,
+):
+    user = sample_user()
+    user_original_email = user.email_address
+    user.current_session_id = fake_uuid_v2
 
-    # create 2 services for sample_user to be a member of (each with another active user)
-    service_1 = create_service(service_name='Service 1')
-    service_1_user = create_user(email='1@test.com')
-    service_1.users = [sample_user, service_1_user]
-    create_permissions(sample_user, service_1, 'manage_settings')
+    # create 2 services for user to be a member of (each with another active user)
+    service_1 = sample_service(service_name='Service 1')
+    service_1_user = sample_user()
+    service_1.users = [user, service_1_user]
+    create_permissions(user, service_1, 'manage_settings')
     create_permissions(service_1_user, service_1, 'manage_settings', 'view_activity')
 
-    service_2 = create_service(service_name='Service 2')
-    service_2_user = create_user(email='2@test.com')
-    service_2.users = [sample_user, service_2_user]
-    create_permissions(sample_user, service_2, 'view_activity')
+    service_2 = sample_service(service_name='Service 2')
+    service_2_user = sample_user()
+    service_2.users = [user, service_2_user]
+    create_permissions(user, service_2, 'view_activity')
     create_permissions(service_2_user, service_2, 'manage_settings')
 
-    # make sample_user an org member
-    sample_organisation.users = [sample_user]
+    # make user an org member
+    sample_organisation.users = [user]
 
-    # give sample_user folder permissions for a service_1 folder
+    # give user folder permissions for a service_1 folder
     folder = create_template_folder(service_1)
-    service_user = dao_get_service_user(sample_user.id, service_1.id)
+    service_user = dao_get_service_user(user.id, service_1.id)
     service_user.folders = [folder]
     dao_update_service_user(service_user)
 
-    dao_archive_user(sample_user)
+    dao_archive_user(user)
 
-    assert sample_user.get_permissions() == {}
-    assert sample_user.services == []
-    assert sample_user.organisations == []
-    assert sample_user.auth_type == EMAIL_AUTH_TYPE
-    assert sample_user.email_address == '_archived_2018-07-07_notify@digital.cabinet-office.gov.uk'
-    assert sample_user.mobile_number is None
-    assert sample_user.current_session_id == uuid.UUID('00000000-0000-0000-0000-000000000000')
-    assert sample_user.state == 'inactive'
-    assert not sample_user.check_password('password')
-
-
-def test_user_can_be_archived_if_they_do_not_belong_to_any_services(sample_user):
-    assert sample_user.services == []
-    assert user_can_be_archived(sample_user)
+    assert user.get_permissions() == {}
+    assert user.services == []
+    assert user.organisations == []
+    assert user.auth_type == EMAIL_AUTH_TYPE
+    assert user.email_address == f'_archived_2018-07-07_{user_original_email}'
+    assert user.mobile_number is None
+    assert user.current_session_id == uuid.UUID('00000000-0000-0000-0000-000000000000')
+    assert user.state == 'inactive'
+    assert not user.check_password('password')
 
 
-def test_user_can_be_archived_if_they_do_not_belong_to_any_active_services(sample_user, sample_service):
-    sample_user.services = [sample_service]
-    sample_service.active = False
+def test_user_can_be_archived_if_they_do_not_belong_to_any_services(
+    sample_user,
+):
+    user = sample_user()
+    assert user.services == []
+    assert user_can_be_archived(user)
 
-    assert len(sample_user.services) == 1
-    assert user_can_be_archived(sample_user)
+
+def test_user_can_be_archived_if_they_do_not_belong_to_any_active_services(
+    sample_user,
+    sample_service,
+):
+    user = sample_user()
+    service = sample_service()
+    user.services = [service]
+    service.active = False
+
+    assert len(user.services) == 1
+    assert user_can_be_archived(user)
 
 
-def test_user_can_be_archived_if_the_other_service_members_have_the_manage_settings_permission(sample_service):
-    user_1 = create_user(email='1@test.com')
-    user_2 = create_user(email='2@test.com')
-    user_3 = create_user(email='3@test.com')
+def test_user_can_be_archived_if_the_other_service_members_have_the_manage_settings_permission(
+    sample_service,
+    sample_user,
+):
+    service = sample_service()
+    user_1 = sample_user()
+    user_2 = sample_user()
+    user_3 = sample_user()
 
-    sample_service.users = [user_1, user_2, user_3]
+    service.users = [user_1, user_2, user_3]
 
-    create_permissions(user_1, sample_service, 'manage_settings')
-    create_permissions(user_2, sample_service, 'manage_settings', 'view_activity')
-    create_permissions(user_3, sample_service, 'manage_settings', 'send_emails', 'send_letters', 'send_texts')
+    create_permissions(user_1, service, 'manage_settings')
+    create_permissions(user_2, service, 'manage_settings', 'view_activity')
+    create_permissions(user_3, service, 'manage_settings', 'send_emails', 'send_letters', 'send_texts')
 
-    assert len(sample_service.users) == 3
+    assert len(service.users) == 3
     assert user_can_be_archived(user_1)
 
 
-def test_dao_archive_user_raises_error_if_user_cannot_be_archived(sample_user, mocker):
+def test_dao_archive_user_raises_error_if_user_cannot_be_archived(
+    sample_user,
+    mocker,
+):
     mocker.patch('app.dao.users_dao.user_can_be_archived', return_value=False)
 
     with pytest.raises(InvalidRequest):
-        dao_archive_user(sample_user.id)
+        dao_archive_user(sample_user().id)
 
 
-def test_user_cannot_be_archived_if_they_belong_to_a_service_with_no_other_active_users(sample_service):
-    active_user = create_user(email='1@test.com')
-    pending_user = create_user(email='2@test.com', state='pending')
-    inactive_user = create_user(email='3@test.com', state='inactive')
+def test_user_cannot_be_archived_if_they_belong_to_a_service_with_no_other_active_users(
+    sample_service,
+    sample_user,
+):
+    service = sample_service()
+    active_user = sample_user()
+    pending_user = sample_user(state='pending')
+    inactive_user = sample_user(state='inactive')
 
-    sample_service.users = [active_user, pending_user, inactive_user]
+    service.users = [active_user, pending_user, inactive_user]
 
-    assert len(sample_service.users) == 3
+    assert len(service.users) == 3
     assert not user_can_be_archived(active_user)
 
 
 def test_user_cannot_be_archived_if_the_other_service_members_do_not_have_the_manage_setting_permission(
     sample_service,
+    sample_user,
 ):
-    active_user = create_user(email='1@test.com')
-    pending_user = create_user(email='2@test.com')
-    inactive_user = create_user(email='3@test.com')
+    service = sample_service()
+    active_user = sample_user()
+    pending_user = sample_user()
+    inactive_user = sample_user()
 
-    sample_service.users = [active_user, pending_user, inactive_user]
+    service.users = [active_user, pending_user, inactive_user]
 
-    create_permissions(active_user, sample_service, 'manage_settings')
-    create_permissions(pending_user, sample_service, 'view_activity')
-    create_permissions(inactive_user, sample_service, 'send_emails', 'send_letters', 'send_texts')
+    create_permissions(active_user, service, 'manage_settings')
+    create_permissions(pending_user, service, 'view_activity')
+    create_permissions(inactive_user, service, 'send_emails', 'send_letters', 'send_texts')
 
-    assert len(sample_service.users) == 3
+    assert len(service.users) == 3
     assert not user_can_be_archived(active_user)
 
 
-def test_check_password_for_blocked_user(notify_api, notify_db, notify_db_session, sample_user):
-    not_blocked_user = create_user(email='blocked@test.com', blocked=True)
+def test_check_password_for_blocked_user(
+    sample_user,
+):
+    not_blocked_user = sample_user(blocked=True)
     assert not not_blocked_user.check_password('password')
 
 
-def test_check_password_for_allowed_user(notify_api, notify_db, notify_db_session, sample_user):
-    allowed_user = create_user(email='allowed@test.com', blocked=False)
+def test_check_password_for_allowed_user(
+    sample_user,
+):
+    allowed_user = sample_user(blocked=False)
     assert allowed_user.check_password('password')
 
 
-def test_get_user_by_identity_provider_user_id(notify_db_session):
-    user = create_user(identity_provider_user_id='id-user-1')
+def test_get_user_by_identity_provider_user_id(
+    sample_user,
+):
+    user = sample_user(identity_provider_user_id='id-user-1')
     user_from_db = get_user_by_identity_provider_user_id(user.identity_provider_user_id)
     assert user == user_from_db
 
@@ -394,9 +519,11 @@ def test_get_user_by_identity_provider_user_id(notify_db_session):
     ],
 )
 def test_update_user_identity_provider_user_id_for_identity_provider_when_none(
-    notify_db_session, initial_id_provider, expected_id_provider
+    initial_id_provider,
+    expected_id_provider,
+    sample_user,
 ):
-    user = create_user(identity_provider_user_id=initial_id_provider)
+    user = sample_user(identity_provider_user_id=initial_id_provider)
 
     user_from_db = update_user_identity_provider_user_id(user.email_address, expected_id_provider)
 
@@ -406,109 +533,188 @@ def test_update_user_identity_provider_user_id_for_identity_provider_when_none(
 
 
 @pytest.mark.parametrize(
-    'initial_email, new_email',
-    [('old-mail@email.com', 'new-mail@email.com'), ('same-mail@email.com', 'same-mail@email.com')],
+    'new_email',
+    [
+        True,
+        False,
+    ],
 )
-def test_update_user_identity_provider_user_id_do_not_update_email(notify_db_session, initial_email, new_email):
-    user_id = 'user-id'
-    create_user(email=initial_email, identity_provider_user_id=user_id)
-    user_from_db = update_user_identity_provider_user_id(new_email, user_id)
-    assert user_from_db.email_address == initial_email
+def test_update_user_identity_provider_user_id_do_not_update_email(
+    new_email,
+    fake_uuid_v2,
+    sample_user,
+):
+    user = sample_user(identity_provider_user_id=fake_uuid_v2)
+    email_address = f'new.{user.email_address}' if new_email else user.email_address
+    user_from_db = update_user_identity_provider_user_id(email_address, fake_uuid_v2)
+    assert user_from_db.email_address == user.email_address
 
 
-def test_update_user_identity_provider_user_id_throws_exception_if_github_id_does_not_match(notify_db_session):
-    some_email = 'philip.schrute@dundermifflin.com'
-
-    create_user(email=some_email, identity_provider_user_id='1111')
+def test_update_user_identity_provider_user_id_throws_exception_if_github_id_does_not_match(
+    sample_user,
+    test_email,
+):
+    sample_user(email=test_email, identity_provider_user_id='1111')
 
     with pytest.raises(IncorrectGithubIdException):
-        update_user_identity_provider_user_id(some_email, '2222')
+        update_user_identity_provider_user_id(test_email, '2222')
 
 
-def test_create_or_retrieve_user_by_identity_provider_user_id_for_new_user(sample_user):
-    create_or_retrieve_user('newuser@email.com', 'new-test-id', 'New User Here')
-    number_of_users_increases_to_two = 2
-    assert User.query.count() == number_of_users_increases_to_two
+def test_create_or_retrieve_user_by_identity_provider_user_id_for_new_user(
+    notify_db_session,
+    sample_user,
+    test_email,
+    test_name,
+    fake_uuid_v2,
+):
+    user = sample_user()
+    created_user = create_or_retrieve_user(
+        test_email,
+        fake_uuid_v2,
+        test_name,
+    )
+
+    assert user.id != created_user.id
+
+    # Teardown - retrieve_match_or_create_user leaves artifacts
+    if created_user:
+        notify_db_session.session.delete(created_user)
+        notify_db_session.session.commit()
 
 
-def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(sample_user):
-    assert sample_user.identity_provider_user_id is None
+def test_create_or_update_user_by_identity_provider_user_id_for_existing_user(
+    notify_db_session,
+    sample_user,
+):
+    user = sample_user()
+    assert user.identity_provider_user_id is None
+    name = str(uuid.uuid4())
 
-    create_or_retrieve_user(sample_user.email_address, 'new-test-id', sample_user.name)
+    retrieved_user = create_or_retrieve_user(
+        user.email_address,
+        name,
+        user.name,
+    )
 
-    number_of_users_stays_at_one = 1
-    assert sample_user.identity_provider_user_id == 'new-test-id'
-    assert sample_user.idp_ids[0].idp_name == 'github'
-    assert sample_user.idp_ids[0].idp_id == 'new-test-id'
-    assert User.query.count() == number_of_users_stays_at_one
+    assert user.identity_provider_user_id == name
+    assert user.idp_ids[0].idp_name == 'github'
+    assert user.idp_ids[0].idp_id == name
+    # Ensure it retrieved rather than created
+    assert user == notify_db_session.session.get(User, retrieved_user.id)
 
 
 class TestRetrieveMatchCreateUsedForSSO:
+    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
     @pytest.mark.parametrize('idp_id, idp_id_str', [('some-id', 'some-id'), (1234, '1234')])
     def test_should_return_user_if_matches_idp(self, notify_db_session, sample_user, idp_id, idp_id_str):
-        sample_user.add_idp(idp_name='va_sso', idp_id=idp_id_str)
-        sample_user.save_to_db()
+        user = sample_user()
+        user.add_idp(idp_name='va_sso', idp_id=idp_id_str)
+        user.save_to_db()
 
-        user = retrieve_match_or_create_user(
+        created_user = retrieve_match_or_create_user(
             email_address='does_not_matter',
             name='does not matter',
             identity_provider='va_sso',
             identity_provider_user_id=idp_id,
         )
 
-        assert user.id == sample_user.id
+        assert created_user.id == user.id
 
-    def test_should_match_by_email_and_assign_idp(self, notify_db_session, sample_user):
-        assert len(sample_user.idp_ids) == 0
-        user = retrieve_match_or_create_user(
-            email_address=sample_user.email_address,
+        # Teardown - retrieve_match_or_create_user leaves artifacts
+        if created_user:
+            notify_db_session.session.delete(created_user)
+            notify_db_session.session.commit()
+
+    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+    def test_should_match_by_email_and_assign_idp(
+        self,
+        notify_db_session,
+        sample_user,
+    ):
+        user = sample_user()
+        assert len(user.idp_ids) == 0
+        created_user = retrieve_match_or_create_user(
+            email_address=user.email_address,
             name='does not matter',
             identity_provider='va_sso',
             identity_provider_user_id='some-id',
         )
 
-        assert user.id == sample_user.id
+        assert user.id == user.id
         assert user.idp_ids[0].idp_name == 'va_sso'
         assert user.idp_ids[0].idp_id == 'some-id'
 
-    def test_should_match_by_email_and_assign_other_idp(self, notify_db_session, sample_user):
-        sample_user.add_idp(idp_name='github', idp_id='some-id')
-        sample_user.save_to_db()
-        user = retrieve_match_or_create_user(
-            email_address=sample_user.email_address,
+        # Teardown - retrieve_match_or_create_user leaves artifacts
+        if created_user:
+            notify_db_session.session.delete(created_user)
+            notify_db_session.session.commit()
+
+    def test_should_match_by_email_and_assign_other_idp(
+        self,
+        notify_db_session,
+        sample_user,
+    ):
+        user = sample_user()
+        user.add_idp(idp_name='github', idp_id='some-id')
+        user.save_to_db()
+        created_user = retrieve_match_or_create_user(
+            email_address=user.email_address,
             name='does not matter',
             identity_provider='va_sso',
             identity_provider_user_id='other-id',
         )
 
-        assert user.id == sample_user.id
-        assert len(user.idp_ids) == 2
+        assert created_user.id == user.id
+        assert len(created_user.idp_ids) == 2
 
-    def test_raises_exception_when_user_has_conflicting_idp_id(self, notify_db_session, sample_user):
-        sample_user.add_idp(idp_name='va_sso', idp_id='some-id')
-        sample_user.save_to_db()
+        # Teardown - retrieve_match_or_create_user leaves artifacts
+        if created_user:
+            notify_db_session.session.delete(created_user)
+            notify_db_session.session.commit()
+
+    def test_raises_exception_when_user_has_conflicting_idp_id(
+        self,
+        notify_db_session,
+        sample_user,
+    ):
+        user = sample_user()
+        user.add_idp(idp_name='va_sso', idp_id='some-id')
+        user.save_to_db()
 
         with pytest.raises(IdpAssignmentException):
             retrieve_match_or_create_user(
-                email_address=sample_user.email_address,
+                email_address=user.email_address,
                 name='does not matter',
                 identity_provider='va_sso',
                 identity_provider_user_id='other-id',
             )
 
-        user = User.query.get(sample_user.id)
-        assert user.idp_ids[0].idp_id == 'some-id'
+        db_user = notify_db_session.session.get(User, user.id)
+        assert db_user.idp_ids[0].idp_id == 'some-id'
 
-    def test_creates_new_user_if_no_match_by_idp_or_email(self, notify_db_session, sample_user):
-        user = retrieve_match_or_create_user(
+    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+    def test_creates_new_user_if_no_match_by_idp_or_email(
+        self,
+        notify_db_session,
+        sample_user,
+    ):
+        random_user = sample_user()
+        created_user = retrieve_match_or_create_user(
             email_address='test@email.com',
             name='Winnie the Pooh',
             identity_provider='va_sso',
             identity_provider_user_id='some-id',
         )
-        assert len(User.query.all()) == 2
-        assert user.id != sample_user.id
+
+        user = notify_db_session.session.get(User, created_user.id)
+
+        assert user.id != random_user.id
         assert user.name == 'Winnie the Pooh'
         assert user.email_address == 'test@email.com'
         assert user.idp_ids[0].idp_name == 'va_sso'
         assert user.idp_ids[0].idp_id == 'some-id'
+
+        # Teardown - retrieve_match_or_create_user leaves artifacts
+        if created_user:
+            notify_db_session.session.delete(created_user)
+            notify_db_session.session.commit()

@@ -6,7 +6,7 @@ from app.provider_details.load_balancing_strategy import LoadBalancingStrategy
 
 
 class TestValidate:
-    def test_validate_passes_if_there_are_providers_with_weights_for_notification_type(self, mocker):
+    def test_validate_passes_if_there_are_providers_with_weights_for_notification_type(self, client, mocker):
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
             return_value=[mocker.Mock(ProviderDetails)],
@@ -17,7 +17,7 @@ class TestValidate:
 
         mock_dao_get_providers.assert_called_with(some_notification_type)
 
-    def test_validate_throws_if_there_are_no_providers_with_weights_for_notification_type(self, mocker):
+    def test_validate_throws_if_there_are_no_providers_with_weights_for_notification_type(self, client, mocker):
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
             return_value=[],
@@ -32,7 +32,7 @@ class TestValidate:
 
 
 class TestGetProvider:
-    def test_returns_single_provider(self, mocker):
+    def test_returns_single_provider(self, client, mocker):
         mock_provider = mocker.Mock(ProviderDetails, load_balancing_weight=10)
         mock_dao_get_providers = mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
@@ -47,7 +47,7 @@ class TestGetProvider:
 
         mock_dao_get_providers.assert_called_with(NotificationType.EMAIL, False)
 
-    def test_handles_no_providers(self, mocker):
+    def test_handles_no_providers(self, client, mocker):
         mocker.patch(
             'app.provider_details.load_balancing_strategy.get_active_providers_with_weights_by_notification_type',
             return_value=[],
@@ -57,7 +57,7 @@ class TestGetProvider:
 
         assert LoadBalancingStrategy.get_provider(mock_notification) is None
 
-    def test_returns_weighted_random_provider(self, mocker):
+    def test_returns_weighted_random_provider(self, client, mocker):
         mock_provider_1 = mocker.Mock(ProviderDetails, load_balancing_weight=10)
         mock_provider_2 = mocker.Mock(ProviderDetails, load_balancing_weight=90)
         mocker.patch(
@@ -79,7 +79,7 @@ class TestGetProvider:
         'Due to randomness, there is a very small chance that this test will fail. '
         'Leaving it here as peace of mind that our approach works'
     )
-    def test_random_distribution(self, mocker):
+    def test_random_distribution(self, client, mocker):
         mock_provider_1 = mocker.Mock(ProviderDetails, load_balancing_weight=10)
         mock_provider_2 = mocker.Mock(ProviderDetails, load_balancing_weight=90)
         mocker.patch(

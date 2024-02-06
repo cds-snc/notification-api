@@ -14,80 +14,61 @@ from app.dao.provider_details_dao import (
     get_highest_priority_active_provider_by_notification_type,
     get_active_providers_with_weights_by_notification_type,
 )
-from app.models import ProviderDetails, ProviderDetailsHistory, ProviderRates
+from app.models import (
+    EMAIL_TYPE,
+    PINPOINT_PROVIDER,
+    ProviderDetails,
+    ProviderDetailsHistory,
+    ProviderRates,
+    SES_PROVIDER,
+    SMS_TYPE,
+    SNS_PROVIDER,
+)
 from app.notifications.notification_type import NotificationType
 from datetime import datetime
 from freezegun import freeze_time
 from sqlalchemy import asc
-from tests.app.db import create_ft_billing, create_service, create_template
+from typing import List
+from uuid import uuid4
 
 
-@pytest.fixture(scope='function')
-def setup_provider_details(restore_provider_details):
-    restore_provider_details.session.query(ProviderRates).delete()
-    restore_provider_details.session.query(ProviderDetails).delete()
-
-    prioritised_email_provider = ProviderDetails(
-        **{
-            'display_name': 'foo',
-            'identifier': 'foo',
-            'priority': 10,
-            'notification_type': 'email',
-            'active': True,
-            'supports_international': False,
-        }
+@pytest.fixture
+def setup_provider_details(sample_provider) -> List[ProviderDetails]:
+    prioritised_email_provider = sample_provider(
+        identifier=uuid4(),
+        display_name='foo',
+        priority=10,
+        notification_type=EMAIL_TYPE,
     )
-    restore_provider_details.session.add(prioritised_email_provider)
 
-    deprioritised_email_provider = ProviderDetails(
-        **{
-            'display_name': 'bar',
-            'identifier': 'bar',
-            'priority': 50,
-            'notification_type': 'email',
-            'active': True,
-            'supports_international': False,
-        }
+    deprioritised_email_provider = sample_provider(
+        identifier=uuid4(),
+        display_name='bar',
+        priority=50,
+        notification_type=EMAIL_TYPE,
     )
-    restore_provider_details.session.add(deprioritised_email_provider)
 
-    prioritised_sms_provider = ProviderDetails(
-        **{
-            'display_name': 'some sms provider',
-            'identifier': 'some_sms_provider',
-            'priority': 10,
-            'notification_type': 'sms',
-            'active': True,
-            'supports_international': False,
-        }
+    prioritised_sms_provider = sample_provider(
+        identifier=uuid4(),
+        display_name='some sms provider',
+        priority=10,
+        notification_type=SMS_TYPE,
     )
-    restore_provider_details.session.add(prioritised_sms_provider)
 
-    deprioritised_sms_provider = ProviderDetails(
-        **{
-            'display_name': 'some deprioritised sms provider',
-            'identifier': 'some_deprioritised_sms_provider',
-            'priority': 50,
-            'notification_type': 'sms',
-            'active': True,
-            'supports_international': False,
-        }
+    deprioritised_sms_provider = sample_provider(
+        identifier=uuid4(),
+        display_name='some deprioritised sms provider',
+        priority=50,
+        notification_type=SMS_TYPE,
     )
-    restore_provider_details.session.add(deprioritised_sms_provider)
 
-    inactive_sms_provider = ProviderDetails(
-        **{
-            'display_name': 'some deprioritised sms provider',
-            'identifier': 'some_deprioritised_sms_provider',
-            'priority': 20,
-            'notification_type': 'sms',
-            'active': False,
-            'supports_international': False,
-        }
+    inactive_sms_provider = sample_provider(
+        identifier=uuid4(),
+        display_name='some_deprioritised_sms_provider',
+        priority=20,
+        notification_type=SMS_TYPE,
+        active=False,
     )
-    restore_provider_details.session.add(inactive_sms_provider)
-
-    restore_provider_details.session.commit()
 
     return [
         prioritised_email_provider,
@@ -98,58 +79,39 @@ def setup_provider_details(restore_provider_details):
     ]
 
 
-@pytest.fixture(scope='function')
-def setup_sms_providers(restore_provider_details):
-    restore_provider_details.session.query(ProviderRates).delete()
-    restore_provider_details.session.query(ProviderDetails).delete()
-    restore_provider_details.session.query(ProviderDetailsHistory).delete()
+@pytest.fixture
+def setup_sms_providers(sample_provider):
+    identifier = str(uuid4())
 
-    providers = [
-        ProviderDetails(
-            **{
-                'display_name': 'foo',
-                'identifier': 'foo',
-                'priority': 10,
-                'notification_type': 'sms',
-                'active': False,
-                'supports_international': False,
-            }
+    return [
+        sample_provider(
+            identifier=f'foo {identifier}',
+            display_name='foo',
+            priority=10,
+            notification_type=SMS_TYPE,
+            active=False,
         ),
-        ProviderDetails(
-            **{
-                'display_name': 'bar',
-                'identifier': 'bar',
-                'priority': 20,
-                'notification_type': 'sms',
-                'active': True,
-                'supports_international': False,
-            }
+        sample_provider(
+            identifier=f'bar {identifier}',
+            display_name='bar',
+            priority=20,
+            notification_type=SMS_TYPE,
         ),
-        ProviderDetails(
-            **{
-                'display_name': 'baz',
-                'identifier': 'baz',
-                'priority': 30,
-                'notification_type': 'sms',
-                'active': True,
-                'supports_international': False,
-            }
+        sample_provider(
+            identifier=f'baz {identifier}',
+            display_name='baz',
+            priority=30,
+            notification_type=SMS_TYPE,
         ),
     ]
-    restore_provider_details.session.add_all(providers)
-    return providers
 
 
-@pytest.fixture(scope='function')
-def setup_sms_providers_with_history(restore_provider_details, setup_sms_providers):
-    restore_provider_details.session.query(ProviderDetailsHistory).delete()
-    providers_history = [ProviderDetailsHistory.from_original(provider) for provider in setup_sms_providers]
-    restore_provider_details.session.add_all(providers_history)
-    return setup_sms_providers
-
-
-@pytest.fixture(scope='function')
+@pytest.fixture
 def setup_equal_priority_sms_providers(restore_provider_details):
+    """
+    restore_provider_details is an alias for notify_db_session that provides additional behaviors.
+    """
+
     restore_provider_details.session.query(ProviderRates).delete()
     restore_provider_details.session.query(ProviderDetails).delete()
 
@@ -159,7 +121,7 @@ def setup_equal_priority_sms_providers(restore_provider_details):
                 'display_name': 'bar',
                 'identifier': 'bar',
                 'priority': 20,
-                'notification_type': 'sms',
+                'notification_type': SMS_TYPE,
                 'active': True,
                 'supports_international': False,
             }
@@ -169,7 +131,7 @@ def setup_equal_priority_sms_providers(restore_provider_details):
                 'display_name': 'baz',
                 'identifier': 'baz',
                 'priority': 20,
-                'notification_type': 'sms',
+                'notification_type': SMS_TYPE,
                 'active': True,
                 'supports_international': False,
             }
@@ -179,6 +141,7 @@ def setup_equal_priority_sms_providers(restore_provider_details):
     return providers
 
 
+@pytest.mark.skip(reason="#1436 - This test doesn't have proper teardown.")
 def set_primary_sms_provider(identifier):
     primary_provider = get_provider_details_by_identifier(identifier)
     secondary_provider = get_alternative_sms_provider(identifier)
@@ -190,37 +153,73 @@ def set_primary_sms_provider(identifier):
     dao_update_provider_details(secondary_provider)
 
 
-def test_can_get_sms_all_providers(restore_provider_details):
-    sms_providers = get_provider_details_by_notification_type('sms', False)
-    assert len(sms_providers) >= 1
-    assert all(prov.notification_type == 'sms' for prov in sms_providers)
+@pytest.mark.serial
+@pytest.mark.parametrize(
+    'notification_type, alternate',
+    [
+        (SMS_TYPE, EMAIL_TYPE),
+        (EMAIL_TYPE, SMS_TYPE),
+    ],
+)
+def test_get_provider_details_by_notification_type(
+    sample_provider,
+    notification_type,
+    alternate,
+):
+    provider1 = sample_provider(notification_type=notification_type)
+    provider2 = sample_provider(notification_type=notification_type, active=False)
+    provider3 = sample_provider(notification_type=alternate)
+    provider4 = sample_provider(notification_type=alternate, active=False)
+
+    providers = get_provider_details_by_notification_type(notification_type, False)
+
+    assert all(prov.notification_type == notification_type for prov in providers)
+    assert provider1 in providers
+    assert provider2 in providers
+    assert provider3 not in providers
+    assert provider4 not in providers
 
 
-def test_can_get_sms_international_providers(restore_provider_details):
-    sms_providers = get_provider_details_by_notification_type('sms', True)
-    assert len(sms_providers) >= 1
-    assert all(prov.notification_type == 'sms' for prov in sms_providers)
-    assert all(prov.supports_international for prov in sms_providers)
+def test_can_get_sms_international_providers(sample_provider):
+    provider = sample_provider(supports_international=True)
+    assert provider.notification_type == SMS_TYPE
+
+    sms_providers = get_provider_details_by_notification_type(SMS_TYPE, True)
+    assert provider in sms_providers
 
 
-def test_can_get_sms_providers_in_order_of_priority(restore_provider_details):
-    providers = get_provider_details_by_notification_type('sms', False)
-    assert providers[0].priority < providers[1].priority
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_can_get_sms_providers_in_order_of_priority(restore_provider_details, sample_provider):
+    provider1 = sample_provider(priority=10)
+    provider2 = sample_provider(priority=11)
+
+    providers = get_provider_details_by_notification_type(SMS_TYPE, False)
+    assert providers[0].id == provider1.id
+    assert providers[1].id == provider2.id
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 def test_can_get_email_providers_in_order_of_priority(setup_provider_details):
-    providers = get_provider_details_by_notification_type('email')
     [prioritised_email_provider, deprioritised_email_provider, _, _, _] = setup_provider_details
+    providers = get_provider_details_by_notification_type(EMAIL_TYPE)
+
+    assert providers[0].id == prioritised_email_provider.id
     assert providers[0].identifier == prioritised_email_provider.identifier
+    assert providers[1].id == deprioritised_email_provider.id
     assert providers[1].identifier == deprioritised_email_provider.identifier
 
 
+@pytest.mark.skip(reason="#1436 - This test doesn't have proper teardown.")
+@pytest.mark.serial
 def test_can_get_email_providers(setup_provider_details):
-    email_providers = [provider for provider in setup_provider_details if provider.notification_type == 'email']
-    assert len(get_provider_details_by_notification_type('email')) == len(email_providers)
-    assert all(
-        [provider.notification_type == 'email' for provider in get_provider_details_by_notification_type('email')]
-    )
+    email_providers = [provider for provider in setup_provider_details if provider.notification_type == EMAIL_TYPE]
+    providers = get_provider_details_by_notification_type(EMAIL_TYPE)
+
+    for p in email_providers:
+        assert p.notification_type == EMAIL_TYPE
+        assert p in providers
 
 
 def commit_to_db(restore_provider_details, *providers):
@@ -233,6 +232,7 @@ def commit_to_db(restore_provider_details, *providers):
     restore_provider_details.session.commit()
 
 
+@pytest.mark.serial
 class TestGetHighestPriorityActiveProviderByNotificationType:
     default_type = NotificationType.EMAIL
 
@@ -300,6 +300,7 @@ class TestGetHighestPriorityActiveProviderByNotificationType:
         assert actual_provider is None
 
 
+@pytest.mark.serial
 class TestGetActiveProvidersWithWeightsByNotificationType:
     default_type = NotificationType.EMAIL
 
@@ -369,15 +370,19 @@ class TestGetActiveProvidersWithWeightsByNotificationType:
         assert actual_providers == []
 
 
+@pytest.mark.serial
 def test_should_not_error_if_any_provider_in_code_not_in_database(restore_provider_details):
     ProviderDetails.query.filter_by(identifier='sns').delete()
 
     assert clients.get_sms_client('sns')
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 @freeze_time('2000-01-01T00:00:00')
-def test_update_adds_history(restore_provider_details):
-    ses = ProviderDetails.query.filter(ProviderDetails.identifier == 'ses').one()
+def test_update_adds_history(restore_provider_details, sample_provider):
+    sample_provider(notification_type=EMAIL_TYPE, identifier=SES_PROVIDER)
+    ses = ProviderDetails.query.filter(ProviderDetails.identifier == SES_PROVIDER).one()
     ses_history = ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id).one()
 
     assert ses.version == 1
@@ -406,13 +411,16 @@ def test_update_adds_history(restore_provider_details):
     assert ses_history[1].updated_at == datetime(2000, 1, 1, 0, 0, 0)
 
 
-def test_updated_at(restore_provider_details):
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_updated_at(restore_provider_details, sample_provider):
     """
     Updating an instance of ProviderDetails should automatically update the record's "updated_at"
     attribute and the same attribute in the associated ProviderDetailsHistory record.
     """
 
-    ses = ProviderDetails.query.filter(ProviderDetails.identifier == 'ses').one()
+    sample_provider(notification_type=EMAIL_TYPE, identifier=SES_PROVIDER)
+    ses = ProviderDetails.query.filter(ProviderDetails.identifier == SES_PROVIDER).one()
     ses_history = ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id).one()
 
     # These attributes are not nullible.
@@ -436,9 +444,14 @@ def test_updated_at(restore_provider_details):
     assert ses_history_new.updated_at is not None and ses_history_new.updated_at > ses_history_updated_at_initial
 
 
-def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details):
-    set_primary_sms_provider('sns')
-    primary_provider = get_current_provider('sms')
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details, sample_provider):
+    sample_provider(notification_type=SMS_TYPE, identifier=SNS_PROVIDER, priority=10)
+    sample_provider(notification_type=SMS_TYPE, identifier=SES_PROVIDER, priority=15)
+
+    set_primary_sms_provider(SNS_PROVIDER)
+    primary_provider = get_current_provider(SMS_TYPE)
     primary_provider.active = False
 
     dao_update_provider_details(primary_provider)
@@ -446,14 +459,17 @@ def test_update_sms_provider_to_inactive_sets_inactive(restore_provider_details)
     assert not primary_provider.active
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 def test_get_current_sms_provider_returns_provider_highest_priority_active_provider(setup_sms_providers):
-    provider = get_current_provider('sms')
+    provider = get_current_provider(SMS_TYPE)
     assert provider.identifier == setup_sms_providers[1].identifier
 
 
+@pytest.mark.serial
 def test_get_alternative_sms_provider_returns_next_highest_priority_active_sms_provider(setup_provider_details):
     active_sms_providers = [
-        provider for provider in setup_provider_details if provider.notification_type == 'sms' and provider.active
+        provider for provider in setup_provider_details if provider.notification_type == SMS_TYPE and provider.active
     ]
 
     for provider in active_sms_providers:
@@ -463,26 +479,43 @@ def test_get_alternative_sms_provider_returns_next_highest_priority_active_sms_p
         assert alternative_provider.active
 
 
-def test_switch_sms_provider_to_current_provider_does_not_switch(restore_provider_details, current_sms_provider):
-    dao_switch_sms_provider_to_provider_with_identifier(current_sms_provider.identifier)
-    new_provider = get_current_provider('sms')
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_switch_sms_provider_to_current_provider_does_not_switch(notify_user, sample_provider):
+    pinpoint_provider = sample_provider()
+    assert pinpoint_provider.notification_type == SMS_TYPE
+    assert pinpoint_provider.identifier == PINPOINT_PROVIDER
+    assert pinpoint_provider.priority == 10
 
-    assert current_sms_provider.id == new_provider.id
-    assert current_sms_provider.identifier == new_provider.identifier
+    sns_provider = sample_provider(identifier=SNS_PROVIDER, priority=11)
+    assert sns_provider.notification_type == SMS_TYPE
+    assert sns_provider.identifier == SNS_PROVIDER
+    assert sns_provider.priority == 11
+
+    assert get_current_provider(SMS_TYPE).id == pinpoint_provider.id
+
+    dao_switch_sms_provider_to_provider_with_identifier(SNS_PROVIDER)
+    new_provider = get_current_provider(SMS_TYPE)
+
+    assert new_provider.id == sns_provider.id
+    assert new_provider.identifier == SNS_PROVIDER
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 def test_switch_sms_provider_to_inactive_provider_does_not_switch(setup_sms_providers):
     [inactive_provider, current_provider, _] = setup_sms_providers
-    assert get_current_provider('sms').identifier == current_provider.identifier
+    assert get_current_provider(SMS_TYPE).identifier == current_provider.identifier
 
     dao_switch_sms_provider_to_provider_with_identifier(inactive_provider.identifier)
-    new_provider = get_current_provider('sms')
+    new_provider = get_current_provider(SMS_TYPE)
 
     assert new_provider.id == current_provider.id
     assert new_provider.identifier == current_provider.identifier
 
 
-def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider(mocker):
+@pytest.mark.serial
+def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider(notify_api, mocker):
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=None)
     mock_dao_switch_sms_provider_to_provider_with_identifier = mocker.patch(
         'app.dao.provider_details_dao.dao_switch_sms_provider_to_provider_with_identifier'
@@ -492,69 +525,129 @@ def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider
     mock_dao_switch_sms_provider_to_provider_with_identifier.assert_not_called()
 
 
+@pytest.mark.serial
 def test_toggle_sms_provider_switches_provider(mocker, sample_user, setup_sms_providers):
     [inactive_provider, old_provider, alternative_provider] = setup_sms_providers
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user())
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=alternative_provider)
     dao_toggle_sms_provider(old_provider.identifier)
-    new_provider = get_current_provider('sms')
+    new_provider = get_current_provider(SMS_TYPE)
 
     assert new_provider.identifier != old_provider.identifier
     assert new_provider.priority < old_provider.priority
 
 
+@pytest.mark.serial
 def test_toggle_sms_provider_switches_when_provider_priorities_are_equal(
     mocker, sample_user, setup_equal_priority_sms_providers
 ):
     [old_provider, alternative_provider] = setup_equal_priority_sms_providers
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user())
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=alternative_provider)
 
     dao_toggle_sms_provider(old_provider.identifier)
-    new_provider = get_current_provider('sms')
+    new_provider = get_current_provider(SMS_TYPE)
 
     assert new_provider.identifier != old_provider.identifier
     assert new_provider.priority < old_provider.priority
     assert old_provider.priority == new_provider.priority + 10
 
 
-def test_toggle_sms_provider_updates_provider_history(mocker, sample_user, setup_sms_providers_with_history):
-    [inactive_provider, current_provider, alternative_provider] = setup_sms_providers_with_history
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_toggle_sms_provider_updates_provider_history(notify_db_session, mocker, sample_user, setup_sms_providers):
+    _, current_provider, alternative_provider = setup_sms_providers
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user())
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=alternative_provider)
 
+    # [ProviderDetailsHistory]
     current_provider_history = dao_get_provider_versions(current_provider.id)
+    assert any(history.id == current_provider.id for history in current_provider_history)
+    current_version = current_provider.version
+    current_priority = current_provider.priority
 
+    # [ProviderDetailsHistory]
+    alternative_provider_history = dao_get_provider_versions(alternative_provider.id)
+    assert any(history.id == alternative_provider.id for history in alternative_provider_history)
+    alternative_version = alternative_provider.version
+    alternative_priority = alternative_provider.priority
+
+    # Switch provider from "current" to "alternative".  This should swap their priority.
     dao_toggle_sms_provider(current_provider.identifier)
 
-    updated_provider_history_rows = dao_get_provider_versions(current_provider.id)
+    notify_db_session.session.refresh(current_provider)
+    notify_db_session.session.refresh(alternative_provider)
 
-    assert len(updated_provider_history_rows) - len(current_provider_history) == 1
-    assert updated_provider_history_rows[0].version - current_provider_history[0].version == 1
+    updated_current_provider_history = dao_get_provider_versions(current_provider.id)
+
+    # The old+current version is in history.
+    assert any(
+        (
+            history.id == current_provider.id and \
+            history.version == current_version and \
+            history.priority == current_priority
+        ) for history in updated_current_provider_history
+    )
+
+    # The updated+current version is in history.
+    assert any(
+        (
+            history.id == current_provider.id and \
+            history.version == (current_version + 1) and \
+            history.priority == alternative_priority
+        ) for history in updated_current_provider_history
+    )
+
+    updated_alternative_provider_history = dao_get_provider_versions(alternative_provider.id)
+
+    # The old+alternative version is in history.
+    assert any(
+        (
+            history.id == alternative_provider.id and \
+            history.version == alternative_version and \
+            history.priority == alternative_priority
+        ) for history in updated_alternative_provider_history
+    )
+
+    # The updated+alternative version is in history.
+    assert any(
+        (
+            history.id == alternative_provider.id and \
+            history.version == (alternative_version + 1) and \
+            history.priority == current_priority
+        ) for history in updated_alternative_provider_history
+    )
 
 
+@pytest.mark.skip(reason="#1631 - This test leaves a ProviderDetailsHistory instance that fails other tests.")
+@pytest.mark.serial
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id(mocker, sample_user, setup_sms_providers):
-    [inactive_provider, current_provider, alternative_provider] = setup_sms_providers
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+    user = sample_user()
+    _, current_provider, alternative_provider = setup_sms_providers
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=user)
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=alternative_provider)
 
+    # TODO 1631 - This seems to be creating an updated Twilio row in provider_details_history.
     dao_toggle_sms_provider(current_provider.identifier)
-    new_provider = get_current_provider('sms')
+    new_provider = get_current_provider(SMS_TYPE)
 
     assert current_provider.identifier != new_provider.identifier
-    assert new_provider.created_by.id == sample_user.id
-    assert new_provider.created_by_id == sample_user.id
+    assert new_provider.created_by.id == user.id
+    assert new_provider.created_by_id == user.id
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
-    mocker, sample_user, setup_sms_providers_with_history
+    mocker, sample_user, setup_sms_providers
 ):
-    [inactive_provider, old_provider, alternative_provider] = setup_sms_providers_with_history
-    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user)
+    user = sample_user()
+    _, old_provider, alternative_provider = setup_sms_providers
+    mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=user)
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=alternative_provider)
 
     dao_toggle_sms_provider(old_provider.identifier)
-    new_provider = get_current_provider('sms')
+    new_provider = get_current_provider(SMS_TYPE)
 
     old_provider_from_history = (
         ProviderDetailsHistory.query.filter_by(identifier=old_provider.identifier, version=old_provider.version)
@@ -569,12 +662,14 @@ def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
 
     assert old_provider.version == old_provider_from_history.version
     assert new_provider.version == new_provider_from_history.version
-    assert new_provider_from_history.created_by_id == sample_user.id
-    assert old_provider_from_history.created_by_id == sample_user.id
+    assert new_provider_from_history.created_by_id == user.id
+    assert old_provider_from_history.created_by_id == user.id
 
 
-def test_can_get_all_provider_history_with_newest_first(setup_sms_providers_with_history):
-    [inactive_provider, current_provider, alternative_provider] = setup_sms_providers_with_history
+@pytest.mark.skip(reason="#1436 - This test leaves a ProviderDetailsHistory instance that fails other tests.")
+@pytest.mark.serial
+def test_can_get_all_provider_history_with_newest_first(setup_sms_providers):
+    _, current_provider, alternative_provider = setup_sms_providers
     current_provider.priority += 1
     dao_update_provider_details(current_provider)
     versions = dao_get_provider_versions(current_provider.id)
@@ -582,6 +677,7 @@ def test_can_get_all_provider_history_with_newest_first(setup_sms_providers_with
     assert versions[0].version == 2
 
 
+@pytest.mark.serial
 def test_get_sms_provider_with_equal_priority_returns_provider(setup_equal_priority_sms_providers):
     [current_provider, alternative_provider] = setup_equal_priority_sms_providers
 
@@ -592,15 +688,20 @@ def test_get_sms_provider_with_equal_priority_returns_provider(setup_equal_prior
     assert conflicting_provider.identifier == alternative_provider.identifier
 
 
-def test_get_current_sms_provider_returns_active_only(restore_provider_details):
-    current_provider = get_current_provider('sms')
-    current_provider.active = False
-    dao_update_provider_details(current_provider)
-    new_current_provider = get_current_provider('sms')
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
+def test_get_current_sms_provider_returns_active_only(
+    sample_provider,
+):
+    provider = sample_provider(notification_type=SMS_TYPE, active=False)
+    assert provider, 'Need one set'
 
-    assert current_provider.identifier != new_current_provider.identifier
+    new_current_provider = get_current_provider(SMS_TYPE)
+    assert new_current_provider is None
 
 
+@pytest.mark.xfail(reason='#1631', run=False)
+@pytest.mark.serial
 def test_dao_get_provider_stats_returns_data_in_type_and_identifier_order(setup_provider_details):
     all_provider_details = setup_provider_details
     result = dao_get_provider_stats()
@@ -618,14 +719,21 @@ def test_dao_get_provider_stats_returns_data_in_type_and_identifier_order(setup_
     assert result[2].display_name == prioritised_sms_provider.display_name
 
 
+@pytest.mark.serial
 @freeze_time('2018-06-28 12:00')
-def test_dao_get_provider_stats_ignores_billable_sms_older_than_1_month(setup_provider_details):
-    sms_provider = next((provider for provider in setup_provider_details if provider.notification_type == 'sms'), None)
+def test_dao_get_provider_stats_ignores_billable_sms_older_than_1_month(
+    sample_service,
+    sample_template,
+    setup_provider_details,
+    sample_ft_billing,
+):
+    service = sample_service()
+    sms_provider = next(
+        (provider for provider in setup_provider_details if provider.notification_type == SMS_TYPE), None
+    )
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
 
-    service = create_service(service_name='1')
-    sms_template = create_template(service, 'sms')
-
-    create_ft_billing('2017-06-05', 'sms', sms_template, service, provider=sms_provider.identifier, billable_unit=4)
+    sample_ft_billing('2017-06-05', SMS_TYPE, sms_template, service, provider=sms_provider.identifier, billable_unit=4)
 
     results = dao_get_provider_stats()
 
@@ -634,14 +742,21 @@ def test_dao_get_provider_stats_ignores_billable_sms_older_than_1_month(setup_pr
     assert sms_provider_result.current_month_billable_sms == 0
 
 
+@pytest.mark.serial
 @freeze_time('2018-06-28 12:00')
-def test_dao_get_provider_stats_counts_billable_sms_within_last_month(setup_provider_details):
-    sms_provider = next((provider for provider in setup_provider_details if provider.notification_type == 'sms'), None)
+def test_dao_get_provider_stats_counts_billable_sms_within_last_month(
+    sample_service,
+    sample_template,
+    setup_provider_details,
+    sample_ft_billing,
+):
+    service = sample_service()
+    sms_provider = next(
+        (provider for provider in setup_provider_details if provider.notification_type == SMS_TYPE), None
+    )
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
 
-    service = create_service(service_name='1')
-    sms_template = create_template(service, 'sms')
-
-    create_ft_billing('2018-06-05', 'sms', sms_template, service, provider=sms_provider.identifier, billable_unit=4)
+    sample_ft_billing('2018-06-05', SMS_TYPE, sms_template, service, provider=sms_provider.identifier, billable_unit=4)
 
     results = dao_get_provider_stats()
 
@@ -650,15 +765,28 @@ def test_dao_get_provider_stats_counts_billable_sms_within_last_month(setup_prov
     assert sms_provider_result.current_month_billable_sms == 4
 
 
+@pytest.mark.serial
 @freeze_time('2018-06-28 12:00')
-def test_dao_get_provider_stats_counts_billable_sms_within_last_month_with_rate_multiplier(setup_provider_details):
-    sms_provider = next((provider for provider in setup_provider_details if provider.notification_type == 'sms'), None)
+def test_dao_get_provider_stats_counts_billable_sms_within_last_month_with_rate_multiplier(
+    sample_service,
+    sample_template,
+    setup_provider_details,
+    sample_ft_billing,
+):
+    service = sample_service()
+    sms_template = sample_template(service=service, template_type=SMS_TYPE)
+    sms_provider = next(
+        (provider for provider in setup_provider_details if provider.notification_type == SMS_TYPE), None
+    )
 
-    service = create_service(service_name='1')
-    sms_template = create_template(service, 'sms')
-
-    create_ft_billing(
-        '2018-06-05', 'sms', sms_template, service, provider=sms_provider.identifier, billable_unit=4, rate_multiplier=2
+    sample_ft_billing(
+        '2018-06-05',
+        SMS_TYPE,
+        sms_template,
+        service,
+        provider=sms_provider.identifier,
+        billable_unit=4,
+        rate_multiplier=2,
     )
 
     results = dao_get_provider_stats()

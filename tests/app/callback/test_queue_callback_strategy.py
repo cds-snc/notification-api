@@ -40,7 +40,7 @@ def test_send_callback_enqueues_message(mocker, notify_api, callback_type):
     }
 
 
-def test_send_callback_increments_statsd_client_with_success(mocker, mock_statsd_client):
+def test_send_callback_increments_statsd_client_with_success(client, mocker, mock_statsd_client):
     mocker.patch('app.callback.sqs_client.SQSClient.send_message')
 
     mock_callback = mocker.Mock(  # nosec
@@ -74,7 +74,7 @@ def test_send_callback_raises_non_retryable_exception_on_client_error(mocker, no
         )
 
 
-def test_send_callback_increments_statsd_client_with_non_retryable_error(mocker, mock_statsd_client):
+def test_send_callback_increments_statsd_client_with_non_retryable_error(client, mocker, mock_statsd_client):
     mock_send_message = mocker.patch('app.callback.sqs_client.SQSClient.send_message')
     mock_send_message.side_effect = ClientError(
         error_response={'Error': {'Message': 'foo', 'Code': 'bar'}}, operation_name='some_operation_name'

@@ -17,6 +17,7 @@ from typing import List
 
 
 # Default permissions for a service
+# Do not confuse this with DEFAULT_SERVICE_PERMISSIONS in app/dao/services_dao.py.
 default_service_permissions = [
     MANAGE_USERS,
     MANAGE_TEMPLATES,

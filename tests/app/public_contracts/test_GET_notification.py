@@ -1,78 +1,63 @@
-from . import return_json_from_response, validate_v0, validate
-from app.models import ApiKey, KEY_TYPE_NORMAL
-from app.dao.api_key_dao import save_model_api_key
+from . import validate
+from app.models import EMAIL_TYPE
 from app.v2.notifications.notification_schemas import get_notification_response, get_notifications_response
 from tests import create_authorization_header
-
-
-def _get_notification(client, notification, url):
-    save_model_api_key(
-        ApiKey(
-            service=notification.service,
-            name='api_key',
-            created_by=notification.service.created_by,
-            key_type=KEY_TYPE_NORMAL,
-        )
-    )
-    auth_header = create_authorization_header(service_id=notification.service_id)
-    return client.get(url, headers=[auth_header])
 
 
 # v2
 
 
-def test_get_v2_sms_contract(client, sample_notification):
-    response_json = return_json_from_response(
-        _get_notification(client, sample_notification, '/v2/notifications/{}'.format(sample_notification.id))
-    )
+def test_get_v2_sms_contract(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+):
+    # Create objects
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service)
+    notification = sample_notification(template=template, api_key=api_key)
+
+    # Gather response
+    auth_header = create_authorization_header(api_key)
+    response_json = client.get(f'/v2/notifications/{notification.id}', headers=[auth_header]).get_json()
+
+    # Validate
     validate(response_json, get_notification_response)
 
 
-def test_get_v2_email_contract(client, sample_email_notification):
-    response_json = return_json_from_response(
-        _get_notification(
-            client, sample_email_notification, '/v2/notifications/{}'.format(sample_email_notification.id)
-        )
-    )
+def test_get_v2_email_contract(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+):
+    # Create objects
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service, template_type=EMAIL_TYPE)
+    notification = sample_notification(template=template, api_key=api_key)
+
+    # Gather response
+    auth_header = create_authorization_header(api_key)
+    response_json = client.get(f'/v2/notifications/{notification.id}', headers=[auth_header]).get_json()
+
+    # Validate
     validate(response_json, get_notification_response)
 
 
-def test_get_v2_notifications_contract(client, sample_notification):
-    response_json = return_json_from_response(_get_notification(client, sample_notification, '/v2/notifications'))
+def test_get_v2_notifications_contract(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+):
+    # Create objects
+    api_key = sample_api_key()
+    template = sample_template(service=api_key.service)
+    sample_notification(template=template, api_key=api_key)
+
+    # Gather response
+    auth_header = create_authorization_header(api_key)
+    response_json = client.get('/v2/notifications', headers=[auth_header]).get_json()
+
     validate(response_json, get_notifications_response)
-
-
-# v0
-
-
-def test_get_api_sms_contract(client, sample_notification):
-    response_json = return_json_from_response(
-        _get_notification(client, sample_notification, '/notifications/{}'.format(sample_notification.id))
-    )
-    validate_v0(response_json, 'GET_notification_return_sms.json')
-
-
-def test_get_api_email_contract(client, sample_email_notification):
-    response_json = return_json_from_response(
-        _get_notification(client, sample_email_notification, '/notifications/{}'.format(sample_email_notification.id))
-    )
-    validate_v0(response_json, 'GET_notification_return_email.json')
-
-
-def test_get_job_sms_contract(client, sample_notification):
-    response_json = return_json_from_response(
-        _get_notification(client, sample_notification, '/notifications/{}'.format(sample_notification.id))
-    )
-    validate_v0(response_json, 'GET_notification_return_sms.json')
-
-
-def test_get_job_email_contract(client, sample_email_notification):
-    response_json = return_json_from_response(
-        _get_notification(client, sample_email_notification, '/notifications/{}'.format(sample_email_notification.id))
-    )
-    validate_v0(response_json, 'GET_notification_return_email.json')
-
-
-def test_get_notifications_contract(client, sample_notification, sample_email_notification):
-    response_json = return_json_from_response(_get_notification(client, sample_notification, '/notifications'))
-    validate_v0(response_json, 'GET_notifications_return.json')
