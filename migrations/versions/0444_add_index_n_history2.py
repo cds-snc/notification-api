@@ -35,4 +35,6 @@ def upgrade():
 
 def downgrade():
     op.execute("COMMIT")
-    op.drop_index(op.f("ix_notification_history_api_key_id_created"), table_name="notification_history", postgresql_concurrently=True)
+    op.drop_index(
+        op.f("ix_notification_history_api_key_id_created"), table_name="notification_history", postgresql_concurrently=True
+    )
