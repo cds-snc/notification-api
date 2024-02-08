@@ -181,6 +181,7 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeat=None):
         )
     return query.all()
 
+
 def fetch_notification_stats_for_trial_services():
     ServiceHistory = Service.get_history_model()
 
