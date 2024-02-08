@@ -83,7 +83,7 @@ def dao_count_live_services():
     ).count()
 
 
-def dao_fetch_live_services_data():
+def dao_fetch_live_services_data(filter_heartbeats=None):
     year_start_date, year_end_date = get_current_financial_year()
 
     most_recent_annual_billing = (
