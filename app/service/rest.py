@@ -209,7 +209,7 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None)
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
     data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
     return jsonify(data=data)
 
