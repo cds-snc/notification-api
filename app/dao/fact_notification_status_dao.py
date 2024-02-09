@@ -149,7 +149,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     )
 
 
-def fetch_delivered_notification_stats_by_month(filter_heartbeat=None):
+def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
     query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
@@ -170,7 +170,7 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeat=None):
             FactNotificationStatus.notification_type,
         )
     )
-    if filter_heartbeat:
+    if filter_heartbeats:
         query = query.filter(
             FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
             FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
