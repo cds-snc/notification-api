@@ -52,9 +52,7 @@ def test_v3_process_notification_no_template(notify_db_session, mocker, sample_s
         notify_db_session.session.commit()
 
 
-def test_v3_process_notification_template_owner_mismatch(
-    notify_db_session, mocker, sample_service, sample_template
-):
+def test_v3_process_notification_template_owner_mismatch(notify_db_session, mocker, sample_service, sample_template):
     """
     Call the task with request data for a template the service doesn't own.
     """
@@ -182,8 +180,9 @@ def test_v3_send_email_notification(mocker, notify_db_session, sample_template):
     """
 
     template = sample_template(template_type=EMAIL_TYPE)
-    assert notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None, \
-        'Needed downstream to avoid IntegrityError.'
+    assert (
+        notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None
+    ), 'Needed downstream to avoid IntegrityError.'
 
     client_mock = mocker.Mock()
     client_mock.send_email = mocker.Mock(return_value='provider reference')
@@ -335,8 +334,9 @@ def test_v3_send_sms_notification(mocker, notify_db_session, sample_service, sam
 
     template = sample_template()
     assert template.template_type == SMS_TYPE
-    assert notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None, \
-        'Needed downstream to avoid IntegrityError.'
+    assert (
+        notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None
+    ), 'Needed downstream to avoid IntegrityError.'
 
     service = sample_service()
     sms_sender = sample_sms_sender(service.id)
@@ -374,7 +374,7 @@ def test_v3_send_sms_notification(mocker, notify_db_session, sample_service, sam
         notification_from_db.content,
         notification_from_db.client_reference,
         True,
-        sms_sender.sms_sender
+        sms_sender.sms_sender,
     )
 
     try:

@@ -262,7 +262,12 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sampl
     ],
 )
 def test_replay_created_notifications(
-    client, mocker, notification_type, expected_delivery_status, sample_template, sample_notification,
+    client,
+    mocker,
+    notification_type,
+    expected_delivery_status,
+    sample_template,
+    sample_notification,
 ):
     mocked = mocker.patch(f'app.celery.provider_tasks.deliver_{notification_type}.apply_async')
     older_than = (60 * 60 * 24) + (60 * 15)  # 24 hours 15 minutes

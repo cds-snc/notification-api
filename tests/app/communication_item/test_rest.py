@@ -127,7 +127,6 @@ def test_communication_item_default_send(
     notify_db_session,
     admin_request,
 ):
-
     va_profile_id = 9876
     post_data = {'name': 'communication item default send test', 'va_profile_item_id': va_profile_id}
     response = admin_request.post('communication_item.create_communication_item', post_data, 201)

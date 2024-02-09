@@ -118,7 +118,7 @@ def test_should_delete_inbound_sms_according_to_data_retention(
         datetime(1998, 6, 5, 3, 59),  # older than three days
         datetime(1998, 6, 1, 4, 00),  # just before seven days
         datetime(1998, 6, 1, 3, 59),  # older than seven days
-        datetime(1998, 5, 1, 0, 0),   # older than thirty days
+        datetime(1998, 5, 1, 0, 0),  # older than thirty days
     ]
 
     for date, service in product(dates, services):

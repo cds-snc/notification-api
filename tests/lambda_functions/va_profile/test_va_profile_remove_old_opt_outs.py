@@ -8,9 +8,7 @@ from lambda_functions.va_profile_remove_old_opt_outs.va_profile_remove_old_opt_o
 
 
 @pytest.mark.serial
-@pytest.mark.parametrize(
-    'method', ['stored_procedure', 'lambda_handler']
-)
+@pytest.mark.parametrize('method', ['stored_procedure', 'lambda_handler'])
 def test_remove_opted_out_records_query(notify_db_session, sample_va_profile_local_cache, method):
     """
     If the difference between the current time and source_datetime is greater than 24 hours,
@@ -45,4 +43,3 @@ def test_remove_opted_out_records_query(notify_db_session, sample_va_profile_loc
     # assert notify_db_session.session.get(VAProfileLocalCache, opt_out_id) is None
     assert notify_db_session.session.get(VAProfileLocalCache, opt_out_newer.id) is not None
     assert notify_db_session.session.get(VAProfileLocalCache, opt_in.id) is not None
-

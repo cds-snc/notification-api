@@ -127,7 +127,6 @@ class TestFetchServiceCallbacks:
             [service_callback_api_schema.dump(s).data for s in service_callbacks],
         )
 
-
     @pytest.mark.serial  # Intermittent
     @freeze_time('1990-12-04 16:00:00.000000')
     def test_fetch_service_callbacks_works_with_platform_admin(

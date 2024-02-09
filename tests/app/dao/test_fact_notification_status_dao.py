@@ -253,7 +253,11 @@ def test_fetch_notification_status_for_service_for_day(sample_service, sample_te
 
 @freeze_time('1995-10-31T18:00:00')
 def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
-    sample_service, sample_template, sample_job, sample_notification, sample_ft_notification_status,
+    sample_service,
+    sample_template,
+    sample_job,
+    sample_notification,
+    sample_ft_notification_status,
 ):
     service = sample_service()
     sms_template = sample_template(service=service, template_type=SMS_TYPE)
@@ -347,7 +351,13 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
-def test_get_total_notifications_sent_for_api_key(notify_db_session, sample_api_key, sample_service, sample_template, sample_notification,):
+def test_get_total_notifications_sent_for_api_key(
+    notify_db_session,
+    sample_api_key,
+    sample_service,
+    sample_template,
+    sample_notification,
+):
     service = sample_service()
     api_key = sample_api_key(service)
     template_email = sample_template(service=service, template_type=EMAIL_TYPE)

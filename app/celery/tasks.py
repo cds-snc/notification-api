@@ -241,7 +241,7 @@ def save_sms(
             'SMS %s created at %s for job %s',
             saved_notification.id,
             saved_notification.created_at,
-            notification.get('job', None)
+            notification.get('job', None),
         )
 
     except SQLAlchemyError as e:
@@ -598,5 +598,5 @@ def process_returned_letters_list(notification_references):
         'Updated %s letter notifications (%s history notifications, from %s references) to returned-letter',
         updated,
         updated_history,
-        len(notification_references)
+        len(notification_references),
     )

@@ -209,7 +209,11 @@ def cleanup_user(user_ids: List[int], session: scoped_session, commit: bool = Tr
     session.execute(delete(IdentityProviderIdentifier).where(IdentityProviderIdentifier.user_id.in_(user_ids)))
 
     # Clear provider_details_history
-    stmt = update(ProviderDetailsHistory).where(ProviderDetailsHistory.created_by_id.in_(user_ids)).values(created_by_id=None)
+    stmt = (
+        update(ProviderDetailsHistory)
+        .where(ProviderDetailsHistory.created_by_id.in_(user_ids))
+        .values(created_by_id=None)
+    )
     session.execute(stmt)
 
     # Clear provider_details
@@ -1701,9 +1705,7 @@ def sample_notification(notify_db_session, sample_api_key, sample_template):  # 
     yield _sample_notification
 
     # Teardown
-    stmt = delete(ScheduledNotification).where(
-        ScheduledNotification.notification_id.in_(created_notification_ids)
-    )
+    stmt = delete(ScheduledNotification).where(ScheduledNotification.notification_id.in_(created_notification_ids))
     notify_db_session.session.execute(stmt)
 
     stmt = delete(Notification).where(Notification.id.in_(created_notification_ids))
@@ -1819,7 +1821,7 @@ def mock_encryption(mocker):
 def sample_invited_user(notify_db_session, sample_service):
     created_invited_user_ids = []
 
-    def _sample_invited_user(service: Service =None, to_email_address: str = None, created_at: datetime = None):
+    def _sample_invited_user(service: Service = None, to_email_address: str = None, created_at: datetime = None):
         if service is None:
             service = sample_service(check_if_service_exists=True)
 
@@ -2192,7 +2194,6 @@ def change_email_confirmation_template(
 
 @pytest.fixture
 def sample_smtp_template(sample_service, sample_template):
-
     def _wrapper():
         service = sample_service(smtp_user=f'{uuid4()}@smtp_user')
 
@@ -2436,7 +2437,7 @@ def sample_organisation(
     notify_db_session.session.execute(stmt)
 
     # Clear InvitedOrganisationUser
-    stmt= delete(InvitedOrganisationUser).where(InvitedOrganisationUser.id.in_(org_ids))
+    stmt = delete(InvitedOrganisationUser).where(InvitedOrganisationUser.id.in_(org_ids))
     notify_db_session.session.execute(stmt)
 
     # Clear domains

@@ -20,7 +20,7 @@ function display_result {
   fi
 }
 
-ruff check .
+ruff format --check
 display_result $? 1 "Code style check"
 
 # Run tests in concurrent threads.  Also see the configuration in ../pytest.ini and ../setup.cfg.

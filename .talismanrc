@@ -1,3 +1,4 @@
+fileignoreconfig:
 - filename: tests/app/dao/notification_dao/test_notification_dao_performance_platform.py
   checksum: b3ffec0e69481a73091ea8388eff348842a82ce00d7f8c9a65dbd8498ef1b220
 - filename: tests/app/dao/notification_dao/test_notification_dao_delete_notifications.py
@@ -30,61 +31,5 @@
   checksum: 2cad8d3b4a53bad53c3adeb9c81968d11b21e75d729976120bdd66ca91031738
 - filename: tests/app/dao/test_fido2_keys_dao.py
   checksum: 35cba2fd6e81a4d9e55fa9ebe8fa6ad8fc1e597aede8495e386f8b7999b6f482
-- filename: tests/app/dao/notification_dao/test_notification_dao_performance_platform.py
-  checksum: b3ffec0e69481a73091ea8388eff348842a82ce00d7f8c9a65dbd8498ef1b220
-- filename: tests/app/dao/notification_dao/test_notification_dao_delete_notifications.py
-  checksum: a31c6f7abed822d20b6371c96aaa3f2fd19200a8a2f8dac8240233986df80e0b
-- filename: tests/app/notifications/test_rest.py
-  checksum: 22a54f4187f7dfe404e4eefb677ff376933aff2f053362662c6d5b0b2eaad891
-- filename: tests/app/notifications/test_process_notifications.py
-  checksum: 4134fa90ed48750b6fc73ddd4cc0416ad21474296cdcc7ae75ada0df70e20a4c
-- filename: tests/app/service/test_api_key_endpoints.py
-  checksum: a8268dd19d4394733a974db319c5a2353aad455ff1bab189949fa1a9a757e166
-- filename: tests/app/delivery/test_send_to_providers.py
-  checksum: 261192636154bcebca11e0991525270a124cd57f8c06d2f515c8077762662e3e
 - filename: tests/app/dao/test_api_key_dao.py
-  checksum: 9a97adf107dbbf0d821a5d210f19b55a27c8b22d0593be3224a10770cd78d4e1
-- filename: tests/app/notifications/test_validators.py
-  checksum: b81d29ae6ee3b88b429610261021069b388de1d50163c9f3176f7502c625a17a
-- filename: tests/app/dao/notification_dao/test_notification_dao.py
-  checksum: b32000cfe4245fb5080d1744789913d53b73d68fb0573b6c2e6eaf424ae8255d
-- filename: tests/app/service/test_rest.py
-  checksum: c4331cbc7d3c935ceca4fa94c40034348f00369e50540b02a36dbf6d98bc4fe9
-- filename: tests/app/notifications/test_receive_notification.py
-  checksum: 37abf7a3f23fc8acf022930b4fad1c42cb344b575837dec602bdedad51360190
-- filename: tests/app/conftest.py
-  checksum: 96c0f09e85dc957d90da2728911d684744559fb08069c4d8763aa99329f26511
-- filename: tests/app/dao/test_fact_notification_status_dao.py
-  checksum: 2cad8d3b4a53bad53c3adeb9c81968d11b21e75d729976120bdd66ca91031738
-- filename: tests/app/dao/test_services_dao.py
-  checksum: 3ea2f8d01afd32d1c1586488aa442835b45895f7ee270b0da49d3134f37c7685
-- filename: tests/app/dao/test_api_key_dao.py
-  checksum: 9a97adf107dbbf0d821a5d210f19b55a27c8b22d0593be3224a10770cd78d4e1
-- filename: tests/app/dao/test_fido2_keys_dao.py
-  checksum: 35cba2fd6e81a4d9e55fa9ebe8fa6ad8fc1e597aede8495e386f8b7999b6f482
-- filename: tests/app/dao/notification_dao/test_notification_dao_delete_notifications.py
-  checksum: a31c6f7abed822d20b6371c96aaa3f2fd19200a8a2f8dac8240233986df80e0b
-- filename: tests/app/conftest.py
-  checksum: 96c0f09e85dc957d90da2728911d684744559fb08069c4d8763aa99329f26511
-- filename: tests/app/service/test_rest.py
-  checksum: c4331cbc7d3c935ceca4fa94c40034348f00369e50540b02a36dbf6d98bc4fe9
-- filename: tests/app/notifications/test_rest.py
-  checksum: 22a54f4187f7dfe404e4eefb677ff376933aff2f053362662c6d5b0b2eaad891
-- filename: tests/app/service/test_api_key_endpoints.py
-  checksum: a8268dd19d4394733a974db319c5a2353aad455ff1bab189949fa1a9a757e166
-- filename: tests/app/dao/notification_dao/test_notification_dao_performance_platform.py
-  checksum: b3ffec0e69481a73091ea8388eff348842a82ce00d7f8c9a65dbd8498ef1b220
-- filename: tests/app/notifications/test_process_notifications.py
-  checksum: 4134fa90ed48750b6fc73ddd4cc0416ad21474296cdcc7ae75ada0df70e20a4c
-- filename: tests/app/dao/notification_dao/test_notification_dao.py
-  checksum: b32000cfe4245fb5080d1744789913d53b73d68fb0573b6c2e6eaf424ae8255d
-- filename: tests/app/delivery/test_send_to_providers.py
-  checksum: 261192636154bcebca11e0991525270a124cd57f8c06d2f515c8077762662e3e
-- filename: tests/app/notifications/test_validators.py
-  checksum: b81d29ae6ee3b88b429610261021069b388de1d50163c9f3176f7502c625a17a
-- filename: tests/app/dao/test_fact_notification_status_dao.py
-  checksum: 2cad8d3b4a53bad53c3adeb9c81968d11b21e75d729976120bdd66ca91031738
-- filename: tests/app/notifications/test_receive_notification.py
-  checksum: 37abf7a3f23fc8acf022930b4fad1c42cb344b575837dec602bdedad51360190
-- filename: tests/app/dao/test_services_dao.py
-  checksum: 3ea2f8d01afd32d1c1586488aa442835b45895f7ee270b0da49d3134f37c7685
+  checksum: 2a5c8291ae13fffac0f6820880d0891248f7b958ef4106a23bd8d0bf3d17e15b

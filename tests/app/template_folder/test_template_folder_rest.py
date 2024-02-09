@@ -70,7 +70,12 @@ def test_get_folders_returns_users_with_permission(admin_request, sample_service
 
 
 @pytest.mark.parametrize('has_parent', [True, False])
-def test_create_template_folder(notify_db_session, admin_request, sample_template_folder, has_parent,):
+def test_create_template_folder(
+    notify_db_session,
+    admin_request,
+    sample_template_folder,
+    has_parent,
+):
     existing_folder = sample_template_folder()
     parent_id = str(existing_folder.id) if has_parent else None
 
@@ -91,7 +96,13 @@ def test_create_template_folder(notify_db_session, admin_request, sample_templat
 
 
 @pytest.mark.parametrize('has_parent', [True, False])
-def test_create_template_folder_sets_user_permissions(notify_db_session, admin_request, sample_template_folder, sample_user, has_parent,):
+def test_create_template_folder_sets_user_permissions(
+    notify_db_session,
+    admin_request,
+    sample_template_folder,
+    sample_user,
+    has_parent,
+):
     user_1 = sample_user(email=f'{uuid.uuid4()}@va.gov')
     user_2 = sample_user(email=f'{uuid.uuid4()}@va.gov')
     user_3 = sample_user(email=f'{uuid.uuid4()}@va.gov', state='pending')
@@ -150,7 +161,9 @@ def test_create_template_folder_fails_if_unknown_parent_id(admin_request, sample
     assert resp['message'] == 'parent_id not found'
 
 
-def test_create_template_folder_fails_if_parent_id_from_different_service(admin_request, sample_service, sample_template_folder):
+def test_create_template_folder_fails_if_parent_id_from_different_service(
+    admin_request, sample_service, sample_template_folder
+):
     parent_folder = sample_template_folder()
 
     resp = admin_request.post(
@@ -303,7 +316,9 @@ def test_move_to_folder_validates_schema(data, admin_request, notify_db_session)
     )
 
 
-def test_move_to_folder_moves_folders_and_templates(admin_request, sample_service, sample_template, sample_template_folder):
+def test_move_to_folder_moves_folders_and_templates(
+    admin_request, sample_service, sample_template, sample_template_folder
+):
     service = sample_service()
     target_folder = sample_template_folder(service=service, name='target')
     f1 = sample_template_folder(service=service, name='f1')

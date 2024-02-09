@@ -93,12 +93,12 @@ def dao_set_scheduled_jobs_to_pending():
     from completing until it commits.
     """
 
-    stmt = select(Job).where(
-        Job.job_status == JOB_STATUS_SCHEDULED,
-        Job.scheduled_for < datetime.utcnow()
-    ).order_by(
-        asc(Job.scheduled_for)
-    ).with_for_update()
+    stmt = (
+        select(Job)
+        .where(Job.job_status == JOB_STATUS_SCHEDULED, Job.scheduled_for < datetime.utcnow())
+        .order_by(asc(Job.scheduled_for))
+        .with_for_update()
+    )
 
     jobs = db.session.scalars(stmt).all()
 

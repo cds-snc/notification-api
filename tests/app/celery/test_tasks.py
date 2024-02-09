@@ -81,6 +81,7 @@ def test_should_have_decorated_tasks_functions():
 
 # -------------- process_job tests -------------- #
 
+
 def test_should_process_sms_job(mocker, sample_template, sample_job, notify_db_session):
     mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv(SMS_TYPE))
     mocker.patch('app.celery.tasks.save_sms.apply_async')
@@ -119,8 +120,11 @@ def test_should_process_sms_job_with_sender_id(mocker, fake_uuid, sample_templat
         (str(job.service_id), 'uuid', 'something_encrypted'), {'sender_id': fake_uuid}, queue='database-tasks'
     )
 
+
 @freeze_time('2016-01-01 11:09:00.061258')
-def test_should_not_process_sms_job_if_would_exceed_send_limits(mocker, notify_db_session, sample_service, sample_template, sample_job):
+def test_should_not_process_sms_job_if_would_exceed_send_limits(
+    mocker, notify_db_session, sample_service, sample_template, sample_job
+):
     service = sample_service(message_limit=9)
     template = sample_template(service=service)
     job = sample_job(template, notification_count=10, original_file_name='multiple_sms.csv')
@@ -189,7 +193,9 @@ def test_should_not_process_job_if_already_pending(sample_template, sample_job, 
     assert tasks.process_row.called is False
 
 
-def test_should_process_email_job_if_exactly_on_send_limits(mocker, notify_db_session, sample_service, sample_template, sample_job):
+def test_should_process_email_job_if_exactly_on_send_limits(
+    mocker, notify_db_session, sample_service, sample_template, sample_job
+):
     service = sample_service(message_limit=10)
     template = sample_template(service=service, template_type=EMAIL_TYPE)
     job = sample_job(template, notification_count=10)
@@ -580,15 +586,17 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
 
 
 def test_save_email_should_save_default_email_reply_to_text_on_notification(
-    mocker, notify_db_session, sample_service, sample_template, sample_service_email_reply_to,
+    mocker,
+    notify_db_session,
+    sample_service,
+    sample_template,
+    sample_service_email_reply_to,
 ):
     service = sample_service()
     template = sample_template(service=service, template_type=EMAIL_TYPE, subject='Hello')
     reply_to_address = f'{uuid4()}@test.va.gov'
 
-    sample_service_email_reply_to(
-        service=service, email_address=reply_to_address, is_default=True
-    )
+    sample_service_email_reply_to(service=service, email_address=reply_to_address, is_default=True)
 
     notification = _notification_json(template, to='test@example.com')
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
@@ -693,7 +701,9 @@ def test_should_not_save_email_if_restricted_service_and_invalid_email_address(
     assert notify_db_session.session.get(Notification, notification_id) is None
 
 
-def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_service(mocker, notify_db_session, sample_service, sample_template):
+def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_service(
+    mocker, notify_db_session, sample_service, sample_template
+):
     service = sample_service(research_mode=True)
     template = sample_template(service=service, template_type=EMAIL_TYPE)
     notification = _notification_json(template, to='test@test.com')
@@ -1297,7 +1307,9 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session, sampl
         notify_db_session.session.commit()
 
 
-def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(mocker, notify_db_session, sample_service, sample_template, sample_sms_sender_v2):
+def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(
+    mocker, notify_db_session, sample_service, sample_template, sample_sms_sender_v2
+):
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     service = sample_service(sms_sender='07123123123')
     template = sample_template(service=service)
@@ -1431,7 +1443,9 @@ def test_save_letter_calls_create_letters_pdf_task_not_in_research(mocker, notif
     mock_create_letters_pdf.assert_called_once_with([str(notification_id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
-def test_should_cancel_job_if_service_is_inactive(mocker, notify_db_session, sample_service, sample_template, sample_job):
+def test_should_cancel_job_if_service_is_inactive(
+    mocker, notify_db_session, sample_service, sample_template, sample_job
+):
     service = sample_service(active=False)
     template = sample_template(service=service)
     job = sample_job(template)

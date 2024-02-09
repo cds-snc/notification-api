@@ -653,7 +653,13 @@ def test_update_service(client, notify_db, sample_service):
 
 
 @pytest.mark.serial  # intermittent
-def test_update_service_with_valid_provider(notify_api, admin_request, notify_db_session, sample_provider, sample_service,):
+def test_update_service_with_valid_provider(
+    notify_api,
+    admin_request,
+    notify_db_session,
+    sample_provider,
+    sample_service,
+):
     data = {
         'email_provider_id': str(sample_provider(str(uuid.uuid4()), notification_type=EMAIL_TYPE).id),
         'sms_provider_id': str(sample_provider(str(uuid.uuid4())).id),

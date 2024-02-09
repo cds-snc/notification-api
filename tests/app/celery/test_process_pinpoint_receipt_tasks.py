@@ -135,7 +135,9 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_statu
     mock_callback.assert_not_called()
 
 
-def test_process_pinpoint_results_segments_and_price_buffered_first(mocker, sample_template, sample_notification, notify_db_session):
+def test_process_pinpoint_results_segments_and_price_buffered_first(
+    mocker, sample_template, sample_notification, notify_db_session
+):
     """
     Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
     result in one event that contains the aggregate cost.

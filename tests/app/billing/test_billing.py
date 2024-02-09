@@ -231,7 +231,6 @@ def test_get_yearly_usage_by_monthly_from_ft_billing(
     sample_ft_billing,
     sample_template,
 ):
-
     service = sample_service()
     sms_template = sample_template(service=service, template_type=SMS_TYPE)
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
@@ -344,7 +343,6 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
     sample_service,
     sample_template,
 ):
-
     service = sample_service()
     sms_template = sample_template(service=service, template_type=SMS_TYPE)
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
@@ -416,10 +414,13 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
 
 
 def test_get_yearly_usage_by_monthly_from_ft_billing_all_cases(
-    client, sample_service, sample_template,sample_ft_billing,
+    client,
+    sample_service,
+    sample_template,
+    sample_ft_billing,
 ):
     service = sample_service()
-    set_up_data_for_all_cases(service, sample_template,sample_ft_billing)
+    set_up_data_for_all_cases(service, sample_template, sample_ft_billing)
 
     response = client.get(
         f'service/{service.id}/billing/ft-monthly-usage?year=2018',
@@ -461,7 +462,10 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_all_cases(
 
 
 def test_get_yearly_billing_usage_summary_from_ft_billing_all_cases(
-    client, sample_service, sample_template, sample_ft_billing,
+    client,
+    sample_service,
+    sample_template,
+    sample_ft_billing,
 ):
     service = sample_service()
     set_up_data_for_all_cases(service, sample_template, sample_ft_billing)

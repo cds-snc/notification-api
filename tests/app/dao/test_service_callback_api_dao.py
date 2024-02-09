@@ -143,7 +143,9 @@ def test_update_service_callback_can_add_two_api_of_different_types(
         callback_channel=WEBHOOK_CHANNEL_TYPE,
     )
     save_service_callback_api(complaint)
-    stmt = select(ServiceCallback).where(ServiceCallback.service_id == service.id).order_by(ServiceCallback.callback_type)
+    stmt = (
+        select(ServiceCallback).where(ServiceCallback.service_id == service.id).order_by(ServiceCallback.callback_type)
+    )
     results = notify_db_session.session.scalars(stmt).all()
     assert len(results) == 2
 

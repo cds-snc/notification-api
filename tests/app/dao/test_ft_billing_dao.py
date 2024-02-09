@@ -397,8 +397,7 @@ def test_fetch_billing_data_for_day_uses_notification_history(
     )
 
     results = fetch_billing_data_for_day(
-        convert_utc_to_local_timezone(datetime.utcnow()) - timedelta(days=8),
-        service.id
+        convert_utc_to_local_timezone(datetime.utcnow()) - timedelta(days=8), service.id
     )
     assert len(results) == 1
     assert results[0].notifications_sent == 2

@@ -386,7 +386,9 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
 
 
 class TestSendInboundSmsToService:
-    def test_post_https_request_to_service(self, mocker, sample_inbound_sms, sample_service, sample_service_callback, sample_sms_sender_v2):
+    def test_post_https_request_to_service(
+        self, mocker, sample_inbound_sms, sample_service, sample_service_callback, sample_sms_sender_v2
+    ):
         service = sample_service()
         inbound_api = sample_service_callback(  # nosec
             service=service,

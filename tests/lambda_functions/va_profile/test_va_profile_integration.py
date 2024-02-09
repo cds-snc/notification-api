@@ -186,10 +186,14 @@ def test_va_profile_stored_function_new_row(notify_db_session):
 
     va_profile_id = randint(1000, 100000)
 
-    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
-        VAProfileLocalCache.va_profile_id == va_profile_id,
-        VAProfileLocalCache.communication_item_id == 5,
-        VAProfileLocalCache.communication_channel_id == 1,
+    stmt = (
+        select(func.count())
+        .select_from(VAProfileLocalCache)
+        .where(
+            VAProfileLocalCache.va_profile_id == va_profile_id,
+            VAProfileLocalCache.communication_item_id == 5,
+            VAProfileLocalCache.communication_channel_id == 1,
+        )
     )
 
     assert notify_db_session.session.scalar(stmt) == 0
@@ -411,25 +415,20 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(notify_db_session, jwt_enc
 
     va_profile_id = randint(1000, 100000)
 
-    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
-        VAProfileLocalCache.va_profile_id == va_profile_id,
-        VAProfileLocalCache.communication_item_id == 5,
-        VAProfileLocalCache.communication_channel_id == 1,
+    stmt = (
+        select(func.count())
+        .select_from(VAProfileLocalCache)
+        .where(
+            VAProfileLocalCache.va_profile_id == va_profile_id,
+            VAProfileLocalCache.communication_item_id == 5,
+            VAProfileLocalCache.communication_channel_id == 1,
+        )
     )
 
     assert notify_db_session.session.scalar(stmt) == 0
 
     # Send a request that should result in a new row.
-    event = create_event(
-        'txAuditId',
-        'txAuditId',
-        '2022-03-07T19:37:59.320Z',
-        va_profile_id,
-        1,
-        5,
-        True,
-        jwt_encoded
-    )
+    event = create_event('txAuditId', 'txAuditId', '2022-03-07T19:37:59.320Z', va_profile_id, 1, 5, True, jwt_encoded)
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
@@ -472,7 +471,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(
         va_profile_local_cache.communication_channel_id,
         va_profile_local_cache.communication_item_id,
         True,
-        jwt_encoded
+        jwt_encoded,
     )
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -511,7 +510,7 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(
         va_profile_local_cache.communication_channel_id,
         va_profile_local_cache.communication_item_id,
         True,
-        jwt_encoded
+        jwt_encoded,
     )
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
@@ -668,10 +667,14 @@ def test_va_profile_opt_in_out_lambda_handler_integration_testing(
 
     va_profile_id = randint(1000, 100000)
 
-    stmt = select(func.count()).select_from(VAProfileLocalCache).where(
-        VAProfileLocalCache.va_profile_id == va_profile_id,
-        VAProfileLocalCache.communication_item_id == 5,
-        VAProfileLocalCache.communication_channel_id == 1,
+    stmt = (
+        select(func.count())
+        .select_from(VAProfileLocalCache)
+        .where(
+            VAProfileLocalCache.va_profile_id == va_profile_id,
+            VAProfileLocalCache.communication_item_id == 5,
+            VAProfileLocalCache.communication_channel_id == 1,
+        )
     )
 
     assert notify_db_session.session.scalar(stmt) == 0

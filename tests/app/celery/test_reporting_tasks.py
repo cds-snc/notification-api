@@ -101,10 +101,11 @@ def test_create_nightly_notification_status_triggers_tasks_for_days_including_cs
 
 
 @pytest.mark.parametrize(
-    'second_rate, records_num, billable_units, multiplier', [
+    'second_rate, records_num, billable_units, multiplier',
+    [
         (1.0, 1, 2, [1]),
         (2.0, 2, 1, [1, 2]),
-    ]
+    ],
 )
 def test_create_nightly_billing_for_day_sms_rate_multiplier(
     notify_db_session,
@@ -193,9 +194,11 @@ def test_create_nightly_billing_for_day_different_templates(
         billable_units=0,
     )
 
-    stmt = select(FactBilling).where(
-        FactBilling.template_id.in_((sms_template.id, email_template.id))
-    ).order_by('rate_multiplier')
+    stmt = (
+        select(FactBilling)
+        .where(FactBilling.template_id.in_((sms_template.id, email_template.id)))
+        .order_by('rate_multiplier')
+    )
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
     # Celery expects the arguments to be a string or primitive type.
@@ -353,7 +356,9 @@ def test_create_nightly_billing_for_day_letter(
 
 
 @freeze_time('1999-12-04 16:00:00.000000')
-def test_create_nightly_billing_for_day_null_sent_by_sms(notify_db_session, mocker, sample_template, sample_notification):
+def test_create_nightly_billing_for_day_null_sent_by_sms(
+    notify_db_session, mocker, sample_template, sample_notification
+):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
     template = sample_template()

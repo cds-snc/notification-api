@@ -84,12 +84,10 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(mocker, sample_tem
     # requires serial - query intermittently grabs more to remove than expected
     remove_sms_email_csv_files()
 
-    assert (
-        s3.remove_job_from_s3.call_args_list == [
-            call(job1_to_delete.service_id, job1_to_delete.id),
-            call(job2_to_delete.service_id, job2_to_delete.id),
-        ]
-    )
+    assert s3.remove_job_from_s3.call_args_list == [
+        call(job1_to_delete.service_id, job1_to_delete.id),
+        call(job2_to_delete.service_id, job2_to_delete.id),
+    ]
     assert job1_to_delete.archived
     assert not dont_delete_me_1.archived
 
@@ -240,7 +238,11 @@ def test_not_update_status_of_notification_before_timeout(notify_api, sample_tem
 
 
 @pytest.mark.serial
-def test_should_not_update_status_of_letter_notifications(client, sample_template, sample_notification,):
+def test_should_not_update_status_of_letter_notifications(
+    client,
+    sample_template,
+    sample_notification,
+):
     template = sample_template(template_type=LETTER_TYPE)
     created_at = datetime.utcnow() - timedelta(days=5)
     not1 = sample_notification(template=template, status='sending', created_at=created_at)
@@ -254,7 +256,12 @@ def test_should_not_update_status_of_letter_notifications(client, sample_templat
 
 @pytest.mark.serial
 def test_timeout_notifications_sends_status_update_to_service(
-    client, sample_service, sample_template, mocker, sample_notification, notify_db_session,
+    client,
+    sample_service,
+    sample_template,
+    mocker,
+    sample_notification,
+    notify_db_session,
 ):
     service = sample_service()
     template = sample_template(service=service)

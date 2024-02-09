@@ -398,7 +398,10 @@ def test_dao_add_user_to_service_sets_folder_permissions(
 
 
 def test_dao_add_user_to_service_ignores_folders_which_do_not_exist_when_setting_permissions(
-    sample_user, sample_service, fake_uuid,sample_template_folder,
+    sample_user,
+    sample_service,
+    fake_uuid,
+    sample_template_folder,
 ):
     user = sample_user()
     service = sample_service()
@@ -686,11 +689,14 @@ def test_dao_fetch_live_services_data(
     results = dao_fetch_live_services_data()
 
     # Services with these IDs should be in the results.
-    ids_to_find = { service.id, service_2.id, service_3.id }
+    ids_to_find = {service.id, service_2.id, service_3.id}
 
     for result in results:
-        assert result['service_id'] not in (restricted_service.id, inactive_service.id, not_live_service.id), \
-            'These services should have been filtered.'
+        assert result['service_id'] not in (
+            restricted_service.id,
+            inactive_service.id,
+            not_live_service.id,
+        ), 'These services should have been filtered.'
 
         if result['service_id'] in ids_to_find:
             ids_to_find.remove(result['service_id'])

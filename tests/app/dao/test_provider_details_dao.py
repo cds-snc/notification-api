@@ -583,19 +583,21 @@ def test_toggle_sms_provider_updates_provider_history(notify_db_session, mocker,
     # The old+current version is in history.
     assert any(
         (
-            history.id == current_provider.id and \
-            history.version == current_version and \
-            history.priority == current_priority
-        ) for history in updated_current_provider_history
+            history.id == current_provider.id
+            and history.version == current_version
+            and history.priority == current_priority
+        )
+        for history in updated_current_provider_history
     )
 
     # The updated+current version is in history.
     assert any(
         (
-            history.id == current_provider.id and \
-            history.version == (current_version + 1) and \
-            history.priority == alternative_priority
-        ) for history in updated_current_provider_history
+            history.id == current_provider.id
+            and history.version == (current_version + 1)
+            and history.priority == alternative_priority
+        )
+        for history in updated_current_provider_history
     )
 
     updated_alternative_provider_history = dao_get_provider_versions(alternative_provider.id)
@@ -603,23 +605,25 @@ def test_toggle_sms_provider_updates_provider_history(notify_db_session, mocker,
     # The old+alternative version is in history.
     assert any(
         (
-            history.id == alternative_provider.id and \
-            history.version == alternative_version and \
-            history.priority == alternative_priority
-        ) for history in updated_alternative_provider_history
+            history.id == alternative_provider.id
+            and history.version == alternative_version
+            and history.priority == alternative_priority
+        )
+        for history in updated_alternative_provider_history
     )
 
     # The updated+alternative version is in history.
     assert any(
         (
-            history.id == alternative_provider.id and \
-            history.version == (alternative_version + 1) and \
-            history.priority == current_priority
-        ) for history in updated_alternative_provider_history
+            history.id == alternative_provider.id
+            and history.version == (alternative_version + 1)
+            and history.priority == current_priority
+        )
+        for history in updated_alternative_provider_history
     )
 
 
-@pytest.mark.skip(reason="#1631 - This test leaves a ProviderDetailsHistory instance that fails other tests.")
+@pytest.mark.skip(reason='#1631 - This test leaves a ProviderDetailsHistory instance that fails other tests.')
 @pytest.mark.serial
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id(mocker, sample_user, setup_sms_providers):
     user = sample_user()
@@ -666,7 +670,7 @@ def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
     assert old_provider_from_history.created_by_id == user.id
 
 
-@pytest.mark.skip(reason="#1436 - This test leaves a ProviderDetailsHistory instance that fails other tests.")
+@pytest.mark.skip(reason='#1436 - This test leaves a ProviderDetailsHistory instance that fails other tests.')
 @pytest.mark.serial
 def test_can_get_all_provider_history_with_newest_first(setup_sms_providers):
     _, current_provider, alternative_provider = setup_sms_providers

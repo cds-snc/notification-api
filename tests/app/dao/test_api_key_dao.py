@@ -139,9 +139,7 @@ def test_save_api_key_should_not_create_new_service_history(
     service = sample_service()
 
     service_history_model = Service.get_history_model()
-    stmt_service = select(func.count()).select_from(service_history_model).where(
-        service_history_model.id == service.id
-    )
+    stmt_service = select(func.count()).select_from(service_history_model).where(service_history_model.id == service.id)
 
     assert notify_db_session.session.scalar(stmt_service) == 1
 
@@ -152,9 +150,7 @@ def test_save_api_key_should_not_create_new_service_history(
     save_model_api_key(api_key)
 
     ApiKeyHistory = ApiKey.get_history_model()
-    stmt_api_key = select(func.count()).select_from(ApiKeyHistory).where(
-        ApiKeyHistory.id == api_key.id
-    )
+    stmt_api_key = select(func.count()).select_from(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
 
     try:
         assert notify_db_session.session.scalar(stmt_service) == 1, 'No new Service history'
