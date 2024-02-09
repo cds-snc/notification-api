@@ -216,7 +216,7 @@ def get_live_services_data():
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None)
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
     return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
 
 
