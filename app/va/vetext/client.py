@@ -33,9 +33,14 @@ class VETextClient:
         self,
         mobile_app: str,
         template_id: str,
-        icn: str,
+        identifier: str,
+        is_broadcast: bool = False,
         personalization: Dict = None,
     ) -> None:
+        """
+        If "is_broadcast" is True, "identifier" is the "topicSid".  Otherwise, it is the "icn".
+        """
+
         formatted_personalization = None
         if personalization:
             formatted_personalization = {}
@@ -44,7 +49,7 @@ class VETextClient:
 
         payload = {
             'appSid': mobile_app,
-            'icn': icn,
+            ('topicSid' if is_broadcast else 'icn'): identifier,
             'templateSid': template_id,
             'personalization': formatted_personalization,
         }

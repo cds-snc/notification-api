@@ -291,10 +291,27 @@ push_notification_request = {
     'title': 'POST v2/notifications/push',
     'properties': {
         'mobile_app': {'type': 'string', 'enum': MobileAppType.values()},
+        # This is a VeText ID, which is not a UUID.
         'template_id': {'type': 'string'},
         'recipient_identifier': ICN_recipient_identifier,
         'personalisation': personalisation,
     },
     'required': ['template_id', 'recipient_identifier'],
+    'additionalProperties': False,
+}
+
+push_notification_broadcast_request = {
+    '$schema': 'http://json-schema.org/draft-04/schema#',
+    'description': 'Send a push notification to the mobile app of all subscribers',
+    'type': 'object',
+    'title': 'POST v2/notifications/push/broadcast',
+    'properties': {
+        'mobile_app': {'type': 'string', 'enum': MobileAppType.values()},
+        # This is a VeText ID, which is not a UUID.
+        'template_id': {'type': 'string'},
+        'topic_sid': {'type': 'string'},
+        'personalisation': personalisation,
+    },
+    'required': ['template_id', 'topic_sid'],
     'additionalProperties': False,
 }

@@ -43,7 +43,7 @@ def test_send_push_notification_correct_request(rmock, test_vetext_client):
 
     formatted_personalization = {'%FOO_1%': 'bar', '%BAZ_TWO%': 'abc', '%TMP%': '123'}
 
-    test_vetext_client.send_push_notification(mobile_app_id, template_id, icn.id_value, personalization)
+    test_vetext_client.send_push_notification(mobile_app_id, template_id, icn.id_value, False, personalization)
     assert rmock.called
 
     expected_url = f'{MOCK_VETEXT_URL}/mobile/push/send'

@@ -13,3 +13,15 @@ def post_send_notification(
         data=json.dumps(payload),
         headers=[('Content-Type', 'application/json'), create_authorization_header(api_key)],
     )
+
+
+def post_send_push_broadcast_notification(
+    client,
+    api_key,
+    payload,
+):
+    return client.post(
+        path='/v2/notifications/push/broadcast',
+        data=json.dumps(payload),
+        headers=[('Content-Type', 'application/json'), create_authorization_header(api_key)],
+    )

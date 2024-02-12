@@ -157,6 +157,10 @@
           "value": "perf-notifications-va-gov-attachments"
         },
         {
+          "name": "PUSH_NOTIFICATIONS_ENABLED",
+          "value": "True"
+        },
+        {
           "name": "PLATFORM_STATS_ENABLED",
           "value": "False"
         },

@@ -33,3 +33,5 @@ fileignoreconfig:
   checksum: 35cba2fd6e81a4d9e55fa9ebe8fa6ad8fc1e597aede8495e386f8b7999b6f482
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 2a5c8291ae13fffac0f6820880d0891248f7b958ef4106a23bd8d0bf3d17e15b
+- filename: tests/app/v2/notifications/test_push_broadcast_notifications.py
+  checksum: eed7b99992b43ff534736502d72a3b8f3f3cdbdd17c26be88f9dea9614321e38

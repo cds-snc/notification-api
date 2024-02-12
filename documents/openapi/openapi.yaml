@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.5
+  version: 1.0.6
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -1197,7 +1197,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
   /v2/notifications/push:
     post:
-      summary: Send push notification to mobile app
+      summary: Send a push notification to a mobile app
       security:
         - serviceAuth: [ ]
       tags:
@@ -1210,15 +1210,35 @@ paths:
               $ref: '#/components/schemas/PushNotificationRequest'
       responses:
         '201':
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: "success"
+          $ref: '#/components/responses/PushCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/ServiceAuthError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /v2/notifications/push/broadcast:
+    post:
+      summary: Send a push notification to the mobile app of all subscribers
+      security:
+        - serviceAuth: [ ]
+      tags:
+        - notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushNotificationBroadcastRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/PushCreated'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1673,6 +1693,16 @@ components:
       description: CommunicationItem identifier
       example: e925b547-8195-4ed2-83c5-0633a74d780a
   responses:
+    PushCreated:
+      description: CREATED
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+                example: "success"
     AcceptedV3:
       description: Accepted
       content:
@@ -1818,6 +1848,14 @@ components:
     Id:
       type: string
       format: uuid
+    MobileApp:
+      type: string
+      nullable: true
+      enum:
+        - VA_FLAGSHIP_APP
+        - VETEXT
+      description: >-
+        Optional mobile application identifier. By default, VA Flagship mobile app will be used.
     V2ErrorMessage:
       description: Generic error message format for V2
       type: object
@@ -1843,9 +1881,12 @@ components:
             type: object
             properties:
               error:
-                const: ValidationError
+                type: string
               message:
                 type: string
+            example:
+              error: ValidationError
+              message: 'Explanation of the validation error'
             required:
               - error
               - message
@@ -2483,15 +2524,10 @@ components:
       type: object
       properties:
         mobile_app:
-          type: string
-          nullable: true
-          enum:
-            - VA_FLAGSHIP_APP
-            - VETEXT
-          description: >-
-            Optional mobile application identifier. By default VA Flagship mobile app will be used
+          $ref: "#/components/schemas/MobileApp"
         template_id:
           type: string
+          example: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         personalisation:
           $ref: "#/components/schemas/Personalisation"
         recipient_identifier:
@@ -2512,6 +2548,22 @@ components:
       required:
         - recipient_identifier
         - template_id
+    PushNotificationBroadcastRequest:
+      type: object
+      properties:
+        mobile_app:
+          $ref: "#/components/schemas/MobileApp"
+        template_id:
+          type: string
+          example: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        personalisation:
+          $ref: "#/components/schemas/PushBroadcastPersonalisation"
+        topic_sid:
+          type: string
+          example: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      required:
+        - template_id
+        - topic_sid
     V3NotificationsEmailRequest:
       type: object
       properties:
@@ -2521,8 +2573,7 @@ components:
         client_reference:
           type: string
         email_reply_to_id:
-          type: string
-          format: uuid
+          $ref: "#/components/schemas/Id"
         personalisation:
           $ref: "#/components/schemas/Personalisation"
         reference:
@@ -2563,8 +2614,7 @@ components:
           type: string
           format: date-time
         sms_sender_id:
-          type: string
-          format: uuid
+          $ref: "#/components/schemas/Id"
         template_id:
           $ref: "#/components/schemas/Id"
       additionalProperties: false
@@ -2589,6 +2639,15 @@ components:
       example:
         "full_name": "John Smith"
         "claim_id": "123456"
+    PushBroadcastPersonalisation:
+      type: object
+      description: The personalisation values created in the template must be defined here.
+      additionalProperties:
+        oneOf:
+          - type: string
+          - $ref: '#/components/schemas/Attachment'
+      example:
+        "message": "New update for the Mobile App..."
     InboundNumberResponseData:
       type: object
       properties:
