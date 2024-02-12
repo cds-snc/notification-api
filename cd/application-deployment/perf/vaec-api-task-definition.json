@@ -167,6 +167,14 @@
           "value": "perf-notifications-va-gov-attachments"
         },
         {
+          "name": "VA_FLAGSHIP_APP_SID",
+          "value": "A20623E2321D4053A6C34C9307C6C221"
+        },
+        {
+          "name": "VETEXT_SID",
+          "value": "C9BEC63F53CE4C1D992CE73E8D1D8D94"
+        },
+        {
           "name": "PUSH_NOTIFICATIONS_ENABLED",
           "value": "True"
         },
@@ -259,6 +267,14 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/redis/url"
+        },
+        {
+          "name": "VETEXT_USERNAME",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/vetext/user"
+        },
+        {
+          "name": "VETEXT_PASSWORD",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/vetext/password"
         },
         {
           "name": "VA_SSO_CLIENT_ID",

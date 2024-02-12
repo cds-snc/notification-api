@@ -35,3 +35,7 @@ fileignoreconfig:
   checksum: 2a5c8291ae13fffac0f6820880d0891248f7b958ef4106a23bd8d0bf3d17e15b
 - filename: tests/app/v2/notifications/test_push_broadcast_notifications.py
   checksum: eed7b99992b43ff534736502d72a3b8f3f3cdbdd17c26be88f9dea9614321e38
+- filename: cd/application-deployment/perf/vaec-api-task-definition.json
+  checksum: b32eae40a0fb22d71ef585eaf56983ced8abfa24087f6d1d03e4a3e7b7d48cb0
+- filename: cd/application-deployment/perf/vaec-celery-task-definition.json
+  checksum: c7d10bd01c45d4f2199a0a89d6d94fa1c222d5770187051320a0a0e2a5ca5d30
