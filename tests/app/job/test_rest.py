@@ -451,6 +451,7 @@ def test_create_job_returns_404_if_template_does_not_exist(client, sample_servic
         "app.job.rest.get_job_metadata_from_s3",
         return_value={
             "template_id": str(sample_service.id),
+            "valid": "True",
         },
     )
     data = {
