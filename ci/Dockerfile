@@ -18,7 +18,7 @@ RUN apk add --no-cache ca-certificates \
   && update-ca-certificates \
   && apk del --no-cache ca-certificates
 
-RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev wget
+RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev wget openssl
 
 RUN adduser -h /app -D vanotify
 
@@ -42,7 +42,7 @@ COPY --chown=vanotify . .
 
 # Transfer VA certificates to the image.  These certificates are grabbed from a public VA HTTP server.
 RUN bash scripts/import-va-certs.sh \
-  && apk del --no-cache wget
+  && apk del --no-cache wget openssl
 
 # Generate the version file, app/version.py.  This overwrites the default file needed for local development.
 # The safe.directory modification eliminates the error, "fatal: detected dubious ownership in repository at '/app'".
