@@ -11,13 +11,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
   PORT=6011 \
   GIT_SHA=${GIT_SHA}
 
+# Transfer DigiCert certificates to the image.
 COPY ./certs/* /usr/local/share/ca-certificates/
 
 RUN apk add --no-cache ca-certificates \
   && update-ca-certificates \
   && apk del --no-cache ca-certificates
 
-RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev
+RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev curl-dev wget
 
 RUN adduser -h /app -D vanotify
 
@@ -39,12 +40,16 @@ RUN apk add --no-cache --virtual .build-deps gcc musl-dev rust cargo \
 # Copy the host's build context directory (notification-api/) to the image's working directory (/app).
 COPY --chown=vanotify . .
 
+# Transfer VA certificates to the image.  These certificates are grabbed from a public VA HTTP server.
+RUN bash scripts/import-va-certs.sh \
+  && apk del --no-cache wget
+
 # Generate the version file, app/version.py.  This overwrites the default file needed for local development.
 # The safe.directory modification eliminates the error, "fatal: detected dubious ownership in repository at '/app'".
 RUN apk add --no-cache make \
   && git config --global --add safe.directory /app \
   && make generate-version-file \
-  && apk del --no-cache make
+  && apk del --no-cache make wget
 
 USER vanotify
 
