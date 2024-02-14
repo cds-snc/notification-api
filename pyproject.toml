@@ -64,7 +64,7 @@ Werkzeug = "2.3.7"
 MarkupSafe = "2.1.4"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", rev = "2da74685e0ffb220f0403e1f2584e783be99bbad" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", rev = "e86dabaff976f3802edcc09a607f9812a1130e8d" }
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.7.1"
 greenlet = "2.0.2"
