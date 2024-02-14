@@ -36,7 +36,7 @@ ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 
 ciphers = [c['name'] for c in ctx.get_ciphers()]
 # this is the expected cipher to connect to MPI (services.eauth.va.gov:9303)
-ciphers.append('AES256-GCM-SHA364')
+ciphers.append('AES256-GCM-SHA384')
 
 # This is the openssl cipher string, containing relevant ciphers.
 MPI_CIPHERS = ':'.join(ciphers)

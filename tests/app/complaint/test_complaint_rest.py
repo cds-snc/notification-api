@@ -7,6 +7,7 @@ import pytest
 from tests import create_admin_authorization_header
 
 
+@pytest.mark.serial
 def test_get_all_complaints_returns_complaints_for_multiple_services(client, sample_complaint):
     complaint_1 = sample_complaint()
     complaint_2 = sample_complaint()
