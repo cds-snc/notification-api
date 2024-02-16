@@ -102,8 +102,6 @@ class ServiceUser(db.Model):
 
     __table_args__ = (UniqueConstraint('user_id', 'service_id', name='uix_user_to_service'),)
 
-    user = db.relationship('User')
-
 
 user_to_organisation = db.Table(
     'user_to_organisation',
@@ -600,7 +598,6 @@ class ServicePermission(db.Model):
     permission = db.Column(
         db.String(255), db.ForeignKey('service_permission_types.name'), index=True, primary_key=True, nullable=False
     )
-    service = db.relationship('Service')
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     service_permission_types = db.relationship(Service, backref=db.backref('permissions', cascade='all, delete-orphan'))
@@ -1726,7 +1723,6 @@ class ScheduledNotification(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     notification_id = db.Column(UUID(as_uuid=True), db.ForeignKey('notifications.id'), index=True, nullable=False)
-    notification = db.relationship('Notification', uselist=False)
     scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -2038,18 +2034,19 @@ Index('ix_dm_datetime_yearmonth', DateTimeDimension.year, DateTimeDimension.mont
 class FactNotificationStatus(db.Model):
     __tablename__ = 'ft_notification_status'
 
-    bst_date = db.Column(db.Date, index=True, primary_key=True, nullable=False)
-    template_id = db.Column(UUID(as_uuid=True), primary_key=True, index=True, nullable=False)
+    bst_date = db.Column(db.Date, index=True, primary_key=True, nullable=False, default=datetime.date.today)
+    template_id = db.Column(UUID(as_uuid=True), primary_key=True, index=True, nullable=False, default=uuid.uuid4)
     service_id = db.Column(
         UUID(as_uuid=True),
         primary_key=True,
         index=True,
         nullable=False,
+        default=uuid.uuid4,
     )
-    job_id = db.Column(UUID(as_uuid=True), primary_key=True, index=True, nullable=False)
-    notification_type = db.Column(db.Text, primary_key=True, nullable=False)
-    key_type = db.Column(db.Text, primary_key=True, nullable=False)
-    notification_status = db.Column(db.Text, primary_key=True, nullable=False)
+    job_id = db.Column(UUID(as_uuid=True), primary_key=True, index=True, nullable=False, default=uuid.uuid4)
+    notification_type = db.Column(db.Text, primary_key=True, nullable=False, default=SMS_TYPE)
+    key_type = db.Column(db.Text, primary_key=True, nullable=False, default=KEY_TYPE_NORMAL)
+    notification_status = db.Column(db.Text, primary_key=True, nullable=False, default=NOTIFICATION_CREATED)
     status_reason = db.Column(db.Text, nullable=False, default='')
     notification_count = db.Column(db.Integer(), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
