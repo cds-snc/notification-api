@@ -3,6 +3,14 @@ from unittest.mock import call
 
 import pytest
 from freezegun import freeze_time
+from tests.app.conftest import create_sample_job
+from tests.app.db import (
+    create_job,
+    create_notification,
+    create_template,
+    save_notification,
+    save_scheduled_notification,
+)
 
 from app import db
 from app.celery import scheduled_tasks, tasks
@@ -40,14 +48,6 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
 )
 from app.v2.errors import JobIncompleteError
-from tests.app.conftest import create_sample_job
-from tests.app.db import (
-    create_job,
-    create_notification,
-    create_template,
-    save_notification,
-    save_scheduled_notification,
-)
 
 
 def _create_slow_delivery_notification(template, provider="sns"):

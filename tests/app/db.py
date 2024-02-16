@@ -92,7 +92,10 @@ def create_user(
 
 
 def create_permissions(user, service, *permissions):
-    permissions = [Permission(service_id=service.id, user_id=user.id, permission=p) for p in permissions]
+    permissions = [
+        Permission(service_id=service.id, user_id=user.id, permission=p)
+        for p in permissions
+    ]
 
     permission_dao.set_user_service_permission(user, service, permissions)
 
@@ -125,8 +128,14 @@ def create_service(
             message_limit=message_limit,
             sms_daily_limit=sms_daily_limit,
             restricted=restricted,
-            email_from=email_from if email_from else service_name.lower().replace(" ", "."),
-            created_by=user if user else create_user(email="{}@digital.cabinet-office.gov.uk".format(uuid.uuid4())),
+            email_from=email_from
+            if email_from
+            else service_name.lower().replace(" ", "."),
+            created_by=user
+            if user
+            else create_user(
+                email="{}@digital.cabinet-office.gov.uk".format(uuid.uuid4())
+            ),
             prefix_sms=prefix_sms,
             organisation_type=organisation_type,
             go_live_user=go_live_user,
@@ -253,7 +262,9 @@ def create_notification(
         created_at = datetime.utcnow()
 
     if to_field is None:
-        to_field = "+16502532222" if template.template_type == SMS_TYPE else "test@example.com"
+        to_field = (
+            "+16502532222" if template.template_type == SMS_TYPE else "test@example.com"
+        )
 
     if status != "created":
         sent_at = sent_at or datetime.utcnow()
@@ -261,7 +272,9 @@ def create_notification(
 
     if not one_off and (job is None and api_key is None):
         # we didn't specify in test - lets create it
-        api_key = ApiKey.query.filter(ApiKey.service == template.service, ApiKey.key_type == key_type).first()
+        api_key = ApiKey.query.filter(
+            ApiKey.service == template.service, ApiKey.key_type == key_type
+        ).first()
         if not api_key:
             api_key = create_api_key(template.service, key_type=key_type)
 
@@ -288,7 +301,6 @@ def create_notification(
         "api_key_id": api_key and api_key.id,
         "key_type": api_key.key_type if api_key else key_type,
         "sent_by": sent_by,
-        "updated_at": updated_at,
         "client_reference": client_reference,
         "job_row_number": job_row_number,
         "rate_multiplier": rate_multiplier,
@@ -431,7 +443,9 @@ def create_job(
 
 
 def create_service_permission(service_id, permission=EMAIL_TYPE):
-    dao_add_service_permission(service_id if service_id else create_service().id, permission)
+    dao_add_service_permission(
+        service_id if service_id else create_service().id, permission
+    )
 
     service_permissions = ServicePermission.query.all()
 
@@ -502,7 +516,9 @@ def create_service_callback_api(
     return service_callback_api
 
 
-def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName"):
+def create_email_branding(
+    colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName"
+):
     data = {
         "colour": colour,
         "logo": logo,
@@ -598,7 +614,9 @@ def create_reply_to_email(service, email_address, is_default=True, archived=Fals
     return reply_to
 
 
-def create_service_sms_sender(service, sms_sender, is_default=True, inbound_number_id=None, archived=False):
+def create_service_sms_sender(
+    service, sms_sender, is_default=True, inbound_number_id=None, archived=False
+):
     data = {
         "service_id": service.id,
         "sms_sender": sms_sender,
@@ -650,7 +668,9 @@ def create_domain(domain, organisation_id):
     return domain
 
 
-def create_organisation(name="test_org_1", active=True, organisation_type=None, domains=None):
+def create_organisation(
+    name="test_org_1", active=True, organisation_type=None, domains=None
+):
     data = {
         "name": name,
         "active": active,
@@ -665,7 +685,9 @@ def create_organisation(name="test_org_1", active=True, organisation_type=None, 
     return organisation
 
 
-def create_invited_org_user(organisation, invited_by, email_address="invite@example.com"):
+def create_invited_org_user(
+    organisation, invited_by, email_address="invite@example.com"
+):
     invited_org_user = InvitedOrganisationUser(
         email_address=email_address,
         invited_by=invited_by,
@@ -790,7 +812,9 @@ def create_complaint(service=None, notification=None, created_at=None):
     return complaint
 
 
-def create_service_data_retention(service, notification_type="sms", days_of_retention=3):
+def create_service_data_retention(
+    service, notification_type="sms", days_of_retention=3
+):
     data_retention = insert_service_data_retention(
         service_id=service.id,
         notification_type=notification_type,
@@ -846,7 +870,9 @@ def set_up_usage_data(start_date):
     service = create_service(service_name="a - with sms and letter")
     letter_template = create_template(service=service, template_type="letter")
     sms_template_1 = create_template(service=service, template_type="sms")
-    create_annual_billing(service_id=service.id, free_sms_fragment_limit=10, financial_year_start=year)
+    create_annual_billing(
+        service_id=service.id, free_sms_fragment_limit=10, financial_year_start=year
+    )
     org = create_organisation(name="Org for {}".format(service.name))
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
 

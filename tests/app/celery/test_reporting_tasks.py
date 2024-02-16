@@ -4,6 +4,15 @@ from decimal import Decimal
 import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from tests.app.db import (
+    create_letter_rate,
+    create_notification,
+    create_notification_history,
+    create_rate,
+    create_service,
+    create_template,
+    save_notification,
+)
 
 from app.celery.reporting_tasks import (
     create_nightly_billing,
@@ -19,15 +28,6 @@ from app.models import (
     FactBilling,
     FactNotificationStatus,
     Notification,
-)
-from tests.app.db import (
-    create_letter_rate,
-    create_notification,
-    create_notification_history,
-    create_rate,
-    create_service,
-    create_template,
-    save_notification,
 )
 
 
