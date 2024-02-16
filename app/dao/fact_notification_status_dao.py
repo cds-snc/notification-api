@@ -1,7 +1,6 @@
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal

@@ -55,7 +55,6 @@ from app.models import (
 from app.utils import (
     escape_special_characters,
     get_local_timezone_midnight_in_utc,
-    midnight_n_days_ago,
 )
 
 
