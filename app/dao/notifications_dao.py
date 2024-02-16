@@ -27,6 +27,7 @@ from werkzeug.datastructures import MultiDict
 from app import create_uuid, db, signer_personalisation
 from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
 from app.dao.dao_utils import transactional
+from app.dao.date_util import utc_midnight_n_days_ago
 from app.errors import InvalidRequest
 from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
@@ -335,7 +336,7 @@ def get_notifications_for_service(
     filters = [Notification.service_id == service_id]
 
     if limit_days is not None:
-        filters.append(Notification.created_at >= midnight_n_days_ago(limit_days))
+        filters.append(Notification.created_at >= utc_midnight_n_days_ago(limit_days))
 
     if older_than is not None:
         older_than_created_at = db.session.query(Notification.created_at).filter(Notification.id == older_than).as_scalar()
