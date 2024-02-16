@@ -52,10 +52,7 @@ from app.models import (
     Service,
     ServiceDataRetention,
 )
-from app.utils import (
-    escape_special_characters,
-    get_local_timezone_midnight_in_utc,
-)
+from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc
 
 
 @transactional
