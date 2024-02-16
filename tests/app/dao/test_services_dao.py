@@ -1434,7 +1434,7 @@ class TestServiceEmailLimits:
         notification = save_notification(
             create_notification(
                 created_at=yesterday,
-                template=create_template(service=create_service(), template_type="email"),
+                template=create_template(service=create_service(service_name="tester123"), template_type="email"),
             )
         )
         assert fetch_todays_total_message_count(notification.service.id) == 0
@@ -1442,7 +1442,7 @@ class TestServiceEmailLimits:
     def test_dao_fetch_todays_total_message_count_counts_notifications_in_jobs_scheduled_for_today(
         self, notify_db, notify_db_session
     ):
-        service = create_service()
+        service = create_service(service_name="tester12")
         template = create_template(service=service, template_type="email")
         today = datetime.utcnow().date()
 
