@@ -3,6 +3,7 @@ target-version = "py310"
 exclude = ["venv*", "__pycache__", "node_modules", "cache", "migrations", "build"]
 extend-include = ['(app|migrations|tests)/.*\.pyi?$']
 src = ["app", "migrations", "tests"]
+# Ruff formatter will wrap lines at a length of 130 characters.
 line-length = 130
 indent-width = 4
 
@@ -17,8 +18,13 @@ select = [
     "I001",
     "I002"
 ]
-
 ignore = ["E203", "E501", "E402"]
+
+# Provide line length leeway for docstrings
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 170
+# Enforce doc string format? (google, numpy or pep257)
+# convention = "google"
 
 [tool.ruff.format]
 # Match black formatting

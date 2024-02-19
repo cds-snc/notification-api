@@ -23,6 +23,12 @@ function display_result {
 make test-requirements
 display_result $? 1 "Requirements check"
 
+ruff check .
+display_result $? 1 "Code style check"
+
+ruff check --select I .
+display_result $? 1 "Import order check"
+
 mypy .
 display_result $? 1 "Type check"
 

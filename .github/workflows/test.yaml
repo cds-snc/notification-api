@@ -39,10 +39,6 @@ jobs:
       run: poetry lock --check
     - name: Install requirements
       run: poetry install --with test
-    - name: Lint and format checks
-      uses: chartboost/ruff-action@v1
-      with:
-        src: "."
     - name: Run tests
       run: poetry run make test
     - name: Upload pytest logs on failure
