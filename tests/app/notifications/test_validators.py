@@ -217,8 +217,7 @@ class TestCheckDailySMSEmailLimits:
             if limit_type == "sms":
                 increment_sms_daily_count_send_warnings_if_needed(service)
             else:
-                with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    increment_email_daily_count_send_warnings_if_needed(service)
+                increment_email_daily_count_send_warnings_if_needed(service)
 
             assert redis_get.call_args_list == [
                 call(count_key(limit_type, service.id)),
@@ -290,8 +289,7 @@ class TestCheckDailySMSEmailLimits:
             assert e.value.fields == []
 
             with pytest.raises(TooManyEmailRequestsError) as e:
-                with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    check_email_daily_limit(service)
+                check_email_daily_limit(service)
             assert e.value.status_code == 429
             assert e.value.message == "Exceeded email daily sending limit of 4 messages"
             assert e.value.fields == []
@@ -350,8 +348,8 @@ class TestCheckDailySMSEmailLimits:
 
         # When
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
-        with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-            check_email_daily_limit(service)
+        check_email_daily_limit(service)
+
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
 
