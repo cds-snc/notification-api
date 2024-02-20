@@ -1730,6 +1730,27 @@ def test_get_notifications_for_service_without_page_count(
     assert resp["notifications"][0]["id"] == str(without_job.id)
 
 
+@freeze_time("2018-11-20T18:00:00")
+@pytest.mark.parametrize("retention_period, expected_count_of_notifications", [(3, 72), (7, 168)])
+def test_get_notifications_for_service_gets_data_from_correct_timeframe(admin_request, sample_service, retention_period, expected_count_of_notifications):
+    email_template = create_template(service=sample_service, template_type=EMAIL_TYPE)
+
+    # WEEK BEFORE
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(create_notification(email_template, created_at=datetime(2018, 11, 5+i, j, 0, 0), status="delivered"))
+
+    # THIS WEEK
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(create_notification(email_template, created_at=datetime(2018, 11, 13+i, j, 0, 0), status="delivered"))
+
+    resp = admin_request.get("service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1)
+    assert resp["total"] == expected_count_of_notifications
+
+
 @pytest.mark.parametrize(
     "should_prefix",
     [
