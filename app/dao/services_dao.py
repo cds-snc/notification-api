@@ -84,7 +84,7 @@ def dao_count_live_services():
     ).count()
 
 
-def dao_fetch_live_services_data(filter_heartbeats=None):
+def dao_fetch_live_services_data():
     year_start_date, year_end_date = get_current_financial_year()
 
     most_recent_annual_billing = (
@@ -176,17 +176,8 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
             AnnualBilling.free_sms_fragment_limit,
         )
         .order_by(asc(Service.go_live_at))
+        .all()
     )
-    if filter_heartbeats:
-        data = data.join(Template, Service.id == Template.service_id).filter(
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_HIGH"],
-        )
-    data = data.all()
     results = []
     for row in data:
         existing_service = next((x for x in results if x["service_id"] == row.service_id), None)
