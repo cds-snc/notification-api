@@ -5,6 +5,7 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
 
+from app import authenticated_service
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
@@ -185,7 +186,7 @@ def create_job(service_id):
 
     elif template.template_type == EMAIL_TYPE:
         check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
-        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None  # noqa: F821
+        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None  # noqa: F821
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
             increment_email_daily_count_send_warnings_if_needed(
