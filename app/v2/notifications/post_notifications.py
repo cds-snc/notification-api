@@ -223,7 +223,10 @@ def post_bulk():
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_daily_limit(authenticated_service, len(list(recipient_csv.get_rows())))
-        increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
+
+        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+            increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients

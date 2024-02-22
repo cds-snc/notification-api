@@ -466,7 +466,7 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
             sms_template = create_sample_template(notify_db, notify_db_session, service=service)
             create_sample_notification(notify_db, notify_db_session, template=email_template, service=service)
 
-            data = {"to": sample_user.mobile_number, "template": str(sms_template.id)}
+            data = {"to": sample_user.mobile_number, "template": str(sms_template.id), "valid": "True"}
 
             auth_header = create_authorization_header(service_id=service.id)
 
