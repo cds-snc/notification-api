@@ -331,6 +331,39 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
+@freeze_time("2018-10-31T18:00:00")
+def test_fetch_notification_status_gets_data_from_correct_timeframe(
+    notify_db_session,
+):
+    service_1 = create_service(service_name="service_1")
+    sms_template = create_template(service=service_1, template_type=SMS_TYPE)
+    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+    # create notifications for every hour of the day
+    for i in range(24):
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 30), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+
+    # too early, shouldn't be included
+    save_notification(
+        create_notification(
+            service_1.templates[0],
+            created_at=datetime(2018, 10, 29, 23, 59, 59),
+            status="delivered",
+        )
+    )
+    data = fetch_notification_status_for_day(process_day=datetime.utcnow() - timedelta(days=1))
+
+    assert data[0].notification_type == "email"
+    assert data[0].notification_count == 48
+
+    assert data[1].notification_type == "sms"
+    assert data[1].notification_count == 72
+
+
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
