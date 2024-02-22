@@ -127,8 +127,6 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
 
     send_to_providers.send_sms_to_provider(db_notification)
 
-    send_to_providers.send_sms_to_provider(db_notification)
-
     mock_sms_client.send_sms.assert_called_once_with(
         to=validate_and_format_phone_number('+16502532222'),
         content=f'{service.name}: Hello Jo\nHere is <em>some HTML</em> & entities',

@@ -1,7 +1,11 @@
 from app import notify_celery
-from app.celery.common import can_retry, handle_max_retries_exceeded, handle_non_retryable
+from app.celery.common import (
+    can_retry,
+    handle_max_retries_exceeded,
+    log_and_update_permanent_failure,
+    log_and_update_technical_failure,
+)
 from app.celery.exceptions import NonRetryableException, AutoRetryException
-from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.dao import notifications_dao
@@ -9,11 +13,11 @@ from app.dao.notifications_dao import update_notification_status_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_service_id_and_number
 from app.delivery import send_to_providers
 from app.exceptions import NotificationTechnicalFailureException, MalwarePendingException, InvalidProviderException
-from app.models import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.v2.errors import RateLimitError
 from flask import current_app
 from notifications_utils.field import NullValueForNonConditionalPlaceholderException
-from notifications_utils.recipients import InvalidEmailError
+from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
 from notifications_utils.statsd_decorators import statsd
 
 
@@ -47,22 +51,30 @@ def deliver_sms(
         send_to_providers.send_sms_to_provider(notification, sms_sender_id)
         current_app.logger.info('Successfully sent sms for notification id: %s', notification_id)
     except InvalidProviderException as e:
-        current_app.logger.exception(e)
-        update_notification_status_by_id(
-            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='SMS provider configuration invalid'
+        log_and_update_technical_failure(
+            notification_id,
+            'deliver_sms',
+            e,
+            'SMS provider configuration invalid',
         )
         raise NotificationTechnicalFailureException(str(e))
-    except NonRetryableException:
-        current_app.logger.exception('SMS notification delivery for id: %s failed. Not retrying.', notification_id)
-        update_notification_status_by_id(
-            notification_id,
-            NOTIFICATION_PERMANENT_FAILURE,
-            status_reason='ERROR: NonRetryableException - permenant failure, not retrying',
+    except InvalidPhoneError as e:
+        log_and_update_permanent_failure(
+            notification.id,
+            'deliver_sms',
+            e,
+            'Phone number is invalid',
         )
-        notification = notifications_dao.get_notification_by_id(notification_id)
-        check_and_queue_callback_task(notification)
+    except NonRetryableException as e:
+        # Max retries exceeded, celery raised exception
+        log_and_update_permanent_failure(
+            notification.id,
+            'deliver_sms',
+            e,
+            'ERROR: NonRetryableException - permanent failure, not retrying',
+        )
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
-        handle_non_retryable(notification_id, 'deliver_sms')
+        log_and_update_technical_failure(notification_id, 'deliver_sms', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception('SMS delivery for notification id: %s failed', notification_id)
@@ -109,20 +121,28 @@ def deliver_sms_with_rate_limiting(
         send_to_providers.send_sms_to_provider(notification, sms_sender_id)
         current_app.logger.info('Successfully sent sms with rate limiting for notification id: %s', notification_id)
     except InvalidProviderException as e:
-        current_app.logger.exception(e)
-        update_notification_status_by_id(
-            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='SMS provider configuration invalid'
+        log_and_update_technical_failure(
+            notification_id,
+            'deliver_sms_with_rate_limiting',
+            e,
+            'SMS provider configuration invalid',
         )
         raise NotificationTechnicalFailureException(str(e))
-    except NonRetryableException:
-        current_app.logger.exception('SMS delivery for notification id: %s failed. Not retrying.', notification_id)
-        update_notification_status_by_id(
-            notification_id,
-            NOTIFICATION_PERMANENT_FAILURE,
-            status_reason='ERROR: NonRetryableException - permenant failure, not retrying',
+    except InvalidPhoneError as e:
+        log_and_update_permanent_failure(
+            notification.id,
+            'deliver_sms_with_rate_limiting',
+            e,
+            'Phone number is invalid',
         )
-        notification = notifications_dao.get_notification_by_id(notification_id)
-        check_and_queue_callback_task(notification)
+    except NonRetryableException as e:
+        # Max retries exceeded, celery raised exception
+        log_and_update_permanent_failure(
+            notification.id,
+            'deliver_sms_with_rate_limiting',
+            e,
+            'ERROR: NonRetryableException - permanent failure, not retrying',
+        )
     except RateLimitError:
         retry_time = sms_sender.rate_limit_interval / sms_sender.rate_limit
         current_app.logger.info(
@@ -134,7 +154,7 @@ def deliver_sms_with_rate_limiting(
 
         self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=retry_time)
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
-        handle_non_retryable(notification_id, 'deliver_sms_with_rate_limiting')
+        log_and_update_technical_failure(notification_id, 'deliver_sms_with_rate_limiting', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception('Rate Limit SMS notification delivery for id: %s failed', notification_id)
@@ -194,7 +214,7 @@ def deliver_email(
         )
         raise NotificationTechnicalFailureException(str(e))
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
-        handle_non_retryable(notification_id, 'deliver_email')
+        log_and_update_technical_failure(notification_id, 'deliver_email', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
     except Exception as e:
         current_app.logger.exception('Email delivery for notification id: %s failed', notification_id)

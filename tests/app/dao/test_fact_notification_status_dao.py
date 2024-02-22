@@ -878,6 +878,7 @@ def test_get_total_sent_notifications_for_day_and_type_returns_right_notificatio
     assert result == count
 
 
+@pytest.mark.serial
 @pytest.mark.parametrize('day', ['2019-01-27', '2019-04-02'])
 def test_get_total_sent_notifications_for_day_and_type_returns_total_for_right_day(
     day,
@@ -889,6 +890,7 @@ def test_get_total_sent_notifications_for_day_and_type_returns_total_for_right_d
     job = sample_job(template)
 
     date = datetime.strptime(day, '%Y-%m-%d')
+    # Can raise deadlock if called in parallel. The fact_billing table does not handle multiple inserts well
     sample_ft_notification_status(utc_date=date - timedelta(days=1), job=job, count=1)
     sample_ft_notification_status(utc_date=date, job=job, count=2)
     sample_ft_notification_status(utc_date=date + timedelta(days=1), job=job, count=3)

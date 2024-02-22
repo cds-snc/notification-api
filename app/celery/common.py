@@ -1,6 +1,10 @@
-from app.dao.notifications_dao import update_notification_status_by_id
-from app.models import NOTIFICATION_TECHNICAL_FAILURE
+from uuid import UUID
+
 from flask import current_app
+
+from app.celery.service_callback_tasks import check_and_queue_callback_task
+from app.dao.notifications_dao import get_notification_by_id, update_notification_status_by_id
+from app.models import NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE
 
 
 RETRIES_EXCEEDED = 'Retries exceeded'
@@ -10,7 +14,7 @@ TECHNICAL_ERROR = 'VA Notify non-retryable technical error'
 def can_retry(
     retries: int,
     max_retries: int,
-    notification_id: str,
+    notification_id: UUID,
 ) -> bool:
     """Facilitates testing - Compares retries vs max retries returns True if retries < max_retries"""
     current_app.logger.info('Notification id: %s, max retries: %s, retries: %s', notification_id, max_retries, retries)
@@ -32,14 +36,53 @@ def handle_max_retries_exceeded(
     return message
 
 
-def handle_non_retryable(
-    notification_id: str,
+def log_and_update_technical_failure(
+    notification_id: UUID,
     method_name: str,
+    e: Exception,
+    status_reason: str = None,
 ) -> None:
-    """Handles sms/email deliver requests that failed in a non-retryable manner"""
+    """Handles sms/email deliver requests that failed in a technical manner due to an exception"""
     current_app.logger.critical(
-        '%s: Notification %s encountered a non-retryable exception and ' 'has been updated to a technical-failure',
+        '%s: Notification: %s - Experienced an exception: %s',
         method_name,
         notification_id,
+        e,
     )
-    update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=TECHNICAL_ERROR)
+    update_notification_status_by_id(
+        notification_id,
+        NOTIFICATION_TECHNICAL_FAILURE,
+        status_reason=status_reason or TECHNICAL_ERROR,
+    )
+
+    current_app.logger.critical(
+        'Notification %s encountered a technical exception and has been updated to a technical-failure',
+        notification_id,
+    )
+
+    notification = get_notification_by_id(notification_id)
+    check_and_queue_callback_task(notification)
+
+
+def log_and_update_permanent_failure(
+    notification_id: UUID,
+    method_name: str,
+    e: Exception,
+    status_reason: str,
+) -> None:
+    """Handles sms/email deliver requests that failed in a permanent manner due to an exception"""
+    current_app.logger.warning(
+        '%s: Notification: %s encountered a permanent exception: %s',
+        method_name,
+        notification_id,
+        e,
+    )
+    update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=status_reason)
+    current_app.logger.warning(
+        'Notification: %s has been updated to a permanent-failure with status_reason: %s',
+        notification_id,
+        status_reason,
+    )
+
+    notification = get_notification_by_id(notification_id)
+    check_and_queue_callback_task(notification)
