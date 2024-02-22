@@ -70,7 +70,6 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
-from tests.conftest import set_config
 
 
 def test_get_service_list(client, service_factory):
@@ -252,20 +251,6 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
     assert first["count"] == 3
-
-
-def test_get_delivered_notification_stats_by_month_data_without_heartbeat(notify_api, admin_request, sample_service):
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
-
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
-    with set_config(notify_api, "HEARTBEAT_TEMPLATE_EMAIL_LOW", email_template.id):
-        response = admin_request.get("service.get_delivered_notification_stats_by_month_data", filter_heartbeats=True)["data"]
-        assert len(response) == 0
 
 
 def test_get_service_by_id(admin_request, sample_service):

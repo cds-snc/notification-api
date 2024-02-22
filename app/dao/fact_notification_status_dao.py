@@ -149,8 +149,8 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     )
 
 
-def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
-    query = (
+def fetch_delivered_notification_stats_by_month():
+    return (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -169,17 +169,8 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
             func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
             FactNotificationStatus.notification_type,
         )
+        .all()
     )
-    if filter_heartbeats:
-        query = query.filter(
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_HIGH"],
-        )
-    return query.all()
 
 
 def fetch_notification_stats_for_trial_services():
