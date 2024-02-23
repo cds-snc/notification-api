@@ -46,11 +46,9 @@ license = "MIT license"
 readme = "README.md"
 packages = []
 
-[tool.poetry.scripts]
-notify-api = ""
 
 [build-system]
-requires = ["poetry>=1.3.2"]
+requires = ["poetry-core>=1.7.1"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
