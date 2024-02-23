@@ -36,7 +36,7 @@ We currently do not:
 - [Local Development Without Docker](#local-development-without-docker)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
-  - [Update requirements.txt](#update-requirementstxt)
+  - [Update requirements.txt](#update-requirements)
   - [Creating a PR](#creating-a-pr)
   - [Release Process](#release-process)
     - [Perf Release](#create-a-release-for-perf)
@@ -251,22 +251,25 @@ This application defines Docker images for production, testing, and development 
 | bbyars/mountebank 2.4.0 | None given. | Newer versions are available. | docker-compose-local.yml |
 | redis | | No version specified. | docker-compose-local.yml |
 
-To update the images, change the `FROM` directive at the top of Dockerfiles and the `image` directive in YAML files.  Rebuild affected dependent containers, and run the [unit tests](#unit-testing) to verify the changes.  For example, if ci/Dockerfile begins with the line "FROM python:3.8-alpine3.15", you could change it to "FROM python:3.10-alpine3.15".  Visit Docker Hub to see what version tags are available for a given image.
+To update the images, change the `FROM` directive at the top of Dockerfiles and the `image` directive in YAML files.  Rebuild affected dependent containers, and run the [unit tests](#unit-testing) to verify the changes.  For example, if ci/Dockerfile begins with the line "FROM python:3.10-alpine3.19", you could change it to "FROM python:3.12-alpine3.22".  Visit Docker Hub to see what version tags are available for a given image.
 
 ---
 
 ## Deployment Workflow
 
-### Update requirements.txt
+The Docker image generated and used in local development with `ci/Dockerfile.local`, builds with the Python packages given by `requirements.txt`.  This ensures that the local image is built with the same dependencies used in the deployed environments.
 
-The Docker image used in production, ci/Dockerfile, builds with the Python packages given by requirements.txt, which freezes all dependencies.  **Prior to any deployment to AWS, update requirements.txt as follows**:
+The Docker images generated from `ci/Dockerfile` and `ci/Dockerfile.local` are built with the Python packages specified in `requirements.txt`.  The former is used when deploying with Github actions, and using the same requirements file in the latter ensures that the local build mirrors the deployment build.  `ci/Dockerfile.local` can also be used to update dependencies as described in [Update Requirements](#update-requirements).
 
-1. Update ci/Dockerfile.local to use requirements-app.txt, not requirements.txt.
+### Update requirements
+
+Updating `requirements.txt` is done by first building locally, using `requirements-app.txt`, which contains all top-level dependencies. The full process to upgrade is as follows:
+
+1. In `ci/Dockerfile.local`, replace all instances of `requirements.txt` with `requirements-app.txt`.
 2. Build the notification_api Docker image using the docker-compose command given in [Local Development](#local-development).
 3. Run `docker run --rm -i notification_api pip freeze > requirements.txt`.
-4. Open requirements.txt, and manually remove any warning messages at the start of the file.
-5. Assuming all unit tests are passing, note any top level dependency updates.  Update requirements-app.txt to make their minimum version equal to the version actually installed according to requirements.txt.
-6. Restore Dockerfile.local to use requirements.txt.
+4. Assuming all unit tests are passing, note any top level dependency updates.  Update requirements-app.txt to make their minimum version equal to the version actually installed according to requirements.txt.
+5. Restore Dockerfile.local to use requirements.txt.  (Undo step 1.)
 
 ## Creating a PR
 
