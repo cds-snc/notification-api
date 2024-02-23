@@ -185,10 +185,10 @@ def create_job(service_id):
 
     elif template.template_type == EMAIL_TYPE:
         check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
-        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None  # noqa: F821
+        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
-            increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))  # noqa: F821
+            increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
 
     data.update({"template_version": template.version})
 
