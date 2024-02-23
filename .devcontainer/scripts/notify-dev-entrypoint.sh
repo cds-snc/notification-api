@@ -34,7 +34,7 @@ cd /workspace
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
 echo -e "autoload -Uz compinit && compinit"
 
-pip install poetry==${POETRY_VERSION} poetry-plugin-sort \
+pip install poetry==${POETRY_VERSION} poetry-plugin-sort
 export PATH=$PATH:/home/vscode/.local/bin/
 which poetry
 poetry --version
