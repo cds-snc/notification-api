@@ -180,7 +180,8 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(
     save_model_api_key(expired_api_key)
 
     all_api_keys = get_model_api_keys(service_id=service.id)
-    api_key_histories = expired_api_key.get_history_model().query.all()
+    stmt = select(expired_api_key.get_history_model())
+    api_key_histories = notify_db_session.session.scalars(stmt).all()
 
     try:
         assert len(all_api_keys) == expected_length

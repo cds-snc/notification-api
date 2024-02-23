@@ -4,14 +4,18 @@ seems that using the fixture has side-effects that ensure a test database is use
 Without passing notify_db_session, tests fail.
 """
 
-import pytest
 import uuid
+
+import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.dao.service_sms_sender_dao import (
     archive_sms_sender,
     dao_add_sms_sender_for_service,
     dao_get_service_sms_sender_by_id,
-    dao_get_sms_senders_by_service_id,
     dao_get_service_sms_sender_by_service_id_and_number,
+    dao_get_sms_senders_by_service_id,
     dao_update_service_sms_sender,
 )
 from app.exceptions import ArchiveValidationError
@@ -21,10 +25,8 @@ from app.service.exceptions import (
     SmsSenderInboundNumberIntegrityException,
     SmsSenderRateLimitIntegrityException,
 )
-from sqlalchemy.exc import SQLAlchemyError
-from tests.app.db import (
-    create_service_sms_sender,
-)
+from tests.app.db import create_service_sms_sender
+from tests.conftest import notify_db_session
 
 
 def test_dao_get_service_sms_sender_by_id(sample_service):
@@ -115,42 +117,53 @@ def test_dao_get_sms_senders_by_service_id_does_not_return_archived_senders(
 
 
 class TestDaoAddSmsSenderForService:
-    def test_dao_add_sms_sender_for_service(self, sample_service):
+    def test_dao_add_sms_sender_for_service(self, notify_db_session, sample_service):
         service = sample_service()
 
-        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        service_sms_senders = notify_db_session.session.scalars(stmt).all()
+
         assert len(service_sms_senders) == 1
 
         new_sms_sender = dao_add_sms_sender_for_service(
             service_id=service.id, sms_sender='new_sms', is_default=False, inbound_number_id=None
         )
 
-        service_sms_senders_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        service_sms_senders_after_updates = notify_db_session.session.scalars(stmt).all()
+
         assert len(service_sms_senders_after_updates) == 2
 
         assert new_sms_sender in service_sms_senders_after_updates
 
-    def test_dao_switches_default(self, sample_service):
+    def test_dao_switches_default(self, notify_db_session, sample_service):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         new_sms_sender = dao_add_sms_sender_for_service(
             service_id=service.id, sms_sender='new_sms', is_default=True, inbound_number_id=None
         )
 
-        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=existing_sms_sender.id).one()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.id == existing_sms_sender.id)
+        existing_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
+
         assert not existing_sms_sender_after_updates.is_default
 
-        new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.id == new_sms_sender.id)
+        new_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
+
         assert new_sms_sender_after_updates.is_default
 
     @pytest.mark.parametrize('rate_limit, rate_limit_interval', ([1, None], [None, 1]))
     def test_raises_exception_if_only_one_of_rate_limit_value_and_interval_provided(
-        self, sample_service, rate_limit, rate_limit_interval
+        self, notify_db_session, sample_service, rate_limit, rate_limit_interval
     ):
         service = sample_service()
 
-        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        service_sms_senders = notify_db_session.session.scalars(stmt).all()
+
         assert len(service_sms_senders) == 1
 
         with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
@@ -167,11 +180,14 @@ class TestDaoAddSmsSenderForService:
 
     def test_raises_exception_if_adding_number_to_use_already_allocated_inbound_number(
         self,
+        notify_db_session,
         sample_service,
         sample_service_with_inbound_number,
     ):
         service_with_inbound_number = sample_service_with_inbound_number()
-        inbound_number = InboundNumber.query.filter_by(service_id=service_with_inbound_number.id).one()
+
+        stmt = select(InboundNumber).where(InboundNumber.service_id == service_with_inbound_number.id)
+        inbound_number = notify_db_session.session.scalars(stmt).one()
 
         new_service = sample_service()
 
@@ -203,10 +219,12 @@ class TestDaoAddSmsSenderForService:
                 inbound_number_id=inbound_number.id,
             )
 
-    def test_raises_exception_for_zero_rate_limit(self, sample_service):
+    def test_raises_exception_for_zero_rate_limit(self, notify_db_session, sample_service):
         service = sample_service()
 
-        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        service_sms_senders = notify_db_session.session.scalars(stmt).all()
+
         assert len(service_sms_senders) == 1
 
         with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
@@ -223,11 +241,14 @@ class TestDaoAddSmsSenderForService:
 
     def test_raises_exception_for_zero_rate_limit_interval(
         self,
+        notify_db_session,
         sample_service,
     ):
         service = sample_service()
 
-        service_sms_senders = ServiceSmsSender.query.filter_by(service_id=service.id).all()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        service_sms_senders = notify_db_session.session.scalars(stmt).all()
+
         assert len(service_sms_senders) == 1
 
         with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
@@ -246,11 +267,15 @@ class TestDaoAddSmsSenderForService:
 class TestDaoUpdateServiceUpdateSmsSender:
     def test_dao_update_service_sms_sender(
         self,
+        notify_db_session,
         sample_service,
         sample_inbound_number,
     ):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
+
         sender_specifics = {'data': 'This is something specific.', 'some_int': 42}
         inbound_number = sample_inbound_number()
 
@@ -262,15 +287,18 @@ class TestDaoUpdateServiceUpdateSmsSender:
             sms_sender_specifics=sender_specifics,
         )
 
-        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+        existing_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
+
         assert existing_sms_sender_after_updates.is_default
         assert existing_sms_sender_after_updates.sms_sender == 'updated'
         assert existing_sms_sender_after_updates.inbound_number_id == inbound_number.id
         assert existing_sms_sender_after_updates.sms_sender_specifics == sender_specifics
 
-    def test_switches_default(self, sample_service):
+    def test_switches_default(self, notify_db_session, sample_service):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         new_sms_sender = dao_add_sms_sender_for_service(
             service_id=service.id, sms_sender='new_sms', is_default=False, inbound_number_id=None
@@ -278,18 +306,24 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         dao_update_service_sms_sender(service_id=service.id, service_sms_sender_id=new_sms_sender.id, is_default=True)
 
-        existing_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=existing_sms_sender.id).one()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.id == existing_sms_sender.id)
+        existing_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
+
         assert not existing_sms_sender_after_updates.is_default
 
-        new_sms_sender_after_updates = ServiceSmsSender.query.filter_by(id=new_sms_sender.id).one()
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.id == new_sms_sender.id)
+        new_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
+
         assert new_sms_sender_after_updates.is_default
 
     @pytest.mark.parametrize('rate_limit, rate_limit_interval', ([1, None], [None, 1]))
     def test_raises_exception_if_only_one_of_rate_limit_value_and_interval_provided(
-        self, sample_service, rate_limit, rate_limit_interval
+        self, notify_db_session, sample_service, rate_limit, rate_limit_interval
     ):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         with pytest.raises(SmsSenderRateLimitIntegrityException) as e:
             dao_update_service_sms_sender(
@@ -301,9 +335,11 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         assert 'Cannot update sender to have only one of rate limit value and interval.' in str(e.value)
 
-    def test_raises_exception_for_zero_rate_limit(self, sample_service):
+    def test_raises_exception_for_zero_rate_limit(self, notify_db_session, sample_service):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         with pytest.raises(Exception) as e:
             dao_update_service_sms_sender(
@@ -312,9 +348,11 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         assert 'rate_limit cannot be less than 1.' in str(e.value)
 
-    def test_raises_exception_for_zero_rate_limit_interval(self, sample_service):
+    def test_raises_exception_for_zero_rate_limit_interval(self, notify_db_session, sample_service):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         with pytest.raises(Exception) as e:
             dao_update_service_sms_sender(
@@ -323,9 +361,11 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         assert 'rate_limit_interval cannot be less than 1.' in str(e.value)
 
-    def test_raises_exception_if_update_would_result_in_no_default_sms_sender(self, sample_service):
+    def test_raises_exception_if_update_would_result_in_no_default_sms_sender(self, notify_db_session, sample_service):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         with pytest.raises(SmsSenderDefaultValidationException) as e:
             dao_update_service_sms_sender(
@@ -339,11 +379,14 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
     def test_raises_exception_if_updating_number_with_inbound_number_already_set(
         self,
+        notify_db_session,
         sample_inbound_number,
         sample_service,
     ):
         service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         inbound_number = sample_inbound_number()
         dao_update_service_sms_sender(
@@ -360,14 +403,19 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
     def test_raises_exception_if_updating_number_to_use_already_allocated_inbound_number(
         self,
+        notify_db_session,
         sample_service,
         sample_service_with_inbound_number,
     ):
         service_with_inbound_number = sample_service_with_inbound_number()
-        inbound_number = InboundNumber.query.filter_by(service_id=service_with_inbound_number.id).one()
+
+        stmt = select(InboundNumber).where(InboundNumber.service_id == service_with_inbound_number.id)
+        inbound_number = notify_db_session.session.scalars(stmt).one()
 
         new_service = sample_service()
-        existing_sms_sender = ServiceSmsSender.query.filter_by(service_id=service_with_inbound_number.id).one()
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service_with_inbound_number.id)
+        existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
         with pytest.raises(SmsSenderInboundNumberIntegrityException) as e:
             dao_update_service_sms_sender(

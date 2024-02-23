@@ -9,12 +9,8 @@ fileignoreconfig:
   checksum: a8268dd19d4394733a974db319c5a2353aad455ff1bab189949fa1a9a757e166
 - filename: tests/app/conftest.py
   checksum: 96c0f09e85dc957d90da2728911d684744559fb08069c4d8763aa99329f26511
-- filename: tests/app/dao/test_api_key_dao.py
-  checksum: 9a97adf107dbbf0d821a5d210f19b55a27c8b22d0593be3224a10770cd78d4e1
 - filename: tests/app/service/test_rest.py
   checksum: c4331cbc7d3c935ceca4fa94c40034348f00369e50540b02a36dbf6d98bc4fe9
-- filename: tests/app/dao/test_fido2_keys_dao.py
-  checksum: 35cba2fd6e81a4d9e55fa9ebe8fa6ad8fc1e597aede8495e386f8b7999b6f482
 - filename: tests/app/dao/notification_dao/test_notification_dao.py
   checksum: b32000cfe4245fb5080d1744789913d53b73d68fb0573b6c2e6eaf424ae8255d
 - filename: tests/app/delivery/test_send_to_providers.py
@@ -30,12 +26,14 @@ fileignoreconfig:
 - filename: tests/app/dao/test_fact_notification_status_dao.py
   checksum: 2cad8d3b4a53bad53c3adeb9c81968d11b21e75d729976120bdd66ca91031738
 - filename: tests/app/dao/test_fido2_keys_dao.py
-  checksum: 35cba2fd6e81a4d9e55fa9ebe8fa6ad8fc1e597aede8495e386f8b7999b6f482
+  checksum: d31637bf80436d874d1bd8291c62a0ada156fa71620c2299b0cee4e4c746eaeb
 - filename: tests/app/dao/test_api_key_dao.py
-  checksum: 2a5c8291ae13fffac0f6820880d0891248f7b958ef4106a23bd8d0bf3d17e15b
+  checksum: ef2a3ba24dc9debf0c48c0ebb0a83d9472abaadda7c6a19ac4fd637706913acd
 - filename: tests/app/v2/notifications/test_push_broadcast_notifications.py
   checksum: eed7b99992b43ff534736502d72a3b8f3f3cdbdd17c26be88f9dea9614321e38
 - filename: cd/application-deployment/perf/vaec-api-task-definition.json
   checksum: b32eae40a0fb22d71ef585eaf56983ced8abfa24087f6d1d03e4a3e7b7d48cb0
 - filename: cd/application-deployment/perf/vaec-celery-task-definition.json
   checksum: c7d10bd01c45d4f2199a0a89d6d94fa1c222d5770187051320a0a0e2a5ca5d30
+- filename: tests/app/db.py
+  checksum: df9a020fece4a10601c2e3200e663eed4bf327e2f0b16eac2d028aff56bca2ef

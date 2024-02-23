@@ -677,16 +677,17 @@ def _delete_letters_from_s3(
     if isinstance(service_id, Row):
         service_id = str(service_id[0])
 
-    letters_to_delete_from_s3 = (
-        db.session.query(Notification)
-        .filter(
+    stmt = (
+        select(Notification)
+        .where(
             Notification.notification_type == notification_type,
             Notification.created_at < date_to_delete_from,
             Notification.service_id == service_id,
         )
         .limit(query_limit)
-        .all()
     )
+    letters_to_delete_from_s3 = db.session.scalars(stmt).all()
+
     for letter in letters_to_delete_from_s3:
         bucket_name = current_app.config['LETTERS_PDF_BUCKET_NAME']
         if letter.sent_at:

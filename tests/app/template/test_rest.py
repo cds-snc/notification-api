@@ -49,7 +49,14 @@ from tests.conftest import set_config_values
         (LETTER_TYPE, 'subject'),
     ],
 )
-def test_should_create_a_new_template_for_a_service(client, sample_service, sample_user, template_type, subject):
+def test_should_create_a_new_template_for_a_service(
+    notify_db_session,
+    client,
+    sample_service,
+    sample_user,
+    template_type,
+    subject,
+):
     service = sample_service(service_permissions=[template_type])
     data = {
         'name': 'my template',
@@ -90,14 +97,20 @@ def test_should_create_a_new_template_for_a_service(client, sample_service, samp
     else:
         assert not json_resp['data']['postage']
 
-    template = Template.query.get(json_resp['data']['id'])
+    template = notify_db_session.session.get(Template, json_resp['data']['id'])
     from app.schemas import template_schema
 
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
 
 
 @pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
-def test_should_create_a_new_template_with_a_valid_provider(client, sample_service, sample_user, ses_provider):
+def test_should_create_a_new_template_with_a_valid_provider(
+    notify_db_session,
+    client,
+    sample_service,
+    sample_user,
+    ses_provider,
+):
     service = sample_service(service_permissions=[EMAIL_TYPE])
     data = {
         'name': 'my template',
@@ -118,7 +131,7 @@ def test_should_create_a_new_template_with_a_valid_provider(client, sample_servi
     json_resp = response.get_json()
     assert json_resp['data']['provider_id'] == str(ses_provider.id)
 
-    template = Template.query.get(json_resp['data']['id'])
+    template = notify_db_session.session.get(Template, json_resp['data']['id'])
     assert template.provider_id == ses_provider.id
 
 
@@ -229,7 +242,7 @@ def test_should_not_create_template_with_incorrect_provider_type(
 
 
 @pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
-def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sample_service):
+def test_create_a_new_template_for_a_service_adds_folder_relationship(notify_db_session, client, sample_service):
     service = sample_service()
     parent_folder = create_template_folder(service=service, name='parent folder')
 
@@ -250,7 +263,10 @@ def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sa
         data=data,
     )
     assert response.status_code == 201
-    template = Template.query.filter(Template.name == 'my template').first()
+
+    stmt = select(Template).where(Template.name == 'my template')
+    template = notify_db_session.session.scalars(stmt).first()
+
     assert template.folder == parent_folder
 
 
@@ -259,7 +275,7 @@ def test_create_a_new_template_for_a_service_adds_folder_relationship(client, sa
     'template_type, expected_postage', [(SMS_TYPE, None), (EMAIL_TYPE, None), (LETTER_TYPE, 'second')]
 )
 def test_create_a_new_template_for_a_service_adds_postage_for_letters_only(
-    client, sample_service, template_type, expected_postage
+    notify_db_session, client, sample_service, template_type, expected_postage
 ):
     service = sample_service()
     dao_add_service_permission(service_id=service.id, permission=LETTER_TYPE)
@@ -282,7 +298,10 @@ def test_create_a_new_template_for_a_service_adds_postage_for_letters_only(
         data=data,
     )
     assert response.status_code == 201
-    template = Template.query.filter(Template.name == 'my template').first()
+
+    stmt = select(Template).where(Template.name == 'my template')
+    template = notify_db_session.session.scalars(stmt).first()
+
     assert template.postage == expected_postage
 
 
@@ -525,7 +544,7 @@ def test_update_should_update_a_template(client, sample_user, sample_service, sa
 
 
 @pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
-def test_should_be_able_to_archive_template(client, sample_template):
+def test_should_be_able_to_archive_template(notify_db_session, client, sample_template):
     template = sample_template()
     data = {
         'name': template.name,
@@ -547,7 +566,8 @@ def test_should_be_able_to_archive_template(client, sample_template):
     )
 
     assert resp.status_code == 200
-    assert Template.query.first().archived
+    stmt = select(Template)
+    assert notify_db_session.session.scalars(stmt).first().archived
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
@@ -891,7 +911,7 @@ def test_update_set_process_type_on_template(client, sample_template):
 
 
 @pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
-def test_create_a_template_with_reply_to(admin_request, sample_service, sample_user):
+def test_create_a_template_with_reply_to(notify_db_session, admin_request, sample_service, sample_user):
     service = sample_service(service_permissions=['letter'])
     letter_contact = create_letter_contact(service, 'Edinburgh, ED1 1AA')
     data = {
@@ -910,11 +930,14 @@ def test_create_a_template_with_reply_to(admin_request, sample_service, sample_u
     assert json_resp['data']['reply_to'] == str(letter_contact.id)
     assert json_resp['data']['reply_to_text'] == letter_contact.contact_block
 
-    template = Template.query.get(json_resp['data']['id'])
+    template = notify_db_session.session.get(Template, json_resp['data']['id'])
     from app.schemas import template_schema
 
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
-    th = TemplateHistory.query.filter_by(id=template.id, version=1).one()
+
+    stmt = select(TemplateHistory).where(TemplateHistory.id == template.id, TemplateHistory.version == 1)
+    th = notify_db_session.session.scalars(stmt).one()
+
     assert th.service_letter_contact_id == letter_contact.id
 
 
@@ -990,7 +1013,10 @@ def test_update_template_reply_to(client, notify_db_session, sample_template, sa
 
     template = dao_get_template_by_id(template.id)
     assert template.service_letter_contact_id == letter_contact.id
-    th = TemplateHistory.query.filter_by(id=template.id, version=2).one()
+
+    stmt = select(TemplateHistory).where(TemplateHistory.id == template.id, TemplateHistory.version == 2)
+    th = notify_db_session.session.scalars(stmt).one()
+
     assert th.service_letter_contact_id == letter_contact.id
 
     # Teardown
@@ -1022,7 +1048,10 @@ def test_update_template_reply_to_set_to_blank(client, notify_db_session, sample
 
     template = dao_get_template_by_id(template.id)
     assert template.service_letter_contact_id is None
-    th = TemplateHistory.query.filter_by(id=template.id, version=2).one()
+
+    stmt = select(TemplateHistory).where(TemplateHistory.id == template.id, TemplateHistory.version == 2)
+    th = notify_db_session.session.scalars(stmt).one()
+
     assert th.service_letter_contact_id is None
 
     # One of the create methods above generates a template history

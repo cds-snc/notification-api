@@ -111,7 +111,7 @@ def test_add_letter_contact_when_multiple_defaults_exist_raises_exception(sample
         add_letter_contact_for_service(service_id=service.id, contact_block='Swansea, SN1 3CC', is_default=False)
 
 
-def test_can_update_letter_contact(sample_service):
+def test_can_update_letter_contact(notify_db_session, sample_service):
     service = sample_service()
     letter_contact = create_letter_contact(service=service, contact_block='Aberdeen, AB12 23X')
 
@@ -119,7 +119,7 @@ def test_can_update_letter_contact(sample_service):
         service_id=service.id, letter_contact_id=letter_contact.id, contact_block='Warwick, W14 TSR', is_default=True
     )
 
-    updated_letter_contact = ServiceLetterContact.query.get(letter_contact.id)
+    updated_letter_contact = notify_db_session.session.get(ServiceLetterContact, letter_contact.id)
 
     assert updated_letter_contact.contact_block == 'Warwick, W14 TSR'
     assert updated_letter_contact.updated_at

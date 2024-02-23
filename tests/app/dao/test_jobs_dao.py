@@ -189,14 +189,14 @@ def test_get_jobs_for_service_in_processed_at_then_created_at_order(
         assert jobs[index].id == created_jobs[index].id
 
 
-def test_update_job(sample_template, sample_job):
+def test_update_job(notify_db_session, sample_template, sample_job):
     job = sample_job(sample_template())
     assert job.job_status == 'pending'
 
     job.job_status = 'in progress'
     dao_update_job(job)
 
-    job_from_db = Job.query.get(job.id)
+    job_from_db = notify_db_session.session.get(Job, job.id)
     assert job_from_db.job_status == 'in progress'
 
 

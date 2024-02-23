@@ -15,9 +15,8 @@ def save_complaint(complaint):
 
 
 def fetch_paginated_complaints(page=1):
-    return Complaint.query.order_by(desc(Complaint.created_at)).paginate(
-        page=page, per_page=current_app.config['PAGE_SIZE']
-    )
+    stmt = select(Complaint).order_by(desc(Complaint.created_at))
+    return db.paginate(stmt, page=page, per_page=current_app.config['PAGE_SIZE'])
 
 
 def fetch_complaint_by_id(complaint_id):

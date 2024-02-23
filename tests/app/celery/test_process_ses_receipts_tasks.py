@@ -155,7 +155,9 @@ def test_remove_email_from_bounce():
     assert 'bounce@simulator.amazonses.com' not in json.dumps(test_json)
 
 
-def test_ses_callback_should_call_send_delivery_status_to_service(mocker, client, sample_template, sample_notification):
+def test_ses_callback_should_call_send_delivery_status_to_service(
+    notify_db_session, mocker, client, sample_template, sample_notification
+):
     send_mock = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
 
     template = sample_template(template_type=EMAIL_TYPE)
@@ -166,7 +168,7 @@ def test_ses_callback_should_call_send_delivery_status_to_service(mocker, client
 
     process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference=ref))
 
-    updated_notification = Notification.query.get(notification.id)
+    updated_notification = notify_db_session.session.get(Notification, notification.id)
 
     encrypted_data = create_delivery_status_callback_data(updated_notification, service_callback)
     send_mock.assert_called_once_with(

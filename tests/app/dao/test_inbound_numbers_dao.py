@@ -79,26 +79,26 @@ class TestUpdateInboundNumber:
     def existing_inbound_number(self, sample_inbound_number):
         return sample_inbound_number()
 
-    def test_updates_number(self, existing_inbound_number):
+    def test_updates_number(self, notify_db_session, existing_inbound_number):
         dao_update_inbound_number(existing_inbound_number.id, number='new-number')
 
-        assert InboundNumber.query.get(existing_inbound_number.id).number == 'new-number'
+        assert notify_db_session.session.get(InboundNumber, existing_inbound_number.id).number == 'new-number'
 
-    def test_updates_provider(self, existing_inbound_number):
+    def test_updates_provider(self, notify_db_session, existing_inbound_number):
         dao_update_inbound_number(existing_inbound_number.id, provider='new-provider')
 
-        assert InboundNumber.query.get(existing_inbound_number.id).provider == 'new-provider'
+        assert notify_db_session.session.get(InboundNumber, existing_inbound_number.id).provider == 'new-provider'
 
-    def test_updates_service_id(self, existing_inbound_number, sample_service):
+    def test_updates_service_id(self, notify_db_session, existing_inbound_number, sample_service):
         new_service_id = sample_service(service_name='new service').id
         dao_update_inbound_number(existing_inbound_number.id, service_id=new_service_id)
 
-        assert InboundNumber.query.get(existing_inbound_number.id).service_id == new_service_id
+        assert notify_db_session.session.get(InboundNumber, existing_inbound_number.id).service_id == new_service_id
 
-    def test_updates_active(self, existing_inbound_number):
+    def test_updates_active(self, notify_db_session, existing_inbound_number):
         dao_update_inbound_number(existing_inbound_number.id, active=False)
 
-        assert not InboundNumber.query.get(existing_inbound_number.id).active
+        assert not notify_db_session.session.get(InboundNumber, existing_inbound_number.id).active
 
     def test_does_not_update_unknown_attribute(self, existing_inbound_number):
         with pytest.raises(Exception):

@@ -625,8 +625,8 @@ def test_save_sms_should_save_default_sms_sender_notification_reply_to_text_on(
     template = sample_template(service=service)
 
     # sample_service also creates and persists an instance of ServiceSmsSender.
-    query = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
-    sms_sender = notify_db_session.session.scalar(query)
+    stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+    sms_sender = notify_db_session.session.scalar(stmt)
     sms_sender.sms_sender = '12345'
     sms_sender.is_default = True
 
@@ -1374,7 +1374,9 @@ def test_save_letter_sets_delivered_letters_as_pdf_permission_in_research_mode_i
             encryption.encrypt(notification_json),
         )
 
-    notification = Notification.query.filter(Notification.id == notification_id).one()
+    stmt = select(Notification).where(Notification.id == notification_id)
+    notification = notify_db_session.session.scalars(stmt).one()
+
     assert notification.status == 'delivered'
     assert not mock_create_fake_letter_response_file.called
 
@@ -1491,7 +1493,8 @@ def test_process_incomplete_job_sms(mocker, notify_db_session, sample_template, 
     sample_notification(template=template, job=job, job_row_number=0)
     sample_notification(template=template, job=job, job_row_number=1)
 
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 2
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 2
 
     process_incomplete_job(str(job.id))
 
@@ -1501,7 +1504,13 @@ def test_process_incomplete_job_sms(mocker, notify_db_session, sample_template, 
     assert save_sms.call_count == 8  # There are 10 in the file and we've added two already
 
 
-def test_process_incomplete_job_with_notifications_all_sent(mocker, sample_template, sample_job, sample_notification):
+def test_process_incomplete_job_with_notifications_all_sent(
+    notify_db_session,
+    mocker,
+    sample_template,
+    sample_job,
+    sample_notification,
+):
     mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv('multiple_sms'))
     mock_save_sms = mocker.patch('app.celery.tasks.save_sms.apply_async')
 
@@ -1525,10 +1534,15 @@ def test_process_incomplete_job_with_notifications_all_sent(mocker, sample_templ
     sample_notification(template=template, job=job, job_row_number=7)
     sample_notification(template=template, job=job, job_row_number=8)
     sample_notification(template=template, job=job, job_row_number=9)
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 10
+
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 10
 
     process_incomplete_job(str(job.id))
-    completed_job = Job.query.filter(Job.id == job.id).one()
+
+    stmt = select(Job).where(Job.id == job.id)
+    completed_job = notify_db_session.session.scalars(stmt).one()
+
     assert completed_job.job_status == JOB_STATUS_FINISHED
     assert mock_save_sms.call_count == 0  # There are 10 in the file and we've added 10 it should not have been called
 
@@ -1550,7 +1564,9 @@ def test_process_incomplete_jobs_sms(mocker, notify_db_session, sample_template,
     sample_notification(template=template, job=job, job_row_number=0)
     sample_notification(template=template, job=job, job_row_number=1)
     sample_notification(template=template, job=job, job_row_number=2)
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 3
+
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 3
 
     job2 = sample_job(
         template,
@@ -1566,7 +1582,9 @@ def test_process_incomplete_jobs_sms(mocker, notify_db_session, sample_template,
     sample_notification(template=template, job=job2, job_row_number=2)
     sample_notification(template=template, job=job2, job_row_number=3)
     sample_notification(template=template, job=job2, job_row_number=4)
-    assert Notification.query.filter(Notification.job_id == job2.id).count() == 5
+
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job2.id)
+    assert notify_db_session.session.scalar(stmt) == 5
 
     jobs = [job.id, job2.id]
     process_incomplete_jobs(jobs)
@@ -1579,7 +1597,7 @@ def test_process_incomplete_jobs_sms(mocker, notify_db_session, sample_template,
     assert mock_save_sms.call_count == 12  # There are 20 in total over 2 jobs we've added 8 already
 
 
-def test_process_incomplete_jobs_no_notifications_added(mocker, sample_template, sample_job):
+def test_process_incomplete_jobs_no_notifications_added(notify_db_session, mocker, sample_template, sample_job):
     mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv('multiple_sms'))
     mock_save_sms = mocker.patch('app.celery.tasks.save_sms.apply_async')
 
@@ -1593,11 +1611,13 @@ def test_process_incomplete_jobs_no_notifications_added(mocker, sample_template,
         job_status=JOB_STATUS_ERROR,
     )
 
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 0
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 0
 
     process_incomplete_job(job.id)
 
-    completed_job = Job.query.filter(Job.id == job.id).one()
+    stmt = select(Job).where(Job.id == job.id)
+    completed_job = notify_db_session.session.scalars(stmt).one()
 
     assert completed_job.job_status == JOB_STATUS_FINISHED
 
@@ -1624,7 +1644,7 @@ def test_process_incomplete_job_no_job_in_database(mocker, fake_uuid):
     assert mock_save_sms.call_count == 0  # There is no job in the db it will not have been called
 
 
-def test_process_incomplete_job_email(mocker, sample_template, sample_job, sample_notification):
+def test_process_incomplete_job_email(notify_db_session, mocker, sample_template, sample_job, sample_notification):
     mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv('multiple_email'))
     mock_email_saver = mocker.patch('app.celery.tasks.save_email.apply_async')
 
@@ -1640,17 +1660,22 @@ def test_process_incomplete_job_email(mocker, sample_template, sample_job, sampl
 
     sample_notification(template=template, job=job, job_row_number=0)
     sample_notification(template=template, job=job, job_row_number=1)
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 2
+
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 2
 
     process_incomplete_job(str(job.id))
-    completed_job = Job.query.filter(Job.id == job.id).one()
+
+    stmt = select(Job).where(Job.id == job.id)
+    completed_job = notify_db_session.session.scalars(stmt).one()
+
     assert completed_job.job_status == JOB_STATUS_FINISHED
     assert mock_email_saver.call_count == 8  # There are 10 in the file and we've added two already
 
 
 # Letter functionality is not used.  Decline to fix.
 @pytest.mark.xfail(reason='TypeError: expected string or bytes-like object', run=False)
-def test_process_incomplete_job_letter(mocker, sample_template, sample_job, sample_notification):
+def test_process_incomplete_job_letter(notify_db_session, mocker, sample_template, sample_job, sample_notification):
     mocker.patch('app.celery.tasks.s3.get_job_from_s3', return_value=load_example_csv('multiple_letter'))
     mock_letter_saver = mocker.patch('app.celery.tasks.save_letter.apply_async')
 
@@ -1666,7 +1691,9 @@ def test_process_incomplete_job_letter(mocker, sample_template, sample_job, samp
 
     sample_notification(template=template, job=job, job_row_number=0)
     sample_notification(template=template, job=job, job_row_number=1)
-    assert Notification.query.filter(Notification.job_id == job.id).count() == 2
+
+    stmt = select(func.count()).select_from(Notification).where(Notification.job_id == job.id)
+    assert notify_db_session.session.scalar(stmt) == 2
 
     # This line raises TypeError even though job.id is a string.
     process_incomplete_job(str(job.id))
@@ -1702,28 +1729,32 @@ def test_process_incomplete_jobs_sets_status_to_in_progress_and_resets_processin
 
 
 @pytest.mark.skip(reason='Letter functionality is not used and will be removed.')
-def test_process_returned_letters_list(sample_template, sample_notification):
+def test_process_returned_letters_list(notify_db_session, sample_template, sample_notification):
     template = sample_template(template_type=LETTER_TYPE)
     sample_notification(template=template, reference='ref1')
     sample_notification(template=template, reference='ref2')
 
     process_returned_letters_list(['ref1', 'ref2', 'unknown-ref'])
 
-    notifications = Notification.query.all()
+    stmt = select(Notification)
+    notifications = notify_db_session.session.scalars(stmt).all()
 
     assert [n.status for n in notifications] == ['returned-letter', 'returned-letter']
     assert all(n.updated_at for n in notifications)
 
 
 @pytest.mark.skip(reason='Letter functionality is not used and will be removed.')
-def test_process_returned_letters_list_updates_history_if_notification_is_already_purged(sample_template):
+def test_process_returned_letters_list_updates_history_if_notification_is_already_purged(
+    notify_db_session, sample_template
+):
     template = sample_template(template_type=LETTER_TYPE)
     create_notification_history(template=template, reference='ref1')
     create_notification_history(template=template, reference='ref2')
 
     process_returned_letters_list(['ref1', 'ref2', 'unknown-ref'])
 
-    notifications = NotificationHistory.query.all()
+    stmt = select(NotificationHistory)
+    notifications = notify_db_session.session.scalars(stmt).all()
 
     assert [n.status for n in notifications] == ['returned-letter', 'returned-letter']
     assert all(n.updated_at for n in notifications)

@@ -214,7 +214,6 @@ class TestCreateServiceCallback:
         if has_notification_statuses:
             assert created_service_callback_api.notification_statuses == ['failed']
 
-    # TODO: No need to test using API calls - move that test to model?
     def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
         self, client, sample_service
     ):

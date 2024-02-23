@@ -1,12 +1,11 @@
 import uuid
 
 import pytest
+from sqlalchemy import select
 
-from app.models import Organisation
 from app.dao.organisation_dao import dao_add_service_to_organisation, dao_add_user_to_organisation
-from tests.app.db import (
-    create_email_branding,
-)
+from app.models import Organisation
+from tests.app.db import create_email_branding
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
@@ -163,7 +162,8 @@ def test_post_create_organisation(admin_request, notify_db_session, crown):
 
     response = admin_request.post('organisation.create_organisation', _data=data, _expected_status=201)
 
-    organisation = Organisation.query.all()
+    stmt = select(Organisation)
+    organisation = notify_db_session.session.scalars(stmt).all()
 
     assert data['name'] == response['name']
     assert data['active'] == response['active']
@@ -174,7 +174,7 @@ def test_post_create_organisation(admin_request, notify_db_session, crown):
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_post_create_organisation_existing_name_raises_400(admin_request, sample_organisation):
+def test_post_create_organisation_existing_name_raises_400(notify_db_session, admin_request, sample_organisation):
     data = {
         'name': sample_organisation().name,
         'active': True,
@@ -184,7 +184,8 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
 
     response = admin_request.post('organisation.create_organisation', _data=data, _expected_status=400)
 
-    organisation = Organisation.query.all()
+    stmt = select(Organisation)
+    organisation = notify_db_session.session.scalars(stmt).all()
 
     assert len(organisation) == 1
     assert response['message'] == 'Organisation name already exists'
@@ -253,6 +254,7 @@ def test_post_create_organisation_with_missing_data_gives_validation_error(
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 @pytest.mark.parametrize('crown', (None, True, False))
 def test_post_update_organisation_updates_fields(
+    notify_db_session,
     admin_request,
     sample_organisation,
     crown,
@@ -268,7 +270,8 @@ def test_post_update_organisation_updates_fields(
 
     admin_request.post('organisation.update_organisation', _data=data, organisation_id=org.id, _expected_status=204)
 
-    organisation = Organisation.query.all()
+    stmt = select(Organisation)
+    organisation = notify_db_session.session.scalars(stmt).all()
 
     assert len(organisation) == 1
     assert organisation[0].id == org.id
@@ -289,6 +292,7 @@ def test_post_update_organisation_updates_fields(
     ),
 )
 def test_post_update_organisation_updates_domains(
+    notify_db_session,
     admin_request,
     sample_organisation,
     domain_list,
@@ -300,7 +304,8 @@ def test_post_update_organisation_updates_domains(
 
     admin_request.post('organisation.update_organisation', _data=data, organisation_id=org.id, _expected_status=204)
 
-    organisation = Organisation.query.all()
+    stmt = select(Organisation)
+    organisation = notify_db_session.session.scalars(stmt).all()
 
     assert len(organisation) == 1
     assert [domain.domain for domain in organisation[0].domains] == domain_list
@@ -372,7 +377,8 @@ def test_post_update_organisation_gives_404_status_if_org_does_not_exist(admin_r
         _expected_status=404,
     )
 
-    organisation = Organisation.query.all()
+    stmt = select(Organisation)
+    organisation = notify_db_session.session.scalars(stmt).all()
 
     assert not organisation
 

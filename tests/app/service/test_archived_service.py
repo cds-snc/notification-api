@@ -1,10 +1,12 @@
-import pytest
 import uuid
+from datetime import datetime
+
+import pytest
+from sqlalchemy import desc, select
+
 from app import db
 from app.dao.services_dao import dao_archive_service
 from app.models import Service
-from datetime import datetime
-from sqlalchemy import select
 from tests import create_admin_authorization_header, unwrap_function
 
 
@@ -57,9 +59,11 @@ def test_deactivating_service_archives_templates(archived_service):
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_deactivating_service_creates_history(archived_service):
+def test_deactivating_service_creates_history(notify_db_session, archived_service):
     ServiceHistory = Service.get_history_model()
-    history = ServiceHistory.query.filter_by(id=archived_service.id).order_by(ServiceHistory.version.desc()).first()
+
+    stmt = select(ServiceHistory).where(ServiceHistory.id == archived_service.id).order_by(desc(ServiceHistory.version))
+    history = notify_db_session.session.scalars(stmt).first()
 
     assert history.version == 2
     assert history.active is False

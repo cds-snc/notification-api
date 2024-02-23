@@ -359,7 +359,13 @@ def test_create_service(
 
 
 @pytest.mark.skip(reason='We do not create services with default SMS senders anymore but will move this')
-def test_create_service_with_valid_provider(admin_request, sample_user, ses_provider, current_sms_provider):
+def test_create_service_with_valid_provider(
+    notify_db_session,
+    admin_request,
+    sample_user,
+    ses_provider,
+    current_sms_provider,
+):
     user = sample_user()
     data = {
         'name': f'created service {uuid4()}',
@@ -378,7 +384,7 @@ def test_create_service_with_valid_provider(admin_request, sample_user, ses_prov
     assert json_resp['data']['email_provider_id'] == str(ses_provider.id)
     assert json_resp['data']['sms_provider_id'] == str(current_sms_provider.id)
 
-    service_db = Service.query.get(json_resp['data']['id'])
+    service_db = notify_db_session.session.get(Service, json_resp['data']['id'])
     assert service_db.name == 'created service'
 
     json_resp = admin_request.get('service.get_service_by_id', service_id=json_resp['data']['id'], user_id=user.id)
@@ -622,10 +628,10 @@ def test_should_not_create_service_with_incorrect_provider_notification_type(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service(client, notify_db, sample_service):
+def test_update_service(client, notify_db_session, sample_service):
     brand = EmailBranding(colour='#000000', logo='justice-league.png', name=f'Justice League {uuid4()}')
-    notify_db.session.add(brand)
-    notify_db.session.commit()
+    notify_db_session.session.add(brand)
+    notify_db_session.session.commit()
     service = sample_service()
     assert service.email_branding is None
 
@@ -886,7 +892,7 @@ def test_update_service_flags_with_service_without_default_service_permissions(c
     assert set(result['data']['permissions']) == set([LETTER_TYPE, INTERNATIONAL_SMS_TYPE])
 
 
-def test_update_service_flags_will_remove_service_permissions(client, sample_service):
+def test_update_service_flags_will_remove_service_permissions(notify_db_session, client, sample_service):
     auth_header = create_admin_authorization_header()
 
     service = sample_service(service_permissions=[SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE])
@@ -905,7 +911,8 @@ def test_update_service_flags_will_remove_service_permissions(client, sample_ser
     assert resp.status_code == 200
     assert INTERNATIONAL_SMS_TYPE not in result['data']['permissions']
 
-    permissions = ServicePermission.query.filter_by(service_id=service.id).all()
+    stmt = select(ServicePermission).where(ServicePermission.service_id == service.id)
+    permissions = notify_db_session.session.scalars(stmt).all()
     assert set([p.permission for p in permissions]) == set([SMS_TYPE, EMAIL_TYPE])
 
 
@@ -2228,9 +2235,7 @@ def test_search_for_notification_by_to_field_return_multiple_matches(client, not
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_search_for_notification_by_to_field_return_400_for_letter_type(
-    client, notify_db, notify_db_session, sample_service
-):
+def test_search_for_notification_by_to_field_return_400_for_letter_type(client, sample_service):
     response = client.get(
         '/service/{}/notifications?to={}&template_type={}'.format(sample_service().id, 'A. Name', 'letter'),
         headers=[create_admin_authorization_header()],
@@ -2240,9 +2245,7 @@ def test_search_for_notification_by_to_field_return_400_for_letter_type(
     assert error_message['message'] == 'Only email and SMS can use search by recipient'
 
 
-def test_update_service_calls_send_notification_as_service_becomes_live(
-    notify_db, notify_db_session, client, mocker, sample_service
-):
+def test_update_service_calls_send_notification_as_service_becomes_live(client, mocker, sample_service):
     send_notification_mock = mocker.patch('app.service.rest.send_notification_to_service_users')
 
     restricted_service = sample_service(restricted=True)
@@ -2555,7 +2558,7 @@ def test_search_for_notification_by_to_field_returns_notifications_by_type(
     notify_db_session.session.commit()
 
 
-def test_is_service_name_unique_returns_200_if_unique(admin_request, notify_db, notify_db_session, sample_service):
+def test_is_service_name_unique_returns_200_if_unique(admin_request, sample_service):
     service = sample_service(service_name='unique', email_from='unique')
 
     response = admin_request.get(
@@ -2600,8 +2603,6 @@ def test_is_service_name_unique_returns_200_with_name_capitalized_or_punctuation
 @pytest.mark.parametrize('name, email_from', [('existing name', 'email.from'), ('name', 'existing.name')])
 def test_is_service_name_unique_returns_200_and_false_if_name_or_email_from_exist_for_a_different_service(
     admin_request,
-    notify_db,
-    notify_db_session,
     name,
     email_from,
     sample_service,
@@ -2681,9 +2682,7 @@ def test_get_email_reply_to_addresses_with_one_email_address(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_email_reply_to_addresses_with_multiple_email_addresses(
-    client, notify_db, notify_db_session, sample_service
-):
+def test_get_email_reply_to_addresses_with_multiple_email_addresses(client, sample_service):
     service = sample_service()
     reply_to_a = create_reply_to_email(service, 'test_a@mail.com')
     reply_to_b = create_reply_to_email(service, 'test_b@mail.com', False)
@@ -2713,7 +2712,7 @@ def test_get_email_reply_to_addresses_with_multiple_email_addresses(
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 def test_verify_reply_to_email_address_should_send_verification_email(
-    admin_request, notify_db, notify_db_session, mocker, verify_reply_to_address_email_template, sample_service
+    admin_request, notify_db_session, mocker, verify_reply_to_address_email_template, sample_service
 ):
     service = sample_service()
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
@@ -2723,7 +2722,8 @@ def test_verify_reply_to_email_address_should_send_verification_email(
         'service.verify_reply_to_email_address', service_id=service.id, _data=data, _expected_status=201
     )
 
-    notification = Notification.query.first()
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
     assert notification.template_id == verify_reply_to_address_email_template.id
     assert response['data'] == {'id': str(notification.id)}
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
@@ -2736,9 +2736,7 @@ def test_verify_reply_to_email_address_should_send_verification_email(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_verify_reply_to_email_address_doesnt_allow_duplicates(
-    admin_request, notify_db, notify_db_session, mocker, sample_service
-):
+def test_verify_reply_to_email_address_doesnt_allow_duplicates(admin_request, mocker, sample_service):
     data = {'email': 'reply-here@example.va.gov'}
     service = sample_service()
     create_reply_to_email(service, 'reply-here@example.va.gov')
@@ -2763,9 +2761,7 @@ def test_add_service_reply_to_email_address(admin_request, notify_db_session, sa
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address_doesnt_allow_duplicates(
-    admin_request, notify_db, notify_db_session, mocker, sample_service
-):
+def test_add_service_reply_to_email_address_doesnt_allow_duplicates(admin_request, mocker, sample_service):
     data = {'email_address': 'reply-here@example.va.gov', 'is_default': True}
     service = sample_service()
     create_reply_to_email(service, 'reply-here@example.va.gov')
@@ -2776,7 +2772,11 @@ def test_add_service_reply_to_email_address_doesnt_allow_duplicates(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address_can_add_multiple_addresses(admin_request, sample_service):
+def test_add_service_reply_to_email_address_can_add_multiple_addresses(
+    notify_db_session,
+    admin_request,
+    sample_service,
+):
     data = {'email_address': 'first@reply.com', 'is_default': True}
     admin_request.post(
         'service.add_service_reply_to_email_address', service_id=sample_service.id, _data=data, _expected_status=201
@@ -2785,7 +2785,10 @@ def test_add_service_reply_to_email_address_can_add_multiple_addresses(admin_req
     response = admin_request.post(
         'service.add_service_reply_to_email_address', service_id=sample_service.id, _data=second, _expected_status=201
     )
-    results = ServiceEmailReplyTo.query.all()
+
+    stmt = select(ServiceEmailReplyTo)
+    results = notify_db_session.session.scalars(stmt).all()
+
     assert len(results) == 2
     default = [x for x in results if x.is_default]
     assert response['data'] == default[0].serialize()
@@ -2802,7 +2805,7 @@ def test_add_service_reply_to_email_address_raise_exception_if_no_default(admin_
     assert response['message'] == 'You must have at least one reply to email address as the default.'
 
 
-def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_request, notify_db, notify_db_session):
+def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
     response = admin_request.post(
         'service.add_service_reply_to_email_address', service_id=uuid.uuid4(), _data={}, _expected_status=404
     )
@@ -2812,7 +2815,7 @@ def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_r
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service_reply_to_email_address(admin_request, sample_service):
+def test_update_service_reply_to_email_address(notify_db_session, admin_request, sample_service):
     original_reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com')
     data = {'email_address': 'changed@reply.com', 'is_default': True}
     response = admin_request.post(
@@ -2823,7 +2826,9 @@ def test_update_service_reply_to_email_address(admin_request, sample_service):
         _expected_status=200,
     )
 
-    results = ServiceEmailReplyTo.query.all()
+    stmt = select(ServiceEmailReplyTo)
+    results = notify_db_session.session.scalars(stmt).all()
+
     assert len(results) == 1
     assert response['data'] == results[0].serialize()
 
@@ -2843,9 +2848,7 @@ def test_update_service_reply_to_email_address_returns_400_when_no_default(admin
     assert response['message'] == 'You must have at least one reply to email address as the default.'
 
 
-def test_update_service_reply_to_email_address_404s_when_invalid_service_id(
-    admin_request, notify_db, notify_db_session
-):
+def test_update_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
     response = admin_request.post(
         'service.update_service_reply_to_email_address',
         service_id=uuid.uuid4(),
@@ -2860,7 +2863,8 @@ def test_update_service_reply_to_email_address_404s_when_invalid_service_id(
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 def test_delete_service_reply_to_email_address_archives_an_email_reply_to(
-    sample_service, admin_request, notify_db_session
+    sample_service,
+    admin_request,
 ):
     create_reply_to_email(service=sample_service, email_address='some@email.com')
     reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com', is_default=False)
@@ -2874,9 +2878,7 @@ def test_delete_service_reply_to_email_address_archives_an_email_reply_to(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_service_reply_to_email_address_returns_400_if_archiving_default_reply_to(
-    admin_request, notify_db_session, sample_service
-):
+def test_delete_service_reply_to_email_address_returns_400_if_archiving_default_reply_to(admin_request, sample_service):
     reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com')
 
     response = admin_request.post(
@@ -2891,7 +2893,7 @@ def test_delete_service_reply_to_email_address_returns_400_if_archiving_default_
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_email_reply_to_address(client, notify_db, notify_db_session, sample_service):
+def test_get_email_reply_to_address(client, sample_service):
     service = sample_service()
     reply_to = create_reply_to_email(service, 'test_a@mail.com')
 

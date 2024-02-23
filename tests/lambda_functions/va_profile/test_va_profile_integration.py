@@ -306,9 +306,6 @@ def test_va_profile_opt_in_out_lambda_handler_malformed_json(jwt_encoded, event_
     assert response['statusCode'] == 400, 'The request body must be a JSON object convertible to a Python dictionary.'
 
 
-# TODO - The next 3 test functions are highly repetitive.  Is there a way to parametrize them?
-
-
 def test_va_profile_opt_in_out_lambda_handler_valid_dict(
     notify_db_session,
     event_dict,

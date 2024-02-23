@@ -142,7 +142,8 @@ def create_service(
     smtp_user=None,
 ):
     if check_if_service_exists:
-        service = Service.query.filter_by(name=service_name).first()
+        stmt = select(Service).where(Service.name == service_name)
+        service = db.session.scalars(stmt).first()
     if (not check_if_service_exists) or (check_if_service_exists and not service):
         service = Service(
             name=service_name or uuid4(),
@@ -190,7 +191,8 @@ def version_api_key(
 def create_service_with_inbound_number(inbound_number='1234567', *args, **kwargs):
     service = create_service(*args, **kwargs)
 
-    sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
+    stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+    sms_sender = db.session.scalars(stmt).first()
     inbound = create_inbound_number(number=inbound_number)
     dao_update_service_sms_sender(
         service_id=service.id,
@@ -205,7 +207,8 @@ def create_service_with_inbound_number(inbound_number='1234567', *args, **kwargs
 def create_service_with_defined_sms_sender(sms_sender_value='1234567', *args, **kwargs):
     service = create_service(*args, **kwargs)
 
-    sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
+    stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+    sms_sender = db.session.scalars(stmt).first()
     dao_update_service_sms_sender(
         service_id=service.id, service_sms_sender_id=sms_sender.id, is_default=True, sms_sender=sms_sender_value
     )
@@ -305,7 +308,8 @@ def create_notification(  # noqa: C901
 
     if not one_off and (job is None and api_key is None):
         # we didn't specify in test - lets create it
-        api_key = ApiKey.query.filter(ApiKey.service == template.service, ApiKey.key_type == key_type).first()
+        stmt = select(ApiKey).where(ApiKey.service == template.service, ApiKey.key_type == key_type)
+        api_key = db.session.scalars(stmt).first()
         if not api_key:
             api_key = create_api_key(template.service, key_type=key_type)
 
@@ -478,7 +482,8 @@ def create_job(
 def create_service_permission(service_id, permission=EMAIL_TYPE):
     dao_add_service_permission(service_id if service_id else create_service().id, permission)
 
-    service_permissions = ServicePermission.query.all()
+    stmt = select(ServicePermission)
+    service_permissions = db.session.scalars(stmt).all()
 
     return service_permissions
 
@@ -687,7 +692,9 @@ def create_domain(domain, organisation_id):
 
 
 def create_organisation(name='test_org_1', active=True, organisation_type=None, domains=None):
-    organisation = Organisation.query.filter_by(name=name).first()
+    stmt = select(Organisation).where(Organisation.name == name)
+    organisation = db.session.scalars(stmt).first()
+
     if organisation:
         organisation.active = active
         organisation.organisation_type = organisation_type

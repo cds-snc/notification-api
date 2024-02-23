@@ -1,28 +1,31 @@
 import base64
 import json
+from unittest import mock
+from uuid import UUID, uuid4
+
 import pytest
-from app.dao.fido2_key_dao import save_fido2_key, create_fido2_session
-from app.dao.login_event_dao import save_login_event
-from app.dao.permissions_dao import default_service_permissions
-from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.model import User, SMS_AUTH_TYPE, EMAIL_AUTH_TYPE
-from app.models import (
-    EMAIL_TYPE,
-    Fido2Key,
-    LoginEvent,
-    MANAGE_SETTINGS,
-    MANAGE_TEMPLATES,
-    Notification,
-    Permission,
-    SMS_TYPE,
-)
 from fido2 import cbor
 from flask import current_app, url_for
 from freezegun import freeze_time
+from sqlalchemy import func, select
+
+from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
+from app.dao.login_event_dao import save_login_event
+from app.dao.permissions_dao import default_service_permissions
+from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
+from app.model import EMAIL_AUTH_TYPE, SMS_AUTH_TYPE, User
+from app.models import (
+    EMAIL_TYPE,
+    MANAGE_SETTINGS,
+    MANAGE_TEMPLATES,
+    SMS_TYPE,
+    Fido2Key,
+    LoginEvent,
+    Notification,
+    Permission,
+)
 from tests import create_admin_authorization_header
-from tests.app.db import create_template_folder, create_organisation, create_reply_to_email
-from uuid import UUID, uuid4
-from unittest import mock
+from tests.app.db import create_organisation, create_reply_to_email, create_template_folder
 
 
 def test_get_user_list(admin_request, sample_service):
@@ -101,13 +104,14 @@ def test_get_user_doesnt_return_inactive_services_and_orgs(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-# @pytest.mark.xfail(reason="Failing after Flask upgrade.  Not fixed because not used.", run=False)
-def test_post_user(client):
+def test_post_user(notify_db_session, client):
     """
     Tests POST endpoint '/' to create a user.
     """
 
-    assert User.query.count() == 0
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
@@ -123,7 +127,10 @@ def test_post_user(client):
     headers = [('Content-Type', 'application/json'), auth_header]
     resp = client.post(url_for('user.create_user'), data=json.dumps(data), headers=headers)
     assert resp.status_code == 201
-    user = User.query.filter_by(email_address='user@digital.cabinet-office.gov.uk').first()
+
+    stmt = select(User).where(User.email_address == 'user@digital.cabinet-office.gov.uk')
+    user = notify_db_session.session.scalars(stmt).first()
+
     json_resp = resp.get_json()
     assert json_resp['data']['email_address'] == user.email_address
     assert json_resp['data']['id'] == str(user.id)
@@ -131,9 +138,10 @@ def test_post_user(client):
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-# @pytest.mark.xfail(reason="Failing after Flask upgrade.  Not fixed because not used.", run=False)
-def test_post_user_without_auth_type(admin_request):
-    assert User.query.count() == 0
+def test_post_user_without_auth_type(notify_db_session, admin_request):
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
@@ -144,17 +152,22 @@ def test_post_user_without_auth_type(admin_request):
 
     json_resp = admin_request.post('user.create_user', _data=data, _expected_status=201)
 
-    user = User.query.filter_by(email_address='user@digital.cabinet-office.gov.uk').first()
+    stmt = select(User).where(User.email_address == 'user@digital.cabinet-office.gov.uk')
+    user = notify_db_session.session.scalars(stmt).first()
+
     assert json_resp['data']['id'] == str(user.id)
     assert user.auth_type == EMAIL_AUTH_TYPE
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_post_user_missing_attribute_email(client):
+def test_post_user_missing_attribute_email(notify_db_session, client):
     """
     Tests POST endpoint '/' missing attribute email.
     """
-    assert User.query.count() == 0
+
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'password': 'tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm',
@@ -168,18 +181,21 @@ def test_post_user_missing_attribute_email(client):
     headers = [('Content-Type', 'application/json'), auth_header]
     resp = client.post(url_for('user.create_user'), data=json.dumps(data), headers=headers)
     assert resp.status_code == 400
-    assert User.query.count() == 0
+    assert notify_db_session.session.scalar(stmt) == 0
     json_resp = resp.get_json()
     assert {'email_address': ['Missing data for required field.']} == json_resp['message']
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 # @pytest.mark.xfail(reason="Failing after Flask upgrade.  Not fixed because not used.", run=False)
-def test_post_user_with_identity_provider_user_id_without_password(client):
+def test_post_user_with_identity_provider_user_id_without_password(notify_db_session, client):
     """
     Tests POST endpoint '/' to create a user with an identity_provider_user_id.
     """
-    assert User.query.count() == 0
+
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
@@ -195,7 +211,10 @@ def test_post_user_with_identity_provider_user_id_without_password(client):
     headers = [('Content-Type', 'application/json'), auth_header]
     resp = client.post(url_for('user.create_user'), data=json.dumps(data), headers=headers)
     assert resp.status_code == 201
-    user = User.query.filter_by(identity_provider_user_id='test-id').first()
+
+    stmt = select(User).where(User.identity_provider_user_id == 'test-id')
+    user = notify_db_session.session.scalars(stmt).first()
+
     json_resp = resp.get_json()['data']
     assert json_resp['identity_provider_user_id'] == user.identity_provider_user_id
     assert json_resp['email_address'] == user.email_address
@@ -204,11 +223,14 @@ def test_post_user_with_identity_provider_user_id_without_password(client):
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_create_user_missing_attribute_password(client):
+def test_create_user_missing_attribute_password(notify_db_session, client):
     """
     Tests POST endpoint '/' missing attribute password.
     """
-    assert User.query.count() == 0
+
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'email_address': 'user@digital.cabinet-office.gov.uk',
@@ -222,17 +244,20 @@ def test_create_user_missing_attribute_password(client):
     headers = [('Content-Type', 'application/json'), auth_header]
     resp = client.post(url_for('user.create_user'), data=json.dumps(data), headers=headers)
     assert resp.status_code == 400
-    assert User.query.count() == 0
+    assert notify_db_session.session.scalar(stmt) == 0
     json_resp = resp.get_json()
     assert {'password': ['Missing data for required field.']} == json_resp['message']
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_create_user_with_known_bad_password(client):
+def test_create_user_with_known_bad_password(notify_db_session, client):
     """
     Tests POST endpoint '/' missing attribute password.
     """
-    assert User.query.count() == 0
+
+    stmt = select(func.count()).select_from(User)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     data = {
         'name': 'Test User',
         'password': 'Password',
@@ -247,7 +272,7 @@ def test_create_user_with_known_bad_password(client):
     headers = [('Content-Type', 'application/json'), auth_header]
     resp = client.post(url_for('user.create_user'), data=json.dumps(data), headers=headers)
     assert resp.status_code == 400
-    assert User.query.count() == 0
+    assert notify_db_session.session.scalar(stmt) == 0
     json_resp = resp.get_json()
     assert {'password': ['Password is blacklisted.']} == json_resp['message']
 
@@ -577,7 +602,7 @@ def test_get_user_with_permissions(
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_set_user_permissions(client, sample_service, sample_user):
+def test_set_user_permissions(notify_db_session, client, sample_service, sample_user):
     service = sample_service()
     user = sample_user()
     data = json.dumps({'permissions': [{'permission': MANAGE_SETTINGS}]})
@@ -590,14 +615,17 @@ def test_set_user_permissions(client, sample_service, sample_user):
     )
 
     assert response.status_code == 204
-    permission = Permission.query.filter_by(permission=MANAGE_SETTINGS).first()
+
+    stmt = select(Permission).where(Permission.permission == MANAGE_SETTINGS)
+    permission = notify_db_session.session.scalars(stmt).first()
+
     assert permission.user == user
     assert permission.service == service
     assert permission.permission == MANAGE_SETTINGS
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_set_user_permissions_multiple(client, sample_service, sample_user):
+def test_set_user_permissions_multiple(notify_db_session, client, sample_service, sample_user):
     service = sample_service()
     user = sample_user()
     data = json.dumps({'permissions': [{'permission': MANAGE_SETTINGS}, {'permission': MANAGE_TEMPLATES}]})
@@ -610,18 +638,24 @@ def test_set_user_permissions_multiple(client, sample_service, sample_user):
     )
 
     assert response.status_code == 204
-    permission = Permission.query.filter_by(permission=MANAGE_SETTINGS).first()
+
+    stmt = select(Permission).where(Permission.permission == MANAGE_SETTINGS)
+    permission = notify_db_session.session.scalars(stmt).first()
+
     assert permission.user == user
     assert permission.service == service
     assert permission.permission == MANAGE_SETTINGS
-    permission = Permission.query.filter_by(permission=MANAGE_TEMPLATES).first()
+
+    stmt = select(Permission).where(Permission.permission == MANAGE_TEMPLATES)
+    permission = notify_db_session.session.scalars(stmt).first()
+
     assert permission.user == user
     assert permission.service == service
     assert permission.permission == MANAGE_TEMPLATES
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_set_user_permissions_remove_old(client, sample_service, sample_user):
+def test_set_user_permissions_remove_old(notify_db_session, client, sample_service, sample_user):
     user = sample_user()
     data = json.dumps({'permissions': [{'permission': MANAGE_SETTINGS}]})
     header = create_admin_authorization_header()
@@ -633,9 +667,12 @@ def test_set_user_permissions_remove_old(client, sample_service, sample_user):
     )
 
     assert response.status_code == 204
-    query = Permission.query.filter_by(user=user)
-    assert query.count() == 1
-    assert query.first().permission == MANAGE_SETTINGS
+
+    stmt = select(func.count()).select_from(Permission).where(Permission.user == user)
+    assert notify_db_session.session.scalar(stmt) == 1
+
+    stmt = select(Permission).where(Permission.user == user)
+    assert notify_db_session.session.scalars(stmt).first().permission == MANAGE_SETTINGS
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
@@ -765,7 +802,7 @@ def test_remove_user_folder_permissions(client, sample_user, sample_service):
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 @freeze_time('2016-01-01 11:09:00.061258')
 def test_send_user_reset_password_should_send_reset_password_link(
-    client, sample_user, mocker, password_reset_email_template
+    notify_db_session, client, sample_user, mocker, password_reset_email_template
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     data = json.dumps({EMAIL_TYPE: sample_user().email_address})
@@ -776,7 +813,9 @@ def test_send_user_reset_password_should_send_reset_password_link(
     )
 
     assert resp.status_code == 204
-    notification = Notification.query.first()
+
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
 
     result_notification_id, result_queue = mocked.call_args
     result_id, *rest = result_notification_id[0]
@@ -836,7 +875,7 @@ def test_send_user_reset_password_should_return_400_when_data_is_not_email_addre
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_send_already_registered_email(client, sample_user, already_registered_template, mocker):
+def test_send_already_registered_email(notify_db_session, client, sample_user, already_registered_template, mocker):
     user = sample_user()
     data = json.dumps({EMAIL_TYPE: user.email_address})
     auth_header = create_admin_authorization_header()
@@ -850,7 +889,9 @@ def test_send_already_registered_email(client, sample_user, already_registered_t
     )
     assert resp.status_code == 204
 
-    notification = Notification.query.first()
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
+
     result_notification_id, result_queue = mocked.call_args
     result_id, *rest = result_notification_id[0]
     assert result_id == str(notification.id)
@@ -876,8 +917,7 @@ def test_send_already_registered_email_returns_400_when_data_is_missing(client, 
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-# @pytest.mark.skip(reason="not in use")
-def test_send_support_email(client, sample_user, contact_us_template, mocker):
+def test_send_support_email(notify_db_session, client, sample_user, contact_us_template, mocker):
     user = sample_user()
     data = json.dumps({EMAIL_TYPE: user.email_address, 'message': 'test'})
     auth_header = create_admin_authorization_header()
@@ -891,7 +931,9 @@ def test_send_support_email(client, sample_user, contact_us_template, mocker):
     )
     assert resp.status_code == 204
 
-    notification = Notification.query.first()
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
+
     mocked.assert_called_once_with(([str(notification.id)]), queue='notify-internal-tasks')
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
@@ -915,7 +957,13 @@ def test_send_support_email_returns_400_when_data_is_missing(client, sample_user
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
+def test_send_user_confirm_new_email_returns_204(
+    notify_db_session,
+    client,
+    sample_user,
+    change_email_confirmation_template,
+    mocker,
+):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
     new_email = 'new_address@dig.gov.uk'
     data = json.dumps({EMAIL_TYPE: new_email})
@@ -928,7 +976,9 @@ def test_send_user_confirm_new_email_returns_204(client, sample_user, change_ema
         headers=[('Content-Type', 'application/json'), auth_header],
     )
     assert resp.status_code == 204
-    notification = Notification.query.first()
+
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
 
     result_notification_id, result_queue = mocked.call_args
     result_id, *rest = result_notification_id[0]
@@ -1395,7 +1445,7 @@ def test_create_fido2_keys_for_a_user(client, sample_service, mocker, account_ch
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_fido2_keys_for_a_user(client, sample_service, mocker, account_change_template):
+def test_delete_fido2_keys_for_a_user(notify_db_session, client, sample_service, mocker, account_change_template):
     service = sample_service()
     mocker.patch('app.user.rest.persist_notification')
     mocker.patch('app.user.rest.send_notification_to_queue')
@@ -1418,7 +1468,10 @@ def test_delete_fido2_keys_for_a_user(client, sample_service, mocker, account_ch
         url_for('user.delete_fido2_keys_user', user_id=sample_user.id, key_id=data[0]['id']),
         headers=[('Content-Type', 'application/json'), auth_header],
     )
-    assert Fido2Key.query.count() == 0
+
+    stmt = select(func.count()).select_from(Fido2Key)
+    assert notify_db_session.session.scalar(stmt) == 0
+
     assert response.status_code == 200
     assert json.loads(response.get_data(as_text=True))['id'] == data[0]['id']
 

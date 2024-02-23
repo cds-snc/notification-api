@@ -883,7 +883,9 @@ def test_persist_notification_with_billable_units_stores_correct_info(notify_db_
         billable_units=3,
         template_postage=template.postage,
     )
-    persisted_notification = Notification.query.all()[0]
+
+    stmt = select(Notification)
+    persisted_notification = notify_db_session.session.scalars(stmt).all()[0]
 
     try:
         assert persisted_notification.billable_units == 3

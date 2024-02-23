@@ -1,30 +1,36 @@
+from datetime import date, datetime, timedelta
+from unittest import mock
+from uuid import UUID, uuid4
+
 import pytest
+from freezegun import freeze_time
+from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy import select
+
 from app.dao.fact_notification_status_dao import (
-    update_fact_notification_status,
+    fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
+    fetch_monthly_template_usage_for_service,
     fetch_notification_status_for_day,
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
     fetch_notification_statuses_for_job,
-    fetch_stats_for_all_services_by_date_range,
-    fetch_monthly_template_usage_for_service,
-    get_total_sent_notifications_for_day_and_type,
-    get_total_notifications_sent_for_api_key,
-    get_last_send_for_api_key,
-    get_api_key_ranked_by_notifications_created,
-    fetch_template_usage_for_service_with_given_template,
     fetch_notification_statuses_per_service_and_template_for_date,
-    fetch_delivered_notification_stats_by_month,
+    fetch_stats_for_all_services_by_date_range,
+    fetch_template_usage_for_service_with_given_template,
+    get_api_key_ranked_by_notifications_created,
+    get_last_send_for_api_key,
+    get_total_notifications_sent_for_api_key,
+    get_total_sent_notifications_for_day_and_type,
+    update_fact_notification_status,
 )
 from app.models import (
-    FactNotificationStatus,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEST,
-    KEY_TYPE_TEAM,
     EMAIL_TYPE,
-    SMS_TYPE,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
@@ -34,12 +40,9 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
+    SMS_TYPE,
+    FactNotificationStatus,
 )
-from datetime import timedelta, datetime, date
-from freezegun import freeze_time
-from notifications_utils.timezones import convert_utc_to_local_timezone
-from uuid import UUID, uuid4
-from unittest import mock
 
 
 @pytest.mark.serial
@@ -66,9 +69,10 @@ def test_update_fact_notification_status(
     data = fetch_notification_status_for_day(process_day=process_day)
     update_fact_notification_status(data=data, process_day=process_day.date())
 
-    new_fact_data = FactNotificationStatus.query.order_by(
+    stmt = select(FactNotificationStatus).order_by(
         FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
+    )
+    new_fact_data = notify_db_session.session.scalars(stmt).all()
 
     try:
         assert len(new_fact_data) == 3
@@ -116,9 +120,10 @@ def test_update_fact_notification_status_updates_row(
     data = fetch_notification_status_for_day(process_day=process_day)
     update_fact_notification_status(data=data, process_day=process_day.date())
 
-    new_fact_data = FactNotificationStatus.query.order_by(
+    stmt = select(FactNotificationStatus).order_by(
         FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
+    )
+    new_fact_data = notify_db_session.session.scalars(stmt).all()
 
     try:
         assert len(new_fact_data) == 1
@@ -135,9 +140,7 @@ def test_update_fact_notification_status_updates_row(
     data = fetch_notification_status_for_day(process_day=process_day)
     update_fact_notification_status(data=data, process_day=process_day.date())
 
-    updated_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
+    updated_fact_data = notify_db_session.session.scalars(stmt).all()
 
     try:
         assert len(updated_fact_data) == 1

@@ -1,9 +1,12 @@
 import base64
-from random import randint
-import pytest
-from sqlalchemy import delete, select
 import uuid
-from . import post_send_notification
+from random import randint
+
+import pytest
+from flask import current_app, json
+from freezegun import freeze_time
+from sqlalchemy import delete, select
+
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.attachments.store import AttachmentStoreError
 from app.config import QueueNames
@@ -13,24 +16,24 @@ from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
-    Notification,
     NOTIFICATION_CREATED,
-    RecipientIdentifier,
     SCHEDULE_NOTIFICATIONS,
-    ScheduledNotification,
-    ServiceEmailReplyTo,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    Notification,
+    RecipientIdentifier,
+    ScheduledNotification,
+    ServiceEmailReplyTo,
 )
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
-from app.v2.notifications.notification_schemas import post_sms_response, post_email_response
+from app.v2.notifications.notification_schemas import post_email_response, post_sms_response
 from app.va.identifier import IdentifierType
-from flask import json, current_app
-from freezegun import freeze_time
 from tests import create_authorization_header
 from tests.app.db import create_reply_to_email, create_service_sms_sender
 from tests.app.factories.feature_flag import mock_feature_flag
+
+from . import post_send_notification
 
 
 @pytest.fixture
@@ -76,9 +79,7 @@ def mock_deliver_sms(mocker):
     'data',
     [
         {'phone_number': '+16502532222'},
-        # TODO - Testing recipient_identifier requires an active feature flag that is not
-        # active in the testing environment.
-        # {"recipient_identifier": {"id_type": IdentifierType.VA_PROFILE_ID.value, "id_value": "bar"}},
+        {'recipient_identifier': {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'bar'}},
     ],
 )
 def test_post_sms_notification_returns_201(
@@ -89,11 +90,18 @@ def test_post_sms_notification_returns_201(
     mock_deliver_sms,
     reference,
     data,
+    mocker,
 ):
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
     data.update({'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}})
     if reference is not None:
         data['reference'] = reference
+
+    if 'recipient_identifier' in data:
+        mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=True)
+        mocker.patch('app.celery.lookup_va_profile_id_task.lookup_va_profile_id.apply_async')
+        mocker.patch('app.celery.onsite_notification_tasks.send_va_onsite_notification_task.apply_async')
+        mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.apply_async')
 
     response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
 
@@ -116,7 +124,11 @@ def test_post_sms_notification_returns_201(
     assert resp_json['template']['version'] == template.version
     assert 'services/{}/templates/{}'.format(template.service_id, template.id) in resp_json['template']['uri']
     assert not resp_json['scheduled_for']
-    assert mock_deliver_sms.called
+
+    if 'recipient_identifier' not in data:
+        assert mock_deliver_sms.called
+    # Else, for sending with a recipient ID, the delivery function won't get called because the preceeding
+    # tasks in the chain are mocked.
 
     # Teardown
     notify_db_session.session.delete(notifications[0])
@@ -828,7 +840,10 @@ def test_post_notification_with_scheduled_for(
     response = post_send_notification(client, sample_api_key(service=service), notification_type, data)
     assert response.status_code == 201
     resp_json = response.get_json()
-    scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json['id']).all()
+
+    stmt = select(ScheduledNotification).where(ScheduledNotification.notification_id == resp_json['id'])
+    scheduled_notification = notify_db_session.session.scalars(stmt).all()
+
     assert len(scheduled_notification) == 1
     assert resp_json['id'] == str(scheduled_notification[0].notification_id)
     assert resp_json['scheduled_for'] == '2017-05-14 14:15'
@@ -1412,7 +1427,10 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
 
     assert response.status_code == 201
     assert len(notifications) == 1
-    assert RecipientIdentifier.query.count() == 1
+
+    stmt = select(func.count()).select_from(RecipientIdentifier)
+    assert notify_db_session.session.scalar(stmt) == 1
+
     notification = notifications[0]
     assert notification.status == NOTIFICATION_CREATED
     assert notification.recipient_identifiers[expected_type].id_type == expected_type
@@ -1428,6 +1446,7 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
 @pytest.mark.skip(reason='test failing in pipeline but no where else')
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 def test_should_post_notification_successfully_with_recipient_identifier_and_contact_info(
+    notify_db_session,
     client,
     mocker,
     enable_accept_recipient_identifiers_enabled_feature_flag,
@@ -1470,8 +1489,13 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     )
 
     assert response.status_code == 201
-    assert Notification.query.count() == 1
-    notification = Notification.query.one()
+
+    stmt = select(func.count()).select_from(Notification)
+    assert notify_db_session.session.scalar(stmt) == 1
+
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).one()
+
     assert notification.status == NOTIFICATION_CREATED
 
     # Commenting out these assertions because of funky failures in pipeline

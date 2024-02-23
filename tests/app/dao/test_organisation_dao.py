@@ -1,26 +1,24 @@
-"""
-TODO - This file has multiple uses of using the notify_db_session fixture only for the
-side-effect of clearing tables after the test.  See #1106.
-"""
-
 import datetime
+from uuid import uuid4
+
 import pytest
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
 from app.dao.organisation_dao import (
-    dao_get_organisations,
+    dao_add_service_to_organisation,
+    dao_add_user_to_organisation,
+    dao_get_invited_organisation_user,
     dao_get_organisation_by_email_address,
     dao_get_organisation_by_id,
     dao_get_organisation_by_service_id,
     dao_get_organisation_services,
-    dao_update_organisation,
-    dao_add_service_to_organisation,
-    dao_get_invited_organisation_user,
+    dao_get_organisations,
     dao_get_users_for_organisation,
-    dao_add_user_to_organisation,
+    dao_update_organisation,
 )
-from app.dao.services_dao import dao_create_service, dao_add_user_to_service
+from app.dao.services_dao import dao_add_user_to_service, dao_create_service
 from app.models import Organisation, OrganisationTypes, Service
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from uuid import uuid4
 
 
 def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(sample_organisation):
@@ -137,7 +135,7 @@ def setup_org_type(notify_db_session):
     return org_type
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def setup_service(
     notify_db_session,
     sample_user,
@@ -162,7 +160,10 @@ def setup_service(
         'created_by': user,
         'crown': True,
     }
-    service = Service.query.filter_by(name=service_name).first()
+
+    stmt = select(Service).where(Service.name == service_name)
+    service = notify_db_session.session.scalars(stmt).first()
+
     if not service:
         service = Service(**data)
         dao_create_service(service, user, service_permissions=permissions)
@@ -191,12 +192,13 @@ def test_update_organisation_updates_the_service_org_type_if_org_type_is_provide
 
     assert sample_organisation.organisation_type == 'other'
     assert setup_service.organisation_type == 'other'
-    assert (
-        Service.get_history_model().query.filter_by(id=setup_service.id, version=2).one().organisation_type == 'other'
-    )
+
+    history_model = Service.get_history_model()
+    stmt = select(history_model).where(history_model.id == setup_service.id, history_model.version == 2)
+    assert notify_db_session.session.scalars(stmt).one().organisation_type == 'other'
 
 
-def test_add_service_to_organisation(sample_service, sample_organisation):
+def test_add_service_to_organisation(notify_db_session, sample_service, sample_organisation):
     service = sample_service()
     organisation = sample_organisation()
     assert organisation.services == []
@@ -212,10 +214,11 @@ def test_add_service_to_organisation(sample_service, sample_organisation):
 
     assert service.organisation_type == organisation.organisation_type
     assert service.crown == organisation.crown
-    assert (
-        Service.get_history_model().query.filter_by(id=service.id, version=2).one().organisation_type
-        == organisation.organisation_type
-    )
+
+    history_model = Service.get_history_model()
+    stmt = select(history_model).where(history_model.id == service.id, history_model.version == 2)
+    assert notify_db_session.session.scalars(stmt).one().organisation_type == organisation.organisation_type
+
     assert service.organisation_id == organisation.id
 
 

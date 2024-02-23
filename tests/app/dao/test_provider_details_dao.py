@@ -1,35 +1,37 @@
+from datetime import datetime
+from typing import List
+from uuid import uuid4
+
 import pytest
+from freezegun import freeze_time
+from sqlalchemy import asc, delete, desc, select
+
 from app import clients
 from app.dao.provider_details_dao import (
-    get_alternative_sms_provider,
-    get_current_provider,
-    get_provider_details_by_identifier,
-    get_provider_details_by_notification_type,
-    dao_switch_sms_provider_to_provider_with_identifier,
-    dao_toggle_sms_provider,
-    dao_update_provider_details,
     dao_get_provider_stats,
     dao_get_provider_versions,
     dao_get_sms_provider_with_equal_priority,
-    get_highest_priority_active_provider_by_notification_type,
+    dao_switch_sms_provider_to_provider_with_identifier,
+    dao_toggle_sms_provider,
+    dao_update_provider_details,
     get_active_providers_with_weights_by_notification_type,
+    get_alternative_sms_provider,
+    get_current_provider,
+    get_highest_priority_active_provider_by_notification_type,
+    get_provider_details_by_identifier,
+    get_provider_details_by_notification_type,
 )
 from app.models import (
     EMAIL_TYPE,
     PINPOINT_PROVIDER,
-    ProviderDetails,
-    ProviderDetailsHistory,
-    ProviderRates,
     SES_PROVIDER,
     SMS_TYPE,
     SNS_PROVIDER,
+    ProviderDetails,
+    ProviderDetailsHistory,
+    ProviderRates,
 )
 from app.notifications.notification_type import NotificationType
-from datetime import datetime
-from freezegun import freeze_time
-from sqlalchemy import asc
-from typing import List
-from uuid import uuid4
 
 
 @pytest.fixture
@@ -112,8 +114,11 @@ def setup_equal_priority_sms_providers(restore_provider_details):
     restore_provider_details is an alias for notify_db_session that provides additional behaviors.
     """
 
-    restore_provider_details.session.query(ProviderRates).delete()
-    restore_provider_details.session.query(ProviderDetails).delete()
+    stmt = delete(ProviderRates)
+    restore_provider_details.session.execute(stmt)
+
+    stmt = delete(ProviderDetails)
+    restore_provider_details.session.execute(stmt)
 
     providers = [
         ProviderDetails(
@@ -138,6 +143,7 @@ def setup_equal_priority_sms_providers(restore_provider_details):
         ),
     ]
     restore_provider_details.session.add_all(providers)
+    restore_provider_details.session.commit()
     return providers
 
 
@@ -223,8 +229,11 @@ def test_can_get_email_providers(setup_provider_details):
 
 
 def commit_to_db(restore_provider_details, *providers):
-    restore_provider_details.session.query(ProviderRates).delete()
-    restore_provider_details.session.query(ProviderDetails).delete()
+    stmt = delete(ProviderRates)
+    restore_provider_details.session.execute(stmt)
+
+    stmt = delete(ProviderDetails)
+    restore_provider_details.session.execute(stmt)
 
     for provider in providers:
         restore_provider_details.session.add(provider)
@@ -372,7 +381,9 @@ class TestGetActiveProvidersWithWeightsByNotificationType:
 
 @pytest.mark.serial
 def test_should_not_error_if_any_provider_in_code_not_in_database(restore_provider_details):
-    ProviderDetails.query.filter_by(identifier='sns').delete()
+    stmt = delete(ProviderDetails).where(ProviderDetails.identifier == 'sns')
+    restore_provider_details.session.execute(stmt)
+    restore_provider_details.session.commit()
 
     assert clients.get_sms_client('sns')
 
@@ -382,8 +393,12 @@ def test_should_not_error_if_any_provider_in_code_not_in_database(restore_provid
 @freeze_time('2000-01-01T00:00:00')
 def test_update_adds_history(restore_provider_details, sample_provider):
     sample_provider(notification_type=EMAIL_TYPE, identifier=SES_PROVIDER)
-    ses = ProviderDetails.query.filter(ProviderDetails.identifier == SES_PROVIDER).one()
-    ses_history = ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id).one()
+
+    stmt = select(ProviderDetails).where(ProviderDetails.identifier == SES_PROVIDER)
+    ses = restore_provider_details.session.scalars(stmt).one()
+
+    stmt = select(ProviderDetailsHistory).where(ProviderDetailsHistory.id == ses.id)
+    ses_history = restore_provider_details.session.scalars(stmt).one()
 
     assert ses.version == 1
     assert ses_history.version == 1
@@ -396,11 +411,12 @@ def test_update_adds_history(restore_provider_details, sample_provider):
     assert not ses.active
     assert ses.updated_at == datetime(2000, 1, 1, 0, 0, 0)
 
-    ses_history = (
-        ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id)
+    stmt = (
+        select(ProviderDetailsHistory)
+        .where(ProviderDetailsHistory.id == ses.id)
         .order_by(ProviderDetailsHistory.version)
-        .all()
     )
+    ses_history = restore_provider_details.session.scalars(stmt).all()
 
     assert ses_history[0].active
     assert ses_history[0].version == 1
@@ -420,8 +436,12 @@ def test_updated_at(restore_provider_details, sample_provider):
     """
 
     sample_provider(notification_type=EMAIL_TYPE, identifier=SES_PROVIDER)
-    ses = ProviderDetails.query.filter(ProviderDetails.identifier == SES_PROVIDER).one()
-    ses_history = ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id).one()
+
+    stmt = select(ProviderDetails).where(ProviderDetails.identifier == SES_PROVIDER)
+    ses = restore_provider_details.session.scalars(stmt).one()
+
+    stmt = select(ProviderDetailsHistory).where(ProviderDetailsHistory.id == ses.id)
+    ses_history = restore_provider_details.session.scalars(stmt).one()
 
     # These attributes are not nullible.
     assert ses.updated_at is not None and isinstance(ses.updated_at, datetime)
@@ -435,11 +455,12 @@ def test_updated_at(restore_provider_details, sample_provider):
 
     assert ses.updated_at is not None and ses.updated_at > ses_updated_at_initial
 
-    ses_history_new = (
-        ProviderDetailsHistory.query.filter(ProviderDetailsHistory.id == ses.id)
-        .order_by(ProviderDetailsHistory.updated_at.desc())
-        .first()
+    stmt = (
+        select(ProviderDetailsHistory)
+        .where(ProviderDetailsHistory.id == ses.id)
+        .order_by(desc(ProviderDetailsHistory.updated_at))
     )
+    ses_history_new = restore_provider_details.session.scalars(stmt).first()
 
     assert ses_history_new.updated_at is not None and ses_history_new.updated_at > ses_history_updated_at_initial
 
@@ -643,7 +664,7 @@ def test_toggle_sms_provider_switches_provider_stores_notify_user_id(mocker, sam
 @pytest.mark.xfail(reason='#1631', run=False)
 @pytest.mark.serial
 def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
-    mocker, sample_user, setup_sms_providers
+    notify_db_session, mocker, sample_user, setup_sms_providers
 ):
     user = sample_user()
     _, old_provider, alternative_provider = setup_sms_providers
@@ -653,16 +674,25 @@ def test_toggle_sms_provider_switches_provider_stores_notify_user_id_in_history(
     dao_toggle_sms_provider(old_provider.identifier)
     new_provider = get_current_provider(SMS_TYPE)
 
-    old_provider_from_history = (
-        ProviderDetailsHistory.query.filter_by(identifier=old_provider.identifier, version=old_provider.version)
-        .order_by(asc(ProviderDetailsHistory.priority))
-        .first()
+    stmt = (
+        select(ProviderDetailsHistory)
+        .where(
+            ProviderDetailsHistory.identifier == old_provider.identifier,
+            ProviderDetailsHistory.version == old_provider.version,
+        )
+        .order_by(ProviderDetailsHistory.priority)
     )
-    new_provider_from_history = (
-        ProviderDetailsHistory.query.filter_by(identifier=new_provider.identifier, version=new_provider.version)
-        .order_by(asc(ProviderDetailsHistory.priority))
-        .first()
+    old_provider_from_history = notify_db_session.session.scalars(stmt).first()
+
+    stmt = (
+        select(ProviderDetailsHistory)
+        .where(
+            ProviderDetailsHistory.identifier == new_provider.identifier,
+            ProviderDetailsHistory.version == new_provider.version,
+        )
+        .order_by(ProviderDetailsHistory.priority)
     )
+    new_provider_from_history = notify_db_session.session.scalars(stmt).first()
 
     assert old_provider.version == old_provider_from_history.version
     assert new_provider.version == new_provider_from_history.version

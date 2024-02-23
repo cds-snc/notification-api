@@ -168,7 +168,13 @@ def test_send_email_to_provider_should_compute_source_email_address(
 
 
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
-    sample_api_key, sample_notification, sample_template, mock_email_client, notify_api, mock_source_email_address
+    notify_db_session,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+    mock_email_client,
+    notify_api,
+    mock_source_email_address,
 ):
     template = sample_template(
         template_type=EMAIL_TYPE,
@@ -198,7 +204,9 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert '<!DOCTYPE html' in mock_email_client.send_email.call_args[1]['html_body']
     assert '&lt;em&gt;some HTML&lt;/em&gt;' in mock_email_client.send_email.call_args[1]['html_body']
 
-    notification = Notification.query.filter_by(id=db_notification.id).one()
+    stmt = select(Notification).where(Notification.id == db_notification.id)
+    notification = notify_db_session.session.scalars(stmt).one()
+
     assert notification.status == 'sending'
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_email_client.get_name()
@@ -206,6 +214,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notification_is_in_tech_failure(
+    notify_db_session,
     sample_template,
     sample_api_key,
     sample_notification,
@@ -220,11 +229,12 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
         send_to_providers.send_email_to_provider(notification)
     assert str(notification.id) in str(e.value)
     mock_email_client.send_email.assert_not_called()
-    assert Notification.query.get(notification.id).status == 'technical-failure'
+    assert notify_db_session.session.get(Notification, notification.id).status == 'technical-failure'
 
 
 @pytest.mark.parametrize('client_send', ['app.aws_sns_client.send_sms', 'app.mmg_client.send_sms'])
 def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
+    notify_db_session,
     sample_api_key,
     sample_template,
     sample_notification,
@@ -241,7 +251,7 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
         send_to_providers.send_sms_to_provider(notification)
     assert str(notification.id) in str(e.value)
     send_mock.assert_not_called()
-    assert Notification.query.get(notification.id).status == 'technical-failure'
+    assert notify_db_session.session.get(Notification, notification.id).status == 'technical-failure'
 
 
 @pytest.mark.parametrize('prefix', [True, False])
@@ -875,9 +885,6 @@ def test_send_sms_to_provider_should_format_phone_number(
     notification = sample_notification(template=template, api_key=api_key, to_field='+1 650 253 2222')
 
     send_to_providers.send_sms_to_provider(notification)
-
-    # TODO: don't test the actual return value of notification_utils.recipients.validate_and_format_phone_number
-    # instead, mock that dependency and check that it's used properly
     assert mock_sms_client.send_sms.call_args[1]['to'] == '+16502532222'
 
 
@@ -944,6 +951,7 @@ def test_notification_document_with_pdf_attachment(
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
+    notify_db_session,
     sample_api_key,
     sample_notification,
     sample_provider,
@@ -980,10 +988,11 @@ def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
 
     send_mock.assert_not_called()
 
-    assert Notification.query.get(db_notification.id).status == 'pii-check-failed'
+    assert notify_db_session.session.get(Notification, db_notification.id).status == 'pii-check-failed'
 
 
 def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
+    notify_db_session,
     sample_api_key,
     sample_notification,
     sample_provider,
@@ -1007,10 +1016,11 @@ def test_notification_passes_if_message_contains_sin_pii_that_fails_luhn(
 
     mock_email_client.send_email.assert_called()
 
-    assert Notification.query.get(db_notification.id).status == 'sending'
+    assert notify_db_session.session.get(Notification, db_notification.id).status == 'sending'
 
 
 def test_notification_passes_if_message_contains_phone_number(
+    notify_db_session,
     sample_api_key,
     sample_notification,
     sample_provider,
@@ -1034,7 +1044,7 @@ def test_notification_passes_if_message_contains_phone_number(
 
     mock_email_client.send_email.assert_called()
 
-    assert Notification.query.get(db_notification.id).status == 'sending'
+    assert notify_db_session.session.get(Notification, db_notification.id).status == 'sending'
 
 
 def test_load_provider_throws_exception_if_provider_is_inactive(

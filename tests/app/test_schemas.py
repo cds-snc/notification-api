@@ -3,7 +3,7 @@ from marshmallow import ValidationError
 from sqlalchemy import desc, select
 
 from app.dao.provider_details_dao import dao_update_provider_details
-from app.models import ProviderDetails, ProviderDetailsHistory, EMAIL_TYPE, SES_PROVIDER
+from app.models import EMAIL_TYPE, SES_PROVIDER, ProviderDetails, ProviderDetailsHistory
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
@@ -125,7 +125,7 @@ def test_provider_details_schema_returns_user_details(
     user = sample_user()
     provider = sample_provider(created_by=user)
 
-    provider_from_db = ProviderDetails.query.get(provider.id)
+    provider_from_db = notify_db_session.session.get(ProviderDetails, provider.id)
     data = provider_details_schema.dump(provider_from_db).data
 
     assert sorted(data['created_by'].keys()) == sorted(['id', 'email_address', 'name'])

@@ -1,14 +1,16 @@
-import uuid
 import json
+import uuid
+
 import pytest
 from flask import url_for
 from flask_jwt_extended import create_access_token
+from sqlalchemy import select
 
+from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
+from app.dao.services_dao import dao_add_user_to_service
+from app.models import EMAIL_TYPE, MANAGE_SETTINGS, MOBILE_TYPE, Permission, ServiceWhitelist
 from tests.app.db import create_user
 from tests.app.factories.service_whitelist import a_service_whitelist, email_service_whitelist
-from app.models import ServiceWhitelist, Permission, MANAGE_SETTINGS, MOBILE_TYPE, EMAIL_TYPE
-from app.dao.services_dao import dao_add_user_to_service
-from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
 
 
 def _create_auth_header(service=None, platform_admin: bool = False):
@@ -101,7 +103,7 @@ class TestGetServiceWhitelist:
 class TestUpdateServiceWhitelist:
     @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
     @pytest.mark.parametrize('platform_admin', [False, True])
-    def test_update_whitelist_replaces_old_whitelist(self, client, sample_service, platform_admin):
+    def test_update_whitelist_replaces_old_whitelist(self, notify_db_session, client, sample_service, platform_admin):
         service_whitelist = a_service_whitelist(sample_service.id)
         dao_add_and_commit_whitelisted_contacts([service_whitelist])
 
@@ -117,13 +119,16 @@ class TestUpdateServiceWhitelist:
         )
 
         assert response.status_code == 204
-        whitelist = ServiceWhitelist.query.order_by(ServiceWhitelist.recipient).all()
+
+        stmt = select(ServiceWhitelist).order_by(ServiceWhitelist.recipient)
+        whitelist = notify_db_session.session.scalars(stmt).all()
+
         assert len(whitelist) == 2
         assert whitelist[0].recipient == '6502532222'
         assert whitelist[1].recipient == 'foo@bar.com'
 
     @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    def test_update_whitelist_doesnt_remove_old_whitelist_if_error(self, client, sample_service):
+    def test_update_whitelist_doesnt_remove_old_whitelist_if_error(self, notify_db_session, client, sample_service):
         service_whitelist = a_service_whitelist(sample_service.id)
         dao_add_and_commit_whitelisted_contacts([service_whitelist])
 
@@ -136,7 +141,10 @@ class TestUpdateServiceWhitelist:
         )
 
         assert response.status_code == 400
-        whitelist = ServiceWhitelist.query.one()
+
+        stmt = select(ServiceWhitelist)
+        whitelist = notify_db_session.session.scalars(stmt).one()
+
         assert whitelist.id == service_whitelist.id
 
     # This only applies to platform admins.

@@ -1,13 +1,13 @@
 import pytest
+from sqlalchemy import select
 
-from app.models import LETTER_TYPE
-from app.models import Notification
-from app.models import NOTIFICATION_CREATED
+from app.models import LETTER_TYPE, NOTIFICATION_CREATED, Notification
 from app.notifications.process_letter_notifications import create_letter_notification
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_create_letter_notification_creates_notification(sample_letter_template, sample_api_key):
+@pytest.mark.serial
+def test_create_letter_notification_creates_notification(notify_db_session, sample_letter_template, sample_api_key):
     data = {
         'personalisation': {
             'address_line_1': 'The Queen',
@@ -18,7 +18,8 @@ def test_create_letter_notification_creates_notification(sample_letter_template,
 
     notification = create_letter_notification(data, sample_letter_template, sample_api_key, NOTIFICATION_CREATED)
 
-    assert notification == Notification.query.one()
+    stmt = select(Notification)
+    assert notification == notify_db_session.session.scalars(stmt).one()
     assert notification.job is None
     assert notification.status == NOTIFICATION_CREATED
     assert notification.template_id == sample_letter_template.id

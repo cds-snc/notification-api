@@ -1,34 +1,36 @@
-from app import db
-from app.models import Fido2Key, Fido2Session
-from app.config import Config
-
-from app.dao.dao_utils import transactional
-
-from sqlalchemy import and_
-
-from fido2.webauthn import AttestationObject, CollectedClientData
+import base64
 import json
 import pickle  # nosec
-import base64
+
+from fido2.webauthn import AttestationObject, CollectedClientData
+from sqlalchemy import asc, delete, select
+
+from app import db
+from app.config import Config
+from app.dao.dao_utils import transactional
+from app.models import Fido2Key, Fido2Session
 
 
 def delete_fido2_key(
     user_id,
-    id,
+    fido_key_id,
 ):
-    db.session.query(Fido2Key).filter(and_(Fido2Key.user_id == user_id, Fido2Key.id == id)).delete()
+    stmt = delete(Fido2Key).where(Fido2Key.user_id == user_id, Fido2Key.id == fido_key_id)
+    db.session.execute(stmt)
     db.session.commit()
 
 
 def get_fido2_key(
     user_id,
-    id,
+    fido_key_id,
 ):
-    return Fido2Key.query.filter(and_(Fido2Key.user_id == user_id, Fido2Key.id == id)).one()
+    stmt = select(Fido2Key).where(Fido2Key.user_id == user_id, Fido2Key.id == fido_key_id)
+    return db.session.scalars(stmt).one()
 
 
 def list_fido2_keys(user_id):
-    return Fido2Key.query.filter(Fido2Key.user_id == user_id).order_by(Fido2Key.created_at.asc()).all()
+    stmt = select(Fido2Key).where(Fido2Key.user_id == user_id).order_by(asc(Fido2Key.created_at))
+    return db.session.scalars(stmt).all()
 
 
 @transactional
@@ -46,11 +48,14 @@ def create_fido2_session(
 
 
 def delete_fido2_session(user_id):
-    db.session.query(Fido2Session).filter(Fido2Session.user_id == user_id).delete()
+    stmt = delete(Fido2Session).where(Fido2Session.user_id == user_id)
+    db.session.execute(stmt)
+    db.session.commit()
 
 
 def get_fido2_session(user_id):
-    session = db.session.query(Fido2Session).filter(Fido2Session.user_id == user_id).one()
+    stmt = select(Fido2Session).where(Fido2Session.user_id == user_id)
+    session = db.session.scalars(stmt).one()
     delete_fido2_session(user_id)
     return json.loads(session.session)
 

@@ -170,7 +170,8 @@ class VAProfileClient:
             notification_type,
             notification_id,
         )
-        # TODO: use default communication item settings when that has been implemented
+
+        # TODO 893 - use default communication item settings when that has been implemented
         self.statsd_client.incr('clients.va-profile.get-communication-item-permission.no-permissions')
         raise CommunicationItemNotFoundException
 

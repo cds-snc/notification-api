@@ -1896,7 +1896,12 @@ def sample_user_service_permission(notify_db_session, service=None, user=None, p
         'service': service,
         'permission': permission,
     }
-    p_model = Permission.query.filter_by(user=user, service=service, permission=permission).first()
+
+    stmt = select(Permission).where(
+        Permission.user == user, Permission.service == service, Permission.permission == permission
+    )
+    p_model = notify_db_session.session.scalars(stmt).first()
+
     if not p_model:
         p_model = Permission(**data)
         notify_db_session.session.add(p_model)
@@ -2001,14 +2006,16 @@ def sample_provider(notify_db_session, worker_id):
     notify_db_session.session.commit()
 
 
-@pytest.fixture(scope='function')
-def ses_provider():
-    return ProviderDetails.query.filter_by(identifier='ses').one()
+@pytest.fixture
+def ses_provider(notify_db_session):
+    stmt = select(ProviderDetails).where(ProviderDetails.identifier == 'ses')
+    return notify_db_session.session.scalars(stmt).one()
 
 
-@pytest.fixture(scope='function')
-def firetext_provider():
-    return ProviderDetails.query.filter_by(identifier='firetext').one()
+@pytest.fixture
+def firetext_provider(notify_db_session):
+    stmt = select(ProviderDetails).where(ProviderDetails.identifier == 'firetext')
+    return notify_db_session.session.scalars(stmt).one()
 
 
 @pytest.fixture
@@ -2535,8 +2542,11 @@ def restore_provider_details(notify_db_session):
     good usage.  If you're modifying ProviderDetails's state then it's good to clear down the rest of the DB too.
     """
 
-    existing_provider_details = ProviderDetails.query.all()
-    existing_provider_details_history = ProviderDetailsHistory.query.all()
+    stmt = select(ProviderDetails)
+    existing_provider_details = notify_db_session.session.scalars(stmt).all()
+
+    stmt = select(ProviderDetailsHistory)
+    existing_provider_details_history = notify_db_session.session.scalars(stmt).all()
 
     # make_transient removes the objects from the session (because we will delete them later).
     for epd in existing_provider_details:
@@ -2546,11 +2556,12 @@ def restore_provider_details(notify_db_session):
 
     yield notify_db_session
 
-    # also delete these as they depend on provider_details
-    ProviderRates.query.delete()
-    ProviderDetails.query.delete()
-    ProviderDetailsHistory.query.delete()
+    # Delete ProviderRates because they depend on ProviderDetails.
+    notify_db_session.session.execute(delete(ProviderRates))
+    notify_db_session.session.execute(delete(ProviderDetails))
+    notify_db_session.session.execute(delete(ProviderDetailsHistory))
     notify_db_session.session.commit()
+
     notify_db_session.session.add_all(existing_provider_details)
     notify_db_session.session.add_all(existing_provider_details_history)
     notify_db_session.session.commit()

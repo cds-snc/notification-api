@@ -1,14 +1,12 @@
-from sqlalchemy import delete
 import uuid
 from unittest.mock import Mock
 
 import pytest
 from notifications_utils.recipients import InvalidPhoneError
+from sqlalchemy import delete
 
-from app.v2.errors import BadRequestError, TooManyRequestsError
 from app.config import QueueNames
 from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
-from app.service.send_notification import send_one_off_notification
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -19,6 +17,8 @@ from app.models import (
     Notification,
     ServiceWhitelist,
 )
+from app.service.send_notification import send_one_off_notification
+from app.v2.errors import BadRequestError, TooManyRequestsError
 from tests.app.db import create_letter_contact
 
 
@@ -317,7 +317,11 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_send_one_off_letter_notification_should_use_template_reply_to_text(sample_letter_template, celery_mock):
+def test_send_one_off_letter_notification_should_use_template_reply_to_text(
+    notify_db_session,
+    sample_letter_template,
+    celery_mock,
+):
     letter_contact = create_letter_contact(sample_letter_template.service, 'Edinburgh, ED1 1AA', is_default=False)
     sample_letter_template.reply_to = str(letter_contact.id)
 
@@ -328,14 +332,14 @@ def test_send_one_off_letter_notification_should_use_template_reply_to_text(samp
     }
 
     notification_id = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
+    notification = notify_db_session.session.get(Notification, notification_id['id'])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == 'Edinburgh, ED1 1AA'
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_send_one_off_letter_should_not_make_pdf_in_research_mode(sample_letter_template):
+def test_send_one_off_letter_should_not_make_pdf_in_research_mode(notify_db_session, sample_letter_template):
     sample_letter_template.service.research_mode = True
 
     data = {
@@ -345,7 +349,7 @@ def test_send_one_off_letter_should_not_make_pdf_in_research_mode(sample_letter_
     }
 
     notification = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification['id'])
+    notification = notify_db_session.session.get(Notification, notification['id'])
 
     assert notification.status == 'delivered'
 
@@ -369,7 +373,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(
     }
 
     notification_id = send_one_off_notification(service_id=service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
+    notification = notify_db_session.session.get(Notification, notification_id['id'])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == '+16502532222'
@@ -398,7 +402,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
     }
 
     notification_id = send_one_off_notification(service_id=service.id, post_data=data)
-    notification = Notification.query.get(notification_id['id'])
+    notification = notify_db_session.session.get(Notification, notification_id['id'])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == '+16502532222'

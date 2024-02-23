@@ -191,7 +191,10 @@ def test_update_service_callback_api(
     assert updated._bearer_token != 'some_unique_string'
     assert updated.updated_at is not None
 
-    versioned_results = ServiceCallback.get_history_model().query.filter_by(id=saved_callback_api.id).all()
+    history_model = ServiceCallback.get_history_model()
+    stmt = select(history_model).where(history_model.id == saved_callback_api.id)
+    versioned_results = notify_db_session.session.scalars(stmt).all()
+
     assert len(versioned_results) == 2
     for x in versioned_results:
         if x.version == 1:

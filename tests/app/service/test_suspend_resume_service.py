@@ -1,10 +1,9 @@
+import uuid
 from datetime import datetime
 
 import pytest
-
-import uuid
-
 from freezegun import freeze_time
+from sqlalchemy import desc, select
 
 from app.models import Service
 from tests import create_admin_authorization_header
@@ -60,13 +59,15 @@ def test_resume_service_leaves_api_keys_revokes(client, sample_service, sample_a
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
 @pytest.mark.parametrize('action, original_state', [('suspend', True), ('resume', False)])
-def test_service_history_is_created(client, sample_service, action, original_state):
+def test_service_history_is_created(notify_db_session, client, sample_service, action, original_state):
     service = sample_service()
     service.active = original_state
     auth_header = create_admin_authorization_header()
     response = client.post('/service/{}/{}'.format(service.id, action), headers=[auth_header])
     ServiceHistory = Service.get_history_model()
-    history = ServiceHistory.query.filter_by(id=service.id).order_by(ServiceHistory.version.desc()).first()
+
+    stmt = select(ServiceHistory).where(ServiceHistory.id == service.id).order_by(desc(ServiceHistory.version))
+    history = notify_db_session.session.scalars(stmt).first()
 
     assert response.status_code == 204
     assert history.version == 2

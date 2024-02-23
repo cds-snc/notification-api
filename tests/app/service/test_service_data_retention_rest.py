@@ -1,6 +1,8 @@
 import json
-import pytest
 import uuid
+
+import pytest
+from sqlalchemy import select
 
 from app.models import ServiceDataRetention
 from tests import create_admin_authorization_header
@@ -76,7 +78,7 @@ def test_get_service_data_retention_by_id_returns_none_when_no_data_retention_ex
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_create_service_data_retention(client, sample_service):
+def test_create_service_data_retention(notify_db_session, client, sample_service):
     data = {'notification_type': 'sms', 'days_of_retention': 3}
     response = client.post(
         '/service/{}/data-retention'.format(str(sample_service.id)),
@@ -86,7 +88,10 @@ def test_create_service_data_retention(client, sample_service):
 
     assert response.status_code == 201
     json_resp = json.loads(response.get_data(as_text=True))['result']
-    results = ServiceDataRetention.query.all()
+
+    stmt = select(ServiceDataRetention)
+    results = notify_db_session.session.scalars(stmt).all()
+
     assert len(results) == 1
     data_retention = results[0]
     assert json_resp == data_retention.serialize()

@@ -1,5 +1,8 @@
-import pytest
 import uuid
+
+import pytest
+from sqlalchemy import func, select
+
 from app.dao.service_user_dao import dao_get_service_user
 from app.models import TemplateFolder
 from tests.app.conftest import template_folder_cleanup
@@ -245,7 +248,7 @@ def test_update_template_folder_fails_if_missing_name(admin_request, sample_temp
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_template_folder(admin_request, sample_service):
+def test_delete_template_folder(notify_db_session, admin_request, sample_service):
     service = sample_service()
     existing_folder = create_template_folder(service)
 
@@ -255,11 +258,12 @@ def test_delete_template_folder(admin_request, sample_service):
         template_folder_id=existing_folder.id,
     )
 
-    assert TemplateFolder.query.all() == []
+    stmt = select(TemplateFolder)
+    assert notify_db_session.session.scalars(stmt).all() == []
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_template_folder_fails_if_folder_has_subfolders(admin_request, sample_service):
+def test_delete_template_folder_fails_if_folder_has_subfolders(notify_db_session, admin_request, sample_service):
     service = sample_service()
     existing_folder = create_template_folder(service)
     create_template_folder(service, parent=existing_folder)  # noqa
@@ -273,7 +277,8 @@ def test_delete_template_folder_fails_if_folder_has_subfolders(admin_request, sa
 
     assert resp == {'result': 'error', 'message': 'Folder is not empty'}
 
-    assert TemplateFolder.query.count() == 2
+    stmt = select(func.count()).select_from(TemplateFolder)
+    assert notify_db_session.session.scalar(stmt) == 2
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
@@ -293,7 +298,8 @@ def test_delete_template_folder_fails_if_folder_contains_templates(
 
     assert resp == {'result': 'error', 'message': 'Folder is not empty'}
 
-    assert TemplateFolder.query.count() == 1
+    stmt = select(func.count()).select_from(TemplateFolder)
+    assert notify_db_session.session.scalar(stmt) == 1
 
 
 @pytest.mark.parametrize(

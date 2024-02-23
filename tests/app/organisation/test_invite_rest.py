@@ -1,5 +1,7 @@
 import pytest
-from app.models import Notification, INVITE_PENDING
+from sqlalchemy import select
+
+from app.models import INVITE_PENDING, Notification
 from tests.app.db import create_invited_org_user
 
 
@@ -12,6 +14,7 @@ from tests.app.db import create_invited_org_user
     ],
 )
 def test_create_invited_org_user(
+    notify_db_session,
     admin_request,
     sample_organisation,
     sample_user,
@@ -41,7 +44,8 @@ def test_create_invited_org_user(
     assert json_resp['data']['status'] == INVITE_PENDING
     assert json_resp['data']['id']
 
-    notification = Notification.query.first()
+    stmt = select(Notification)
+    notification = notify_db_session.session.scalars(stmt).first()
 
     assert notification.reply_to_text == user.email_address
 

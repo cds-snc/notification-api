@@ -1,32 +1,34 @@
+from collections import defaultdict, namedtuple
+from datetime import date, datetime
+
 import pytest
+from flask import current_app
+from freezegun import freeze_time
+from sqlalchemy import func, select
+
 from app.celery.tasks import (
     check_billable_units,
     get_billing_date_in_est_from_filename,
     persist_daily_sorted_letter_counts,
     process_updates_from_file,
+    record_daily_sorted_counts,
     update_letter_notifications_statuses,
     update_letter_notifications_to_error,
     update_letter_notifications_to_sent_to_dvla,
-    record_daily_sorted_counts,
 )
 from app.dao.daily_sorted_letter_dao import dao_get_daily_sorted_letter_by_billing_day
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
 from app.models import (
-    DailySortedLetter,
+    LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    DailySortedLetter,
     NotificationHistory,
-    LETTER_TYPE,
 )
-from collections import namedtuple, defaultdict
-from datetime import datetime, date
-from freezegun import freeze_time
-from flask import current_app
-from sqlalchemy import select
-from tests.app.db import create_service_callback_api, create_notification_history
+from tests.app.db import create_notification_history, create_service_callback_api
 from tests.conftest import set_config
 
 
@@ -253,8 +255,8 @@ def test_persist_daily_sorted_letter_counts_saves_sorted_and_unsorted_values(cli
         assert day.unsorted_count == 5
         assert day.sorted_count == 1
     finally:
-        query = select(DailySortedLetter).where(DailySortedLetter.file_name == 'test.txt')
-        daily_sorted_letter = notify_db_session.session.scalar(query)
+        stmt = select(DailySortedLetter).where(DailySortedLetter.file_name == 'test.txt')
+        daily_sorted_letter = notify_db_session.session.scalar(stmt)
         notify_db_session.session.delete(daily_sorted_letter)
         notify_db_session.session.commit()
 
@@ -265,11 +267,13 @@ def test_record_daily_sorted_counts_persists_daily_sorted_letter_count(notify_ap
 
     mocker.patch('app.celery.tasks.s3.get_s3_file', return_value=valid_file)
 
-    assert DailySortedLetter.query.count() == 0
+    stmt = select(func.count()).select_from(DailySortedLetter)
+    assert notify_db_session.session.scalar(stmt) == 0
 
     record_daily_sorted_counts(filename='NOTIFY-20170823160812-RSP.TXT')
 
-    daily_sorted_counts = DailySortedLetter.query.all()
+    stmt = select(DailySortedLetter)
+    daily_sorted_counts = notify_db_session.session.scalars(stmt).all()
 
     try:
         assert len(daily_sorted_counts) == 1

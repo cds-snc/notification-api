@@ -127,7 +127,7 @@ def test_add_reply_to_email_address_ensure_there_is_not_more_than_one_default(sa
         )
 
 
-def test_update_reply_to_email_address(sample_service):
+def test_update_reply_to_email_address(notify_db_session, sample_service):
     service = sample_service(email_address=None)
     first_reply_to = create_reply_to_email(service=service, email_address='first@address.com')
     update_reply_to_email_address(
@@ -136,7 +136,7 @@ def test_update_reply_to_email_address(sample_service):
         email_address='change_address@email.com',
         is_default=True,
     )
-    updated_reply_to = ServiceEmailReplyTo.query.get(first_reply_to.id)
+    updated_reply_to = notify_db_session.session.get(ServiceEmailReplyTo, first_reply_to.id)
 
     assert updated_reply_to.email_address == 'change_address@email.com'
     assert updated_reply_to.updated_at
