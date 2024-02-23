@@ -125,6 +125,71 @@ def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_r
     assert response["message"] == "Sorry, it's too late, letters have already been sent."
 
 
+def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sample_email_job, fake_uuid):
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch("app.job.rest.increment_email_daily_count_send_warnings_if_needed")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": sample_email_job.template_id,
+            "original_file_name": sample_email_job.original_file_name,
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="email address\r\nsome@email.com",
+    )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    data = {
+        "id": fake_uuid,
+        "created_by": str(sample_email_job.created_by.id),
+    }
+    path = "/service/{}/job".format(sample_email_job.service_id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+
+    assert response.status_code == 201
+
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
+    app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_called_once_with(sample_email_job.service, 1)
+
+
+def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily_count(
+    client, mocker, sample_email_job, fake_uuid
+):
+    scheduled_date = (datetime.utcnow() + timedelta(hours=36, minutes=59)).isoformat()
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch("app.job.rest.increment_email_daily_count_send_warnings_if_needed")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": sample_email_job.template_id,
+            "original_file_name": sample_email_job.original_file_name,
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="email address\r\nsome@email.com",
+    )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    data = {"id": fake_uuid, "created_by": str(sample_email_job.created_by.id), "scheduled_for": scheduled_date}
+    path = "/service/{}/job".format(sample_email_job.service_id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+
+    assert response.status_code == 201
+
+    app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_not_called()
+
+
 def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
