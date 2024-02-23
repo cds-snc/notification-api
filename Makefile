@@ -32,9 +32,8 @@ install-safety:
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	# Ignored issues not described here are documented in requirements-app.txt.
 	# 12 Dec 2023: 51668 is fixed with >= 2.0.0b1 of SQLAlchemy. Ongoing refactor to upgrade.
-	# 22 Feb 2024: 64227 is fixed with >= 3.1.3 of jinja2. Update is being worked in #1647
 
-	safety check -r requirements.txt --full-report -i 51668 -i 64227
+	safety check -r requirements.txt --full-report -i 51668
 
 .PHONY:
 	help \
