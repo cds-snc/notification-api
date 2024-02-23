@@ -141,6 +141,7 @@ def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sam
         "app.job.rest.get_job_from_s3",
         return_value="email address\r\nsome@email.com",
     )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
     data = {
         "id": fake_uuid,
         "created_by": str(sample_email_job.created_by.id),
@@ -149,7 +150,6 @@ def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sam
     auth_header = create_authorization_header()
     headers = [("Content-Type", "application/json"), auth_header]
 
-    app.g.authenticated_service = sample_email_job.service
     response = client.post(path, data=json.dumps(data), headers=headers)
 
     assert response.status_code == 201
@@ -177,12 +177,12 @@ def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily
         "app.job.rest.get_job_from_s3",
         return_value="email address\r\nsome@email.com",
     )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
     data = {"id": fake_uuid, "created_by": str(sample_email_job.created_by.id), "scheduled_for": scheduled_date}
     path = "/service/{}/job".format(sample_email_job.service_id)
     auth_header = create_authorization_header()
     headers = [("Content-Type", "application/json"), auth_header]
 
-    app.g.authenticated_service = sample_email_job.service
     response = client.post(path, data=json.dumps(data), headers=headers)
 
     assert response.status_code == 201
