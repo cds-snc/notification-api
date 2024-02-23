@@ -112,7 +112,7 @@ def send_notification(notification_type: NotificationType):
     )
 
     simulated = simulated_recipient(notification_form["to"], notification_type)
-    if not simulated != api_user.key_type == KEY_TYPE_TEST:
+    if not simulated != api_user.key_type == KEY_TYPE_TEST and notification_type == EMAIL_TYPE:
         check_email_daily_limit(authenticated_service, 1)
 
     check_template_is_for_notification_type(notification_type, template.template_type)
