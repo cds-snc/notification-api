@@ -281,6 +281,7 @@ def create_notification(
         "reference": reference,
         "created_at": created_at,
         "sent_at": sent_at,
+        "updated_at": updated_at,
         "billable_units": billable_units,
         "personalisation": personalisation,
         "notification_type": template.template_type,
