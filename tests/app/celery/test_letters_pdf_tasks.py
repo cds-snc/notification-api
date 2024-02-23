@@ -11,6 +11,8 @@ from moto import mock_s3
 from PyPDF2.utils import PdfReadError
 from requests import RequestException
 from sqlalchemy.orm.exc import NoResultFound
+from tests.app.db import create_letter_branding, create_notification, save_notification
+from tests.conftest import set_config_values
 
 from app.celery.letters_pdf_tasks import (
     _move_invalid_letter_and_update_status,
@@ -40,8 +42,6 @@ from app.models import (
     Notification,
 )
 from celery.exceptions import MaxRetriesExceededError, Retry
-from tests.app.db import create_letter_branding, create_notification, save_notification
-from tests.conftest import set_config_values
 
 
 @pytest.mark.skip(reason="Letter tests")

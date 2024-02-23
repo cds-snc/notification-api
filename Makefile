@@ -37,9 +37,8 @@ clean:
 
 .PHONY: format
 format:
-	poetry run isort .
-	poetry run black --config pyproject.toml .
-	poetry run flake8 .
+	ruff check --select I --fix .
+	ruff format .
 	poetry run mypy .
 
 .PHONY: smoke-test
