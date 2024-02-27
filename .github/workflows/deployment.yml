@@ -39,6 +39,10 @@ jobs:
       - name: Render migration task definition
         id: render
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+        docker-labels: |
+            VERSION=${{ inputs.ref }}
         with:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-db-migrations-task-definition.json
           container-name: ${{ inputs.environment }}-notification-api-db-migrations
@@ -81,6 +85,10 @@ jobs:
       - name: Render API task definition
         id: render-api-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+        docker-labels: |
+            VERSION=${{ inputs.ref }}
         with:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-api-task-definition.json
           container-name: notification-api
@@ -121,6 +129,10 @@ jobs:
       - name: Render celery task definition
         id: render-celery-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+        docker-labels: |
+            VERSION=${{ inputs.ref }}
         with:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-task-definition.json
           container-name: notification-celery
@@ -161,6 +173,10 @@ jobs:
       - name: Render celery beat task definition
         id: render-celery-beat-container
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+        docker-labels: |
+            VERSION=${{ inputs.ref }}
         with:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-beat-task-definition.json
           container-name: notification-celery-beat
@@ -173,3 +189,4 @@ jobs:
           service: ${{ inputs.environment }}-notification-celery-beat-service
           cluster: ${{ inputs.environment }}-notification-cluster
           wait-for-service-stability: true
+
