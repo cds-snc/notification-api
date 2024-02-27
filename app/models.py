@@ -276,6 +276,7 @@ class EmailBranding(BaseModel):
         nullable=False,
         default=BRANDING_ORG_NEW,
     )
+    #organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
 
     def serialize(self) -> dict:
         serialized = {
@@ -285,6 +286,7 @@ class EmailBranding(BaseModel):
             "name": self.name,
             "text": self.text,
             "brand_type": self.brand_type,
+            #"organisation_id": str(self.organisation_id) if self.organisation_id else "",
         }
 
         return serialized
