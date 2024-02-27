@@ -43,6 +43,10 @@ jobs:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-db-migrations-task-definition.json
           container-name: ${{ inputs.environment }}-notification-api-db-migrations
           image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+          environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+          docker-labels: |
+            VERSION=${{ inputs.ref }}
 
       - name: Register migration task definition
         id: register
@@ -85,6 +89,10 @@ jobs:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-api-task-definition.json
           container-name: notification-api
           image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+          environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+          docker-labels: |
+            VERSION=${{ inputs.ref }}
 
       - name: Deploy API task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -125,6 +133,10 @@ jobs:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-task-definition.json
           container-name: notification-celery
           image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+          environment-variables: |
+              DD_VERSION=${{ inputs.ref }}
+          docker-labels: |
+              VERSION=${{ inputs.ref }}
 
       - name: Deploy celery task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -165,6 +177,10 @@ jobs:
           task-definition: ./cd/application-deployment/${{ inputs.environment }}/vaec-celery-beat-task-definition.json
           container-name: notification-celery-beat
           image: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment}}
+          environment-variables: |
+            DD_VERSION=${{ inputs.ref }}
+          docker-labels: |
+            VERSION=${{ inputs.ref }}
 
       - name: Deploy celery beat task definition to Fargate
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -173,3 +189,4 @@ jobs:
           service: ${{ inputs.environment }}-notification-celery-beat-service
           cluster: ${{ inputs.environment }}-notification-cluster
           wait-for-service-stability: true
+
