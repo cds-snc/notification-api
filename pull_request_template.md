@@ -21,9 +21,8 @@ This is a suggested checklist of questions reviewers might ask during their
 review | Voici une suggestion de liste de vérification comprenant des questions
 que les réviseurs pourraient poser pendant leur examen :
 
-- [ ] Check that the current PR does not break existing functionality.
-- [ ] Check that this does not violate GCNotify's privacy policies.
-- [ ] Check that this does not raise any security concern.
-- [ ] Check that this does not significantly alter performance.
-- [ ] Check if additional documentation needs to be updated as a result of these changes such
-      as the README, setup instructions, a related ADR or the technical documentation.
+- [ ] This PR does not break existing functionality.
+- [ ] This PR does not violate GCNotify's privacy policies.
+- [ ] This PR does not raise new security concerns. Refer to our GC Notify Risk Register document on our Google drive.
+- [ ] This PR does not significantly alter performance.
+- [ ] Additional required documentation resulting of these changes is covered (such as the README, setup instructions, a related ADR or the technical documentation).
