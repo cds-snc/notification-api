@@ -22,3 +22,5 @@ None.
 - [ ] This PR does not raise new security concerns. Refer to our GC Notify Risk Register document on our Google drive.
 - [ ] This PR does not significantly alter performance.
 - [ ] Additional required documentation resulting of these changes is covered (such as the README, setup instructions, a related ADR or the technical documentation).
+
+> ⚠ If boxes cannot be checked off before merging the PR, they should be moved to the "Release Instructions" section with appropriate steps required to verify before release. For example, changes to celery code may require tests on staging to verify that performance has not been affected.
