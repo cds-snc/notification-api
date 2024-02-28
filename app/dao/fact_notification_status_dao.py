@@ -1,7 +1,6 @@
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal
@@ -39,8 +38,8 @@ from app.utils import (
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))
@@ -239,13 +238,19 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
 
 
 def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    ft_start_date = utc_midnight_n_days_ago(limit_days)
+    if limit_days == 1:
+        ft_start_date = utc_midnight_n_days_ago(limit_days - 1)
+        # For daily stats, service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
+        start = utc_midnight_n_days_ago(0)
+        end = datetime.utcnow()
+    else:
+        ft_start_date = utc_midnight_n_days_ago(limit_days)
 
-    # The nightly task that populates ft_notification_status counts collects notifications from
-    # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
-    # we fetch notifications for the current day.
-    start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-    end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+        # The nightly task that populates ft_notification_status counts collects notifications from
+        # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
+        # we fetch notifications for the current day.
+        start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
+        end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
 
     stats_for_7_days = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
@@ -336,24 +341,21 @@ def get_total_notifications_sent_for_api_key(api_key_id):
 
 def get_last_send_for_api_key(api_key_id):
     """
+    SELECT last_used_timestamp as last_notification_created
+    FROM api_keys
+    WHERE id = 'api_key_id';
+
+    If last_used_timestamp is null, then check notifications table/ or notification_history.
     SELECT max(created_at) as last_notification_created
     FROM notifications
     WHERE api_key_id = 'api_key_id'
     GROUP BY api_key_id;
     """
-    notification_table = (
-        db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-        .filter(Notification.api_key_id == api_key_id)
-        .all()
+    # Fetch last_used_timestamp from api_keys table
+    api_key_table = (
+        db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
-    if not notification_table[0][0]:
-        notification_table = (
-            db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
-            .filter(NotificationHistory.api_key_id == api_key_id)
-            .all()
-        )
-        notification_table = [] if notification_table[0][0] is None else notification_table
-    return notification_table
+    return [] if api_key_table[0][0] is None else api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):

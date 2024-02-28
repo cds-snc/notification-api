@@ -69,6 +69,13 @@ def expire_api_key(service_id, api_key_id):
 
 
 @transactional
+def update_last_used_api_key(api_key_id, last_used=None) -> None:
+    api_key = ApiKey.query.filter_by(id=api_key_id).one()
+    api_key.last_used_timestamp = last_used if last_used else datetime.utcnow()
+    db.session.add(api_key)
+
+
+@transactional
 @version_class(ApiKey)
 def update_compromised_api_key_info(service_id, api_key_id, compromised_info):
     api_key = ApiKey.query.filter_by(id=api_key_id, service_id=service_id).one()

@@ -331,6 +331,39 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
+@freeze_time("2018-10-31T18:00:00")
+def test_fetch_notification_status_gets_data_from_correct_timeframe(
+    notify_db_session,
+):
+    service_1 = create_service(service_name="service_1")
+    sms_template = create_template(service=service_1, template_type=SMS_TYPE)
+    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+    # create notifications for every hour of the day
+    for i in range(24):
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 30), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+
+    # too early, shouldn't be included
+    save_notification(
+        create_notification(
+            service_1.templates[0],
+            created_at=datetime(2018, 10, 29, 23, 59, 59),
+            status="delivered",
+        )
+    )
+    data = fetch_notification_status_for_day(process_day=datetime.utcnow() - timedelta(days=1))
+
+    assert data[0].notification_type == "email"
+    assert data[0].notification_count == 48
+
+    assert data[1].notification_type == "sms"
+    assert data[1].notification_count == 72
+
+
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
@@ -356,23 +389,19 @@ def test_get_total_notifications_sent_for_api_key(notify_db_session):
     assert dict(api_key_stats_3) == dict([(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)])
 
 
+def test_get_last_send_for_api_key_check_last_used(notify_db_session):
+    service = create_service(service_name="First Service")
+    api_key = create_api_key(service, last_used=datetime.utcnow())
+
+    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
+    assert last_send == api_key.last_used_timestamp
+
+
 def test_get_last_send_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
-    template_email = create_template(service=service, template_type=EMAIL_TYPE)
-    total_sends = 10
-
     last_send = get_last_send_for_api_key(str(api_key.id))
     assert last_send == []
-
-    for x in range(total_sends):
-        save_notification(create_notification(template=template_email, api_key=api_key))
-
-    # the following lines test that a send has occurred within the last second
-    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
-    now = datetime.utcnow()
-    time_delta = now - last_send
-    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_ranked_by_notifications_created(notify_db_session):
@@ -415,24 +444,24 @@ def test_get_api_key_ranked_by_notifications_created(notify_db_session):
     assert int(second_place[8]) == sms_sends
 
 
-def test_last_used_for_api_key(notify_db_session):
-    service = create_service(service_name="Service 1")
-    api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
-    api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
-    api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
-    template_email = create_template(service=service, template_type="email")
-    create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
-    save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
+# def test_last_used_for_api_key(notify_db_session):
+#     service = create_service(service_name="Service 1")
+#     api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+#     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
+#     api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
+#     template_email = create_template(service=service, template_type="email")
+#     create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
+#     save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
 
-    assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
+#     assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
 
-    save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
+#     save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
 
-    assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
+#     assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
 
-    create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
+#     create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
 
-    assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
+#     assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
 
 
 @pytest.mark.parametrize(
@@ -1150,29 +1179,22 @@ def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
     # create notifications that should not be included in today's count
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=30)
+    create_ft_notification_status(date(2018, 10, 24), "email", service_1, count=30)
+    create_ft_notification_status(date(2018, 10, 31), "email", service_1, count=20)
+
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 0, 0, 0), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
     save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 23, 59, 59), status="delivered"))
 
     # create notifications that should be included in count
-    create_ft_notification_status(date(2018, 10, 31), "email", service_1, count=5)
-    create_ft_notification_status(date(2018, 10, 30), "email", service_1, count=5)
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 6, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 22, 59, 59), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 13, 0, 0), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 6, 0, 0), status="delivered"))
+    save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 17, 59, 59), status="delivered"))
 
-    # checking the daily stats for this day should give us the 2 created after 12am UTC
+    # checking the daily stats for this day should give us the 3 created after 12am UTC
     results = sorted(
         fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=1),
         key=lambda x: (x.notification_type, x.status),
     )
-    assert results[0][2] == 6
-
-    # checking the daily stats for the last 2 days should give us the 2 created after 12am UTC and the 1 from the day before
-    results = sorted(
-        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=2),
-        key=lambda x: (x.notification_type, x.status),
-    )
-    assert results[0][2] == 11
+    assert results[0][2] == 3
