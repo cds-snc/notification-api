@@ -29,8 +29,7 @@ def upgrade():
         "email_branding",
         "organisation",
         ["organisation_id"],
-        ["id"],
-        foreign_keys=['email_branding.organisation_id'],
+        ["id"]
     )
 
 def downgrade():
