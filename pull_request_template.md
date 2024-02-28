@@ -17,10 +17,6 @@ None.
 
 # Reviewer checklist | Liste de vérification du réviseur
 
-This is a suggested checklist of questions reviewers might ask during their
-review | Voici une suggestion de liste de vérification comprenant des questions
-que les réviseurs pourraient poser pendant leur examen :
-
 - [ ] This PR does not break existing functionality.
 - [ ] This PR does not violate GCNotify's privacy policies.
 - [ ] This PR does not raise new security concerns. Refer to our GC Notify Risk Register document on our Google drive.
