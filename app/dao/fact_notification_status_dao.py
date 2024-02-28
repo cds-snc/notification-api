@@ -148,8 +148,8 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     )
 
 
-def fetch_delivered_notification_stats_by_month():
-    return (
+def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -168,8 +168,12 @@ def fetch_delivered_notification_stats_by_month():
             func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
             FactNotificationStatus.notification_type,
         )
-        .all()
     )
+    if filter_heartbeats:
+        query = query.filter(
+            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
+        )
+    return query.all()
 
 
 def fetch_notification_stats_for_trial_services():
