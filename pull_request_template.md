@@ -2,7 +2,7 @@
 
 _TODO: 1-3 sentence description of the changed you're proposing._
 
-## Related Issues
+## Related Issues | Cartes liées
 
 * https://app.zenhub.com/workspaces/notify-planning-614b3ad91bc2030015ed22f5/issues/gh/cds-snc/notification-planning/1
 * https://app.zenhub.com/workspaces/notify-planning-core-6411dfb7c95fb80014e0cab0/issues/gh/cds-snc/notification-planning-core/1
