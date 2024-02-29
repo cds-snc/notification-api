@@ -276,7 +276,9 @@ class EmailBranding(BaseModel):
         nullable=False,
         default=BRANDING_ORG_NEW,
     )
-    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
+    organisation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("organisation.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
 
     def serialize(self) -> dict:
@@ -455,7 +457,7 @@ class Organisation(BaseModel):
     email_branding = db.relationship("EmailBranding", back_populates="organisation", foreign_keys="EmailBranding.organisation_id")
     email_branding_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("email_branding.id"),
+        db.ForeignKey("email_branding.id", ondelete="SET NULL"),
         nullable=True,
     )
 

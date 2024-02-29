@@ -29,8 +29,10 @@ def upgrade():
         "email_branding",
         "organisation",
         ["organisation_id"],
-        ["id"]
+        ["id"],
+        ondelete="SET NULL",
     )
+
 
 def downgrade():
     op.drop_index(op.f("ix_email_branding_organisation_id"), table_name="email_branding")
