@@ -1,3 +1,11 @@
+---
+name: Notify Lambda Dependency Update Template
+about: Regular lambda dependency updates
+title: Lambdas - Regular Update for Dependencies
+labels: Notify, QA, Tech Debt
+assignees: ''
+---
+
 ## User Story - Business Need
 
 We wish to keep our lambda dependencies up to date so we do not need such massive overhauls of our system. This will be a recurring ticket. We will update all dependencies we are able to. Any conflicts will get a new ticket. This is intended to be a day of work at most because this is intended to update with only non-breaking changes.
