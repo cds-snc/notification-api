@@ -433,7 +433,7 @@ class Organisation(BaseModel):
     agreement_signed_at = db.Column(db.DateTime, nullable=True)
     agreement_signed_by_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("users.id"),
+        db.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
     agreement_signed_by = db.relationship("User")

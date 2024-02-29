@@ -33,6 +33,17 @@ def upgrade():
         ondelete="SET NULL",
     )
 
+    op.drop_constraint("fk_organisation_agreement_user_id", "organisation", type_="foreignkey")
+
+    op.create_foreign_key(
+        "fk_organisation_agreement_signed_by",
+        "organisation",
+        "users",
+        ["agreement_signed_by_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+
 
 def downgrade():
     op.drop_index(op.f("ix_email_branding_organisation_id"), table_name="email_branding")
