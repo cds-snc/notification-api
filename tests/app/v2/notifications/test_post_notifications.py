@@ -36,32 +36,32 @@ from tests.app.factories.feature_flag import mock_feature_flag
 from . import post_send_notification
 
 
-@pytest.fixture
-def enable_accept_recipient_identifiers_enabled_feature_flag(mocker):
-    mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=True)
+# @pytest.fixture
+# def enable_accept_recipient_identifiers_enabled_feature_flag(mocker):
+#     mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=True)
 
 
-@pytest.fixture
-def mock_template_with_version(mocker):
-    mock_template = mocker.Mock()
-    mock_template.id = 'template-id'
-    mock_template.version = 1
+# @pytest.fixture
+# def mock_template_with_version(mocker):
+#     mock_template = mocker.Mock()
+#     mock_template.id = 'template-id'
+#     mock_template.version = 1
 
-    return mock_template
-
-
-@pytest.fixture
-def mock_api_key(mocker):
-    mock_api_key = mocker.Mock()
-    mock_api_key.id = 'some-id'
-    mock_api_key.key_type = 'some-type'
-
-    return mock_api_key
+#     return mock_template
 
 
-@pytest.fixture
-def check_recipient_communication_permissions_enabled(mocker):
-    mock_feature_flag(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
+# @pytest.fixture
+# def mock_api_key(mocker):
+#     mock_api_key = mocker.Mock()
+#     mock_api_key.id = 'some-id'
+#     mock_api_key.key_type = 'some-type'
+
+#     return mock_api_key
+
+
+# @pytest.fixture
+# def check_recipient_communication_permissions_enabled(mocker):
+#     mock_feature_flag(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
 
 
 @pytest.fixture(autouse=True)

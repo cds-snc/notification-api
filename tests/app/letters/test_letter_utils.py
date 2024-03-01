@@ -40,12 +40,6 @@ def _sample_precompiled_letter_notification(sample_letter_notification):
     return sample_letter_notification
 
 
-@pytest.fixture(name='sample_precompiled_letter_notification_using_test_key')
-def _sample_precompiled_letter_notification_using_test_key(sample_precompiled_letter_notification):
-    sample_precompiled_letter_notification.key_type = KEY_TYPE_TEST
-    return sample_precompiled_letter_notification
-
-
 @pytest.mark.parametrize(
     'created_at,folder',
     [
