@@ -1,4 +1,5 @@
-""" This module is used to transfer incoming twilio requests to a Vetext endpoint. """
+"""This module is used to transfer incoming twilio requests to a Vetext endpoint."""
+
 import base64
 import json
 import logging

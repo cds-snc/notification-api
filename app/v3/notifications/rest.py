@@ -1,4 +1,4 @@
-""" Implement v3 endpoints for the Notification model. """
+"""Implement v3 endpoints for the Notification model."""
 
 import phonenumbers
 from app import authenticated_service

@@ -1,4 +1,4 @@
-""" Test the schemas for /v3/notifications. """
+"""Test the schemas for /v3/notifications."""
 
 import pytest
 from app.models import EMAIL_TYPE, SMS_TYPE

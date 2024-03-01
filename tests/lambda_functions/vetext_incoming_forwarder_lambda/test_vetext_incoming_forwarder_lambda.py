@@ -5,6 +5,7 @@ from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder
     vetext_incoming_forwarder_lambda_handler,
 )
 """
+
 import pytest
 import json
 import base64

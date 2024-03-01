@@ -1,4 +1,4 @@
-""" Test endpoints for the v3 notifications. """
+"""Test endpoints for the v3 notifications."""
 
 import pytest
 from app.authentication.auth import AuthError

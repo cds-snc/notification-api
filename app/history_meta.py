@@ -14,6 +14,7 @@ Lastly when to create a version is done manually in dao_utils version decorator 
 session events.
 
 """
+
 import datetime
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import mapper, attributes, object_mapper

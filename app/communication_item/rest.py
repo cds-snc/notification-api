@@ -1,4 +1,4 @@
-""" Implement CRUD endpoints for the CommunicationItem model. """
+"""Implement CRUD endpoints for the CommunicationItem model."""
 
 import psycopg2
 from app import db
