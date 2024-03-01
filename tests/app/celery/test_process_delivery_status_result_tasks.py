@@ -10,13 +10,13 @@ from app.celery.process_delivery_status_result_tasks import (
 from app.models import Notification
 
 
-@pytest.fixture
-def sample_translate_return_value():
-    return {
-        'payload': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDI',
-        'reference': 'MessageSID',
-        'record_status': 'sent',
-    }
+# @pytest.fixture
+# def sample_translate_return_value():
+#     return {
+#         'payload': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDI',
+#         'reference': 'MessageSID',
+#         'record_status': 'sent',
+#     }
 
 
 @pytest.fixture
@@ -53,14 +53,14 @@ def sample_sqs_message_with_provider():
     }
 
 
-@pytest.fixture()
-def sample_sqs_message_with_twilio_provider():
-    return {
-        'body': 'UmF3RGxyRG9uZURhdGU9MjMwMzIyMjMzOCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZXNzYWdlU3RhdHV'
-        'zPWRlbGl2ZXJlZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIx'
-        'MjIyMzMzNDQ0NCZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
-        'provider': 'twilio',
-    }
+# @pytest.fixture()
+# def sample_sqs_message_with_twilio_provider():
+#     return {
+#         'body': 'UmF3RGxyRG9uZURhdGU9MjMwMzIyMjMzOCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZXNzYWdlU3RhdHV'
+#         'zPWRlbGl2ZXJlZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIx'
+#         'MjIyMzMzNDQ0NCZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
+#         'provider': 'twilio',
+#     }
 
 
 @pytest.fixture()

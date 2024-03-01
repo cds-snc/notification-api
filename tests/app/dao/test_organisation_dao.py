@@ -127,55 +127,55 @@ def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is
     assert service.organisation_type == 'other'
 
 
-@pytest.fixture(scope='function')
-def setup_org_type(notify_db_session):
-    org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
-    notify_db_session.session.add(org_type)
-    notify_db_session.session.commit()
-    return org_type
+# @pytest.fixture(scope='function')
+# def setup_org_type(notify_db_session):
+#     org_type = OrganisationTypes(name='some other', annual_free_sms_fragment_limit=25000)
+#     notify_db_session.session.add(org_type)
+#     notify_db_session.session.commit()
+#     return org_type
 
 
-@pytest.fixture
-def setup_service(
-    notify_db_session,
-    sample_user,
-    service_name='Sample service',
-    user=None,
-    restricted=False,
-    limit=1000,
-    email_from=None,
-    permissions=None,
-    research_mode=None,
-):
-    if user is None:
-        user = sample_user()
-    if email_from is None:
-        email_from = service_name.lower().replace(' ', '.')
+# @pytest.fixture
+# def setup_service(
+#     notify_db_session,
+#     sample_user,
+#     service_name='Sample service',
+#     user=None,
+#     restricted=False,
+#     limit=1000,
+#     email_from=None,
+#     permissions=None,
+#     research_mode=None,
+# ):
+#     if user is None:
+#         user = sample_user()
+#     if email_from is None:
+#         email_from = service_name.lower().replace(' ', '.')
 
-    data = {
-        'name': service_name,
-        'message_limit': limit,
-        'restricted': restricted,
-        'email_from': email_from,
-        'created_by': user,
-        'crown': True,
-    }
+#     data = {
+#         'name': service_name,
+#         'message_limit': limit,
+#         'restricted': restricted,
+#         'email_from': email_from,
+#         'created_by': user,
+#         'crown': True,
+#     }
 
-    stmt = select(Service).where(Service.name == service_name)
-    service = notify_db_session.session.scalars(stmt).first()
+#     stmt = select(Service).where(Service.name == service_name)
+#     service = notify_db_session.session.scalars(stmt).first()
 
-    if not service:
-        service = Service(**data)
-        dao_create_service(service, user, service_permissions=permissions)
+#     if not service:
+#         service = Service(**data)
+#         dao_create_service(service, user, service_permissions=permissions)
 
-        if research_mode:
-            service.research_mode = research_mode
+#         if research_mode:
+#             service.research_mode = research_mode
 
-    else:
-        if user not in service.users:
-            dao_add_user_to_service(service, user)
+#     else:
+#         if user not in service.users:
+#             dao_add_user_to_service(service, user)
 
-    return service
+#     return service
 
 
 @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')

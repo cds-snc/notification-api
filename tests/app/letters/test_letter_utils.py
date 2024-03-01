@@ -29,15 +29,15 @@ from tests.app.db import LETTER_TYPE
 FROZEN_DATE_TIME = '2018-03-14 17:00:00'
 
 
-@pytest.fixture(name='sample_precompiled_letter_notification')
-def _sample_precompiled_letter_notification(sample_letter_notification):
-    sample_letter_notification.template.hidden = True
-    sample_letter_notification.template.name = PRECOMPILED_TEMPLATE_NAME
-    sample_letter_notification.reference = 'foo'
-    with freeze_time(FROZEN_DATE_TIME):
-        sample_letter_notification.created_at = datetime.utcnow()
-        sample_letter_notification.updated_at = datetime.utcnow()
-    return sample_letter_notification
+# @pytest.fixture(name='sample_precompiled_letter_notification')
+# def _sample_precompiled_letter_notification(sample_letter_notification):
+#     sample_letter_notification.template.hidden = True
+#     sample_letter_notification.template.name = PRECOMPILED_TEMPLATE_NAME
+#     sample_letter_notification.reference = 'foo'
+#     with freeze_time(FROZEN_DATE_TIME):
+#         sample_letter_notification.created_at = datetime.utcnow()
+#         sample_letter_notification.updated_at = datetime.utcnow()
+#     return sample_letter_notification
 
 
 @pytest.mark.parametrize(

@@ -5,48 +5,44 @@ from flask_jwt_extended import create_access_token
 
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent, process_pinpoint_inbound_sms
 from app.dao.permissions_dao import permission_dao
-from app.feature_flags import FeatureFlag
 from app.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, Permission
-from tests.app.factories.feature_flag import mock_feature_flag
-from botocore.stub import Stubber, ANY
-from app import sqs_client, notify_celery
-from tests.conftest import set_config_values
+from botocore.stub import ANY
 
 
-@pytest.fixture()
-def sqs_stub():
-    with Stubber(sqs_client._client) as stubber:
-        yield stubber
-        stubber.assert_no_pending_responses()
+# @pytest.fixture()
+# def sqs_stub():
+#     with Stubber(sqs_client._client) as stubber:
+#         yield stubber
+#         stubber.assert_no_pending_responses()
 
 
-@pytest.fixture()
-def integration_celery_config(notify_api):
-    with set_config_values(
-        notify_api,
-        {
-            'CELERY_SETTINGS': {
-                'broker_url': 'sqs://',
-                'task_always_eager': True,
-                'imports': (
-                    'app.celery.tasks',
-                    'app.celery.scheduled_tasks',
-                    'app.celery.reporting_tasks',
-                    'app.celery.nightly_tasks',
-                    'app.celery.process_pinpoint_receipt_tasks',
-                    'app.celery.process_pinpoint_inbound_sms' 'app.celery.service_callback_tasks',
-                ),
-            }
-        },
-    ):
-        notify_celery.init_app(notify_api)
-    yield
-    notify_celery.init_app(notify_api)
+# @pytest.fixture()
+# def integration_celery_config(notify_api):
+#     with set_config_values(
+#         notify_api,
+#         {
+#             'CELERY_SETTINGS': {
+#                 'broker_url': 'sqs://',
+#                 'task_always_eager': True,
+#                 'imports': (
+#                     'app.celery.tasks',
+#                     'app.celery.scheduled_tasks',
+#                     'app.celery.reporting_tasks',
+#                     'app.celery.nightly_tasks',
+#                     'app.celery.process_pinpoint_receipt_tasks',
+#                     'app.celery.process_pinpoint_inbound_sms' 'app.celery.service_callback_tasks',
+#                 ),
+#             }
+#         },
+#     ):
+#         notify_celery.init_app(notify_api)
+#     yield
+#     notify_celery.init_app(notify_api)
 
 
-@pytest.fixture
-def pinpoint_inbound_sms_toggle_enabled(mocker):
-    mock_feature_flag(mocker, FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED, 'True')
+# @pytest.fixture
+# def pinpoint_inbound_sms_toggle_enabled(mocker):
+#     mock_feature_flag(mocker, FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED, 'True')
 
 
 class AnySms(object):
