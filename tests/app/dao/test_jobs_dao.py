@@ -348,6 +348,32 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service):
     assert job_to_remain.id not in [job.id for job in jobs]
 
 
+@freeze_time("2016-10-31 10:00:00")
+def test_should_get_limited_number_of_jobs(sample_template):
+    eight_days_ago = datetime.utcnow() - timedelta(days=8)
+
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+    
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type], limit=2)
+
+    assert len(jobs) == 2
+
+@freeze_time("2016-10-31 10:00:00")
+def test_should_get_not_get_limited_number_of_jobs_by_default(sample_template):
+    eight_days_ago = datetime.utcnow() - timedelta(days=8)
+
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+    
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type])
+
+    assert len(jobs) == 3
+
+
+
 def assert_job_stat(job, result, sent, delivered, failed):
     assert result.job_id == job.id
     assert result.original_file_name == job.original_file_name
