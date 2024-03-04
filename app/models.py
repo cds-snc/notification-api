@@ -276,6 +276,10 @@ class EmailBranding(BaseModel):
         nullable=False,
         default=BRANDING_ORG_NEW,
     )
+    organisation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("organisation.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
 
     def serialize(self) -> dict:
         serialized = {
@@ -285,6 +289,7 @@ class EmailBranding(BaseModel):
             "name": self.name,
             "text": self.text,
             "brand_type": self.brand_type,
+            "organisation_id": str(self.organisation_id) if self.organisation_id else "",
         }
 
         return serialized
@@ -428,7 +433,7 @@ class Organisation(BaseModel):
     agreement_signed_at = db.Column(db.DateTime, nullable=True)
     agreement_signed_by_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("users.id"),
+        db.ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
     agreement_signed_by = db.relationship("User")
@@ -449,10 +454,9 @@ class Organisation(BaseModel):
         "Domain",
     )
 
-    email_branding = db.relationship("EmailBranding")
+    email_branding = db.relationship("EmailBranding", back_populates="organisation", foreign_keys="EmailBranding.organisation_id")
     email_branding_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("email_branding.id"),
         nullable=True,
     )
 

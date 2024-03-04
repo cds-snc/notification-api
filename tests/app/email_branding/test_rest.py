@@ -37,6 +37,7 @@ def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
         "id",
         "text",
         "brand_type",
+        "organisation_id",
     }
     assert response["email_branding"]["colour"] == "#FFFFFF"
     assert response["email_branding"]["logo"] == "/path/image.png"
