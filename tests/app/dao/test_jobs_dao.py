@@ -17,6 +17,7 @@ from app.dao.jobs_dao import (
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
+from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Job
 from tests.app.db import (
     create_job,
@@ -350,15 +351,21 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service):
 
 @freeze_time("2016-10-31 10:00:00")
 def test_should_get_limited_number_of_jobs(sample_template):
+    flexable_retention_service = create_service(service_name="Another service")
+    insert_service_data_retention(flexable_retention_service.id, sample_template.template_type, 3)
+    flexable_template = create_template(flexable_retention_service, template_type=sample_template.template_type)
+
     eight_days_ago = datetime.utcnow() - timedelta(days=8)
+    four_days_ago = datetime.utcnow() - timedelta(days=4)
 
+    create_job(flexable_template, created_at=four_days_ago)
+    create_job(flexable_template, created_at=four_days_ago)
     create_job(sample_template, created_at=eight_days_ago)
     create_job(sample_template, created_at=eight_days_ago)
-    create_job(sample_template, created_at=eight_days_ago)
 
-    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type], limit=2)
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type], limit=3)
 
-    assert len(jobs) == 2
+    assert len(jobs) == 3
 
 
 @freeze_time("2016-10-31 10:00:00")
