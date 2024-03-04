@@ -433,7 +433,7 @@ class Organisation(BaseModel):
     agreement_signed_at = db.Column(db.DateTime, nullable=True)
     agreement_signed_by_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("users.id", ondelete="SET NULL"),
+        db.ForeignKey("users.id"),
         nullable=True,
     )
     agreement_signed_by = db.relationship("User")
@@ -454,7 +454,9 @@ class Organisation(BaseModel):
         "Domain",
     )
 
-    email_branding = db.relationship("EmailBranding", back_populates="organisation", foreign_keys="EmailBranding.organisation_id")
+    email_branding = db.relationship(
+        "EmailBranding"
+    )  # , back_populates="organisation", foreign_keys="EmailBranding.organisation_id")
     email_branding_id = db.Column(
         UUID(as_uuid=True),
         nullable=True,
