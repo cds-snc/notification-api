@@ -165,7 +165,7 @@ def dao_get_jobs_older_than_data_retention(notification_types, limit=None):
             .order_by(desc(Job.created_at))
         )
         if limit:
-            query = query.limit(limit)
+            query = query.limit(limit - len(jobs))
         jobs.extend(query.all())
 
     return jobs
