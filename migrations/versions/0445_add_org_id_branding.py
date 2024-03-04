@@ -11,7 +11,6 @@ revision = "0445_add_org_id_branding"
 down_revision = "0444_add_index_n_history2"
 
 
-
 def upgrade():
     op.add_column(
         "email_branding",
@@ -56,7 +55,6 @@ def upgrade():
 
 
 def downgrade():
-
     op.drop_index(op.f("ix_email_branding_organisation_id"), table_name="email_branding")
     op.drop_constraint("fk_email_branding_organisation", "email_branding", type_="foreignkey")
     op.drop_column("email_branding", "organisation_id")
