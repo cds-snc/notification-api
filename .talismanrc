@@ -37,3 +37,5 @@ fileignoreconfig:
   checksum: c7d10bd01c45d4f2199a0a89d6d94fa1c222d5770187051320a0a0e2a5ca5d30
 - filename: tests/app/db.py
   checksum: df9a020fece4a10601c2e3200e663eed4bf327e2f0b16eac2d028aff56bca2ef
+- filename: .github/workflows/dev-tests.yml
+  checksum: 0700d2eba3138fc34ef5bf2787ce5403cbd06797200922d35ce1f3f6ff8aaf74
