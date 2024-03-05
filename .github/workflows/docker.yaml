@@ -27,13 +27,12 @@ jobs:
         sudo ./aws/install --update
         aws --version
 
-    - name: Configure AWS credentials
-      id: aws-creds
-      uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+    - name: Configure credentials to CDS public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@master
       with:
-        aws-access-key-id: ${{ secrets.STAGING_ECR_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
+        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "us-east-1"
 
     - name: Login to ECR
       id: login-ecr
@@ -50,7 +49,7 @@ jobs:
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
-
+        
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
