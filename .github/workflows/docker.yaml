@@ -27,12 +27,13 @@ jobs:
         sudo ./aws/install --update
         aws --version
 
-    - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@master
+    - name: Configure AWS credentials
+      id: aws-creds
+      uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
       with:
-        role-to-assume: arn:aws:iam::283582579564:role/ben-github-test
-        role-session-name: NotifyApiGitHubActions
-        aws-region: "us-east-1"
+        aws-access-key-id: ${{ secrets.STAGING_ECR_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
 
     - name: Login to ECR
       id: login-ecr
