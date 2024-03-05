@@ -30,7 +30,7 @@ jobs:
     - name: Configure credentials to CDS public ECR using OIDC
       uses: aws-actions/configure-aws-credentials@master
       with:
-        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+        role-to-assume: arn:aws:iam::283582579564:role/ben-github-test
         role-session-name: NotifyApiGitHubActions
         aws-region: "us-east-1"
 
@@ -53,13 +53,6 @@ jobs:
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
-
-    - name: Configure credentials to Notify account using OIDC
-      uses: aws-actions/configure-aws-credentials@master
-      with:
-        role-to-assume: arn:aws:iam::239043911459:role/notification-api-apply
-        role-session-name: NotifyApiGitHubActions
-        aws-region: "ca-central-1"
 
   rollout:
     runs-on: github-arc-ss-api-dev
