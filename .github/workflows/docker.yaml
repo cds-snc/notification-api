@@ -63,7 +63,7 @@ jobs:
   rollout:
     runs-on: github-arc-ss-api-dev
     name: rollout
-    needs: build
+    needs: deploy
     steps:
 
     - name: Configure AWS credentials
