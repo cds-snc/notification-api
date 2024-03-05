@@ -136,7 +136,7 @@ def get_jobs_by_service(service_id):
 @job_blueprint.route("", methods=["POST"])
 def create_job(service_id):
     service = dao_fetch_service_by_id(service_id)
-    current_app.logger.warning(" TEMP LOGGING: 1 done dao_fetch_service_by_id")
+    current_app.logger.warning(" TEMP LOGGING 1: done dao_fetch_service_by_id")
     if not service.active:
         raise InvalidRequest("Create job is not allowed: service is inactive ", 403)
 
@@ -147,7 +147,7 @@ def create_job(service_id):
         data.update(**get_job_metadata_from_s3(service_id, data["id"]))
     except KeyError:
         raise InvalidRequest({"id": ["Missing data for required field."]}, status_code=400)
-    current_app.logger.warning(" TEMP LOGGING: 2 done data.update")
+    current_app.logger.warning(" TEMP LOGGING 2: done data.update")
 
     if data.get("valid") != "True":
         raise InvalidRequest("File is not valid, can't create job", 400)
@@ -155,21 +155,21 @@ def create_job(service_id):
     data["template"] = data.pop("template_id")
 
     template = dao_get_template_by_id(data["template"])
-    current_app.logger.warning(" TEMP LOGGING: 3 done dao_get_template_by_id")
+    current_app.logger.warning(" TEMP LOGGING 3: done dao_get_template_by_id")
     template_errors = unarchived_template_schema.validate({"archived": template.archived})
 
     if template_errors:
         raise InvalidRequest(template_errors, status_code=400)
 
     job = get_job_from_s3(service_id, data["id"])
-    current_app.logger.warning(" TEMP LOGGING: 4 done get_job_from_s3")
+    current_app.logger.warning(" TEMP LOGGING 4: done get_job_from_s3")
     recipient_csv = RecipientCSV(
         job,
         template_type=template.template_type,
         placeholders=template._as_utils_template().placeholders,
         template=Template(template.__dict__),
     )
-    current_app.logger.warning(" TEMP LOGGING: 5 done RecipientCSV()")
+    current_app.logger.warning(" TEMP LOGGING 5: done RecipientCSV()")
 
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
@@ -194,7 +194,7 @@ def create_job(service_id):
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
             increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
-    current_app.logger.warning(" TEMP LOGGING: 6 done checking limits")
+    current_app.logger.warning(" TEMP LOGGING 6: done checking limits")
 
     data.update({"template_version": template.version})
 
@@ -204,7 +204,7 @@ def create_job(service_id):
         job.job_status = JOB_STATUS_SCHEDULED
 
     dao_create_job(job)
-    current_app.logger.warning(" TEMP LOGGING: 6 done dao_create_job")
+    current_app.logger.warning(" TEMP LOGGING 7: done dao_create_job")
 
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
