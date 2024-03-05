@@ -15,7 +15,7 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
@@ -60,7 +60,7 @@ jobs:
         role-session-name: NotifyApiGitHubActions
         aws-region: "ca-central-1"
 
-  deploy:
+  rollout:
     runs-on: github-arc-ss-api-dev
     name: rollout
     needs: build
@@ -112,7 +112,7 @@ jobs:
   finalize:
     runs-on: ubuntu-latest
     name: finalize
-    needs: [build, deploy]
+    needs: [deploy, rollout]
     steps:
     - name: my-app-install token
       id: notify-pr-bot
