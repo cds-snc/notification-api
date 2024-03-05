@@ -1,99 +1,51 @@
-name: Build, push to AWS ECR, and deploy
-on:
-  pull_request:
-    branches:
-      - main  
+name: Staging - Helmfile Diff
+
+on: 
+  - pull_request
 
 env:
-  AWS_REGION: ca-central-1
-  DOCKER_ORG: public.ecr.aws/v6b8u5o6
-  DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  HELMFILE_FILE_PATH: ${{ github.workspace }}/helmfile
   STAGING_AWS_ACCOUNT: ${{ secrets.STAGING_AWS_ACCOUNT }}
 
-permissions:
-  id-token: write   # This is required for requesting the OIDC JWT
-  contents: read    # This is required for actions/checkout
-
 jobs:
-
-  deploy:
-    runs-on: github-arc-ss-api-dev
-    name: Deploy To Kubernetes
+  helmfile-diff:
+    runs-on: github-arc-ss-manifests-dev
     steps:
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
-      id: awsconfig
-      with:
-        aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
-    - name: Checkout
-      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
-      with:
-        # Fetches entire history, so we can analyze commits since last tag
-        fetch-depth: 0
-    - name: Setup helmfile
-      uses: mamezou-tech/setup-helmfile@v2.0.0
-      with:
-        install-kubectl: yes
-        install-helm: yes
-    - name: Configure kubeconfig
-      run: |
-        aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster   
-        kubectl config rename-context arn:aws:eks:ca-central-1:$STAGING_AWS_ACCOUNT:cluster/notification-canada-ca-staging-eks-cluster staging
-
-    - name: Update images in staging
-      run: |
-        kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-primary celery-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-scalable celery-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms-send-primary celery-sms-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms-send-scalable celery-sms-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-email-send-primary celery-email-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-email-send-scalable celery-email-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-
-    - name: Restart deployments in staging
-      run: |
-        kubectl rollout restart deployment/api -n notification-canada-ca
-        kubectl rollout restart deployment/celery-beat -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms -n notification-canada-ca
-        kubectl rollout restart deployment/celery-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-scalable -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms-send-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
-        kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
-
-  finalize:
-    runs-on: ubuntu-latest
-    name: Finalize
-    needs: [deploy]
-    steps:
-    - name: my-app-install token
-      id: notify-pr-bot
-      uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # v1.0.6
-      with:
-        app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
-        private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
-
-    - uses: cds-snc/notification-pr-bot@main
-      env:
-        TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
-
-    - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
-      with:
-        docker_image: "${{ env.DOCKER_SLUG }}:latest"
-        dockerfile_path: "ci/Dockerfile"
-        sbom_name: "notification-api"
-        token: "${{ secrets.GITHUB_TOKEN }}"
-
-    - name: Notify Slack channel if this job failed
-      if: ${{ failure() }}
-      run: |
-        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
-        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+        id: awsconfig
+        with:
+          aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ca-central-1
+      - name: Checkout
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          # Fetches entire history, so we can analyze commits since last tag
+          fetch-depth: 0
+      - name: Setup helmfile
+        uses: mamezou-tech/setup-helmfile@v2.0.0
+        with:
+          install-kubectl: yes
+          install-helm: yes
+      - name: Configure kubeconfig
+        run: |
+          aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster   
+          kubectl config rename-context arn:aws:eks:ca-central-1:$STAGING_AWS_ACCOUNT:cluster/notification-canada-ca-staging-eks-cluster staging
+      - name: Load EnvVars
+        run: |
+            ./helmfile/getContext.sh true
+      - name: Helmfile Diff
+        id: helmfile_diff
+        run: |
+          echo 'var<<EOF' >> $GITHUB_OUTPUT
+          helmfile --environment staging diff >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+      - name: Helmfile Diff Comment
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: | 
+            ```shell 
+            ${{join(steps.helmfile_diff.outputs.*, '\n')}}
+            ```
