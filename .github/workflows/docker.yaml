@@ -67,7 +67,7 @@ jobs:
   finalize:
     runs-on: ubuntu-latest
     name: Finalize
-    needs: [build, deploy]
+    needs: [deploy]
     steps:
     - name: my-app-install token
       id: notify-pr-bot
