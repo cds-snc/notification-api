@@ -10,14 +10,14 @@ env:
 
 jobs:
   helmfile-diff:
-    runs-on: github-arc-ss-api-dev
+    runs-on: github-arc-ss-manifests-dev
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
         id: awsconfig
         with:
-          aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.STAGING_EKS_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.STAGING_EKS_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
       - name: Checkout
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
@@ -33,19 +33,3 @@ jobs:
         run: |
           aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster   
           kubectl config rename-context arn:aws:eks:ca-central-1:$STAGING_AWS_ACCOUNT:cluster/notification-canada-ca-staging-eks-cluster staging
-      - name: Load EnvVars
-        run: |
-            ./helmfile/getContext.sh true
-      - name: Helmfile Diff
-        id: helmfile_diff
-        run: |
-          echo 'var<<EOF' >> $GITHUB_OUTPUT
-          helmfile --environment staging diff >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
-      - name: Helmfile Diff Comment
-        uses: mshick/add-pr-comment@v2
-        with:
-          message: | 
-            ```shell 
-            ${{join(steps.helmfile_diff.outputs.*, '\n')}}
-            ```
