@@ -6,19 +6,6 @@ from app.dao.provider_details_dao import dao_update_provider_details
 from app.models import EMAIL_TYPE, SES_PROVIDER, ProviderDetails, ProviderDetailsHistory
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_job_schema_doesnt_return_notifications(sample_notification_with_job):
-    from app.schemas import job_schema
-
-    job = sample_notification_with_job.job
-    assert job.notifications.count() == 1
-
-    data, errors = job_schema.dump(job)
-
-    assert not errors
-    assert 'notifications' not in data
-
-
 def test_notification_schema_ignores_absent_api_key(sample_notification, sample_template):
     from app.schemas import notification_with_template_schema
 

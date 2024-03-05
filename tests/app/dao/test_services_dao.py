@@ -127,36 +127,6 @@ def test_create_service(
     # Teardown handled by sample_user
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_create_service_with_organisation(
-    notify_db_session,
-    sample_user,
-):
-    user = sample_user()
-
-    service_name = str(uuid.uuid4())
-    service = Service(
-        name=service_name,
-        email_from='email_from',
-        message_limit=1000,
-        restricted=False,
-        organisation_type='some-org-type',
-        created_by=user,
-    )
-    dao_create_service(service, user)
-
-    service_db = notify_db_session.session.scalar(select(Service).where(Service.name == service_name))
-    assert service_db.name == service_name
-    assert service_db.id == service.id
-    assert service_db.email_from == 'email_from'
-    assert service_db.research_mode is False
-    assert service_db.prefix_sms is False
-    assert service.active is True
-    assert user in service_db.users
-    assert service_db.organisation_type == 'other'
-    assert service_db.crown is None
-
-
 def test_cannot_create_two_services_with_same_name(
     notify_db_session,
     sample_user,
@@ -913,57 +883,6 @@ def test_update_service_creates_a_history_record_with_current_data(
     service_cleanup([service.id], notify_db_session.session)
 
 
-@pytest.mark.skip(reason='failing in pipeline only for some reason')
-def test_update_service_permission_creates_a_history_record_with_current_data(
-    notify_db_session,
-    sample_user,
-):
-    user = sample_user()
-    name = str(uuid.uuid4())
-    service = Service(
-        name=name,
-        email_from='email_from_create_hist_current_data',
-        message_limit=1000,
-        restricted=False,
-        created_by=user,
-    )
-    dao_create_service(
-        service,
-        user,
-        service_permissions=[
-            SMS_TYPE,
-            EMAIL_TYPE,
-            INTERNATIONAL_SMS_TYPE,
-        ],
-    )
-
-    service.permissions.append(ServicePermission(service_id=service.id, permission=LETTER_TYPE))
-    dao_update_service(service)
-
-    service_from_db = notify_db_session.session.get(Service, service.id)
-    ServiceHistory = Service.get_history_model()
-    assert notify_db_session.session.scalars(select(ServiceHistory).where(ServiceHistory.id == service.id)).one()
-    assert service_from_db.version == 2
-
-    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
-
-    permission = [p for p in service.permissions if p.permission == SMS_TYPE][0]
-    service.permissions.remove(permission)
-    dao_update_service(service)
-
-    assert notify_db_session.session.get(Service, service.id)
-    assert notify_db_session.session.scalars(select(ServiceHistory).where(ServiceHistory.id == service.id)).all() == 3
-
-    service_from_db = notify_db_session.session.get(Service, service.id)
-    assert service_from_db.version == 3
-    _assert_service_permissions(service.permissions, (EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
-
-    stmt = select(ServiceHistory).where(ServiceHistory.name == name)
-    service_histories = notify_db_session.session.scalars(stmt).all()
-    assert len(service_histories) == 3
-    assert service_histories[2].version == 3
-
-
 @pytest.mark.serial  # Need to run in serial to ensure nothing weird gets added
 def test_create_service_and_history_is_transactional(
     notify_db_session,
@@ -1018,6 +937,57 @@ def test_delete_service_and_associated_objects(
 
     # Teardown
     service_cleanup([service_id], notify_db_session.session)
+
+
+@pytest.mark.skip(reason='failing in pipeline only for some reason')
+def test_update_service_permission_creates_a_history_record_with_current_data(
+    notify_db_session,
+    sample_user,
+):
+    user = sample_user()
+    name = str(uuid.uuid4())
+    service = Service(
+        name=name,
+        email_from='email_from_create_hist_current_data',
+        message_limit=1000,
+        restricted=False,
+        created_by=user,
+    )
+    dao_create_service(
+        service,
+        user,
+        service_permissions=[
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ],
+    )
+
+    service.permissions.append(ServicePermission(service_id=service.id, permission=LETTER_TYPE))
+    dao_update_service(service)
+
+    service_from_db = notify_db_session.session.get(Service, service.id)
+    ServiceHistory = Service.get_history_model()
+    assert notify_db_session.session.scalars(select(ServiceHistory).where(ServiceHistory.id == service.id)).one()
+    assert service_from_db.version == 2
+
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
+
+    permission = [p for p in service.permissions if p.permission == SMS_TYPE][0]
+    service.permissions.remove(permission)
+    dao_update_service(service)
+
+    assert notify_db_session.session.get(Service, service.id)
+    assert notify_db_session.session.scalars(select(ServiceHistory).where(ServiceHistory.id == service.id)).all() == 3
+
+    service_from_db = notify_db_session.session.get(Service, service.id)
+    assert service_from_db.version == 3
+    _assert_service_permissions(service.permissions, (EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
+
+    stmt = select(ServiceHistory).where(ServiceHistory.name == name)
+    service_histories = notify_db_session.session.scalars(stmt).all()
+    assert len(service_histories) == 3
+    assert service_histories[2].version == 3
 
 
 def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
@@ -1277,243 +1247,11 @@ def test_dao_fetch_todays_total_message_count_returns_count_for_today(
     assert fetch_todays_total_message_count(service.id) == sms_qty * 2 + email_qty * 2 + 2  # 38 notifications
 
 
-@pytest.mark.skip('The query is malformed and the functionality is unused')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(
     sample_service,
 ):
     assert fetch_todays_total_message_count(sample_service().id) == 0
-
-
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_no_notifications(
-    sample_service,
-):
-    sample_service()
-    sample_service()
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    assert len(stats) == 2
-
-    # The last 3 fields are notification type, status, and count. Should all be None
-    for stat in stats:
-        assert stat[-1] is None
-        assert stat[-2] is None
-        assert stat[-3] is None
-
-
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_includes_all_services(
-    sample_api_key,
-    sample_notification,
-    sample_template,
-):
-    """
-    This query is fairly complicated. Created a series of tests that build on each other to fully test the functionality
-    of the query. For each service, count notification type X with status Y. One row for each variation. Building on
-    previous tests will help someone understand the flow in the future.
-
-    """
-
-    # Preparing keys, templates, variables
-    previous_count = 0
-
-    api_key_1 = sample_api_key()
-    api_key_2 = sample_api_key()
-
-    template_email_one = sample_template(service=api_key_1.service, template_type=EMAIL_TYPE)
-    template_sms_one = sample_template(service=api_key_1.service, template_type=SMS_TYPE)
-    template_email_two = sample_template(service=api_key_2.service, template_type=EMAIL_TYPE)
-    template_sms_two = sample_template(service=api_key_2.service, template_type=SMS_TYPE)
-
-    # Simple case, status is 'created' for one notification type, for each service
-    sample_notification(template=template_email_one, api_key=api_key_1)
-    sample_notification(template=template_sms_two, api_key=api_key_2)
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    stats_length = len(stats)
-    assert stats_length == previous_count + 2
-    previous_count = stats_length
-
-    # Status is 'created' for both notification types, one service. sms notification type is new, so only 1 new row
-    sample_notification(template=template_sms_one, api_key=api_key_1)
-    sample_notification(template=template_sms_one, api_key=api_key_1)
-    sample_notification(template=template_email_one, api_key=api_key_1)
-    sample_notification(template=template_email_one, api_key=api_key_1)
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    stats_length = len(stats)
-    assert stats_length == previous_count + 1
-    previous_count = stats_length
-
-    # Service 1 - Two new email statuses and two new sms statsus. That's 4 new rows
-    sample_notification(template=template_email_one, api_key=api_key_1, status='permanent-failure')
-    sample_notification(template=template_email_one, api_key=api_key_1, status='temporary-failure')
-    sample_notification(template=template_sms_one, api_key=api_key_1, status='sent')
-    sample_notification(template=template_sms_one, api_key=api_key_1, status='temporary-failure')
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    stats_length = len(stats)
-    assert stats_length == previous_count + 4
-    previous_count = stats_length
-
-    # Service 2 - 2 created & pending for email. 2 sending and delivered for sms. 4 new rows
-    sample_notification(template=template_email_two, api_key=api_key_2, status='created')
-    sample_notification(template=template_email_two, api_key=api_key_2, status='created')
-    sample_notification(template=template_email_two, api_key=api_key_2, status='pending')
-    sample_notification(template=template_email_two, api_key=api_key_2, status='pending')
-    sample_notification(template=template_sms_two, api_key=api_key_2, status='sending')
-    sample_notification(template=template_sms_two, api_key=api_key_2, status='sending')
-    sample_notification(template=template_sms_two, api_key=api_key_2, status='delivered')
-    sample_notification(template=template_sms_two, api_key=api_key_2, status='delivered')
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    stats_length = len(stats)
-    assert stats_length == previous_count + 4
-    previous_count = stats_length
-
-    # Now validate all the various status counts populated correctly
-    s1 = str(api_key_1.service_id)
-    s2 = str(api_key_2.service_id)
-
-    status_count_mapping = service_status_mappings(stats)
-
-    assert status_count_mapping[s1]['created'] == 5
-    assert status_count_mapping[s1]['permanent-failure'] == 1
-    assert status_count_mapping[s1]['sent'] == 1
-    assert status_count_mapping[s1]['temporary-failure'] == 2
-
-    assert status_count_mapping[s2]['created'] == 3
-    assert status_count_mapping[s2]['delivered'] == 2
-    assert status_count_mapping[s2]['pending'] == 2
-    assert status_count_mapping[s2]['sending'] == 2
-
-    # services are ordered by service id; not explicit on email/sms or status
-    assert stats == sorted(stats, key=lambda x: x.service_id)
-
-
-# This test assumes the local timezone is EST
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_only_includes_today(
-    sample_api_key,
-    sample_notification,
-    sample_template,
-):
-    api_key = sample_api_key()
-    service = api_key.service
-
-    # Templates
-    sms_template = sample_template(service=service)
-    email_template = sample_template(service=service, template_type=EMAIL_TYPE)
-
-    with freeze_time('2001-01-02T03:59:00'):
-        # just_before_midnight_yesterday add a bunch of notifications
-        for _ in range(10):
-            sample_notification(created_at='2001-01-02 03:59:00')
-
-    with freeze_time('2001-01-02T05:01:00'):
-        # just_after_midnight_today
-        sample_notification(template=sms_template, api_key=api_key, status='delivered')
-        sample_notification(template=sms_template, api_key=api_key, status='failed')
-        sample_notification(template=email_template, api_key=api_key, status='delivered')
-        sample_notification(template=email_template, api_key=api_key, status='failed')
-
-    with freeze_time('2001-01-02T05:00:00'):
-        stats = dao_fetch_todays_stats_for_all_services()
-
-    assert len(stats) == 4
-
-
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_groups_correctly(
-    notify_db_session,
-):
-    service1 = create_service(service_name=str(uuid.uuid4()), email_from='service.1')
-    service2 = create_service(service_name=str(uuid.uuid4()), email_from='service.2')
-    template_sms = create_template(service=service1)
-    template_email = create_template(service=service1, template_type=EMAIL_TYPE)
-    template_two = create_template(service=service2)
-    # service1: 2 sms with status "created" and one "failed", and one email
-    create_notification(template=template_sms)
-    create_notification(template=template_sms)
-    create_notification(template=template_sms, status='failed')
-    create_notification(template=template_email)
-    # service2: 1 sms "created"
-    create_notification(template=template_two)
-
-    stats = dao_fetch_todays_stats_for_all_services()
-    assert len(stats) == 4
-    assert (
-        service1.id,
-        service1.name,
-        service1.restricted,
-        service1.research_mode,
-        service1.active,
-        service1.created_at,
-        SMS_TYPE,
-        'created',
-        2,
-    ) in stats
-    assert (
-        service1.id,
-        service1.name,
-        service1.restricted,
-        service1.research_mode,
-        service1.active,
-        service1.created_at,
-        SMS_TYPE,
-        'failed',
-        1,
-    ) in stats
-    assert (
-        service1.id,
-        service1.name,
-        service1.restricted,
-        service1.research_mode,
-        service1.active,
-        service1.created_at,
-        EMAIL_TYPE,
-        'created',
-        1,
-    ) in stats
-    assert (
-        service2.id,
-        service2.name,
-        service2.restricted,
-        service2.research_mode,
-        service2.active,
-        service2.created_at,
-        SMS_TYPE,
-        'created',
-        1,
-    ) in stats
-
-
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_includes_all_keys_by_default(
-    sample_notification,
-):
-    template = create_template(service=create_service())
-    sample_notification(template=template, key_type=KEY_TYPE_NORMAL)
-    sample_notification(template=template, key_type=KEY_TYPE_TEAM)
-    sample_notification(template=template, key_type=KEY_TYPE_TEST)
-
-    stats = dao_fetch_todays_stats_for_all_services()
-
-    assert len(stats) == 1
-    assert stats[0].count == 3
-
-
-@pytest.mark.skip('The query is malformed and the functionality is unused')
-def test_dao_fetch_todays_stats_for_all_services_can_exclude_from_test_key(notify_db_session):
-    template = create_template(service=create_service())
-    create_notification(template=template, key_type=KEY_TYPE_NORMAL)
-    create_notification(template=template, key_type=KEY_TYPE_TEAM)
-    create_notification(template=template, key_type=KEY_TYPE_TEST)
-
-    stats = dao_fetch_todays_stats_for_all_services(include_from_test_key=False)
-
-    assert len(stats) == 1
-    assert stats[0].count == 2
 
 
 @freeze_time('2001-01-01T23:59:00')

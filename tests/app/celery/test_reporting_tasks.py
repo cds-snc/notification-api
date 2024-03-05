@@ -470,7 +470,7 @@ def test_create_nightly_billing_for_day_use_BST(
 
 
 @freeze_time('2018-01-15T03:30:00')
-@pytest.mark.skip(reason='Not in use')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
 def test_create_nightly_billing_for_day_update_when_record_exists(
     notify_db_session,
     mocker,

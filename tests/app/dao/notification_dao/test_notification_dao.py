@@ -967,23 +967,6 @@ def test_should_return_notifications_excluding_jobs_by_default(
     assert exclude_jobs_manually[0].id == without_job.id
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_should_return_notifications_including_one_offs_by_default(sample_template, sample_notification):
-    template = sample_template()
-    sample_notification(template=template, one_off=True, created_by_id=template.created_by.id)
-    not_one_off = sample_notification(template=template, one_off=False)
-
-    exclude_one_offs = get_notifications_for_service(template.service_id, include_one_off=False).items
-    assert len(exclude_one_offs) == 1
-    assert exclude_one_offs[0].id == not_one_off.id
-
-    include_one_offs_manually = get_notifications_for_service(template.service_id, include_one_off=True).items
-    assert len(include_one_offs_manually) == 2
-
-    include_one_offs_by_default = get_notifications_for_service(template.service_id).items
-    assert len(include_one_offs_by_default) == 2
-
-
 def test_should_not_count_pages_when_given_a_flag(sample_template, sample_notification):
     template = sample_template()
     sample_notification(template=template)

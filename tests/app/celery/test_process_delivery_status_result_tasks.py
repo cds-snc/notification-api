@@ -212,7 +212,7 @@ def test_none_notification_platform_status_triggers_retry(mocker, sample_deliver
 
 
 @pytest.mark.parametrize('event_duration_in_seconds', [-1, 0, 299, 300])
-def test_attempt_to_get_notification_NoResultFound(event_duration_in_seconds):
+def test_attempt_to_get_notification_NoResultFound(notify_api, event_duration_in_seconds):
     """
     The Celery Task should retry whenever attempt_to_get_notification could not find a matching notification
     and less than 300 seconds (5 minutes) has elapsed since sending the notification.  (This is a race

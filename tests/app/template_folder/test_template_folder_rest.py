@@ -1,12 +1,9 @@
 import uuid
 
 import pytest
-from sqlalchemy import func, select
 
 from app.dao.service_user_dao import dao_get_service_user
-from app.models import TemplateFolder
 from tests.app.conftest import template_folder_cleanup
-from tests.app.db import create_template_folder
 
 
 def test_get_folders_for_service(admin_request, sample_service, sample_template_folder):
@@ -46,30 +43,6 @@ def test_get_folders_for_service(admin_request, sample_service, sample_template_
 def test_get_folders_for_service_with_no_folders(sample_service, admin_request):
     resp = admin_request.get('template_folder.get_template_folders_for_service', service_id=sample_service().id)
     assert resp == {'template_folders': []}
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_folders_returns_users_with_permission(admin_request, sample_service, sample_user):
-    service = sample_service()
-    user_1 = sample_user(email=f'{uuid.uuid4()}@va.gov')
-    user_2 = sample_user(email=f'{uuid.uuid4()}@va.gov')
-    user_3 = sample_user(email=f'{uuid.uuid4()}@va.gov')
-    template_folder = create_template_folder(service)
-
-    service.users = [user_1, user_2, user_3]
-
-    service_user_1 = dao_get_service_user(user_1.id, service.id)
-    service_user_2 = dao_get_service_user(user_2.id, service.id)
-
-    service_user_1.folders = [template_folder]
-    service_user_2.folders = [template_folder]
-
-    resp = admin_request.get('template_folder.get_template_folders_for_service', service_id=service.id)
-    users_with_permission = resp['template_folders'][0]['users_with_permission']
-
-    assert len(users_with_permission) == 2
-    assert str(user_1.id) in users_with_permission
-    assert str(user_2.id) in users_with_permission
 
 
 @pytest.mark.parametrize('has_parent', [True, False])
@@ -247,61 +220,6 @@ def test_update_template_folder_fails_if_missing_name(admin_request, sample_temp
     assert resp == {'status_code': 400, 'errors': [{'error': 'ValidationError', 'message': err}]}
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_template_folder(notify_db_session, admin_request, sample_service):
-    service = sample_service()
-    existing_folder = create_template_folder(service)
-
-    admin_request.delete(
-        'template_folder.delete_template_folder',
-        service_id=service.id,
-        template_folder_id=existing_folder.id,
-    )
-
-    stmt = select(TemplateFolder)
-    assert notify_db_session.session.scalars(stmt).all() == []
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_template_folder_fails_if_folder_has_subfolders(notify_db_session, admin_request, sample_service):
-    service = sample_service()
-    existing_folder = create_template_folder(service)
-    create_template_folder(service, parent=existing_folder)  # noqa
-
-    resp = admin_request.delete(
-        'template_folder.delete_template_folder',
-        service_id=service.id,
-        template_folder_id=existing_folder.id,
-        _expected_status=400,
-    )
-
-    assert resp == {'result': 'error', 'message': 'Folder is not empty'}
-
-    stmt = select(func.count()).select_from(TemplateFolder)
-    assert notify_db_session.session.scalar(stmt) == 2
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_template_folder_fails_if_folder_contains_templates(
-    admin_request, sample_service, sample_email_template_func
-):
-    service = sample_service()
-    existing_folder = create_template_folder(service)
-    sample_email_template_func.folder = existing_folder
-
-    resp = admin_request.delete(
-        'template_folder.delete_template_folder',
-        service_id=service.id,
-        template_folder_id=existing_folder.id,
-        _expected_status=400,
-    )
-
-    assert resp == {'result': 'error', 'message': 'Folder is not empty'}
-
-    stmt = select(func.count()).select_from(TemplateFolder)
-    assert notify_db_session.session.scalar(stmt) == 1
-
-
 @pytest.mark.parametrize(
     'data',
     [
@@ -447,27 +365,3 @@ def test_move_to_folder_itself_is_rejected(admin_request, sample_service, sample
         _expected_status=400,
     )
     assert response['message'] == 'You cannot move a folder to itself'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_move_to_folder_skips_archived_templates(admin_request, sample_service, sample_template):
-    service = sample_service()
-    target_folder = create_template_folder(service)
-    other_folder = create_template_folder(service)
-
-    archived_template = sample_template(service=service, archived=True, folder=None)
-    unarchived_template = sample_template(service=service, archived=False, folder=other_folder)
-
-    archived_timestamp = archived_template.updated_at
-
-    admin_request.post(
-        'template_folder.move_to_template_folder',
-        service_id=service.id,
-        target_template_folder_id=target_folder.id,
-        _data={'templates': [str(archived_template.id), str(unarchived_template.id)], 'folders': []},
-        _expected_status=204,
-    )
-
-    assert archived_template.updated_at == archived_timestamp
-    assert archived_template.folder is None
-    assert unarchived_template.folder == target_folder

@@ -360,60 +360,6 @@ def test_check_precompiled_letter_state(mocker, sample_template, sample_notifica
     )
 
 
-@freeze_time('2019-05-30 14:00:00')
-@pytest.mark.skip(reason='Letter feature')
-def test_check_templated_letter_state_during_bst(mocker, sample_template, sample_notification):
-    mock_logger = mocker.patch(LOGGER_EXCEPTION_MOCK_PATH)
-    mock_create_ticket = mocker.patch(ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH)
-    template = sample_template(template_type=LETTER_TYPE)
-
-    noti_1 = sample_notification(template=template, updated_at=datetime(2019, 5, 1, 12, 0))
-    noti_2 = sample_notification(template=template, updated_at=datetime(2019, 5, 29, 16, 29))
-    sample_notification(template=template, updated_at=datetime(2019, 5, 29, 16, 30))
-    sample_notification(template=template, updated_at=datetime(2019, 5, 29, 17, 29))
-    sample_notification(template=template, status='delivered', updated_at=datetime(2019, 5, 28, 10, 0))
-    sample_notification(template=template, updated_at=datetime(2019, 5, 30, 10, 0))
-
-    check_templated_letter_state()
-
-    message = (
-        "2 letters were created before 17.30 yesterday and still have 'created' status. "
-        "Notifications: ['{}', '{}']".format(noti_1.id, noti_2.id)
-    )
-
-    mock_logger.assert_called_once_with(message)
-    mock_create_ticket.assert_called_with(
-        message=message, subject="[test] Letters still in 'created' status", ticket_type='incident'
-    )
-
-
-@freeze_time('2019-01-30 14:00:00')
-@pytest.mark.skip(reason='Letter feature')
-def test_check_templated_letter_state_during_utc(mocker, sample_template, sample_notification):
-    mock_logger = mocker.patch(LOGGER_EXCEPTION_MOCK_PATH)
-    mock_create_ticket = mocker.patch(ZENDEKS_CLIENT_CRREATE_TICKET_MOCK_PATH)
-    template = sample_template(template_type=LETTER_TYPE)
-
-    noti_1 = sample_notification(template=template, updated_at=datetime(2018, 12, 1, 12, 0))
-    noti_2 = sample_notification(template=template, updated_at=datetime(2019, 1, 29, 17, 29))
-    sample_notification(template=template, updated_at=datetime(2019, 1, 29, 17, 30))
-    sample_notification(template=template, updated_at=datetime(2019, 1, 29, 18, 29))
-    sample_notification(template=template, status='delivered', updated_at=datetime(2019, 1, 29, 10, 0))
-    sample_notification(template=template, updated_at=datetime(2019, 1, 30, 10, 0))
-
-    check_templated_letter_state()
-
-    message = (
-        "2 letters were created before 17.30 yesterday and still have 'created' status. "
-        "Notifications: ['{}', '{}']".format(noti_1.id, noti_2.id)
-    )
-
-    mock_logger.assert_called_once_with(message)
-    mock_create_ticket.assert_called_with(
-        message=message, subject="[test] Letters still in 'created' status", ticket_type='incident'
-    )
-
-
 # Setup a pytest fixture to mock the DynamoDB table
 @pytest.fixture
 def dynamodb_mock():

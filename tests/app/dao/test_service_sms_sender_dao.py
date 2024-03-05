@@ -26,7 +26,6 @@ from app.service.exceptions import (
     SmsSenderRateLimitIntegrityException,
 )
 from tests.app.db import create_service_sms_sender
-from tests.conftest import notify_db_session
 
 
 def test_dao_get_service_sms_sender_by_id(sample_service):

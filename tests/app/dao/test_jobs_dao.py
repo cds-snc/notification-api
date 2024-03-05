@@ -423,24 +423,6 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     assert errors == 'It’s too late to cancel sending, these letters have already been sent.'
 
 
-@pytest.mark.skip(reason='Letter feature')
-def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_letters_already_sent_to_dvla(
-    sample_letter_template,
-    sample_notification,
-    sample_job,
-):
-    with freeze_time('2019-06-13 13:00'):
-        job = sample_job(sample_letter_template, notification_count=1, job_status='finished')
-        letter = sample_notification(template=job.template, job=job, status='created')
-
-    with freeze_time('2019-06-13 17:32'):
-        result, errors = can_letter_job_be_cancelled(job)
-    assert not result
-    assert errors == 'It’s too late to cancel sending, these letters have already been sent.'
-    assert letter.status == 'created'
-    assert job.job_status == 'finished'
-
-
 @freeze_time('2019-06-13 13:00')
 def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_not_a_letter_job(
     sample_template,

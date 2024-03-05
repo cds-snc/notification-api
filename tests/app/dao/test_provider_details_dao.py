@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from freezegun import freeze_time
-from sqlalchemy import asc, delete, desc, select
+from sqlalchemy import delete, desc, select
 
 from app import clients
 from app.dao.provider_details_dao import (

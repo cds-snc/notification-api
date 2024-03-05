@@ -22,14 +22,11 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
-    PRECOMPILED_TEMPLATE_NAME,
     COMPLAINT_CALLBACK_TYPE,
     QUEUE_CHANNEL_TYPE,
     WEBHOOK_CHANNEL_TYPE,
 )
 from app.va.identifier import IdentifierType
-
-from tests.app.db import create_letter_contact, create_template_folder
 
 
 @pytest.mark.parametrize('mobile_number', ['650 253 2222', '+1 650 253 2222'])
@@ -91,75 +88,6 @@ def test_status_conversion(initial_statuses, expected_statuses):
     assert set(converted_statuses) == set(expected_statuses)
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@freeze_time('2016-01-01 11:09:00.000000')
-@pytest.mark.parametrize(
-    'template_type, recipient',
-    [
-        ('sms', '+16502532222'),
-        ('email', 'foo@bar.com'),
-    ],
-)
-def test_notification_for_csv_returns_correct_type(
-    notify_db_session,
-    sample_template,
-    sample_notification,
-    template_type,
-    recipient,
-):
-    template = sample_template(template_type=template_type)
-    notification = sample_notification(template, to_field=recipient)
-
-    serialized = notification.serialize_for_csv()
-    assert serialized['template_type'] == template_type
-
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@freeze_time('2016-01-01 11:09:00.000000')
-def test_notification_for_csv_returns_correct_job_row_number(sample_job, sample_notification):
-    notification = sample_notification(sample_job.template, sample_job, job_row_number=0)
-
-    serialized = notification.serialize_for_csv()
-    assert serialized['row_number'] == 1
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@freeze_time('2016-01-30 12:39:58.321312')
-@pytest.mark.parametrize(
-    'template_type, status, expected_status',
-    [
-        ('email', 'failed', 'Failed'),
-        ('email', 'technical-failure', 'Technical failure'),
-        ('email', 'temporary-failure', 'Inbox not accepting messages right now'),
-        ('email', 'permanent-failure', 'Email address doesn’t exist'),
-        ('sms', 'temporary-failure', 'Phone not accepting messages right now'),
-        ('sms', 'permanent-failure', 'Phone number doesn’t exist'),
-        ('sms', 'sent', 'Sent internationally'),
-        ('letter', 'created', 'Accepted'),
-        ('letter', 'sending', 'Accepted'),
-        ('letter', 'technical-failure', 'Technical failure'),
-        ('letter', 'delivered', 'Received'),
-    ],
-)
-def test_notification_for_csv_returns_formatted_status(
-    sample_service,
-    sample_template,
-    template_type,
-    status,
-    expected_status,
-    sample_notification,
-):
-    template = sample_template(sample_service(), template_type=template_type)
-    notification = sample_notification(template, status=status)
-
-    serialized = notification.serialize_for_csv()
-    assert serialized['status'] == expected_status
-
-
 @freeze_time('2017-03-26 23:01:53.321312')
 def test_notification_for_csv_returns_est_correctly(notify_db_session, sample_template, sample_notification):
     notification = sample_notification(template=sample_template())
@@ -206,24 +134,6 @@ def test_notification_subject_fills_in_placeholders(notify_db_session, sample_te
     notify_db_session.session.commit()
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_letter_notification_serializes_with_address(client, sample_letter_notification):
-    sample_letter_notification.personalisation = {
-        'address_line_1': 'foo',
-        'address_line_3': 'bar',
-        'address_line_5': None,
-        'postcode': 'SW1 1AA',
-    }
-    res = sample_letter_notification.serialize()
-    assert res['line_1'] == 'foo'
-    assert res['line_2'] is None
-    assert res['line_3'] == 'bar'
-    assert res['line_4'] is None
-    assert res['line_5'] is None
-    assert res['line_6'] is None
-    assert res['postcode'] == 'SW1 1AA'
-
-
 def test_notification_serializes_created_by_name_with_no_created_by_id(client, sample_notification):
     res = sample_notification(created_by_id=None).serialize()
     assert res['created_by_name'] is None
@@ -245,12 +155,6 @@ def test_sms_notification_serializes_without_subject(client, sample_template):
 def test_email_notification_serializes_with_subject(client, sample_template):
     res = sample_template(template_type=EMAIL_TYPE).serialize()
     assert res['subject'] == 'Subject'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_letter_notification_serializes_with_subject(client, sample_letter_template):
-    res = sample_letter_template.serialize()
-    assert res['subject'] == 'Template subject'
 
 
 def test_user_service_role_serializes_without_updated(client, sample_user_service_role):
@@ -342,82 +246,9 @@ def test_service_get_default_reply_to_email_address(sample_service, sample_servi
     assert service.get_default_reply_to_email_address() == email
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_service_get_default_contact_letter(sample_service):
-    create_letter_contact(service=sample_service, contact_block='London,\nNW1A 1AA')
-
-    assert sample_service.get_default_letter_contact() == 'London,\nNW1A 1AA'
-
-
 def test_service_get_default_sms_sender(sample_service):
     service = sample_service()
     assert service.get_default_sms_sender() == 'testing'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_letter_notification_serializes_correctly(client, sample_letter_notification):
-    sample_letter_notification.personalisation = {
-        'addressline1': 'test',
-        'addressline2': 'London',
-        'postcode': 'N1',
-    }
-
-    json = sample_letter_notification.serialize()
-    assert json['line_1'] == 'test'
-    assert json['line_2'] == 'London'
-    assert json['postcode'] == 'N1'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_letter_notification_postcode_can_be_null_for_precompiled_letters(client, sample_letter_notification):
-    sample_letter_notification.personalisation = {
-        'address_line_1': 'test',
-        'address_line_2': 'London',
-    }
-
-    json = sample_letter_notification.serialize()
-    assert json['line_1'] == 'test'
-    assert json['line_2'] == 'London'
-    assert json['postcode'] is None
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_is_precompiled_letter_false(sample_letter_template):
-    assert not sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_is_precompiled_letter_true(sample_letter_template):
-    sample_letter_template.hidden = True
-    sample_letter_template.name = PRECOMPILED_TEMPLATE_NAME
-    assert sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_is_precompiled_letter_hidden_true_not_name(sample_letter_template):
-    sample_letter_template.hidden = True
-    assert not sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
-    sample_letter_template.name = PRECOMPILED_TEMPLATE_NAME
-    assert not sample_letter_template.is_precompiled_letter
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_template_folder_is_parent(sample_service):
-    x = None
-    folders = []
-    for i in range(5):
-        x = create_template_folder(sample_service, name=str(i), parent=x)
-        folders.append(x)
-
-    assert folders[0].is_parent_of(folders[1])
-    assert folders[0].is_parent_of(folders[2])
-    assert folders[0].is_parent_of(folders[4])
-    assert folders[1].is_parent_of(folders[2])
-    assert not folders[1].is_parent_of(folders[0])
 
 
 def test_fido2_key_serialization(sample_fido2_key):

@@ -10,7 +10,6 @@ from app.exceptions import NotificationTechnicalFailureException, InvalidProvide
 from app.models import (
     EMAIL_TYPE,
     Notification,
-    NOTIFICATION_CREATED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TECHNICAL_FAILURE,
     SMS_TYPE,

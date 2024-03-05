@@ -1,9 +1,8 @@
-import datetime
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
@@ -18,7 +17,7 @@ from app.dao.organisation_dao import (
     dao_update_organisation,
 )
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
-from app.models import Organisation, OrganisationTypes, Service
+from app.models import OrganisationTypes, Service
 
 
 def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(sample_organisation):
@@ -42,67 +41,6 @@ def test_get_organisation_by_id_gets_correct_organisation(sample_organisation):
     organisation = sample_organisation()
     organisation_from_db = dao_get_organisation_by_id(organisation.id)
     assert organisation_from_db == organisation
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_organisation(notify_db_session, sample_user, sample_organisation, sample_email_branding):
-    organisation = sample_organisation()
-    organisation_id = organisation.id
-    email_branding = sample_email_branding()
-    user = sample_user()
-
-    data = {
-        'name': 'new name',
-        'crown': True,
-        'organisation_type': 'other',
-        'agreement_signed': True,
-        'agreement_signed_at': datetime.datetime.utcnow(),
-        'agreement_signed_by_id': user.id,
-        'agreement_signed_version': 999.99,
-        'email_branding_id': email_branding.id,
-    }
-
-    for attribute, value in data.items():
-        assert getattr(organisation, attribute) != value
-
-    assert organisation.updated_at is None
-
-    dao_update_organisation(organisation_id, **data)
-
-    organisation_from_db = notify_db_session.session.get(Organisation, organisation_id)
-    assert organisation_from_db is not None
-
-    for attribute, value in data.items():
-        assert getattr(organisation_from_db, attribute) == value
-
-    assert organisation_from_db.updated_at
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@pytest.mark.parametrize(
-    'domain_list, expected_domains',
-    (
-        (['abc', 'def'], {'abc', 'def'}),
-        (['ABC', 'DEF'], {'abc', 'def'}),
-        ([], set()),
-        (None, {'123', '456'}),
-        pytest.param(['abc', 'ABC'], {'abc'}, marks=pytest.mark.xfail(raises=IntegrityError)),
-    ),
-)
-def test_update_organisation_domains_lowercases(
-    domain_list,
-    expected_domains,
-    sample_organisation,
-):
-    organisation = sample_organisation()
-
-    # Seed some domains
-    dao_update_organisation(organisation.id, domains=['123', '456'])
-
-    # This should overwrite the seeded domains
-    dao_update_organisation(organisation.id, domains=domain_list)
-
-    assert {domain.domain for domain in organisation.domains} == expected_domains
 
 
 def test_update_organisation_does_not_update_the_service_org_type_if_org_type_is_not_provided(
@@ -176,26 +114,6 @@ def setup_service(
             dao_add_user_to_service(service, user)
 
     return service
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_organisation_updates_the_service_org_type_if_org_type_is_provided(
-    setup_service, sample_organisation, setup_org_type, notify_db_session
-):
-    setup_service.organisation_type = setup_org_type.name
-    sample_organisation.organisation_type = setup_org_type.name
-
-    sample_organisation.services.append(setup_service)
-    notify_db_session.session.commit()
-
-    dao_update_organisation(sample_organisation.id, organisation_type='other')
-
-    assert sample_organisation.organisation_type == 'other'
-    assert setup_service.organisation_type == 'other'
-
-    history_model = Service.get_history_model()
-    stmt = select(history_model).where(history_model.id == setup_service.id, history_model.version == 2)
-    assert notify_db_session.session.scalars(stmt).one().organisation_type == 'other'
 
 
 def test_add_service_to_organisation(notify_db_session, sample_service, sample_organisation):
@@ -321,36 +239,6 @@ def test_add_user_to_organisation_when_user_does_not_exist(sample_organisation):
 def test_add_user_to_organisation_when_organisation_does_not_exist(sample_user):
     with pytest.raises(expected_exception=SQLAlchemyError):
         dao_add_user_to_organisation(organisation_id=uuid4(), user_id=sample_user().id)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@pytest.mark.parametrize(
-    'domain, expected_org',
-    (
-        ('unknown.gov.uk', False),
-        ('example.gov.uk', True),
-    ),
-)
-def test_get_organisation_by_email_address(
-    domain,
-    expected_org,
-    sample_domain,
-    sample_organisation,
-):
-    org = sample_organisation()
-    sample_domain('example.gov.uk', org.id)
-    sample_domain('test.gov.uk', org.id)
-
-    another_org = sample_organisation(name='Another')
-    sample_domain('cabinet-office.gov.uk', another_org.id)
-    sample_domain('cabinetoffice.gov.uk', another_org.id)
-
-    found_org = dao_get_organisation_by_email_address('test@{}'.format(domain))
-
-    if expected_org:
-        assert found_org is org
-    else:
-        assert found_org is None
 
 
 def test_get_organisation_by_email_address_ignores_gsi_gov_uk(

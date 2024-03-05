@@ -1,22 +1,15 @@
 import json
 import pytest
 import uuid
-from app.dao.organisation_dao import dao_add_service_to_organisation
-from app.dao.service_user_dao import dao_get_service_user
 from app.dao.services_dao import (
-    dao_add_user_to_service,
     dao_remove_user_from_service,
     DEFAULT_SERVICE_PERMISSIONS,
 )
 from app.dao.templates_dao import dao_redact_template
-from app.dao.users_dao import save_model_user
-from app.model import User
 from app.models import (
     EmailBranding,
     Notification,
-    Permission,
     Service,
-    ServiceEmailReplyTo,
     ServicePermission,
     ServiceSmsSender,
     KEY_TYPE_NORMAL,
@@ -35,13 +28,8 @@ from freezegun import freeze_time
 from sqlalchemy import select
 from tests import create_admin_authorization_header
 from tests.app.db import (
-    create_ft_billing,
     create_ft_notification_status,
-    create_template_folder,
     create_notification,
-    create_reply_to_email,
-    create_organisation,
-    create_annual_billing,
 )
 from unittest.mock import ANY
 from uuid import uuid4
@@ -173,65 +161,6 @@ def test_find_services_by_name_handles_no_service_name(admin_request, mocker):
     mock_get_services_by_partial_name.assert_not_called()
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_live_services_data(sample_user, admin_request, sample_service, sample_template):
-    org = create_organisation()
-
-    service = sample_service(go_live_user=sample_user, go_live_at=datetime(2018, 1, 1))
-    service_2 = sample_service(service_name='second', go_live_at=datetime(2019, 1, 1), go_live_user=sample_user)
-
-    template = sample_template(service=service)
-    template2 = sample_template(service=service, template_type='email')
-    dao_add_service_to_organisation(service=service, organisation_id=org.id)
-    create_ft_billing(utc_date='2019-04-20', notification_type='sms', template=template, service=service)
-    create_ft_billing(utc_date='2019-04-20', notification_type='email', template=template2, service=service)
-
-    create_annual_billing(service.id, 1, 2019)
-    create_annual_billing(service_2.id, 2, 2018)
-
-    response = admin_request.get('service.get_live_services_data')['data']
-
-    assert len(response) == 2
-    assert response == [
-        {
-            'consent_to_research': None,
-            'contact_email': 'notify@digital.cabinet-office.va.gov',
-            'contact_mobile': '+16502532222',
-            'contact_name': 'Test User',
-            'email_totals': 1,
-            'email_volume_intent': None,
-            'letter_totals': 0,
-            'letter_volume_intent': None,
-            'live_date': 'Mon, 01 Jan 2018 00:00:00 GMT',
-            'organisation_name': 'test_org_1',
-            'service_id': ANY,
-            'service_name': 'Sample service',
-            'sms_totals': 1,
-            'sms_volume_intent': None,
-            'organisation_type': None,
-            'free_sms_fragment_limit': 1,
-        },
-        {
-            'consent_to_research': None,
-            'contact_email': 'notify@digital.cabinet-office.va.gov',
-            'contact_mobile': '+16502532222',
-            'contact_name': 'Test User',
-            'email_totals': 0,
-            'email_volume_intent': None,
-            'letter_totals': 0,
-            'letter_volume_intent': None,
-            'live_date': 'Tue, 01 Jan 2019 00:00:00 GMT',
-            'organisation_name': None,
-            'service_id': ANY,
-            'service_name': 'second',
-            'sms_totals': 0,
-            'sms_volume_intent': None,
-            'organisation_type': None,
-            'free_sms_fragment_limit': 2,
-        },
-    ]
-
-
 def test_get_service_by_id(admin_request, sample_service):
     service = sample_service()
     json_resp = admin_request.get('service.get_service_by_id', service_id=service.id)
@@ -356,96 +285,6 @@ def test_create_service(
     service_sms_senders = notify_db_session.session.scalars(stmt).all()
     assert len(service_sms_senders) == 1
     assert service_sms_senders[0].sms_sender == current_app.config['FROM_NUMBER']
-
-
-@pytest.mark.skip(reason='We do not create services with default SMS senders anymore but will move this')
-def test_create_service_with_valid_provider(
-    notify_db_session,
-    admin_request,
-    sample_user,
-    ses_provider,
-    current_sms_provider,
-):
-    user = sample_user()
-    data = {
-        'name': f'created service {uuid4()}',
-        'user_id': str(user.id),
-        'message_limit': 1000,
-        'restricted': False,
-        'active': False,
-        'email_from': 'created.service',
-        'created_by': str(user.id),
-        'email_provider_id': str(ses_provider.id),
-        'sms_provider_id': str(current_sms_provider.id),
-    }
-
-    json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
-
-    assert json_resp['data']['email_provider_id'] == str(ses_provider.id)
-    assert json_resp['data']['sms_provider_id'] == str(current_sms_provider.id)
-
-    service_db = notify_db_session.session.get(Service, json_resp['data']['id'])
-    assert service_db.name == 'created service'
-
-    json_resp = admin_request.get('service.get_service_by_id', service_id=json_resp['data']['id'], user_id=user.id)
-
-    assert json_resp['data']['email_provider_id'] == str(ses_provider.id)
-    assert json_resp['data']['sms_provider_id'] == str(current_sms_provider.id)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@pytest.mark.parametrize(
-    'domain, expected_org',
-    (
-        (None, False),
-        ('', False),
-        ('unknown.va.gov', False),
-        ('unknown-example.va.gov', False),
-        ('example.va.gov', True),
-        ('test.va.gov', True),
-        ('test.example.va.gov', True),
-    ),
-)
-def test_create_service_with_domain_sets_organisation(
-    admin_request,
-    sample_domain,
-    sample_user,
-    domain,
-    expected_org,
-):
-    mixer = str(uuid4()).replace('-', '')
-    mixed_domain = f'{domain}{mixer}'
-
-    user = sample_user(email=f'test_@{mixed_domain}')
-    red_herring_org = create_organisation(name='Sub example')
-    sample_domain(f'specific.example.va.gov{mixer}', red_herring_org.id)
-    sample_domain(f'aaaaaaaa.example.va.gov{mixer}', red_herring_org.id)
-
-    org = create_organisation()
-
-    sample_domain(f'example.va.gov{mixer}', org.id)
-    sample_domain(f'test.va.gov{mixer}', org.id)
-
-    another_org = create_organisation(name='Another')
-    sample_domain(f'cabinet-office.va.gov{mixer}', another_org.id)
-    sample_domain(f'cabinetoffice.va.gov{mixer}', another_org.id)
-
-    data = {
-        'name': f'created service {uuid4()}',
-        'user_id': str(user.id),
-        'message_limit': 1000,
-        'restricted': False,
-        'active': False,
-        'created_by': str(user.id),
-        'service_domain': mixed_domain,
-    }
-
-    json_resp = admin_request.post('service.create_service', _data=data, _expected_status=201)
-
-    if expected_org:
-        assert json_resp['data']['organisation'] == str(org.id)
-    else:
-        assert json_resp['data']['organisation'] is None
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
@@ -627,7 +466,7 @@ def test_should_not_create_service_with_incorrect_provider_notification_type(
     )
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 def test_update_service(client, notify_db_session, sample_service):
     brand = EmailBranding(colour='#000000', logo='justice-league.png', name=f'Justice League {uuid4()}')
     notify_db_session.session.add(brand)
@@ -760,30 +599,6 @@ def test_cant_update_service_org_type_to_random_value(client, sample_service):
         headers=[('Content-Type', 'application/json'), auth_header],
     )
     assert resp.status_code == 500
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service_remove_email_branding(admin_request, notify_db_session, sample_service):
-    brand = EmailBranding(colour='#000000', logo='justice-league.png', name='Justice League')
-    service = sample_service()
-    service.email_branding = brand
-    notify_db_session.session.commit()
-
-    resp = admin_request.post('service.update_service', service_id=service.id, _data={'email_branding': None})
-    assert resp['data']['email_branding'] is None
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service_change_email_branding(admin_request, notify_db_session, sample_service):
-    brand1 = EmailBranding(colour='#000000', logo='justice-league.png', name='Justice League')
-    brand2 = EmailBranding(colour='#111111', logo='avengers.png', name='Avengers')
-    notify_db_session.session.add_all([brand1, brand2])
-    service = sample_service()
-    service.email_branding = brand1
-    notify_db_session.session.commit()
-
-    resp = admin_request.post('service.update_service', service_id=service.id, _data={'email_branding': str(brand2.id)})
-    assert resp['data']['email_branding'] == str(brand2.id)
 
 
 def test_update_service_flags(client, sample_service):
@@ -1071,7 +886,7 @@ def test_should_not_update_service_with_duplicate_name(notify_api, sample_servic
             assert "Duplicate service name '{}'".format(service_name) in json_resp['message']['name']
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 def test_should_not_update_service_with_duplicate_email_from(notify_api, sample_service):
     # No services in any environment use email_from
     with notify_api.test_request_context():
@@ -1200,391 +1015,6 @@ def test_default_permissions_are_added_for_user_service(notify_api, sample_user)
             assert sorted(default_service_permissions) == sorted(service_permissions)
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_another_service_with_all_permissions(
-    notify_api,
-    sample_service,
-):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            # check which users part of service
-            service = sample_service()
-            user_already_in_service = service.users[0]
-            auth_header = create_admin_authorization_header()
-
-            resp = client.get(
-                '/service/{}/users'.format(service.id), headers=[('Content-Type', 'application/json'), auth_header]
-            )
-
-            assert resp.status_code == 200
-            result = resp.json
-            assert len(result['data']) == 1
-            assert result['data'][0]['email_address'] == user_already_in_service.email_address
-
-            # add new user to service
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            # they must exist in db first
-            save_model_user(user_to_add)
-
-            data = {
-                'permissions': [
-                    {'permission': 'send_emails'},
-                    {'permission': 'send_letters'},
-                    {'permission': 'send_texts'},
-                    {'permission': 'manage_users'},
-                    {'permission': 'manage_settings'},
-                    {'permission': 'manage_api_keys'},
-                    {'permission': 'manage_templates'},
-                    {'permission': 'view_activity'},
-                ],
-                'folder_permissions': [],
-            }
-
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(service.id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            assert resp.status_code == 201
-
-            # check new user added to service
-            auth_header = create_admin_authorization_header()
-
-            resp = client.get(
-                '/service/{}'.format(service.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-            )
-            assert resp.status_code == 200
-            json_resp = resp.json
-            assert str(user_to_add.id) in json_resp['data']['users']
-
-            # check user has all permissions
-            auth_header = create_admin_authorization_header()
-            resp = client.get(
-                url_for('user.get_user', user_id=user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-            )
-
-            assert resp.status_code == 200
-            json_resp = resp.json
-            permissions = json_resp['data']['permissions'][str(service.id)]
-            expected_permissions = [
-                'send_texts',
-                'send_emails',
-                'send_letters',
-                'manage_users',
-                'manage_settings',
-                'manage_templates',
-                'manage_api_keys',
-                'view_activity',
-            ]
-            assert sorted(expected_permissions) == sorted(permissions)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_another_service_with_send_permissions(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            # they must exist in db first
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            save_model_user(user_to_add)
-
-            data = {
-                'permissions': [
-                    {'permission': 'send_emails'},
-                    {'permission': 'send_letters'},
-                    {'permission': 'send_texts'},
-                ],
-                'folder_permissions': [],
-            }
-
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(sample_service.id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            assert resp.status_code == 201
-
-            # check user has send permissions
-            auth_header = create_admin_authorization_header()
-            resp = client.get(
-                url_for('user.get_user', user_id=user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-            )
-
-            assert resp.status_code == 200
-            json_resp = resp.json
-
-            permissions = json_resp['data']['permissions'][str(sample_service.id)]
-            expected_permissions = ['send_texts', 'send_emails', 'send_letters']
-            assert sorted(expected_permissions) == sorted(permissions)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_another_service_with_manage_permissions(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            # they must exist in db first
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            save_model_user(user_to_add)
-
-            data = {
-                'permissions': [
-                    {'permission': 'manage_users'},
-                    {'permission': 'manage_settings'},
-                    {'permission': 'manage_templates'},
-                ]
-            }
-
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(sample_service.id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            assert resp.status_code == 201
-
-            # check user has send permissions
-            auth_header = create_admin_authorization_header()
-            resp = client.get(
-                url_for('user.get_user', user_id=user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-            )
-
-            assert resp.status_code == 200
-            json_resp = resp.json
-
-            permissions = json_resp['data']['permissions'][str(sample_service.id)]
-            expected_permissions = ['manage_users', 'manage_settings', 'manage_templates']
-            assert sorted(expected_permissions) == sorted(permissions)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_another_service_with_folder_permissions(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            # they must exist in db first
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            save_model_user(user_to_add)
-
-            folder_1 = create_template_folder(sample_service)
-            folder_2 = create_template_folder(sample_service)
-
-            data = {
-                'permissions': [{'permission': 'manage_api_keys'}],
-                'folder_permissions': [str(folder_1.id), str(folder_2.id)],
-            }
-
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(sample_service.id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            assert resp.status_code == 201
-
-            new_user = dao_get_service_user(user_id=user_to_add.id, service_id=sample_service.id)
-
-            assert len(new_user.folders) == 2
-            assert folder_1 in new_user.folders
-            assert folder_2 in new_user.folders
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_another_service_with_manage_api_keys(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            # they must exist in db first
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            save_model_user(user_to_add)
-
-            data = {'permissions': [{'permission': 'manage_api_keys'}]}
-
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(sample_service.id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            assert resp.status_code == 201
-
-            # check user has send permissions
-            auth_header = create_admin_authorization_header()
-            resp = client.get(
-                url_for('user.get_user', user_id=user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-            )
-
-            assert resp.status_code == 200
-            json_resp = resp.json
-
-            permissions = json_resp['data']['permissions'][str(sample_service.id)]
-            expected_permissions = ['manage_api_keys']
-            assert sorted(expected_permissions) == sorted(permissions)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_to_non_existing_service_returns404(notify_api):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            user_to_add = User(  # nosec
-                name='Invited User',
-                email_address='invited@digital.cabinet-office.va.gov',
-                password='password',
-                mobile_number='+4477123456',
-            )
-            save_model_user(user_to_add)
-
-            incorrect_id = uuid.uuid4()
-
-            data = {'permissions': ['send_messages', 'manage_service', 'manage_api_keys']}
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(incorrect_id, user_to_add.id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            result = resp.json
-            expected_message = 'No result found'
-
-            assert resp.status_code == 404
-            assert result['result'] == 'error'
-            assert result['message'] == expected_message
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_existing_user_of_service_to_service_returns400(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            service = sample_service()
-            existing_user_id = service.users[0].id
-
-            data = {'permissions': ['send_messages', 'manage_service', 'manage_api_keys']}
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(service.id, existing_user_id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            result = resp.json
-            expected_message = 'User id: {} already part of service id: {}'.format(existing_user_id, service.id)
-
-            assert resp.status_code == 400
-            assert result['result'] == 'error'
-            assert result['message'] == expected_message
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_unknown_user_to_service_returns404(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            incorrect_id = 9876
-
-            data = {'permissions': ['send_messages', 'manage_service', 'manage_api_keys']}
-            auth_header = create_admin_authorization_header()
-
-            resp = client.post(
-                '/service/{}/users/{}'.format(sample_service().id, incorrect_id),
-                headers=[('Content-Type', 'application/json'), auth_header],
-                data=json.dumps(data),
-            )
-
-            result = resp.json
-            expected_message = 'No result found'
-
-            assert resp.status_code == 404
-            assert result['result'] == 'error'
-            assert result['message'] == expected_message
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_remove_user_from_service(client, sample_user, sample_user_service_permission):
-    second_user = sample_user(email='new@digital.cabinet-office.va.gov')
-    service = sample_user_service_permission.service
-
-    # Simulates successfully adding a user to the service
-    dao_add_user_to_service(
-        service,
-        second_user,
-        permissions=[Permission(service_id=service.id, user_id=second_user.id, permission='manage_settings')],
-    )
-
-    endpoint = url_for('service.remove_user_from_service', service_id=str(service.id), user_id=str(second_user.id))
-    auth_header = create_admin_authorization_header()
-    resp = client.delete(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
-    assert resp.status_code == 204
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_remove_non_existant_user_from_service(client, sample_user, sample_user_service_permission):
-    second_user = sample_user(email='new@digital.cabinet-office.va.gov')
-    endpoint = url_for(
-        'service.remove_user_from_service',
-        service_id=str(sample_user_service_permission.service.id),
-        user_id=str(second_user.id),
-    )
-    auth_header = create_admin_authorization_header()
-    resp = client.delete(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
-    assert resp.status_code == 404
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_cannot_remove_only_user_from_service(notify_api, sample_user_service_permission):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            endpoint = url_for(
-                'service.remove_user_from_service',
-                service_id=str(sample_user_service_permission.service.id),
-                user_id=str(sample_user_service_permission.user.id),
-            )
-            auth_header = create_admin_authorization_header()
-            resp = client.delete(endpoint, headers=[('Content-Type', 'application/json'), auth_header])
-            assert resp.status_code == 400
-            result = resp.json
-            assert result['message'] == 'You cannot remove the only user for a service'
-
-
 # This test is just here verify get_service_and_api_key_history that is a temp solution
 # until proper ui is sorted out on admin app
 def test_get_service_and_api_key_history(notify_api, sample_service, sample_api_key):
@@ -1600,60 +1030,6 @@ def test_get_service_and_api_key_history(notify_api, sample_service, sample_api_
             json_resp = response.get_json()
             assert json_resp['data']['service_history'][0]['id'] == str(service.id)
             assert json_resp['data']['api_key_history'][0]['id'] == str(api_key.id)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_all_notifications_for_service_in_order(notify_api, notify_db_session, sample_service, sample_template):
-    with notify_api.test_request_context(), notify_api.test_client() as client:
-        service_1 = sample_service()
-        service_2 = sample_service()
-
-        service_1_template = sample_template(service_1)
-        service_2_template = sample_template(service_2)
-
-        # create notification for service_2
-        s2_notification = create_notification(service_2_template)
-
-        notification_1 = create_notification(service_1_template)
-        notification_2 = create_notification(service_1_template)
-        notification_3 = create_notification(service_1_template)
-
-        auth_header = create_admin_authorization_header()
-
-        response = client.get(path='/service/{}/notifications'.format(service_1.id), headers=[auth_header])
-
-        resp = response.get_json()
-        assert len(resp['notifications']) == 3
-        assert resp['notifications'][0]['to'] == notification_3.to
-        assert resp['notifications'][1]['to'] == notification_2.to
-        assert resp['notifications'][2]['to'] == notification_1.to
-        assert response.status_code == 200
-
-        # Teardown
-        notify_db_session.session.delete(s2_notification)
-        notify_db_session.session.delete(notification_1)
-        notify_db_session.session.delete(notification_2)
-        notify_db_session.session.delete(notification_3)
-        notify_db_session.session.commit()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_all_notifications_for_service_formatted_for_csv(client, sample_template):
-    notification = create_notification(template=sample_template)
-    auth_header = create_admin_authorization_header()
-
-    response = client.get(
-        path='/service/{}/notifications?format_for_csv=True'.format(sample_template.service_id), headers=[auth_header]
-    )
-
-    resp = response.get_json()
-    assert response.status_code == 200
-    assert len(resp['notifications']) == 1
-    assert resp['notifications'][0]['recipient'] == notification.to
-    assert not resp['notifications'][0]['row_number']
-    assert resp['notifications'][0]['template_name'] == sample_template.name
-    assert resp['notifications'][0]['template_type'] == notification.notification_type
-    assert resp['notifications'][0]['status'] == 'Sending'
 
 
 def test_get_notification_for_service_without_uuid(
@@ -1755,39 +1131,6 @@ def test_get_notification_for_service_returns_old_template_version(
     assert resp['template']['content'] != template.content
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@pytest.mark.parametrize('include_from_test_key, expected_count_of_notifications', [(False, 2), (True, 3)])
-def test_get_all_notifications_for_service_including_ones_made_by_jobs(
-    client,
-    notify_db_session,
-    sample_service,
-    include_from_test_key,
-    expected_count_of_notifications,
-    sample_notification,
-    sample_notification_with_job,
-    sample_template,
-):
-    # notification from_test_api_key
-    notification = sample_notification(sample_template, key_type=KEY_TYPE_TEST)
-
-    auth_header = create_admin_authorization_header()
-
-    response = client.get(
-        path='/service/{}/notifications?include_from_test_key={}'.format(sample_service.id, include_from_test_key),
-        headers=[auth_header],
-    )
-
-    resp = response.get_json()
-    assert len(resp['notifications']) == expected_count_of_notifications
-    assert resp['notifications'][0]['to'] == sample_notification_with_job.to
-    assert resp['notifications'][1]['to'] == notification.to
-    assert response.status_code == 200
-
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
-
-
 def test_get_only_api_created_notifications_for_service(
     admin_request,
     sample_api_key,
@@ -1808,27 +1151,6 @@ def test_get_only_api_created_notifications_for_service(
         include_one_off=False,
     )
     assert len(resp['notifications']) == 1
-    assert resp['notifications'][0]['id'] == str(without_job.id)
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_notifications_for_service_without_page_count(
-    admin_request,
-    sample_template,
-):
-    create_notification(sample_template)
-    without_job = create_notification(sample_template)
-
-    resp = admin_request.get(
-        'service.get_all_notifications_for_service',
-        service_id=sample_template.service_id,
-        page_size=1,
-        include_jobs=False,
-        include_one_off=False,
-        count_pages=False,
-    )
-    assert len(resp['notifications']) == 1
-    assert resp['total'] is None
     assert resp['notifications'][0]['id'] == str(without_job.id)
 
 
@@ -1891,7 +1213,7 @@ def test_set_sms_prefixing_for_service_cant_be_none(
 
 
 # This always returns 0. Does not appear to be used
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 @pytest.mark.parametrize(
     'today_only,stats',
     [('False', {'requested': 2, 'delivered': 1, 'failed': 0}), ('True', {'requested': 1, 'delivered': 0, 'failed': 0})],
@@ -1960,7 +1282,7 @@ def test_get_services_with_detailed_flag(
     }
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 def test_get_services_with_detailed_flag_excluding_from_test_key(notify_api, sample_template):
     create_notification(sample_template, key_type=KEY_TYPE_NORMAL)
     create_notification(sample_template, key_type=KEY_TYPE_TEAM)
@@ -2009,7 +1331,7 @@ def test_get_services_with_detailed_flag_defaults_to_today(client, mocker):
     assert resp.status_code == 200
 
 
-@pytest.mark.skip(reason='Do we utilize this?')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 def test_get_detailed_services_groups_by_service(notify_db_session, sample_api_key, sample_service, sample_template):
     from app.service.rest import get_detailed_services
 
@@ -2051,7 +1373,7 @@ def test_get_detailed_services_groups_by_service(notify_db_session, sample_api_k
     notify_db_session.session.commit()
 
 
-@pytest.mark.skip(reason='Do we utilize this?')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 def test_get_detailed_services_includes_services_with_no_notifications(
     notify_db_session, sample_api_key, sample_service, sample_template
 ):
@@ -2086,7 +1408,7 @@ def test_get_detailed_services_includes_services_with_no_notifications(
     notify_db_session.session.commit()
 
 
-@pytest.mark.skip(reason='Do we utilize this?')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 # This test assumes the local timezone is EST
 def test_get_detailed_services_only_includes_todays_notifications(notify_db_session, sample_api_key, sample_template):
     from app.service.rest import get_detailed_services
@@ -2117,7 +1439,7 @@ def test_get_detailed_services_only_includes_todays_notifications(notify_db_sess
     notify_db_session.session.commit()
 
 
-@pytest.mark.skip(reason='Do we utilize this?')
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
 @pytest.mark.parametrize('start_date_delta, end_date_delta', [(2, 1), (3, 2), (1, 0)])
 @freeze_time('2017-03-28T12:00:00')
 def test_get_detailed_services_for_date_range(
@@ -2232,17 +1554,6 @@ def test_search_for_notification_by_to_field_return_multiple_matches(client, not
     notify_db_session.session.delete(notification3)
     notify_db_session.session.delete(notification4)
     notify_db_session.session.commit()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_search_for_notification_by_to_field_return_400_for_letter_type(client, sample_service):
-    response = client.get(
-        '/service/{}/notifications?to={}&template_type={}'.format(sample_service().id, 'A. Name', 'letter'),
-        headers=[create_admin_authorization_header()],
-    )
-    response.status_code = 400
-    error_message = response.get_json()
-    assert error_message['message'] == 'Only email and SMS can use search by recipient'
 
 
 def test_update_service_calls_send_notification_as_service_becomes_live(client, mocker, sample_service):
@@ -2428,17 +1739,6 @@ def test_get_notification_for_service_includes_template_redacted(
     notify_db_session.session.commit()
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_notification_for_service_includes_precompiled_letter(admin_request, sample_notification):
-    notification = sample_notification()
-    resp = admin_request.get(
-        'service.get_notification_for_service', service_id=notification.service_id, notification_id=notification.id
-    )
-
-    assert resp['id'] == str(notification.id)
-    assert resp['template']['is_precompiled_letter'] is False
-
-
 def test_get_all_notifications_for_service_includes_template_redacted(
     admin_request, notify_db_session, sample_service, sample_template
 ):
@@ -2464,42 +1764,6 @@ def test_get_all_notifications_for_service_includes_template_redacted(
     # Teardown
     notify_db_session.session.delete(redacted_noti)
     notify_db_session.session.delete(normal_noti)
-    notify_db_session.session.commit()
-
-
-# Precompiled letters are not something we do or plan to do
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_all_notifications_for_service_includes_template_hidden(
-    admin_request, notify_db_session, sample_service, sample_template
-):
-    service = sample_service()
-    letter_template = sample_template(service=service, template_type=LETTER_TYPE)
-    precompiled_template = sample_template(
-        service=service,
-        template_type=LETTER_TYPE,
-        name=f'Pre-compiled PDF{uuid4()}',
-        subject='Pre-compiled PDF',
-        hidden=True,
-    )
-
-    with freeze_time('2000-01-01'):
-        letter_noti = create_notification(letter_template)
-    with freeze_time('2000-01-02'):
-        precompiled_noti = create_notification(precompiled_template)
-
-    resp = admin_request.get('service.get_all_notifications_for_service', service_id=service.id)
-    print(resp['notifications'][0])
-    print()
-    print(resp['notifications'][1])
-    assert resp['notifications'][0]['id'] == str(precompiled_noti.id)
-    assert resp['notifications'][0]['template']['is_precompiled_letter'] is True
-
-    assert resp['notifications'][1]['id'] == str(letter_noti.id)
-    assert resp['notifications'][1]['template']['is_precompiled_letter'] is False
-
-    # Teardown
-    notify_db_session.session.delete(letter_noti)
-    notify_db_session.session.delete(precompiled_noti)
     notify_db_session.session.commit()
 
 
@@ -2655,156 +1919,6 @@ def test_get_email_reply_to_addresses_when_there_are_no_reply_to_email_addresses
     assert response.get_json() == []
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_email_reply_to_addresses_with_one_email_address(
-    client,
-    notify_db_session,
-    sample_service,
-):
-    service = sample_service()
-    reply_to_email = create_reply_to_email(service, 'test@mail.com')
-
-    response = client.get(
-        '/service/{}/email-reply-to'.format(service.id), headers=[create_admin_authorization_header()]
-    )
-    json_response = response.get_json()
-
-    assert len(json_response) == 1
-    assert json_response[0]['email_address'] == 'test@mail.com'
-    assert json_response[0]['is_default']
-    assert json_response[0]['created_at']
-    assert not json_response[0]['updated_at']
-    assert response.status_code == 200
-
-    # Teardown
-    notify_db_session.session.delete(reply_to_email)
-    notify_db_session.session.commit()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_email_reply_to_addresses_with_multiple_email_addresses(client, sample_service):
-    service = sample_service()
-    reply_to_a = create_reply_to_email(service, 'test_a@mail.com')
-    reply_to_b = create_reply_to_email(service, 'test_b@mail.com', False)
-
-    response = client.get(
-        '/service/{}/email-reply-to'.format(service.id), headers=[create_admin_authorization_header()]
-    )
-    json_response = response.get_json()
-
-    assert len(json_response) == 2
-    assert response.status_code == 200
-
-    assert json_response[0]['id'] == str(reply_to_a.id)
-    assert json_response[0]['service_id'] == str(reply_to_a.service_id)
-    assert json_response[0]['email_address'] == 'test_a@mail.com'
-    assert json_response[0]['is_default']
-    assert json_response[0]['created_at']
-    assert not json_response[0]['updated_at']
-
-    assert json_response[1]['id'] == str(reply_to_b.id)
-    assert json_response[1]['service_id'] == str(reply_to_b.service_id)
-    assert json_response[1]['email_address'] == 'test_b@mail.com'
-    assert not json_response[1]['is_default']
-    assert json_response[1]['created_at']
-    assert not json_response[1]['updated_at']
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_verify_reply_to_email_address_should_send_verification_email(
-    admin_request, notify_db_session, mocker, verify_reply_to_address_email_template, sample_service
-):
-    service = sample_service()
-    mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    data = {'email': 'reply-here@example.va.gov'}
-    notify_service = verify_reply_to_address_email_template.service
-    response = admin_request.post(
-        'service.verify_reply_to_email_address', service_id=service.id, _data=data, _expected_status=201
-    )
-
-    stmt = select(Notification)
-    notification = notify_db_session.session.scalars(stmt).first()
-    assert notification.template_id == verify_reply_to_address_email_template.id
-    assert response['data'] == {'id': str(notification.id)}
-    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
-
-    result_notification_id, result_queue = mocked.call_args
-    result_id, *rest = result_notification_id[0]
-    assert result_id == str(notification.id)
-    assert result_queue['queue'] == 'notify-internal-tasks'
-    mocked.assert_called_once()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_verify_reply_to_email_address_doesnt_allow_duplicates(admin_request, mocker, sample_service):
-    data = {'email': 'reply-here@example.va.gov'}
-    service = sample_service()
-    create_reply_to_email(service, 'reply-here@example.va.gov')
-    response = admin_request.post(
-        'service.verify_reply_to_email_address', service_id=service.id, _data=data, _expected_status=400
-    )
-    assert response['message'] == 'Your service already uses ‘reply-here@example.va.gov’ as an email reply-to address.'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address(admin_request, notify_db_session, sample_service):
-    service = sample_service()
-    data = {'email_address': 'new@reply.com', 'is_default': True}
-    response = admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=service.id, _data=data, _expected_status=201
-    )
-
-    stmt = select(ServiceEmailReplyTo).where(ServiceEmailReplyTo.service_id == service.id)
-    results = notify_db_session.session.scalars(stmt).all()
-    assert len(results) == 1
-    assert response['data'] == results[0].serialize()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address_doesnt_allow_duplicates(admin_request, mocker, sample_service):
-    data = {'email_address': 'reply-here@example.va.gov', 'is_default': True}
-    service = sample_service()
-    create_reply_to_email(service, 'reply-here@example.va.gov')
-    response = admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=service.id, _data=data, _expected_status=400
-    )
-    assert response['message'] == 'Your service already uses ‘reply-here@example.va.gov’ as an email reply-to address.'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address_can_add_multiple_addresses(
-    notify_db_session,
-    admin_request,
-    sample_service,
-):
-    data = {'email_address': 'first@reply.com', 'is_default': True}
-    admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=sample_service.id, _data=data, _expected_status=201
-    )
-    second = {'email_address': 'second@reply.com', 'is_default': True}
-    response = admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=sample_service.id, _data=second, _expected_status=201
-    )
-
-    stmt = select(ServiceEmailReplyTo)
-    results = notify_db_session.session.scalars(stmt).all()
-
-    assert len(results) == 2
-    default = [x for x in results if x.is_default]
-    assert response['data'] == default[0].serialize()
-    first_reply_to_not_default = [x for x in results if not x.is_default]
-    assert first_reply_to_not_default[0].email_address == 'first@reply.com'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_add_service_reply_to_email_address_raise_exception_if_no_default(admin_request, sample_service):
-    data = {'email_address': 'first@reply.com', 'is_default': False}
-    response = admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=sample_service.id, _data=data, _expected_status=400
-    )
-    assert response['message'] == 'You must have at least one reply to email address as the default.'
-
-
 def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
     response = admin_request.post(
         'service.add_service_reply_to_email_address', service_id=uuid.uuid4(), _data={}, _expected_status=404
@@ -2812,40 +1926,6 @@ def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_r
 
     assert response['result'] == 'error'
     assert response['message'] == 'No result found'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service_reply_to_email_address(notify_db_session, admin_request, sample_service):
-    original_reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com')
-    data = {'email_address': 'changed@reply.com', 'is_default': True}
-    response = admin_request.post(
-        'service.update_service_reply_to_email_address',
-        service_id=sample_service.id,
-        reply_to_email_id=original_reply_to.id,
-        _data=data,
-        _expected_status=200,
-    )
-
-    stmt = select(ServiceEmailReplyTo)
-    results = notify_db_session.session.scalars(stmt).all()
-
-    assert len(results) == 1
-    assert response['data'] == results[0].serialize()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_update_service_reply_to_email_address_returns_400_when_no_default(admin_request, sample_service):
-    original_reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com')
-    data = {'email_address': 'changed@reply.com', 'is_default': False}
-    response = admin_request.post(
-        'service.update_service_reply_to_email_address',
-        service_id=sample_service.id,
-        reply_to_email_id=original_reply_to.id,
-        _data=data,
-        _expected_status=400,
-    )
-
-    assert response['message'] == 'You must have at least one reply to email address as the default.'
 
 
 def test_update_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
@@ -2861,181 +1941,9 @@ def test_update_service_reply_to_email_address_404s_when_invalid_service_id(admi
     assert response['message'] == 'No result found'
 
 
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_service_reply_to_email_address_archives_an_email_reply_to(
-    sample_service,
-    admin_request,
-):
-    create_reply_to_email(service=sample_service, email_address='some@email.com')
-    reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com', is_default=False)
-
-    admin_request.post(
-        'service.delete_service_reply_to_email_address',
-        service_id=sample_service.id,
-        reply_to_email_id=reply_to.id,
-    )
-    assert reply_to.archived is True
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_delete_service_reply_to_email_address_returns_400_if_archiving_default_reply_to(admin_request, sample_service):
-    reply_to = create_reply_to_email(service=sample_service, email_address='some@email.com')
-
-    response = admin_request.post(
-        'service.delete_service_reply_to_email_address',
-        service_id=sample_service.id,
-        reply_to_email_id=reply_to.id,
-        _expected_status=400,
-    )
-
-    assert response == {'message': 'You cannot delete a default email reply to address', 'result': 'error'}
-    assert reply_to.archived is False
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_email_reply_to_address(client, sample_service):
-    service = sample_service()
-    reply_to = create_reply_to_email(service, 'test_a@mail.com')
-
-    response = client.get(
-        '/service/{}/email-reply-to/{}'.format(service.id, reply_to.id),
-        headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
-    )
-
-    assert response.status_code == 200
-    assert response.get_json() == reply_to.serialize()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_organisation_for_service_id(admin_request, sample_service, sample_organisation):
-    dao_add_service_to_organisation(sample_service, sample_organisation.id)
-    response = admin_request.get('service.get_organisation_for_service', service_id=sample_service.id)
-    assert response == sample_organisation.serialize()
-
-
 def test_get_organisation_for_service_id_return_empty_dict_if_service_not_in_organisation(admin_request, fake_uuid):
     response = admin_request.get('service.get_organisation_for_service', service_id=fake_uuid)
     assert response == {}
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_cancel_notification_for_service_raises_invalid_request_when_notification_is_not_found(
-    admin_request,
-    sample_service,
-    fake_uuid,
-):
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_service.id,
-        notification_id=fake_uuid,
-        _expected_status=404,
-    )
-    assert response['message'] == 'Notification not found'
-    assert response['result'] == 'error'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_cancel_notification_for_service_raises_invalid_request_when_notification_is_not_a_letter(
-    admin_request,
-    sample_notification,
-):
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_notification.service_id,
-        notification_id=sample_notification.id,
-        _expected_status=400,
-    )
-    assert response['message'] == 'Notification cannot be cancelled - only letters can be cancelled'
-    assert response['result'] == 'error'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@pytest.mark.parametrize(
-    'notification_status',
-    [
-        'cancelled',
-        'sending',
-        'sent',
-        'delivered',
-        'pending',
-        'failed',
-        'technical-failure',
-        'temporary-failure',
-        'permanent-failure',
-        'validation-failed',
-        'virus-scan-failed',
-        'returned-letter',
-    ],
-)
-@freeze_time('2018-07-07 12:00:00')
-def test_cancel_notification_for_service_raises_invalid_request_when_letter_is_in_wrong_state_to_be_cancelled(
-    admin_request,
-    sample_letter_notification,
-    notification_status,
-):
-    sample_letter_notification.status = notification_status
-
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-        _expected_status=400,
-    )
-    assert response['message'] == 'It’s too late to cancel this letter. Printing started today at 5.30pm'
-    assert response['result'] == 'error'
-
-
-@pytest.mark.parametrize('notification_status', ['created', 'pending-virus-check'])
-@freeze_time('2018-07-07 16:00:00')
-@pytest.mark.skip(reason='Endpoint disabled and slated for removal')
-def test_cancel_notification_for_service_updates_letter_if_letter_is_in_cancellable_state(
-    admin_request,
-    sample_letter_notification,
-    notification_status,
-):
-    sample_letter_notification.status = notification_status
-    sample_letter_notification.created_at = datetime.now()
-
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-    )
-    assert response['status'] == 'cancelled'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@freeze_time('2017-12-12 17:30:00')
-def test_cancel_notification_for_service_raises_error_if_its_too_late_to_cancel(
-    admin_request,
-    sample_letter_notification,
-):
-    sample_letter_notification.created_at = datetime(2017, 12, 11, 17, 0)
-
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-        _expected_status=400,
-    )
-    assert response['message'] == 'It’s too late to cancel this letter. Printing started on 11 December at 5.30pm'
-    assert response['result'] == 'error'
-
-
-@freeze_time('2018-7-7 16:00:00')
-@pytest.mark.skip(reason='Endpoint disabled and slated for removal')
-def test_cancel_notification_for_service_updates_letter_if_still_time_to_cancel(
-    admin_request,
-    sample_letter_notification,
-):
-    sample_letter_notification.created_at = datetime(2018, 7, 7, 10, 0)
-
-    response = admin_request.post(
-        'service.cancel_notification_for_service',
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-    )
-    assert response['status'] == 'cancelled'
 
 
 def test_get_monthly_notification_data_by_service(mocker, admin_request):

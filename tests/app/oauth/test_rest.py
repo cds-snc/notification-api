@@ -5,7 +5,6 @@ from authlib.integrations.base_client import OAuthError
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from flask_jwt_extended import decode_token
 from requests import Response
-from requests.exceptions import HTTPError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.feature_flags import FeatureFlag
@@ -13,7 +12,6 @@ from app.model import User
 from app.oauth.exceptions import (
     IdpAssignmentException,
     OAuthException,
-    IncorrectGithubIdException,
     InsufficientGithubScopesException,
 )
 from app.oauth.rest import make_github_get_request
@@ -320,63 +318,12 @@ class TestSsoCommon:
         assert response.json == {'error': 'Unauthorized', 'description': 'Authentication failure'}
         assert mock_statsd.incr.called_with('oauth.authorization.failure')
 
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    @pytest.mark.parametrize(
-        'path',
-        [
-            'authorize',
-            'callback',
-        ],
-    )
-    def test_redirects_to_ui_and_sets_token_in_cookie(self, client, sample_user, mock_statsd, mocker, path):
-        user = sample_user()
-        mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=user)
-        response = client.get(f'/auth/{path}')
-
-        assert response.status_code == 302
-        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
-
-        cookie = list(client.cookie_jar)[0]
-        assert cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME']
-        assert cookie.secure is True
-        user = decode_token(cookie.value)
-        assert user['sub']['id'] == str(user.id)
-        assert mock_statsd.incr.called_with('oauth.authorization.success')
-
 
 class TestAuthorize:
     def test_should_return_501_if_toggle_is_disabled(self, client, mocker):
         mock_feature_flag(mocker, FeatureFlag.GITHUB_LOGIN_ENABLED, 'False')
         response = client.get('/auth/authorize')
         assert response.status_code == 501
-
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    @pytest.mark.parametrize('exception', [OAuthException, HTTPError])
-    def test_should_redirect_to_login_failure_if_organization_membership_verification_or_user_info_retrieval_fails(
-        self, client, notify_api, mocker, exception
-    ):
-        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
-        mocker.patch('app.oauth.rest.make_github_get_request', side_effect=exception)
-        response = client.get('/auth/authorize')
-
-        assert response.status_code == 302
-        assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
-        assert not any(cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar)
-        mock_logger.assert_called_once()
-
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    def test_should_redirect_to_login_denied_if_user_denies_access(
-        self, client, notify_api, mocker, mock_github_authorize_access_token
-    ):
-        mock_github_authorize_access_token.side_effect = OAuthError
-        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
-
-        response = client.get('/auth/authorize')
-
-        assert response.status_code == 302
-        assert f"{cookie_config['UI_HOST_NAME']}/login/failure?denied_authorization" in response.location
-        assert not any(cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar)
-        mock_logger.assert_called_once()
 
     def test_extracts_user_info_and_calls_dao_method(self, client, sample_user, mocker):
         mocked_dao = mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user())
@@ -398,58 +345,6 @@ class TestAuthorizeWhenVaSsoToggleIsOff:
     @pytest.fixture(autouse=True)
     def va_sso_toggle_enabled(self, mocker):
         mock_feature_flag(mocker, FeatureFlag.VA_SSO_ENABLED, 'False')
-
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    def test_should_redirect_to_login_failure_if_incorrect_github_id(self, client, mocker):
-        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
-        mocker.patch('app.oauth.rest.create_or_retrieve_user', side_effect=IncorrectGithubIdException)
-        mock_logger = mocker.patch('app.oauth.rest.current_app.logger.error')
-
-        response = client.get('/auth/authorize')
-
-        assert response.status_code == 302
-        assert f"{cookie_config['UI_HOST_NAME']}/login/failure" in response.location
-        assert not any(cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar)
-        mock_logger.assert_called_once()
-
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    def test_should_redirect_to_ui_if_user_is_member_of_va_organization(self, client, mocker):
-        found_user = User()
-        mocker.patch('app.oauth.rest.create_or_retrieve_user', return_value=found_user)
-        create_access_token = mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
-
-        response = client.get('/auth/authorize')
-
-        create_access_token.assert_called_with(identity=found_user)
-
-        assert response.status_code == 302
-        assert response.location == f"{cookie_config['UI_HOST_NAME']}/login/success"
-
-        assert any(
-            cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] and cookie.value == 'some-access-token-value'
-            for cookie in client.cookie_jar
-        )
-
-    @pytest.mark.parametrize('identity_provider_user_id', [None, '1'])
-    def test_should_create_or_update_existing_user_with_identity_provider_user_id_when_successfully_verified(
-        self, client, mocker, identity_provider_user_id
-    ):
-        expected_email = github_user_emails[0]['email']
-        expected_user_id = github_org_membership['user']['id']
-        expected_name = github_user['name']
-
-        found_user = User(
-            email_address=expected_email, identity_provider_user_id=identity_provider_user_id, name=expected_name
-        )
-        create_or_retrieve_user = mocker.patch('app.oauth.rest.create_or_retrieve_user', return_value=found_user)
-
-        mocker.patch('app.oauth.rest.create_access_token', return_value='some-access-token-value')
-
-        client.get('/auth/authorize')
-
-        create_or_retrieve_user.assert_called_with(
-            email_address=expected_email, identity_provider_user_id=expected_user_id, name=expected_name
-        )
 
     def test_should_create_user_with_login_name_if_no_name_in_response(self, client, mocker):
         github_user_with_no_name = github_user.copy()
@@ -562,21 +457,6 @@ class TestLoginWithPassword:
         response_json = response.json
         assert response_json['result'] == 'success'
         assert response_json['token'] is not None
-
-
-class TestLogout:
-    @pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-    def test_should_redirect_to_ui_and_clear_cookies(self, client, notify_db_session, sample_user, mocker):
-        mocker.patch('app.oauth.rest.retrieve_match_or_create_user', return_value=sample_user)
-        client.get('/auth/authorize')
-        assert any(cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar)
-
-        response = client.get('/auth/logout')
-
-        assert response.status_code == 302
-        assert cookie_config['UI_HOST_NAME'] in response.location
-
-        assert not any(cookie.key == cookie_config['JWT_ACCESS_COOKIE_NAME'] for cookie in client.cookie_jar)
 
 
 class TestCallback:

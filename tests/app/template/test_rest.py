@@ -14,7 +14,6 @@ from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
     SMS_TYPE,
-    Notification,
     Template,
     TemplateHistory,
     TemplateRedacted,
@@ -40,7 +39,7 @@ from tests.app.factories.feature_flag import mock_feature_flag
 from tests.conftest import set_config_values
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 @pytest.mark.parametrize(
     'template_type, subject',
     [
@@ -103,7 +102,7 @@ def test_should_create_a_new_template_for_a_service(
     assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_should_create_a_new_template_with_a_valid_provider(
     notify_db_session,
     client,
@@ -241,7 +240,7 @@ def test_should_not_create_template_with_incorrect_provider_type(
     assert json_resp['message'] == f'invalid {template_type}_provider_id'
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_create_a_new_template_for_a_service_adds_folder_relationship(notify_db_session, client, sample_service):
     service = sample_service()
     parent_folder = create_template_folder(service=service, name='parent folder')
@@ -270,7 +269,7 @@ def test_create_a_new_template_for_a_service_adds_folder_relationship(notify_db_
     assert template.folder == parent_folder
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 @pytest.mark.parametrize(
     'template_type, expected_postage', [(SMS_TYPE, None), (EMAIL_TYPE, None), (LETTER_TYPE, 'second')]
 )
@@ -452,7 +451,7 @@ def test_should_be_error_on_update_if_no_permission(
     assert json_resp['message'] == expected_error
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 # def test_should_error_if_created_by_missing(client, sample_user, sample_service):
 def test_should_error_if_created_by_missing(client, sample_service):
     service_id = str(sample_service().id)
@@ -512,7 +511,7 @@ def test_must_have_a_subject_on_an_email_or_letter_template(client, sample_user,
     assert json_resp['errors'][0]['message'] == 'subject is a required property'
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_update_should_update_a_template(client, sample_user, sample_service, sample_template):
     service = sample_service(service_permissions=[LETTER_TYPE])
     template = sample_template(service=service, template_type=LETTER_TYPE, postage='second')
@@ -543,7 +542,7 @@ def test_update_should_update_a_template(client, sample_user, sample_service, sa
     assert update_json_resp['data']['version'] == 2
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_should_be_able_to_archive_template(notify_db_session, client, sample_template):
     template = sample_template()
     data = {
@@ -568,35 +567,6 @@ def test_should_be_able_to_archive_template(notify_db_session, client, sample_te
     assert resp.status_code == 200
     stmt = select(Template)
     assert notify_db_session.session.scalars(stmt).first().archived
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_get_precompiled_template_for_service(client, notify_db_session, sample_service):
-    service = sample_service()
-    assert len(service.templates) == 0
-
-    response = client.get(
-        '/service/{}/template/precompiled'.format(service.id),
-        headers=[create_admin_authorization_header()],
-    )
-    assert response.status_code == 200
-    assert len(service.templates) == 1
-
-    data = response.get_json()
-    assert data['name'] == 'Pre-compiled PDF'
-    assert data['hidden'] is True
-
-    # Teardown
-    # This test creates a a template by making the get request above
-    templates = notify_db_session.session.scalars(select(Template).where(Template.service_id == service.id)).all()
-
-    for template in templates:
-        template_history = notify_db_session.session.get(TemplateHistory, (template.id, template.version))
-        notify_db_session.session.delete(template_history)
-        template_redacted = notify_db_session.session.get(TemplateRedacted, template.id)
-        notify_db_session.session.delete(template_redacted)
-        notify_db_session.session.delete(template)
-    notify_db_session.session.commit()
 
 
 def test_get_precompiled_template_for_service_when_service_has_existing_precompiled_template(
@@ -624,7 +594,7 @@ def test_get_precompiled_template_for_service_when_service_has_existing_precompi
     assert data['hidden'] is True
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_should_be_able_to_get_all_templates_for_a_service(client, sample_user, sample_service):
     service = sample_service()
     data = {
@@ -849,7 +819,7 @@ def test_update_400_for_over_limit_content(client, sample_template):
     ]['content']
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_should_return_all_template_versions_for_service_and_template_id(client, sample_template):
     template = sample_template()
     original_content = template.content
@@ -895,7 +865,7 @@ def test_update_does_not_create_new_version_when_there_is_no_change(client, samp
     assert dao_template.version == 1
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_update_set_process_type_on_template(client, sample_template):
     auth_header = create_admin_authorization_header()
     data = {'process_type': 'priority'}
@@ -910,7 +880,7 @@ def test_update_set_process_type_on_template(client, sample_template):
     assert template.process_type == 'priority'
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_create_a_template_with_reply_to(notify_db_session, admin_request, sample_service, sample_user):
     service = sample_service(service_permissions=['letter'])
     letter_contact = create_letter_contact(service, 'Edinburgh, ED1 1AA')
@@ -941,7 +911,7 @@ def test_create_a_template_with_reply_to(notify_db_session, admin_request, sampl
     assert th.service_letter_contact_id == letter_contact.id
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_create_a_template_with_foreign_service_reply_to(admin_request, sample_service, sample_user):
     service = sample_service(service_permissions=[LETTER_TYPE])
     service2 = sample_service(
@@ -1173,7 +1143,7 @@ def test_preview_letter_template_by_id_invalid_file_type(admin_request, sample_s
     assert ['file_type must be pdf or png'] == resp['message']['content']
 
 
-@pytest.mark.xfail(reason='Failing after Flask upgrade.  Not fixed because not used.', run=False)
+@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
 def test_should_update_template_with_a_valid_provider(admin_request, sample_template, ses_provider):
     template = sample_template(template_type=EMAIL_TYPE)
     provider_id = str(ses_provider.id)
@@ -1257,126 +1227,6 @@ def test_should_not_update_template_with_incorrect_provider_type(mocker, admin_r
     )
     assert json_resp['result'] == 'error'
     assert json_resp['message']['provider_id'][0] == f'Invalid provider id: {fake_uuid}'
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-@freeze_time('2012-12-12')
-@pytest.mark.parametrize('file_type', ('png', 'pdf'))
-def test_preview_letter_template_by_id_valid_file_type(
-    notify_api,
-    notify_db_session,
-    sample_letter_notification,
-    admin_request,
-    file_type,
-):
-    sample_letter_notification.created_at = datetime.utcnow()
-    with set_config_values(
-        notify_api,
-        {
-            'TEMPLATE_PREVIEW_API_HOST': 'http://localhost/notifications-template-preview',
-            'TEMPLATE_PREVIEW_API_KEY': 'test-key',
-        },
-    ):
-        with requests_mock.Mocker() as request_mock:
-            content = b'\x00\x01'
-
-            mock_post = request_mock.post(
-                'http://localhost/notifications-template-preview/preview.{}'.format(file_type),
-                content=content,
-                headers={'X-pdf-page-count': '1'},
-                status_code=200,
-            )
-
-            resp = admin_request.get(
-                'template.preview_letter_template_by_notification_id',
-                service_id=sample_letter_notification.service_id,
-                notification_id=sample_letter_notification.id,
-                file_type=file_type,
-            )
-
-            post_json = mock_post.last_request.json()
-            assert post_json['template']['id'] == str(sample_letter_notification.template_id)
-            assert post_json['values'] == {
-                'address_line_1': 'A1',
-                'address_line_2': 'A2',
-                'address_line_3': 'A3',
-                'address_line_4': 'A4',
-                'address_line_5': 'A5',
-                'address_line_6': 'A6',
-                'postcode': 'A_POST',
-            }
-            assert post_json['date'] == '2012-12-12T00:00:00'
-            assert post_json['filename'] is None
-            assert base64.b64decode(resp['content']) == content
-
-    # Teardown
-    notify_db_session.session.delete(notify_db_session.session.get(Notification, sample_letter_notification.id))
-    template = notify_db_session.session.scalar(
-        select(Template).where(Template.service_id == sample_letter_notification.service_id)
-    )
-    for history in notify_db_session.session.scalars(
-        select(TemplateHistory).where(TemplateHistory.service_id == template.service_id)
-    ).all():
-        notify_db_session.session.delete(history)
-    template_redacted = notify_db_session.session.get(TemplateRedacted, template.id)
-    notify_db_session.session.delete(template_redacted)
-    notify_db_session.session.delete(template)
-    notify_db_session.session.commit()
-
-
-@pytest.mark.skip(reason='Endpoint slated for removal. Test not updated.')
-def test_preview_letter_template_by_id_template_preview_500(
-    notify_api,
-    client,
-    admin_request,
-    notify_db_session,
-    sample_letter_notification,
-):
-    with set_config_values(
-        notify_api,
-        {
-            'TEMPLATE_PREVIEW_API_HOST': 'http://localhost/notifications-template-preview',
-            'TEMPLATE_PREVIEW_API_KEY': 'test-key',
-        },
-    ):
-        import requests_mock
-
-        with requests_mock.Mocker() as request_mock:
-            content = b'\x00\x01'
-
-            mock_post = request_mock.post(
-                'http://localhost/notifications-template-preview/preview.pdf',
-                content=content,
-                headers={'X-pdf-page-count': '1'},
-                status_code=404,
-            )
-
-            resp = admin_request.get(
-                'template.preview_letter_template_by_notification_id',
-                service_id=sample_letter_notification.service_id,
-                notification_id=sample_letter_notification.id,
-                file_type='pdf',
-                _expected_status=500,
-            )
-
-            assert mock_post.last_request.json()
-            assert 'Status code: 404' in resp['message']
-            assert 'Error generating preview letter for {}'.format(sample_letter_notification.id) in resp['message']
-
-    # Teardown
-    # Can't clear template stuff the POST made until we delete the notification (even though the fixture cleans it)
-    notify_db_session.session.delete(notify_db_session.session.get(Notification, sample_letter_notification.id))
-    for template in notify_db_session.session.scalars(
-        select(Template).where(Template.service_id == sample_letter_notification.service_id)
-    ).all():
-        for history in notify_db_session.session.scalars(
-            select(TemplateHistory).where(TemplateHistory.service_id == template.service_id)
-        ).all():
-            notify_db_session.session.delete(history)
-        template_redacted = notify_db_session.session.get(TemplateRedacted, template.id)
-        notify_db_session.session.delete(template_redacted)
-        notify_db_session.session.delete(template)
-    notify_db_session.session.commit()
 
 
 def test_preview_letter_template_precompiled_pdf_file_type(
