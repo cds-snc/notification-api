@@ -15,8 +15,8 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
-  deploy:
-    runs-on: github-arc-ss-api-dev
+  build:
+    runs-on: ubuntu-latest
     name: Build and push
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -26,13 +26,6 @@ jobs:
         unzip -q awscliv2.zip
         sudo ./aws/install --update
         aws --version
-    - name: Install kubectl
-      run: |
-        curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
-        chmod +x ./kubectl
-        sudo mv ./kubectl /usr/local/bin/kubectl
-        kubectl version --client
-        mkdir -p $HOME/.kube
 
     - name: Configure credentials to CDS public ECR using OIDC
       uses: aws-actions/configure-aws-credentials@master
@@ -66,7 +59,17 @@ jobs:
         role-to-assume: arn:aws:iam::239043911459:role/notification-api-apply
         role-session-name: NotifyApiGitHubActions
         aws-region: "ca-central-1"
-
+  deploy:
+    runs-on: github-arc-ss-api-dev
+    name: rollout
+    steps:
+    - name: Install kubectl
+      run: |
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
+        chmod +x ./kubectl
+        sudo mv ./kubectl /usr/local/bin/kubectl
+        kubectl version --client
+        mkdir -p $HOME/.kube    
     - name: Get Kubernetes configuration
       run: |
         aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
@@ -93,7 +96,10 @@ jobs:
         kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
-
+  deploy:
+    runs-on: ubuntu-latest
+    name: finalize
+    steps:
     - name: my-app-install token
       id: notify-pr-bot
       uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # v1.0.6
