@@ -96,7 +96,7 @@ jobs:
         kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
-  deploy:
+  finalize:
     runs-on: ubuntu-latest
     name: finalize
     steps:
