@@ -208,6 +208,7 @@ def create_job(service_id):
 
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+    current_app.logger.info(" TEMP LOGGING 8: done process_job.apply_async")
 
     job_json = job_schema.dump(job)
     job_json["statistics"] = []
