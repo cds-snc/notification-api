@@ -108,11 +108,11 @@ jobs:
         kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
         kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
-        
+
   finalize:
     runs-on: ubuntu-latest
     name: finalize
-    needs: [build, rollout]
+    needs: [build, deploy]
     steps:
     - name: my-app-install token
       id: notify-pr-bot
