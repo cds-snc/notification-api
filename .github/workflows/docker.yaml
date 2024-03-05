@@ -10,7 +10,7 @@ env:
 
 jobs:
   helmfile-diff:
-    runs-on: github-arc-ss-manifests-dev
+    runs-on: github-arc-ss-api-dev
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
