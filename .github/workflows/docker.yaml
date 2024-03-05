@@ -1,15 +1,21 @@
-name: Staging - Helmfile Diff
-
-on: 
-  - pull_request
+name: Build, push to AWS ECR, and deploy
+on:
+  pull_request:
+    branches:
+      - main  
 
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  HELMFILE_FILE_PATH: ${{ github.workspace }}/helmfile
-  STAGING_AWS_ACCOUNT: ${{ secrets.STAGING_AWS_ACCOUNT }}
+  AWS_REGION: ca-central-1
+  DOCKER_ORG: public.ecr.aws/v6b8u5o6
+  DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
+  KUBECTL_VERSION: '1.23.6'
+
+permissions:
+  id-token: write   # This is required for requesting the OIDC JWT
+  contents: read    # This is required for actions/checkout
 
 jobs:
-  helmfile-diff:
+  deploy:
     runs-on: github-arc-ss-api-dev
     steps:
       - name: Configure AWS credentials
@@ -32,4 +38,3 @@ jobs:
       - name: Configure kubeconfig
         run: |
           aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster   
-          kubectl config rename-context arn:aws:eks:ca-central-1:$STAGING_AWS_ACCOUNT:cluster/notification-canada-ca-staging-eks-cluster staging
