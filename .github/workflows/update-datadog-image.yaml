@@ -1,7 +1,11 @@
 name: Datadog image update
-
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        required: true
+        type: string
+        default: master
   workflow_call:
 
 jobs:
