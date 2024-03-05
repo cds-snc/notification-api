@@ -15,49 +15,10 @@ permissions:
   contents: read    # This is required for actions/checkout
 
 jobs:
+
   deploy:
-    runs-on: ubuntu-latest
-    name: Build and push
-    steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-    - name: Install AWS CLI
-      run: |
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-        unzip -q awscliv2.zip
-        sudo ./aws/install --update
-        aws --version
-
-    - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@master
-      with:
-        role-to-assume: arn:aws:iam::283582579564:role/ben-github-test
-        role-session-name: NotifyApiGitHubActions
-        aws-region: "us-east-1"
-
-    - name: Login to ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
-      with:
-        registry-type: public
-
-    - name: Build
-      run: |
-        docker pull $DOCKER_SLUG:latest
-        docker build \
-        --cache-from $DOCKER_SLUG:latest \
-        --build-arg GIT_SHA=${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:latest \
-        -f ci/Dockerfile .
-        
-    - name: Publish
-      run: |
-        docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
-
-  rollout:
     runs-on: github-arc-ss-api-dev
-    name: rollout
-    needs: deploy
+    name: Deploy To Kubernetes
     steps:
 
     - name: Configure AWS credentials
@@ -105,8 +66,8 @@ jobs:
 
   finalize:
     runs-on: ubuntu-latest
-    name: finalize
-    needs: [deploy, rollout]
+    name: Finalize
+    needs: [build, deploy]
     steps:
     - name: my-app-install token
       id: notify-pr-bot
