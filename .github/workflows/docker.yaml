@@ -1,8 +1,8 @@
 name: Build, push to AWS ECR, and deploy
 on:
-  pull_request:
+  push:
     branches:
-      - main  
+      - main
 
 env:
   AWS_REGION: ca-central-1
@@ -28,14 +28,13 @@ jobs:
           sudo ./aws/install --update
           aws --version
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
-        id: awsconfig
+      - name: Configure credentials to CDS public ECR using OIDC
+        uses: aws-actions/configure-aws-credentials@master
         with:
-          aws-access-key-id: ${{ secrets.STAGING_EKS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.STAGING_EKS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
-      
+          role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+          role-session-name: NotifyApiGitHubActions
+          aws-region: "us-east-1"
+
       - name: Login to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
