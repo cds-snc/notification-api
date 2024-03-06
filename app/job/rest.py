@@ -173,9 +173,7 @@ def create_job(service_id):
 
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
-        numberOfSimulated = sum(
-            simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows
-        )
+        numberOfSimulated = sum(simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows)
         mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(recipient_csv)
 
         # if they have specified testing and NON-testing recipients, raise an error
