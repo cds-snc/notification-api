@@ -174,26 +174,28 @@ def create_job(service_id):
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
-            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
+            simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows
         )
-        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(recipient_csv)
 
         # if they have specified testing and NON-testing recipients, raise an error
         if mixedRecipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
-        is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
+        is_test_notification = len(recipient_csv) == numberOfSimulated
 
         if not is_test_notification:
             check_sms_daily_limit(service, len(recipient_csv))
             increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
     elif template.template_type == EMAIL_TYPE:
-        check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
+        check_email_daily_limit(service, len(recipient_csv))
+        current_app.logger.info(" TEMP LOGGING 6a: done check_email_daily_limit")
+
         scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
-            increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
+            increment_email_daily_count_send_warnings_if_needed(service, len(recipient_csv))
     current_app.logger.info(" TEMP LOGGING 6: done checking limits")
 
     data.update({"template_version": template.version})
