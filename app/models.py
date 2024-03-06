@@ -454,9 +454,7 @@ class Organisation(BaseModel):
         "Domain",
     )
 
-    email_branding = db.relationship(
-        "EmailBranding"
-    )  # , back_populates="organisation", foreign_keys="EmailBranding.organisation_id")
+    email_branding = db.relationship("EmailBranding", uselist=False)
     email_branding_id = db.Column(
         UUID(as_uuid=True),
         nullable=True,
