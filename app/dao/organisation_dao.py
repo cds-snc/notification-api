@@ -2,7 +2,14 @@ from sqlalchemy.sql.expression import func
 
 from app import db
 from app.dao.dao_utils import transactional, version_class
-from app.models import Domain, EmailBranding, InvitedOrganisationUser, Organisation, Service, User
+from app.models import (
+    Domain,
+    EmailBranding,
+    InvitedOrganisationUser,
+    Organisation,
+    Service,
+    User,
+)
 
 
 def dao_get_organisations():
