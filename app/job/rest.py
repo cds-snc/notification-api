@@ -175,17 +175,17 @@ def create_job(service_id):
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
         numberOfSimulated = sum(simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows)
-        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != notification_count
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(recipient_csv)
 
         # if they have specified testing and NON-testing recipients, raise an error
         if mixedRecipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
-        is_test_notification = notification_count == numberOfSimulated
+        is_test_notification = len(recipient_csv) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_daily_limit(service, notification_count)
-            increment_sms_daily_count_send_warnings_if_needed(service, notification_count)
+            check_sms_daily_limit(service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
     elif template.template_type == EMAIL_TYPE:
         check_email_daily_limit(service, notification_count)
