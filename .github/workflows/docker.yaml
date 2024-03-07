@@ -29,7 +29,7 @@ jobs:
         unzip -q awscliv2.zip
         sudo ./aws/install --update
         aws --version
-        
+
     - name: Install kubectl
       run: |
         curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
@@ -37,33 +37,6 @@ jobs:
         sudo mv ./kubectl /usr/local/bin/kubectl
         kubectl version --client
         mkdir -p $HOME/.kube
-
-    - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@master
-      with:
-        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
-        role-session-name: NotifyApiGitHubActions
-        aws-region: "us-east-1"
-
-    - name: Login to ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
-      with:
-        registry-type: public
-
-    - name: Build
-      run: |
-        docker pull $DOCKER_SLUG:latest
-        docker build \
-        --cache-from $DOCKER_SLUG:latest \
-        --build-arg GIT_SHA=${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:latest \
-        -f ci/Dockerfile .
-
-    - name: Publish
-      run: |
-        docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
 
     - name: Rollout in Kubernetes
       run: |
