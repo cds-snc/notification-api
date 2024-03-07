@@ -13,7 +13,7 @@ env:
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
   WORKFLOW_PAT: ${{ secrets.WORKFLOW_GITHUB_PAT }}
-  DOCKER_SHA: ${GITHUB_SHA::7}
+  DOCKER_SHA: ${{ GITHUB_SHA::7 }}
 
 permissions:
   id-token: write   # This is required for requesting the OIDC JWT
