@@ -2,7 +2,14 @@ from sqlalchemy.sql.expression import func
 
 from app import db
 from app.dao.dao_utils import transactional, version_class
-from app.models import Domain, InvitedOrganisationUser, Organisation, Service, User
+from app.models import (
+    Domain,
+    EmailBranding,
+    InvitedOrganisationUser,
+    Organisation,
+    Service,
+    User,
+)
 
 
 def dao_get_organisations():
@@ -55,6 +62,10 @@ def dao_update_organisation(organisation_id, **kwargs):
     domains = kwargs.pop("domains", None)
 
     num_updated = Organisation.query.filter_by(id=organisation_id).update(kwargs)
+    if "email_branding_id" in kwargs:
+        email_brand = EmailBranding.query.filter_by(id=kwargs["email_branding_id"]).one()
+        org = Organisation.query.get(organisation_id)
+        org.email_branding = email_brand
 
     if isinstance(domains, list):
         Domain.query.filter_by(organisation_id=organisation_id).delete()
