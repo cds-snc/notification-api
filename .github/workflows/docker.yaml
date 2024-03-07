@@ -29,6 +29,7 @@ jobs:
         unzip -q awscliv2.zip
         sudo ./aws/install --update
         aws --version
+        
     - name: Install kubectl
       run: |
         curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
