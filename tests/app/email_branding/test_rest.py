@@ -21,6 +21,19 @@ def test_get_email_branding_options(admin_request, notify_db, notify_db_session,
     assert email_branding[1]["organisation_id"] == ""
 
 
+def test_get_email_branding_options_filter_org(admin_request, notify_db, notify_db_session, sample_organisation):
+    email_branding1 = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Org1", organisation_id=sample_organisation.id)
+    email_branding2 = EmailBranding(colour="#000000", logo="/path/other.png", name="Org2")
+    notify_db.session.add_all([email_branding1, email_branding2])
+    notify_db.session.commit()
+    email_branding = admin_request.get("email_branding.get_email_branding_options", organisation_id=sample_organisation.id)[
+        "email_branding"
+    ]
+
+    assert len(email_branding) == 1
+    assert email_branding[0]["organisation_id"] == str(sample_organisation.id)
+
+
 def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
     email_branding = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org")
     notify_db.session.add(email_branding)
