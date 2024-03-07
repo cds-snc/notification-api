@@ -1,5 +1,8 @@
 name: Build, push to AWS ECR, and deploy
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
