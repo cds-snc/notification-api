@@ -41,7 +41,7 @@ jobs:
 
     - name: Rollout in Kubernetes
       run: |
-        PAYLOAD={"ref":"main","inputs":{"docker_sha":"${GITHUB_SHA::7}"}}
+        PAYLOAD={\"ref\":\"main\",\"inputs\":{\"docker_sha\":\"${GITHUB_SHA::7}\"}}
         echo ${GITHUB_SHA::7}
         curl -L -X POST -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer $WORKFLOW_PAT" \
