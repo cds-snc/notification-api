@@ -4,8 +4,8 @@ from app.models import BRANDING_ORG_NEW, EmailBranding
 from tests.app.db import create_email_branding
 
 
-def test_get_email_branding_options(admin_request, notify_db, notify_db_session):
-    email_branding1 = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Org1")
+def test_get_email_branding_options(admin_request, notify_db, notify_db_session, sample_organisation):
+    email_branding1 = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Org1", organisation_id=sample_organisation.id)
     email_branding2 = EmailBranding(colour="#000000", logo="/path/other.png", name="Org2")
     notify_db.session.add_all([email_branding1, email_branding2])
     notify_db.session.commit()
@@ -17,6 +17,8 @@ def test_get_email_branding_options(admin_request, notify_db, notify_db_session)
         str(email_branding1.id),
         str(email_branding2.id),
     }
+    assert email_branding[0]["organisation_id"] == str(sample_organisation.id)
+    assert email_branding[1]["organisation_id"] == ""
 
 
 def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
@@ -37,6 +39,7 @@ def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
         "id",
         "text",
         "brand_type",
+        "organisation_id",
     }
     assert response["email_branding"]["colour"] == "#FFFFFF"
     assert response["email_branding"]["logo"] == "/path/image.png"
