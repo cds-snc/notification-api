@@ -129,7 +129,7 @@ def dao_update_job(job):
     db.session.commit()
 
 
-def dao_get_jobs_older_than_data_retention(notification_types):
+def dao_get_jobs_older_than_data_retention(notification_types, limit=None):
     flexible_data_retention = ServiceDataRetention.query.filter(
         ServiceDataRetention.notification_type.in_(notification_types)
     ).all()
@@ -137,8 +137,7 @@ def dao_get_jobs_older_than_data_retention(notification_types):
     today = datetime.utcnow().date()
     for f in flexible_data_retention:
         end_date = today - timedelta(days=f.days_of_retention)
-
-        jobs.extend(
+        query = (
             Job.query.join(Template)
             .filter(
                 func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
@@ -147,13 +146,15 @@ def dao_get_jobs_older_than_data_retention(notification_types):
                 Job.service_id == f.service_id,
             )
             .order_by(desc(Job.created_at))
-            .all()
         )
+        if limit:
+            query = query.limit(limit)
+        jobs.extend(query.all())
 
     end_date = today - timedelta(days=7)
     for notification_type in notification_types:
         services_with_data_retention = [x.service_id for x in flexible_data_retention if x.notification_type == notification_type]
-        jobs.extend(
+        query = (
             Job.query.join(Template)
             .filter(
                 func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
@@ -162,8 +163,10 @@ def dao_get_jobs_older_than_data_retention(notification_types):
                 Job.service_id.notin_(services_with_data_retention),
             )
             .order_by(desc(Job.created_at))
-            .all()
         )
+        if limit:
+            query = query.limit(limit - len(jobs))
+        jobs.extend(query.all())
 
     return jobs
 

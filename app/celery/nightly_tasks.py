@@ -49,14 +49,15 @@ def remove_letter_csv_files():
 
 
 def _remove_csv_files(job_types):
-    jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types)
-    current_app.logger.info("TEMP LOGGING: trying to remove {} jobs.".format(len(jobs)))
-    for job in jobs:
-        current_app.logger.info("TEMP LOGGING: trying to remove Job ID {} from s3.".format(job.id))
-        s3.remove_job_from_s3(job.service_id, job.id)
-        current_app.logger.info("TEMP LOGGING: trying to archive Job ID {}".format(job.id))
-        dao_archive_job(job)
-        current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
+    while True:
+        jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types, limit=20000)
+        if len(jobs) == 0:
+            break
+        current_app.logger.info("Archiving {} jobs.".format(len(jobs)))
+        for job in jobs:
+            s3.remove_job_from_s3(job.service_id, job.id)
+            dao_archive_job(job)
+            current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
 
 
 @notify_celery.task(name="delete-sms-notifications")
