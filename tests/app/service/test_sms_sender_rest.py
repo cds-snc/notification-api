@@ -63,12 +63,12 @@ def test_add_service_sms_sender_return_404_when_rate_limit_too_small(admin_reque
 def test_update_service_sms_sender(
     admin_request,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     service = sample_service()
     sender_specifics = {'data': 'This is something specific.'}
 
-    service_sms_sender = sample_sms_sender_v2(
+    service_sms_sender = sample_sms_sender(
         service_id=service.id, sms_sender='1235', is_default=False, sms_sender_specifics=sender_specifics
     )
 
@@ -97,11 +97,11 @@ def test_update_service_sms_sender_does_not_allow_sender_update_for_inbound_numb
     admin_request,
     sample_inbound_number,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     service = sample_service()
     inbound_number = sample_inbound_number('12345', service_id=service.id)
-    service_sms_sender = sample_sms_sender_v2(
+    service_sms_sender = sample_sms_sender(
         service_id=service.id, sms_sender='1235', is_default=False, inbound_number_id=inbound_number.id
     )
     payload = {'sms_sender': 'second', 'is_default': True, 'inbound_number_id': str(inbound_number.id)}
@@ -131,10 +131,10 @@ def test_update_service_sms_sender_return_404_when_service_does_not_exist(admin_
 def test_delete_service_sms_sender_can_archive_sms_sender(
     admin_request,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     service = sample_service()
-    service_sms_sender = sample_sms_sender_v2(service_id=service.id, sms_sender='5678', is_default=False)
+    service_sms_sender = sample_sms_sender(service_id=service.id, sms_sender='5678', is_default=False)
 
     assert not service_sms_sender.archived, 'This should be False by default.'
 
@@ -168,9 +168,9 @@ def test_delete_service_sms_sender_returns_400_if_archiving_inbound_number(
 def test_get_service_sms_sender_by_id(
     admin_request,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
-    service_sms_sender = sample_sms_sender_v2(service_id=sample_service().id, sms_sender='1235', is_default=False)
+    service_sms_sender = sample_sms_sender(service_id=sample_service().id, sms_sender='1235', is_default=False)
 
     response_json = admin_request.get(
         'service_sms_sender.get_service_sms_sender_by_id',
@@ -196,11 +196,11 @@ def test_get_service_sms_sender_by_id_returns_404_when_service_sms_sender_does_n
 def test_get_service_sms_senders_for_service(
     admin_request,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     sender_specifics = {'data': 'This is something specific.'}
 
-    service_sms_sender = sample_sms_sender_v2(
+    service_sms_sender = sample_sms_sender(
         service_id=sample_service().id, sms_sender='second', is_default=False, sms_sender_specifics=sender_specifics
     )
 

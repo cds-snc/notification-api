@@ -404,18 +404,19 @@ def test_process_row_when_sender_id_is_provided(mocker, fake_uuid):
 
 
 def test_should_send_template_to_correct_sms_task_and_persist(
-    notify_db_session, sample_template_with_placeholders, mocker
+    notify_db_session, sample_service, sample_template, mocker
 ):
-    notification = _notification_json(
-        sample_template_with_placeholders, to='+1 650 253 2222', personalisation={'name': 'Jo'}
-    )
+    service = sample_service()
+    template = sample_template(service=service)
+
+    notification = _notification_json(template, to='+1 650 253 2222', personalisation={'name': 'Jo'})
 
     mocked_deliver_sms = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
     notification_id = uuid4()
 
     save_sms(
-        sample_template_with_placeholders.service_id,
+        template.service_id,
         notification_id,
         encryption.encrypt(notification),
     )
@@ -424,8 +425,8 @@ def test_should_send_template_to_correct_sms_task_and_persist(
 
     try:
         assert persisted_notification.to == '+1 650 253 2222'
-        assert persisted_notification.template_id == sample_template_with_placeholders.id
-        assert persisted_notification.template_version == sample_template_with_placeholders.version
+        assert persisted_notification.template_id == template.id
+        assert persisted_notification.template_version == template.version
         assert persisted_notification.status == 'created'
         assert persisted_notification.created_at <= datetime.utcnow()
         assert not persisted_notification.sent_at
@@ -1106,13 +1107,13 @@ def test_save_sms_uses_sms_sender_reply_to_text(mocker, notify_db_session, sampl
 
 
 def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(
-    mocker, notify_db_session, sample_service, sample_template, sample_sms_sender_v2
+    mocker, notify_db_session, sample_service, sample_template, sample_sms_sender
 ):
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     service = sample_service(sms_sender='07123123123')
     template = sample_template(service=service)
     # new_sender = service_sms_sender_dao.dao_add_sms_sender_for_service(service.id, 'new-sender', False)
-    new_sender = sample_sms_sender_v2(service.id, sms_sender='new-sender', is_default=False)
+    new_sender = sample_sms_sender(service.id, sms_sender='new-sender', is_default=False)
     sms_sender = mocker.Mock()
     sms_sender.rate_limit = 1
     sms_sender.sms_sender = 'new-sender'

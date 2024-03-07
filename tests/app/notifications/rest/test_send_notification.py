@@ -237,7 +237,7 @@ def test_should_allow_valid_sms_notification(
     sample_api_key,
     sample_template,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
@@ -247,7 +247,7 @@ def test_should_allow_valid_sms_notification(
             data = {
                 'to': '6502532222',
                 'template': str(template.id),
-                'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+                'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
             }
 
             auth_header = create_authorization_header(sample_api_key(service=template.service))
@@ -438,7 +438,7 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
     sample_user,
     mocker,
     restricted,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
@@ -453,7 +453,7 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
             data = {
                 'to': sample_user().mobile_number,
                 'template': str(sms_template.id),
-                'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+                'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
             }
 
             auth_header = create_authorization_header(api_key)
@@ -540,7 +540,7 @@ def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(
     sample_api_key,
     sample_template,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     with notify_api.test_request_context(), notify_api.test_client() as client:
         mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
@@ -549,7 +549,7 @@ def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(
         data = {
             'to': '6502532229',
             'template': str(template.id),
-            'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+            'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
         }
 
         auth_header = create_authorization_header(sample_api_key(service=template.service, key_type=KEY_TYPE_TEAM))
@@ -648,7 +648,7 @@ def test_should_persist_notification(
     mocker,
     template_type,
     queue_name,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(template_type))
     mocked_uuid = str(uuid4())
@@ -664,7 +664,7 @@ def test_should_persist_notification(
     data = {
         'to': to,
         'template': template.id,
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
 
     auth_header = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
@@ -705,7 +705,7 @@ def test_should_delete_notification_and_return_error_if_sqs_fails(
     mocker,
     template_type,
     queue_name,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     mocked = mocker.patch(
         'app.celery.provider_tasks.deliver_{}.apply_async'.format(template_type),
@@ -724,7 +724,7 @@ def test_should_delete_notification_and_return_error_if_sqs_fails(
     data = {
         'to': to,
         'template': template.id,
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
 
     auth_header = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
@@ -761,7 +761,7 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
     to,
     key_type,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     template = sample_template(template_type=notification_type)
     service = template.service
@@ -779,7 +779,7 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
     data = {
         'to': to,
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
 
     auth_header = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
@@ -824,7 +824,7 @@ def test_should_send_notification_to_whitelist_recipient(
     key_type,
     service_restricted,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     service = sample_service()
     service.message_limit = 2
@@ -846,7 +846,7 @@ def test_should_send_notification_to_whitelist_recipient(
     data = {
         'to': to,
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
 
     test_key = sample_api_key(service=service, key_type=key_type)
@@ -883,13 +883,13 @@ def test_should_error_if_notification_type_does_not_match_template_type(
     template_type,
     notification_type,
     to,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     template = sample_template(template_type=template_type)
     data = {
         'to': to,
         'template': template.id,
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
     auth_header = create_authorization_header(sample_api_key(service=template.service))
     response = client.post(
@@ -909,10 +909,11 @@ def test_should_error_if_notification_type_does_not_match_template_type(
 
 def test_create_template_raises_invalid_request_exception_with_missing_personalisation(
     notify_db_session,
-    sample_template_with_placeholders,
+    sample_template,
 ):
-    template = notify_db_session.session.get(Template, sample_template_with_placeholders.id)
     from app.notifications.rest import create_template_object_for_notification
+
+    template = sample_template(content='Hello (( Name))\nYour thing is due soon')
 
     with pytest.raises(InvalidRequest) as e:
         create_template_object_for_notification(template, {})
@@ -921,11 +922,11 @@ def test_create_template_raises_invalid_request_exception_with_missing_personali
 
 def test_create_template_doesnt_raise_with_too_much_personalisation(
     notify_db_session,
-    sample_template_with_placeholders,
+    sample_template,
 ):
     from app.notifications.rest import create_template_object_for_notification
 
-    template = notify_db_session.session.get(Template, sample_template_with_placeholders.id)
+    template = sample_template(content='Hello (( Name))\nYour thing is due soon')
     create_template_object_for_notification(template, {'name': 'Jo', 'extra': 'stuff'})
 
 
@@ -962,7 +963,7 @@ def test_create_template_raises_invalid_request_when_content_too_large(
 
 @pytest.mark.parametrize('notification_type, send_to', [('sms', '6502532222'), ('email', 'sample@email.com')])
 def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(
-    client, notify_db_session, sample_api_key, sample_template, mocker, notification_type, send_to, sample_sms_sender_v2
+    client, notify_db_session, sample_api_key, sample_template, mocker, notification_type, send_to, sample_sms_sender
 ):
     template = sample_template(template_type=notification_type, process_type='priority')
     mocked = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
@@ -970,7 +971,7 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     data = {
         'to': send_to,
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
 
     auth_header = create_authorization_header(sample_api_key(service=template.service))
@@ -1008,7 +1009,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     mocker,
     notification_type,
     send_to,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     template = sample_template(template_type=notification_type)
     persist_mock = mocker.patch('app.notifications.rest.persist_notification')
@@ -1019,7 +1020,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     data = {
         'to': send_to,
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=template.service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
 
     auth_header = create_authorization_header(sample_api_key(template.service))
@@ -1045,7 +1046,7 @@ def test_should_not_allow_international_number_on_sms_notification(
     sample_service,
     sample_template,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
     service = sample_service(service_permissions=[EMAIL_TYPE, SMS_TYPE])
@@ -1056,7 +1057,7 @@ def test_should_not_allow_international_number_on_sms_notification(
     data = {
         'to': '+20-12-1234-1234',
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
 
     auth_header = create_authorization_header(sample_api_key(service=service))
@@ -1080,7 +1081,7 @@ def test_should_allow_international_number_on_sms_notification(
     sample_service,
     sample_template,
     mocker,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
@@ -1091,7 +1092,7 @@ def test_should_allow_international_number_on_sms_notification(
     data = {
         'to': '+20-12-1234-1234',
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
 
     auth_header = create_authorization_header(sample_api_key(service=service))
@@ -1113,16 +1114,19 @@ def test_should_not_allow_sms_notifications_if_service_permission_not_set(
     client,
     mocker,
     sample_api_key,
-    sample_template_without_sms_permission,
-    sample_sms_sender_v2,
+    sample_service,
+    sample_sms_sender,
+    sample_template,
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
-    service = sample_template_without_sms_permission.service
+    service = sample_service(service_permissions=[EMAIL_TYPE], check_if_service_exists=True)
+    template = sample_template(service=service)
+
     data = {
         'to': '+16502532222',
-        'template': str(sample_template_without_sms_permission.id),
-        'sms_sender_id': str(sample_sms_sender_v2(service_id=service.id).id),
+        'template': str(template.id),
+        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
 
     auth_header = create_authorization_header(sample_api_key(service=service))
@@ -1143,13 +1147,17 @@ def test_should_not_allow_email_notifications_if_service_permission_not_set(
     client,
     mocker,
     sample_api_key,
-    sample_template_without_email_permission,
+    sample_service,
+    sample_template,
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
 
-    data = {'to': 'notify@digital.cabinet-office.gov.uk', 'template': str(sample_template_without_email_permission.id)}
+    service = sample_service(service_permissions=[SMS_TYPE])
+    template = sample_template(service=service, template_type=EMAIL_TYPE)
 
-    auth_header = create_authorization_header(sample_api_key(service=sample_template_without_email_permission.service))
+    data = {'to': 'notify@digital.cabinet-office.gov.uk', 'template': str(template.id)}
+
+    auth_header = create_authorization_header(sample_api_key(service=template.service))
 
     response = client.post(
         path='/notifications/email', data=json.dumps(data), headers=[('Content-Type', 'application/json'), auth_header]

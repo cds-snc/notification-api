@@ -1634,7 +1634,7 @@ def test_should_create_template_without_created_by_using_current_user_id(
     service = sample_service(
         service_name=f'sample service full permissions {uuid.uuid4()}',
         service_permissions=set(SERVICE_PERMISSION_TYPES),
-        check_if_service_exists=True,
+        check_if_service_exists=False,
     )
     user = service.users[0]
     permission_dao.set_user_service_permission(

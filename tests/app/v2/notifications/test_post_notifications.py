@@ -36,34 +36,6 @@ from tests.app.factories.feature_flag import mock_feature_flag
 from . import post_send_notification
 
 
-@pytest.fixture
-def enable_accept_recipient_identifiers_enabled_feature_flag(mocker):
-    mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=True)
-
-
-@pytest.fixture
-def mock_template_with_version(mocker):
-    mock_template = mocker.Mock()
-    mock_template.id = 'template-id'
-    mock_template.version = 1
-
-    return mock_template
-
-
-@pytest.fixture
-def mock_api_key(mocker):
-    mock_api_key = mocker.Mock()
-    mock_api_key.id = 'some-id'
-    mock_api_key.key_type = 'some-type'
-
-    return mock_api_key
-
-
-@pytest.fixture
-def check_recipient_communication_permissions_enabled(mocker):
-    mock_feature_flag(mocker, FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED, 'True')
-
-
 @pytest.fixture(autouse=True)
 def mock_deliver_email(mocker):
     return mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
@@ -143,12 +115,12 @@ def test_post_sms_notification_uses_inbound_number_as_sender(
     sample_service,
     sample_template,
     sample_inbound_number,
-    sample_sms_sender_v2,
+    sample_sms_sender,
 ):
     service = sample_service()
     template = sample_template(service=service, content='Hello (( Name))\nYour thing is due soon')
     inbound_number = sample_inbound_number(service_id=service.id, number=str(randint(1, 999999999)))
-    sms_sender = sample_sms_sender_v2(
+    sms_sender = sample_sms_sender(
         service_id=service.id, inbound_number_id=inbound_number.id, sms_sender=str(randint(1, 999999999))
     )
 

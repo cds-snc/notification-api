@@ -416,13 +416,13 @@ def test_should_send_sms_with_downgraded_content(
 def test_send_sms_should_use_service_sms_sender(
     sample_api_key,
     sample_notification,
-    sample_sms_sender_v2,
+    sample_sms_sender,
     sample_template,
     mock_sms_client,
 ):
     template = sample_template()
     api_key = sample_api_key(service=template.service)
-    sms_sender = sample_sms_sender_v2(service_id=template.service.id, sms_sender='123456', is_default=False)
+    sms_sender = sample_sms_sender(service_id=template.service.id, sms_sender='123456', is_default=False)
     db_notification = sample_notification(template=template, reply_to_text=sms_sender.sms_sender, api_key=api_key)
 
     send_to_providers.send_sms_to_provider(

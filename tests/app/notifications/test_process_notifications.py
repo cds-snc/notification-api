@@ -20,6 +20,7 @@ from app.models import (
     ScheduledNotification,
     Template,
     LETTER_TYPE,
+    SERVICE_PERMISSION_TYPES,
     EMAIL_TYPE,
     SMS_TYPE,
     RecipientIdentifier,
@@ -832,14 +833,17 @@ def test_persist_letter_notification_finds_correct_postage(
     postage_argument,
     template_postage,
     expected_postage,
-    sample_service_full_permissions,
+    sample_service,
     sample_api_key,
     sample_template,
 ):
     api_key = sample_api_key()
-    template = sample_template(
-        service=sample_service_full_permissions, template_type=LETTER_TYPE, postage=template_postage
+    service = sample_service(
+        service_name=f'sample service full permissions {uuid.uuid4()}',
+        service_permissions=set(SERVICE_PERMISSION_TYPES),
+        check_if_service_exists=False,
     )
+    template = sample_template(service=service, template_type=LETTER_TYPE, postage=template_postage)
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
 
     notification = persist_notification(
@@ -847,7 +851,7 @@ def test_persist_letter_notification_finds_correct_postage(
         template_version=template.version,
         template_postage=template.postage,
         recipient='Jane Doe, 10 Downing Street, London',
-        service_id=sample_service_full_permissions.id,
+        service_id=service.id,
         personalisation=None,
         notification_type=LETTER_TYPE,
         api_key_id=api_key.id,

@@ -270,13 +270,13 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(
     notify_db_session,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
     sample_template,
     celery_mock,
 ):
     service = sample_service()
     template = sample_template(service=service)
-    sms_sender = sample_sms_sender_v2(service_id=service.id, sms_sender='6502532222', is_default=False)
+    sms_sender = sample_sms_sender(service_id=service.id, sms_sender='6502532222', is_default=False)
 
     data = {
         'to': '6502532223',
@@ -299,14 +299,14 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(
 def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
     notify_db_session,
     sample_service,
-    sample_sms_sender_v2,
+    sample_sms_sender,
     sample_template,
     celery_mock,
 ):
     service = sample_service()
     template = sample_template(service=service)
     service.service_sms_senders[0].is_default = False
-    sample_sms_sender_v2(service_id=service.id, sms_sender='6502532222', is_default=True)
+    sample_sms_sender(service_id=service.id, sms_sender='6502532222', is_default=True)
 
     data = {
         'to': '6502532223',
