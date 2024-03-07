@@ -182,9 +182,9 @@ def create_job(service_id):
             increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
     elif template.template_type == EMAIL_TYPE:
-        if "notification_count" in data:
+        try:
             notification_count = int(data["notification_count"])
-        else:
+        except KeyError:
             current_app.logger.warning(f"notification_count not in metadata for job {data['id']}, using len(recipient_csv) instead.")
             notification_count = len(recipient_csv)
 
