@@ -185,7 +185,9 @@ def create_job(service_id):
         try:
             notification_count = int(data["notification_count"])
         except KeyError:
-            current_app.logger.warning(f"notification_count not in metadata for job {data['id']}, using len(recipient_csv) instead.")
+            current_app.logger.warning(
+                f"notification_count not in metadata for job {data['id']}, using len(recipient_csv) instead."
+            )
             notification_count = len(recipient_csv)
 
         check_email_daily_limit(service, notification_count)
