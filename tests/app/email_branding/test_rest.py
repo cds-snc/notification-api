@@ -33,11 +33,10 @@ def test_get_email_branding_options_filter_org(admin_request, notify_db, notify_
     assert len(email_branding) == 1
     assert email_branding[0]["organisation_id"] == str(sample_organisation.id)
 
-    email_branding2 = admin_request.get("email_branding.get_email_branding_options")[
-        "email_branding"
-    ]
+    email_branding2 = admin_request.get("email_branding.get_email_branding_options")["email_branding"]
 
     assert len(email_branding2) == 2
+
 
 def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
     email_branding = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org")
