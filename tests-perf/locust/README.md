@@ -32,6 +32,13 @@ Note that the `host` value can also be defined within the `User` classes such as
 
 You should not have to modify the configuration to run the stress-tests locally.
 
+### Default configuration
+
+- 5 users (set in `locust.conf`)
+- each user sends a bulk jon of 2000 emails once a minute (set in `locust-notifications.py`)
+- run time 40 minutes (set in `locust.conf`)
+So overall we queue to send 10000 emails per minute for 40 minutes, 400000 emails in total
+
 ## How to run the stress tests
 
 There are two ways to run Locust, with the UI or headless.
@@ -49,10 +56,10 @@ PERF_TEST_SMS_TEMPLATE_ID =
 
 ### With the UI
 
-Locally, simply run:
+Run from the repo root directory:
 
 ```shell
-locust -f .\locust-notifications.py
+poetry run locust --config tests-perf/locust/locust.conf
 ```
 
 Follow the localhost address that the console will display to get to the UI. It will ask you how many total users and spawned users you want configured. Once setup, you can manually start the tests via the UI and follow the summary data and charts visually.
@@ -62,7 +69,7 @@ Follow the localhost address that the console will display to get to the UI. It 
 You can pass the necessary parameters to the command line to run in the headless mode. For example:
 
 ```shell
-locust -f .\locust-notifications.py --headless --users=5500 --spawn-rate=200 --run-time=10m
+poetry run locust --config tests-perf/locust/locust.conf --headless --run-time=5m
 ```
 
 You can also modify the *locust.config* file to enable the headless mode and define the necessary users, spawn rate and run time.
