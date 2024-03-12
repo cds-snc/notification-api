@@ -60,8 +60,9 @@ def get_job_metadata_from_s3(service_id, job_id):
     return obj.get()["Metadata"]
 
 
-def remove_job_from_s3(service_id, job_id):
-    return remove_s3_object(*get_job_location(service_id, job_id))
+def remove_job_batch_from_s3(jobs):
+    for job in jobs:
+        remove_s3_object(*get_job_location(job.service_id, job.id))
 
 
 def get_s3_bucket_objects(bucket_name, subfolder="", older_than=7, limit_days=2):
