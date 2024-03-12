@@ -59,8 +59,7 @@ def _remove_csv_files(job_types):
         current_app.logger.info("Archiving {} jobs.".format(len(jobs)))
         s3.remove_job_batch_from_s3(jobs)
         dao_archive_job_batch(jobs)
-        for job in jobs:
-            current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
+        current_app.logger.info(f"Jobs archived: {[job.id for job in jobs]}")
 
 
 @notify_celery.task(name="delete-sms-notifications")
