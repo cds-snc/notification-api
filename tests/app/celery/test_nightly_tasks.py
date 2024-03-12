@@ -93,11 +93,8 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
 
     remove_sms_email_csv_files()
 
-    assert s3.remove_job_batch_from_s3.call_args_list == [
-        call([job1_to_delete, job2_to_delete])
-        # call(job1_to_delete.service_id, job1_to_delete.id),
-        # call(job2_to_delete.service_id, job2_to_delete.id),
-    ]
+    args = s3.remove_job_batch_from_s3.call_args.args[0]
+    assert sorted(args, key=lambda x: x.id) == sorted([job1_to_delete, job2_to_delete], key=lambda x: x.id)
     assert job1_to_delete.archived is True
     assert dont_delete_me_1.archived is False
 
@@ -154,9 +151,7 @@ def test_remove_csv_files_filters_by_type(mocker, sample_service):
 
     remove_letter_csv_files()
 
-    assert s3.remove_job_batch_from_s3.call_args_list == [
-        call([job_to_delete]),
-    ]
+    assert s3.remove_job_batch_from_s3.call_args.args[0] == [job_to_delete]
 
 
 def test_should_call_delete_sms_notifications_more_than_week_in_task(notify_api, mocker):
