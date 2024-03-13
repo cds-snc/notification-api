@@ -297,6 +297,8 @@ class Config(object):
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
+    # SQS's current max payload size is 256KiB. See: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+    MAX_SQS_PAYLOAD_SIZE = os.getenv("MAX_SQS_PAYLOAD_SIZE", 262144)
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb
