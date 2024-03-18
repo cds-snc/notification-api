@@ -1,0 +1,81 @@
+name: Deployment to Perf
+# note:
+# It's useful to recognize that this workflow is designed to be triggered by a merge to the default branch. 
+# Therefore, ${{ github.sha }} will always be in reference to the SHA that originally triggered this workflow. 
+# $GITHUB_SHA, on the other hand, is created whenever actions/checkout@v4 is run
+
+# note:
+# environment:
+  # name:
+# is keyword for using the environment protections.
+
+# with: 
+  # environment:
+# is simply using a variable named environment 
+  
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  prepare-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+  approval-to-deploy:
+    needs: prepare-deployment
+    environment: 
+      name: perf-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pause for manual approval
+        run: |
+          echo "Deploying commit SHA ${{ github.sha }}, the latest merge to master"
+          echo "Deployment paused for manual approval."
+
+# this job deploys the SHA that triggered this workflow
+  deploy-to-perf:
+    needs: approval-to-deploy
+    uses: ./.github/workflows/dev_deploy.yml
+    with:
+      environment: perf
+      ref: ${{ github.sha }}
+      lambdaDeploy: true
+    secrets: inherit
+
+  approval-to-merge-to-release-branch:
+    needs: deploy-to-perf
+    environment: 
+      name: perf-merge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pause for manual approval
+        run: echo "Deployment paused for manual approval."
+
+  merge-to-release:
+    # These permissions are needed to write to the release branch
+    permissions:
+      contents: write
+    needs: approval-to-merge-to-release-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release
+          fetch-depth: 0
+
+      - name: Setup git user
+        # The following is taken from https://github.com/actions/checkout/issues/13 as a common work-around
+        run: |
+            git config --global user.name "$(git --no-pager log --format=format:'%an' -n 1)"
+            git config --global user.email "$(git --no-pager log --format=format:'%ae' -n 1)"
+          
+      - name: Merge commit SHA to release
+        run: |
+          git merge ${{ github.sha }} --no-squash -X theirs
+          git push
+
