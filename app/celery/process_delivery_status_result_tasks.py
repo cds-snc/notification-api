@@ -107,7 +107,7 @@ def process_delivery_status(
 
 def attempt_to_get_notification(
     reference: str, notification_status: str, event_duration_in_seconds: int
-) -> Tuple[Notification, bool, bool]:
+) -> Tuple[Notification, bool]:
     """
     Attempt to get the Notification object, and determine whether the Celery Event should be retried or exit.
     """

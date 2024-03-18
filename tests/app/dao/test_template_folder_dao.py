@@ -23,4 +23,4 @@ def test_dao_delete_template_folder_deletes_user_folder_permissions(
     dao_delete_template_folder(folder)
 
     stmt = select(user_folder_permissions).where(user_folder_permissions.c.template_folder_id == folder_id)
-    assert notify_db_session.session.execute(stmt).all() == []
+    assert notify_db_session.session.scalars(stmt).all() == []

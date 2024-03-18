@@ -9,8 +9,8 @@ services:
       - "../:/app:ro"
     ports:
       - 6011:6011
-    env_file:
-      - .docker-env
+    env_file: &vanotify_env
+      - .local.env
     depends_on:
       - migrations
       - localstack
@@ -39,8 +39,7 @@ services:
 
   migrations:
     image: notification_api
-    env_file:
-      - .docker-env
+    env_file: *vanotify_env
     volumes:
       - "../:/app:ro"
     command: ["bash", "-c", "flask db upgrade"]
@@ -52,8 +51,7 @@ services:
     container_name: localstack
     ports:
       - "4566:4566"
-    env_file:
-      - .docker-env
+    env_file: *vanotify_env
     environment:
       - SERVICES=ec2,iam,lambda,s3,ses,sqs,sts
       - DEFAULT_REGION=us-east-2
@@ -65,8 +63,7 @@ services:
 
   celery:
     image: notification_api
-    env_file:
-      - .docker-env
+    env_file: *vanotify_env
     volumes:
       - "../:/app:ro"
     command: >

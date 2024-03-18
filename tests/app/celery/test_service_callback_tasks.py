@@ -6,6 +6,7 @@ from datetime import datetime
 import requests_mock
 from flask import current_app
 from freezegun import freeze_time
+from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import DATETIME_FORMAT, encryption
@@ -42,21 +43,33 @@ from tests.app.db import (
 
 @pytest.fixture
 def complaint_and_template_name_to_vanotify(notify_db_session, sample_service, sample_template, sample_notification):
-    service = sample_service(service_name='Sample VANotify service', restricted=True)
-    template = sample_template(service=service, name='Sample VANotify service', template_type='email', subject='Hello')
-    notification = sample_notification(template=template)
-    complaint = create_complaint(service=service, notification=notification)
+    complaint_ids = []
 
-    yield complaint, template.name
+    def _wrapper():
+        # Service and template used the same name
+        name = f'{uuid.uuid4()} VANotify service'
+        service = sample_service(service_name=name, restricted=True)
+        template = sample_template(service=service, name=name, template_type='email', subject='Hello')
+        notification = sample_notification(template=template)
+        complaint = create_complaint(service=service, notification=notification)
+
+        complaint_ids.append(complaint.id)
+        return complaint, template.name
+
+    yield _wrapper
 
     # Teardown
-    notify_db_session.session.delete(complaint)
+    stmt = delete(Complaint).where(Complaint.id.in_(complaint_ids))
+    notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_encrypted_data(
-    notification_type, sample_service, sample_template, sample_notification
+    notification_type,
+    sample_service,
+    sample_template,
+    sample_notification,
 ):
     from app.celery.service_callback_tasks import send_delivery_status_to_service
 
@@ -96,7 +109,10 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
 
 
 def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted_data(
-    notify_db_session, sample_template, sample_service, sample_notification
+    notify_db_session,
+    sample_template,
+    sample_service,
+    sample_notification,
 ):
     with freeze_time('2001-01-01T12:00:00'):
         callback_api, template = _set_up_test_data(EMAIL_TYPE, 'complaint', sample_service, sample_template)
@@ -126,13 +142,19 @@ def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted
             assert request_mock.request_history[0].headers['Authorization'] == f'Bearer {callback_api.bearer_token}'
         finally:
             # Teardown
-            notify_db_session.session.delete(complaint)
+            stmt = delete(Complaint).where(Complaint.id == complaint.id)
+            notify_db_session.session.execute(stmt)
             notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
 def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_encrypted_data(
-    notify_db_session, mocker, notification_type, sample_service, sample_template, sample_notification
+    notify_api,
+    mocker,
+    notification_type,
+    sample_service,
+    sample_template,
+    sample_notification,
 ):
     from app.celery.service_callback_tasks import send_delivery_status_to_service
 
@@ -152,7 +174,12 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
 def test_send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_encrypted_data(
-    notify_db_session, mocker, notification_type, sample_service, sample_template, sample_notification
+    notify_api,
+    mocker,
+    notification_type,
+    sample_service,
+    sample_template,
+    sample_notification,
 ):
     from app.celery.service_callback_tasks import send_delivery_status_to_service
 
@@ -170,7 +197,10 @@ def test_send_data_to_service_callback_api_does_not_retry_if_request_returns_404
 
 
 def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
-    notify_db_session, sample_service, sample_template, sample_notification
+    notify_api,
+    sample_service,
+    sample_template,
+    sample_notification,
 ):
     from app.celery.service_callback_tasks import send_delivery_status_to_service
 
@@ -192,10 +222,12 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
 
 
 def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
-    notify_db_session, mocker, complaint_and_template_name_to_vanotify
+    notify_api,
+    mocker,
+    complaint_and_template_name_to_vanotify,
 ):
     mocked = mocker.patch('app.service.sender.send_notification_to_service_users')
-    complaint, template_name = complaint_and_template_name_to_vanotify
+    complaint, template_name = complaint_and_template_name_to_vanotify()
     send_complaint_to_vanotify(complaint.id, template_name)
 
     mocked.assert_called_once_with(
@@ -212,13 +244,17 @@ def test_send_complaint_to_vanotify_invokes_send_notification_to_service_users(
     )
 
 
-def test_send_email_complaint_to_vanotify_fails(notify_db_session, mocker, complaint_and_template_name_to_vanotify):
+def test_send_email_complaint_to_vanotify_fails(
+    notify_api,
+    mocker,
+    complaint_and_template_name_to_vanotify,
+):
     mocker.patch(
         'app.service.sender.send_notification_to_service_users',
         side_effect=NotificationTechnicalFailureException('error!!!'),
     )
     mock_logger = mocker.patch('app.celery.service_callback_tasks.current_app.logger.exception')
-    complaint, template_name = complaint_and_template_name_to_vanotify
+    complaint, template_name = complaint_and_template_name_to_vanotify()
 
     send_complaint_to_vanotify(complaint.id, template_name)
 
@@ -272,7 +308,10 @@ def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exist
     )
 
 
-def test_publish_complaint_results_in_invoking_handler(mocker, notify_api):
+def test_publish_complaint_results_in_invoking_handler(
+    mocker,
+    notify_api,
+):
     notification_db = mocker.patch('app.dao.notifications_dao.update_notification_status_by_reference')
 
     mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
@@ -284,7 +323,10 @@ def test_publish_complaint_results_in_invoking_handler(mocker, notify_api):
     assert notification_db.call_count == 0
 
 
-def test_publish_complaint_notifies_vanotify(mocker, notify_api):
+def test_publish_complaint_notifies_vanotify(
+    mocker,
+    notify_api,
+):
     mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
     send_complaint = mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async')
 
@@ -297,7 +339,10 @@ def test_publish_complaint_notifies_vanotify(mocker, notify_api):
     )
 
 
-def test_ses_callback_should_call_user_complaint_callback_task(mocker, notify_api):
+def test_ses_callback_should_call_user_complaint_callback_task(
+    mocker,
+    notify_api,
+):
     complaint, notification, recipient_email = get_complaint_notification_and_email(mocker)
     complaint_callback_task = mocker.patch('app.celery.service_callback_tasks._check_and_queue_complaint_callback_task')
     mocker.patch('app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async')
@@ -340,7 +385,12 @@ def create_mock_notification(mocker):
     return notification
 
 
-def _set_up_test_data(notification_type, callback_type, sample_service, sample_template):
+def _set_up_test_data(
+    notification_type,
+    callback_type,
+    sample_service,
+    sample_template,
+):
     service = sample_service(restricted=True)
     template = sample_template(service=service, template_type=notification_type, subject='Hello')
     callback_api = create_service_callback_api(
@@ -352,7 +402,10 @@ def _set_up_test_data(notification_type, callback_type, sample_service, sample_t
     return callback_api, template
 
 
-def _set_up_data_for_status_update(callback_api, notification):
+def _set_up_data_for_status_update(
+    callback_api,
+    notification,
+):
     data = {
         'notification_id': str(notification.id),
         'notification_client_reference': notification.client_reference,
@@ -371,7 +424,11 @@ def _set_up_data_for_status_update(callback_api, notification):
     return encrypted_status_update
 
 
-def _set_up_data_for_complaint(callback_api, complaint, notification):
+def _set_up_data_for_complaint(
+    callback_api,
+    complaint,
+    notification,
+):
     data = {
         'complaint_id': str(complaint.id),
         'notification_id': str(notification.id),
@@ -387,7 +444,12 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
 
 class TestSendInboundSmsToService:
     def test_post_https_request_to_service(
-        self, mocker, sample_inbound_sms, sample_service, sample_service_callback, sample_sms_sender
+        self,
+        mocker,
+        sample_inbound_sms,
+        sample_service,
+        sample_service_callback,
+        sample_sms_sender,
     ):
         service = sample_service()
         inbound_api = sample_service_callback(  # nosec
@@ -425,7 +487,12 @@ class TestSendInboundSmsToService:
         _, kwargs = call
         assert kwargs['payload'] == expected_data
 
-    def test_does_not_send_request_when_inbound_sms_does_not_exist(self, notify_api, sample_service, mocker):
+    def test_does_not_send_request_when_inbound_sms_does_not_exist(
+        self,
+        notify_api,
+        sample_service,
+        mocker,
+    ):
         service = sample_service()
         inbound_api = create_service_callback_api(service=service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
         mock_send = mocker.Mock()
@@ -443,7 +510,11 @@ class TestSendInboundSmsToService:
 
 @pytest.mark.parametrize('payload', [None, {}, {'key': 'value'}, 'Hello%20G%C3%BCnter', '!@##$%^&*(){}:"?><'])
 @pytest.mark.parametrize('include_provider_payload', [True, False])
-def test_create_delivery_status_callback_data(sample_notification, payload, include_provider_payload):
+def test_create_delivery_status_callback_data(
+    sample_notification,
+    payload,
+    include_provider_payload,
+):
     notification = sample_notification()
 
     # callback_api

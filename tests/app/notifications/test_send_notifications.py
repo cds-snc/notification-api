@@ -216,7 +216,3 @@ def test_send_notification_bypass_route_email_with_recipient_item(
         communication_item_id=template.communication_item_id,
         onsite_enabled=False,
     )
-
-
-# More tests can be added to test other things like:
-# - Error cases and exception handling

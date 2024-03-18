@@ -61,7 +61,6 @@ from app.models import (
 )
 from app.notifications.process_notifications import persist_notification
 from app.va.identifier import IdentifierType
-# from tests.app.db import create_notification_history
 
 
 def test_should_have_decorated_notifications_dao_functions():
@@ -776,38 +775,38 @@ def test_should_delete_notification_for_id(
 
 def test_should_delete_recipient_identifiers_if_notification_deleted(
     notify_db_session,
-    sample_template,
-    sample_job,
     sample_api_key,
+    sample_template,
     mocker,
 ):
     mocker.patch('app.notifications.process_notifications.accept_recipient_identifiers_enabled', return_value=True)
     recipient_identifier = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}
 
     template = sample_template()
-    job = sample_job(template)
-    api_key = sample_api_key()
-    notification = persist_notification(
+    api_key = sample_api_key(service=template.service)
+    notification_id = uuid4()
+
+    persist_notification(
         template_id=template.id,
         template_version=template.version,
-        service_id=job.service.id,
+        service_id=template.service.id,
         personalisation=None,
         notification_type=EMAIL_TYPE,
         api_key_id=api_key.id,
         key_type=api_key.key_type,
-        job_id=job.id,
         recipient_identifier=recipient_identifier,
+        notification_id=notification_id,
     )
 
     stmt = select(RecipientIdentifier).where(
-        RecipientIdentifier.notification_id == notification.id,
+        RecipientIdentifier.notification_id == notification_id,
         RecipientIdentifier.id_type == recipient_identifier['id_type'],
         RecipientIdentifier.id_value == recipient_identifier['id_value'],
     )
-    assert notify_db_session.session.scalar(stmt).notification_id == notification.id
-    dao_delete_notification_by_id(notification.id)
+    assert notify_db_session.session.scalar(stmt).notification_id == notification_id
+    dao_delete_notification_by_id(notification_id)
 
-    assert notify_db_session.session.get(Notification, notification.id) is None
+    assert notify_db_session.session.get(Notification, notification_id) is None
     assert notify_db_session.session.scalar(stmt) is None
 
 
@@ -944,9 +943,9 @@ def test_dao_timeout_notifications_doesnt_affect_letters(
 
 
 def test_should_return_notifications_excluding_jobs_by_default(
+    sample_api_key,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_notification,
 ):
     template = sample_template()
@@ -980,10 +979,10 @@ def test_should_not_count_pages_when_given_a_flag(sample_template, sample_notifi
 
 def test_get_notifications_created_by_api_or_csv_are_returned_correctly_excluding_test_key_notifications(
     notify_db_session,
+    sample_api_key,
     sample_service,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_notification,
 ):
     service = sample_service()
@@ -1019,9 +1018,9 @@ def test_get_notifications_created_by_api_or_csv_are_returned_correctly_excludin
 
 def test_get_notifications_with_a_live_api_key_type(
     notify_db_session,
+    sample_api_key,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_team_api_key,
     sample_test_api_key,
     sample_notification,
@@ -1060,9 +1059,9 @@ def test_get_notifications_with_a_live_api_key_type(
 
 
 def test_get_notifications_with_a_test_api_key_type(
+    sample_api_key,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_team_api_key,
     sample_test_api_key,
     sample_notification,
@@ -1097,9 +1096,9 @@ def test_get_notifications_with_a_test_api_key_type(
 
 
 def test_get_notifications_with_a_team_api_key_type(
+    sample_api_key,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_team_api_key,
     sample_test_api_key,
     sample_notification,
@@ -1135,9 +1134,9 @@ def test_get_notifications_with_a_team_api_key_type(
 
 def test_should_exclude_test_key_notifications_by_default(
     notify_db_session,
+    sample_api_key,
     sample_template,
     sample_job,
-    sample_api_key,
     sample_team_api_key,
     sample_test_api_key,
     sample_notification,
@@ -1791,7 +1790,11 @@ def test_dao_get_notification_history_by_reference_with_no_matches_raises_error(
 @pytest.mark.serial
 @pytest.mark.parametrize('notification_type', [LETTER_TYPE, EMAIL_TYPE, SMS_TYPE])
 def test_notifications_not_yet_sent(
-    sample_api_key, sample_service, sample_template, notification_type, sample_notification
+    sample_api_key,
+    sample_service,
+    sample_template,
+    notification_type,
+    sample_notification,
 ):
     # The notification cannot be older than this number of seconds.
     older_than = 4
@@ -2043,7 +2046,10 @@ def test_update_notification_status_by_id_cannot_update_status_out_of_order_with
     ],
 )
 def test_update_notification_status_by_id_can_update_status_in_order_when_given_valid_values(
-    sample_template, current_status, next_status, sample_notification
+    current_status,
+    next_status,
+    sample_notification,
+    sample_template,
 ):
     reference_tuple = (str(uuid4()), str(uuid4()))
     notification_list = []

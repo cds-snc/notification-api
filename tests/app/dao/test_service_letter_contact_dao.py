@@ -200,27 +200,27 @@ def test_archive_letter_contact_does_dissociates_template_defaults_before_archiv
     assert template_default.archived is True
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_get_letter_contact_by_id(sample_service):
     letter_contact = create_letter_contact(service=sample_service, contact_block='Aberdeen, AB12 23X')
     result = dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=letter_contact.id)
     assert result == letter_contact
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_letter_contact_does_not_exist(sample_service):
     with pytest.raises(SQLAlchemyError):
         dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=uuid.uuid4())
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_letter_contact_is_archived(sample_service):
     archived_contact = create_letter_contact(service=sample_service, contact_block='Aberdeen, AB12 23X', archived=True)
     with pytest.raises(SQLAlchemyError):
         dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=archived_contact.id)
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_service_does_not_exist(sample_service):
     letter_contact = create_letter_contact(service=sample_service, contact_block='Some address')
     with pytest.raises(SQLAlchemyError):

@@ -1,15 +1,17 @@
+from contextlib import contextmanager
 import os
+from time import sleep
+import warnings
 
+
+import sqlalchemy
+from sqlalchemy.sql import delete, select, text as sa_text
 from alembic.command import upgrade
 from alembic.config import Config
 from app import create_app, db, schemas
-from contextlib import contextmanager
 from flask import Flask
 import pytest
-import sqlalchemy
-from sqlalchemy import delete, text as sa_text
 from sqlalchemy.exc import SAWarning
-import warnings
 
 
 application = None
@@ -240,3 +242,97 @@ def database_prep():
     db.session.execute(delete(LR))
 
     db.session.commit()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    A pytest hook that runs after all tests. Reports database is clear of extra entries after all tests have ran.
+    Exit code is set to 1 if anything is left in any table.
+    """
+
+    color = '\033[91m'
+    reset = '\033[0m'
+    SLEEP_DURATION = 5  # Adjustable - Allow fixtures to finish their work, multi-worker fails otherwise
+    TRUNCATE_ARTIFACTS = os.environ['TRUNCATE_ARTIFACTS'] == 'True'
+    sleep(SLEEP_DURATION)
+
+    with application.app_context():
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', category=SAWarning)
+            meta_data = db.MetaData(bind=db.engine)
+            db.MetaData.reflect(meta_data)
+
+        acceptable_counts = {
+            'communication_items': 4,
+            'job_status': 9,
+            'key_types': 3,
+            # 'provider_details': 9,  # TODO: 1631
+            # 'provider_details_history': 9,  # TODO: 1631
+            'provider_rates': 5,
+            # 'rates': 2,
+            'service_callback_channel': 2,
+            'service_callback_type': 3,
+            'service_permission_types': 12,
+        }
+
+        skip_tables = (
+            'alembic_version',
+            'auth_type',
+            'branding_type',
+            'dm_datetime',
+            'key_types',
+            'notification_status_types',
+            'template_process_type',
+            'provider_details',
+            'provider_details_history',
+        )
+        to_be_deleted_tables = (
+            'organisation_types',
+            'invite_status_type',
+            'job_status',
+        )
+
+        # Gather tablenames & sort
+        table_list = sorted(
+            [
+                table
+                for table in db.engine.table_names()
+                if table not in skip_tables and table not in to_be_deleted_tables
+            ]
+        )
+
+        tables_with_artifacts = []
+        artifact_counts = []
+
+        # Use metadata to query the table and add the table name to the list if there are any records
+        for table_name in table_list:
+            row_count = len(db.session.execute(select(meta_data.tables[table_name])).all())
+
+            if table_name in acceptable_counts and row_count <= acceptable_counts[table_name]:
+                continue
+            elif row_count > 0:
+                artifact_counts.append((row_count))
+                tables_with_artifacts.append(table_name)
+                session.exitstatus = 1
+
+        if tables_with_artifacts and TRUNCATE_ARTIFACTS:
+            # Give the tests time to finish self-cleanup - extra time to reduce deadlocks
+            sleep(SLEEP_DURATION)
+
+            print('\n')
+            for i, table in enumerate(tables_with_artifacts):
+                # Skip tables that may have necessary information
+                if table not in acceptable_counts:
+                    db.session.execute(sa_text(f"""TRUNCATE TABLE {table} CASCADE"""))
+                    print(f'Truncating {color}{table}{reset} with cascade...{artifact_counts[i]} records removed')
+                else:
+                    print(f'Table {table} contains too many records but {color}cannot be truncated{reset}.')
+            db.session.commit()
+            print(
+                f'\n\nThese tables contained artifacts: ' f'{tables_with_artifacts}\n\n{color}UNIT TESTS FAILED{reset}'
+            )
+        elif tables_with_artifacts:
+            print(f'\n\nThese tables contain artifacts: ' f'{color}{tables_with_artifacts}\n\nUNIT TESTS FAILED{reset}')
+        else:
+            color = '\033[32m'  # Green - pulled out for clarity
+            print(f'\n\n{color}DATABASE IS CLEAN{reset}')

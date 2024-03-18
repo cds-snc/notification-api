@@ -21,21 +21,19 @@ def test_all_routes_have_authentication(client):
             if response.status_code not in (401, 403):
                 routes_without_authentication.add(str(rule))
 
-    expected_routes_without_authentication = frozenset(
-        (
-            '/',
-            '/_status',
-            '/_status/live-service-and-organisation-counts',
-            '/auth/authorize',
-            '/auth/callback',
-            '/auth/login',
-            '/auth/logout',
-            '/notifications/govdelivery',
-            '/auth/redeem-token',
-            '/auth/token',
-            '/platform-stats/monthly',
-            '/auth/my-services/<uuid:user_id>',
-        )
+    expected_routes_without_authentication = (
+        '/',
+        '/_status',
+        '/_status/live-service-and-organisation-counts',
+        '/auth/authorize',
+        '/auth/callback',
+        '/auth/login',
+        '/auth/logout',
+        '/notifications/govdelivery',
+        '/auth/redeem-token',
+        '/auth/token',
+        '/platform-stats/monthly',
+        '/auth/my-services/<uuid:user_id>',
     )
 
     for route in routes_without_authentication:

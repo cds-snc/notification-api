@@ -3,37 +3,29 @@ services:
   test:
     build:
       context: ..
-      dockerfile: ci/Dockerfile.test
-    volumes:
-      # Write access is necessary because the test runner writes output.
-      # Running "make test" includes deleting that output.
-      - "../:/app:rw"
-    environment:
-      # If any of these values change, update tests/env_vars.  See tests/README.md for details.
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_PINPOINT_APP_ID=AWS_PINPOINT_APP_ID
-      - AWS_REGION=us-east-1
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_SECURITY_TOKEN=test
-      - AWS_SESSION_TOKEN=test
-      - DATABASE_URI_PATH=DATABASE_URI_PATH
-      - DEAD_LETTER_SQS_URL=DEAD_LETTER_SQS_URL
-      - LOG_LEVEL=DEBUG
-      - NOTIFY_ENVIRONMENT=test
-      - RETRY_SQS_URL=RETRY_SQS_URL
-      - SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/test_notification_api
-      - SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db:5432/test_notification_api
-      - TIMEOUT=10
-      - VA_PROFILE_DOMAIN=int.vaprofile.va.gov
-      - VETEXT_API_AUTH_SSM_PATH=test
-      - V3_ENABLED=True
+      dockerfile: ci/Dockerfile
+      args:
+        POETRY_ARGS: --with static_tools,test
+        FLASK_DEBUG: 1
+        TEST_FOLDER: tests
+    image: &notify_image test-notification-api
+    volumes: &notify_volumes
+      - "../:/app"
+    ports:
+      - 6011:6011
+    env_file:
+      - .local.env
     depends_on:
       - db
+    command: make test
+
   db:
     image: postgres:15
     restart: unless-stopped
     ports:
       - 5432:5432
+    logging:
+      driver: "none"
     environment:
+      - POSTGRES_DB=notification_api
       - POSTGRES_PASSWORD=LocalPassword
-      - POSTGRES_DB=test_notification_api

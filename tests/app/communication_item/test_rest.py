@@ -131,12 +131,13 @@ def test_communication_item_default_send(
     post_data = {'name': 'communication item default send test', 'va_profile_item_id': va_profile_id}
     response = admin_request.post('communication_item.create_communication_item', post_data, 201)
 
-    assert response['default_send_indicator'], 'Should be True by default.'
-
-    # Teardown
-    stmt = delete(CommunicationItem).where(CommunicationItem.va_profile_item_id == va_profile_id)
-    notify_db_session.session.execute(stmt)
-    notify_db_session.session.commit()
+    try:
+        assert response['default_send_indicator'], 'Should be True by default.'
+    finally:
+        # Teardown
+        stmt = delete(CommunicationItem).where(CommunicationItem.va_profile_item_id == va_profile_id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 #############

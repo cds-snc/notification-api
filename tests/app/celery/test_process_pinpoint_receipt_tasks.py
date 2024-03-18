@@ -88,7 +88,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
         'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
     )
 
-    test_reference = 'sms-reference-1'
+    test_reference = f'{uuid4()}-sms-reference-1'
     template = sample_template()
     sample_notification(
         template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
@@ -120,7 +120,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_statu
         'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
     )
 
-    test_reference = 'sms-reference-1'
+    test_reference = f'{uuid4()}=sms-reference-1'
     template = sample_template()
     sample_notification(template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=status)
     process_pinpoint_receipt_tasks.process_pinpoint_results(
@@ -136,7 +136,10 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_statu
 
 
 def test_process_pinpoint_results_segments_and_price_buffered_first(
-    mocker, sample_template, sample_notification, notify_db_session
+    mocker,
+    sample_template,
+    sample_notification,
+    notify_db_session,
 ):
     """
     Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
@@ -144,7 +147,7 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
     """
 
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    test_reference = 'sms-reference-1'
+    test_reference = f'{uuid4()}=sms-reference-1'
     template = sample_template()
     notification = sample_notification(
         template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
@@ -195,7 +198,7 @@ def test_process_pinpoint_results_segments_and_price_success_first(mocker, sampl
     """
 
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    test_reference = 'sms-reference-1'
+    test_reference = f'{uuid4()}-sms-reference-1'
     template = sample_template()
     sample_notification(
         template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'

@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
@@ -130,8 +130,8 @@ def test_update_fact_notification_status_updates_row(
         assert new_fact_data[0].notification_count == 1
     except AssertionError:
         # Teardown
-        for ft_notification_status in new_fact_data:
-            notify_db_session.session.delete(ft_notification_status)
+        stmt = delete(FactNotificationStatus).where(FactNotificationStatus.service_id == first_service.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
         raise
 
@@ -147,8 +147,8 @@ def test_update_fact_notification_status_updates_row(
         assert updated_fact_data[0].notification_count == 2
     finally:
         # Teardown
-        for ft_notification_status in updated_fact_data:
-            notify_db_session.session.delete(ft_notification_status)
+        stmt = delete(FactNotificationStatus).where(FactNotificationStatus.service_id == first_service.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -758,11 +758,12 @@ def test_fetch_delivered_notification_stats_by_month(
     assert results[2].count == 4
 
 
+@pytest.mark.serial
 def test_fetch_delivered_notification_stats_by_month_empty(client):
+    # Method ignores freezetime and finds records from multi-workers due to the query
     assert fetch_delivered_notification_stats_by_month() == []
 
 
-@pytest.mark.serial
 @freeze_time('2018-03-30 14:00')
 def test_fetch_monthly_template_usage_for_service_does_join_to_notifications_if_today_is_not_in_date_range(
     sample_service,

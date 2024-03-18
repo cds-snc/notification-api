@@ -535,7 +535,7 @@ def test_switch_sms_provider_to_inactive_provider_does_not_switch(setup_sms_prov
     assert new_provider.identifier == current_provider.identifier
 
 
-@pytest.mark.serial
+@pytest.mark.skip(reason='#962 - provider swap is not used')
 def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider(notify_api, mocker):
     mocker.patch('app.dao.provider_details_dao.get_alternative_sms_provider', return_value=None)
     mock_dao_switch_sms_provider_to_provider_with_identifier = mocker.patch(
@@ -546,7 +546,7 @@ def test_toggle_sms_provider_should_not_switch_provider_if_no_alternate_provider
     mock_dao_switch_sms_provider_to_provider_with_identifier.assert_not_called()
 
 
-@pytest.mark.serial
+@pytest.mark.skip(reason='#962 - provider swap is not used')
 def test_toggle_sms_provider_switches_provider(mocker, sample_user, setup_sms_providers):
     [inactive_provider, old_provider, alternative_provider] = setup_sms_providers
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=sample_user())
@@ -558,7 +558,7 @@ def test_toggle_sms_provider_switches_provider(mocker, sample_user, setup_sms_pr
     assert new_provider.priority < old_provider.priority
 
 
-@pytest.mark.serial
+@pytest.mark.skip(reason='#962 - provider swap is not used')
 def test_toggle_sms_provider_switches_when_provider_priorities_are_equal(
     mocker, sample_user, setup_equal_priority_sms_providers
 ):

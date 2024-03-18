@@ -159,10 +159,11 @@ def test_services_schema_includes_providers(
     service.sms_provider_id = sms_provider.id
 
     data = service_schema.dump(service).data
-    assert data
-    assert data['email_provider_id'] == str(email_provider.id)
-    assert data['sms_provider_id'] == str(sms_provider.id)
-
-    # Teardown
-    service.email_provider_id = None
-    service.sms_provider_id = None
+    try:
+        assert data
+        assert data['email_provider_id'] == str(email_provider.id)
+        assert data['sms_provider_id'] == str(sms_provider.id)
+    finally:
+        # Teardown
+        service.email_provider_id = None
+        service.sms_provider_id = None

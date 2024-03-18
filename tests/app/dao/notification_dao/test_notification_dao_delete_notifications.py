@@ -13,12 +13,11 @@ from app.models import (
     LETTER_TYPE,
     SMS_TYPE,
 )
-from app.notifications.process_notifications import persist_notification
 from app.va.identifier import IdentifierType
 from flask import current_app
 from freezegun import freeze_time
 import pytest
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
 
 
 def create_test_data(
@@ -181,8 +180,9 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
     delete_run_time,
     notification_type,
     expected_count,
-    sample_template,
     sample_api_key,
+    sample_notification,
+    sample_template,
     mocker,
     notify_db_session,
 ):
@@ -190,23 +190,17 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
 
     api_key = sample_api_key()
     template = sample_template(template_type=notification_type)
+    recipient_identifier = [{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}]
 
     notification_ids = []
     # Create one notification a day of each type between the 1st and 10th from 11:00 to 19:00.
     for i in range(1, 11):
-        past_date = '2016-0{0}-{1:02d}  {1:02d}:00:00.000000'.format(month, i)
+        past_date = f'2016-0{month}-{i:02d}  {i:02d}:00:00.000000'
         with freeze_time(past_date):
-            recipient_identifier = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}
-            notification = persist_notification(
-                template_id=template.id,
-                template_version=template.version,
-                service_id=template.service.id,
-                personalisation=None,
-                notification_type=notification_type,
-                api_key_id=api_key.id,
-                key_type=api_key.key_type,
-                recipient_identifier=recipient_identifier,
-                created_at=datetime.utcnow(),
+            notification = sample_notification(
+                template=template,
+                api_key=api_key,
+                recipient_identifiers=recipient_identifier,
             )
             notification_ids.append(notification.id)
 
@@ -221,33 +215,22 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
         # Requires serial processing
         delete_notifications_older_than_retention_by_type(notification_type)
 
-    try:
-        stmt = select(Notification).where(Notification.notification_type == notification_type)
-        remaining_notifications = notify_db_session.session.scalars(stmt).all()
-        remaining_notification_ids = [n.id for n in remaining_notifications]
-        deleted_notification_ids = set(notification_ids) - set(remaining_notification_ids)
+    stmt = select(Notification).where(Notification.notification_type == notification_type)
+    remaining_notifications = notify_db_session.session.scalars(stmt).all()
+    remaining_notification_ids = [n.id for n in remaining_notifications]
+    deleted_notification_ids = set(notification_ids) - set(remaining_notification_ids)
 
-        # Validate deleted are no longer in the recipient_identifiers
-        stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id.in_(deleted_notification_ids))
-        failed_delete_recipient_identifiers = notify_db_session.session.scalars(stmt).all()
+    # Validate deleted are no longer in the recipient_identifiers
+    stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id.in_(deleted_notification_ids))
+    failed_delete_recipient_identifiers = notify_db_session.session.scalars(stmt).all()
 
-        stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id.in_(remaining_notification_ids))
-        remaining_recipient_identifiers = notify_db_session.session.scalars(stmt).all()
+    stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id.in_(remaining_notification_ids))
+    remaining_recipient_identifiers = notify_db_session.session.scalars(stmt).all()
 
-        # Moved asserts to the end due to cleanup
-        assert len(remaining_notifications) == expected_count
-        assert len(remaining_recipient_identifiers) == expected_count
-        assert len(failed_delete_recipient_identifiers) == 0
-    finally:
-        # Teardown
-        for notification_id in notification_ids:
-            stmt = delete(Notification).where(Notification.id == notification_id)
-            notify_db_session.session.execute(stmt)
-            stmt = delete(NotificationHistory).where(NotificationHistory.id == notification_id)
-            notify_db_session.session.execute(stmt)
-        for recipient_identifier in remaining_recipient_identifiers:
-            notify_db_session.session.delete(recipient_identifier)
-        notify_db_session.session.commit()
+    # Moved asserts to the end due to cleanup
+    assert len(remaining_notifications) == expected_count
+    assert len(remaining_recipient_identifiers) == expected_count
+    assert len(failed_delete_recipient_identifiers) == 0
 
 
 @pytest.mark.serial

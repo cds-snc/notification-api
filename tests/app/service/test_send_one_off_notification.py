@@ -263,7 +263,8 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
     assert notification.reply_to_text == reply_to_email.email_address
 
     # Teardown
-    notify_db_session.session.delete(notification)
+    stmt = delete(Notification).where(Notification.id == notification_id)
+    notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
 
@@ -285,14 +286,15 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(
         'sender_id': str(sms_sender.id),
     }
 
-    notification_id = send_one_off_notification(service_id=service.id, post_data=data)
+    notification_id: dict = send_one_off_notification(service_id=service.id, post_data=data)
     notification = notify_db_session.session.get(Notification, notification_id['id'])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == '+16502532222'
 
     # Teardown
-    notify_db_session.session.delete(notification)
+    stmt = delete(Notification).where(Notification.id == notification_id['id'])
+    notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
 
@@ -314,14 +316,15 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
         'created_by': str(service.created_by_id),
     }
 
-    notification_id = send_one_off_notification(service_id=service.id, post_data=data)
+    notification_id: dict = send_one_off_notification(service_id=service.id, post_data=data)
     notification = notify_db_session.session.get(Notification, notification_id['id'])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
 
     assert notification.reply_to_text == '+16502532222'
 
     # Teardown
-    notify_db_session.session.delete(notification)
+    stmt = delete(Notification).where(Notification.id == notification_id['id'])
+    notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
 

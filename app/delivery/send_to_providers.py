@@ -1,7 +1,8 @@
-import app.googleanalytics.pixels as gapixels
-import re
 from datetime import datetime
+
 from flask import current_app
+
+import app.googleanalytics.pixels as gapixels
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 from app import attachment_store
@@ -18,7 +19,7 @@ from app.dao.provider_details_dao import (  # noqa F401
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
-from app.feature_flags import is_provider_enabled, is_gapixel_enabled, is_feature_enabled, FeatureFlag
+from app.feature_flags import is_gapixel_enabled, is_feature_enabled, FeatureFlag
 from app.models import (
     SMS_TYPE,
     KEY_TYPE_TEST,
@@ -27,7 +28,6 @@ from app.models import (
     EMAIL_TYPE,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_CONTAINS_PII,
     NOTIFICATION_SENDING,
     Notification,
     ProviderDetails,
@@ -140,9 +140,6 @@ def send_email_to_provider(notification: Notification):
 
     plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
 
-    if current_app.config['SCAN_FOR_PII']:
-        contains_pii(notification, str(plain_text_email))
-
     if service.research_mode or notification.key_type == KEY_TYPE_TEST:
         notification.reference = str(create_uuid())
         update_notification_to_sending(notification, client)
@@ -179,7 +176,7 @@ def update_notification_to_sending(
 
 # TODO: remove this when provider strategy implemented
 def should_use_provider(provider):
-    return provider.active and is_provider_enabled(current_app, provider.identifier)
+    return provider.active
 
 
 def load_provider(provider_id: str) -> ProviderDetails:
@@ -306,31 +303,3 @@ def malware_failure(notification):
             notification.notification_type, notification.id
         )
     )
-
-
-def contains_pii(
-    notification,
-    text_content,
-):
-    for sin in re.findall(r'\s\d{3}-\d{3}-\d{3}\s', text_content):
-        if luhn(sin.replace('-', '').strip()):
-            fail_pii(notification, 'Social Insurance Number')
-            return
-
-
-def fail_pii(
-    notification,
-    pii_type,
-):
-    notification.status = NOTIFICATION_CONTAINS_PII
-    dao_update_notification(notification)
-    raise NotificationTechnicalFailureException(
-        'Send {} for notification id {} to provider is not allowed. Notification contains PII: {}'.format(
-            notification.notification_type, notification.id, pii_type
-        )
-    )
-
-
-def luhn(n):
-    r = [int(ch) for ch in n][::-1]
-    return (sum(r[0::2]) + sum(sum(divmod(d * 2, 10)) for d in r[1::2])) % 10 == 0

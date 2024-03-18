@@ -100,9 +100,9 @@ def test_update_service_sms_sender_does_not_allow_sender_update_for_inbound_numb
     sample_sms_sender,
 ):
     service = sample_service()
-    inbound_number = sample_inbound_number('12345', service_id=service.id)
+    inbound_number = sample_inbound_number(service_id=service.id)
     service_sms_sender = sample_sms_sender(
-        service_id=service.id, sms_sender='1235', is_default=False, inbound_number_id=inbound_number.id
+        service_id=service.id, sms_sender=inbound_number.number, is_default=False, inbound_number_id=inbound_number.id
     )
     payload = {'sms_sender': 'second', 'is_default': True, 'inbound_number_id': str(inbound_number.id)}
     admin_request.post(

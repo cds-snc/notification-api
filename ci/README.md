@@ -3,7 +3,7 @@
 ## Fake Replication Setup
 NOTE: This setup is enough to test basic route functions with Read & Write instances. Scroll down if you need fully functional / real time replication between read and write instances.
 #### 1. Setup Docker-Compose
-Update local environment in your `.docker-env`. You should have Read & Write URIs pointing to different instances.
+Update local environment in your `.local.env`. You should have Read & Write URIs pointing to different instances.
 ```
 SQLALCHEMY_DATABASE_URI=postgresql://postgres:LocalPassword@db:5432/notification_api
 SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db-read:5432/notification_api

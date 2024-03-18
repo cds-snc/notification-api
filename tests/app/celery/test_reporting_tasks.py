@@ -23,7 +23,7 @@ from app.models import (
 from flask import current_app
 from freezegun import freeze_time
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from tests.app.factories.feature_flag import mock_feature_flag
@@ -54,13 +54,21 @@ def mocker_get_rate(
         ('2019-07-21', ['2019-07-21', '2019-07-20', '2019-07-19', '2019-07-18']),
     ],
 )
-def test_create_nightly_billing_triggers_tasks_for_days(notify_api, mocker, day_start, expected_kwargs):
-    mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_billing_for_day')
+def test_create_nightly_billing_triggers_tasks_for_days(
+    notify_api,
+    mocker,
+    day_start,
+    expected_kwargs,
+):
+    mock_billing_for_day = mocker.patch('app.celery.reporting_tasks.create_nightly_billing_for_day')
+    mock_billing_csv_report = mocker.patch('app.celery.reporting_tasks.generate_nightly_billing_csv_report')
     create_nightly_billing(day_start)
 
-    assert mock_celery.apply_async.call_count == 4
+    assert mock_billing_for_day.si.call_count == 4
+    assert mock_billing_csv_report.si.call_count == 4
+
     for i in range(4):
-        assert mock_celery.apply_async.call_args_list[i][1]['kwargs'] == {'process_day': expected_kwargs[i]}
+        assert mock_billing_for_day.si.call_args_list[i][0][0] == expected_kwargs[i]
 
 
 @freeze_time('2019-08-01T04:30:00')
@@ -71,13 +79,19 @@ def test_create_nightly_billing_triggers_tasks_for_days(notify_api, mocker, day_
         ('2019-07-21', ['2019-07-21', '2019-07-20', '2019-07-19', '2019-07-18']),
     ],
 )
-def test_create_nightly_notification_status_triggers_tasks_for_days(notify_api, mocker, day_start, expected_kwargs):
+def test_create_nightly_notification_status_triggers_tasks_for_days(
+    notify_api,
+    mocker,
+    day_start,
+    expected_kwargs,
+):
     mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
     create_nightly_notification_status(day_start)
 
-    assert mock_celery.apply_async.call_count == 4
+    assert mock_celery.si.call_count == 4
+
     for i in range(4):
-        assert mock_celery.apply_async.call_args_list[i][1]['kwargs'] == {'process_day': expected_kwargs[i]}
+        assert mock_celery.si.call_args_list[i][0][0] == expected_kwargs[i]
 
 
 @freeze_time('2019-08-01T04:30:00')
@@ -89,15 +103,18 @@ def test_create_nightly_notification_status_triggers_tasks_for_days(notify_api, 
     ],
 )
 def test_create_nightly_notification_status_triggers_tasks_for_days_including_csv_generation_when_feature_flag_on(
-    notify_api, mocker, day_start, expected_kwargs
+    notify_api,
+    mocker,
+    day_start,
+    expected_kwargs,
 ):
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
     create_nightly_notification_status(day_start)
 
-    assert mock_celery.apply_async.call_count == 4
+    assert mock_celery.si.call_count == 4
     for i in range(4):
-        assert mock_celery.apply_async.call_args_list[i][1]['kwargs'] == {'process_day': expected_kwargs[i]}
+        assert mock_celery.si.call_args_list[i][0][0] == expected_kwargs[i]
 
 
 @pytest.mark.parametrize(
@@ -151,16 +168,22 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
 
     # Celery expects the arguments to be a string or primitive type.
     yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
+    try:
+        create_nightly_billing_for_day(yesterday_str)
 
-    records = notify_db_session.session.scalars(stmt).all()
-    assert len(records) == records_num
+        records = notify_db_session.session.scalars(stmt).all()
+        assert len(records) == records_num
 
-    for i, record in enumerate(records):
-        assert record.bst_date == datetime.date(yesterday)
-        assert record.rate == Decimal(1.33)
-        assert record.billable_units == billable_units
-        assert record.rate_multiplier == multiplier[i]
+        for i, record in enumerate(records):
+            assert record.bst_date == datetime.date(yesterday)
+            assert record.rate == Decimal(1.33)
+            assert record.billable_units == billable_units
+            assert record.rate_multiplier == multiplier[i]
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_create_nightly_billing_for_day_different_templates(
@@ -203,19 +226,26 @@ def test_create_nightly_billing_for_day_different_templates(
 
     # Celery expects the arguments to be a string or primitive type.
     yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
 
-    records = notify_db_session.session.scalars(stmt).all()
+    try:
+        create_nightly_billing_for_day(yesterday_str)
 
-    assert len(records) == 2
-    multiplier = [0, 1]
-    billable_units = [0, 1]
-    rate = [0, Decimal(1.33)]
-    for i, record in enumerate(records):
-        assert record.bst_date == datetime.date(yesterday)
-        assert record.rate == rate[i]
-        assert record.billable_units == billable_units[i]
-        assert record.rate_multiplier == multiplier[i]
+        records = notify_db_session.session.scalars(stmt).all()
+
+        assert len(records) == 2
+        multiplier = [0, 1]
+        billable_units = [0, 1]
+        rate = [0, Decimal(1.33)]
+        for i, record in enumerate(records):
+            assert record.bst_date == datetime.date(yesterday)
+            assert record.rate == rate[i]
+            assert record.billable_units == billable_units[i]
+            assert record.rate_multiplier == multiplier[i]
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id.in_((email_template.id, sms_template.id)))
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_create_nightly_billing_for_day_different_sent_by(
@@ -254,17 +284,24 @@ def test_create_nightly_billing_for_day_different_sent_by(
 
     # Celery expects the arguments to be a string or primitive type.
     yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
 
-    stmt = select(FactBilling).where(FactBilling.template_id == template.id).order_by('rate_multiplier')
-    records = notify_db_session.session.scalars(stmt).all()
+    try:
+        create_nightly_billing_for_day(yesterday_str)
 
-    assert len(records) == 2
-    for i, record in enumerate(records):
-        assert record.bst_date == datetime.date(yesterday)
-        assert record.rate == Decimal(1.33)
-        assert record.billable_units == 1
-        assert record.rate_multiplier == 1.0
+        stmt = select(FactBilling).where(FactBilling.template_id == template.id).order_by('rate_multiplier')
+        records = notify_db_session.session.scalars(stmt).all()
+
+        assert len(records) == 2
+        for i, record in enumerate(records):
+            assert record.bst_date == datetime.date(yesterday)
+            assert record.rate == Decimal(1.33)
+            assert record.billable_units == 1
+            assert record.rate_multiplier == 1.0
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_create_nightly_billing_for_day_different_letter_postage(
@@ -300,23 +337,30 @@ def test_create_nightly_billing_for_day_different_letter_postage(
 
     # Celery expects the arguments to be a string or primitive type.
     yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
 
-    stmt = select(FactBilling).where(FactBilling.template_id == template.id).order_by('postage')
-    records = notify_db_session.session.scalars(stmt).all()
+    try:
+        create_nightly_billing_for_day(yesterday_str)
 
-    assert len(records) == 2
-    assert records[0].notification_type == LETTER_TYPE
-    assert records[0].bst_date == datetime.date(yesterday)
-    assert records[0].postage == 'first'
-    assert records[0].notifications_sent == 2
-    assert records[0].billable_units == 4
+        stmt = select(FactBilling).where(FactBilling.template_id == template.id).order_by('postage')
+        records = notify_db_session.session.scalars(stmt).all()
 
-    assert records[1].notification_type == LETTER_TYPE
-    assert records[1].bst_date == datetime.date(yesterday)
-    assert records[1].postage == 'second'
-    assert records[1].notifications_sent == 1
-    assert records[1].billable_units == 2
+        assert len(records) == 2
+        assert records[0].notification_type == LETTER_TYPE
+        assert records[0].bst_date == datetime.date(yesterday)
+        assert records[0].postage == 'first'
+        assert records[0].notifications_sent == 2
+        assert records[0].billable_units == 4
+
+        assert records[1].notification_type == LETTER_TYPE
+        assert records[1].bst_date == datetime.date(yesterday)
+        assert records[1].postage == 'second'
+        assert records[1].notifications_sent == 1
+        assert records[1].billable_units == 2
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_create_nightly_billing_for_day_letter(
@@ -342,22 +386,31 @@ def test_create_nightly_billing_for_day_letter(
     stmt = select(FactBilling).where(FactBilling.template_id == template.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
-    # Celery expects the arguments to be a string or primitive type.
-    yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
+    try:
+        # Celery expects the arguments to be a string or primitive type.
+        yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
+        create_nightly_billing_for_day(yesterday_str)
 
-    records = notify_db_session.session.scalars(stmt).all()
-    assert len(records) == 1
-    assert records[0].notification_type == LETTER_TYPE
-    assert records[0].bst_date == datetime.date(yesterday)
-    assert records[0].rate == Decimal(2.1)
-    assert records[0].billable_units == 2
-    assert records[0].rate_multiplier == 2.0
+        records = notify_db_session.session.scalars(stmt).all()
+        assert len(records) == 1
+        assert records[0].notification_type == LETTER_TYPE
+        assert records[0].bst_date == datetime.date(yesterday)
+        assert records[0].rate == Decimal(2.1)
+        assert records[0].billable_units == 2
+        assert records[0].rate_multiplier == 2.0
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 @freeze_time('1999-12-04 16:00:00.000000')
 def test_create_nightly_billing_for_day_null_sent_by_sms(
-    notify_db_session, mocker, sample_template, sample_notification
+    notify_db_session,
+    mocker,
+    sample_template,
+    sample_notification,
 ):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
     mocker.patch('app.dao.fact_billing_dao.get_rate', side_effect=mocker_get_rate)
@@ -374,19 +427,25 @@ def test_create_nightly_billing_for_day_null_sent_by_sms(
     )
 
     stmt = select(FactBilling).where(FactBilling.template_id == template.id)
-    assert len(notify_db_session.session.scalars(stmt).all()) == 0
+    try:
+        assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
-    # Celery expects the arguments to be a string or primitive type.
-    yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
-    create_nightly_billing_for_day(yesterday_str)
+        # Celery expects the arguments to be a string or primitive type.
+        yesterday_str = datetime.strftime(yesterday, '%Y-%m-%d')
+        create_nightly_billing_for_day(yesterday_str)
 
-    records = notify_db_session.session.scalars(stmt).all()
-    assert len(records) == 1
-    assert records[0].bst_date == datetime.date(yesterday)
-    assert records[0].rate == Decimal(1.33)
-    assert records[0].billable_units == 1
-    assert records[0].rate_multiplier == 1
-    assert records[0].provider == 'unknown'
+        records = notify_db_session.session.scalars(stmt).all()
+        assert len(records) == 1
+        assert records[0].bst_date == datetime.date(yesterday)
+        assert records[0].rate == Decimal(1.33)
+        assert records[0].billable_units == 1
+        assert records[0].rate_multiplier == 1
+        assert records[0].provider == 'unknown'
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_get_rate_for_letter_latest(sample_letter_rate):
@@ -401,23 +460,20 @@ def test_get_rate_for_letter_latest(sample_letter_rate):
     assert rate == Decimal('0.33')
 
 
-def test_get_rate_for_sms_and_email(notify_db_session, sample_rate):
+def test_get_rate_for_sms_and_email(
+    notify_api,
+    sample_rate,
+):
     non_letter_rates = [
         sample_rate(datetime(2017, 12, 1), 0.15, SMS_TYPE),
         sample_rate(datetime(2017, 12, 1), 0, EMAIL_TYPE),
     ]
 
-    try:
-        rate = get_rate(non_letter_rates, [], SMS_TYPE, date(2018, 1, 1))
-        assert rate == Decimal(0.15)
+    rate = get_rate(non_letter_rates, [], SMS_TYPE, date(2018, 1, 1))
+    assert rate == Decimal(0.15)
 
-        rate = get_rate(non_letter_rates, [], EMAIL_TYPE, date(2018, 1, 1))
-        assert rate == Decimal(0)
-    finally:
-        # Teardown
-        for rate in non_letter_rates:
-            notify_db_session.session.delete(rate)
-        notify_db_session.session.commit()
+    rate = get_rate(non_letter_rates, [], EMAIL_TYPE, date(2018, 1, 1))
+    assert rate == Decimal(0)
 
 
 @freeze_time('1992-03-30T05:00:00')
@@ -460,17 +516,23 @@ def test_create_nightly_billing_for_day_use_BST(
     stmt = select(FactBilling).where(FactBilling.template_id == template.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
-    create_nightly_billing_for_day('1992-03-25')
+    try:
+        create_nightly_billing_for_day('1992-03-25')
 
-    records = notify_db_session.session.scalars(stmt).all()
+        records = notify_db_session.session.scalars(stmt).all()
 
-    assert len(records) == 1
-    assert records[0].bst_date == date(1992, 3, 25)
-    assert records[0].billable_units == 3
+        assert len(records) == 1
+        assert records[0].bst_date == date(1992, 3, 25)
+        assert records[0].billable_units == 3
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 @freeze_time('2018-01-15T03:30:00')
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_create_nightly_billing_for_day_update_when_record_exists(
     notify_db_session,
     mocker,
@@ -493,30 +555,36 @@ def test_create_nightly_billing_for_day_update_when_record_exists(
     stmt = select(FactBilling).where(FactBilling.template_id == template.id)
     assert (notify_db_session.session.scalars(stmt).all()) == 0
 
-    create_nightly_billing_for_day('2018-01-14')
-    records = notify_db_session.session.scalars(stmt).all()
+    try:
+        create_nightly_billing_for_day('2018-01-14')
+        records = notify_db_session.session.scalars(stmt).all()
 
-    assert len(records) == 1
-    assert records[0].bst_date == date(2018, 1, 13)
-    assert records[0].billable_units == 1
-    assert not records[0].updated_at
+        assert len(records) == 1
+        assert records[0].bst_date == date(2018, 1, 13)
+        assert records[0].billable_units == 1
+        assert not records[0].updated_at
 
-    sample_notification(
-        created_at=datetime.now() - timedelta(days=1),
-        template=template,
-        status='delivered',
-        sent_by=None,
-        international=False,
-        rate_multiplier=1.0,
-        billable_units=1,
-    )
+        sample_notification(
+            created_at=datetime.now() - timedelta(days=1),
+            template=template,
+            status='delivered',
+            sent_by=None,
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+        )
 
-    # run again, make sure create_nightly_billing() updates with no error
-    create_nightly_billing_for_day('2018-01-14')
-    records = notify_db_session.session.scalars(stmt).all()
-    assert len(records) == 1
-    assert records[0].billable_units == 2
-    assert records[0].updated_at
+        # run again, make sure create_nightly_billing() updates with no error
+        create_nightly_billing_for_day('2018-01-14')
+        records = notify_db_session.session.scalars(stmt).all()
+        assert len(records) == 1
+        assert records[0].billable_units == 2
+        assert records[0].updated_at
+    finally:
+        # Teardown
+        stmt = delete(FactBilling).where(FactBilling.template_id == template.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 @freeze_time('1994-01-05')
@@ -529,6 +597,7 @@ def test_create_nightly_notification_status_for_day(
     second_template = sample_template(service=second_service, template_type=EMAIL_TYPE)
     third_service = sample_service()
     third_template = sample_template(service=third_service, template_type=LETTER_TYPE)
+    service_ids = (first_service.id, second_service.id, third_service.id)
 
     sample_notification(template=first_template, status='delivered')
     sample_notification(template=first_template, status='delivered', created_at=datetime(1994, 1, 1, 12, 0))
@@ -556,8 +625,8 @@ def test_create_nightly_notification_status_for_day(
         assert new_data[2].bst_date == date(1994, 1, 1)
     finally:
         # Teardown
-        for ft_notification_status in new_data:
-            notify_db_session.session.delete(ft_notification_status)
+        stmt = delete(FactNotificationStatus).where(FactNotificationStatus.service_id.in_(service_ids))
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -586,8 +655,8 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(
         assert noti_status[0].notification_status == 'created'
     finally:
         # Teardown
-        for ft_notification_status in noti_status:
-            notify_db_session.session.delete(ft_notification_status)
+        stmt = delete(FactNotificationStatus).where(FactNotificationStatus.template_id == template.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 

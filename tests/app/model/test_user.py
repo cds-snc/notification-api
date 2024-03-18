@@ -42,18 +42,19 @@ def test_can_save_to_db(
     notify_db_session,
     sample_user,
 ):
+    mixer = str(uuid4())
     data = {
-        'name': f'{uuid4()}Foo Bar',
-        'idp_name': 'va_sso',
-        'idp_id': 'some_id',
+        'name': f'{mixer}Foo Bar',
+        'idp_name': f'{mixer}_va_sso',
+        'idp_id': f'{mixer}_some_id',
     }
     test_user = sample_user(**data)
 
     loaded_user = notify_db_session.session.get(User, test_user.id)
 
     assert loaded_user.name == data['name']
-    assert loaded_user.idp_ids[0].idp_name == 'va_sso'
-    assert loaded_user.idp_ids[0].idp_id == 'some_id'
+    assert loaded_user.idp_ids[0].idp_name == data['idp_name']
+    assert loaded_user.idp_ids[0].idp_id == data['idp_id']
 
 
 def test_can_find_by_idp_id(

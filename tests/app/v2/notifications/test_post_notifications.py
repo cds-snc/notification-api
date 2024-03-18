@@ -5,7 +5,7 @@ from random import randint
 import pytest
 from flask import current_app, json
 from freezegun import freeze_time
-from sqlalchemy import func, delete, select
+from sqlalchemy import delete, func, select
 
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.attachments.store import AttachmentStoreError
@@ -23,14 +23,13 @@ from app.models import (
     Notification,
     RecipientIdentifier,
     ScheduledNotification,
-    ServiceEmailReplyTo,
 )
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_email_response, post_sms_response
 from app.va.identifier import IdentifierType
 from tests import create_authorization_header
-from tests.app.db import create_reply_to_email, create_service_sms_sender
+from tests.app.db import create_reply_to_email  # , create_service_sms_sender
 from tests.app.factories.feature_flag import mock_feature_flag
 
 from . import post_send_notification
@@ -46,7 +45,7 @@ def mock_deliver_sms(mocker):
     return mocker.patch('app.celery.provider_tasks.deliver_sms.apply_async')
 
 
-@pytest.mark.parametrize('reference', [None, 'reference_from_client'])
+@pytest.mark.parametrize('reference', [None, 'not none'])
 @pytest.mark.parametrize(
     'data',
     [
@@ -67,6 +66,8 @@ def test_post_sms_notification_returns_201(
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
     data.update({'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}})
     if reference is not None:
+        # Have to set reference for the asserts below, can't add it to data in the None case
+        reference = str(uuid.uuid4())
         data['reference'] = reference
 
     if 'recipient_identifier' in data:
@@ -84,9 +85,12 @@ def test_post_sms_notification_returns_201(
     notifications = notify_db_session.session.scalars(
         select(Notification).where(Notification.service_id == template.service_id)
     ).all()
+    # DB checks
     assert len(notifications) == 1
     assert notifications[0].status == NOTIFICATION_CREATED
     assert notifications[0].postage is None
+
+    # endpoint checks
     assert resp_json['id'] == str(notifications[0].id)
     assert resp_json['reference'] == reference
     assert resp_json['content']['body'] == template.content.replace('(( Name))', 'Jo')
@@ -101,10 +105,6 @@ def test_post_sms_notification_returns_201(
         assert mock_deliver_sms.called
     # Else, for sending with a recipient ID, the delivery function won't get called because the preceeding
     # tasks in the chain are mocked.
-
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
 
 
 def test_post_sms_notification_uses_inbound_number_as_sender(
@@ -153,10 +153,6 @@ def test_post_sms_notification_uses_inbound_number_as_sender(
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == str(notification_id)
 
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
-
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
     client,
@@ -166,24 +162,23 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
     sample_service_with_inbound_number,
     sample_template,
 ):
-    service = sample_service_with_inbound_number(inbound_number='6502532222')
+    service_number = str(randint(10000, 10000000))
+    service = sample_service_with_inbound_number(inbound_number=service_number)
 
     template = sample_template(service=service, content='Hello (( Name))\nYour thing is due soon')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
-    data = {'phone_number': '+16502532222', 'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}}
+    data = {'phone_number': '+14079395277', 'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}}
 
     response = post_send_notification(client, sample_api_key(service=service), SMS_TYPE, data)
     assert response.status_code == 201
     resp_json = response.get_json()
     assert validate(resp_json, post_sms_response) == resp_json
-    notifications = notify_db_session.session.scalars(
-        select(Notification).where(Notification.service_id == template.service_id)
-    ).all()
-    assert len(notifications) == 1
-    notification_id = notifications[0].id
+    stmt = select(Notification).where(Notification.service_id == template.service_id)
+    notification = notify_db_session.session.scalars(stmt).one()
+    notification_id = notification.id
     assert resp_json['id'] == str(notification_id)
-    assert resp_json['content']['from_number'] == '+16502532222'
-    assert notifications[0].reply_to_text == '+16502532222'
+    assert resp_json['content']['from_number'] == service_number
+    assert notification.reply_to_text == service_number
 
     mocked_chain.assert_called_once()
     args, _ = mocked_chain.call_args
@@ -191,14 +186,16 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == str(notification_id)
 
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
-
 
 @pytest.mark.parametrize('sms_sender_id', [None, 'user provided'])
 def test_post_sms_notification_returns_201_with_sms_sender_id(
-    client, notify_db_session, sample_api_key, sample_template, mocker, sms_sender_id
+    client,
+    notify_db_session,
+    sample_api_key,
+    sample_template,
+    mocker,
+    sms_sender_id,
+    sample_sms_sender,
 ):
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
@@ -214,7 +211,7 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(
         data['sms_sender_id'] = None
     elif sms_sender_id == 'user provided':
         # Simulate that the user specified an sms_sender_id.
-        sms_sender = create_service_sms_sender(service=template.service, sms_sender='123456')
+        sms_sender = sample_sms_sender(service_id=template.service.id, sms_sender='123456')
         data['sms_sender_id'] = str(sms_sender.id)
     else:
         raise ValueError('This is a programming error.')
@@ -253,20 +250,17 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == resp_json['id']
 
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
-
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(
     client,
     notify_db_session,
     sample_api_key,
     sample_template,
+    sample_sms_sender,
     mocker,
 ):
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
-    sms_sender = create_service_sms_sender(service=template.service, sms_sender='6502532222')
+    sms_sender = sample_sms_sender(service_id=template.service.id, sms_sender='6502532222')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
 
@@ -282,11 +276,9 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
     resp_json = response.get_json()
     assert validate(resp_json, post_sms_response) == resp_json
     assert resp_json['content']['from_number'] == '+16502532222'
-    notifications = notify_db_session.session.scalars(
-        select(Notification).where(Notification.service_id == template.service_id)
-    ).all()
-    assert len(notifications) == 1
-    assert notifications[0].reply_to_text == '+16502532222'
+    stmt = select(Notification).where(Notification.service_id == template.service_id)
+    notification = notify_db_session.session.scalars(stmt).one()
+    assert notification.reply_to_text == '+16502532222'
 
     mocked_chain.assert_called_once()
     args, _ = mocked_chain.call_args
@@ -294,19 +286,17 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == resp_json['id']
 
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
-
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
     client,
     notify_db_session,
     sample_api_key,
     sample_template,
+    sample_sms_sender,
 ):
     template = sample_template()
-    sms_sender = create_service_sms_sender(service=template.service, sms_sender='123456', is_default=False)
+    sender_number = str(randint(100000, 10000000))
+    sms_sender = sample_sms_sender(service_id=template.service.id, sms_sender=sender_number, is_default=False)
     data = {'phone_number': '+16502532222', 'template_id': str(template.id), 'sms_sender_id': str(sms_sender.id)}
 
     response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
@@ -319,15 +309,9 @@ def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after
     )
 
     assert response.status_code == 201
-    notifications = notify_db_session.session.scalars(
-        select(Notification).where(Notification.service_id == template.service_id)
-    ).all()
-    assert len(notifications) == 1
-    assert notifications[0].reply_to_text == '123456'
-
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
+    stmt = select(Notification).where(Notification.service_id == template.service_id)
+    notification = notify_db_session.session.scalars(stmt).one()
+    assert notification.reply_to_text == sender_number
 
 
 @pytest.mark.parametrize(
@@ -451,12 +435,8 @@ def test_post_email_notification_returns_201(
     assert not resp_json['scheduled_for']
     assert mock_deliver_email.called
 
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
 
-
-@pytest.mark.parametrize('reference', [None, 'reference_from_client'])
+@pytest.mark.parametrize('reference', [None, 'not none'])
 def test_post_email_notification_with_reply_to_returns_201(
     client,
     notify_db_session,
@@ -479,22 +459,26 @@ def test_post_email_notification_with_reply_to_returns_201(
     }
 
     if reference is not None:
+        # Have to set reference for the asserts below, can't add it to data in the None case
+        reference = str(uuid.uuid4())
         data['reference'] = reference
 
     response = post_send_notification(client, sample_api_key(service=template.service), EMAIL_TYPE, data)
     assert response.status_code == 201
     resp_json = response.get_json()
     assert validate(resp_json, post_email_response) == resp_json
-    notification = notify_db_session.session.scalar(
-        select(Notification).where(Notification.service_id == template.service_id)
-    )
+    stmt = select(Notification).where(Notification.service_id == template.service_id)
+    notification = notify_db_session.session.scalar(stmt)
+
+    # DB checks
     assert notification.status == NOTIFICATION_CREATED
     assert notification.postage is None
+    assert notification.reply_to_text == 'testing@email.com'
+
+    # endpoint checks
     assert resp_json['id'] == str(notification.id)
     assert resp_json['billing_code'] == 'TESTCODE'
     assert resp_json['reference'] == reference
-    assert notification.reference is None
-    assert notification.reply_to_text == 'testing@email.com'
     assert resp_json['content']['body'] == template.content.replace('((name))', 'Bob')
     assert resp_json['content']['subject'] == template.subject.replace('((name))', 'Bob')
     assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
@@ -503,10 +487,6 @@ def test_post_email_notification_with_reply_to_returns_201(
     assert 'services/{}/templates/{}'.format(str(template.service_id), str(template.id)) in resp_json['template']['uri']
     assert not resp_json['scheduled_for']
     assert mock_deliver_email.called
-
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -521,7 +501,13 @@ def test_post_email_notification_with_reply_to_returns_201(
     ],
 )
 def test_should_not_persist_or_send_notification_if_simulated_recipient(
-    client, recipient, notification_type, notify_db_session, sample_api_key, sample_template, mocker
+    client,
+    recipient,
+    notification_type,
+    notify_db_session,
+    sample_api_key,
+    sample_template,
+    mocker,
 ):
     template = sample_template(template_type=notification_type)
     apply_async = mocker.patch('app.celery.provider_tasks.deliver_{}.apply_async'.format(notification_type))
@@ -541,12 +527,8 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     assert response.status_code == 201
     apply_async.assert_not_called()
     assert response.get_json()['id']
-    assert (
-        notify_db_session.session.execute(
-            select(Notification).where(Notification.service_id == template.service_id)
-        ).first()
-        is None
-    )
+    stmt = select(Notification).where(Notification.service_id == template.service_id)
+    assert notify_db_session.session.scalar(stmt) is None
 
 
 @pytest.mark.parametrize(
@@ -555,7 +537,6 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
 )
 def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(
     client,
-    notify_db_session,
     sample_api_key,
     sample_service,
     sample_template,
@@ -582,20 +563,20 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == str(notification_id)
 
-    # Teardown
-    notification = notify_db_session.session.scalar(
-        select(Notification).where(Notification.service_id == template.service_id)
-    )
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
-
 
 @pytest.mark.parametrize(
     'notification_type, key_send_to, send_to',
     [(SMS_TYPE, 'phone_number', '6502532222'), (EMAIL_TYPE, 'email_address', 'sample@email.com')],
 )
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
-    client, sample_api_key, sample_service, sample_template, mocker, notification_type, key_send_to, send_to
+    client,
+    sample_api_key,
+    sample_service,
+    sample_template,
+    mocker,
+    notification_type,
+    key_send_to,
+    send_to,
 ):
     template = sample_template(service=sample_service(), template_type=notification_type)
     persist_mock = mocker.patch('app.v2.notifications.post_notifications.persist_notification')
@@ -648,10 +629,18 @@ def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
 def test_post_sms_notification_with_archived_reply_to_id_returns_400(
     client,
     sample_api_key,
+    sample_inbound_number,
     sample_template,
+    sample_sms_sender,
 ):
     template = sample_template()
-    archived_sender = create_service_sms_sender(template.service, '12345', is_default=False, archived=True)
+    service_number = sample_inbound_number(service_id=template.service_id)
+    archived_sender = sample_sms_sender(
+        service_id=template.service.id,
+        inbound_number_id=service_number.id,
+        is_default=False,
+        archived=True,
+    )
     data = {'phone_number': '+16502532222', 'template_id': template.id, 'sms_sender_id': archived_sender.id}
 
     response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
@@ -701,7 +690,11 @@ def test_post_sms_notification_returns_400_if_not_allowed_to_send_notification(
 
 @pytest.mark.parametrize('restricted', [True, False])
 def test_post_sms_notification_returns_400_if_number_not_whitelisted(
-    client, sample_api_key, sample_service, sample_template, restricted
+    client,
+    sample_api_key,
+    sample_service,
+    sample_template,
+    restricted,
 ):
     service = sample_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
     template = sample_template(service=service)
@@ -726,7 +719,6 @@ def test_post_sms_notification_returns_400_if_number_not_whitelisted(
 
 
 def test_post_sms_notification_returns_201_if_allowed_to_send_international_sms(
-    notify_db_session,
     sample_api_key,
     sample_service,
     sample_template,
@@ -748,11 +740,6 @@ def test_post_sms_notification_returns_201_if_allowed_to_send_international_sms(
     assert response.status_code == 201
     assert response.headers['Content-type'] == 'application/json'
 
-    # Teardown
-    notification = notify_db_session.session.scalar(select(Notification).where(Notification.service_id == service.id))
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
-
 
 def test_post_sms_should_persist_supplied_sms_number(
     client,
@@ -762,7 +749,7 @@ def test_post_sms_should_persist_supplied_sms_number(
     mock_deliver_sms,
 ):
     template = sample_template()
-    data = {'phone_number': '+16502532222', 'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}}
+    data = {'phone_number': '+14254147755', 'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}}
 
     response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
     assert response.status_code == 201
@@ -772,13 +759,9 @@ def test_post_sms_should_persist_supplied_sms_number(
     ).all()
     assert len(notifications) == 1
     notification_id = notifications[0].id
-    assert '+16502532222' == notifications[0].to
+    assert '+14254147755' == notifications[0].to
     assert resp_json['id'] == str(notification_id)
     assert mock_deliver_sms.called
-
-    # Teardown
-    notify_db_session.session.delete(notifications[0])
-    notify_db_session.session.commit()
 
 
 @pytest.mark.parametrize(
@@ -814,20 +797,14 @@ def test_post_notification_with_scheduled_for(
     resp_json = response.get_json()
 
     stmt = select(ScheduledNotification).where(ScheduledNotification.notification_id == resp_json['id'])
-    scheduled_notification = notify_db_session.session.scalars(stmt).all()
+    scheduled_notification = notify_db_session.session.scalars(stmt).one()
 
-    assert len(scheduled_notification) == 1
-    assert resp_json['id'] == str(scheduled_notification[0].notification_id)
+    assert resp_json['id'] == str(scheduled_notification.notification_id)
     assert resp_json['scheduled_for'] == '2017-05-14 14:15'
 
     # Teardown
-    for notification in notify_db_session.session.scalars(
-        select(Notification).where(Notification.service_id == template.service_id)
-    ).all():
-        notify_db_session.session.execute(
-            delete(ScheduledNotification).where(ScheduledNotification.notification_id == notification.id)
-        )
-        notify_db_session.session.delete(notification)
+    stmt = delete(ScheduledNotification).where(ScheduledNotification.id == scheduled_notification.id)
+    notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
 
@@ -920,12 +897,6 @@ def test_post_email_notification_with_valid_reply_to_id_returns_201(
 
     assert notification.reply_to_text == reply_to_email.email_address
 
-    # Teardown
-    service_reply_to = notify_db_session.session.get(ServiceEmailReplyTo, reply_to_email.id)
-    notify_db_session.session.delete(service_reply_to)
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
-
 
 def test_post_email_notification_with_invalid_reply_to_id_returns_400(
     client,
@@ -952,7 +923,6 @@ def test_post_email_notification_with_invalid_reply_to_id_returns_400(
 
 def test_post_email_notification_with_archived_reply_to_id_returns_400(
     client,
-    notify_db_session,
     sample_api_key,
     sample_template,
 ):
@@ -970,10 +940,6 @@ def test_post_email_notification_with_archived_reply_to_id_returns_400(
         in resp_json['errors'][0]['message']
     )
     assert 'BadRequestError' in resp_json['errors'][0]['error']
-
-    service_reply_to = notify_db_session.session.get(ServiceEmailReplyTo, archived_reply_to.id)
-    notify_db_session.session.delete(service_reply_to)
-    notify_db_session.session.commit()
 
 
 class TestPostNotificationWithAttachment:
@@ -1102,9 +1068,9 @@ class TestPostNotificationWithAttachment:
             },
         )
 
-        notification = notify_db_session.session.scalars(
-            select(Notification).where(Notification.service_id == template.service_id)
-        ).one()
+        stmt = select(Notification).where(Notification.service_id == template.service_id)
+        notification = notify_db_session.session.scalars(stmt).one()
+
         assert notification.status == NOTIFICATION_CREATED
         assert notification.personalisation == {
             'some_attachment': {
@@ -1115,12 +1081,14 @@ class TestPostNotificationWithAttachment:
             }
         }
 
-        # Teardown
-        notify_db_session.session.delete(notification)
-        notify_db_session.session.commit()
-
     def test_attachment_upload_unsupported_mimetype(
-        self, client, sample_api_key, sample_service, sample_template, attachment_store_mock, validate_mimetype_mock
+        self,
+        client,
+        sample_api_key,
+        sample_service,
+        sample_template,
+        attachment_store_mock,
+        validate_mimetype_mock,
     ):
         service = sample_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         template = sample_template(service=service, template_type=EMAIL_TYPE, content='See attached file')
@@ -1410,10 +1378,6 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
 
     mocked_task.assert_called_once()
 
-    # Teardown
-    notify_db_session.session.delete(notifications)
-    notify_db_session.session.commit()
-
 
 @pytest.mark.skip(reason='test failing in pipeline but no where else')
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
@@ -1495,7 +1459,10 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
 
 
 def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(
-    client, mocker, sample_api_key, sample_template
+    client,
+    mocker,
+    sample_api_key,
+    sample_template,
 ):
     api_key = sample_api_key()
     template = sample_template(service=api_key.service, template_type=EMAIL_TYPE)

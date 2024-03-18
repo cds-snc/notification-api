@@ -1,18 +1,21 @@
 version: "3"
 services:
   app:
-    image: notification_api
+    image: &vanotify_image notification_api
     container_name: ci_app_migrate
-    volumes:
+    volumes: &vanotify_volumes
       - "../:/app:rw"
     ports:
       - 6011:6011
-    env_file:
-      - .docker-env
+    env_file: &vanotify_env
+      - .local.env
+    environment:
+      NOTIFY_ENVIRONMENT: development
     depends_on:
       - migrations
       - localstack
     command: ["bash", "-c", "flask db migrate"]
+
   db:
     image: postgres:15
     restart: unless-stopped
@@ -21,22 +24,21 @@ services:
     environment:
       - POSTGRES_PASSWORD=LocalPassword
       - POSTGRES_DB=notification_api
+
   migrations:
-    image: notification_api
-    env_file:
-      - .docker-env
-    volumes:
-      - "../:/app:ro"
+    image: *vanotify_image
+    env_file: *vanotify_env
+    volumes: *vanotify_volumes
     command: ["bash", "-c", "flask db upgrade"]
     depends_on:
       - db
+
   localstack:
     image: localstack/localstack
     container_name: localstack
     ports:
       - "4566:4566"
-    env_file:
-      - .docker-env
+    env_file: *vanotify_env
     environment:
       - SERVICES=ec2,iam,lambda,s3,ses,sqs,sts
       - DEFAULT_REGION=us-east-2
@@ -45,10 +47,10 @@ services:
       - HOSTNAME_EXTERNAL=localstack
     volumes:
       - './localstack_setup.sh:/docker-entrypoint-initaws.d/setup.sh'
+
   celery:
-    image: notification_api
-    env_file:
-      - .docker-env
+    image: *vanotify_image
+    env_file: *vanotify_env
     volumes:
       - "../:/app:ro"
     command: >
@@ -62,6 +64,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+
   mountebank:
     container_name: mountebank
     image: bbyars/mountebank:2.4.0
@@ -74,6 +77,7 @@ services:
       - 7007:7007
       - 7008:7008
     command: start --configfile /mountebank/imposters.ejs --allowInjection
+
   redis:
     image: redis
     ports:

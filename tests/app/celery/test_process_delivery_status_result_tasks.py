@@ -1,5 +1,8 @@
 import datetime
+from uuid import uuid4
+
 import pytest
+
 from app.celery.exceptions import AutoRetryException
 from app.celery.process_delivery_status_result_tasks import (
     _get_provider_info,
@@ -26,10 +29,10 @@ def sample_delivery_status_result_message():
 @pytest.fixture()
 def sample_notification_platform_status():
     return {
-        'payload': 'UmF3RGxyRG9uZURhdGU9MjMwMzIyMjMzOCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZXNzYWdlU'
-        '3RhdHVzPWRlbGl2ZXJlZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enom'
-        'RnJvbT0lMkIxMjIyMzMzNDQ0NCZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
-        'reference': 'SMyyy',
+        'payload': 'UmF3RGxyRG9uZURhdGU9MjMwMzIyMjMzOCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZXNzYWdlU3RhdHVzPWR'
+        'lbGl2ZXJlZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNaGFyZGNvZGVkS1dNJkFjY291bnRTaWQ9QUN6enomRnJvbT'
+        '0lMkIxMjIyMzMzNDQ0NCZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
+        'reference': 'SMhardcodedKWM',
         'record_status': 'delivered',
     }
 
@@ -131,7 +134,7 @@ def test_attempt_to_get_notification_with_good_data(sample_template, sample_noti
     """Test that we will exit the celery task when sqs message matches what has already been reported in the database"""
 
     notification_status = 'delivered'
-    reference = 'SMyyy'
+    reference = str(uuid4())
 
     sample_notification(
         template=sample_template(), reference=reference, sent_at=datetime.datetime.utcnow(), status=notification_status
@@ -148,13 +151,15 @@ def test_attempt_to_get_notification_with_good_data(sample_template, sample_noti
 
 
 def test_attempt_to_get_notification_duplicate_notification(
-    sample_notification_platform_status, sample_template, sample_notification
+    sample_notification_platform_status,
+    sample_template,
+    sample_notification,
 ):
     """Test that duplicate notifications will make notification = None, should_exit=True"""
 
     template = sample_template()
     notification_status = 'delivered'
-    reference = 'SMyyy'
+    reference = str(uuid4())
 
     sample_notification(
         template=template, reference=reference, sent_at=datetime.datetime.utcnow(), status=notification_status
@@ -174,9 +179,11 @@ def test_attempt_to_get_notification_duplicate_notification(
     assert should_exit
 
 
+@pytest.mark.serial
 def test_process_delivery_status_with_invalid_notification_retries(sample_delivery_status_result_message):
     """Notification is invalid because there are no notifications in the database"""
     with pytest.raises(Exception) as exc_info:
+        # Fixture is base64 encoded and uses reference: SMyyy, refernces cannot be hard-coded for non-serial tests
         process_delivery_status(event=sample_delivery_status_result_message)
     assert exc_info.type is AutoRetryException
 
@@ -188,6 +195,7 @@ def test_none_notification_platform_status_triggers_retry(mocker, sample_deliver
     mocker.patch('app.clients.sms.twilio.TwilioSMSClient.translate_delivery_status', return_value=None)
 
     with pytest.raises(Exception) as exc_info:
+        # Fixture is base64 encoded and uses reference: SMyyy, refernces cannot be hard-coded for non-serial tests
         process_delivery_status(event=sample_delivery_status_result_message)
     assert exc_info.type is AutoRetryException
 
@@ -217,13 +225,18 @@ def test_process_delivery_status_should_retry_preempts_exit(sample_delivery_stat
     assert exc_info.type is AutoRetryException
 
 
+@pytest.mark.serial
 def test_process_delivery_status_with_valid_message_with_no_payload(
-    mocker, sample_delivery_status_result_message, sample_template, sample_notification
+    mocker,
+    sample_delivery_status_result_message,
+    sample_template,
+    sample_notification,
 ):
     """
     Test that the Celery task will complete if correct data is provided.
     """
 
+    # Reference is used by many tests, can lead to trouble
     notification = sample_notification(
         template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status='sent'
     )
@@ -236,7 +249,10 @@ def test_process_delivery_status_with_valid_message_with_no_payload(
 
 
 def test_process_delivery_status_with_valid_message_with_payload(
-    mocker, sample_delivery_status_result_message, sample_template, sample_notification
+    mocker,
+    sample_delivery_status_result_message,
+    sample_template,
+    sample_notification,
 ):
     """Test that celery task will complete if correct data is provided"""
 
@@ -250,7 +266,7 @@ def test_process_delivery_status_with_valid_message_with_payload(
     callback_mock.assert_called_once()
 
 
-def test_get_notification_parameters(notify_db_session, sample_notification_platform_status):
+def test_get_notification_parameters(notify_api, sample_notification_platform_status):
     (
         payload,
         reference,
@@ -262,7 +278,7 @@ def test_get_notification_parameters(notify_db_session, sample_notification_plat
     """Test our ability to get parameters such as payload or reference from notification_platform_status"""
 
     assert notification_status == 'delivered'
-    assert reference == 'SMyyy'
+    assert reference == 'SMhardcodedKWM'
     assert number_of_message_parts == 1
     assert price_in_millicents_usd >= 0
     assert isinstance(payload, str)

@@ -2,11 +2,10 @@ from datetime import datetime
 from uuid import uuid4
 
 from freezegun import freeze_time
+import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm.exc import NoResultFound
-import pytest
 
 from app.dao.templates_dao import (
     dao_create_template,
@@ -32,23 +31,7 @@ from app.models import (
 )
 from app.schemas import template_history_schema
 from tests.app.db import create_template, create_letter_contact
-
-
-def template_cleanup(session: scoped_session, template: Template):
-    """
-    Cleans up a template created by the DAO method. Order of deletes matter!
-    """
-
-    stmt = select(TemplateHistory).where(TemplateHistory.service_id == template.service_id)
-    for hist_temp in session.scalars(stmt).all():
-        session.delete(hist_temp)
-
-    stmt = select(TemplateRedacted).where(TemplateRedacted.template_id == template.id)
-    for redact_temp in session.scalars(stmt).all():
-        session.delete(redact_temp)
-
-    session.delete(template)
-    session.commit()
+from tests.app.conftest import template_cleanup
 
 
 @pytest.mark.serial
@@ -76,7 +59,7 @@ def test_create_only_one_template(
     assert persisted_template == template
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 @pytest.mark.parametrize(
@@ -116,7 +99,7 @@ def test_create_template(
     assert dao_get_all_templates_for_service(service.id)[0].process_type == 'normal'
 
     # Teardown
-    template_cleanup(notify_db_session.session, db_template)
+    template_cleanup(notify_db_session.session, db_template.id)
 
 
 def test_create_template_creates_redact_entry(
@@ -132,7 +115,7 @@ def test_create_template_creates_redact_entry(
     assert redacted.updated_by_id == service.created_by_id
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_create_template_with_reply_to(
@@ -158,7 +141,7 @@ def test_create_template_with_reply_to(
 
     # Teardown
     letter_contact = notify_db_session.session.get(ServiceLetterContact, letter_contact.id)
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_update_template(
@@ -183,7 +166,7 @@ def test_update_template(
     assert dao_get_all_templates_for_service(service.id)[0].name == 'new name'
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_update_template_in_a_folder_to_archived(
@@ -219,7 +202,7 @@ def test_update_template_in_a_folder_to_archived(
     assert not archived_template.folder
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_dao_update_template_reply_to_none_to_some(
@@ -257,7 +240,7 @@ def test_dao_update_template_reply_to_none_to_some(
     assert template_history.updated_at == updated.updated_at
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_dao_update_template_reply_to_some_to_some(
@@ -294,7 +277,7 @@ def test_dao_update_template_reply_to_some_to_some(
     assert updated_history.updated_at == updated_history.updated_at
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_dao_update_template_reply_to_some_to_none(notify_db_session, sample_service):
@@ -324,7 +307,7 @@ def test_dao_update_template_reply_to_some_to_none(notify_db_session, sample_ser
     assert history.updated_at == updated.updated_at
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_redact_template(
@@ -390,7 +373,7 @@ def test_get_all_templates_for_service(
 
     # Teardown
     for template in templates:
-        template_cleanup(notify_db_session.session, template)
+        template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_all_templates_for_service_is_alphabetised(
@@ -438,7 +421,7 @@ def test_get_all_templates_for_service_is_alphabetised(
 
     # Teardown
     for template in templates:
-        template_cleanup(notify_db_session.session, template)
+        template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_all_returns_empty_list_if_no_templates(
@@ -468,8 +451,8 @@ def test_get_all_templates_ignores_archived_templates(
     assert templates[0] == normal_template
 
     # Teardown
-    template_cleanup(notify_db_session.session, normal_template)
-    template_cleanup(notify_db_session.session, archived_template)
+    template_cleanup(notify_db_session.session, normal_template.id)
+    template_cleanup(notify_db_session.session, archived_template.id)
 
 
 def test_get_all_templates_ignores_hidden_templates(
@@ -487,8 +470,8 @@ def test_get_all_templates_ignores_hidden_templates(
     assert templates[0] == normal_template
 
     # Teardown
-    template_cleanup(notify_db_session.session, normal_template)
-    template_cleanup(notify_db_session.session, hidden_template)
+    template_cleanup(notify_db_session.session, normal_template.id)
+    template_cleanup(notify_db_session.session, hidden_template.id)
 
 
 def test_get_template_by_id_and_service(
@@ -506,7 +489,7 @@ def test_get_template_by_id_and_service(
     assert not template_1.redact_personalisation
 
     # Teardown
-    template_cleanup(notify_db_session.session, template_0)
+    template_cleanup(notify_db_session.session, template_0.id)
 
 
 def test_get_template_by_id_and_service_returns_none_for_hidden_templates(
@@ -520,7 +503,7 @@ def test_get_template_by_id_and_service_returns_none_for_hidden_templates(
         dao_get_template_by_id_and_service_id(template_id=template.id, service_id=service.id)
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_template_version_returns_none_for_hidden_templates(
@@ -534,7 +517,7 @@ def test_get_template_version_returns_none_for_hidden_templates(
         dao_get_template_by_id_and_service_id(template.id, service.id, '1')
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_template_by_id_and_service_returns_none_if_no_template(
@@ -574,7 +557,7 @@ def test_create_template_creates_a_history_record_with_current_data(
     assert template_from_db.created_by.id == template_history.created_by_id
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_update_template_creates_a_history_record_with_current_data(
@@ -619,7 +602,7 @@ def test_update_template_creates_a_history_record_with_current_data(
     assert hist_update
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_template_history_version(
@@ -707,7 +690,7 @@ def test_get_template_versions_is_empty_for_hidden_templates(
     assert len(versions) == 0
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 @pytest.mark.parametrize('template_type,postage', [(LETTER_TYPE, 'third'), (SMS_TYPE, 'second')])
@@ -758,7 +741,7 @@ def test_template_postage_constraint_on_update(
         dao_update_template(created)
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_template_with_no_given_provider_id_has_null_provider_id(
@@ -780,7 +763,7 @@ def test_template_with_no_given_provider_id_has_null_provider_id(
     assert notify_db_session.session.get(Template, template.id).provider_id is None
 
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)
 
 
 @pytest.mark.parametrize('identifier,notification_type', [(SES_PROVIDER, EMAIL_TYPE), (PINPOINT_PROVIDER, SMS_TYPE)])
@@ -807,4 +790,4 @@ def test_template_with_provider_id_persists_provider_id(
 
     assert notify_db_session.session.get(Template, template.id).provider_id == provider.id
     # Teardown
-    template_cleanup(notify_db_session.session, template)
+    template_cleanup(notify_db_session.session, template.id)

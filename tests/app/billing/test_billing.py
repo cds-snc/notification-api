@@ -40,10 +40,13 @@ def test_create_update_free_sms_fragment_limit_invalid_schema(client, sample_ser
 
 
 def test_create_free_sms_fragment_limit_current_year_updates_future_years(
-    notify_db_session, admin_request, sample_service
+    notify_db_session,
+    admin_request,
+    sample_service,
 ):
     service = sample_service()
     current_year = get_current_financial_year_start_year()
+    # Service cleans this up
     future_billing = create_annual_billing(service.id, 1, current_year + 1)
 
     admin_request.post(
@@ -55,14 +58,9 @@ def test_create_free_sms_fragment_limit_current_year_updates_future_years(
 
     current_billing = dao_get_free_sms_fragment_limit_for_year(service.id, current_year)
 
-    try:
-        assert future_billing.free_sms_fragment_limit == 9999
-        assert current_billing.financial_year_start == current_year
-        assert current_billing.free_sms_fragment_limit == 9999
-    finally:
-        # Test clean-up
-        notify_db_session.session.delete(future_billing)
-        notify_db_session.session.commit()
+    assert future_billing.free_sms_fragment_limit == 9999
+    assert current_billing.financial_year_start == current_year
+    assert current_billing.free_sms_fragment_limit == 9999
 
 
 @pytest.mark.parametrize('update_existing', [True, False])
@@ -103,7 +101,11 @@ def test_create_free_sms_fragment_limit_updates_existing_year(admin_request, sam
     assert annual_billing.free_sms_fragment_limit == 2
 
 
-def test_get_free_sms_fragment_limit_current_year_creates_new_row(client, notify_db_session, sample_service):
+def test_get_free_sms_fragment_limit_current_year_creates_new_row(
+    client,
+    notify_db_session,
+    sample_service,
+):
     service = sample_service()
     current_year = get_current_financial_year_start_year()
     create_annual_billing(service.id, 9999, current_year - 1)
@@ -112,19 +114,23 @@ def test_get_free_sms_fragment_limit_current_year_creates_new_row(client, notify
         'service/{}/billing/free-sms-fragment-limit'.format(service.id),
         headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
     )
+    try:
+        assert response_get.status_code == 200
+        json_resp = response_get.get_json()
+        assert json_resp['financial_year_start'] == get_current_financial_year_start_year()
+        assert json_resp['free_sms_fragment_limit'] == 9999
+    finally:
+        # Teardown due to side effect of the GET request
+        stmt = delete(AnnualBilling).where(AnnualBilling.service_id == service.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
-    assert response_get.status_code == 200
-    json_resp = response_get.get_json()
-    assert json_resp['financial_year_start'] == get_current_financial_year_start_year()
-    assert json_resp['free_sms_fragment_limit'] == 9999
 
-    # Teardown
-    stmt = select(AnnualBilling).where(AnnualBilling.service_id == service.id)
-    notify_db_session.session.execute(stmt)
-    notify_db_session.session.commit()
-
-
-def test_get_free_sms_fragment_limit_past_year_not_exist(client, notify_db_session, sample_service):
+def test_get_free_sms_fragment_limit_past_year_not_exist(
+    client,
+    notify_db_session,
+    sample_service,
+):
     service = sample_service()
     current_year = get_current_financial_year_start_year()
     create_annual_billing(service.id, 9999, current_year - 1)
@@ -138,15 +144,16 @@ def test_get_free_sms_fragment_limit_past_year_not_exist(client, notify_db_sessi
         headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
     )
 
-    assert res_get.status_code == 200
-    json_resp = res_get.get_json()
-    assert json_resp['financial_year_start'] == current_year - 1
-    assert json_resp['free_sms_fragment_limit'] == 9999
-
-    # Teardown
-    stmt = select(AnnualBilling).where(AnnualBilling.service_id == service.id)
-    notify_db_session.session.execute(stmt)
-    notify_db_session.session.commit()
+    try:
+        assert res_get.status_code == 200
+        json_resp = res_get.get_json()
+        assert json_resp['financial_year_start'] == current_year - 1
+        assert json_resp['free_sms_fragment_limit'] == 9999
+    finally:
+        # Teardown due to side effect of the GET request
+        stmt = delete(AnnualBilling).where(AnnualBilling.service_id == service.id)
+        notify_db_session.session.execute(stmt)
+        notify_db_session.session.commit()
 
 
 def test_get_free_sms_fragment_limit_future_year_not_exist(client, sample_service):

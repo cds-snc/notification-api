@@ -46,7 +46,6 @@ def test_get_all_templates_returns_200(
 def test_get_all_templates_for_valid_type_returns_200(
     client,
     sample_api_key,
-    # sample_service,
     sample_template,
     tmp_type,
 ):

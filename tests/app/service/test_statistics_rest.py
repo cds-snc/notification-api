@@ -13,7 +13,7 @@ from app.models import (
 from tests.app.db import create_notification, create_ft_notification_status
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 @pytest.mark.parametrize(
     'today_only, stats',
     [(False, {'requested': 2, 'delivered': 1, 'failed': 0}), (True, {'requested': 1, 'delivered': 0, 'failed': 0})],

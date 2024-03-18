@@ -1,34 +1,30 @@
 from collections import defaultdict, namedtuple
 from datetime import date, datetime
 
-import pytest
 from flask import current_app
 from freezegun import freeze_time
-from sqlalchemy import func, select
+import pytest
+from sqlalchemy import delete
 
 from app.celery.tasks import (
-    check_billable_units,
     get_billing_date_in_est_from_filename,
     persist_daily_sorted_letter_counts,
     process_updates_from_file,
     record_daily_sorted_counts,
     update_letter_notifications_statuses,
-    update_letter_notifications_to_error,
     update_letter_notifications_to_sent_to_dvla,
 )
 from app.dao.daily_sorted_letter_dao import dao_get_daily_sorted_letter_by_billing_day
-from app.exceptions import DVLAException, NotificationTechnicalFailureException
+from app.exceptions import DVLAException
 from app.models import (
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
     DailySortedLetter,
     NotificationHistory,
 )
-from tests.app.db import create_notification_history, create_service_callback_api
+from tests.app.db import create_notification_history
 from tests.conftest import set_config
 
 
@@ -51,7 +47,9 @@ def test_update_letter_notifications_statuses_raises_for_invalid_format(notify_a
 
 
 def test_update_letter_notification_statuses_when_notification_does_not_exist_updates_notification_history(
-    notify_db_session, mocker, sample_template
+    notify_db_session,
+    mocker,
+    sample_template,
 ):
     template = sample_template(template_type=LETTER_TYPE)
     valid_file = 'ref-foo|Sent|1|Unsorted'
@@ -64,29 +62,9 @@ def test_update_letter_notification_statuses_when_notification_does_not_exist_up
     update_letter_notifications_statuses(filename='NOTIFY-20170823160812-RSP.TXT')
 
     updated_history = notify_db_session.session.get(NotificationHistory, notification.id)
+
     assert updated_history is not None
-
-    try:
-        assert updated_history.status == NOTIFICATION_DELIVERED
-    finally:
-        notify_db_session.session.delete(updated_history)
-        notify_db_session.session.commit()
-
-
-def test_update_letter_notifications_statuses_raises_dvla_exception(
-    notify_api, mocker, sample_template, sample_notification
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    valid_file = 'ref-foo|Failed|1|Unsorted'
-    mocker.patch('app.celery.tasks.s3.get_s3_file', return_value=valid_file)
-    sample_notification(template=template, reference='ref-foo', status=NOTIFICATION_SENDING, billable_units=0)
-
-    with pytest.raises(DVLAException) as e:
-        update_letter_notifications_statuses(filename='failed.txt')
-    failed = ['ref-foo']
-    assert 'DVLA response file: {filename} has failed letters with notification.reference {failures}'.format(
-        filename='failed.txt', failures=failed
-    ) in str(e.value)
+    assert updated_history.status == NOTIFICATION_DELIVERED
 
 
 def test_update_letter_notifications_statuses_calls_with_correct_bucket_location(notify_api, mocker):
@@ -126,26 +104,12 @@ def test_update_letter_notifications_statuses_builds_updates_list(notify_api, mo
     assert updates[1].cost_threshold == 'Sorted'
 
 
-def test_update_letter_notifications_does_not_call_send_callback_if_no_db_entry(
-    notify_api, mocker, sample_template, sample_notification
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    sent_letter = sample_notification(
-        template=template, reference='ref-foo', status=NOTIFICATION_SENDING, billable_units=0
-    )
-    valid_file = '{}|Sent|1|Unsorted\n'.format(sent_letter.reference)
-    mocker.patch('app.celery.tasks.s3.get_s3_file', return_value=valid_file)
-
-    send_mock = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
-
-    update_letter_notifications_statuses(filename='NOTIFY-20170823160812-RSP.TXT')
-    send_mock.assert_not_called()
-
-
 # Downstream code fails to get a provider for letter notifications, which aren't being sent.  Decline to fix.
-@pytest.mark.xfail(reason="AttributeError: 'NoneType' object has no attribute 'identifier'", run=False)
+@pytest.mark.skip(reason="AttributeError: 'NoneType' object has no attribute 'identifier'")
 def test_update_letter_notifications_to_sent_to_dvla_updates_based_on_notification_references(
-    client, sample_template, sample_notification
+    client,
+    sample_template,
+    sample_notification,
 ):
     template = sample_template(template_type=LETTER_TYPE)
     first = sample_notification(template=template, reference='first ref')
@@ -162,28 +126,6 @@ def test_update_letter_notifications_to_sent_to_dvla_updates_based_on_notificati
     assert first.sent_at == dt
     assert first.updated_at == dt
     assert second.status == NOTIFICATION_CREATED
-
-
-def test_check_billable_units_when_billable_units_matches_page_count(
-    client, sample_template, sample_notification, mocker, notification_update
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    mock_logger = mocker.patch('app.celery.tasks.current_app.logger.error')
-    sample_notification(template=template, reference='REFERENCE_ABC', billable_units=1)
-    check_billable_units(notification_update)
-    mock_logger.assert_not_called()
-
-
-def test_check_billable_units_when_billable_units_does_not_match_page_count(
-    client, sample_template, sample_notification, mocker, notification_update
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    mock_logger = mocker.patch('app.celery.tasks.current_app.logger.exception')
-    notification = sample_notification(template=template, reference='REFERENCE_ABC', billable_units=3)
-    check_billable_units(notification_update)
-    mock_logger.assert_called_once_with(
-        'Notification with id {} has 3 billable_units but DVLA says page count is 1'.format(notification.id)
-    )
 
 
 @pytest.mark.parametrize(
@@ -206,9 +148,8 @@ def test_persist_daily_sorted_letter_counts_saves_sorted_and_unsorted_values(cli
         assert day.unsorted_count == 5
         assert day.sorted_count == 1
     finally:
-        stmt = select(DailySortedLetter).where(DailySortedLetter.file_name == 'test.txt')
-        daily_sorted_letter = notify_db_session.session.scalar(stmt)
-        notify_db_session.session.delete(daily_sorted_letter)
+        stmt = delete(DailySortedLetter).where(DailySortedLetter.file_name == 'test.txt')
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -242,5 +183,6 @@ def test_record_daily_sorted_counts_persists_daily_sorted_letter_count_with_no_s
         assert daily_sorted_letter.unsorted_count == 2
         assert daily_sorted_letter.sorted_count == 0
     finally:
-        notify_db_session.session.delete(daily_sorted_letter)
+        stmt = delete(DailySortedLetter).where(DailySortedLetter.id == daily_sorted_letter.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()

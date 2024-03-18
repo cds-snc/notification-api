@@ -519,7 +519,7 @@ class Test(Development):
 
     # this is overriden in jenkins and on cloudfoundry
     SQLALCHEMY_DATABASE_URI = os.getenv(  # nosec
-        'SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/test_notification_api'
+        'SQLALCHEMY_DATABASE_URI', 'postgresql://postgres@localhost/notification_api'
     )
     SQLALCHEMY_BINDS = {
         'read-db': os.getenv('SQLALCHEMY_DATABASE_URI_READ', 'postgresql://postgres@localhost/notification_api')

@@ -20,7 +20,7 @@ We wish to keep dependencies up to date so we do not need such massive overhauls
 
 ### Additional Info and Resources
 
-- Relevant section of [README.md](https://github.com/department-of-veterans-affairs/notification-api#update-requirementstxt)
+- Relevant section of [README.md](https://github.com/department-of-veterans-affairs/notification-api#update-dependencies)
 
 ## Engineering Checklist
 

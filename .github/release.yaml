@@ -29,6 +29,12 @@ changelog:
     - title: Dependency Upgrades 🆙
       labels:
         - dependencies
+    - title: Internal Upgrades 📈
+      labels:
+        - internal
+        - tech debt
+        - tool
+        - maintenance
     - title: Other Changes 🧑‍💻
       labels:
         - "*"

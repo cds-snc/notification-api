@@ -7,11 +7,19 @@ You can run specific test directories, files, or individual tests rather than th
 The docker-compose command used to run the full test suite sets environment variables.  Step 3 below references the file env_vars for the same purpose.
 
 ## Setup
-
+There are two options for running ad hoc tests.
+### Option 1
 1. Stop all running containers associated with Notification-api.
 2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci-db-1`.  All migrations should already be applied.
 3. Start a test container shell by running `docker run --rm -it -v "$(pwd):/app" --env-file tests/env_vars --name ci-test --network ci_default ci-test bash`.
 4. In the test container shell, run `pytest -h` to see the syntax for running tests.  Without flags, you can run `pytest [file or directory]...`.
+
+### Option 2
+1. Stop all running containers
+2. Edit `scripts/run_tests.sh` by commenting any `pytest` execution and adding `tail -f` to the end of the file
+3. Run `docker compose -f ci/docker-compose-test.yml up`
+4. In a separate window run `docker exec -it ci-test-1 bash`
+5. Execute any command, such as `pytest --durations 10 tests/app/celery`
 
 ## Running Individual Tests
 

@@ -309,7 +309,7 @@ def create_notification(  # noqa: C901
     if not one_off and (job is None and api_key is None):
         # we didn't specify in test - lets create it
         stmt = select(ApiKey).where(ApiKey.service == template.service, ApiKey.key_type == key_type)
-        api_key = db.session.scalars(stmt).first()
+        api_key = db.session.scalar(stmt)
         if not api_key:
             api_key = create_api_key(template.service, key_type=key_type)
 
@@ -897,7 +897,7 @@ def ses_complaint_callback():
     }
 
 
-def ses_smtp_complaint_callback(feedbackId: str = '0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000'):
+def ses_smtp_complaint_callback(feedback_id: str = '0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000'):
     """
     https://docs.aws.amazon.com/ses/latest/DeveloperGuide/notification-contents.html#complaint-object
     """
@@ -912,7 +912,7 @@ def ses_smtp_complaint_callback(feedbackId: str = '0100017058b9253c-10257f1d-9a3
         'Timestamp': '2018-06-05T14:00:15.952Z',
         'Subject': None,
         'Message': '{"eventType":"Complaint","complaint":{"complaintSubType":null,"complainedRecipients":[{"emailAddress":"complaint@simulator.amazonses.com"}],"timestamp":"2020-02-18T14:34:53.000Z","feedbackId":"0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000","userAgent":"Amazon SES Mailbox Simulator","complaintFeedbackType":"abuse"},"mail":{"timestamp":"2020-02-18T14:34:52.000Z","source":"test@smtp_user","sourceArn":"arn:aws:ses:us-east-1:248983331664:identity/smtp_user","sourceIp":"","sendingAccountId":"","messageId":"0100017058b9230e-6bd4bb0b-0d37-4690-97c7-ca25b4b40755-000000","destination":["complaint@simulator.amazonses.com"],"headersTruncated":false,"headers":[{"name":"Received","value":"from Maxs-MacBook-Pro.local (CPE704ca52f06e7-CMf81d0fa26620.cpe.net.cable.rogers.com []) by email-smtp.amazonaws.com with SMTP (SimpleEmailService-d-P4XJ6SAG2) id Ayj6eL5Zy9bZQqaeWP88 for complaint@simulator.amazonses.com; Tue, 18 Feb 2020 14:34:52 +0000 (UTC)"},{"name":"Content-Type","value":"multipart/alternative; boundary=\\"--_NmP-959c1f6221c7e029-Part_1\\""},{"name":"From","value":"Max Neuvians <test@smtp_user>"},{"name":"To","value":"complaint@simulator.amazonses.com"},{"name":"Subject","value":"Hello ✔"},{"name":"Message-ID","value":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>"},{"name":"Date","value":"Tue, 18 Feb 2020 14:34:52 +0000"},{"name":"MIME-Version","value":"1.0"}],"commonHeaders":{"from":["Max Neuvians <test@smtp_user>"],"date":"Tue, 18 Feb 2020 14:34:52 +0000","to":["complaint@simulator.amazonses.com"],"messageId":"<b0c7ad2d-6eb6-04e6-797f-e22d63781b20@smtp_user>","subject":"Hello ✔"}}}'.replace(
-            '0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000', feedbackId
+            '0100017058b9253c-10257f1d-9a33-4352-8b34-f6c9f0bd2c74-000000', feedback_id
         ),  # noqa
         'SigningCertUrl': 'https://sns.pem',
     }
@@ -1060,7 +1060,3 @@ def create_template_folder(service, name='foo', parent=None):
     db.session.add(tf)
     db.session.commit()
     return tf
-
-
-def test_kwm():
-    pass

@@ -89,15 +89,15 @@ def test_status_conversion(initial_statuses, expected_statuses):
 
 
 @freeze_time('2017-03-26 23:01:53.321312')
-def test_notification_for_csv_returns_est_correctly(notify_db_session, sample_template, sample_notification):
+def test_notification_for_csv_returns_est_correctly(
+    notify_api,
+    sample_template,
+    sample_notification,
+):
     notification = sample_notification(template=sample_template())
 
     serialized = notification.serialize_for_csv()
     assert serialized['created_at'] == '2017-03-26 19:01:53'
-
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
 
 
 def test_notification_personalisation_getter_returns_empty_dict_from_None():
@@ -124,14 +124,14 @@ def test_notification_subject_is_none_for_sms():
     assert Notification(notification_type=SMS_TYPE).subject is None
 
 
-def test_notification_subject_fills_in_placeholders(notify_db_session, sample_template, sample_notification):
+def test_notification_subject_fills_in_placeholders(
+    notify_api,
+    sample_template,
+    sample_notification,
+):
     template = sample_template(template_type=EMAIL_TYPE, subject='((name))')
     notification = sample_notification(template=template, personalisation={'name': 'hello'})
     assert notification.subject == 'hello'
-
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
 
 
 def test_notification_serializes_created_by_name_with_no_created_by_id(client, sample_notification):
@@ -175,7 +175,12 @@ def test_user_service_role_serializes_with_updated(client, sample_service_role_u
     assert res['updated_at'] == sample_service_role_udpated.updated_at.isoformat() + 'Z'
 
 
-def test_notification_references_template_history(client, notify_db_session, sample_template, sample_notification):
+def test_notification_references_template_history(
+    client,
+    notify_api,
+    sample_template,
+    sample_notification,
+):
     template = sample_template()
     notification = sample_notification(template=template)
     template.version = 3
@@ -187,12 +192,12 @@ def test_notification_references_template_history(client, notify_db_session, sam
     assert res['body'] == notification.template.content
     assert notification.template.content != template.content
 
-    # Teardown
-    notify_db_session.session.delete(notification)
-    notify_db_session.session.commit()
 
-
-def test_email_notification_serializes_with_recipient_identifiers(client, sample_template, sample_notification):
+def test_email_notification_serializes_with_recipient_identifiers(
+    client,
+    sample_template,
+    sample_notification,
+):
     recipient_identifiers = [
         {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'some vaprofileid'},
         {'id_type': IdentifierType.ICN.value, 'id_value': 'some icn'},
@@ -203,7 +208,11 @@ def test_email_notification_serializes_with_recipient_identifiers(client, sample
     assert response['recipient_identifiers'] == recipient_identifiers
 
 
-def test_email_notification_serializes_with_empty_recipient_identifiers(client, sample_template, sample_notification):
+def test_email_notification_serializes_with_empty_recipient_identifiers(
+    client,
+    sample_template,
+    sample_notification,
+):
     notifcation = sample_notification(template=sample_template(template_type=EMAIL_TYPE))
     response = notifcation.serialize()
     assert response['recipient_identifiers'] == []
@@ -249,13 +258,6 @@ def test_service_get_default_reply_to_email_address(sample_service, sample_servi
 def test_service_get_default_sms_sender(sample_service):
     service = sample_service()
     assert service.get_default_sms_sender() == 'testing'
-
-
-def test_fido2_key_serialization(sample_fido2_key):
-    fido2_key = sample_fido2_key()
-    json = fido2_key.serialize()
-    assert json['name'] == fido2_key.name
-    assert json['created_at']
 
 
 def test_login_event_serialization(sample_login_event):

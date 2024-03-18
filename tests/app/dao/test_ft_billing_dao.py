@@ -492,7 +492,7 @@ def test_get_rate_filters_letters_by_post_class(letter_post_class, expected_rate
     assert rate == Decimal(expected_rate)
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 @pytest.mark.parametrize('date,expected_rate', [(datetime(2018, 9, 30), '0.33'), (datetime(2018, 10, 1), '0.35')])
 def test_get_rate_chooses_right_rate_depending_on_date(date, expected_rate, sample_letter_rate):
     # TODO Refactor test - method used in create_nightly_billing_for_day celery task

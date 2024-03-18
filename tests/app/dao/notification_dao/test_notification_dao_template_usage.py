@@ -38,7 +38,11 @@ def test_last_template_usage_should_be_able_to_get_all_template_usage_history_or
     assert results.id == most_recent.id
 
 
-def test_last_template_usage_should_ignore_test_keys(sample_template, sample_api_key, sample_notification):
+def test_last_template_usage_should_ignore_test_keys(
+    sample_api_key,
+    sample_template,
+    sample_notification,
+):
     one_minute_ago = datetime.utcnow() - timedelta(minutes=1)
     two_minutes_ago = datetime.utcnow() - timedelta(minutes=2)
     template = sample_template()

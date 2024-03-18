@@ -17,7 +17,6 @@ from app.celery.scheduled_tasks import (
     send_scheduled_notifications,
     replay_created_notifications,
     check_precompiled_letter_state,
-    check_templated_letter_state,
 )
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_get_job_by_id
@@ -55,6 +54,7 @@ def test_should_call_delete_invotations_on_delete_invitations_task(notify_api, m
     assert scheduled_tasks.delete_invitations_created_more_than_two_days_ago.call_count == 1
 
 
+@pytest.mark.serial
 def test_should_update_scheduled_jobs_and_put_on_queue(notify_db_session, mocker, sample_template, sample_job):
     mocked = mocker.patch('app.celery.tasks.process_job.apply_async')
 
@@ -62,6 +62,7 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db_session, mocker
     template = sample_template()
     job = sample_job(template, job_status=JOB_STATUS_SCHEDULED, scheduled_for=one_minute_in_the_past)
 
+    # Does not work with multiple workers
     run_scheduled_jobs()
 
     notify_db_session.session.refresh(job)
@@ -69,7 +70,12 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db_session, mocker
     mocked.assert_called_with([str(job.id)], queue='job-tasks')
 
 
-def test_should_update_all_scheduled_jobs_and_put_on_queue(mocker, sample_template, sample_job):
+def test_should_update_all_scheduled_jobs_and_put_on_queue(
+    notify_api,
+    mocker,
+    sample_template,
+    sample_job,
+):
     mocked = mocker.patch('app.celery.tasks.process_job.apply_async')
 
     one_minute_in_the_past = datetime.utcnow() - timedelta(minutes=1)
@@ -122,6 +128,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(mocker, sample
     assert not scheduled_notifications
 
 
+@pytest.mark.serial
 def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_template, sample_job, sample_notification):
     mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     template = sample_template()
@@ -134,6 +141,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     )
     sample_notification(template=template, job=job)
     with pytest.raises(expected_exception=JobIncompleteError) as e:
+        # Requires serial worker execution
         check_job_status()
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
@@ -142,6 +150,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     )
 
 
+@pytest.mark.serial
 def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is_not_complete(
     mocker, sample_template, sample_job
 ):
@@ -156,6 +165,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
+        # Requires serial worker execution
         check_job_status()
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
@@ -164,6 +174,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
     )
 
 
+@pytest.mark.serial
 def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(mocker, sample_template, sample_job):
     mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     template = sample_template()
@@ -184,6 +195,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
+        # Requires serial worker execution
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) in e.value.message
@@ -193,6 +205,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
     )
 
 
+@pytest.mark.serial
 def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template, sample_job):
     mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     template = sample_template()
@@ -212,6 +225,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template, sam
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
+        # Requires serial worker execution
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) not in e.value.message
@@ -222,6 +236,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template, sam
     )
 
 
+@pytest.mark.serial
 def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sample_job):
     mock_celery = mocker.patch(SEND_TASK_MOCK_PATH)
     template = sample_template()
@@ -241,6 +256,7 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sampl
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
+        # Requires serial worker execution
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) not in e.value.message
@@ -262,6 +278,7 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sampl
     ],
 )
 def test_replay_created_notifications(
+    notify_api,
     client,
     mocker,
     notification_type,
@@ -301,7 +318,12 @@ def test_replay_created_notifications(
     mocked.assert_called_once()
 
 
-def test_check_job_status_task_does_not_raise_error(sample_template, sample_job):
+@pytest.mark.serial
+def test_check_job_status_task_does_not_raise_error(
+    notify_api,
+    sample_template,
+    sample_job,
+):
     template = sample_template()
     sample_job(
         template,
@@ -319,6 +341,7 @@ def test_check_job_status_task_does_not_raise_error(sample_template, sample_job)
         job_status=JOB_STATUS_FINISHED,
     )
 
+    # Requires serial worker execution
     check_job_status()
 
 

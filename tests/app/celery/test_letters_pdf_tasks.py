@@ -1,4 +1,5 @@
 from unittest.mock import call
+from uuid import uuid4
 
 import boto3
 import pytest
@@ -187,16 +188,18 @@ def test_group_letters_with_no_letters(notify_api, mocker):
 
 def test_letter_in_created_state(sample_template, sample_notification):
     template = sample_template(template_type=LETTER_TYPE)
-    sample_notification(template=template, reference='ABCDEF1234567890', status=NOTIFICATION_CREATED)
-    sample_notification.reference = 'ABCDEF1234567890'
-    filename = '2018-01-13/NOTIFY.ABCDEF1234567890.D.2.C.C.20180113120000.PDF'
+    ref = str(uuid4())
+    sample_notification(template=template, reference=ref, status=NOTIFICATION_CREATED)
+    sample_notification.reference = ref
+    filename = f'2018-01-13/NOTIFY.{ref}.D.2.C.C.20180113120000.PDF'
     assert letter_in_created_state(filename) is True
 
 
 def test_letter_in_created_state_fails_if_notification_not_in_created(sample_template, sample_notification):
     template = sample_template(template_type=LETTER_TYPE)
-    sample_notification(template=template, reference='ABCDEF1234567890', status=NOTIFICATION_SENDING)
-    filename = '2018-01-13/NOTIFY.ABCDEF1234567890.D.2.C.C.20180113120000.PDF'
+    ref = str(uuid4())
+    sample_notification(template=template, reference=ref, status=NOTIFICATION_SENDING)
+    filename = f'2018-01-13/NOTIFY.{ref}.D.2.C.C.20180113120000.PDF'
     assert letter_in_created_state(filename) is False
 
 

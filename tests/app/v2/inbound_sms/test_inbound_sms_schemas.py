@@ -35,8 +35,8 @@ invalid_inbound_sms_list = {'received_text_messages': [invalid_inbound_sms]}
 
 def test_get_inbound_sms_contract(
     client,
-    sample_inbound_sms,
     sample_api_key,
+    sample_inbound_sms,
     sample_service,
 ):
     service = sample_service()

@@ -16,11 +16,6 @@ from tests.app.db import (
 )
 
 
-@pytest.fixture(autouse=True)
-def use_client(client):
-    pass
-
-
 def test_ses_callback_should_not_set_status_once_status_is_delivered(
     sample_notification,
 ):

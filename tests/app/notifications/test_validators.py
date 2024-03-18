@@ -130,9 +130,9 @@ def test_should_not_access_database_if_redis_disabled(
 @pytest.mark.parametrize('key_type', ['team', 'normal'])
 def test_check_service_message_limit_over_message_limit_fails(
     key_type,
+    sample_api_key,
     sample_notification,
     sample_template,
-    sample_api_key,
     mocker,
 ):
     with freeze_time('2016-01-01 12:00:00.000000'):

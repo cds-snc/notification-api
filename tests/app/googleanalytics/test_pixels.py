@@ -6,7 +6,9 @@ from app.googleanalytics.pixels import build_ga_pixel_url
 
 
 def test_build_ga_pixel_url_contains_expected_parameters(
-    sample_notification_model_with_organization, mock_email_client
+    notify_api,
+    sample_notification_model_with_organization,
+    mock_email_client,
 ):
     img_src_url = build_ga_pixel_url(sample_notification_model_with_organization, mock_email_client)
 
@@ -31,7 +33,11 @@ def test_build_ga_pixel_url_contains_expected_parameters(
     assert all(parameter in img_src_url for parameter in all_expected_parameters)
 
 
-def test_build_ga_pixel_url_is_escaped(sample_notification_model_with_organization, mock_email_client):
+def test_build_ga_pixel_url_is_escaped(
+    notify_api,
+    sample_notification_model_with_organization,
+    mock_email_client,
+):
     escaped_provider_name = quote_plus(mock_email_client.get_name())
     escaped_template_name = quote_plus(sample_notification_model_with_organization.template.name)
     escaped_service_name = quote_plus(sample_notification_model_with_organization.service.name)
@@ -57,7 +63,11 @@ def test_build_ga_pixel_url_is_escaped(sample_notification_model_with_organizati
     assert f'ci={sample_notification_model_with_organization.template.id}' in img_src_url
 
 
-def test_build_ga_pixel_url_without_organization(sample_notification_model_with_organization, mock_email_client):
+def test_build_ga_pixel_url_without_organization(
+    notify_api,
+    sample_notification_model_with_organization,
+    mock_email_client,
+):
     sample_notification_model_with_organization.service.organisation = None
 
     img_src_url = build_ga_pixel_url(sample_notification_model_with_organization, mock_email_client)

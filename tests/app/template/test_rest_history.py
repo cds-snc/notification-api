@@ -61,7 +61,7 @@ def test_404_missing_template_version(notify_api, sample_template):
             assert resp.status_code == 404
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.', run=False)
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_all_versions_of_template(notify_api, sample_template):
     template = sample_template()
     with notify_api.test_request_context():

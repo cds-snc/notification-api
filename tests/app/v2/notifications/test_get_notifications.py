@@ -328,7 +328,7 @@ def test_get_notification_by_id_invalid_id(
         (6, 'first', '2000-06-03T15:00:00.000000Z'),  # 4pm BST in summer (two days before 2nd class due to weekends)
     ],
 )
-@pytest.mark.xfail(reason='mislabelled for route removal, fails when unskipped')
+@pytest.mark.skip(reason='mislabelled for route removal, fails when unskipped')
 def test_get_notification_adds_delivery_estimate_for_letters(
     client,
     sample_api_key,
@@ -376,7 +376,7 @@ def test_get_notification_doesnt_have_delivery_estimate_for_non_letters(
     notify_db_session.session.commit()
 
 
-@pytest.mark.xfail(reason='mislabelled for route removal, fails when unskipped')
+@pytest.mark.skip(reason='mislabelled for route removal, fails when unskipped')
 def test_get_all_notifications_except_job_notifications_returns_200(
     client,
     sample_api_key,
@@ -411,7 +411,7 @@ def test_get_all_notifications_except_job_notifications_returns_200(
     assert not json_response['notifications'][0]['scheduled_for']
 
 
-@pytest.mark.xfail(reason='mislabelled for route removal, fails when unskipped')
+@pytest.mark.skip(reason='mislabelled for route removal, fails when unskipped')
 def test_get_all_notifications_with_include_jobs_arg_returns_200(
     client,
     sample_api_key,
@@ -555,8 +555,8 @@ def test_get_all_notifications_filter_by_single_status(
 def test_get_all_notifications_filter_by_status_invalid_status(
     client,
     notify_db_session,
-    sample_notification,
     sample_api_key,
+    sample_notification,
     sample_template,
 ):
     api_key = sample_api_key()
@@ -828,7 +828,7 @@ def test_get_all_notifications_filter_multiple_query_parameters(
     notify_db_session.session.commit()
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped')
 def test_get_all_notifications_renames_letter_statuses(client, sample_letter_notification):
     auth_header = create_authorization_header(service_id=sample_letter_notification.service_id)
     response = client.get(
@@ -847,7 +847,7 @@ def test_get_all_notifications_renames_letter_statuses(client, sample_letter_not
             pytest.fail()
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped')
 @pytest.mark.parametrize(
     'db_status,expected_status',
     [

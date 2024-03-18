@@ -36,7 +36,7 @@ We currently do not:
 - [Local Development Without Docker](#local-development-without-docker)
 - [Maintaining Docker Images](#maintaining-docker-images)
 - [Deployment Workflow](#deployment-workflow)
-  - [Update requirements.txt](#update-requirements)
+  - [Update poetry.lock](#update-dependencies)
   - [Creating a PR](#creating-a-pr)
   - [Release Process](#release-process)
     - [Perf Release](#create-a-release-for-perf)
@@ -56,25 +56,20 @@ We currently do not:
 
 [Docker](https://www.docker.com/) is the prefered development environment.  Ensure you have Docker Engine installed or otherwise can run containers.
 
-First, open `ci/.docker-env.example`, fill in values as desired, and save as `ci/.docker-env`.  Then build the "notification_api" Docker image by running this command:
+`.local.env` contains all necessary environmental variables and is read automatically in local development and github actions that do not deploy to AWS.
 
-```bash
-docker-compose -f ci/docker-compose-local.yml build app
-```
 
-**Rebuild notification_api whenever Dockerfile.local or requirements-app.txt changes.**
+**Rebuild `notification_api` whenever Dockerfile or poetry.lock changes.**
 
-The associated container will have your local notification-api/ directory mounted in read-only mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container.
+The associated container will have your local notification-api/ directory mounted in read-write mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container. The volume specified in `ci/docker-compose-local.yml` allows the container to read and write from your local file system. If you wish to isolate the built container from your filesystem simply comment out the volume, but you will have to also comment out the `ENTRYPOINT` because `scripts/save_certificate.sh` saves data to the filesystem. This can be useful if working on the Dockercontainer, to verify the expected data is in the expected spot when deployed to a non-local environment.
 
 ### Run the local Docker containers
 
 To run the app, and its ecosystem, locally, run:
 
 ```bash
-docker-compose -f ci/docker-compose-local.yml up
+docker-compose -f ci/docker-compose-local.yml build app && docker-compose -f ci/docker-compose-local.yml up
 ```
-
-This also applies all migrations to the database container, ci_db_1.  To see useful flags that you might want to use with the `up` subcommand, run `docker-compose up --help`.  This docker-compose command creates the container ci_app_1, among others.
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
@@ -82,31 +77,51 @@ If AWS SES is enabled as a provider, you may need to run the following command t
 aws ses verify-email-identity --email-address stage-notifications@notifications.va.gov --endpoint-url=http://localhost:4566
 ```
 
-To support running locally, the repository includes a default `app/version.py` file, which must be present at runtime to avoid raising ImportError.  The production container build process overwrites this file with current values.
+To support running locally, the repository includes a default `app/version.py` file, which must be present at runtime to avoid raising an `ImportError`.  The deployed container build process overwrites this file with current values.
 
 ### Creating database migrations
 
 Running `flask db migrate` on the container ci_app_1 errors because the files in the migrations folder are read-only.  Follow this procedure to create a database migration using Flask:
 
-1. Ensure all containers are stopped.
-2. Run `docker-compose -f ci/docker-compose-local-migrate.yml up`.  This creates the container ci_app_migrate with your local notification-api directory mounted in read-write mode.  The container runs `flask db migrate` and exits.
-3. Press Ctrl-C to stop the containers, and identify the new file in migrations/versions.  (Running `git status` is a quick way to do this.)  Rename and edit the new file as desired.
+1. Ensure all containers are stopped and that the notification_api image has been built
+2. Run `docker compose -f ci/docker-compose-local-migrate.yml up`.  This creates the container ci_app_migrate with your local notification-api directory mounted in read-write mode.  The container runs `flask db migrate` and exits.
+3. Press Ctrl-C to stop the containers, and identify the new file in `migrations/versions/`.
 
 ### Unit testing
 
-Build the "ci_test" Docker image by running this command:
+Build and test the "ci_test" Docker image by running this command:
 
 ```bash
-docker-compose -f ci/docker-compose-test.yml build test
+docker compose -f ci/docker-compose-test.yml up
 ```
 
-**Rebuild ci_test whenever Dockerfile.test, requirements_for_test.txt, or the notification_api image changes.**
+**Rebuild ci_test whenever Dockerfile or poetry.lock changes.**
 
-To run all unit tests:
-
+For a more interactive testing experience, edit `scripts/run_tests.sh` so that it does not execute any pytest command, and place `tail -f` on the final line e.g.
 ```bash
-docker-compose -f ci/docker-compose-test.yml up --abort-on-container-exit
+params="-rfe --disable-pytest-warnings --cov=app --cov-report=term-missing --junitxml=test_results.xml -q"
+# pytest ${params} -n auto -m "not serial" tests/ && pytest ${params} -m "serial" tests/
+display_result $? 2 "Unit tests"
+tail -f
+
 ```
+
+In a separate window execute:
+```bash
+docker exec -it ci-test-1 bash
+```
+
+This will allow exec into the `ci-test-1` container, from which any desired bash commands may be executed. If you wish to also have visibility into the database, simply execute the following in a new window:
+```bash
+docker exec -it ci-db-1 bash
+```
+
+Then login to the test database with:
+```bash
+psql -U postgres -d notification_api
+```
+
+You can then execute [psql](https://www.postgresql.org/docs/current/app-psql.html) commands.
 
 The Github workflow also runs these tests when you push code.  Instructions for running a subset of tests are located in tests/README.md.
 
@@ -118,15 +133,6 @@ OSX users can run `brew bundle` and then `pre-commit install` to register the gi
 
 Ruff has been added to the pre-commit hook in place of flake8. See [documentation](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/formatter.md) for setup.
 
-### Building the production application container
-
-To verify that the production application container build should succeed during deployment, run:
-
-```bash
-docker-compose -f ci/docker-compose.yml up --build --abort-on-container-exit
-```
-
-Note that the production infrastructure does not use docker-compose.yml.
 
 ### Using Localstack
 
@@ -136,6 +142,7 @@ TODO
 
 
 ## Local Development without docker
+This is not maintained. The recommendation is that individuals use Docker, but we have left this here for those that may wish to try it.
 
 ### Prerequisite installation
 
@@ -145,7 +152,7 @@ TODO
 
   `brew install pyenv`
 
- 2. Install Python 3.10.13 (or whatever version is specified in .python-version)
+ 2. Install Python 3.10 (or whatever version is specified in `pyproject.toml`)
  Then follow from instructions for rest of pyenv setup, [see step 3 here](https://github.com/pyenv/pyenv#basic-github-checkout)
 
  Note: For MacOS devs who are using Big Sur, Monterey, standard pyenv python installation will be failed in most case. I found [this solution](https://github.com/pyenv/pyenv/issues/2143#issuecomment-1070640288) so only 3.7.13, 3.8.13, 3.9.11 and 3.10.3 works fine.
@@ -212,20 +219,12 @@ Upgrade the versions of `pip` and `virtualenvwrapper`
 
  11. Install all dependencies
 
- `pip3 install -r requirements.txt`
+ `poetry install`
 
  12. Generate the version file ?!?
 
  `make generate-version-file`
 
- 12. Create .env file
-
- `cp .env.example .env`
-
- > Note:
-     >
-     > - You will need to get a team member to help you get appropriate values
-     >
  13. Run all DB migrations
 
  `flask db upgrade`
@@ -257,19 +256,13 @@ To update the images, change the `FROM` directive at the top of Dockerfiles and 
 
 ## Deployment Workflow
 
-The Docker image generated and used in local development with `ci/Dockerfile.local`, builds with the Python packages given by `requirements.txt`.  This ensures that the local image is built with the same dependencies used in the deployed environments.
+### Update Dependencies
 
-The Docker images generated from `ci/Dockerfile` and `ci/Dockerfile.local` are built with the Python packages specified in `requirements.txt`.  The former is used when deploying with Github actions, and using the same requirements file in the latter ensures that the local build mirrors the deployment build.  `ci/Dockerfile.local` can also be used to update dependencies as described in [Update Requirements](#update-requirements).
+Updating dependencies for the `notification_api` is done by ensuring [Poetry](https://python-poetry.org/) is installed, then running a simple command while within the root of `notification_api`. The `pyroject.toml` file contains all top-level dependencies, and Poetry manages everything else. The full process to upgrade is as follows:
 
-### Update requirements
-
-Updating `requirements.txt` is done by first building locally, using `requirements-app.txt`, which contains all top-level dependencies. The full process to upgrade is as follows:
-
-1. In `ci/Dockerfile.local`, replace all instances of `requirements.txt` with `requirements-app.txt`.
-2. Build the notification_api Docker image using the docker-compose command given in [Local Development](#local-development).
-3. Run `docker run --rm -i notification_api pip freeze > requirements.txt`.
-4. Assuming all unit tests are passing, note any top level dependency updates.  Update requirements-app.txt to make their minimum version equal to the version actually installed according to requirements.txt.
-5. Restore Dockerfile.local to use requirements.txt.  (Undo step 1.)
+1. From the root directory, and with Poetry 1.7 installed, run `poetry update`
+2. Run all unit tests with `docker compose -f ci/docker-compose-test.yml up`
+4. Deploy the code and ensure all regressions pass
 
 ## Creating a PR
 

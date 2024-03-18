@@ -244,7 +244,12 @@ def test_authentication_returns_error_when_service_doesnt_exit(client, sample_us
     assert error_message['message'] == 'Invalid token: service not found'
 
 
-def test_authentication_returns_error_when_service_inactive(client, sample_user, sample_service, sample_api_key):
+def test_authentication_returns_error_when_service_inactive(
+    client,
+    sample_api_key,
+    sample_user,
+    sample_service,
+):
     user = sample_user()
     service = sample_service(user=user, active=False)
     assert service.created_by == user
@@ -315,6 +320,7 @@ def __create_token(service_id):
     ],
 )
 def test_proxy_key_non_auth_endpoint(notify_api, check_proxy_header, header_value, expected_status):
+    # Test takes 2-5 seconds to run when done in parallel
     with set_config_values(
         notify_api,
         {

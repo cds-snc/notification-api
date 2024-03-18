@@ -26,15 +26,18 @@ def test_save_api_key_should_create_new_api_key_and_history(notify_db_session, s
         assert api_key.version == 1
 
         stmt = select(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
-        history = notify_db_session.session.scalars(stmt).all()
+        history = notify_db_session.session.scalars(stmt).one()
 
-        assert len(history) == 1
-        assert history[0].version == api_key.version
+        assert history.version == api_key.version
     finally:
         # Teardown
+        # Clear API Key history
         stmt = delete(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
         notify_db_session.session.execute(stmt)
-        notify_db_session.session.delete(api_key)
+
+        # Clear API Key
+        stmt = delete(ApiKey).where(ApiKey.id == api_key.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -99,8 +102,8 @@ def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_u
 
 def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(
     notify_db_session,
-    sample_service,
     sample_api_key,
+    sample_service,
 ):
     service = sample_service()
 
@@ -125,10 +128,14 @@ def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(
         assert api_key.expiry_date is None, 'The key should not be expired.'
     finally:
         # Teardown
+        # Clear API Key history
         ApiKeyHistory = ApiKey.get_history_model()
         stmt = delete(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
         notify_db_session.session.execute(stmt)
-        notify_db_session.session.delete(api_key)
+
+        # Clear API Key
+        stmt = delete(ApiKey).where(ApiKey.id == api_key.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -152,20 +159,15 @@ def test_save_api_key_should_not_create_new_service_history(
     ApiKeyHistory = ApiKey.get_history_model()
     stmt_api_key = select(func.count()).select_from(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
 
-    try:
-        assert notify_db_session.session.scalar(stmt_service) == 1, 'No new Service history'
-        assert notify_db_session.session.scalar(stmt_api_key) == 1, 'Only one ApiKey history'
-    finally:
-        # Teardown
-        stmt = delete(ApiKeyHistory).where(ApiKeyHistory.id == api_key.id)
-        notify_db_session.session.execute(stmt)
-        notify_db_session.session.delete(api_key)
-        notify_db_session.session.commit()
+    assert notify_db_session.session.scalar(stmt_service) == 1, 'No new Service history'
+    assert notify_db_session.session.scalar(stmt_api_key) == 1, 'Only one ApiKey history'
 
 
 @pytest.mark.parametrize('days_old, expected_length', [(5, 1), (8, 0)])
 def test_should_not_return_revoked_api_keys_older_than_7_days(
-    notify_db_session, sample_service, days_old, expected_length
+    sample_service,
+    days_old,
+    expected_length,
 ):
     service = sample_service()
     expired_api_key = ApiKey(
@@ -180,14 +182,5 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(
     save_model_api_key(expired_api_key)
 
     all_api_keys = get_model_api_keys(service_id=service.id)
-    stmt = select(expired_api_key.get_history_model())
-    api_key_histories = notify_db_session.session.scalars(stmt).all()
 
-    try:
-        assert len(all_api_keys) == expected_length
-    finally:
-        for api_key_history in api_key_histories:
-            notify_db_session.session.delete(api_key_history)
-        for api_key in all_api_keys:
-            notify_db_session.session.delete(api_key)
-        notify_db_session.session.commit()
+    assert len(all_api_keys) == expected_length

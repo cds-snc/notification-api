@@ -37,9 +37,6 @@ jobs:
           - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - name: Install libcurl
-        run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
-
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
@@ -52,16 +49,18 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Get current CA from the VA
-          ./scripts/import-va-certs.sh
           # Prepare path to use environmental variable specified and install with poetry.lock
           export PATH="$POETRY_HOME/bin:$PATH"
           curl -sSL https://install.python-poetry.org | python3 - && poetry install --no-root --no-ansi $POETRY_ARGS
-          # Set path to poetry venv
-          export PATH="/opt/.venv/bin:$PATH"
 
       - name: Run tests
         run: |
+          # Set path to poetry venv
+          export PATH="$PWD/.venv/bin:$PATH"
+          # Prepare env variables - App loads .env with dotfiles
+          mv ci/.local.env .env
+          # Adjust for GHA service "postgres"
+          sed -i 's/LocalPassword@db:5432/postgres@localhost/g' .env
           make test
 
   code-scan:

@@ -15,6 +15,7 @@ from sentry_sdk.integrations.flask import FlaskIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
+from app.version import __git_commit__
 
 from dotenv import load_dotenv
 
@@ -23,7 +24,7 @@ load_dotenv()
 sentry_sdk.init(
     dsn=os.environ.get('SENTRY_URL', ''),
     integrations=[FlaskIntegration()],
-    release=os.environ.get('GIT_SHA', ''),
+    release=__git_commit__,
 )
 
 application = Flask('app')

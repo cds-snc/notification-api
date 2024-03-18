@@ -17,7 +17,7 @@
 | vetext_incoming_forwarder_lambda | twilio |
 
 **Note:** _PyJWT Layer_  
-Whenever PyJWT[crypto] (pyjwt-layer) is updated, we also must update the pyjwt requirement in api `requirements_for_test.txt` file.
+Whenever PyJWT[crypto] (pyjwt-layer) is updated, we also must ensure compatability with Poetry. That is done by ensuring the same version of PyJWT exists in the `poetry.lock` file. The `poetry.lock` file must never be manually changed. Make any changes to `pyproject.toml`, run the `poetry update` command,  and ensure they appear as desired in the `poetry.lock` file.
 
 **Note:** _Python Version and urllib3_  
 Our lambdas currently use python3.8 and we can't use anything newer than 3.9 without updating our AWS provider version

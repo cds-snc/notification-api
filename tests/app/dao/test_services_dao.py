@@ -23,7 +23,6 @@ from app.dao.services_dao import (
     dao_fetch_stats_for_service,
     dao_fetch_todays_stats_for_service,
     fetch_todays_total_message_count,
-    dao_fetch_todays_stats_for_all_services,
     dao_suspend_service,
     dao_resume_service,
     dao_fetch_active_users_for_service,
@@ -494,39 +493,38 @@ def test_removing_a_user_from_a_service_deletes_their_folder_permissions_for_tha
     assert user_folder_permission.template_folder_id == tf3.id
 
 
-@pytest.mark.serial  # Get all cannot run multicore
+@pytest.mark.serial
 def test_get_all_services(
-    notify_db_session,
     sample_service,
 ):
-    sample_service(service_name='service 1', email_from='service.1')
+    s1 = sample_service()
+    # cannot run with multi-worker
     services = dao_fetch_all_services()
     assert len(services) == 1
-    assert services[0].name == 'service 1'
+    assert services[0].name == s1.name
 
-    sample_service(service_name='service 2', email_from='service.2')
+    s2 = sample_service()
     services = dao_fetch_all_services()
     assert len(services) == 2
-    assert services[1].name == 'service 2'
+    assert services[1].name == s2.name
 
 
 @pytest.mark.serial
 def test_get_all_services_should_return_in_created_order(
-    notify_db_session,
     sample_service,
 ):
-    sample_service(service_name='service 1', email_from='service.1')
-    sample_service(service_name='service 2', email_from='service.2')
-    sample_service(service_name='service 3', email_from='service.3')
-    sample_service(service_name='service 4', email_from='service.4')
+    s1 = sample_service(email_from='service.1')
+    s2 = sample_service(email_from='service.2')
+    s3 = sample_service(email_from='service.3')
+    s4 = sample_service(email_from='service.4')
 
     services = dao_fetch_all_services()
 
     assert len(services) == 4
-    assert services[0].name == 'service 1'
-    assert services[1].name == 'service 2'
-    assert services[2].name == 'service 3'
-    assert services[3].name == 'service 4'
+    assert services[0].name == s1.name
+    assert services[1].name == s2.name
+    assert services[2].name == s3.name
+    assert services[3].name == s4.name
 
 
 @pytest.mark.serial
@@ -535,21 +533,19 @@ def test_get_all_services_should_return_empty_list_if_no_services(notify_api):
 
 
 def test_get_all_services_for_user(
-    notify_db_session,
     sample_service,
     sample_user,
 ):
     user = sample_user()
-    sample_service(service_name='service 1', user=user, email_from='service.1')
-    sample_service(service_name='service 2', user=user, email_from='service.2')
-    sample_service(service_name='service 3', user=user, email_from='service.3')
-
+    s1 = sample_service(user=user, email_from='service.1')
+    s2 = sample_service(user=user, email_from='service.2')
+    s3 = sample_service(user=user, email_from='service.3')
     services = dao_fetch_all_services_by_user(user.id)
 
     assert len(services) == 3
-    assert services[0].name == 'service 1'
-    assert services[1].name == 'service 2'
-    assert services[2].name == 'service 3'
+    assert services[0].name == s1.name
+    assert services[1].name == s2.name
+    assert services[2].name == s3.name
 
 
 def test_get_services_by_partial_name(
@@ -1247,7 +1243,7 @@ def test_dao_fetch_todays_total_message_count_returns_count_for_today(
     assert fetch_todays_total_message_count(service.id) == sms_qty * 2 + email_qty * 2 + 2  # 38 notifications
 
 
-@pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped.')
+@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(
     sample_service,
 ):

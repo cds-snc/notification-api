@@ -2,9 +2,6 @@ from enum import Enum
 import os
 
 
-PROVIDER_FEATURE_FLAGS = {'govdelivery': 'GOVDELIVERY_EMAIL_CLIENT_ENABLED'}
-
-
 class FeatureFlag(Enum):
     ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED = 'ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED'
     TEMPLATE_SERVICE_PROVIDERS_ENABLED = 'TEMPLATE_SERVICE_PROVIDERS_ENABLED'
@@ -25,16 +22,6 @@ class FeatureFlag(Enum):
     VA_SSO_ENABLED = 'VA_SSO_ENABLED'
     V3_ENABLED = 'V3_ENABLED'
     COMP_AND_PEN_MESSAGES_ENABLED = 'COMP_AND_PEN_MESSAGES_ENABLED'
-
-
-def is_provider_enabled(
-    current_app,
-    provider_identifier,
-):
-    if provider_identifier in PROVIDER_FEATURE_FLAGS:
-        return current_app.config.get(PROVIDER_FEATURE_FLAGS[provider_identifier])
-    else:
-        return True
 
 
 def accept_recipient_identifiers_enabled():

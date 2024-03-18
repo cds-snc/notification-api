@@ -11,7 +11,8 @@ help:
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 generate-version-file: ## Generates the app version file
-	@echo -e "__git_commit__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"" > ${APP_VERSION_FILE}
+	mkdir -p app
+	@echo -e "__git_commit__ = '${GIT_COMMIT}'\n__time__ = '${DATE}'" > ${APP_VERSION_FILE}
 
 test:
 	./scripts/run_tests.sh
@@ -30,16 +31,14 @@ install-safety:
 	pip install safety
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	# Ignored issues not described here are documented in requirements-app.txt.
 	# 12 Dec 2023: 51668 is fixed with >= 2.0.0b1 of SQLAlchemy. Ongoing refactor to upgrade.
 
-	safety check -r requirements.txt --full-report -i 51668
+	safety check -r poetry.lock --full-report -i 51668
 
 .PHONY:
 	help \
 	generate-version-file \
 	test \
-	test-requirements \
 	clean \
 	check-vulnerabilities \
 	check-dependencies

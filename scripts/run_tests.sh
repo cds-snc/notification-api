@@ -23,8 +23,8 @@ function display_result {
 ruff format --check
 display_result $? 1 "Code style check"
 
-# Run tests in concurrent threads.  Also see the configuration in ../pytest.ini and ../setup.cfg.
+# Run tests in concurrent threads when able and serial otherwise
 # https://docs.pytest.org/en/stable/reference/customize.html
 params="-rfe --disable-pytest-warnings --cov=app --cov-report=term-missing --junitxml=test_results.xml -q"
-pytest ${params} -n9 -m "not serial" tests/ && pytest ${params} -m "serial" tests/
+pytest ${params} -n auto -m "not serial" tests/ && pytest ${params} -m "serial" tests/
 display_result $? 2 "Unit tests"

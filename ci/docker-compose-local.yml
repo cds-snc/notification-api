@@ -3,17 +3,20 @@ services:
   app:
     build:
       context: ..
-      dockerfile: ci/Dockerfile.local
-    image: notification_api
-    volumes:
-      - "../:/app:ro"
-    ports:
+      dockerfile: &vanotify_dockerfile ci/Dockerfile
+      args:
+        POETRY_ARGS: --with static_tools
+    image: &vanotify_image notification_api
+    volumes: &vanotify_volumes
+      - "../:/app:rw"
+    ports: &vanotify_ports
       - 6011:6011
-    env_file:
-      - .docker-env
+    env_file: &vanotify_env_file
+      - .local.env
     depends_on:
       - migrations
       - localstack
+    command: ./scripts/run_app.sh
 
   db:
     image: postgres:15
@@ -21,26 +24,25 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_PASSWORD=LocalPassword
       - POSTGRES_DB=notification_api
+      - POSTGRES_PASSWORD=LocalPassword
 
   migrations:
-    image: notification_api
-    env_file:
-      - .docker-env
-    volumes:
-      - "../:/app:ro"
-    command: ["bash", "-c", "flask db upgrade"]
+    build:
+      context: ..
+    image: *vanotify_image
+    env_file: *vanotify_env_file
+    volumes: *vanotify_volumes
     depends_on:
       - db
+    command: ["bash", "-c", "flask db upgrade"]
 
   localstack:
     image: localstack/localstack
     container_name: localstack
     ports:
       - "4566:4566"
-    env_file:
-      - .docker-env
+    env_file: *vanotify_env_file
     environment:
       - SERVICES=ec2,iam,lambda,s3,ses,sqs,sts
       - DEFAULT_REGION=us-east-2
@@ -51,11 +53,9 @@ services:
       - './localstack_setup.sh:/docker-entrypoint-initaws.d/setup.sh'
 
   celery:
-    image: notification_api
-    env_file:
-      - .docker-env
-    volumes:
-      - "../:/app:ro"
+    image: *vanotify_image
+    volumes: *vanotify_volumes
+    env_file: *vanotify_env_file
     command: >
       sh -c "/app/scripts/wait_for_it.sh localstack:4566 --timeout=30 -- /app/scripts/run_celery.sh"
     depends_on:

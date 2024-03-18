@@ -314,15 +314,18 @@ def test_ses_does_not_update_if_already_bounced(
     assert not send_mock.called
 
 
+@pytest.mark.serial
 def test_process_ses_smtp_results(
     sample_smtp_template,
     mocker,
 ):
     template = sample_smtp_template()
     mocker.patch.dict('app.celery.process_ses_receipts_tasks.current_app.config', {'SMTP_TEMPLATE_ID': template.id})
+    # Trouble processing smtp user with multiple workers - dao_services_by_partial_smtp_name finds multiple rows
     assert process_ses_receipts_tasks.process_ses_smtp_results(response=ses_smtp_notification_callback())
 
 
+@pytest.mark.serial
 def test_process_ses_smtp_results_in_complaint(
     client,
     notify_db_session,
@@ -338,6 +341,7 @@ def test_process_ses_smtp_results_in_complaint(
 
     # Generate id for multi-worker testing
     feedback_id = str(uuid4())
+    # Trouble processing smtp user with multiple workers - dao_services_by_partial_smtp_name finds multiple rows
     process_ses_receipts_tasks.process_ses_smtp_results(response=ses_smtp_complaint_callback(feedback_id))
     assert mocked.call_count == 0
 
@@ -346,6 +350,7 @@ def test_process_ses_smtp_results_in_complaint(
     assert len(complaints) == 1
 
 
+@pytest.mark.serial
 def test_ses_smtp_callback_should_set_status_to_temporary_failure(
     client,
     sample_notification,
@@ -360,10 +365,12 @@ def test_ses_smtp_callback_should_set_status_to_temporary_failure(
     ref_2 = str(uuid4())
     notification = sample_notification(template=template, reference=ref_1)
     create_service_callback_api(service=notification.service, url='https://original_url.com')
+    # Trouble processing smtp user with multiple workers - dao_services_by_partial_smtp_name finds multiple rows
     assert process_ses_receipts_tasks.process_ses_smtp_results(ses_smtp_soft_bounce_callback(reference=ref_2))
     assert send_mock.called
 
 
+@pytest.mark.serial
 def test_ses_smtp_callback_should_set_status_to_permanent_failure(
     client,
     sample_notification,
@@ -374,14 +381,15 @@ def test_ses_smtp_callback_should_set_status_to_permanent_failure(
     send_mock = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
     mocker.patch.dict('app.celery.process_ses_receipts_tasks.current_app.config', {'SMTP_TEMPLATE_ID': template.id})
 
-    ref_1 = str(uuid4())
-    ref_2 = str(uuid4())
-    sample_notification(template=template, reference=ref_1)
+    ref = str(uuid4())
+    sample_notification(template=template, reference=ref)
     create_service_callback_api(service=template.service, url='https://original_url.com')
-    assert process_ses_receipts_tasks.process_ses_smtp_results(ses_smtp_hard_bounce_callback(reference=ref_2))
+    # Trouble processing smtp user with multiple workers - dao_services_by_partial_smtp_name finds multiple rows
+    assert process_ses_receipts_tasks.process_ses_smtp_results(ses_smtp_hard_bounce_callback(reference=ref))
     assert send_mock.called
 
 
+@pytest.mark.serial
 def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(
     sample_smtp_template,
     sample_template,
@@ -394,8 +402,11 @@ def test_ses_smtp_callback_should_send_on_complaint_to_user_callback_api(
 
     create_service_callback_api(service=template.service, url='https://original_url.com', callback_type='complaint')
 
-    sample_notification(template=template, reference='ref1')
-    response = ses_smtp_complaint_callback()
+    # Generate id for multi-worker testing
+    feedback_id = str(uuid4())
+    sample_notification(template=template, reference=feedback_id)
+    response = ses_smtp_complaint_callback(feedback_id)
+    # Trouble processing smtp user with multiple workers - dao_services_by_partial_smtp_name finds multiple rows
     assert process_ses_receipts_tasks.process_ses_smtp_results(response)
     assert send_mock.call_count == 1
 

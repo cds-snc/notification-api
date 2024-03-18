@@ -11,7 +11,7 @@
 
 ## notification-utils
 
-Currently using CDS notification-utils in requirements.txt, need to update to use department-of-veterans-affairs/notification-utils.
+Using [notification-utils](https://github.com/department-of-veterans-affairs/notification-utils).
 
 ## Crown
 

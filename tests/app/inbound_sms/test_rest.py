@@ -164,7 +164,7 @@ def test_get_inbound_sms_by_id_returns_200(
     sample_inbound_sms,
     sample_service_with_inbound_number,
 ):
-    service = sample_service_with_inbound_number(inbound_number='12345')
+    service = sample_service_with_inbound_number()
     inbound = sample_inbound_sms(service=service, user_number='+16502532222')
 
     response = admin_request.get(

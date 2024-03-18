@@ -1,0 +1,135 @@
+[tool.poetry]
+name = "notification-api"
+version = "1.7.3"
+description = "VA Enterprise Notification Platform"
+authors = [
+    "VA Notify <vanotify@va.gov>",
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10.13"
+alembic-utils = "*"
+Authlib = "*"
+boto3 = "*"
+botocore = "*"
+cachelib = "*"
+cachetools = "*"
+celery = {extras = ["sqs"], version = "*"}
+click-datetime = "*"
+ddtrace = "1.18.2"
+docopt = "*"
+fido2 = "*"
+Flask = "*"
+Flask-Bcrypt = "*"
+Flask-Cors = "*"
+Flask-JWT-Extended = "*"
+flask-marshmallow = "*"
+Flask-Migrate = "*"
+Flask-SQLAlchemy = "*"
+gunicorn = {extras = ["eventlet"], version = "*"}
+iso8601 = "*"
+itsdangerous = "*"
+jsonschema = "*"
+kombu = "*"
+marshmallow = "^2.21"
+marshmallow-sqlalchemy = "*"
+nanoid = "*"
+notifications-python-client = "*"
+phonenumbers = "*"
+psycopg2-binary = "*"
+pwnedpasswords = "*"
+PyJWT = "*"
+pypdf = "*"
+python-dotenv = "*"
+python-magic = "*"
+rfc3339-validator = "*"
+sentry-sdk = {extras = ["flask"], version = "*"}
+SQLAlchemy = "^1.4"
+twilio = "*"
+Unidecode = "*"
+validatesns = "*"
+Werkzeug = "*"
+notification-utils = {git = "https://github.com/department-of-veterans-affairs/notification-utils.git", rev = "hotfix-pyyaml-update"}
+
+[tool.poetry.group.test]
+optional = true
+[tool.poetry.group.test.dependencies]
+freezegun = "*"
+google-cloud-bigquery = "*"
+moto = "^4.2"
+pytest = "*"
+pytest-cov = "*"
+pytest-env = "*"
+pytest-mock = "*"
+pytest-xdist ="*"
+requests-mock = "*"
+rfc3987 = "*"
+strict-rfc3339 = "*"
+
+[tool.poetry.group.static_tools]
+optional = true
+[tool.poetry.group.static_tools.dependencies]
+ruff = "*"
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "migrations",
+]
+
+line-length = 120
+indent-width = 4
+target-version = "py310"
+
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "C901"]
+ignore = []
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+[tool.ruff.format]
+docstring-code-format = true  # https://docs.astral.sh/ruff/settings/#format-docstring-code-format
+# docstring-code-line-length = "dynamic"  # https://docs.astral.sh/ruff/settings/#format-docstring-code-line-length
+indent-style = "space"
+line-ending = "auto"
+quote-style = "single"
+skip-magic-trailing-comma = false
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

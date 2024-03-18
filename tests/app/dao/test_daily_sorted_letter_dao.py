@@ -1,9 +1,12 @@
+from datetime import date
+
+from sqlalchemy import delete
+
 from app.dao.daily_sorted_letter_dao import (
     dao_create_or_update_daily_sorted_letter,
     dao_get_daily_sorted_letter_by_billing_day,
 )
 from app.models import DailySortedLetter
-from datetime import date
 from tests.app.db import create_daily_sorted_letter
 
 
@@ -11,14 +14,15 @@ def test_dao_get_daily_sorted_letter_by_billing_day(notify_db_session):
     billing_day = date(2018, 2, 1)
     other_day = date(2017, 9, 8)
 
-    daily_sorted_letters = create_daily_sorted_letter(billing_day=billing_day)
+    daily_sorted_letter = create_daily_sorted_letter(billing_day=billing_day)
 
     try:
-        assert dao_get_daily_sorted_letter_by_billing_day(billing_day) == daily_sorted_letters
+        assert dao_get_daily_sorted_letter_by_billing_day(billing_day) == daily_sorted_letter
         assert not dao_get_daily_sorted_letter_by_billing_day(other_day)
     finally:
         # Teardown
-        notify_db_session.session.delete(daily_sorted_letters)
+        stmt = delete(DailySortedLetter).where(DailySortedLetter.id == daily_sorted_letter.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -38,7 +42,8 @@ def test_dao_create_or_update_daily_sorted_letter_creates_a_new_entry(notify_db_
         assert not daily_sorted_letter.updated_at
     finally:
         # Teardown
-        notify_db_session.session.delete(daily_sorted_letter)
+        stmt = delete(DailySortedLetter).where(DailySortedLetter.id == daily_sorted_letter.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
 
 
@@ -60,5 +65,6 @@ def test_dao_create_or_update_daily_sorted_letter_updates_an_existing_entry(noti
         assert daily_sorted_letter.updated_at
     finally:
         # Teardown
-        notify_db_session.session.delete(daily_sorted_letter)
+        stmt = delete(DailySortedLetter).where(DailySortedLetter.id == daily_sorted_letter.id)
+        notify_db_session.session.execute(stmt)
         notify_db_session.session.commit()
