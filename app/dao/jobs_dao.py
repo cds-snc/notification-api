@@ -71,7 +71,7 @@ def dao_get_job_by_id(job_id) -> Job:
     return Job.query.filter_by(id=job_id).one()
 
 
-def dao_archive_job_batch(jobs):
+def dao_archive_jobs(jobs):
     for job in jobs:
         job.archived = True
         db.session.add(job)
