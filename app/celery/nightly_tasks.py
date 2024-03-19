@@ -57,7 +57,7 @@ def _remove_csv_files(job_types):
         if len(jobs) == 0:
             break
         current_app.logger.info("Archiving {} jobs.".format(len(jobs)))
-        s3.remove_job_batch_from_s3(jobs)
+        s3.remove_jobs_from_s3(jobs)
         dao_archive_jobs(jobs)
         current_app.logger.info(f"Jobs archived: {[job.id for job in jobs]}")
 
