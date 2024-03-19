@@ -12,10 +12,7 @@ from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
-from app.dao.jobs_dao import (
-    dao_archive_jobs,
-    dao_get_jobs_older_than_data_retention,
-)
+from app.dao.jobs_dao import dao_archive_jobs, dao_get_jobs_older_than_data_retention
 from app.dao.notifications_dao import (
     dao_timeout_notifications,
     delete_notifications_older_than_retention_by_type,
