@@ -12,10 +12,7 @@ from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
-from app.dao.jobs_dao import (
-    dao_archive_job_batch,
-    dao_get_jobs_older_than_data_retention,
-)
+from app.dao.jobs_dao import dao_archive_job, dao_get_jobs_older_than_data_retention
 from app.dao.notifications_dao import (
     dao_timeout_notifications,
     delete_notifications_older_than_retention_by_type,
@@ -53,13 +50,14 @@ def remove_letter_csv_files():
 
 def _remove_csv_files(job_types):
     while True:
-        jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types, limit=100)
+        jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types, limit=20000)
         if len(jobs) == 0:
             break
         current_app.logger.info("Archiving {} jobs.".format(len(jobs)))
-        s3.remove_job_batch_from_s3(jobs)
-        dao_archive_job_batch(jobs)
-        current_app.logger.info(f"Jobs archived: {[job.id for job in jobs]}")
+        for job in jobs:
+            s3.remove_job_from_s3(job.service_id, job.id)
+            dao_archive_job(job)
+            current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
 
 
 @notify_celery.task(name="delete-sms-notifications")
