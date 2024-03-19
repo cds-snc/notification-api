@@ -60,10 +60,13 @@ def get_job_metadata_from_s3(service_id, job_id):
     return obj.get()["Metadata"]
 
 
-def remove_jobs_from_s3(jobs):
+# AWS has a limit of 1000 objects per delete_objects call
+def remove_jobs_from_s3(jobs, batch_size=1000):
     bucket = resource("s3").Bucket(current_app.config["CSV_UPLOAD_BUCKET_NAME"])
-    object_keys = [FILE_LOCATION_STRUCTURE.format(job.service_id, job.id) for job in jobs]
-    bucket.delete_objects(Delete={"Objects": [{"Key": key} for key in object_keys]})
+
+    for start in range(0, len(jobs), batch_size):
+        object_keys = [FILE_LOCATION_STRUCTURE.format(job.service_id, job.id) for job in jobs[start : start + batch_size]]
+        bucket.delete_objects(Delete={"Objects": [{"Key": key} for key in object_keys]})
 
 
 def get_s3_bucket_objects(bucket_name, subfolder="", older_than=7, limit_days=2):
