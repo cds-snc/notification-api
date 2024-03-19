@@ -32,3 +32,41 @@ $ pytest tests/lambda_functions/va_profile/test_va_profile_integration.py::test_
 ## A Note About .bash_history
 
 Running Bash commands on a container with read-write access, such as ci_test, will result in the creation of .bash_history in your notification_api/ directory.  That file is in .gitignore.
+
+## Additional Options
+
+Build and test the "ci_test" Docker image by running this command:
+
+```bash
+docker compose -f ci/docker-compose-test.yml up
+```
+
+**Rebuild ci_test whenever Dockerfile or poetry.lock changes.**
+
+For a more interactive testing experience, edit `scripts/run_tests.sh` so that it does not execute any pytest command, and place `tail -f` on the final line e.g.
+```bash
+params="-rfe --disable-pytest-warnings --cov=app --cov-report=term-missing --junitxml=test_results.xml -q"
+# pytest ${params} -n auto -m "not serial" tests/ && pytest ${params} -m "serial" tests/
+display_result $? 2 "Unit tests"
+tail -f
+
+```
+
+In a separate window execute:
+```bash
+docker exec -it ci-test-1 bash
+```
+
+This will allow exec into the `ci-test-1` container, from which any desired bash commands may be executed. If you wish to also have visibility into the database, simply execute the following in a new window:
+```bash
+docker exec -it ci-db-1 bash
+```
+
+Then login to the test database with:
+```bash
+psql -U postgres -d notification_api
+```
+
+You can then execute [psql](https://www.postgresql.org/docs/current/app-psql.html) commands.
+
+The Github workflow also runs these tests when you push code.  Instructions for running a subset of tests are located in tests/README.md.

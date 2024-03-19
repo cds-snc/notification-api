@@ -10,7 +10,7 @@ SQLALCHEMY_DATABASE_URI_READ=postgresql://postgres:LocalPassword@db-read:5432/no
 ```
 Start containers
 ```
-docker-compose -f ci/docker-compose-local-readwrite.yml up -d
+docker compose -f ci/docker-compose-local-readwrite.yml up -d
 ```
 
 #### 2. Create snapshot of the write database instance
@@ -30,7 +30,7 @@ pg_restore -U postgres -W -d notification_api /var/db-data-read/writedb.dump
 
 #### 5. Stop containers & remove data when done testing
 ```
-docker-compose -f ci/docker-compose-local-readwrite.yml down -v
+docker compose -f ci/docker-compose-local-readwrite.yml down -v
 rm -fr db-data*
 ```
 

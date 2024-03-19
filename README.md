@@ -61,15 +61,16 @@ We currently do not:
 
 **Rebuild `notification_api` whenever Dockerfile or poetry.lock changes.**
 
-The associated container will have your local notification-api/ directory mounted in read-write mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container. The volume specified in `ci/docker-compose-local.yml` allows the container to read and write from your local file system. If you wish to isolate the built container from your filesystem simply comment out the volume, but you will have to also comment out the `ENTRYPOINT` because `scripts/save_certificate.sh` saves data to the filesystem. This can be useful if working on the Dockercontainer, to verify the expected data is in the expected spot when deployed to a non-local environment.
+The associated container will have your local notification-api/ directory mounted in read-write mode, and Flask will run in development mode.  Changes you make to the code should trigger Flask to restart on the container. The volume specified in `ci/docker-compose-local.yml` allows the container to read and write from your local file system. If you wish to isolate the built container from your filesystem, comment out the volume, but you will have to also comment out the `ENTRYPOINT` because `scripts/save_certificate.sh` saves data to the filesystem.  When working on the Docker container, this can be useful to verify the expected data is in the expected spot when deployed to a non-local environment.
 
 ### Run the local Docker containers
 
 To run the app, and its ecosystem, locally, run:
 
 ```bash
-docker-compose -f ci/docker-compose-local.yml build app && docker-compose -f ci/docker-compose-local.yml up
+docker compose -f ci/docker-compose-local.yml build app && docker compose -f ci/docker-compose-local.yml up
 ```
+If you have previously built this it will be cached. Any changes to the the stages will result in continuation from that point.
 
 If AWS SES is enabled as a provider, you may need to run the following command to give the (simulated) SES permission to (pretend to) send e-mails:
 
@@ -88,42 +89,7 @@ Running `flask db migrate` on the container ci_app_1 errors because the files in
 3. Press Ctrl-C to stop the containers, and identify the new file in `migrations/versions/`.
 
 ### Unit testing
-
-Build and test the "ci_test" Docker image by running this command:
-
-```bash
-docker compose -f ci/docker-compose-test.yml up
-```
-
-**Rebuild ci_test whenever Dockerfile or poetry.lock changes.**
-
-For a more interactive testing experience, edit `scripts/run_tests.sh` so that it does not execute any pytest command, and place `tail -f` on the final line e.g.
-```bash
-params="-rfe --disable-pytest-warnings --cov=app --cov-report=term-missing --junitxml=test_results.xml -q"
-# pytest ${params} -n auto -m "not serial" tests/ && pytest ${params} -m "serial" tests/
-display_result $? 2 "Unit tests"
-tail -f
-
-```
-
-In a separate window execute:
-```bash
-docker exec -it ci-test-1 bash
-```
-
-This will allow exec into the `ci-test-1` container, from which any desired bash commands may be executed. If you wish to also have visibility into the database, simply execute the following in a new window:
-```bash
-docker exec -it ci-db-1 bash
-```
-
-Then login to the test database with:
-```bash
-psql -U postgres -d notification_api
-```
-
-You can then execute [psql](https://www.postgresql.org/docs/current/app-psql.html) commands.
-
-The Github workflow also runs these tests when you push code.  Instructions for running a subset of tests are located in tests/README.md.
+See the [tests README.md](tests/README.md) for information.
 
 ### Pre-commit hooks
 
