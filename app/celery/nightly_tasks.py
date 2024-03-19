@@ -13,7 +13,7 @@ from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
 from app.dao.jobs_dao import (
-    dao_archive_job_batch,
+    dao_archive_jobs,
     dao_get_jobs_older_than_data_retention,
 )
 from app.dao.notifications_dao import (

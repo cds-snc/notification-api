@@ -76,7 +76,7 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
     """
-    mocker.patch("app.celery.nightly_tasks.s3.remove_job_batch_from_s3")
+    mocker.patch("app.celery.nightly_tasks.s3.remove_jobs_from_s3")
 
     seven_days_ago = datetime.utcnow() - timedelta(days=7)
     just_under_seven_days = seven_days_ago + timedelta(seconds=1)
@@ -93,7 +93,7 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
 
     remove_sms_email_csv_files()
 
-    args = s3.remove_job_batch_from_s3.call_args.args[0]
+    args = s3.remove_jobs_from_s3.call_args.args[0]
     assert sorted(args, key=lambda x: x.id) == sorted([job1_to_delete, job2_to_delete], key=lambda x: x.id)
     assert job1_to_delete.archived is True
     assert dont_delete_me_1.archived is False
@@ -104,7 +104,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, n
     """
     Jobs older than retention period are deleted, but only two day's worth (two-day window)
     """
-    mocker.patch("app.celery.nightly_tasks.s3.remove_job_batch_from_s3")
+    mocker.patch("app.celery.nightly_tasks.s3.remove_jobs_from_s3")
     service_1 = create_service(service_name="service 1")
     service_2 = create_service(service_name="service 2")
     create_service_data_retention(service=service_1, notification_type=SMS_TYPE, days_of_retention=3)
@@ -129,7 +129,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, n
 
     remove_sms_email_csv_files()
 
-    args = s3.remove_job_batch_from_s3.call_args.args[0]
+    args = s3.remove_jobs_from_s3.call_args.args[0]
     assert sorted(args, key=lambda x: x.id) == sorted(
         [job1_to_delete, job2_to_delete, job3_to_delete, job4_to_delete], key=lambda x: x.id
     )
@@ -137,7 +137,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, n
 
 @freeze_time("2017-01-01 10:00:00")
 def test_remove_csv_files_filters_by_type(mocker, sample_service):
-    mocker.patch("app.celery.nightly_tasks.s3.remove_job_batch_from_s3")
+    mocker.patch("app.celery.nightly_tasks.s3.remove_jobs_from_s3")
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
     """
@@ -151,7 +151,7 @@ def test_remove_csv_files_filters_by_type(mocker, sample_service):
 
     remove_letter_csv_files()
 
-    assert s3.remove_job_batch_from_s3.call_args.args[0] == [job_to_delete]
+    assert s3.remove_jobs_from_s3.call_args.args[0] == [job_to_delete]
 
 
 def test_should_call_delete_sms_notifications_more_than_week_in_task(notify_api, mocker):
