@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import Iterable
 
 from flask import current_app
 from notifications_utils.letter_timings import (
@@ -71,9 +72,15 @@ def dao_get_job_by_id(job_id) -> Job:
     return Job.query.filter_by(id=job_id).one()
 
 
-def dao_archive_job(job):
-    job.archived = True
-    db.session.add(job)
+def dao_archive_jobs(jobs: Iterable[Job]):
+    """
+    Archive the given jobs.
+    Args:
+        jobs (Iterable[Job]): The jobs to archive.
+    """
+    for job in jobs:
+        job.archived = True
+        db.session.add(job)
     db.session.commit()
 
 
@@ -148,7 +155,7 @@ def dao_get_jobs_older_than_data_retention(notification_types, limit=None):
             .order_by(desc(Job.created_at))
         )
         if limit:
-            query = query.limit(limit)
+            query = query.limit(limit - len(jobs))
         jobs.extend(query.all())
 
     end_date = today - timedelta(days=7)
