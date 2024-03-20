@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import List
 
 import pytz
 from flask import current_app
@@ -37,18 +38,29 @@ from app.utils import get_local_timezone_midnight_in_utc
 @notify_celery.task(name="remove_sms_email_jobs")
 @cronitor("remove_sms_email_jobs")
 @statsd(namespace="tasks")
-def remove_sms_email_csv_files():
-    _remove_csv_files([EMAIL_TYPE, SMS_TYPE])
+def remove_sms_email_jobs():
+    """
+    Remove csv files from s3 and archive email and sms jobs older than data retention period.
+    """
+
+    _archive_jobs([EMAIL_TYPE, SMS_TYPE])
 
 
 @notify_celery.task(name="remove_letter_jobs")
 @cronitor("remove_letter_jobs")
 @statsd(namespace="tasks")
-def remove_letter_csv_files():
-    _remove_csv_files([LETTER_TYPE])
+def remove_letter_jobs():
+    _archive_jobs([LETTER_TYPE])
 
 
-def _remove_csv_files(job_types):
+def _archive_jobs(job_types: List[str]):
+    """
+    Remove csv files from s3 and archive jobs older than data retention period.
+
+    Args:
+        job_types (List[str]): list of job types to remove csv files and archive jobs for
+    """
+
     while True:
         jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types, limit=100)
         if len(jobs) == 0:

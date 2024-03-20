@@ -17,8 +17,8 @@ from app.celery.nightly_tasks import (
     delete_sms_notifications_older_than_retention,
     letter_raise_alert_if_no_ack_file_for_zip,
     raise_alert_if_letter_notifications_still_sending,
-    remove_letter_csv_files,
-    remove_sms_email_csv_files,
+    remove_letter_jobs,
+    remove_sms_email_jobs,
     remove_transformed_dvla_files,
     s3,
     send_daily_performance_platform_stats,
@@ -72,7 +72,7 @@ def mock_s3_get_list_diff(bucket_name, subfolder="", suffix="", last_modified=No
 
 
 @freeze_time("2016-10-18T10:00:00")
-def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_db_session, mocker, sample_template):
+def test_will_archive_jobs_older_than_seven_days(notify_db, notify_db_session, mocker, sample_template):
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
     """
@@ -91,7 +91,7 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
     dont_delete_me_1 = create_job(sample_template, created_at=seven_days_ago)
     create_job(sample_template, created_at=just_under_seven_days)
 
-    remove_sms_email_csv_files()
+    remove_sms_email_jobs()
 
     args = s3.remove_jobs_from_s3.call_args.args[0]
     assert sorted(args, key=lambda x: x.id) == sorted([job1_to_delete, job2_to_delete], key=lambda x: x.id)
@@ -100,7 +100,7 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(notify_db, notify_
 
 
 @freeze_time("2016-10-18T10:00:00")
-def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, notify_db_session, mocker):
+def test_will_archive_jobs_older_than_retention_period(notify_db, notify_db_session, mocker):
     """
     Jobs older than retention period are deleted, but only two day's worth (two-day window)
     """
@@ -127,7 +127,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, n
     job3_to_delete = create_job(email_template_service_2, created_at=thirty_one_days_ago)
     job4_to_delete = create_job(sms_template_service_2, created_at=eight_days_ago)
 
-    remove_sms_email_csv_files()
+    remove_sms_email_jobs()
 
     args = s3.remove_jobs_from_s3.call_args.args[0]
     assert sorted(args, key=lambda x: x.id) == sorted(
@@ -136,7 +136,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(notify_db, n
 
 
 @freeze_time("2017-01-01 10:00:00")
-def test_remove_csv_files_filters_by_type(mocker, sample_service):
+def test_archive_jobs_by_type(mocker, sample_service):
     mocker.patch("app.celery.nightly_tasks.s3.remove_jobs_from_s3")
     """
     Jobs older than seven days are deleted, but only two day's worth (two-day window)
@@ -149,7 +149,7 @@ def test_remove_csv_files_filters_by_type(mocker, sample_service):
     job_to_delete = create_job(template=letter_template, created_at=eight_days_ago)
     create_job(template=sms_template, created_at=eight_days_ago)
 
-    remove_letter_csv_files()
+    remove_letter_jobs()
 
     assert s3.remove_jobs_from_s3.call_args.args[0] == [job_to_delete]
 

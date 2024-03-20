@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import Iterable
 
 from flask import current_app
 from notifications_utils.letter_timings import (
@@ -71,7 +72,12 @@ def dao_get_job_by_id(job_id) -> Job:
     return Job.query.filter_by(id=job_id).one()
 
 
-def dao_archive_jobs(jobs):
+def dao_archive_jobs(jobs: Iterable[Job]):
+    """
+    Archive the given jobs.
+    Args:
+        jobs (Iterable[Job]): The jobs to archive.
+    """
     for job in jobs:
         job.archived = True
         db.session.add(job)
