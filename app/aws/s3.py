@@ -63,7 +63,6 @@ def get_job_metadata_from_s3(service_id, job_id):
     return obj.get()["Metadata"]
 
 
-# AWS has a limit of 1000 objects per delete_objects call
 def remove_jobs_from_s3(jobs: List[Job], batch_size=1000):
     """
     Remove the files from S3 for the given jobs.
