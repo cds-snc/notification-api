@@ -1,7 +1,6 @@
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal
@@ -39,8 +38,8 @@ from app.utils import (
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))
@@ -172,12 +171,7 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
     )
     if filter_heartbeats:
         query = query.filter(
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"],
-            FactNotificationStatus.template_id != current_app.config["HEARTBEAT_TEMPLATE_SMS_HIGH"],
+            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
         )
     return query.all()
 

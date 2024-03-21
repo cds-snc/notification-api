@@ -23,6 +23,7 @@ from app.models import (
     CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEST,
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
@@ -176,15 +177,9 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
         )
         .order_by(asc(Service.go_live_at))
     )
+
     if filter_heartbeats:
-        data = data.join(Template, Service.id == Template.service_id).filter(
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_EMAIL_HIGH"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_LOW"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_MEDIUM"],
-            Template.id != current_app.config["HEARTBEAT_TEMPLATE_SMS_HIGH"],
-        )
+        data = data.filter(Service.id != current_app.config["NOTIFY_SERVICE_ID"])
     data = data.all()
     results = []
     for row in data:
@@ -433,20 +428,24 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("count")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for >= midnight,
+            Job.scheduled_for < midnight + timedelta(days=1),
+        )
+    ).first()
+
     result = (
-        db.session.query(func.count(Notification.id).label("count"))
-        .filter(
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("count")).filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            Notification.created_at > midnight,
+            Notification.created_at >= midnight,
         )
-        .group_by(
-            Notification.notification_type,
-            Notification.status,
-        )
-        .first()
-    )
-    return 0 if result is None else result.count
+    ).first()
+
+    return result.count + scheduled.count
 
 
 def fetch_todays_total_sms_count(service_id):
@@ -470,17 +469,25 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("total_scheduled_notifications")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for > midnight,
+            Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
+        )
+    ).first()
+
     result = (
-        db.session.query(func.count(Notification.id).label("total_email_notifications"))
-        .filter(
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
             Notification.created_at > midnight,
             Notification.notification_type == "email",
         )
-        .first()
-    )
-    return 0 if result is None else result.total_email_notifications
+    ).first()
+
+    return result.total_email_notifications + scheduled.total_scheduled_notifications
 
 
 def _stats_for_service_query(service_id):
