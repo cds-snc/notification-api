@@ -313,8 +313,6 @@ def dao_create_service(
     if organisation:
         service.organisation_id = organisation.id
         service.organisation_type = organisation.organisation_type
-        if organisation.email_branding:
-            service.email_branding = organisation.email_branding
 
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding

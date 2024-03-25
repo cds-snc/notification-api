@@ -458,7 +458,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
+def test_create_service_doesnt_inherit_branding_from_organisation(admin_request, sample_user, mocker):
     org = create_organisation()
     email_branding = create_email_branding()
     org.email_branding = email_branding
@@ -482,8 +482,7 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
         _expected_status=201,
     )
 
-    assert json_resp["data"]["email_branding"] == str(email_branding.id)
-    assert json_resp["data"]["letter_branding"] == str(letter_branding.id)
+    assert json_resp["data"]["email_branding"] is None
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
