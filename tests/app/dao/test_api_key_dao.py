@@ -116,12 +116,27 @@ def test_get_unsigned_secret_returns_key(sample_api_key):
     assert unsigned_api_key == sample_api_key.secret
 
 
-def test_get_api_key_by_secret(sample_api_key):
-    unsigned_secret = get_unsigned_secret(sample_api_key.id)
-    assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
+class TestGetAPIKeyBySecret:
+    def test_get_api_key_by_secret(self, sample_api_key):
+        secret = get_unsigned_secret(sample_api_key.id)
+        # Create token expected from the frontend
+        unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{secret}"
+        assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
 
-    with pytest.raises(NoResultFound):
-        get_api_key_by_secret("nope")
+        with pytest.raises(ValueError):
+            get_api_key_by_secret("nope")
+
+        # Test getting secret without the keyname prefix
+        with pytest.raises(ValueError):
+            get_api_key_by_secret(str(sample_api_key.id))
+
+        # Test the service_name isnt part of the secret
+        with pytest.raises(ValueError):
+            get_api_key_by_secret(f"gcntfy-keyname-hello-{secret}")
+
+        # Test the secret is incorrect
+        with pytest.raises(NoResultFound):
+            get_api_key_by_secret(f"gcntfy-keyname-hello-{sample_api_key.service_id}-1234")
 
 
 def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_uuid):
