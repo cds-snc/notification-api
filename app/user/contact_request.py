@@ -16,6 +16,7 @@ class ContactRequest:
     name: str = field(default="")
     message: str = field(default="")
     user_profile: str = field(default="")
+    org_id: str = field(default="")
     department_org_name: str = field(default="")
     program_service_name: str = field(default="")
     intended_recipients: str = field(default="")
