@@ -78,17 +78,10 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
-    # For normal send of notifications. This is relatively normal volume and flushed
-    # pretty quickly.
-    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
-
     # Queues for sending all SMS, except long dedicated numbers.
     SEND_SMS_HIGH = "send-sms-high"
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
@@ -98,9 +91,6 @@ class QueueNames(object):
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
     SEND_EMAIL_LOW = "send-email-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
     # out Notify.
@@ -158,12 +148,10 @@ class QueueNames(object):
             QueueNames.SEND_SMS_HIGH,
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
-            QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
-            QueueNames.SEND_EMAIL,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,
