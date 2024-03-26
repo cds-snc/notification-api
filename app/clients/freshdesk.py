@@ -60,13 +60,14 @@ class Freshdesk(object):
                     f"- Service id: {self.contact.service_id}",
                     f"- Service name: {self.contact.service_name}",
                     f"- Organisation id: {self.contact.organisation_id}",
-                    f"- Organisation name: {self.contact.department_org_name}" f"- Logo filename: {self.contact.branding_url}",
+                    f"- Organisation name: {self.contact.department_org_name}",
+                    f"- Logo filename: {self.contact.branding_url}",
                     "<hr>",
                     f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address}) pour le service suivant :",
                     f"- Identifiant du service : {self.contact.service_id}",
                     f"- Nom du service : {self.contact.service_name}",
                     f"- Identifiant de l'organisation: {self.contact.organisation_id}",
-                    f"- Nom de l'organisation: {self.contact.department_org_name}"
+                    f"- Nom de l'organisation: {self.contact.department_org_name}",
                     f"- Nom du fichier du logo : {self.contact.branding_url}",
                 ]
             )

@@ -127,15 +127,15 @@ class TestSendTicket:
                 "description": "A new logo has been uploaded by name (test@email.com) for the following service:<br>"
                 "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Service name: t6<br>"
-                "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79"
-                "- Organisation name: best org name ever"
+                "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Organisation name: best org name ever<br>"
                 "- Logo filename: branding_url<br>"
                 "<hr><br>"
                 "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
                 "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Nom du service : t6<br>"
-                "Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79"
-                "- Nom de l'organisation: best org name ever"
+                "- Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Nom de l'organisation: best org name ever<br>"
                 "- Nom du fichier du logo : branding_url",
                 "email": "test@email.com",
                 "priority": 1,
