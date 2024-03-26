@@ -1,4 +1,6 @@
-name: Deploy Lambdas to Dev
+name: Deploy Lambdas to Env
+run-name: "Deploy Lambdas to ${{ inputs.environment }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,7 +8,16 @@ on:
         description: Branch to deploy
         required: true
         default: master
-      choice:
+      environment:
+        type: choice
+        description: Environment to deploy
+        default: dev
+        options:
+          - dev
+          - perf
+          - staging
+          - prod
+      lambda:
         type: choice
         description: Make a choice
         required: true
@@ -35,13 +46,13 @@ jobs:
       - name: Env Values
         run: |
           echo "The branch/tag is ${{ inputs.ref }}"
-          echo "The Lambda Deployment is ${{ inputs.choice }}"
+          echo "The Lambda Deployment is ${{ inputs.lambda }}"
 
   build_deploy_lambda:
     needs: [setup_job]
     uses: ./.github/workflows/lambda-functions.yml
     with:
-      environment: "dev"
+      environment: ${{ inputs.environment }}
       ref: ${{ inputs.ref }}
-      lambdaName: ${{ inputs.choice }}
+      lambdaName: ${{ inputs.lambda }}
     secrets: inherit

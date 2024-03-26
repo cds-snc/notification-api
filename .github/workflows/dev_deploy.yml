@@ -1,12 +1,18 @@
 name: Deploy to Env - API
+run-name: "Deploy API to ${{ inputs.environment }}"
+
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Deployment environment (dev|perf|staging|prod)"
+        type: choice
+        description: Environment to deploy
         default: dev
-        required: true
-        type: string
+        options:
+          - dev
+          - perf
+          - staging
+          - prod
       ref:
         description: "Branch or Commit"
         default: master
