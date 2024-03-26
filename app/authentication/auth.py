@@ -63,7 +63,7 @@ def get_auth_token(req):
     for el in AUTH_TYPES:
         scheme, auth_type, _ = el
         if auth_header.lower().startswith(scheme.lower()):
-            token = auth_header[len(scheme) + 1 :]
+            token = auth_header[len(scheme) + 1 :].strip()
             return auth_type, token
 
     raise AuthError(
