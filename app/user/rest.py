@@ -497,7 +497,7 @@ def send_branding_request(user_id):
             email_address=user.email_address,
             service_id=data["serviceID"],
             service_name=data["service_name"],
-            org_id=data["organisation_id"],
+            organisation_id=data["organisation_id"],
             department_org_name=data["organisation_name"],
             branding_url=get_logo_url(data["filename"]),
         )
