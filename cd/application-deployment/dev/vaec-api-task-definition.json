@@ -239,7 +239,7 @@
           "value": "fca415e8-ff5f-4c29-a121-6dd534aa90c7"
         },
         {
-          "name": "COMP_AND_PEN_DYANMODB_NAME",
+          "name": "COMP_AND_PEN_DYNAMODB_NAME",
           "value": "dev-bip-msg-mpi-profile-participant-cache-table"
         }
       ],

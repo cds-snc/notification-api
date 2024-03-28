@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal, getcontext
 from unittest.mock import call
 
 import pytest
@@ -427,25 +428,62 @@ def test_get_dynamodb_comp_pen_messages_with_empty_table(dynamodb_mock):
     assert messages == [], 'Expected no messages from an empty table'
 
 
-def test_get_dynamodb_comp_pen_messages_with_data(dynamodb_mock, sample_dynamodb_insert):
-    message_limit = 3
+@pytest.fixture
+def setup_monetary_decimal_context():
+    context = getcontext()
+    initial_context = context.copy()
+    context.prec = 2
 
-    # Insert mock data into the DynamoDB table
+    yield
+
+    context = initial_context
+
+
+def test_get_dynamodb_comp_pen_messages_filters(dynamodb_mock, sample_dynamodb_insert, setup_monetary_decimal_context):
+    """
+    Items should not be returned if any of these apply:
+        1) is_processed is True
+        2) has_duplicate_mappings is True
+        3) payment_id equals -1
+        4) paymentAmount is absent (required by downstream Celery task)
+    """
+
+    # Insert mock data into the DynamoDB table.
     items_to_insert = [
-        {'id': '1', 'is_processed': False},
-        {'id': '2', 'is_processed': False},
-        {'id': '3', 'is_processed': False},
-        {'id': '4', 'is_processed': False},
-        {'id': '5', 'is_processed': False},
+        # The first 2 items are valid.
+        {'id': '1', 'is_processed': False, 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
+        {
+            'id': '2',
+            'is_processed': False,
+            'has_duplicate_mappings': False,
+            'payment_id': 2,
+            'paymentAmount': Decimal(2.50),
+        },
+        # Missing payment_id
+        {'id': '3', 'is_processed': False, 'paymentAmount': Decimal(0.00)},
+        # Already processed
+        {'id': '4', 'is_processed': True, 'payment_id': 4, 'paymentAmount': Decimal(0)},
+        # Duplicate mappings
+        {
+            'id': '5',
+            'is_processed': False,
+            'has_duplicate_mappings': True,
+            'payment_id': 5,
+            'paymentAmount': Decimal('0.99'),
+        },
+        # Placeholder payment_id
+        {'id': '6', 'is_processed': False, 'payment_id': -1, 'paymentAmount': Decimal(1.00)},
+        # Missing paymentAmount
+        {'id': '7', 'is_processed': False, 'payment_id': 1},
     ]
     sample_dynamodb_insert(items_to_insert)
 
     # Invoke the function with the mocked table and application
-    messages = _get_dynamodb_comp_pen_messages(dynamodb_mock, message_limit=message_limit)
+    messages = _get_dynamodb_comp_pen_messages(dynamodb_mock, message_limit=7)
 
-    assert len(messages) == message_limit, 'Expected same number of messages as inserted'
     for msg in messages:
-        assert not msg['is_processed'], 'Expected messages to not be processed'
+        assert msg['id'] in '12', f"The message with ID {msg['id']} should have been filtered out."
+    assert len(messages) == 2
 
 
 def test_send_scheduled_comp_and_pen_sms_does_not_call_send_notification(mocker, dynamodb_mock):
@@ -516,7 +554,7 @@ def test_send_scheduled_comp_and_pen_sms_calls_send_notification(
         service=sample_service_sms_permission,
         template=template,
         notification_type=SMS_TYPE,
-        personalisation={'paymentAmount': 123},
+        personalisation={'paymentAmount': '123'},
         sms_sender_id=sample_service_sms_permission.get_default_sms_sender_id(),
         recipient_item=recipient_item,
     )

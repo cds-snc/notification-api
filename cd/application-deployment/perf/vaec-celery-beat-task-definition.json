@@ -162,19 +162,19 @@
         },
         {
           "name": "COMP_AND_PEN_MESSAGES_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "COMP_AND_PEN_SERVICE_ID",
-          "value": ""
+          "value": "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
         },
         {
           "name": "COMP_AND_PEN_TEMPLATE_ID",
-          "value": ""
+          "value": "a1e940ff-8ec3-4493-9989-57cf22d10764"
         },
         {
-          "name": "COMP_AND_PEN_DYANMODB_NAME",
-          "value": ""
+          "name": "COMP_AND_PEN_DYNAMODB_NAME",
+          "value": "perf-bip-msg-mpi-profile-participant-cache-table"
         }
       ],
       "secrets": [

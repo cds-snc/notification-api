@@ -11,7 +11,7 @@ There are two options for running ad hoc tests.
 ### Option 1
 1. Stop all running containers associated with Notification-api.
 2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci-db-1`.  All migrations should already be applied.
-3. Start a test container shell by running `docker run --rm -it -v "$(pwd):/app" --env-file tests/env_vars --name ci-test --network ci_default ci-test bash`.
+3. Start a test container shell by running `docker run --rm -it -v "$(pwd):/app" --env-file ci/.local.env --name ci-test --network ci_default test-notification-api bash`.
 4. In the test container shell, run `pytest -h` to see the syntax for running tests.  Without flags, you can run `pytest [file or directory]...`.
 
 ### Option 2

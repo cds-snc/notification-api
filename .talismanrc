@@ -58,6 +58,6 @@ fileignoreconfig:
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: d4b2524893b5704172d03bcba17176d04a970600931d515afa96a44b63fa6397
 - filename: tests/README.md
-  checksum: ae40e0bfe8e7c9f0f2b8ef3ccf1d6334c953c5d688a8b9d0cc84f2d538c7a4df
+  checksum: 38c851ca307497791cf3392d6cae0a9918de6aefea66de0c260588e0f5140020
 - filename: tests/app/notifications/rest/test_send_notification.py
   checksum: 8266d890e71a2d1707f9ee97af56e685588a13aac4fcd09e0001132943555c92

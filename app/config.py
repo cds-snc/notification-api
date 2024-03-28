@@ -402,7 +402,7 @@ class Config(object):
     ROUTE_SECRET_KEY_2 = os.getenv('ROUTE_SECRET_KEY_2', '')
 
     # Comp and Pen Variables
-    COMP_AND_PEN_DYNAMODB_TABLE_NAME = os.getenv('COMP_AND_PEN_DYANMODB_NAME')
+    COMP_AND_PEN_DYNAMODB_TABLE_NAME = os.getenv('COMP_AND_PEN_DYNAMODB_NAME')
     COMP_AND_PEN_SERVICE_ID = os.getenv('COMP_AND_PEN_SERVICE_ID')
     COMP_AND_PEN_TEMPLATE_ID = os.getenv('COMP_AND_PEN_TEMPLATE_ID')
 

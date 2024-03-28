@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import boto3
+from boto3.dynamodb.conditions import Attr
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_, select
@@ -206,15 +207,29 @@ def _get_dynamodb_comp_pen_messages(
     message_limit: int,
 ) -> list:
     """
-    Helper function to get the Comp and Pen data from our dynamodb cache table.
+    Helper function to get the Comp and Pen data from our dynamodb cache table.  Items should be returned if all of
+    these attribute conditions are met:
+        1) is_processed is not set or False
+        2) has_duplicate_mappings is not set or False
+        3) payment_id is not equal to -1 (placeholder value)
+        4) paymentAmount exists
 
     :param table: the dynamodb table to grab the data from
     :param message_limit: the number of rows to search at a time and the max number of items that should be returned
     :return: a list of entries from the table that have not been processed yet
+
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#querying-and-scanning
     """
 
-    results = table.scan(FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False), Limit=message_limit)
+    filters = (
+        Attr('is_processed').eq(False)
+        & Attr('payment_id').exists()
+        & Attr('payment_id').ne(-1)
+        & Attr('paymentAmount').exists()
+        & Attr('has_duplicate_mappings').ne(True)
+    )
 
+    results = table.scan(FilterExpression=filters, Limit=message_limit)
     items: list = results.get('Items')
 
     if items is None:
@@ -228,7 +243,7 @@ def _get_dynamodb_comp_pen_messages(
     # Keep getting items from the table until we have the number we want to send, or run out of items
     while 'LastEvaluatedKey' in results and len(items) < message_limit:
         results = table.scan(
-            FilterExpression=boto3.dynamodb.conditions.Attr('is_processed').eq(False),
+            FilterExpression=filters,
             Limit=message_limit,
             ExclusiveStartKey=results['LastEvaluatedKey'],
         )
@@ -312,7 +327,7 @@ def send_scheduled_comp_and_pen_sms():
                 service=service,
                 template=template,
                 notification_type=SMS_TYPE,
-                personalisation={'paymentAmount': int(item.get('paymentAmount'))},
+                personalisation={'paymentAmount': str(item.get('paymentAmount'))},
                 sms_sender_id=service.get_default_sms_sender_id(),
                 recipient_item={
                     'id_type': IdentifierType.VA_PROFILE_ID.value,
@@ -347,7 +362,7 @@ def send_scheduled_comp_and_pen_sms():
                 ReturnValues='ALL_NEW',
             )
 
-            current_app.logger.info('updated_item from dynamodb ("is_processed" shouldb be "True"): %s', updated_item)
+            current_app.logger.debug('updated_item from dynamodb ("is_processed" should be "True"): %s', updated_item)
         except Exception as e:
             current_app.logger.critical(
                 'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '
