@@ -2,8 +2,9 @@ import base64
 from app.clients.sms import SmsClient
 from monotonic import monotonic
 from twilio.rest import Client
+from twilio.base.exceptions import TwilioRestException
 from urllib.parse import parse_qs
-
+from app.exceptions import InvalidProviderException
 
 TWILIO_RESPONSE_MAP = {
     'accepted': 'created',
@@ -188,6 +189,12 @@ class TwilioSMSClient(SmsClient):
             self.logger.info('Twilio send SMS request for %s succeeded: %s', reference, message.sid)
 
             return message.sid
+        except TwilioRestException as e:
+            if e.status == 400 and 'phone number' in e.msg:
+                self.logger.error('Twilio send SMS request for %s failed, TwilioRestException - %s', reference, e.msg)
+                raise InvalidProviderException
+            else:
+                raise e
         except Exception as e:
             self.logger.error('Twilio send SMS request for %s failed', reference)
             raise e

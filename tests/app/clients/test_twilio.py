@@ -3,6 +3,7 @@ import pytest
 import requests_mock
 from app import twilio_sms_client
 from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient
+from app.exceptions import InvalidProviderException
 from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -623,3 +624,26 @@ def test_send_sms_twilio_callback(
 
         # Assert the expected Twilio SID is returned
         assert response_dict['sid'] == twilio_sid
+
+
+def test_send_sms_raises_invalid_provider_error_with_invalid_twilio_number(
+    notify_api,
+    mocker,
+):
+    to = '+61412345678'
+    content = 'my message'
+    reference = 'my reference'
+    response_dict = {
+        'code': 21606,
+        'message': "The 'From' phone number provided (+61412345678) is not a valid message-capable Twilio phone number for this destination",
+    }
+
+    with pytest.raises(InvalidProviderException):
+        with requests_mock.Mocker() as r_mock:
+            r_mock.post(
+                f'https://api.twilio.com/2010-04-01/Accounts/{twilio_sms_client._account_sid}/Messages.json',
+                json=response_dict,
+                status_code=400,
+            )
+
+            twilio_sms_client.send_sms(to, content, reference)

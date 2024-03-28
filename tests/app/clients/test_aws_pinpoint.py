@@ -3,7 +3,7 @@ import botocore
 
 from app.celery.exceptions import NonRetryableException
 from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
-
+from app.exceptions import InvalidProviderException
 
 TEST_CONTENT = 'test content'
 TEST_ID = 'some-app-id'
@@ -166,6 +166,33 @@ def test_send_sms_returns_result_with_non_retryable_error_delivery_status(
 
     with pytest.raises(NonRetryableException):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
+
+    aws_pinpoint_client.statsd_client.incr.assert_called_with(
+        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
+    )
+
+
+def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoint_client, boto_mock):
+    delivery_status = 'PERMANENT_FAILURE'
+    invalid_number = '+12223334444'
+
+    boto_mock.send_messages.return_value = {
+        'MessageResponse': {
+            'ApplicationId': TEST_ID,
+            'RequestId': 'request-id',
+            'Result': {
+                TEST_RECIPIENT_NUMBER: {
+                    'DeliveryStatus': delivery_status,
+                    'MessageId': TEST_MESSAGE_ID,
+                    'StatusCode': 400,
+                    'StatusMessage': 'The provided number does not exist or does not belong to the account',
+                }
+            },
+        }
+    }
+
+    with pytest.raises(InvalidProviderException):
+        aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=invalid_number)
 
     aws_pinpoint_client.statsd_client.incr.assert_called_with(
         f'clients.pinpoint.delivery-status.{delivery_status.lower()}'

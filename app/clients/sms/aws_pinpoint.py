@@ -4,6 +4,7 @@ from time import monotonic
 
 from app.celery.exceptions import NonRetryableException
 from app.clients.sms import SmsClient, SmsClientResponseException
+from app.exceptions import InvalidProviderException
 
 
 class AwsPinpointException(SmsClientResponseException):
@@ -97,6 +98,10 @@ class AwsPinpointClient(SmsClient):
             error_message = f'StatusCode: {result["StatusCode"]}, StatusMessage:{result["StatusMessage"]}'
 
             if delivery_status in ['DUPLICATE', 'OPT_OUT', 'PERMANENT_FAILURE']:
+                # indicates 'From' number doesn't exist for this Pinpoint account
+                if 'provided number does not exist' in result['StatusMessage']:
+                    raise InvalidProviderException(error_message)
+
                 raise NonRetryableException(error_message)
 
             raise AwsPinpointException(error_message)
