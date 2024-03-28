@@ -121,7 +121,8 @@ def revoke_api_keys():
 
     # Step 1
     try:
-        api_key_token = api_key_data["token"]
+        # take last 36 chars of string so that it works even if the full key is provided.
+        api_key_token = api_key_data["token"][-36:]
         api_key = get_api_key_by_secret(api_key_token)
     except Exception:
         current_app.logger.error(

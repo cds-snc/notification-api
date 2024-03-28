@@ -1515,8 +1515,6 @@ class TestSMSMessageCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            api_key_secret = get_unsigned_secret(api_key.id)
-            unsigned_secret = f"gcntfy-keyname-{api_key.service_id}-{api_key_secret}"
 
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
@@ -1524,7 +1522,7 @@ class TestSMSMessageCounter:
                     data=json.dumps(data),
                     headers=[
                         ("Content-Type", "application/json"),
-                        ("Authorization", f"ApiKey-v1 {unsigned_secret}"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
                     ],
                 )
                 return response
@@ -1565,8 +1563,6 @@ class TestSMSMessageCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            api_key_secret = get_unsigned_secret(api_key.id)
-            unsigned_secret = f"gcntfy-keyname-{api_key.service_id}-{api_key_secret}"
 
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
@@ -1574,7 +1570,7 @@ class TestSMSMessageCounter:
                     data=json.dumps(data),
                     headers=[
                         ("Content-Type", "application/json"),
-                        ("Authorization", f"ApiKey-v1 {unsigned_secret}"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
                     ],
                 )
                 return response
@@ -1611,8 +1607,6 @@ class TestSMSMessageCounter:
                 key_type=key_type,
             )
             save_model_api_key(api_key)
-            api_key_secret = get_unsigned_secret(api_key.id)
-            unsigned_secret = f"gcntfy-keyname-{api_key.service_id}-{api_key_secret}"
 
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
                 response = client.post(
@@ -1620,7 +1614,7 @@ class TestSMSMessageCounter:
                     data=json.dumps(data),
                     headers=[
                         ("Content-Type", "application/json"),
-                        ("Authorization", f"ApiKey-v1 {unsigned_secret}"),
+                        ("Authorization", f"ApiKey-v1 {get_unsigned_secret(api_key.id)}"),
                     ],
                 )
                 return response
