@@ -29,6 +29,9 @@ TWILIO_AUTH_TOKEN_SSM_NAME = os.getenv('TWILIO_AUTH_TOKEN_SSM_NAME')
 if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT':
     sys.exit('A required environment variable is not set. Please set TWILIO_AUTH_TOKEN_SSM_NAME')
 
+TWILIO_VETEXT_PATH = '/twoway/vettext'
+TWILIO_VETEXT2_PATH = '/twoway/vetext2'
+
 
 def get_twilio_token() -> str:
     """
@@ -68,10 +71,10 @@ def validate_twilio_event(event: dict) -> bool:
         if not auth_token or not signature:
             logger.error('TWILIO_AUTH_TOKEN or signature not set')
             return False
-
         validator = RequestValidator(auth_token)
-        uri = f"https://{event['headers']['host']}/vanotify/twoway/vettext"
-        decoded = base64.b64decode(event.get('body')).decode()
+        uri = f"https://{event['headers']['host']}/vanotify{event['path']}"
+
+        decoded = base64.b64decode(event.get('body')).decode('utf-8')
         params = parse_qs(decoded, keep_blank_values=True)
         params = {k: v[0] for k, v in params.items()}
         return validator.validate(uri=uri, params=params, signature=signature)
@@ -91,11 +94,15 @@ def vetext_incoming_forwarder_lambda_handler(
     """
     try:
         logger.debug('Entrypoint event: %s', event)
+        logger.debug('Context: %s', context)
+
         # Determine if the invoker of the lambda is SQS or ALB
         #   SQS will submit batches of records so there is potential for multiple events to be processed
         #   ALB will submit a single request but to simplify code, it will also return an array of event bodies
         if 'requestContext' in event and 'elb' in event['requestContext']:
             logger.info('alb invocation')
+            # The check for context is to allow for local testing. While context is always present when deployed,
+            # setting it False locally allows for testing without a valid Twilio signature.
             if context and not validate_twilio_event(event):
                 logger.info('Returning 403 on unauthenticated Twilio request')
                 return create_twilio_response(403)
@@ -146,6 +153,7 @@ def process_body_from_sqs_invocation(event):
         # event["body"] is a base 64 encoded string
         # parse_qsl converts url-encoded strings to array of tuple objects
         # event_body takes the array of tuples and creates a dictionary
+        event_body = None
         try:
             event_body = record.get('body', '')
 
@@ -177,12 +185,17 @@ def process_body_from_alb_invocation(event):
     # parse_qsl converts url-encoded strings to array of tuple objects
     # event_body takes the array of tuples and creates a dictionary
     event_body_encoded = event.get('body', '')
+    event_path = event.get('path', '')
 
     if not event_body_encoded:
         logger.error('event_body from alb record was not present: %s', event)
 
+    if not event_path:
+        logger.error('event_path from alb record was not present: %s', event)
+
     event_body_decoded = parse_qsl(base64.b64decode(event_body_encoded).decode('utf-8'))
-    logger.debug('Decoded event body %s', event_body_decoded)
+    logger.debug('Decoded event body: %s', event_body_decoded)
+    logger.debug('Event path: %s', event_path)
 
     event_body = dict(event_body_decoded)
     logger.debug('Converted body to dictionary: %s', event_body)
@@ -191,6 +204,8 @@ def process_body_from_alb_invocation(event):
         logger.debug('AddOns present in event_body: %s', event_body['AddOns'])
         del event_body['AddOns']
 
+    # Add the path to the event body, for routing purposes
+    event_body['path'] = event_path
     return [event_body]
 
 
@@ -213,27 +228,50 @@ def read_from_ssm(key: str) -> str:
 
 
 def make_vetext_request(request_body):
-    ssm_path = os.getenv('vetext_api_auth_ssm_path')
-    if ssm_path is None:
-        logger.error('Unable to retrieve vetext_api_auth_ssm_path from env variables')
-        return None
+    endpoint = request_body.get('path', TWILIO_VETEXT_PATH)
+    logger.debug('Making VeText Request for endpoint: %s', endpoint)
 
-    domain = os.getenv('vetext_api_endpoint_domain')
-    if domain is None:
-        logger.error('Unable to retrieve vetext_api_endpoint_domain from env variables')
-        return None
+    if endpoint == TWILIO_VETEXT_PATH:
+        ssm_path = os.getenv('vetext_api_auth_ssm_path')
+        if ssm_path is None:
+            logger.error('Unable to retrieve vetext_api_auth_ssm_path from env variables')
+            return
 
-    path = os.getenv('vetext_api_endpoint_path')
-    if path is None:
-        logger.error('Unable to retrieve vetext_api_endpoint_path from env variables')
-        return None
+        domain = os.getenv('vetext_api_endpoint_domain')
+        if domain is None:
+            logger.error('Unable to retrieve vetext_api_endpoint_domain from env variables')
+            return
+
+        path = os.getenv('vetext_api_endpoint_path')
+        if path is None:
+            logger.error('Unable to retrieve vetext_api_endpoint_path from env variables')
+            return
+
+    elif endpoint == TWILIO_VETEXT2_PATH:
+        ssm_path = os.getenv('VETEXT2_BASIC_AUTH_SSM_PATH')
+        if ssm_path is None:
+            logger.error('Unable to retrieve vetext_api_auth_ssm_path from env variables')
+            return
+
+        domain = os.getenv('VETEXT2_API_ENDPOINT_DOMAIN')
+        if domain is None:
+            logger.error('Unable to retrieve vetext_api_endpoint_domain from env variables')
+            return
+
+        path = os.getenv('VETEXT2_API_ENDPOINT_PATH')
+        if path is None:
+            logger.error('Unable to retrieve vetext_api_endpoint_path from env variables')
+            return
+    else:
+        logger.error('Invalid endpoint: %s', endpoint)
+        return
 
     # Authorization is basic token authentication that is stored in environment.
     auth_token = read_from_ssm(ssm_path)
 
     if auth_token == '':
         logger.error('Unable to retrieve auth token from SSM')
-        return None
+        return
 
     logger.info('Retrieved AuthToken from SSM')
 

@@ -11,6 +11,7 @@ import json
 import base64
 import requests
 
+
 albInvokeWithAddOn = {
     'requestContext': {
         'elb': {
@@ -25,7 +26,7 @@ albInvokeWithAddOn = {
         'connection': 'close',
         'content-length': '574',
         'content-type': 'application/x-www-form-urlencoded',
-        'host': 'api.va.gov',
+        'host': 'staging-api.va.gov',
         'i-twilio-idempotency-token': 'edf7e44c-3116-4261-8ef6-e762ca6a4fce',
         'user-agent': 'TwilioProxy/1.1',
         'x-amzn-trace-id': 'Self=1-62d5ee4d-2cb5b7303f8e994a1f5cb6e1;Root=1-62d5ee4d-24b4119d5098534860221d75',
@@ -36,9 +37,9 @@ albInvokeWithAddOn = {
         'x-forwarded-scheme': 'https',
         'x-home-region': 'us1',
         'x-real-ip': '3.89.199.39',
-        'x-twilio-signature': 'CRL6vBRyRo0DOLIud+zkNNjHi/Q=',
+        'x-twilio-signature': 'lENf0A9QdlMvnoQYf2HXhVgBKEs=',
     },
-    'body': 'U21zU2lkPXRoaXNpc3NvbWVzbXNpZCZTbXNTdGF0dXM9c2VudCZNZXNzYWdlU3RhdHVzPXNlbnQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1zb21lbWVzc2FnZWlkZW50aWZpZXImQWNjb3VudFNpZD10d2lsaW9hY2NvdW50c2lkJkZyb209JTJCMjIyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
+    'body': 'QWNjb3VudFNpZD1BQ2M5OTZkM2I1YzIzODQ0NmRhMzFhZGMyZDIwNWY3YTE5JkFkZE9ucz0lN0IlMjJzdGF0dXMlMjIlM0ElMjJzdWNjZXNzZnVsJTIyJTJDJTIybWVzc2FnZSUyMiUzQW51bGwlMkMlMjJjb2RlJTIyJTNBbnVsbCUyQyUyMnJlc3VsdHMlMjIlM0ElN0IlN0QlN0QmQXBpVmVyc2lvbj0yMDEwLTA0LTAxJkJvZHk9dGVzdCtib2R5KzZhNTQ2M2NhLWM1OWEtNDVjMy05ZmMwLWRmMWFkMTk4ZjBkOCZGcm9tPSUyQjE4ODg4ODg4ODg4JkZyb21DaXR5PUxPUytBTkdFTEVTJkZyb21Db3VudHJ5PVVTJkZyb21TdGF0ZT1DQSZGcm9tWmlwPTEyMzQ1Jk1lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZNZXNzYWdpbmdTZXJ2aWNlU2lkPU1HMWRkMmQyYjM1YjU5NDZmMDg2ZmM1NTZkZTYwZDRlODcmTnVtTWVkaWE9MCZOdW1TZWdtZW50cz0xJlNtc01lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTdGF0dXM9cmVjZWl2ZWQmVG89JTJCMTIzNDU2Nzg5MDEmVG9DaXR5PVBST1ZJREVOQ0UmVG9Db3VudHJ5PVVTJlRvU3RhdGU9UkkmVG9aaXA9MDI5MDE=',
     'isBase64Encoded': True,
 }
 
@@ -52,7 +53,7 @@ albInvokedWithoutAddOn = {
         'connection': 'close',
         'content-length': '552',
         'content-type': 'application/x-www-form-urlencoded',
-        'host': 'api.va.gov',
+        'host': 'staging-api.va.gov',
         'i-twilio-idempotency-token': '09f6d617-b893-4864-8f42-24a36ec48691',
         'user-agent': 'TwilioProxy/1.1',
         'x-amzn-trace-id': '',
@@ -63,10 +64,10 @@ albInvokedWithoutAddOn = {
         'x-forwarded-scheme': 'https',
         'x-home-region': 'us1',
         'x-real-ip': '',
-        'x-twilio-signature': 'CaQLzIRYCf7qUkE76KNq7c3kCSU=',
+        'x-twilio-signature': 'lENf0A9QdlMvnoQYf2HXhVgBKEs=',
         'x-use-static-proxy': 'true',
     },
-    'body': 'U21zU2lkPXRoaXNpc3NvbWVzbXNpZCZTbXNTdGF0dXM9c2VudCZNZXNzYWdlU3RhdHVzPXNlbnQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1zb21lbWVzc2FnZWlkZW50aWZpZXImQWNjb3VudFNpZD10d2lsaW9hY2NvdW50c2lkJkZyb209JTJCMjIyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
+    'body': 'QWNjb3VudFNpZD1BQ2M5OTZkM2I1YzIzODQ0NmRhMzFhZGMyZDIwNWY3YTE5JkFkZE9ucz0lN0IlMjJzdGF0dXMlMjIlM0ElMjJzdWNjZXNzZnVsJTIyJTJDJTIybWVzc2FnZSUyMiUzQW51bGwlMkMlMjJjb2RlJTIyJTNBbnVsbCUyQyUyMnJlc3VsdHMlMjIlM0ElN0IlN0QlN0QmQXBpVmVyc2lvbj0yMDEwLTA0LTAxJkJvZHk9dGVzdCtib2R5KzZhNTQ2M2NhLWM1OWEtNDVjMy05ZmMwLWRmMWFkMTk4ZjBkOCZGcm9tPSUyQjE4ODg4ODg4ODg4JkZyb21DaXR5PUxPUytBTkdFTEVTJkZyb21Db3VudHJ5PVVTJkZyb21TdGF0ZT1DQSZGcm9tWmlwPTEyMzQ1Jk1lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZNZXNzYWdpbmdTZXJ2aWNlU2lkPU1HMWRkMmQyYjM1YjU5NDZmMDg2ZmM1NTZkZTYwZDRlODcmTnVtTWVkaWE9MCZOdW1TZWdtZW50cz0xJlNtc01lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTdGF0dXM9cmVjZWl2ZWQmVG89JTJCMTIzNDU2Nzg5MDEmVG9DaXR5PVBST1ZJREVOQ0UmVG9Db3VudHJ5PVVTJlRvU3RhdGU9UkkmVG9aaXA9MDI5MDE=',
 }
 
 sqsInvokedWithAddOn = {
@@ -153,9 +154,16 @@ def missing_ssm_path_env_param(monkeypatch):
 def all_path_env_param_set(monkeypatch):
     monkeypatch.setenv('vetext_api_endpoint_domain', VETEXT_DOMAIN)
     monkeypatch.setenv('vetext_api_endpoint_path', VETEXT_URI_PATH)
+
+    monkeypatch.setenv('VETEXT2_API_ENDPOINT_DOMAIN', f'{VETEXT_DOMAIN}-two')
+    monkeypatch.setenv('VETEXT2_API_ENDPOINT_PATH', f'{VETEXT_URI_PATH}/two')
+
     monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
+    monkeypatch.setenv('VETEXT2_BASIC_AUTH_SSM_PATH', 'ssm_two')
+
     monkeypatch.setenv('vetext_request_drop_sqs_url', 'someurl')
     monkeypatch.setenv('vetext_request_dead_letter_sqs_url', 'someurl')
+
     monkeypatch.setenv('TWILIO_AUTH_TOKEN_SSM_NAME', 'unit_test')
 
 
@@ -182,8 +190,35 @@ def test_request_makes_vetext_call(mocker, monkeypatch, all_path_env_param_set, 
 
     sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value='ssm')
-    mocker.patch(f'{LAMBDA_MODULE}.requests.post', return_value=mocked_requests_post_success())
+    mock_requests = mocker.patch(f'{LAMBDA_MODULE}.requests.post', return_value=mocked_requests_post_success())
+    response = vetext_incoming_forwarder_lambda_handler(event, True)
+
+    assert mock_requests.call_count == 1
+    assert mock_requests.call_args[0][0] == f'https://{VETEXT_DOMAIN}{VETEXT_URI_PATH}'
+
+    assert response['statusCode'] == 200
+    assert response['body'] == '<Response />'
+    assert response['headers'] is not None
+    assert response['headers']['Content-Type'] == 'text/xml'
+
+    sqs_mock.assert_not_called()
+
+
+@pytest.mark.parametrize('event', [(albInvokedWithoutAddOn), (albInvokeWithAddOn)])
+def test_request_makes_vetext2_call(mocker, monkeypatch, all_path_env_param_set, event):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler,
+    )
+
+    sqs_mock = mocker.patch(f'{LAMBDA_MODULE}.push_to_retry_sqs')
+    mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value='ssm')
+    mock_requests = mocker.patch(f'{LAMBDA_MODULE}.requests.post', return_value=mocked_requests_post_success())
+
+    event['path'] = '/twoway/vetext2'
     response = vetext_incoming_forwarder_lambda_handler(event, False)
+
+    assert mock_requests.call_count == 1
+    assert mock_requests.call_args[0][0] == 'https://some.domain-two/some/path/two'
 
     assert response['statusCode'] == 200
     assert response['body'] == '<Response />'
