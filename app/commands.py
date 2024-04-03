@@ -20,7 +20,7 @@ from app.aws import s3
 from app.celery.tasks import record_daily_sorted_counts
 from app.celery.nightly_tasks import send_total_sent_notifications_to_performance_platform
 from app.celery.service_callback_tasks import send_delivery_status_to_service
-from app.celery.letters_pdf_tasks import create_letters_pdf
+
 from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
@@ -255,19 +255,6 @@ def insert_inbound_numbers_from_file(file_name):
         db.session.execute(sql.format(uuid.uuid4(), line.strip()))
         db.session.commit()
     file.close()
-
-
-@notify_command(name='replay-create-pdf-letters')
-@click.option(
-    '-n',
-    '--notification_id',
-    type=click.UUID,
-    required=True,
-    help='Notification id of the letter that needs the create_letters_pdf task replayed',
-)
-def replay_create_pdf_letters(notification_id):
-    print('Create task to create_letters_pdf for notification: {}'.format(notification_id))
-    create_letters_pdf.apply_async([str(notification_id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
 @notify_command(name='replay-service-callbacks')

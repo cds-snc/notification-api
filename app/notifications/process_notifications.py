@@ -18,7 +18,7 @@ from app.celery.lookup_recipient_communication_permissions_task import lookup_re
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
-from app.celery.letters_pdf_tasks import create_letters_pdf
+
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_id,
@@ -241,10 +241,6 @@ def _get_delivery_task(
         if not queue:
             queue = QueueNames.SEND_EMAIL
         deliver_task = provider_tasks.deliver_email
-    elif notification.notification_type == LETTER_TYPE:
-        if not queue:
-            queue = QueueNames.CREATE_LETTERS_PDF
-        deliver_task = create_letters_pdf
     else:
         error_message = f'Unrecognized notification type: {notification.notification_type}'
         current_app.logger.error(error_message)

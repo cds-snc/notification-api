@@ -8,7 +8,6 @@ from freezegun import freeze_time
 from collections import namedtuple
 from sqlalchemy import delete, select
 
-from app.celery import letters_pdf_tasks
 from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
@@ -324,11 +323,9 @@ def test_persist_notification_increments_cache_if_key_exists(
         (True, None, SMS_TYPE, 'normal', 'research-mode-tasks', [deliver_sms]),
         (True, None, EMAIL_TYPE, 'normal', 'research-mode-tasks', [deliver_email]),
         (True, None, EMAIL_TYPE, 'team', 'research-mode-tasks', [deliver_email]),
-        (True, None, LETTER_TYPE, 'normal', 'research-mode-tasks', [letters_pdf_tasks.create_letters_pdf]),
         (False, None, SMS_TYPE, 'normal', 'send-sms-tasks', [deliver_sms]),
         (False, None, EMAIL_TYPE, 'normal', 'send-email-tasks', [deliver_email]),
         (False, None, SMS_TYPE, 'team', 'send-sms-tasks', [deliver_sms]),
-        (False, None, LETTER_TYPE, 'normal', 'create-letters-pdf-tasks', [letters_pdf_tasks.create_letters_pdf]),
         (False, None, SMS_TYPE, 'test', 'research-mode-tasks', [deliver_sms]),
         (True, 'notify-internal-tasks', EMAIL_TYPE, 'normal', 'research-mode-tasks', [deliver_email]),
         (False, 'notify-internal-tasks', SMS_TYPE, 'normal', 'notify-internal-tasks', [deliver_sms]),

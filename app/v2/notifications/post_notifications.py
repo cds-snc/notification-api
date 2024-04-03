@@ -5,16 +5,13 @@ import werkzeug
 from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
-from app import api_user, authenticated_service, notify_celery, attachment_store
+from app import api_user, authenticated_service, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.attachments.types import UploadedAttachmentMetadata
-from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
-from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.config import QueueNames, TaskNames
-from app.dao.notifications_dao import update_notification_status_by_reference
+
+from app.config import QueueNames
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
-from app.letters.utils import upload_letter_pdf
 from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
@@ -22,14 +19,7 @@ from app.models import (
     LETTER_TYPE,
     UPLOAD_DOCUMENT,
     PRIORITY,
-    KEY_TYPE_TEST,
-    KEY_TYPE_TEAM,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_SENDING,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
 )
-from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
@@ -310,84 +300,6 @@ def process_document_uploads(
                 }
 
     return personalisation_data
-
-
-def process_letter_notification(
-    *,
-    letter_data,
-    api_key,
-    template,
-    reply_to_text,
-    precompiled=False,
-):
-    if api_key.key_type == KEY_TYPE_TEAM:
-        raise BadRequestError(message='Cannot send letters with a team api key', status_code=403)
-
-    if not api_key.service.research_mode and api_key.service.restricted and api_key.key_type != KEY_TYPE_TEST:
-        raise BadRequestError(message='Cannot send letters when service is in trial mode', status_code=403)
-
-    if precompiled:
-        return process_precompiled_letter_notifications(
-            letter_data=letter_data, api_key=api_key, template=template, reply_to_text=reply_to_text
-        )
-
-    test_key = api_key.key_type == KEY_TYPE_TEST
-
-    # if we don't want to actually send the letter, then start it off in SENDING so we don't pick it up
-    status = NOTIFICATION_CREATED if not test_key else NOTIFICATION_SENDING
-    queue = QueueNames.CREATE_LETTERS_PDF if not test_key else QueueNames.RESEARCH_MODE
-
-    notification = create_letter_notification(
-        letter_data=letter_data, template=template, api_key=api_key, status=status, reply_to_text=reply_to_text
-    )
-
-    create_letters_pdf.apply_async([str(notification.id)], queue=queue)
-
-    if test_key:
-        if current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
-            create_fake_letter_response_file.apply_async((notification.reference,), queue=queue)
-        else:
-            update_notification_status_by_reference(notification.reference, NOTIFICATION_DELIVERED)
-
-    return notification
-
-
-def process_precompiled_letter_notifications(
-    *,
-    letter_data,
-    api_key,
-    template,
-    reply_to_text,
-):
-    try:
-        status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data['content'])
-    except ValueError:
-        raise BadRequestError(message='Cannot decode letter content (invalid base64 encoding)', status_code=400)
-
-    notification = create_letter_notification(
-        letter_data=letter_data, template=template, api_key=api_key, status=status, reply_to_text=reply_to_text
-    )
-
-    filename = upload_letter_pdf(notification, letter_content, precompiled=True)
-
-    current_app.logger.info('Calling task scan-file for %s.', filename)
-
-    # call task to add the filename to anti virus queue
-    if current_app.config['ANTIVIRUS_ENABLED']:
-        notify_celery.send_task(
-            name=TaskNames.SCAN_FILE,
-            kwargs={'filename': filename},
-            queue=QueueNames.ANTIVIRUS,
-        )
-    else:
-        # stub out antivirus in dev
-        process_virus_scan_passed.apply_async(
-            kwargs={'filename': filename},
-            queue=QueueNames.LETTERS,
-        )
-
-    return notification
 
 
 def get_reply_to_text(

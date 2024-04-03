@@ -18,7 +18,7 @@ from app import (
     notify_celery,
 )
 from app.aws import s3
-from app.celery import provider_tasks, letters_pdf_tasks, research_mode_tasks
+from app.celery import provider_tasks, research_mode_tasks
 from app.config import QueueNames
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
 from app.dao.jobs_dao import (
@@ -336,12 +336,7 @@ def save_letter(
             reply_to_text=template.get_reply_to_text(),
             status=status,
         )
-
-        if not service.research_mode:
-            letters_pdf_tasks.create_letters_pdf.apply_async(
-                [str(saved_notification.id)], queue=QueueNames.CREATE_LETTERS_PDF
-            )
-        elif current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
+        if current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
             research_mode_tasks.create_fake_letter_response_file.apply_async(
                 (saved_notification.reference,), queue=QueueNames.RESEARCH_MODE
             )

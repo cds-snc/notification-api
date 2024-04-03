@@ -897,12 +897,6 @@ def dao_get_notification_history_by_reference(reference):
 
 
 @statsd(namespace='dao')
-def dao_get_notifications_by_references(references):
-    stmt = select(Notification).where(Notification.reference.in_(references))
-    return db.session.scalars(stmt).all()
-
-
-@statsd(namespace='dao')
 def dao_created_scheduled_notification(scheduled_notification):
     db.session.add(scheduled_notification)
     db.session.commit()

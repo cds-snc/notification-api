@@ -30,7 +30,6 @@ from app.dao.notifications_dao import (
     update_notification_status_by_id,
     update_notification_status_by_reference,
     dao_get_notification_by_reference,
-    dao_get_notifications_by_references,
     dao_get_notification_history_by_reference,
     notifications_not_yet_sent,
     update_notification_delivery_status,
@@ -1742,19 +1741,6 @@ def test_dao_get_notification_by_reference_with_multiple_matches_raises_error(sa
 def test_dao_get_notification_by_reference_with_no_matches_raises_error(notify_api):
     with pytest.raises(SQLAlchemyError):
         dao_get_notification_by_reference(str(uuid4()))
-
-
-def test_dao_get_notifications_by_reference(sample_template, sample_notification):
-    ref = f'ref{uuid4()}'
-    template = sample_template()
-    sample_notification(template=template, reference=f'no{ref}')
-    notification_1 = sample_notification(template=template, reference=ref)
-    notification_2 = sample_notification(template=template, reference=ref)
-
-    notifications = dao_get_notifications_by_references([ref])
-    assert len(notifications) == 2
-    assert notifications[0].id in [notification_1.id, notification_2.id]
-    assert notifications[1].id in [notification_1.id, notification_2.id]
 
 
 def test_dao_get_notification_history_by_reference_with_one_match_returns_notification(
