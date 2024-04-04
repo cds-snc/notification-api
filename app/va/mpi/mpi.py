@@ -132,7 +132,7 @@ class MpiClient:
                     f'{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}',
                     params={'-sender': self.SYSTEM_IDENTIFIER},
                     cert=(self.ssl_cert_path, self.ssl_key_path),
-                    timeout=(3.05, 2),
+                    timeout=(3.05, 5),
                 )
 
                 response.raise_for_status()
