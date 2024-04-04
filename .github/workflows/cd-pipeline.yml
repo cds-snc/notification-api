@@ -1,4 +1,4 @@
-name: Deployment to Perf
+name: Continuous Deployment Pipeline
 # note:
 # It's useful to recognize that this workflow is designed to be triggered by a merge to the default branch. 
 # Therefore, ${{ github.sha }} will always be in reference to the SHA that originally triggered this workflow. 
@@ -78,4 +78,22 @@ jobs:
         run: |
           git merge ${{ github.sha }} --no-squash -X theirs
           git push
+
+  deploy-to-staging:
+    needs: merge-to-release 
+    uses: ./.github/workflows/dev_deploy.yml
+    with:
+      environment: staging
+      ref: release
+      lambdaDeploy: true
+    secrets: inherit
+
+  QA-approval-of-staging:
+    needs: deploy-to-staging
+    environment: 
+      name: prod-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pause for manual approval
+        run: echo "Pipeline paused for pending approval of staging by QA"
 
