@@ -1,4 +1,4 @@
-""" locust-notifications.py
+""" send_rate_email.py
     isort:skip_file
 """
 # flake8: noqa
@@ -47,8 +47,12 @@ class NotifyApiUser(HttpUser):
 
     @task(1)
     def send_bulk_email_notifications(self):
+        """
+        Send BULK_EMAIL_SIZE emails through the /bulk endpoint
+        """
+
         json = {
-            "name": f"My bulk name {datetime.utcnow().isoformat()}",
+            "name": f"My bulk name {datetime.now(datetime.UTC).isoformat()}",
             "template_id": self.template_group.bulk_email_id,
             "csv": rows_to_csv([["email address", "application_file"], *job_line(self.email, BULK_EMAIL_SIZE)])
         }

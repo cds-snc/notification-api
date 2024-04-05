@@ -71,7 +71,7 @@ You can also modify the *locust.config* file to enable the headless mode and def
 
 We also max out the email send rate by sending 2000 x 5 emails per minute for 10 minutes. This can be run manually with the command
 ```
-locust --headless --host https://api.staging.notification.cdssandbox.xyz --locustfile tests-perf/locust/send_rate_email.py --users 5 --run-time 1m --spawn-rate 1
+locust --headless --host https://api.staging.notification.cdssandbox.xyz --locustfile tests-perf/locust/send_rate_email.py --users 5 --run-time 10m --spawn-rate 1
 ```
 
 ### Performance Testing on AWS

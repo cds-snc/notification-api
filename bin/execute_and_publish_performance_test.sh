@@ -10,8 +10,8 @@ mkdir -p $perf_test_csv_directory_path/$current_time
 locust --headless --config tests-perf/locust/locust.conf --html $perf_test_csv_directory_path/$current_time/index.html --csv $perf_test_csv_directory_path/$current_time/perf_test
 aws s3 cp $perf_test_csv_directory_path/ "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
 
-# Sleep 15 minutes to allow system to stabilize
-sleep 600
+# Sleep 15 minutes to allow the system to stabilize
+sleep 900
 
 # Run email send_rate performance test
 # This configuration should send 10K emails / minute for 10 minutes for 100K emails total.
