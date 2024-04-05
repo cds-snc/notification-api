@@ -264,6 +264,7 @@ class Config(object):
     AWS_SES_ACCESS_KEY = os.getenv("AWS_SES_ACCESS_KEY")
     AWS_SES_SECRET_KEY = os.getenv("AWS_SES_SECRET_KEY")
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
+    AWS_PINPOINT_POOL_ID = os.getenv("AWS_PINPOINT_POOL_ID", None)
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")

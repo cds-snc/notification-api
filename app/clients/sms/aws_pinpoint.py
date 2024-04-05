@@ -21,34 +21,8 @@ class AwsPinpointClient(SmsClient):
         return self.name
 
     def send_sms(self, to, content, reference, multi=True, sender=None):
-
-
-        # The phone number or short code to send the message from. The phone number
-        # or short code that you specify has to be associated with your Amazon Pinpoint
-        # account. For best results, specify long codes in E.164 format.
-        # originationNumber = sender
-
-        # The recipient's phone number.  For best results, you should specify the
-        # phone number in E.164 format.
-        # destinationNumber = "+14255550142"
-
-        # The Amazon Pinpoint project/application ID to use when you send this message.
-        # Make sure that the SMS channel is enabled for the project or application
-        # that you choose.
-        applicationId = self.current_app.config['AWS_PINPOINT_APP_ID']
-
-        # The type of SMS message that you want to send. If you plan to send
-        # time-sensitive content, specify TRANSACTIONAL. If you plan to send
-        # marketing-related content, specify PROMOTIONAL.
+        pool_id = self.current_app.config['AWS_PINPOINT_POOL_ID']
         messageType = "TRANSACTIONAL"
-
-        # The registered keyword associated with the originating short code.
-        registeredKeyword = self.current_app.config['AWS_PINPOINT_KEYWORD']
-        # The sender ID to use when sending the message. Support for sender ID
-        # varies by country or region. For more information, see
-        # https://docs.aws.amazon.com/pinpoint/latest/userguide/channels-sms-countries.html
-        # senderId = "MySenderID"
-
         matched = False
 
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
@@ -62,10 +36,9 @@ class AwsPinpointClient(SmsClient):
                 # from https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/send_text_message.html
                 response = self._client.send_text_message(
                     DestinationPhoneNumber=destinationNumber,
-                    OriginationIdentity=self.pool_id,
+                    OriginationIdentity=pool_id,
                     MessageBody=content,
                     MessageType=messageType,
-                    Keyword=registeredKeyword                    
                 )
 
                 # this will be true if the OriginationIdentity does not exist in pinpoint
