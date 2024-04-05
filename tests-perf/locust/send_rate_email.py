@@ -52,7 +52,7 @@ class NotifyApiUser(HttpUser):
         """
 
         json = {
-            "name": f"My bulk name {datetime.now(datetime.UTC).isoformat()}",
+            "name": f"Send rate test {datetime.utcnow().isoformat()}",
             "template_id": self.template_group.bulk_email_id,
             "csv": rows_to_csv([["email address", "application_file"], *job_line(self.email, BULK_EMAIL_SIZE)])
         }
