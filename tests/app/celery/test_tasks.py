@@ -1328,12 +1328,11 @@ class TestSaveSmss:
     def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+
+        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1350,7 +1349,6 @@ class TestSaveSmss:
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
         )
-        mock_over_daily_limit.assert_called_once_with("normal", sample_job.service)
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
         notification = _notification_json(sample_template, "+1 650 253 2222")
@@ -1672,7 +1670,6 @@ class TestSaveEmails:
         self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
     ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         now = datetime(2016, 1, 1, 11, 9, 0)
         notification_id = uuid.uuid4()
@@ -1686,10 +1683,9 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-                save_emails(
-                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-                )
+            save_emails(
+                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+            )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"
@@ -1709,7 +1705,6 @@ class TestSaveEmails:
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
             [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
-        mock_over_daily_limit.assert_called_once_with("normal", sample_email_template_with_placeholders.service)
 
     def test_save_email_should_use_template_version_from_job_not_latest(self, sample_email_template, mocker):
         notification = _notification_json(sample_email_template, "my_email@my_email.com")

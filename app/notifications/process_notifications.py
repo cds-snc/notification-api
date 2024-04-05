@@ -15,6 +15,7 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
@@ -133,6 +134,8 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
+        if api_key_id:
+            update_last_used_api_key(api_key_id, notification_created_at)
     return notification
 
 
@@ -298,6 +301,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
     """
 
     lofnotifications = []
+    api_key_last_used = None
 
     for notification in notifications:
         notification_created_at = notification.get("created_at") or datetime.utcnow()
@@ -357,7 +361,15 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
                 notification.get("notification_created_at"),  # type: ignore
             )
         )
+        # If the bulk message is sent using an api key, we want to keep track of the last time the api key was used
+        # We will only update the api key once
+        api_key_id = notification.get("api_key_id")
+        if api_key_id:
+            api_key_last_used = datetime.utcnow()
+    if api_key_last_used:
+        update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
+
     return lofnotifications
 
 
