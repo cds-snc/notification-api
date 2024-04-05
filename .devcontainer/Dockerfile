@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:ef9cc483a593c95
 
 ARG KUBENS_VERSION="0.9.4"
 ARG OCTANT_VERSION="0.25.1"
-ENV POETRY_VERSION="1.3.2"
+ENV POETRY_VERSION="1.7.1"
 
 # Install packages
 RUN apt-get update \

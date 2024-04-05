@@ -276,6 +276,10 @@ class EmailBranding(BaseModel):
         nullable=False,
         default=BRANDING_ORG_NEW,
     )
+    organisation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("organisation.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
 
     def serialize(self) -> dict:
         serialized = {
@@ -285,6 +289,7 @@ class EmailBranding(BaseModel):
             "name": self.name,
             "text": self.text,
             "brand_type": self.brand_type,
+            "organisation_id": str(self.organisation_id) if self.organisation_id else "",
         }
 
         return serialized
@@ -449,10 +454,9 @@ class Organisation(BaseModel):
         "Domain",
     )
 
-    email_branding = db.relationship("EmailBranding")
+    email_branding = db.relationship("EmailBranding", uselist=False)
     email_branding_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("email_branding.id"),
         nullable=True,
     )
 
@@ -918,6 +922,7 @@ class ApiKey(BaseModel, Versioned):
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
     compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
 
     __table_args__ = (
         Index(

@@ -3,7 +3,9 @@ from app.dao.dao_utils import transactional
 from app.models import EmailBranding
 
 
-def dao_get_email_branding_options():
+def dao_get_email_branding_options(filter_by_organisation_id=None):
+    if filter_by_organisation_id:
+        return EmailBranding.query.filter_by(organisation_id=filter_by_organisation_id).all()
     return EmailBranding.query.all()
 
 

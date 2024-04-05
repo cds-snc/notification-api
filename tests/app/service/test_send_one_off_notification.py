@@ -21,7 +21,6 @@ from app.v2.errors import (
     BadRequestError,
     LiveServiceTooManyEmailRequestsError,
     LiveServiceTooManySMSRequestsError,
-    TooManyRequestsError,
 )
 from tests.app.db import (
     create_letter_contact,
@@ -31,7 +30,6 @@ from tests.app.db import (
     create_template,
     create_user,
 )
-from tests.conftest import set_config_values
 
 
 @pytest.fixture
@@ -282,12 +280,12 @@ def test_send_one_off_notification_raises_if_cant_send_to_recipient(
     assert "service is in trial mode" in e.value.message
 
 
-def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_session, mocker):
+def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_session, notify_api, mocker):
     service = create_service(message_limit=0)
     template = create_template(service=service)
     mocker.patch(
-        "app.service.send_notification.check_service_over_daily_message_limit",
-        side_effect=TooManyRequestsError(1),
+        "app.service.send_notification.check_sms_daily_limit",
+        side_effect=LiveServiceTooManySMSRequestsError(1),
     )
 
     post_data = {
@@ -296,7 +294,7 @@ def test_send_one_off_notification_raises_if_over_combined_limit(notify_db_sessi
         "created_by": str(service.created_by_id),
     }
 
-    with pytest.raises(TooManyRequestsError):
+    with pytest.raises(LiveServiceTooManySMSRequestsError):
         send_one_off_notification(service.id, post_data)
 
 
@@ -314,9 +312,8 @@ def test_send_one_off_notification_raises_if_over_email_limit(notify_db_session,
         "created_by": str(service.created_by_id),
     }
 
-    with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": True}):
-        with pytest.raises(LiveServiceTooManyEmailRequestsError):
-            send_one_off_notification(service.id, post_data)
+    with pytest.raises(LiveServiceTooManyEmailRequestsError):
+        send_one_off_notification(service.id, post_data)
 
 
 def test_send_one_off_notification_raises_if_over_sms_daily_limit(notify_db_session, mocker):

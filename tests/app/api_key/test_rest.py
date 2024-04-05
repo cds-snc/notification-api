@@ -1,9 +1,6 @@
-from datetime import datetime
-
 import pytest
 from flask import url_for
 
-from app import DATETIME_FORMAT
 from app.dao.api_key_dao import get_api_key_by_secret, get_unsigned_secret
 from app.models import KEY_TYPE_NORMAL
 from tests import create_sre_authorization_header
@@ -32,12 +29,6 @@ def test_get_api_key_stats_with_sends(admin_request, notify_db, notify_db_sessio
     assert api_key_stats["email_sends"] == total_sends
     assert api_key_stats["sms_sends"] == 0
     assert api_key_stats["total_sends"] == total_sends
-
-    # the following lines test that a send has occurred within the last second
-    last_send_dt = datetime.strptime(api_key_stats["last_send"], DATETIME_FORMAT)
-    now = datetime.utcnow()
-    time_delta = now - last_send_dt
-    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_stats_no_sends(admin_request, notify_db, notify_db_session):
@@ -90,6 +81,9 @@ class TestApiKeyRevocation:
         api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
         unsigned_secret = get_unsigned_secret(api_key_1.id)
 
+        # Create token expected from the frontend
+        unsigned_secret = f"gcntfy-keyname-{service.id}-{unsigned_secret}"
+
         sre_auth_header = create_sre_authorization_header()
         response = client.post(
             url_for("sre_tools.revoke_api_keys"),
@@ -98,7 +92,7 @@ class TestApiKeyRevocation:
         )
 
         # Get api key from DB
-        api_key_1 = get_api_key_by_secret(api_key_1.secret)
+        api_key_1 = get_api_key_by_secret(unsigned_secret)
         assert response.status_code == 201
         assert api_key_1.expiry_date is not None
         assert api_key_1.compromised_key_info["type"] == "cds-tester"

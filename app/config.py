@@ -78,17 +78,10 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
-    # For normal send of notifications. This is relatively normal volume and flushed
-    # pretty quickly.
-    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
-
     # Queues for sending all SMS, except long dedicated numbers.
     SEND_SMS_HIGH = "send-sms-high"
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
@@ -98,9 +91,6 @@ class QueueNames(object):
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
     SEND_EMAIL_LOW = "send-email-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
     # out Notify.
@@ -158,12 +148,10 @@ class QueueNames(object):
             QueueNames.SEND_SMS_HIGH,
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
-            QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
-            QueueNames.SEND_EMAIL,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,
@@ -359,7 +347,7 @@ class Config(object):
         "queue_name_prefix": NOTIFICATION_QUEUE_PREFIX,
     }
     CELERY_ENABLE_UTC = True
-    CELERY_TIMEZONE = os.getenv("TIMEZONE", "America/Toronto")
+    CELERY_TIMEZONE = os.getenv("TIMEZONE", "UTC")
     CELERY_ACCEPT_CONTENT = ["json"]
     CELERY_TASK_SERIALIZER = "json"
     CELERY_IMPORTS = (
@@ -438,87 +426,54 @@ class Config(object):
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
-            "schedule": crontab(hour=0, minute=5),
+            "schedule": crontab(hour=5, minute=5),  # 00:05 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "create-nightly-billing": {
             "task": "create-nightly-billing",
-            "schedule": crontab(hour=0, minute=15),
+            "schedule": crontab(hour=5, minute=15),  # 00:15 EST in UTC
             "options": {"queue": QueueNames.REPORTING},
         },
         "create-nightly-notification-status": {
             "task": "create-nightly-notification-status",
-            "schedule": crontab(hour=0, minute=30),  # after 'timeout-sending-notifications'
+            "schedule": crontab(hour=5, minute=30),  # 00:30 EST in UTC, after 'timeout-sending-notifications'
             "options": {"queue": QueueNames.REPORTING},
         },
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
-            "schedule": crontab(hour=4, minute=15),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
-            "schedule": crontab(hour=4, minute=30),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
-            "schedule": crontab(hour=4, minute=45),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
-            "schedule": crontab(hour=1, minute=40),
+            "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
-            "schedule": crontab(hour=2, minute=0),
+            "schedule": crontab(hour=7, minute=0),  # 2:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "remove_transformed_dvla_files": {
             "task": "remove_transformed_dvla_files",
-            "schedule": crontab(hour=3, minute=40),
+            "schedule": crontab(hour=8, minute=40),  # 3:40 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "remove_sms_email_jobs": {
             "task": "remove_sms_email_jobs",
-            "schedule": crontab(hour=4, minute=0),
+            "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
-        # 'remove_letter_jobs': {
-        # 'task': 'remove_letter_jobs',
-        # 'schedule': crontab(hour=4, minute=20),
-        #  since we mark jobs as archived
-        # 'options': {'queue': QueueNames.PERIODIC},
-        # },
-        # 'check-templated-letter-state': {
-        # 'task': 'check-templated-letter-state',
-        # 'schedule': crontab(day_of_week='mon-fri', hour=9, minute=0),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'check-precompiled-letter-state': {
-        # 'task': 'check-precompiled-letter-state',
-        # 'schedule': crontab(day_of_week='mon-fri', hour='9,15', minute=0),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'raise-alert-if-letter-notifications-still-sending': {
-        # 'task': 'raise-alert-if-letter-notifications-still-sending',
-        # 'schedule': crontab(hour=16, minute=30),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # The collate-letter-pdf does assume it is called in an hour that BST does not make a
-        # difference to the truncate date which translates to the filename to process
-        # 'collate-letter-pdfs-for-day': {
-        # 'task': 'collate-letter-pdfs-for-day',
-        # 'schedule': crontab(hour=17, minute=50),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'raise-alert-if-no-letter-ack-file': {
-        # 'task': 'raise-alert-if-no-letter-ack-file',
-        # 'schedule': crontab(hour=23, minute=00),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
@@ -595,8 +550,6 @@ class Config(object):
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    # Feature flags for email_daily_limit
-    FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
 
     # SRE Tools auth keys
@@ -703,8 +656,6 @@ class Test(Development):
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
     FAILED_LOGIN_LIMIT = 0
-
-    FF_EMAIL_DAILY_LIMIT = False
 
 
 class Production(Config):
