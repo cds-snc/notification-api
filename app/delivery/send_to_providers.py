@@ -69,6 +69,8 @@ def send_sms_to_provider(notification):
             notification.international,
             notification.reply_to_text,
         )
+        
+        
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
@@ -343,7 +345,11 @@ def provider_to_use(notification_type, notification_id, international=False, sen
         current_app.logger.error("{} {} failed as no active providers".format(notification_type, notification_id))
         raise Exception("No active {} providers".format(notification_type))
 
-    return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
+    # return clients.get_client_by_name_and_type(active_providers_in_order[0].identifier, notification_type)
+    
+    if notification_type == SMS_TYPE:
+        return clients.get_client_by_name_and_type('pinpoint', notification_type)
+
 
 
 def get_html_email_options(service: Service):
