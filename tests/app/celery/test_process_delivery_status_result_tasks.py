@@ -10,7 +10,7 @@ from app.celery.process_delivery_status_result_tasks import (
     attempt_to_get_notification,
     process_delivery_status,
 )
-from app.models import Notification
+from app.models import Notification, NOTIFICATION_DELIVERED, SMS_TYPE
 
 
 @pytest.fixture
@@ -248,6 +248,7 @@ def test_process_delivery_status_with_valid_message_with_no_payload(
     assert callback_mock.call_args.args[1] == {}
 
 
+@pytest.mark.serial
 def test_process_delivery_status_with_valid_message_with_payload(
     mocker,
     sample_delivery_status_result_message,
@@ -256,6 +257,7 @@ def test_process_delivery_status_with_valid_message_with_payload(
 ):
     """Test that celery task will complete if correct data is provided"""
 
+    # Reference is used by many tests, can lead to trouble
     sample_notification(
         template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status='sent'
     )
@@ -282,3 +284,32 @@ def test_get_notification_parameters(notify_api, sample_notification_platform_st
     assert number_of_message_parts == 1
     assert price_in_millicents_usd >= 0
     assert isinstance(payload, str)
+
+
+@pytest.mark.serial
+def test_wt_delivery_status_callback_should_log_total_time(
+    mocker,
+    client,
+    sample_template,
+    sample_notification,
+    sample_delivery_status_result_message,
+):
+    mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
+    mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
+
+    notification = sample_notification(template=sample_template(), status='sent', reference='SMyyy')
+    # Mock db call
+    mocker.patch(
+        'app.dao.notifications_dao.dao_get_notification_by_reference',
+        return_value=notification,
+    )
+
+    # Reference is used by many tests, can lead to trouble
+    process_delivery_status(event=sample_delivery_status_result_message)
+
+    assert mock_log_total_time.called_once_with(
+        notification.id,
+        notification.created_at,
+        NOTIFICATION_DELIVERED,
+        'twilio',
+    )

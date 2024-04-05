@@ -1,5 +1,6 @@
 import datetime
 from app.models import DELIVERY_STATUS_CALLBACK_TYPE
+from app.celery.common import log_notification_total_time
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent
 
@@ -88,11 +89,19 @@ def process_delivery_status(
         )
         _calculate_pricing(price_in_millicents_usd, notification, notification_status, number_of_message_parts)
 
-        # statsd - metric tracking of # of messages sent
         current_app.logger.info(
-            'Increment statsd on provider_name: %s and notification_status: %s', provider_name, notification_status
+            '%s callback return status of %s for notification: %s',
+            provider_name,
+            notification_status,
+            notification.id,
         )
-        _increment_statsd(notification, provider_name, notification_status)
+
+        log_notification_total_time(
+            notification.id,
+            notification.created_at,
+            notification_status,
+            provider_name,
+        )
 
         # check if payload is to be include in cardinal set in the service callback is (service_id, callback_type)
         if not _get_include_payload_status(self, notification):
@@ -266,21 +275,6 @@ def _get_include_payload_status(
         raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...')
 
     return include_payload_status
-
-
-def _increment_statsd(
-    notification: Notification,
-    provider_name: str,
-    notification_status: str,
-) -> None:
-    """increment statsd client"""
-    # Small docstring + annotations please.
-
-    statsd_client.incr(f'callback.{provider_name}.{notification_status}')
-    if notification.sent_at:
-        statsd_client.timing_with_dates(
-            f'callback.{provider_name}.elapsed-time', datetime.datetime.utcnow(), notification.sent_at
-        )
 
 
 def _get_sqs_message(event: CeleryEvent) -> dict:

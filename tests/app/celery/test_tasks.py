@@ -526,6 +526,7 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     assert mocked_deliver_sms.called
 
 
+@pytest.mark.serial
 def test_should_save_sms_if_restricted_service_and_valid_number(
     notify_db_session,
     mocker,
@@ -545,6 +546,7 @@ def test_should_save_sms_if_restricted_service_and_valid_number(
     notification_id = uuid4()
     encrypt_notification = encryption.encrypt(notification)
 
+    # Intermittently makes the status 'technical-failure'
     save_sms(
         service.id,
         notification_id,

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import iso8601
+from app.celery.common import log_notification_total_time
 from celery.exceptions import Retry
 from flask import (
     Blueprint,
@@ -236,13 +237,17 @@ def process_ses_results(  # noqa: C901
             )
         else:
             current_app.logger.info(
-                'SES callback return status of %s for notification: %s', notification_status, notification.id
+                'SES callback return status of %s for notification: %s',
+                notification_status,
+                notification.id,
             )
 
-        statsd_client.incr('callback.ses.{}'.format(notification_status))
-
-        if notification.sent_at:
-            statsd_client.timing_with_dates('callback.ses.elapsed-time', datetime.utcnow(), notification.sent_at)
+        log_notification_total_time(
+            notification.id,
+            notification.created_at,
+            notification_status,
+            'ses',
+        )
 
         check_and_queue_callback_task(notification)
 

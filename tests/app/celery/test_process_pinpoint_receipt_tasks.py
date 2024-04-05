@@ -220,7 +220,11 @@ def test_process_pinpoint_results_segments_and_price_success_first(mocker, sampl
 
 
 def pinpoint_notification_callback_record(
-    reference, event_type='_SMS.SUCCESS', record_status='DELIVERED', number_of_message_parts=1, price=645.0
+    reference=f'{uuid4()}',
+    event_type='_SMS.SUCCESS',
+    record_status='DELIVERED',
+    number_of_message_parts=1,
+    price=645.0,
 ):
     pinpoint_message = {
         'event_type': event_type,
@@ -251,3 +255,30 @@ def pinpoint_notification_callback_record(
     }
 
     return {'Message': base64.b64encode(bytes(json.dumps(pinpoint_message), 'utf-8')).decode('utf-8')}
+
+
+def test_wt_process_pinpoint_callback_should_log_total_time(
+    mocker,
+    client,
+    sample_template,
+    sample_notification,
+):
+    mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
+    mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
+
+    # Reference is used by many tests, can lead to trouble
+    notification = sample_notification(template=sample_template(), status='sending', reference='SMyyy')
+    # Mock db call
+    mocker.patch(
+        'app.dao.notifications_dao.dao_get_notification_by_reference',
+        return_value=notification,
+    )
+
+    process_pinpoint_receipt_tasks.process_pinpoint_results(pinpoint_notification_callback_record())
+
+    assert mock_log_total_time.called_once_with(
+        notification.id,
+        notification.created_at,
+        NOTIFICATION_DELIVERED,
+        'pinpoint',
+    )
