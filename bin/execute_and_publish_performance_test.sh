@@ -15,7 +15,10 @@ sleep 900
 
 # Run email send_rate performance test
 # This configuration should send 10K emails / minute for 10 minutes for 100K emails total.
-locust --headless --host https://api.staging.notification.cdssandbox.xyz --locustfile tests-perf/locust/send_rate_email.py --users 5 --run-time 10m --spawn-rate 1
+# We run this test on Tuesday through Friday (just after midnight UTC) only.
+if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
+    locust --headless --host https://api.staging.notification.cdssandbox.xyz --locustfile tests-perf/locust/send_rate_email.py --users 5 --run-time 10m --spawn-rate 1
+fi
 
 # Cleanup
 rm -rf $perf_test_csv_directory_path/$current_time
