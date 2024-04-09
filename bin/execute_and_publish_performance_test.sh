@@ -13,7 +13,7 @@ aws s3 cp $perf_test_csv_directory_path/ "s3://$perf_test_aws_s3_bucket" --recur
 # Sleep 15 minutes to allow the system to stabilize
 sleep 900
 
-# Run email send_rate performance test
+# Run email send rate performance test
 # This configuration should send 10K emails / minute for 10 minutes for 100K emails total.
 # We run this test on Tuesday through Friday (just after midnight UTC) only.
 if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
