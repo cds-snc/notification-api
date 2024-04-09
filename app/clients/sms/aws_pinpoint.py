@@ -12,7 +12,8 @@ class AwsPinpointClient(SmsClient):
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
         self._client = boto3.client('pinpoint-sms-voice-v2', region_name="ca-central-1")
-        super(SmsClient, self).__init__(*args, **kwargs)
+        super(AwsPinpointClient, self).__init__(*args, **kwargs)
+        # super(SmsClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = 'pinpoint'
         self.statsd_client = statsd_client
@@ -41,10 +42,6 @@ class AwsPinpointClient(SmsClient):
                     MessageType=messageType,
                 )
 
-                # this will be true if the OriginationIdentity does not exist in pinpoint
-                if response['MessageResponse']['Result'][destinationNumber]['StatusCode'] == 400:
-                    self.statsd_client.incr("clients.pinpoint.error")
-                    raise Exception(response['MessageResponse']['Result'][destinationNumber]['StatusMessage'])
             except ClientError as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise Exception(e)
@@ -57,7 +54,7 @@ class AwsPinpointClient(SmsClient):
                 self.statsd_client.timing("clients.pinpoint.request-time", elapsed_time)
                 self.statsd_client.incr("clients.pinpoint.success")
 
-            return response['MessageResponse']['Result'][destinationNumber]['MessageId']
+            return response['MessageId']
 
         if not matched:
             self.statsd_client.incr("clients.pinpoint.error")

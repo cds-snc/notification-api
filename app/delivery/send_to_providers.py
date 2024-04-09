@@ -69,8 +69,6 @@ def send_sms_to_provider(notification):
             notification.international,
             notification.reply_to_text,
         )
-        
-        
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
 
