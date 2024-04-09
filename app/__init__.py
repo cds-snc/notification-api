@@ -28,8 +28,8 @@ from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.clients.salesforce.salesforce_client import SalesforceClient
-from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
+from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
 from app.json_provider import NotifyJSONProvider

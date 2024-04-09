@@ -1272,7 +1272,7 @@ class TemplateHistory(TemplateBase):
 
 
 SNS_PROVIDER = "sns"
-PINPOINT_PROVIDER = 'pinpoint'
+PINPOINT_PROVIDER = "pinpoint"
 SES_PROVIDER = "ses"
 
 SMS_PROVIDERS = [SNS_PROVIDER, PINPOINT_PROVIDER]

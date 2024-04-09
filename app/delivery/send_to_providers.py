@@ -337,8 +337,8 @@ def update_notification_to_sending(notification, provider):
 
 def provider_to_use(notification_type, notification_id, international=False, sender=None, template_id=None):
     if notification_type == SMS_TYPE and template_id is not None and str(template_id) in Config.AWS_PINPOINT_TEMPLATE_IDS:
-        return clients.get_client_by_name_and_type('pinpoint', SMS_TYPE)
-    
+        return clients.get_client_by_name_and_type("pinpoint", SMS_TYPE)
+
     active_providers_in_order = [
         p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
     ]
