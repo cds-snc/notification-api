@@ -55,7 +55,7 @@ class AwsPinpointClient(SmsClient):
                 self.current_app.logger.info("AWS Pinpoint request finished in {}".format(elapsed_time))
                 self.statsd_client.timing("clients.pinpoint.request-time", elapsed_time)
                 self.statsd_client.incr("clients.pinpoint.success")
-                return response["MessageId"]
+            return response["MessageId"]
 
         if not matched:
             self.statsd_client.incr("clients.pinpoint.error")
