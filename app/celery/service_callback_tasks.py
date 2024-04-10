@@ -67,7 +67,7 @@ def _send_data_to_service_callback_api(self, data, service_callback_url, token, 
                 "Content-Type": "application/json",
                 "Authorization": "Bearer {}".format(token),
             },
-            timeout=60,
+            timeout=5,
         )
         current_app.logger.info(
             "{} sending {} to {}, response {}".format(
@@ -86,7 +86,7 @@ def _send_data_to_service_callback_api(self, data, service_callback_url, token, 
         )
         if not isinstance(e, HTTPError) or e.response.status_code >= 500:
             try:
-                self.retry(queue=QueueNames.RETRY)
+                self.retry(queue=QueueNames.CALLBACKS_RETRY)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
                     "Retry: {} has retried the max num of times for callback url {} and notification_id: {}".format(
