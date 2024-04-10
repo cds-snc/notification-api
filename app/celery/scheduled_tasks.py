@@ -313,62 +313,64 @@ def send_scheduled_comp_and_pen_sms():
         return
 
     # send messages and update entries in dynamodb table
-    for item in comp_and_pen_messages:
-        current_app.logger.info(
-            'sending - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
-            item.get('vaprofile_id'),
-            item.get('participant_id'),
-            item.get('payment_id'),
-        )
+    with table.batch_writer() as batch:
+        for item in comp_and_pen_messages:
+            vaprofile_id = str(item.get('vaprofile_id'))
+            participant_id = item.get('participant_id')
+            payment_id = item.get('payment_id')
+            payment_amount = str(item.get('paymentAmount'))
 
-        try:
-            # call generic method to send messages
-            send_notification_bypass_route(
-                service=service,
-                template=template,
-                notification_type=SMS_TYPE,
-                personalisation={'paymentAmount': str(item.get('paymentAmount'))},
-                sms_sender_id=service.get_default_sms_sender_id(),
-                recipient_item={
-                    'id_type': IdentifierType.VA_PROFILE_ID.value,
-                    'id_value': str(item.get('vaprofile_id')),
-                },
-            )
-        except Exception as e:
-            current_app.logger.critical(
-                'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
-                'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
-                'exception: %s',
-                item.get('vaprofile_id'),
-                item.get('participant_id'),
-                item.get('payment_id'),
-                type(e),
-                e,
-            )
-        else:
             current_app.logger.info(
-                'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
-                item.get('vaprofile_id'),
-                item.get('participant_id'),
-                item.get('payment_id'),
+                'sending - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+                vaprofile_id,
+                participant_id,
+                payment_id,
             )
 
-        # update dynamodb entries
-        try:
-            updated_item = table.update_item(
-                Key={'participant_id': item.get('participant_id'), 'payment_id': item.get('payment_id')},
-                UpdateExpression='SET is_processed = :val',
-                ExpressionAttributeValues={':val': True},
-                ReturnValues='ALL_NEW',
-            )
+            try:
+                # call generic method to send messages
+                send_notification_bypass_route(
+                    service=service,
+                    template=template,
+                    notification_type=SMS_TYPE,
+                    personalisation={'paymentAmount': payment_amount},
+                    sms_sender_id=service.get_default_sms_sender_id(),
+                    recipient_item={
+                        'id_type': IdentifierType.VA_PROFILE_ID.value,
+                        'id_value': vaprofile_id,
+                    },
+                )
+            except Exception as e:
+                current_app.logger.critical(
+                    'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
+                    'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
+                    'exception: %s',
+                    vaprofile_id,
+                    participant_id,
+                    payment_id,
+                    type(e),
+                    e,
+                )
+            else:
+                current_app.logger.info(
+                    'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+                    vaprofile_id,
+                    participant_id,
+                    payment_id,
+                )
 
-            current_app.logger.debug('updated_item from dynamodb ("is_processed" should be "True"): %s', updated_item)
-        except Exception as e:
-            current_app.logger.critical(
-                'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '
-                'exception_type: %s exception_message: %s',
-                item.get('participant_id'),
-                item.get('payment_id'),
-                type(e),
-                e,
-            )
+            item['is_processed'] = True
+
+            # update dynamodb entries
+            try:
+                batch.put_item(Item=item)
+                current_app.logger.info('updated_item from dynamodb ("is_processed" should be "True"): %s', item)
+            except Exception as e:
+                current_app.logger.critical(
+                    'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '
+                    'exception_type: %s exception_message: %s',
+                    participant_id,
+                    payment_id,
+                    type(e),
+                    e,
+                )
