@@ -48,6 +48,7 @@ def test_queue_names_all_queues_correct():
             QueueNames.REPORTING,
             QueueNames.JOBS,
             QueueNames.RETRY,
+            QueueNames.CALLBACKS_RETRY,
             QueueNames.NOTIFY,
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
