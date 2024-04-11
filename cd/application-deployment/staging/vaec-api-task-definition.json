@@ -7,6 +7,7 @@
     {
       "name": "notification-api",
       "image": "{will-be-replaced-by-ci}",
+      "essential": true,
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -321,7 +322,6 @@
     {
       "name": "datadog-agent",
       "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:latest",
-      "essential": true,
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -396,6 +396,7 @@
     "FARGATE"
   ],
   "cpu": "2048",
+  "pidMode": "task",
   "memory": "4096",
   "tags": [
     {
