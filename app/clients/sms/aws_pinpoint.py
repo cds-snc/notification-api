@@ -42,6 +42,7 @@ class AwsPinpointClient(SmsClient):
                     OriginationIdentity=pool_id,
                     MessageBody=content,
                     MessageType=messageType,
+                    ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                 )
 
             except ClientError as e:
