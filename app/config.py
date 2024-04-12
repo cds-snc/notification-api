@@ -107,6 +107,7 @@ class QueueNames(object):
     PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
+    CALLBACKS_RETRY = "service-callbacks-retry"
 
     # Queue for letters, unused by CDS at this time as we don't use these.
     LETTERS = "letter-tasks"
@@ -156,6 +157,7 @@ class QueueNames(object):
             QueueNames.REPORTING,
             QueueNames.JOBS,
             QueueNames.RETRY,
+            QueueNames.CALLBACKS_RETRY,
             QueueNames.NOTIFY,
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
