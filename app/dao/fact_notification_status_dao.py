@@ -1,7 +1,6 @@
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal
@@ -39,8 +38,8 @@ from app.utils import (
 
 
 def fetch_notification_status_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))
@@ -149,8 +148,8 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     )
 
 
-def fetch_delivered_notification_stats_by_month():
-    return (
+def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -169,8 +168,12 @@ def fetch_delivered_notification_stats_by_month():
             func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
             FactNotificationStatus.notification_type,
         )
-        .all()
     )
+    if filter_heartbeats:
+        query = query.filter(
+            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
+        )
+    return query.all()
 
 
 def fetch_notification_stats_for_trial_services():
@@ -356,14 +359,7 @@ def get_last_send_for_api_key(api_key_id):
     api_key_table = (
         db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
-    if not api_key_table[0][0]:
-        notification_table = (
-            db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-            .filter(Notification.api_key_id == api_key_id)
-            .all()
-        )
-        return [] if notification_table[0][0] is None else notification_table
-    return api_key_table
+    return [] if api_key_table[0][0] is None else api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):

@@ -51,6 +51,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -331,6 +332,39 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
 
+@freeze_time("2018-10-31T18:00:00")
+def test_fetch_notification_status_gets_data_from_correct_timeframe(
+    notify_db_session,
+):
+    service_1 = create_service(service_name="service_1")
+    sms_template = create_template(service=service_1, template_type=SMS_TYPE)
+    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+    # create notifications for every hour of the day
+    for i in range(24):
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 30), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+
+    # too early, shouldn't be included
+    save_notification(
+        create_notification(
+            service_1.templates[0],
+            created_at=datetime(2018, 10, 29, 23, 59, 59),
+            status="delivered",
+        )
+    )
+    data = fetch_notification_status_for_day(process_day=datetime.utcnow() - timedelta(days=1))
+
+    assert data[0].notification_type == "email"
+    assert data[0].notification_count == 48
+
+    assert data[1].notification_type == "sms"
+    assert data[1].notification_count == 72
+
+
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
@@ -367,20 +401,8 @@ def test_get_last_send_for_api_key_check_last_used(notify_db_session):
 def test_get_last_send_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
-    template_email = create_template(service=service, template_type=EMAIL_TYPE)
-    total_sends = 10
-
     last_send = get_last_send_for_api_key(str(api_key.id))
     assert last_send == []
-
-    for x in range(total_sends):
-        save_notification(create_notification(template=template_email, api_key=api_key))
-
-    # the following lines test that a send has occurred within the last second
-    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
-    now = datetime.utcnow()
-    time_delta = now - last_send
-    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_ranked_by_notifications_created(notify_db_session):
@@ -738,6 +760,62 @@ def test_fetch_delivered_notification_stats_by_month(sample_service):
     assert results[3].month.startswith("2019-12-01")
     assert results[3].notification_type == "sms"
     assert results[3].count == 6
+
+
+@freeze_time("2020-11-02 14:00")
+def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(notify_api, sample_service):
+    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    # Not counted: before GC Notify started
+    create_ft_notification_status(
+        utc_date=date(2019, 10, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 5),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=6,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_SENT,
+        count=4,
+    )
+
+    # Not counted: failed notifications
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_FAILED,
+        count=10,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2020, 3, 1),
+        service=sample_service,
+        template=email_template,
+        count=5,
+    )
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+        results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
+        assert len(results) == 0
 
 
 def test_fetch_delivered_notification_stats_by_month_empty():

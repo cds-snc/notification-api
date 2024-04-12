@@ -70,6 +70,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_get_service_list(client, service_factory):
@@ -251,6 +252,20 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
     assert first["count"] == 3
+
+
+def test_get_delivered_notification_stats_by_month_data_without_heartbeat(notify_api, admin_request, sample_service):
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+        response = admin_request.get("service.get_delivered_notification_stats_by_month_data", filter_heartbeats=True)["data"]
+        assert len(response) == 0
 
 
 def test_get_service_by_id(admin_request, sample_service):
@@ -443,7 +458,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
+def test_create_service_doesnt_inherit_branding_from_organisation(admin_request, sample_user, mocker):
     org = create_organisation()
     email_branding = create_email_branding()
     org.email_branding = email_branding
@@ -467,8 +482,7 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
         _expected_status=201,
     )
 
-    assert json_resp["data"]["email_branding"] == str(email_branding.id)
-    assert json_resp["data"]["letter_branding"] == str(letter_branding.id)
+    assert json_resp["data"]["email_branding"] is None
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
@@ -1728,6 +1742,35 @@ def test_get_notifications_for_service_without_page_count(
     assert len(resp["notifications"]) == 1
     assert resp["total"] is None
     assert resp["notifications"][0]["id"] == str(without_job.id)
+
+
+@freeze_time("2018-11-20T18:00:00")
+@pytest.mark.parametrize("retention_period, expected_count_of_notifications", [(3, 72), (7, 168)])
+def test_get_notifications_for_service_gets_data_from_correct_timeframe(
+    admin_request, sample_service, retention_period, expected_count_of_notifications
+):
+    email_template = create_template(service=sample_service, template_type=EMAIL_TYPE)
+
+    # WEEK BEFORE
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(
+                create_notification(email_template, created_at=datetime(2018, 11, 5 + i, j, 0, 0), status="delivered")
+            )
+
+    # THIS WEEK
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(
+                create_notification(email_template, created_at=datetime(2018, 11, 13 + i, j, 0, 0), status="delivered")
+            )
+
+    resp = admin_request.get(
+        "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
+    )
+    assert resp["total"] == expected_count_of_notifications
 
 
 @pytest.mark.parametrize(
