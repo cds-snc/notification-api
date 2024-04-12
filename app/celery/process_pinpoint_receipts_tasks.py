@@ -114,6 +114,8 @@ def process_pinpoint_results(self, response):
         current_app.logger.exception(f"Error processing Pinpoint results: {str(e)}")
         self.retry(queue=QueueNames.RETRY)
 
+    return True
+
 
 def determine_pinpoint_status(sns_status, provider_response):
     if sns_status == "DELIVERED":
