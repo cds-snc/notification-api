@@ -18,8 +18,7 @@ from app.models import (
 from app.notifications.callbacks import _check_and_queue_callback_task
 from celery.exceptions import Retry
 
-
-# Pinpoint receipts are of the form:    
+# Pinpoint receipts are of the form:
 #     {
 #         "eventType": "TEXT_DELIVERED",
 #         "eventVersion": "1.0",
@@ -42,11 +41,12 @@ from celery.exceptions import Retry
 #         "totalCarrierFee": 0.006
 #     }
 
+
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
     try:
-        receipt = json.loads(response)
+        receipt = json.loads(response["Message"])
         reference = receipt["messageId"]
         status = receipt["messageStatus"]
         provider_response = receipt["messageStatusDescription"]
@@ -92,12 +92,16 @@ def process_pinpoint_results(self, response):
                 )
             )
         else:
-            current_app.logger.info(f"Pinpoint callback return status of {notification_status} for notification: {notification.id}")
+            current_app.logger.info(
+                f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
+            )
 
         statsd_client.incr(f"callback.sns.{notification_status}")  # TODO: do we want a Pinpoint metric here?
 
         if notification.sent_at:
-            statsd_client.timing_with_dates("callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at) # TODO: do we want a Pinpoint metric here?
+            statsd_client.timing_with_dates(
+                "callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at
+            )  # TODO: do we want a Pinpoint metric here?
 
         _check_and_queue_callback_task(notification)
 

@@ -39,7 +39,7 @@ def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_d
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
     assert process_pinpoint_results(pinpoint_success_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-    assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
+    assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
 
     mock_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
@@ -155,7 +155,7 @@ def test_process_pinpoint_results_does_not_process_other_providers(sample_templa
             reference="ref1",
             sent_at=datetime.utcnow(),
             status=NOTIFICATION_SENT,
-            sent_by="pinpoint",
+            sent_by="sns",
         )
     )
 
@@ -183,9 +183,9 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
 
         assert process_pinpoint_results(pinpoint_success_callback(reference="ref"))
         assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-        assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
-        statsd_client.timing_with_dates.assert_any_call("callback.pinpoint.elapsed-time", datetime.utcnow(), notification.sent_at)
-        statsd_client.incr.assert_any_call("callback.pinpoint.delivered")
+        assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
+        statsd_client.timing_with_dates.assert_any_call("callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at)
+        statsd_client.incr.assert_any_call("callback.sns.delivered")
         updated_notification = get_notification_by_id(notification.id)
         signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
         send_mock.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")

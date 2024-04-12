@@ -206,14 +206,14 @@ def pinpoint_success_callback(reference=None, timestamp=1467074434, destination=
         "mnc": "610",
         "carrierName": "Bell Cellular Inc. / Aliant Telecom",
         "messageId": reference,
-        "messageRequestTimestamp": 1712944267685,
+        "messageRequestTimestamp": timestamp,
         "messageEncoding": "GSM",
         "messageType": "TRANSACTIONAL",
         "messageStatus": "DELIVERED",
         "messageStatusDescription": "Message has been accepted by phone",
         "totalMessageParts": 1,
         "totalMessagePrice": 0.00581,
-        "totalCarrierFee": 0.006
+        "totalCarrierFee": 0.006,
     }
 
     return _pinpoint_callback(body)
@@ -221,24 +221,23 @@ def pinpoint_success_callback(reference=None, timestamp=1467074434, destination=
 
 # Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
 def pinpoint_failed_callback(provider_response, reference=None, timestamp=1467074434, destination="+1XXX5550100"):
-    
     body = {
         "eventType": "TEXT_CARRIER_UNREACHABLE",
         "eventVersion": "1.0",
         "eventTimestamp": timestamp,
         "isFinal": True,
-        "originationPhoneNumber": "+13655362471",
+        "originationPhoneNumber": "+13655550100",
         "destinationPhoneNumber": destination,
         "isoCountryCode": "CA",
         "messageId": reference,
-        "messageRequestTimestamp": 1712944592827,
+        "messageRequestTimestamp": timestamp,
         "messageEncoding": "GSM",
         "messageType": "TRANSACTIONAL",
         "messageStatus": "CARRIER_UNREACHABLE",
         "messageStatusDescription": provider_response,
         "totalMessageParts": 1,
         "totalMessagePrice": 0.00581,
-        "totalCarrierFee": 0.006
+        "totalCarrierFee": 0.006,
     }
 
     return _pinpoint_callback(body)
@@ -319,6 +318,7 @@ def _sns_callback(body):
         "UnsubscribeUrl": "https://sns.ca-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
         "MessageAttributes": {},
     }
+
 
 # TODO: can we just use the _sns_callback() function instead of this one?
 def _pinpoint_callback(body):
