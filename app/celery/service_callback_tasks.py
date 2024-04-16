@@ -77,6 +77,7 @@ def _send_data_to_service_callback_api(self, data, service_callback_url, token, 
         current_app.logger.warning(
             f"{function_name} request failed for notification_id: {notification_id} and url: {service_callback_url}. exc: {e}"
         )
+        # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
             try:
                 self.retry(queue=QueueNames.CALLBACKS_RETRY)
