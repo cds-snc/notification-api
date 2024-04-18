@@ -320,7 +320,6 @@ def _sns_callback(body):
     }
 
 
-# TODO: can we just use the _sns_callback() function instead of this one?
 def _pinpoint_callback(body):
     return {
         "Type": "Notification",
