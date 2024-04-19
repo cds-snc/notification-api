@@ -105,5 +105,52 @@ types-python-dateutil = "2.8.19.20240106"
 types-pytz = "2022.7.1.2"
 types-requests = "2.31.0.20240106"
 types-redis = "4.6.0.20240106"
-
 monkeytype = "^23.3.0"
+poethepoet = "^0.24.4"
+
+# Poe the Poet tasks
+[tool.poe.tasks.trace-app]
+help = "Runs the app with monkeytype type collection enabled."
+shell = """
+        monkeytype run -m flask run -p 6012 --host=0.0.0.0
+"""
+
+[tool.poe.tasks.trace-tests]
+help = "Runs a test suite or single test through MonkeyType, generating a record of type annotation traces monkeytype.sqlite3"
+shell = """
+    if [ -z "${method}" ]; then
+        monkeytype run -m pytest '/tests/app/${test-path}::${method}'
+    else
+        monkeytype run -m pytest '/tests/app/${test-path}'
+    fi
+
+"""
+    # Define arguments for trace-tests
+    [tool.poe.tasks.trace-tests.args.test-path]
+    help = "Path to the test file to run. /tests/app/ can be omitted. e.g. poe trace-tests -p main/test_contact.py"
+    options = ["-p", "--path"]
+    type = "string"
+    required = true
+
+    [tool.poe.tasks.trace-tests.args.method]
+    help = "Name of the test method to execute and trace"
+    options = ["-m", "--method"]
+    type = "string"
+    default = ""
+    required = false
+
+[tool.poe.tasks.list-modules]
+help = "Lists all files and modules that have trace data associated with them in monkeytype.sqlite3"
+cmd = "monkeytype list-modules"
+
+# Composite task that uses list-modules to obtain a list of files and modules
+[tool.poe.tasks.apply-annotations]
+help = "Applies ALL known type annotations stored in monkeytype.sqlite3"
+shell = """
+    for trace in ${TRACES}
+    do
+        monkeytype apply $trace
+    done
+"""
+deps = ["list-modules"]
+uses = { TRACES = "list-modules"}
