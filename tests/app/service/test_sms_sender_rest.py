@@ -2,6 +2,7 @@ import uuid
 from app.models import ServiceSmsSender, Service
 from datetime import datetime
 from flask import current_app
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 
@@ -60,11 +61,50 @@ def test_add_service_sms_sender_return_404_when_rate_limit_too_small(admin_reque
     assert response_json['errors'][0]['message'] == 'rate_limit 0 is less than the minimum of 1'
 
 
-def test_update_service_sms_sender(
+def test_add_service_sms_sender_new_sender_to_default(
+    notify_db_session,
+    admin_request,
+    sample_service,
+):
+    """
+    Create a service with 1 associated ServiceSmsSender instance, which is default, and then create a
+    new ServiceSmsSender as default.  The initial ServiceSmsSender instance should no longer be default.
+    """
+
+    # This fixture also should create a default ServiceSmsSender instance.
+    service = sample_service()
+
+    stmt = select(ServiceSmsSender.id).where(
+        ServiceSmsSender.service_id == service.id, ServiceSmsSender.is_default.is_(True)
+    )
+    initial_sms_sender_id = notify_db_session.session.execute(stmt).scalar_one()
+
+    # Attempt to create a new default sms_sender.  The request should return the new default ServiceSmsSender instance.
+    response_json = admin_request.post(
+        'service_sms_sender.add_service_sms_sender',
+        service_id=service.id,
+        _data={
+            'sms_sender': '54321',
+            'is_default': True,
+        },
+        _expected_status=201,
+    )
+
+    assert response_json['is_default']
+    assert notify_db_session.session.get(ServiceSmsSender, response_json['id']).is_default
+    assert not notify_db_session.session.get(ServiceSmsSender, initial_sms_sender_id).is_default
+
+
+def test_update_service_sms_sender_sender_specifics(
     admin_request,
     sample_service,
     sample_sms_sender,
 ):
+    """
+    Test updating the sender_specifics field of a given service_sms_sender row.  This test does
+    not attempt to affect the default sender.
+    """
+
     service = sample_service()
     sender_specifics = {'data': 'This is something specific.'}
 
@@ -126,6 +166,45 @@ def test_update_service_sms_sender_return_404_when_service_does_not_exist(admin_
 
     assert response['result'] == 'error'
     assert response['message'] == 'No result found'
+
+
+def test_update_service_sms_sender_existing_sender_to_default(
+    notify_db_session,
+    admin_request,
+    sample_service,
+    sample_sms_sender,
+):
+    """
+    Create a service with 2 associated ServiceSmsSender instances, one of which is default, and then Swap which
+    sender is the default.  The initial ServiceSmsSender instance should no longer be default.
+    """
+
+    # This fixture also should create a default ServiceSmsSender instance.
+    service = sample_service()
+
+    stmt = select(ServiceSmsSender).where(
+        ServiceSmsSender.service_id == service.id, ServiceSmsSender.is_default.is_(True)
+    )
+    service_sms_sender1 = notify_db_session.session.execute(stmt).scalar_one()
+    service_sms_sender2 = sample_sms_sender(service_id=service.id, is_default=False)
+
+    assert service_sms_sender1.is_default
+    assert not service_sms_sender2.is_default
+
+    # Attempt to make service_sms_sender2 the default.
+    response_json = admin_request.post(
+        'service_sms_sender.update_service_sms_sender',
+        service_id=service.id,
+        sms_sender_id=service_sms_sender2.id,
+        _data={
+            'is_default': True,
+        },
+        _expected_status=200,
+    )
+
+    assert response_json['is_default']
+    assert not service_sms_sender1.is_default
+    assert service_sms_sender2.is_default
 
 
 def test_delete_service_sms_sender_can_archive_sms_sender(

@@ -26,13 +26,14 @@ add_service_sms_sender_request = {
     'type': 'object',
     'title': 'Add new SMS sender for service',
     'properties': {
-        'sms_sender': {'type': 'string'},
-        'is_default': {'type': 'boolean'},
         'inbound_number_id': uuid,
+        'is_default': {'type': 'boolean'},
         'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
         'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
+        'sms_sender': {'type': 'string'},
+        'sms_sender_specifics': {'type': ['object', 'null']},
     },
-    'required': ['sms_sender', 'is_default'],
+    'required': ['is_default', 'sms_sender'],
 }
 
 
@@ -42,11 +43,12 @@ update_service_sms_sender_request = {
     'type': 'object',
     'title': 'Update SMS sender for service',
     'properties': {
-        'sms_sender': {'type': 'string'},
-        'sms_sender_specifics': {'type': ['object', 'null']},
+        'inbound_number_id': uuid,
         'is_default': {'type': 'boolean'},
         'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
         'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
-        'inbound_number_id': uuid,
+        'sms_sender': {'type': 'string'},
+        'sms_sender_specifics': {'type': ['object', 'null']},
     },
+    'minProperties': 1,
 }

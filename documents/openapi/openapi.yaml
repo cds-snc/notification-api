@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.6
+  version: 1.0.7
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -330,12 +330,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     get:
       summary: Get a service
       tags:
         - service
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -358,8 +358,6 @@ paths:
       summary: Update a service
       tags:
         - service
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         description: Include values in the request body to update them
         required: true
@@ -388,13 +386,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/sms-sender:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     get:
       summary: Get all sms-senders for a service
       tags:
-        - service
         - sms sender
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -414,11 +411,36 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     post:
       summary: Add sms sender for a service
+      description: Note that setting is_default to True will have the side-effect of setting the current default to False.
       tags:
-        - service
         - sms sender
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inbound_number_id:
+                  $ref: '#/components/schemas/Id'
+                is_default:
+                  type: boolean
+                  example: false
+                rate_limit:
+                  type: integer
+                  minimum: 1
+                rate_limit_interval:
+                  type: integer
+                  minimum: 1
+                sms_sender:
+                  type: string
+                sms_sender_specifics:
+                  description: Arbitrary JSON relevant to a specific messaging service provider
+                  type: object
+                  example: '{"messaging_service_sid": "MG0000000000000000000000"}'
+              required:
+                - sms_sender
+                - is_default
       responses:
         '201':
           description: OK
@@ -435,14 +457,13 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/sms-sender/{sms-sender-id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/ServiceSmsSenderId'
     get:
       summary: Get specific sms sender for a service
       tags:
-        - service
         - sms sender
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/ServiceSmsSenderId'
       responses:
         '200':
           description: OK
@@ -460,12 +481,34 @@ paths:
           $ref: '#/components/responses/InternalServerError'
     post:
       summary: Update sms sender for a service
+      description: Note that updating is_default to True will have the side-effect of setting the current default to False.
       tags:
-        - service
         - sms sender
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/ServiceSmsSenderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inbound_number_id:
+                  $ref: '#/components/schemas/Id'
+                is_default:
+                  type: boolean
+                  example: false
+                rate_limit:
+                  type: integer
+                  minimum: 1
+                rate_limit_interval:
+                  type: integer
+                  minimum: 1
+                sms_sender:
+                  type: string
+                sms_sender_specifics:
+                  description: Arbitrary JSON relevant to a specific messaging service provider
+                  type: object
+                  example: '{"messaging_service_sid": "MG0000000000000000000000"}'
+              minProperties: 1
       responses:
         '200':
           description: OK
@@ -482,14 +525,13 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/sms-sender/{sms-sender-id}/archive:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/ServiceSmsSenderId'
     post:
       summary: Delete aka archive an sms sender
       tags:
-        - service
         - sms sender
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/ServiceSmsSenderId'
       responses:
         '200':
           description: OK
@@ -509,12 +551,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/callback:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     get:
       summary: Get all callbacks for a service
       tags:
         - callback
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -539,8 +581,6 @@ paths:
       summary: Create a callback for a service
       tags:
         - callback
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         required: true
         content:
@@ -568,13 +608,13 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/callback/{callback_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/CallbackId'
     get:
       summary: Get a callback for a service by its id
       tags:
         - callback
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/CallbackId'
       responses:
         '200':
           description: OK
@@ -597,9 +637,6 @@ paths:
       summary: Update a callback for a service
       tags:
         - callback
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/CallbackId'
       requestBody:
         required: true
         content:
@@ -630,9 +667,6 @@ paths:
       summary: Remove a callback for a service
       tags:
         - callback
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/CallbackId'
       responses:
         '204':
           description: DELETED
@@ -650,13 +684,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  '/service/{service_id}/template':
+  /service/{service_id}/template:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     get:
       summary: Get all templates for a service
       tags:
         - template
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -681,8 +715,6 @@ paths:
       summary: Create a template for a service
       tags:
         - template
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         required: true
         content:
@@ -711,14 +743,14 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  '/service/{service_id}/template/{template_id}':
+  /service/{service_id}/template/{template_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/TemplateId'
     get:
       summary: Get a template for a service
       tags:
         - template
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/TemplateId'
       responses:
         '200':
           description: OK
@@ -738,9 +770,6 @@ paths:
       summary: Update a template
       tags:
         - template
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/TemplateId'
       requestBody:
         required: true
         content:
@@ -767,13 +796,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  '/service/{service_id}/template/preview':
+  /service/{service_id}/template/preview:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     post:
       summary: Cretate template html preview
       tags:
         - template
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         required: true
         content:
@@ -797,7 +826,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
-  '/service/{service_id}/template/{template_id}/stats':
+  /service/{service_id}/template/{template_id}/stats:
     get:
       summary: Get usage statistics for a particular template on a service
       tags:
@@ -933,12 +962,12 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /service/{service_id}/api-key:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     post:
       tags:
         - api key
       summary: Create API key for service
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       requestBody:
         content:
           application/json:
@@ -979,13 +1008,13 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/api-key/revoke/{api_key_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/ApiKeyId'
     post:
       tags:
         - api key
       summary: Revoke API key
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/ApiKeyId'
       responses:
         '202':
           description: OK
@@ -1002,12 +1031,12 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/api-keys:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
     get:
       tags:
         - api key
       summary: Get API keys for a service
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
       responses:
         '200':
           description: OK
@@ -1029,13 +1058,13 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
   /service/{service_id}/api-keys/{api_key_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceId'
+      - $ref: '#/components/parameters/ApiKeyId'
     get:
       tags:
         - api key
       summary: Get a specific API key for a service
-      parameters:
-        - $ref: '#/components/parameters/ServiceId'
-        - $ref: '#/components/parameters/ApiKeyId'
       responses:
         '200':
           description: OK
@@ -1598,12 +1627,12 @@ paths:
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
   /inbound-number/service/{service_id}:
+    parameters:
+      - $ref: "#/components/parameters/ServiceId"
     get:
       summary:  Get inbound numbers for a service
       tags:
         - inbound-number
-      parameters:
-        - $ref: "#/components/parameters/ServiceId"
       responses:
         "200":
           description: OK

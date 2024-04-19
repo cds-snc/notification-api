@@ -3070,7 +3070,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \"sms_sender\": \"+18334981539\",\r\n    \"is_default\": true,\r\n    \"rate_limit\": null\r\n}"
+									"raw": "{\r\n    \"sms_sender\": \"+18334981539\",\r\n    \"is_default\": false,\r\n    \"rate_limit\": null\r\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/service/{{service-id}}/sms-sender",
@@ -3272,7 +3272,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \"sms_sender\": \"+18334981539\",\r\n    \"is_default\": true,\r\n    \"rate_limit\": 3000\r\n}"
+									"raw": "{\r\n    \"sms_sender\": \"+18334981539\",\r\n    \"is_default\": false,\r\n    \"rate_limit\": 3000\r\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/service/{{service-id}}/sms-sender/{{sms-sender-id}}",
