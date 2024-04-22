@@ -28,15 +28,13 @@ class AwsPinpointClient(SmsClient):
         messageType = "TRANSACTIONAL"
         matched = False
 
-        for match in phonenumbers.PhoneNumberMatcher(to, "US"):  # SJA why is this a loop?
+        for match in phonenumbers.PhoneNumberMatcher(to, "US"):
             matched = True
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
             destinationNumber = to
 
             try:
                 start_time = monotonic()
-
-                # from https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/send_text_message.html
                 response = self._client.send_text_message(
                     DestinationPhoneNumber=destinationNumber,
                     OriginationIdentity=pool_id,
@@ -44,7 +42,6 @@ class AwsPinpointClient(SmsClient):
                     MessageType=messageType,
                     ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                 )
-
             except ClientError as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise Exception(e)
