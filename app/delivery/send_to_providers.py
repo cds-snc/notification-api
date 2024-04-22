@@ -46,6 +46,7 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
+    PINPOINT_PROVIDER,
     SMS_TYPE,
     BounceRateStatus,
     Notification,
@@ -340,7 +341,9 @@ def provider_to_use(notification_type, notification_id, international=False, sen
         return clients.get_client_by_name_and_type("pinpoint", SMS_TYPE)
 
     active_providers_in_order = [
-        p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
+        p
+        for p in get_provider_details_by_notification_type(notification_type, international)
+        if p.active and p.identifier != PINPOINT_PROVIDER
     ]
 
     if not active_providers_in_order:
