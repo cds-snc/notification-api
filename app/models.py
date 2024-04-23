@@ -280,6 +280,8 @@ class EmailBranding(BaseModel):
         UUID(as_uuid=True), db.ForeignKey("organisation.id", ondelete="SET NULL"), index=True, nullable=True
     )
     organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
+    alt_text_en = db.Column(db.String(), nullable=True)
+    alt_text_fr = db.Column(db.String(), nullable=True)
 
     def serialize(self) -> dict:
         serialized = {
@@ -290,6 +292,8 @@ class EmailBranding(BaseModel):
             "text": self.text,
             "brand_type": self.brand_type,
             "organisation_id": str(self.organisation_id) if self.organisation_id else "",
+            "alt_text_en": self.alt_text_en,
+            "alt_text_fr": self.alt_text_fr,
         }
 
         return serialized
