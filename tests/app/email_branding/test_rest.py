@@ -39,7 +39,9 @@ def test_get_email_branding_options_filter_org(admin_request, notify_db, notify_
 
 
 def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
-    email_branding = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org")
+    email_branding = EmailBranding(
+        colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org", alt_text_en="hello world"
+    )
     notify_db.session.add(email_branding)
     notify_db.session.commit()
 
@@ -57,6 +59,8 @@ def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
         "text",
         "brand_type",
         "organisation_id",
+        "alt_text_en",
+        "alt_text_fr",
     }
     assert response["email_branding"]["colour"] == "#FFFFFF"
     assert response["email_branding"]["logo"] == "/path/image.png"
@@ -64,6 +68,8 @@ def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
     assert response["email_branding"]["text"] == "My Org"
     assert response["email_branding"]["id"] == str(email_branding.id)
     assert response["email_branding"]["brand_type"] == str(email_branding.brand_type)
+    assert response["email_branding"]["alt_text_en"] == "hello world"
+    assert response["email_branding"]["alt_text_fr"] is None
 
 
 def test_post_create_email_branding(admin_request, notify_db_session):
