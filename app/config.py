@@ -268,7 +268,7 @@ class Config(object):
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
     AWS_PINPOINT_POOL_ID = os.getenv("AWS_PINPOINT_POOL_ID", None)
     AWS_PINPOINT_CONFIGURATION_SET_NAME = os.getenv("AWS_PINPOINT_CONFIGURATION_SET_NAME", "pinpoint-configuration")
-    AWS_PINPOINT_TEMPLATE_IDS = env.list("AWS_PINPOINT_TEMPLATE_IDS", [])
+    AWS_PINPOINT_SC_TEMPLATE_IDS = env.list("AWS_PINPOINT_SC_TEMPLATE_IDS", [])
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
