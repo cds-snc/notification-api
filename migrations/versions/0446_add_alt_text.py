@@ -6,7 +6,6 @@ Create Date: 2024-04-23
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import text
-from sqlalchemy.dialects import postgresql
 
 revision = "0446_add_alt_text"
 down_revision = "0445_add_org_id_branding"
