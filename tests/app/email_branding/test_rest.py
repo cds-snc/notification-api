@@ -39,7 +39,9 @@ def test_get_email_branding_options_filter_org(admin_request, notify_db, notify_
 
 
 def test_get_email_branding_by_id(admin_request, notify_db, notify_db_session):
-    email_branding = EmailBranding(colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org", alt_text_en="hello world")
+    email_branding = EmailBranding(
+        colour="#FFFFFF", logo="/path/image.png", name="Some Org", text="My Org", alt_text_en="hello world"
+    )
     notify_db.session.add(email_branding)
     notify_db.session.commit()
 
