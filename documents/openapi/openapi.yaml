@@ -2931,12 +2931,17 @@ components:
         created_at:
           type: string
           format: date-time
+        description:
+          type: string
+          example: This is a description.
         id:
           $ref: '#/components/schemas/Id'
         inbound_number_id:
           $ref: '#/components/schemas/Id'
         is_default:
           type: boolean
+        provider_id:
+          $ref: '#/components/schemas/Id'
         rate_limit:
           type: integer
         rate_limit_interval:
@@ -2945,6 +2950,10 @@ components:
           $ref: '#/components/schemas/Id'
         sms_sender:
           type: string
+        sms_sender_specifics:
+          description: Arbitrary JSON relevant to a specific messaging service provider
+          type: object
+          example: '{"messaging_service_sid": "MG0000000000000000000000"}'
         updated_at:
           type: string
           format: date-time

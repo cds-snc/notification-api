@@ -549,43 +549,40 @@ class ServiceSmsSender(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    # This is the sender's phone number.
-    sms_sender = db.Column(db.String(12), nullable=False)
-
-    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False, unique=False)
-    service = db.relationship(Service, backref=db.backref('service_sms_senders', uselist=True))
-    is_default = db.Column(db.Boolean, nullable=False, default=True)
     archived = db.Column(db.Boolean, nullable=False, default=False)
-    inbound_number_id = db.Column(
-        UUID(as_uuid=True), db.ForeignKey('inbound_numbers.id'), unique=True, index=True, nullable=True
-    )
-    inbound_number = db.relationship(InboundNumber, backref=db.backref('inbound_number', uselist=False))
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    description = db.Column(db.String(256))
+    inbound_number = db.relationship(InboundNumber, backref=db.backref('inbound_number', uselist=False))
+    inbound_number_id = db.Column(UUID(as_uuid=True), db.ForeignKey('inbound_numbers.id'), unique=True, index=True)
+    is_default = db.Column(db.Boolean, nullable=False, default=True)
+    provider = db.relationship(ProviderDetails, backref=db.backref('provider_details'))
+    provider_id = db.Column(UUID(as_uuid=True), db.ForeignKey('provider_details.id'))
     rate_limit = db.Column(db.Integer, nullable=True)
     rate_limit_interval = db.Column(db.Integer, nullable=True)
-
-    # This field is a placeholder for any service provider we might want to use. Since different
-    # services have different formats and information, use the JSON type, which is backend dependent.
-    #   https://docs.sqlalchemy.org/en/13/core/type_basics.html#sql-standard-and-multiple-vendor-types
-    sms_sender_specifics = db.Column(db.JSON())
+    service = db.relationship(Service, backref=db.backref('service_sms_senders', uselist=True))
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
+    sms_sender = db.Column(db.String(12), nullable=False, doc="This is the sender's phone number.")
+    sms_sender_specifics = db.Column(db.JSON(), doc='A placeholder for any service provider we might want to use.')
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
     def get_reply_to_text(self):
         return try_validate_and_format_phone_number(self.sms_sender)
 
     def serialize(self):
         return {
-            'id': str(self.id),
-            'sms_sender': self.sms_sender,
-            'service_id': str(self.service_id),
-            'is_default': self.is_default,
             'archived': self.archived,
-            'inbound_number_id': str(self.inbound_number_id) if self.inbound_number_id else None,
             'created_at': self.created_at.strftime(DATETIME_FORMAT),
-            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            'description': self.description,
+            'id': str(self.id),
+            'inbound_number_id': str(self.inbound_number_id) if self.inbound_number_id else None,
+            'is_default': self.is_default,
+            'provider_id': str(self.provider_id),
             'rate_limit': self.rate_limit if self.rate_limit else None,
             'rate_limit_interval': self.rate_limit_interval if self.rate_limit_interval else None,
+            'service_id': str(self.service_id),
+            'sms_sender': self.sms_sender,
             'sms_sender_specifics': self.sms_sender_specifics,
+            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
         }
 
 

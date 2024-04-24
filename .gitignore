@@ -95,5 +95,5 @@ user_flows_exit_code.txt
 # pdb
 .local/
 
-# Migrations - artifact from running migrations locally
+# Ignore newly generated migrations that retain the default name.
 migrations/versions/*_.py

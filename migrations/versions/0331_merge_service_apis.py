@@ -1,10 +1,9 @@
 """
-
 Revision ID: 0331_merge_service_apis
 Revises: 0330a_grant_edit_templates
 Create Date: 2021-07-01
-
 """
+
 import json
 
 from alembic import op
@@ -25,6 +24,9 @@ def upgrade():
         'INSERT INTO service_callback_api (id, service_id, url, bearer_token, created_at, updated_at, updated_by_id, version, callback_type, notification_statuses)'
         'SELECT id, service_id, url, bearer_token, created_at, updated_at, updated_by_id, version, \'inbound_sms\', \'{}\' FROM service_inbound_api'))
 
+    op.drop_index('ix_service_inbound_api_service_id', table_name='service_inbound_api', if_exists=True)
+    op.drop_index('ix_service_inbound_api_updated_by_id', table_name='service_inbound_api', if_exists=True)
+    op.drop_table('service_inbound_api')
 
     op.rename_table('service_callback_api', 'service_callback')
 
