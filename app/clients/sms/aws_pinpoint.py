@@ -24,7 +24,7 @@ class AwsPinpointClient(SmsClient):
         return self.name
 
     def send_sms(self, to, content, reference, multi=True, sender=None):
-        pool_id = self.current_app.config["AWS_PINPOINT_POOL_ID"]
+        pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         messageType = "TRANSACTIONAL"
         matched = False
 
