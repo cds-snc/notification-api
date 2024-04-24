@@ -702,7 +702,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
             )
         if any(recipient_csv.rows_with_combined_variable_content_too_long):
             raise BadRequestError(
-                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index} - Contains custom content that exceeds the {SMS_CHAR_COUNT_LIMIT} character limit when combined with your template's content.",
+                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index + 1} - has a character count greater than {SMS_CHAR_COUNT_LIMIT} characters. Some messages may be too long due to custom content.",
                 status_code=400,
             )
 
