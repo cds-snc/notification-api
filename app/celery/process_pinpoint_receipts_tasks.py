@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal, Union
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
@@ -115,8 +116,19 @@ def process_pinpoint_results(self, response):
         self.retry(queue=QueueNames.RETRY)
 
 
-def determine_pinpoint_status(sns_status, provider_response):
-    if sns_status == "DELIVERED":
+def determine_pinpoint_status(
+    status: str, provider_response: str) -> Union[str, None]:
+    """Determine the notification status based on the SMS status and provider response.
+
+    Args:
+        status (str): message status from AWS
+        provider_response (str): detailed status from the SMS provider
+
+    Returns:
+        Union[str, None]: the notification status or None if the status is not handled
+    """
+    
+    if status == "DELIVERED":
         return NOTIFICATION_DELIVERED
 
     # See all the possible provider responses
@@ -136,10 +148,10 @@ def determine_pinpoint_status(sns_status, provider_response):
         "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
     }
 
-    status = reasons.get(provider_response)  # could be None
-    if not status:
+    notification_status = reasons.get(provider_response)  # could be None
+    if not notification_status:
         # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
         if "is opted out" in provider_response:
             return NOTIFICATION_PERMANENT_FAILURE
 
-    return status
+    return notification_status
