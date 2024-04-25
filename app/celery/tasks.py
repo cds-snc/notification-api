@@ -246,10 +246,19 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         reply_to_text = ""  # type: ignore
         if sender_id:
             reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+            current_app.logger.info(
+                f"notification {notification_id} setting reply_to_text to {reply_to_text} using sender_id {sender_id}"
+            )
         elif template.service:
             reply_to_text = template.get_reply_to_text()
+            current_app.logger.info(
+                f"notification {notification_id} setting reply_to_text to {reply_to_text} using template {template.id}"
+            )
         else:
             reply_to_text = service.get_default_sms_sender()  # type: ignore
+            current_app.logger.info(
+                f"notification {notification_id} setting reply_to_text to {reply_to_text} using service {service.id}"
+            )
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
