@@ -148,8 +148,8 @@ def get_notification_status(
     record_status: str,
     reference: str,
 ) -> str:
-    if event_type == '_SMS.OPTOUT':
-        current_app.logger.info('event type is OPTOUT for notification with reference %s', reference)
+    if event_type in ('_SMS.OPTED_OUT', '_SMS.OPTOUT'):
+        current_app.logger.info('event type is OPTED_OUT for notification with reference %s', reference)
         statsd_client.incr('callback.pinpoint.optout')
         notification_status = NOTIFICATION_PERMANENT_FAILURE
     else:
