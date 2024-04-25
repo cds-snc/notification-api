@@ -136,17 +136,26 @@ def determine_pinpoint_status(
     reasons = {
         "Blocked as spam by phone carrier": NOTIFICATION_TECHNICAL_FAILURE,
         "Destination is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
-        "Invalid phone number": NOTIFICATION_TECHNICAL_FAILURE,
-        "Message body is invalid": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone carrier has blocked this message": NOTIFICATION_TECHNICAL_FAILURE,
-        "Phone carrier is currently unreachable/unavailable": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone has blocked SMS": NOTIFICATION_TECHNICAL_FAILURE,
         "Phone is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
+        
+        "Invalid phone number": NOTIFICATION_TECHNICAL_FAILURE,
+        "Message body is invalid": NOTIFICATION_TECHNICAL_FAILURE,
+        
+        "Phone carrier is currently unreachable/unavailable": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
         "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
         "This delivery would exceed max price": NOTIFICATION_TECHNICAL_FAILURE,
         "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
     }
+
+    match provider_response.lower().split():
+        case [_, "blocked", _]:
+            return NOTIFICATION_TECHNICAL_FAILURE
+        case [_, "invalid", _]:
+            return NOTIFICATION_TECHNICAL_FAILURE
+        
 
     notification_status = reasons.get(provider_response)  # could be None
     if not notification_status:
