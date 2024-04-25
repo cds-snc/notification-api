@@ -7,6 +7,7 @@ from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
+from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
@@ -699,6 +700,12 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"You cannot send to these recipients {explanation}",
                 status_code=400,
             )
+        if any(recipient_csv.rows_with_combined_variable_content_too_long):
+            raise BadRequestError(
+                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index + 1} - has a character count greater than {SMS_CHAR_COUNT_LIMIT} characters. Some messages may be too long due to custom content.",
+                status_code=400,
+            )
+
         if recipient_csv.rows_with_errors:
 
             def row_error(row):
