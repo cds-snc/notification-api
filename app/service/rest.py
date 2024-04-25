@@ -5,8 +5,10 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
     near_daily_limit_cache_key,
+    near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
+    over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
 from notifications_utils.letter_timings import letter_can_be_cancelled
@@ -207,13 +209,15 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    data = dao_fetch_live_services_data()
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
+    data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
     return jsonify(data=data)
 
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    return jsonify(data=fetch_delivered_notification_stats_by_month())
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
+    return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["GET"])
@@ -303,6 +307,8 @@ def update_service(service_id):
         redis_store.delete(daily_limit_cache_key(service_id))
         redis_store.delete(near_daily_limit_cache_key(service_id))
         redis_store.delete(over_daily_limit_cache_key(service_id))
+        redis_store.delete(near_email_daily_limit_cache_key(service_id))
+        redis_store.delete(over_email_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_message_limit_changed(service_id, current_data)
     if sms_limit_changed:
@@ -338,9 +344,7 @@ def update_service(service_id):
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-        if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),

@@ -7,6 +7,7 @@ from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
+from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
@@ -61,6 +62,7 @@ from app.models import (
     Notification,
     NotificationType,
     Service,
+    TemplateType,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -222,7 +224,10 @@ def post_bulk():
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_daily_limit(authenticated_service, len(list(recipient_csv.get_rows())))
-        increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
+
+        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+            increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
         # calculate the number of simulated recipients
@@ -238,8 +243,8 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or len(list(recipient_csv.get_rows())) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, recipient_csv.sms_fragment_count)
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+            check_sms_daily_limit(authenticated_service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -296,7 +301,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, template_with_content.fragment_count)
+            check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -327,7 +332,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -667,16 +672,17 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
-        if recipient_csv.more_sms_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
-                status_code=400,
-            )
         if recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                status_code=400,
-            )
+            if recipient_csv.template_type == SMS_TYPE:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
+                    status_code=400,
+                )
+            else:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                    status_code=400,
+                )
 
         if recipient_csv.too_many_rows:
             raise BadRequestError(
@@ -694,6 +700,12 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"You cannot send to these recipients {explanation}",
                 status_code=400,
             )
+        if any(recipient_csv.rows_with_combined_variable_content_too_long):
+            raise BadRequestError(
+                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index + 1} - has a character count greater than {SMS_CHAR_COUNT_LIMIT} characters. Some messages may be too long due to custom content.",
+                status_code=400,
+            )
+
         if recipient_csv.rows_with_errors:
 
             def row_error(row):

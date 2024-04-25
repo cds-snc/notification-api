@@ -25,7 +25,7 @@ freeze-requirements:
 
 .PHONY: test-requirements
 test-requirements:
-	poetry lock --check
+	poetry check --lock
 
 .PHONY: coverage
 coverage: venv ## Create coverage report
@@ -48,23 +48,19 @@ smoke-test:
 
 .PHONY: run
 run: ## Run the web app
-	flask run -p 6011 --host=0.0.0.0
+	poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
 run-celery-local: ## Run the celery workers with all the queues
-	./scripts/run_celery_local.sh
+	poetry run ./scripts/run_celery_local.sh
 
 .PHONY: run-celery-local-filtered
 run-celery-local-filtered: ## Run the celery workers with all queues but filter out common scheduled tasks
-	./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -Ev 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
-
-.PHONY: run-celery-beat-local
-run-celery-beat-local: ## Run the celery beat
-	./scripts/run_celery_beat_local.sh
+	poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
-	./scripts/run_celery_purge.sh
+	poetry run ./scripts/run_celery_purge.sh
 
 .PHONY: run-db
 run-db: ## psql to access dev database

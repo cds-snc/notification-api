@@ -78,7 +78,6 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import check_service_over_daily_message_limit
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template
 from app.v2.errors import (
@@ -277,12 +276,12 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.logger.debug(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
             acknowledge_receipt(SMS_TYPE, process_type, receipt)
-            current_app.logger.info(
+            current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
@@ -297,11 +296,9 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
-    current_app.logger.info(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
+    current_app.logger.debug(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
@@ -383,7 +380,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.info(
+        current_app.logger.debug(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
@@ -392,7 +389,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             # at this point in the code we have a list of notifications (saved_notifications)
             # which could use multiple templates
             acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
-            current_app.logger.info(
+            current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
             )
         else:
@@ -415,7 +412,7 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     Loop through saved_notifications, check if the service has hit their daily rate limit,
     and if not, call send_notification_to_queue on notification
     """
-    current_app.logger.info(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+    current_app.logger.debug(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
     # todo: fix this potential bug
     # service is whatever it was set to last in the for loop above.
     # at this point in the code we have a list of notifications (saved_notifications)
@@ -423,8 +420,6 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
@@ -785,7 +780,7 @@ def acknowledge_receipt(notification_type: Any, process_type: Any, receipt: UUID
     ):
         return
     else:
-        current_app.logger.error(f"acknowledge_receipt: receipt {receipt} not found in any queue")
+        current_app.logger.warning(f"acknowledge_receipt: receipt {receipt} not found in any queue")
 
 
 @notify_celery.task(name="seed-bounce-rate-in-redis")

@@ -9,7 +9,7 @@ from alembic import op
 from flask import current_app
 
 revision = "0441_add_apikey_revoke_email"
-down_revision = "0440_add_index_n_history_comp"
+down_revision = "0440_add_index_n_history_2"
 
 apikey_revoke_template_id = current_app.config["APIKEY_REVOKE_TEMPLATE_ID"]
 
