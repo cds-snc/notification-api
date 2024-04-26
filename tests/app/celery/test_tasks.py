@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import Mock, call
 
 import pytest
 import requests_mock
@@ -891,10 +891,9 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
-        template.__len__.return_value = 1
 
         process_rows(
             [
@@ -951,11 +950,10 @@ class TestProcessRows:
     ):
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
-        template = MagicMock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
+        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
-        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -996,11 +994,10 @@ class TestProcessRows:
     ):
         mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
 
-        template = MagicMock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
-        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -1069,8 +1066,7 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
-        template.__len__.return_value = 1
+        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
         api_key = {}
         job = Mock(
             id="job_id",
