@@ -234,7 +234,7 @@ def post_bulk():
             default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
             default_sender = default_senders[0] if default_senders else None
             form["validated_sender_id"] = default_sender.id
-        
+
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
