@@ -229,6 +229,12 @@ def post_bulk():
             increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        if form["validated_sender_id"] is None:
+            default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
+            default_sender = default_senders[0] if default_senders else None
+            form["validated_sender_id"] = default_sender.id
+        
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
