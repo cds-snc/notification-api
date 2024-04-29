@@ -1,14 +1,18 @@
 import argparse
-from enum import Enum
-import os
-from typing import Any, Iterator, List, Tuple
-import requests
-from datetime import datetime
-from dotenv import load_dotenv
 import time
-from smoke.common import Config, Notification_type, pretty_print, rows_to_csv, job_line
- 
-NUM_PER_BULK_JOB = 50000
+from datetime import datetime
+
+import requests
+from dotenv import load_dotenv
+from smoke.common import (  # type: ignore
+    Config,
+    Notification_type,
+    job_line,
+    pretty_print,
+    rows_to_csv,
+)
+
+DEFAULT_JOB_SIZE = 50000
 
 
 def send_bulk_job(notification_type: Notification_type, job_size: int):
@@ -39,14 +43,14 @@ def send_bulk_job(notification_type: Notification_type, job_size: int):
 
 
 def main():
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--notifications", default=1, type=int, help="total number of notifications")
-    parser.add_argument("-j", "--job_size", default=50000, type=int, help="size of bulk send jobs (default 25000)")
+    parser.add_argument("-j", "--job_size", default=DEFAULT_JOB_SIZE, type=int, help=f"size of bulk send jobs (default {DEFAULT_JOB_SIZE})")
     parser.add_argument("--sms", default=False, action='store_true', help="send sms instead of emails")
 
     args = parser.parse_args()
     load_dotenv()
-    
+
     notification_type = Notification_type.SMS if args.sms else Notification_type.EMAIL
     for start_n in range(0, args.notifications, args.job_size):
         num_sending = min(args.notifications - start_n, args.job_size)
