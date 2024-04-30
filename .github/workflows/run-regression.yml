@@ -1,22 +1,26 @@
 name: Call Notification API QA Regression Tests
+# Note:
+# The notification-api-qa repo has a workflow that controls which regression is run for which environment.
+#   For dev, perf and staging, the full regression is run.
+#   For prod, only a smoke test is run.
+# Changes to which type of testing is done thus must be made in that repository.
 
 on: 
   workflow_call:
     inputs:
       environment:
-        description: 'Notification-api deployment environment to test (dev|perf|staging)'
+        description: 'Notification-api deployment environment to test (dev|perf|staging|prod)'
         required: true
         type: string
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Notification-api deployment environment to test (dev|perf|staging)'
+        description: 'Notification-api deployment environment to test (dev|perf|staging|prod)'
         required: true
         type: string
 
 jobs:
   trigger-regression-tests:
-    if: ${{ (inputs.environment == 'dev') || (inputs.environment == 'perf') || (inputs.environment == 'staging') }}
     name: "Run regression for ${{ inputs.environment }}"
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}

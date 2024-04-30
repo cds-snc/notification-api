@@ -88,7 +88,6 @@ jobs:
 
   run-qa-suite:
     needs: [run-deployment]
-    if: ${{ (inputs.environment == 'perf') || (inputs.environment == 'staging') || (inputs.environment == 'dev') }}
     uses: ./.github/workflows/run-regression.yml
     with:
       environment: "${{ inputs.environment }}"
