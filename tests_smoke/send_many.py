@@ -24,11 +24,11 @@ def send_admin_csv(notification_type: Notification_type, job_size: int):
         notification_type (Notification_type): email or sms
         job_size (int): number of notifications to send
     """
-    
+
     template_id = Config.EMAIL_TEMPLATE_ID if notification_type == Notification_type.EMAIL else Config.SMS_TEMPLATE_ID
     to = Config.EMAIL_TO if notification_type == Notification_type.EMAIL else Config.SMS_TO
     header = "email address" if notification_type == Notification_type.EMAIL else "phone number"
-    
+
     csv = rows_to_csv([[header, "var"], *job_line(to, job_size)])
     upload_id = s3upload(Config.SERVICE_ID, csv)
     metadata_kwargs = {
