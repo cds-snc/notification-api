@@ -169,8 +169,8 @@ def create_job(service_id):
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
         default_senders = [x for x in service.service_sms_senders if x.is_default]
-        default_sender = default_senders[0] if default_senders else None
-        data["sender_id"] = data.get("sender_id", default_sender.id)
+        default_sender_id = default_senders[0].id if default_senders else None
+        data["sender_id"] = data.get("sender_id", default_sender_id)
 
         # calculate the number of simulated recipients
         numberOfSimulated = sum(simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows)
