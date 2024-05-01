@@ -80,7 +80,7 @@ def validate_twilio_event(event: dict) -> bool:
         params = {k: v[0] for k, v in sorted(params.items())}
         return validator.validate(uri=uri, params=params, signature=signature)
     except Exception as e:
-        logger.error('Error validating request origin: %s', e)
+        logger.error('Error validating request origin: %s - Event: %s', e, event)
         return False
 
 
