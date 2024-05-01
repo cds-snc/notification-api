@@ -232,8 +232,8 @@ def post_bulk():
         # set sender_id if missing
         if form["validated_sender_id"] is None:
             default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
-            default_sender = default_senders[0] if default_senders else None
-            form["validated_sender_id"] = default_sender.id
+            default_sender_id = default_senders[0].id if default_senders else None
+            form["validated_sender_id"] = default_sender_id
 
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
