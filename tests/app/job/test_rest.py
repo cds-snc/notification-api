@@ -8,12 +8,14 @@ from freezegun import freeze_time
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES
+from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
 from tests import create_authorization_header
 from tests.app.db import (
     create_ft_notification_status,
     create_job,
     create_notification,
+    create_service_with_inbound_number,
+    create_template,
     save_notification,
 )
 from tests.conftest import set_config
@@ -261,6 +263,39 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
     assert resp_json["data"]["sender_id"] == fake_uuid
 
     app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
+
+
+def test_create_job_sets_sender_id_from_database(client, mocker, fake_uuid, sample_user):
+    service = create_service_with_inbound_number(inbound_number="12345")
+    template = create_template(service=service)
+    sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
+
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": str(template.id),
+            "original_file_name": "thisisatest.csv",
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
+    data = {
+        "id": fake_uuid,
+        "created_by": str(template.created_by.id),
+    }
+    path = "/service/{}/job".format(service.id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+    resp_json = json.loads(response.get_data(as_text=True))
+
+    assert resp_json["data"]["sender_id"] == str(sms_sender.id)
 
 
 @freeze_time("2016-01-01 12:00:00.000000")
