@@ -26,6 +26,7 @@ from app.models import (
     ApiKey,
     Notification,
     ScheduledNotification,
+    ServiceSmsSender,
 )
 from app.schema_validation import validate
 from app.utils import get_document_url
@@ -2489,6 +2490,33 @@ class TestBulkSend:
                 "sender_id": str(reply_to_email.id) if use_sender_id else None,
             }
         }
+
+    def test_post_bulk_sms_sets_sender_id_from_database(
+        self,
+        client,
+        mocker,
+        notify_user,
+        notify_api,
+    ):
+        service = create_service_with_inbound_number(inbound_number="12345")
+        template = create_template(service=service)
+        sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
+        data = {"name": "job_name", "template_id": template.id, "rows": [["phone number"], ["6135550111"]]}
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+        mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+
+        client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                create_authorization_header(service_id=service.id),
+            ],
+        )
+
+        job = dao_get_job_by_id(job_id)
+        assert job.sender_id == sms_sender.id
 
     def test_post_bulk_with_too_large_sms_fails(self, client, notify_db, notify_db_session, mocker):
         mocker.patch("app.sms_normal_publish.publish")
