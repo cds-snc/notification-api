@@ -17,78 +17,7 @@ Contains:
 For any issues during the following instructions, make sure to review the
 **Frequent problems** section toward the end of the document.
 
-### Local installation instruction
-
-#### On OS X:
-
-1. Install PyEnv with Homebrew. This will preserve your sanity.
-
-`brew install pyenv`
-
-2. Install Python 3.10.8 or whatever is the latest
-
-`pyenv install 3.10.8`
-
-3. If you expect no conflicts, set `3.10.8` as you default
-
-`pyenv global 3.10.8`
-
-4. Ensure it installed by running
-
-`python --version`
-
-if it did not, take a look here: https://github.com/pyenv/pyenv/issues/660
-
-5. Install `poetry`:
-
-`pip install poetry==1.3.2`
-
-6. Restart your terminal and make your virtual environtment:
-
-`poetry env use $(which python)`
-
-8. Verify that the environment was created and activated by poetry
-
-`poetry env list`
-
-9. Install [Postgres.app](http://postgresapp.com/).
-
-10. Create the database for the application
-
-`createdb --user=postgres notification_api`
-
-11. Install the required environment variables via our LastPast Vault
-
-Within the team's *LastPass Vault*, you should find corresponding folders for this
-project containing the `.env` content that you should copy in your project root folder. This
-will grant the application necessary access to our internal infrastructure.
-
-If you don't have access to our *LastPass Vault* (as you evaluate our notification
-platform for example), you will find a sane set of defaults exists in the `.env.example`
-file. Copy that file to `.env` and customize it to your needs.
-
-12. Install all dependencies
-
-`poetry install`
-
-1.  Generate the version file ?!?
-
-`make generate-version-file`
-
-14. Run all DB migrations
-
-`flask db upgrade`
-
-15. Run the service
-
-`make run`
-
-15a. To test
-
-`poetry install --with test`
-
-`make test`
-
+### Local installation instruction (Use Dev Containers)
 #### In a [VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers-tutorial)
 
 1. Install VS Code
@@ -109,17 +38,8 @@ file. Copy that file to `.env` and customize it to your needs.
 
 
 ##  To run the queues
-```
-scripts/run_celery.sh
-```
 
-```
-scripts/run_celery_sms.sh
-```
-
-```
-scripts/run_celery_beat.sh
-```
+Run `make run-celery-local` or `make run-celery-local-filtered`. Note that the "filtered" option does not show the beat worker logs nor most scheduled tasks (this makes it easier to trace notification sending).
 
 ### Python version
 
@@ -179,7 +99,7 @@ To help debug full code paths of emails and SMS, we have a special email and pho
 set in the application's configuration. As it stands at the moment these are the following:
 
 | Notification Type | Test destination         |
-|-------------------|--------------------------|
+| ----------------- | ------------------------ |
 | Email             | internal.test@cds-snc.ca |
 | SMS               | +16135550123             |
 

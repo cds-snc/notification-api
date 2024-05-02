@@ -30,6 +30,7 @@ var/
 /cache
 newrelic-layer.zip
 smoketest.sh
+smoketest-prod.sh
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -71,10 +72,9 @@ target/
 # Mac
 *.DS_Store
 environment.sh
-.envrc
-.env
-.env_*
-.env.lambda
+.env*
+!.env.devcontainer
+!.env.example
 
 celerybeat-schedule
 celerybeat-schedule.*

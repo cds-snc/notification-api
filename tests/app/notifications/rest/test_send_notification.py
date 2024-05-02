@@ -28,7 +28,11 @@ from app.models import (
     Template,
 )
 from app.utils import get_document_url
-from app.v2.errors import RateLimitError, TooManyRequestsError
+from app.v2.errors import (
+    RateLimitError,
+    TooManyRequestsError,
+    TrialServiceTooManyEmailRequestsError,
+)
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_api_key,
@@ -132,7 +136,7 @@ def test_send_notification_with_placeholders_replaced(notify_api, sample_email_t
             notification_id = response_data["notification"]["id"]
             data.update({"template_version": sample_email_template_with_placeholders.version})
 
-            mocked.assert_called_once_with([notification_id], queue="send-email-tasks")
+            mocked.assert_called_once_with([notification_id], queue=QueueNames.SEND_EMAIL_MEDIUM)
             assert response.status_code == 201
             assert response_data["body"] == "Hello Jo\nThis is an email from GOV.UK"
             assert response_data["subject"] == "Jo"
@@ -370,7 +374,7 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
             response_data = json.loads(response.get_data(as_text=True))["data"]
             notification_id = response_data["notification"]["id"]
             app.celery.provider_tasks.deliver_email.apply_async.assert_called_once_with(
-                [notification_id], queue="send-email-tasks"
+                [notification_id], queue=QueueNames.SEND_EMAIL_MEDIUM
             )
 
             assert response.status_code == 201
@@ -385,7 +389,7 @@ def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, not
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
+                "app.notifications.validators.check_service_over_api_rate_limit_and_update_rate",
                 side_effect=TooManyRequestsError(1),
             )
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -417,13 +421,14 @@ def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, not
 def test_should_block_api_call_if_over_day_limit_for_restricted_service(notify_db, notify_db_session, notify_api, mocker):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
-            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
-                side_effect=TooManyRequestsError(1),
+                "app.notifications.validators.check_email_daily_limit",
+                side_effect=TrialServiceTooManyEmailRequestsError(1),
             )
 
             service = create_sample_service(notify_db, notify_db_session, limit=1, restricted=True)
+            create_sample_service_safelist(notify_db, notify_db_session, service=service, email_address="ok@ok.com")
             email_template = create_sample_email_template(notify_db, notify_db_session, service=service)
             create_sample_notification(
                 notify_db,
@@ -461,7 +466,7 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
             sms_template = create_sample_template(notify_db, notify_db_session, service=service)
             create_sample_notification(notify_db, notify_db_session, template=email_template, service=service)
 
-            data = {"to": sample_user.mobile_number, "template": str(sms_template.id)}
+            data = {"to": sample_user.mobile_number, "template": str(sms_template.id), "valid": "True"}
 
             auth_header = create_authorization_header(service_id=service.id)
 
@@ -563,7 +568,7 @@ def test_should_send_email_if_team_api_key_and_a_service_user(client, sample_ema
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    app.celery.provider_tasks.deliver_email.apply_async.assert_called_once_with([fake_uuid], queue="send-email-tasks")
+    app.celery.provider_tasks.deliver_email.apply_async.assert_called_once_with([fake_uuid], queue=QueueNames.SEND_EMAIL_MEDIUM)
     assert response.status_code == 201
 
 
@@ -660,7 +665,7 @@ def test_should_send_sms_if_team_api_key_and_a_service_user(client, sample_templ
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, QueueNames.SEND_EMAIL_MEDIUM)],
 )
 def test_should_persist_notification(
     client,
@@ -710,7 +715,7 @@ def test_should_persist_notification(
 
 @pytest.mark.parametrize(
     "template_type,queue_name",
-    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, "send-email-tasks")],
+    [(SMS_TYPE, QueueNames.SEND_SMS_MEDIUM), (EMAIL_TYPE, QueueNames.SEND_EMAIL_MEDIUM)],
 )
 def test_should_delete_notification_and_return_error_if_sqs_fails(
     client,
@@ -1028,7 +1033,7 @@ def test_send_notification_uses_appropriate_queue_when_template_has_process_type
     if notification_type == SMS_TYPE:
         expected_queue = QueueNames.SEND_SMS_HIGH if process_type == "priority" else QueueNames.SEND_SMS_LOW
     else:
-        expected_queue = f"{process_type}-tasks"
+        expected_queue = QueueNames.SEND_EMAIL_HIGH if process_type == "priority" else QueueNames.SEND_EMAIL_LOW
     mocked.assert_called_once_with([notification_id], queue=expected_queue)
 
 

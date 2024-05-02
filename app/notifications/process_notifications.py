@@ -15,6 +15,7 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
@@ -133,6 +134,8 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
+        if api_key_id:
+            update_last_used_api_key(api_key_id, notification_created_at)
     return notification
 
 
@@ -210,7 +213,10 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
-        deliver_task.apply_async([str(notification.id)], queue=notification.queue_name)
+        deliver_task.apply_async(
+            [str(notification.id)],
+            queue=notification.queue_name,
+        )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
@@ -230,7 +236,7 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
     if notification.notification_type == LETTER_TYPE:
         if not queue:
             queue = QueueNames.CREATE_LETTERS_PDF
@@ -264,7 +270,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_EMAIL
+            queue = QueueNames.SEND_EMAIL_MEDIUM
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
         if not queue or queue == QueueNames.NORMAL:
@@ -295,6 +301,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
     """
 
     lofnotifications = []
+    api_key_last_used = None
 
     for notification in notifications:
         notification_created_at = notification.get("created_at") or datetime.utcnow()
@@ -354,7 +361,15 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
                 notification.get("notification_created_at"),  # type: ignore
             )
         )
+        # If the bulk message is sent using an api key, we want to keep track of the last time the api key was used
+        # We will only update the api key once
+        api_key_id = notification.get("api_key_id")
+        if api_key_id:
+            api_key_last_used = datetime.utcnow()
+    if api_key_last_used:
+        update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
+
     return lofnotifications
 
 

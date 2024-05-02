@@ -81,3 +81,26 @@ def get_financial_year_for_datetime(start_date):
 
 def get_midnight(datetime: datetime) -> datetime:
     return datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def tz_aware_utc_now() -> datetime:
+    """
+    Returns a localized, EST/EDT timezone aware, UTC now datetime.
+    Call dst() on the returned object to determine daylight savings status.
+    """
+    return pytz.utc.localize(datetime.utcnow())
+
+
+def tz_aware_midnight_n_days_ago(days_ago: int = 1) -> datetime:
+    """
+    Returns an EST/EDT aware UTC midnight date a number of days ago.
+    """
+    est = pytz.timezone("US/Eastern")
+    return est.localize(tz_aware_utc_now().replace(tzinfo=None) - timedelta(days=days_ago))
+
+
+def utc_midnight_n_days_ago(number_of_days):
+    """
+    Returns utc midnight a number of days ago.
+    """
+    return get_midnight(datetime.utcnow() - timedelta(days=number_of_days))

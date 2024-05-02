@@ -61,6 +61,7 @@ from app.models import (
     Notification,
     NotificationType,
     Service,
+    TemplateType,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
@@ -72,13 +73,15 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.notifications.validators import (
-    check_email_limit_increment_redis_send_warnings_if_needed,
+    check_email_daily_limit,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
-    check_sms_limit_increment_redis_send_warnings_if_needed,
+    check_sms_daily_limit,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
     validate_template_exists,
@@ -159,11 +162,15 @@ def post_bulk():
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     form = validate(request_json, post_bulk_request(max_rows))
@@ -215,9 +222,19 @@ def post_bulk():
             raise BadRequestError(message=message)
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+        check_email_daily_limit(authenticated_service, len(list(recipient_csv.get_rows())))
+        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
+
+        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+            increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        if form["validated_sender_id"] is None:
+            default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
+            default_sender_id = default_senders[0].id if default_senders else None
+            form["validated_sender_id"] = default_sender_id
+
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
@@ -231,7 +248,8 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or len(list(recipient_csv.get_rows())) == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, recipient_csv.sms_fragment_count)
+            check_sms_daily_limit(authenticated_service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -247,6 +265,11 @@ def post_notification(notification_type: NotificationType):
             message="Error decoding arguments: {}".format(e.description),
             status_code=400,
         )
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     if notification_type == EMAIL_TYPE:
         form = validate(request_json, post_email_request)
@@ -257,9 +280,8 @@ def post_notification(notification_type: NotificationType):
     else:
         abort(404)
 
-    bounce_rate_v1 = current_app.config["FF_BOUNCE_RATE_BACKEND"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
-    if bounce_rate_v1 and epoch_seeding_bounce:
+    if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
 
     check_service_has_permission(notification_type, authenticated_service.permissions)
@@ -279,12 +301,12 @@ def post_notification(notification_type: NotificationType):
     )
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        check_email_limit_increment_redis_send_warnings_if_needed(authenticated_service, 1)  # 1 email
+        check_email_daily_limit(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_limit_increment_redis_send_warnings_if_needed(authenticated_service, template_with_content.fragment_count)
+            check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -308,6 +330,14 @@ def post_notification(notification_type: NotificationType):
         )
 
         template_with_content.values = notification.personalisation
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
+
+    if template.template_type == SMS_TYPE:
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
+        if not is_test_notification:
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -647,16 +677,17 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
-        if recipient_csv.more_sms_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining sms message parts before you reach your daily limit. You've tried to send {recipient_csv.sms_fragment_count} message parts.",
-                status_code=400,
-            )
         if recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                status_code=400,
-            )
+            if recipient_csv.template_type == SMS_TYPE:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
+                    status_code=400,
+                )
+            else:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                    status_code=400,
+                )
 
         if recipient_csv.too_many_rows:
             raise BadRequestError(

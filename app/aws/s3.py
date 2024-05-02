@@ -1,11 +1,14 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import List
 
 import botocore
 import pytz
 from boto3 import client, resource
 from flask import current_app
 from notifications_utils.s3 import s3upload as utils_s3upload
+
+from app.models import Job
 
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
 
@@ -60,8 +63,20 @@ def get_job_metadata_from_s3(service_id, job_id):
     return obj.get()["Metadata"]
 
 
-def remove_job_from_s3(service_id, job_id):
-    return remove_s3_object(*get_job_location(service_id, job_id))
+def remove_jobs_from_s3(jobs: List[Job], batch_size=1000):
+    """
+    Remove the files from S3 for the given jobs.
+
+    Args:
+        jobs (List[Job]): The jobs whose files need to be removed from S3.
+        batch_size (int, optional): The number of jobs to process in each boto call. Defaults to the AWS maximum of 1000.
+    """
+
+    bucket = resource("s3").Bucket(current_app.config["CSV_UPLOAD_BUCKET_NAME"])
+
+    for start in range(0, len(jobs), batch_size):
+        object_keys = [FILE_LOCATION_STRUCTURE.format(job.service_id, job.id) for job in jobs[start : start + batch_size]]
+        bucket.delete_objects(Delete={"Objects": [{"Key": key} for key in object_keys]})
 
 
 def get_s3_bucket_objects(bucket_name, subfolder="", older_than=7, limit_days=2):

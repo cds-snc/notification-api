@@ -35,8 +35,10 @@ cd /workspace
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
 echo -e "autoload -Uz compinit && compinit"
 
-pip install poetry==${POETRY_VERSION} \
-  && poetry --version
+pip install poetry==${POETRY_VERSION}
+export PATH=$PATH:/home/vscode/.local/bin/
+which poetry
+poetry --version
 
 # Initialize poetry autocompletions
 mkdir ~/.zfunc

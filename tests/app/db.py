@@ -502,13 +502,15 @@ def create_service_callback_api(
     return service_callback_api
 
 
-def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName"):
+def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName", organisation_id=None):
     data = {
         "colour": colour,
         "logo": logo,
         "name": name,
         "text": text,
     }
+    if organisation_id:
+        data["organisation_id"] = organisation_id
     email_branding = EmailBranding(**data)
     dao_create_email_branding(email_branding)
 
@@ -551,7 +553,7 @@ def create_letter_rate(
     return rate
 
 
-def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
+def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, last_used=None):
     id_ = uuid.uuid4()
 
     name = key_name if key_name else "{} api key {}".format(key_type, id_)
@@ -563,6 +565,7 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
         key_type=key_type,
         id=id_,
         secret=uuid.uuid4(),
+        last_used_timestamp=last_used,
     )
     db.session.add(api_key)
     db.session.commit()

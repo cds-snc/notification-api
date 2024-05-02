@@ -57,7 +57,7 @@ def test_api_one_off(notification_type: Notification_type, attachment_type: Atta
     response = requests.post(
         f"{Config.API_HOST_NAME}/v2/notifications/{notification_type.value}",
         json=data,
-        headers={"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"},
+        headers={"Authorization": f"ApiKey-v1 {Config.API_KEY}"},
     )
     if response.status_code != 201:
         pretty_print(response.json())

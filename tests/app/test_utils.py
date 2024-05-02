@@ -148,9 +148,9 @@ def test_get_limit_reset_time_et():
         (SMS_TYPE, "normal", QueueNames.SEND_SMS_MEDIUM),
         (SMS_TYPE, "priority", QueueNames.SEND_SMS_HIGH),
         (SMS_TYPE, "bulk", QueueNames.SEND_SMS_LOW),
-        (EMAIL_TYPE, "normal", QueueNames.SEND_EMAIL),
-        (EMAIL_TYPE, "priority", QueueNames.PRIORITY),
-        (EMAIL_TYPE, "bulk", QueueNames.BULK),
+        (EMAIL_TYPE, "normal", QueueNames.SEND_EMAIL_MEDIUM),
+        (EMAIL_TYPE, "priority", QueueNames.SEND_EMAIL_HIGH),
+        (EMAIL_TYPE, "bulk", QueueNames.SEND_EMAIL_LOW),
     ],
 )
 def test_get_delivery_queue_for_template(sample_service, template_type, process_type, expected_queue):

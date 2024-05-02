@@ -14,6 +14,10 @@ from boto3 import Session
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
 
+# from app/config.py
+INTERNAL_TEST_NUMBER = "+16135550123"
+INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
+
 load_dotenv()
 
 
@@ -30,8 +34,8 @@ class Config:
     AWS_SECRET_ACCESS_KEY = os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY")
     SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
     USER_ID = os.environ.get("SMOKE_USER_ID")
-    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
-    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
+    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", INTERNAL_TEST_EMAIL_ADDRESS)
+    SMS_TO = os.environ.get("SMOKE_SMS_TO", INTERNAL_TEST_NUMBER)
     EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
@@ -78,7 +82,7 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
             token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
             headers = {"Authorization": f"Bearer {token}"}
         else:
-            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"}
+            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
 
         response = requests.get(
             uri,

@@ -17,7 +17,6 @@ from app.models import (
 )
 from app.notifications.validators import (
     check_email_daily_limit,
-    check_email_limit_increment_redis_send_warnings_if_needed,
     check_reply_to,
     check_service_email_reply_to_id,
     check_service_letter_contact_id,
@@ -26,9 +25,10 @@ from app.notifications.validators import (
     check_service_sms_sender_id,
     check_sms_content_char_count,
     check_sms_daily_limit,
-    check_sms_limit_increment_redis_send_warnings_if_needed,
     check_template_is_active,
     check_template_is_for_notification_type,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     service_can_send_to_recipient,
     validate_and_format_recipient,
 )
@@ -206,22 +206,20 @@ class TestCheckDailySMSEmailLimits:
         self, notify_api, limit_type, template_name, notify_db, notify_db_session, mocker
     ):
         with freeze_time("2016-01-01 12:00:00.000000"):
-            redis_get = mocker.patch("app.redis_store.get", side_effect=[4, 4, 4, None])
+            redis_get = mocker.patch("app.redis_store.get", side_effect=[4, 4, None])
             send_notification = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
             service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=5, sms_limit=5)
             template = create_sample_template(notify_db, notify_db_session, service=service, template_type=limit_type)
-            for x in range(4):
+            for x in range(5):
                 create_sample_notification(notify_db, notify_db_session, service=service, template=template)
 
             if limit_type == "sms":
-                check_sms_limit_increment_redis_send_warnings_if_needed(service)
+                increment_sms_daily_count_send_warnings_if_needed(service)
             else:
-                with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    check_email_limit_increment_redis_send_warnings_if_needed(service)
+                increment_email_daily_count_send_warnings_if_needed(service)
 
             assert redis_get.call_args_list == [
-                call(count_key(limit_type, service.id)),
                 call(count_key(limit_type, service.id)),
                 call(count_key(limit_type, service.id)),
                 call(near_key(limit_type, service.id)),
@@ -233,6 +231,10 @@ class TestCheckDailySMSEmailLimits:
                 personalisation={
                     "service_name": service.name,
                     "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+                    "count_en": "4",
+                    "count_fr": "4",
+                    "remaining_en": "1",
+                    "remaining_fr": "1",
                     "message_limit_en": "5",
                     "message_limit_fr": "5",
                     **kwargs,
@@ -287,8 +289,7 @@ class TestCheckDailySMSEmailLimits:
             assert e.value.fields == []
 
             with pytest.raises(TooManyEmailRequestsError) as e:
-                with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-                    check_email_daily_limit(service)
+                check_email_daily_limit(service)
             assert e.value.status_code == 429
             assert e.value.message == "Exceeded email daily sending limit of 4 messages"
             assert e.value.fields == []
@@ -347,8 +348,8 @@ class TestCheckDailySMSEmailLimits:
 
         # When
         service = create_sample_service(notify_db, notify_db_session, restricted=True, limit=4, sms_limit=4)
-        with set_config(notify_api, "FF_EMAIL_DAILY_LIMIT", True):
-            check_email_daily_limit(service)
+        check_email_daily_limit(service)
+
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
 
