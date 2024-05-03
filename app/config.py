@@ -388,7 +388,7 @@ class Config(object):
     VA_ONSITE_URL = os.environ.get('VA_ONSITE_URL', 'https://staging-api.va.gov')
     VA_ONSITE_SECRET = os.environ.get('VA_ONSITE_SECRET', '')
 
-    VETEXT_URL = os.environ.get('VETEXT_URL', 'https://staging.api.vetext.va.gov/api/vetext/pub')
+    VETEXT_URL = os.environ.get('VETEXT_URL', 'https://alb.staging.api.vetext.va.gov/api/vetext/pub')
     VETEXT_USERNAME = os.environ.get('VETEXT_USERNAME', '')
     VETEXT_PASSWORD = os.environ.get('VETEXT_PASSWORD', '')
 
