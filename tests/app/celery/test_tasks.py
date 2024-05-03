@@ -1158,7 +1158,7 @@ class TestSaveSmss:
             notification["sender_id"] = sender_id
 
         sms_sender = ServiceSmsSender()
-        sms_sender.sms_sender = "+16502532222"
+        sms_sender.sms_sender = "6135550123"
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
@@ -1195,6 +1195,8 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
+        assert persisted_notification.reply_to_text == (f"+1{sms_sender.sms_sender}" if sender_id else None)
+
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
         )
