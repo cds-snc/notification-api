@@ -2444,7 +2444,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.2.2"
+version = "52.2.3"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.10.9"
@@ -2479,8 +2479,8 @@ werkzeug = "2.3.7"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.2.2"
-resolved_reference = "578b4147fe6c7a8f89241649b763f94ef24b2ad4"
+reference = "reinstate-bulk-sms-limit"
+resolved_reference = "b89daceb96065599f7f6b689b91cfd88dad93aa9"
 
 [[package]]
 name = "ordered-set"
@@ -4255,4 +4255,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "94cd1ef6449c0b8e8dc6d90152b64b6295aa6123b5d78ceb414eb1e139110462"
+content-hash = "8ce59848a30301161a85fcaefd46c576ef5d6a51f4658b2db1e4a817c6d38f7b"
