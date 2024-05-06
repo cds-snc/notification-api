@@ -2,7 +2,6 @@ from time import monotonic
 
 import boto3
 import phonenumbers
-from botocore.exceptions import ClientError
 
 from app.clients.sms import SmsClient
 
