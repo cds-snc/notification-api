@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Union
+from typing import Union
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
@@ -116,8 +116,7 @@ def process_pinpoint_results(self, response):
         self.retry(queue=QueueNames.RETRY)
 
 
-def determine_pinpoint_status(
-    status: str, provider_response: str) -> Union[str, None]:
+def determine_pinpoint_status(status: str, provider_response: str) -> Union[str, None]:
     """Determine the notification status based on the SMS status and provider response.
 
     Args:
@@ -127,7 +126,7 @@ def determine_pinpoint_status(
     Returns:
         Union[str, None]: the notification status or None if the status is not handled
     """
-    
+
     if status == "DELIVERED":
         return NOTIFICATION_DELIVERED
 
@@ -142,10 +141,10 @@ def determine_pinpoint_status(
         case response_lower if "unknown error" in response_lower:
             return NOTIFICATION_TECHNICAL_FAILURE
         case response_lower if "exceed max price" in response_lower:
-            return NOTIFICATION_TECHNICAL_FAILURE     
+            return NOTIFICATION_TECHNICAL_FAILURE
         case "Phone carrier is currently unreachable/unavailable":
             return NOTIFICATION_TEMPORARY_FAILURE
         case "Phone is currently unreachable/unavailable":
             return NOTIFICATION_PERMANENT_FAILURE
-        case _:
-            return None
+
+    return None
