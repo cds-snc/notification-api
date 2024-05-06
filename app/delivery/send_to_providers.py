@@ -361,12 +361,16 @@ def get_html_email_options(service: Service):
                 "fip_banner_english": False,
                 "fip_banner_french": True,
                 "logo_with_background_colour": False,
+                "alt_text_en": None,
+                "alt_text_fr": None,
             }
         else:
             return {
                 "fip_banner_english": True,
                 "fip_banner_french": False,
                 "logo_with_background_colour": False,
+                "alt_text_en": None,
+                "alt_text_fr": None,
             }
 
     logo_url = get_logo_url(service.email_branding.logo) if service.email_branding.logo else None
@@ -379,6 +383,8 @@ def get_html_email_options(service: Service):
         "brand_logo": logo_url,
         "brand_text": service.email_branding.text,
         "brand_name": service.email_branding.name,
+        "alt_text_en": service.email_branding.alt_text_en,
+        "alt_text_fr": service.email_branding.alt_text_fr,
     }
 
 

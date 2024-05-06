@@ -500,6 +500,8 @@ def send_branding_request(user_id):
             organisation_id=data["organisation_id"],
             department_org_name=data["organisation_name"],
             branding_url=get_logo_url(data["filename"]),
+            alt_text_en=data["alt_text_en"],
+            alt_text_fr=data["alt_text_fr"],
         )
         contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 

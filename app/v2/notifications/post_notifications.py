@@ -7,7 +7,6 @@ from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
@@ -230,6 +229,12 @@ def post_bulk():
             increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
 
     if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        if form["validated_sender_id"] is None:
+            default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
+            default_sender_id = default_senders[0].id if default_senders else None
+            form["validated_sender_id"] = default_sender_id
+
         # calculate the number of simulated recipients
         numberOfSimulated = sum(
             simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
@@ -700,12 +705,6 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"You cannot send to these recipients {explanation}",
                 status_code=400,
             )
-        if any(recipient_csv.rows_with_combined_variable_content_too_long):
-            raise BadRequestError(
-                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index + 1} - has a character count greater than {SMS_CHAR_COUNT_LIMIT} characters. Some messages may be too long due to custom content.",
-                status_code=400,
-            )
-
         if recipient_csv.rows_with_errors:
 
             def row_error(row):
