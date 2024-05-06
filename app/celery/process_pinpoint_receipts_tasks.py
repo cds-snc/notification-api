@@ -115,6 +115,8 @@ def process_pinpoint_results(self, response):
         current_app.logger.exception(f"Error processing Pinpoint results: {str(e)}")
         self.retry(queue=QueueNames.RETRY)
 
+    return
+
 
 def determine_pinpoint_status(status: str, provider_response: str) -> Union[str, None]:
     """Determine the notification status based on the SMS status and provider response.
