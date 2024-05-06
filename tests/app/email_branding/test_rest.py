@@ -78,6 +78,8 @@ def test_post_create_email_branding(admin_request, notify_db_session):
         "colour": "#0000ff",
         "logo": "/images/test_x2.png",
         "brand_type": BRANDING_ORG_NEW,
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour le monde",
     }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
     assert data["name"] == response["data"]["name"]
@@ -85,6 +87,8 @@ def test_post_create_email_branding(admin_request, notify_db_session):
     assert data["logo"] == response["data"]["logo"]
     assert data["name"] == response["data"]["text"]
     assert data["brand_type"] == response["data"]["brand_type"]
+    assert data["alt_text_en"] == response["data"]["alt_text_en"]
+    assert data["alt_text_fr"] == response["data"]["alt_text_fr"]
 
 
 def test_post_create_email_branding_without_brand_type_defaults(admin_request, notify_db_session):
@@ -92,16 +96,15 @@ def test_post_create_email_branding_without_brand_type_defaults(admin_request, n
         "name": "test email_branding",
         "colour": "#0000ff",
         "logo": "/images/test_x2.png",
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour le monde",
     }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
     assert BRANDING_ORG_NEW == response["data"]["brand_type"]
 
 
 def test_post_create_email_branding_without_logo_is_ok(admin_request, notify_db_session):
-    data = {
-        "name": "test email_branding",
-        "colour": "#0000ff",
-    }
+    data = {"name": "test email_branding", "colour": "#0000ff", "alt_text_en": "hello", "alt_text_fr": "bonjour"}
     response = admin_request.post(
         "email_branding.create_email_branding",
         _data=data,
@@ -111,13 +114,15 @@ def test_post_create_email_branding_without_logo_is_ok(admin_request, notify_db_
 
 
 def test_post_create_email_branding_colour_is_valid(admin_request, notify_db_session):
-    data = {"logo": "images/text_x2.png", "name": "test branding"}
+    data = {"logo": "images/text_x2.png", "name": "test branding", "alt_text_en": "hello", "alt_text_fr": "bonjour"}
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
     assert response["data"]["logo"] == data["logo"]
     assert response["data"]["name"] == "test branding"
     assert response["data"]["colour"] is None
     assert response["data"]["text"] == "test branding"
+    assert response["data"]["alt_text_en"] == "hello"
+    assert response["data"]["alt_text_fr"] == "bonjour"
 
 
 def test_post_create_email_branding_with_text(admin_request, notify_db_session):
@@ -125,6 +130,8 @@ def test_post_create_email_branding_with_text(admin_request, notify_db_session):
         "text": "text for brand",
         "logo": "images/text_x2.png",
         "name": "test branding",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
     }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
@@ -132,6 +139,8 @@ def test_post_create_email_branding_with_text(admin_request, notify_db_session):
     assert response["data"]["name"] == "test branding"
     assert response["data"]["colour"] is None
     assert response["data"]["text"] == "text for brand"
+    assert response["data"]["alt_text_en"] == "hello"
+    assert response["data"]["alt_text_fr"] == "bonjour"
 
 
 def test_post_create_email_branding_with_text_and_name(admin_request, notify_db_session):
@@ -139,6 +148,8 @@ def test_post_create_email_branding_with_text_and_name(admin_request, notify_db_
         "name": "name for brand",
         "text": "text for brand",
         "logo": "images/text_x2.png",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
     }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
@@ -146,20 +157,35 @@ def test_post_create_email_branding_with_text_and_name(admin_request, notify_db_
     assert response["data"]["name"] == "name for brand"
     assert response["data"]["colour"] is None
     assert response["data"]["text"] == "text for brand"
+    assert response["data"]["alt_text_en"] == "hello"
+    assert response["data"]["alt_text_fr"] == "bonjour"
 
 
 def test_post_create_email_branding_with_text_as_none_and_name(admin_request, notify_db_session):
-    data = {"name": "name for brand", "text": None, "logo": "images/text_x2.png"}
+    data = {
+        "name": "name for brand",
+        "text": None,
+        "logo": "images/text_x2.png",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
+    }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
     assert response["data"]["logo"] == data["logo"]
     assert response["data"]["name"] == "name for brand"
     assert response["data"]["colour"] is None
     assert response["data"]["text"] is None
+    assert response["data"]["alt_text_en"] == "hello"
+    assert response["data"]["alt_text_fr"] == "bonjour"
 
 
 def test_post_create_email_branding_returns_400_when_name_is_missing(admin_request, notify_db_session):
-    data = {"text": "some text", "logo": "images/text_x2.png"}
+    data = {
+        "text": "some text",
+        "logo": "images/text_x2.png",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
+    }
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=400)
 
     assert response["errors"][0]["message"] == "name is a required property"
@@ -176,7 +202,7 @@ def test_post_create_email_branding_returns_400_when_name_is_missing(admin_reque
     ],
 )
 def test_post_update_email_branding_updates_field(admin_request, notify_db_session, data_update):
-    data = {"name": "test email_branding", "logo": "images/text_x2.png"}
+    data = {"name": "test email_branding", "logo": "images/text_x2.png", "alt_text_en": "hello", "alt_text_fr": "bonjour"}
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
     email_branding_id = response["data"]["id"]
@@ -205,7 +231,7 @@ def test_post_update_email_branding_updates_field(admin_request, notify_db_sessi
     ],
 )
 def test_post_update_email_branding_updates_field_with_text(admin_request, notify_db_session, data_update):
-    data = {"name": "test email_branding", "logo": "images/text_x2.png"}
+    data = {"name": "test email_branding", "logo": "images/text_x2.png", "alt_text_en": "hello", "alt_text_fr": "bonjour"}
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
 
     email_branding_id = response["data"]["id"]
