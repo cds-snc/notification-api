@@ -596,19 +596,20 @@ def test_get_html_email_renderer_with_branding_details_and_render_fip_banner_eng
     sample_service.email_branding = None
     notify_db.session.add_all([sample_service])
     notify_db.session.commit()
-
     options = send_to_providers.get_html_email_options(sample_service)
 
     assert options == {
         "fip_banner_english": True,
         "fip_banner_french": False,
         "logo_with_background_colour": False,
+        "alt_text_en": None,
+        "alt_text_fr": None,
     }
 
 
 def test_get_html_email_renderer_prepends_logo_path(notify_api):
     Service = namedtuple("Service", ["email_branding"])
-    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text"])
+    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text", "alt_text_en", "alt_text_fr"])
 
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_NEW,
@@ -616,6 +617,8 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
         logo="justice-league.png",
         name="Justice League",
         text="League of Justice",
+        alt_text_en="alt_text_en",
+        alt_text_fr="alt_text_fr",
     )
     service = Service(
         email_branding=email_branding,
@@ -628,7 +631,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
 
 def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api):
     Service = namedtuple("Service", ["email_branding"])
-    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text"])
+    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text", "alt_text_en", "alt_text_fr"])
 
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_BANNER_NEW,
@@ -636,6 +639,8 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
         logo=None,
         name="Justice League",
         text="League of Justice",
+        alt_text_en="alt_text_en",
+        alt_text_fr="alt_text_fr",
     )
     service = Service(
         email_branding=email_branding,
@@ -649,6 +654,8 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     assert renderer["brand_text"] == "League of Justice"
     assert renderer["brand_colour"] == "#000000"
     assert renderer["brand_name"] == "Justice League"
+    assert renderer["alt_text_en"] == "alt_text_en"
+    assert renderer["alt_text_fr"] == "alt_text_fr"
 
 
 def test_should_not_update_notification_if_research_mode_on_exception(sample_service, sample_notification, mocker):
