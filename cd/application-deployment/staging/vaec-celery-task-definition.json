@@ -202,19 +202,19 @@
           "value": "False"
         },
         {
-          "name": "COMP_AND_PEN_SERVICE_ID",
-          "value": ""
-        },
-        {
-          "name": "COMP_AND_PEN_TEMPLATE_ID",
-          "value": ""
-        },
-        {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
-          "value": ""
+          "value": "staging-bip-msg-mpi-profile-participant-cache-table"
         }
       ],
       "secrets": [
+        {
+          "name": "COMP_AND_PEN_SERVICE_ID",
+          "value": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/comp-and-pen/service-id"
+        },
+        {
+          "name": "COMP_AND_PEN_TEMPLATE_ID",
+          "value": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/comp-and-pen/template-id"
+        },
         {
           "name": "TWILIO_ACCOUNT_SID",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/account-sid"
