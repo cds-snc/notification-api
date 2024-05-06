@@ -256,10 +256,6 @@ def _get_dynamodb_comp_pen_messages(
 @notify_celery.task(name='send-scheduled-comp-and-pen-sms')
 @statsd(namespace='tasks')
 def send_scheduled_comp_and_pen_sms():
-    if not is_feature_enabled(FeatureFlag.COMP_AND_PEN_MESSAGES_ENABLED):
-        current_app.logger.warning('Attempted to run send_scheduled_comp_and_pen_sms task, but feature flag disabled.')
-        return
-
     # this is the agreed upon message per minute limit
     messages_per_min = 3000
     dynamodb_table_name = current_app.config['COMP_AND_PEN_DYNAMODB_TABLE_NAME']
@@ -327,33 +323,41 @@ def send_scheduled_comp_and_pen_sms():
                 payment_id,
             )
 
-            try:
-                # call generic method to send messages
-                send_notification_bypass_route(
-                    service=service,
-                    template=template,
-                    notification_type=SMS_TYPE,
-                    personalisation={'paymentAmount': payment_amount},
-                    sms_sender_id=service.get_default_sms_sender_id(),
-                    recipient_item={
-                        'id_type': IdentifierType.VA_PROFILE_ID.value,
-                        'id_value': vaprofile_id,
-                    },
-                )
-            except Exception as e:
-                current_app.logger.critical(
-                    'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
-                    'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
-                    'exception: %s',
-                    vaprofile_id,
-                    participant_id,
-                    payment_id,
-                    type(e),
-                    e,
-                )
+            if is_feature_enabled(FeatureFlag.COMP_AND_PEN_MESSAGES_ENABLED):
+                try:
+                    # call generic method to send messages
+                    send_notification_bypass_route(
+                        service=service,
+                        template=template,
+                        notification_type=SMS_TYPE,
+                        personalisation={'paymentAmount': payment_amount},
+                        sms_sender_id=service.get_default_sms_sender_id(),
+                        recipient_item={
+                            'id_type': IdentifierType.VA_PROFILE_ID.value,
+                            'id_value': vaprofile_id,
+                        },
+                    )
+                except Exception as e:
+                    current_app.logger.critical(
+                        'Error attempting to send Comp and Pen notification with send_scheduled_comp_and_pen_sms | item from '
+                        'dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s | exception_type: %s - '
+                        'exception: %s',
+                        vaprofile_id,
+                        participant_id,
+                        payment_id,
+                        type(e),
+                        e,
+                    )
+                else:
+                    current_app.logger.info(
+                        'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+                        vaprofile_id,
+                        participant_id,
+                        payment_id,
+                    )
             else:
                 current_app.logger.info(
-                    'sent to queue, updating - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
+                    'Not sent to queue (feature flag disabled) - item from dynamodb - vaprofile_id: %s | participant_id: %s | payment_id: %s',
                     vaprofile_id,
                     participant_id,
                     payment_id,
