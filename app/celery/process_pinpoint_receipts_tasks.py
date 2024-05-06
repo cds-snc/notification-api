@@ -97,12 +97,12 @@ def process_pinpoint_results(self, response):
                 f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
             )
 
-        statsd_client.incr(f"callback.sns.{notification_status}")  # TODO: do we want a Pinpoint metric here?
+        statsd_client.incr(f"callback.pinpoint.{notification_status}")
 
         if notification.sent_at:
             statsd_client.timing_with_dates(
-                "callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at
-            )  # TODO: do we want a Pinpoint metric here?
+                "callback.pinpoint.elapsed-time", datetime.utcnow(), notification.sent_at
+            )
 
         _check_and_queue_callback_task(notification)
 
