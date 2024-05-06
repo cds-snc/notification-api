@@ -201,11 +201,11 @@
       "secrets": [
         {
           "name": "COMP_AND_PEN_SERVICE_ID",
-          "value": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/service-id"
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/service-id"
         },
         {
           "name": "COMP_AND_PEN_TEMPLATE_ID",
-          "value": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/template-id"
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/template-id"
         },
         {
           "name": "DANGEROUS_SALT",
