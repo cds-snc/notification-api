@@ -148,4 +148,3 @@ def determine_pinpoint_status(status: str, provider_response: str) -> Union[str,
             return NOTIFICATION_PERMANENT_FAILURE
 
     return None
-
