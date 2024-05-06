@@ -317,7 +317,11 @@ def send_user_email_code(user_to_send_to, data):
 
     secret_code = create_secret_code()
 
-    personalisation = {"name": user_to_send_to.name, "verify_code": secret_code}
+    personalisation = {
+        "name": user_to_send_to.name,
+        "link_url_en": "{}/magic-login-link/{}".format(current_app.config["ADMIN_BASE_URL"], secret_code),
+        "link_url_fr": "{}/magic-login-link/{}?lang=fr".format(current_app.config["ADMIN_BASE_URL"], secret_code),
+    }
 
     create_2fa_code(
         current_app.config["EMAIL_2FA_TEMPLATE_ID"],
