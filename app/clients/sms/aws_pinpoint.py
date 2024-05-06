@@ -42,9 +42,6 @@ class AwsPinpointClient(SmsClient):
                     MessageType=messageType,
                     ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                 )
-            except ClientError as e:
-                self.statsd_client.incr("clients.pinpoint.error")
-                raise Exception(e)
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise Exception(e)
