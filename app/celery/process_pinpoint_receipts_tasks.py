@@ -127,20 +127,20 @@ def determine_pinpoint_status(status: str, provider_response: str) -> Union[str,
         return NOTIFICATION_DELIVERED
 
     response_lower = provider_response.lower()
-    match response_lower:
-        case response_lower if "blocked" in response_lower:
-            return NOTIFICATION_TECHNICAL_FAILURE
-        case response_lower if "invalid" in response_lower:
-            return NOTIFICATION_TECHNICAL_FAILURE
-        case response_lower if "is opted out" in response_lower:
-            return NOTIFICATION_PERMANENT_FAILURE
-        case response_lower if "unknown error" in response_lower:
-            return NOTIFICATION_TECHNICAL_FAILURE
-        case response_lower if "exceed max price" in response_lower:
-            return NOTIFICATION_TECHNICAL_FAILURE
-        case "phone carrier is currently unreachable/unavailable":
-            return NOTIFICATION_TEMPORARY_FAILURE
-        case "phone is currently unreachable/unavailable":
-            return NOTIFICATION_PERMANENT_FAILURE
-
-    return None
+    
+    if "blocked" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
+    elif "invalid" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
+    elif "is opted out" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "unknown error" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
+    elif "exceed max price" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
+    elif "phone carrier is currently unreachable/unavailable" in response_lower:
+        return NOTIFICATION_TEMPORARY_FAILURE
+    elif "phone is currently unreachable/unavailable" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    else:
+        return None
