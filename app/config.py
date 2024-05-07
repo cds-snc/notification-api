@@ -403,6 +403,7 @@ class Config(object):
     COMP_AND_PEN_DYNAMODB_TABLE_NAME = os.getenv('COMP_AND_PEN_DYNAMODB_NAME')
     COMP_AND_PEN_SERVICE_ID = os.getenv('COMP_AND_PEN_SERVICE_ID')
     COMP_AND_PEN_TEMPLATE_ID = os.getenv('COMP_AND_PEN_TEMPLATE_ID')
+    COMP_AND_PEN_PERF_TO_NUMBER = os.getenv('COMP_AND_PEN_PERF_TO_NUMBER')
 
     # Format is as follows:
     # {"dataset_1": "token_1", ...}

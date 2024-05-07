@@ -1,7 +1,6 @@
 import pytest
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import SMS_TYPE, EMAIL_TYPE, KEY_TYPE_NORMAL
-from app.config import QueueNames
 from app.notifications.send_notifications import send_notification_bypass_route
 from app.va.identifier import IdentifierType
 
@@ -66,7 +65,7 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
     send_notification_to_queue_mock.assert_called_with(
         notification=notification,
         research_mode=False,
-        queue=QueueNames.SEND_SMS,
+        queue=None,
         recipient_id_type=None,
         sms_sender_id=default_sms_sender,
     )
@@ -164,7 +163,7 @@ def test_send_notification_bypass_route_email_with_recipient(
     send_notification_to_queue_mock.assert_called_with(
         notification=notification,
         research_mode=False,
-        queue=QueueNames.SEND_EMAIL,
+        queue=None,
         recipient_id_type=None,
         sms_sender_id=None,
     )

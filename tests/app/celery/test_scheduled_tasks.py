@@ -11,6 +11,7 @@ from app.celery import scheduled_tasks
 from app.celery.scheduled_tasks import (
     send_scheduled_comp_and_pen_sms,
     _get_dynamodb_comp_pen_messages,
+    _update_dynamo_item_is_processed,
     check_job_status,
     delete_invitations,
     delete_verify_codes,
@@ -486,6 +487,28 @@ def test_get_dynamodb_comp_pen_messages_filters(dynamodb_mock, sample_dynamodb_i
     assert len(messages) == 2
 
 
+def test_it_update_dynamo_item_is_processed_updates_properly(dynamodb_mock, sample_dynamodb_insert):
+    items_to_insert = [
+        {'id': '1', 'is_processed': False, 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
+        {'id': '2', 'is_processed': False, 'payment_id': 2, 'paymentAmount': Decimal(2.50)},
+        {'id': '3', 'is_processed': True, 'payment_id': 1, 'paymentAmount': Decimal(0.00)},
+    ]
+
+    # Insert mock data into the DynamoDB table.
+    sample_dynamodb_insert(items_to_insert)
+
+    with dynamodb_mock.batch_writer() as batch:
+        for item in items_to_insert:
+            _update_dynamo_item_is_processed(batch, item)
+
+    response = dynamodb_mock.scan()
+
+    # Ensure we get all 3 records back and they are set to is_processed == True
+    assert response['Count'] == 3
+    for item in response['Items']:
+        assert item['is_processed']
+
+
 def test_send_scheduled_comp_and_pen_sms_does_not_call_send_notification(mocker, dynamodb_mock):
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
 
@@ -502,7 +525,68 @@ def test_send_scheduled_comp_and_pen_sms_does_not_call_send_notification(mocker,
     mock_send_notification.assert_not_called()
 
 
-def test_send_scheduled_comp_and_pen_sms_calls_send_notification(
+def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipient(
+    mocker, dynamodb_mock, sample_service, sample_template, monkeypatch
+):
+    sample_service_sms_permission = sample_service(
+        service_permissions=[
+            SMS_TYPE,
+        ]
+    )
+
+    # Set up test data
+    dynamo_data = [
+        {
+            'participant_id': '123',
+            'vaprofile_id': '123',
+            'payment_id': '123',
+            'paymentAmount': 123,
+            'is_processed': False,
+        },
+    ]
+
+    # Mock the comp and pen perf number for sending with recipient
+    test_recipient = '+11234567890'
+    mocker.patch.dict('app.celery.scheduled_tasks.current_app.config', {'COMP_AND_PEN_PERF_TO_NUMBER': test_recipient})
+
+    mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
+
+    # Mocks necessary for dynamodb
+    mocker.patch('boto3.resource')
+    mocker.patch('boto3.resource.Table', return_value=dynamodb_mock)
+
+    # Mock the various functions called
+    mock_get_dynamodb_messages = mocker.patch(
+        'app.celery.scheduled_tasks._get_dynamodb_comp_pen_messages', return_value=dynamo_data
+    )
+    mock_fetch_service = mocker.patch(
+        'app.celery.scheduled_tasks.dao_fetch_service_by_id', return_value=sample_service_sms_permission
+    )
+    template = sample_template()
+    mock_get_template = mocker.patch('app.celery.scheduled_tasks.dao_get_template_by_id', return_value=template)
+
+    mock_send_notification = mocker.patch('app.celery.scheduled_tasks.send_notification_bypass_route')
+
+    send_scheduled_comp_and_pen_sms()
+
+    # Assert the functions are being called that should be
+    mock_get_dynamodb_messages.assert_called_once()
+    mock_fetch_service.assert_called_once()
+    mock_get_template.assert_called_once()
+
+    # Assert the expected information is passed to "send_notification_bypass_route"
+    mock_send_notification.assert_called_once_with(
+        service=sample_service_sms_permission,
+        template=template,
+        notification_type=SMS_TYPE,
+        personalisation={'paymentAmount': '123'},
+        sms_sender_id=sample_service_sms_permission.get_default_sms_sender_id(),
+        recipient=test_recipient,
+        recipient_item=None,
+    )
+
+
+def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipient_item(
     mocker, dynamodb_mock, sample_service, sample_template
 ):
     sample_service_sms_permission = sample_service(
@@ -544,7 +628,7 @@ def test_send_scheduled_comp_and_pen_sms_calls_send_notification(
 
     send_scheduled_comp_and_pen_sms()
 
-    # Assert sure the functions are being called that should be
+    # Assert the functions are being called that should be
     mock_get_dynamodb_messages.assert_called_once()
     mock_fetch_service.assert_called_once()
     mock_get_template.assert_called_once()
@@ -556,6 +640,7 @@ def test_send_scheduled_comp_and_pen_sms_calls_send_notification(
         notification_type=SMS_TYPE,
         personalisation={'paymentAmount': '123'},
         sms_sender_id=sample_service_sms_permission.get_default_sms_sender_id(),
+        recipient=None,
         recipient_item=recipient_item,
     )
 

@@ -1,7 +1,6 @@
 from flask import current_app
-from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, SMS_TYPE, Service, Template
+from app.models import KEY_TYPE_NORMAL, SMS_TYPE, Service, Template
 from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
@@ -89,13 +88,6 @@ def send_notification_bypass_route(
         )
 
     else:
-        if notification_type == SMS_TYPE:
-            q = QueueNames.SEND_SMS
-        elif notification_type == EMAIL_TYPE:
-            q = QueueNames.SEND_EMAIL
-        else:
-            q = QueueNames.NOTIFY
-
         current_app.logger.info(
             'sending %s notification with send_notification_bypass_route via send_notification_to_queue, '
             'notification id %s',
@@ -106,7 +98,7 @@ def send_notification_bypass_route(
         send_notification_to_queue(
             notification=notification,
             research_mode=False,
-            queue=q,
+            queue=None,
             recipient_id_type=recipient_item.get('id_type') if recipient_item else None,
             sms_sender_id=sms_sender_id,
         )

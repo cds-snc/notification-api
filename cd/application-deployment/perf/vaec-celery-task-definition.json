@@ -175,11 +175,15 @@
         },
         {
           "name": "COMP_AND_PEN_MESSAGES_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
           "value": "perf-bip-msg-mpi-profile-participant-cache-table"
+        },
+        {
+          "name": "COMP_AND_PEN_PERF_TO_NUMBER",
+          "value": "+14254147755"
         }
       ],
       "secrets": [
@@ -371,4 +375,3 @@
     }
   ]
 }
-
