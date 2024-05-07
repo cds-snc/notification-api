@@ -104,16 +104,12 @@ def process_pinpoint_results(self, response):
 
         _check_and_queue_callback_task(notification)
 
-        return True
-
     except Retry:
         raise
 
     except Exception as e:
         current_app.logger.exception(f"Error processing Pinpoint results: {str(e)}")
         self.retry(queue=QueueNames.RETRY)
-
-    return
 
 
 def determine_pinpoint_status(status: str, provider_response: str) -> Union[str, None]:

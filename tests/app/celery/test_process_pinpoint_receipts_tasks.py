@@ -26,6 +26,7 @@ from tests.app.db import (
 
 def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_db_session, mocker):
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
     notification = create_sample_notification(
         notify_db,
@@ -37,7 +38,10 @@ def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_d
         sent_at=datetime.utcnow(),
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
-    assert process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+
+    process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+
+    assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
 
@@ -80,6 +84,7 @@ def test_process_pinpoint_results_failed(
 ):
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
     notification = create_sample_notification(
         notify_db,
@@ -91,7 +96,9 @@ def test_process_pinpoint_results_failed(
         sent_at=datetime.utcnow(),
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
-    assert process_pinpoint_results(pinpoint_failed_callback(provider_response=provider_response, reference="ref"))
+    process_pinpoint_results(pinpoint_failed_callback(provider_response=provider_response, reference="ref"))
+
+    assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
     assert get_notification_by_id(notification.id).status == expected_status
 
     if should_save_provider_response:
@@ -111,7 +118,11 @@ def test_process_pinpoint_results_failed(
 
 def test_pinpoint_callback_should_retry_if_notification_is_missing(notify_db, mocker):
     mock_retry = mocker.patch("app.celery.process_pinpoint_receipts_tasks.process_pinpoint_results.retry")
-    assert process_pinpoint_results(pinpoint_success_callback(reference="ref")) is None
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
+
+    process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+
+    mock_callback_task.assert_not_called()
     assert mock_retry.call_count == 1
 
 
@@ -121,8 +132,11 @@ def test_pinpoint_callback_should_give_up_after_max_tries(notify_db, mocker):
         side_effect=MaxRetriesExceededError,
     )
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
-    assert process_pinpoint_results(pinpoint_success_callback(reference="ref")) is None
+    process_pinpoint_results(pinpoint_success_callback(reference="ref")) is None
+    mock_callback_task.assert_not_called()
+
     mock_logger.assert_called_with("notification not found for Pinpoint reference: ref (update to delivered). Giving up.")
 
 
@@ -168,7 +182,9 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
     with freeze_time("2021-01-01T12:00:00"):
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
-        send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        mock_send_status = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        mock_callback = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
+
         notification = create_sample_notification(
             notify_db,
             notify_db_session,
@@ -181,11 +197,13 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         callback_api = create_service_callback_api(service=sample_template.service, url="https://example.com")
         assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-        assert process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+        process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+
+        assert mock_callback.called_once_with(get_notification_by_id(notification.id))
         assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
         assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
         statsd_client.timing_with_dates.assert_any_call("callback.pinpoint.elapsed-time", datetime.utcnow(), notification.sent_at)
         statsd_client.incr.assert_any_call("callback.pinpoint.delivered")
         updated_notification = get_notification_by_id(notification.id)
         signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")
+        mock_send_status.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")
