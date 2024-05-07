@@ -127,7 +127,7 @@ def determine_pinpoint_status(status: str, provider_response: str) -> Union[str,
         return NOTIFICATION_DELIVERED
 
     response_lower = provider_response.lower()
-    
+
     if "blocked" in response_lower:
         return NOTIFICATION_TECHNICAL_FAILURE
     elif "invalid" in response_lower:
