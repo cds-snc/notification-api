@@ -172,6 +172,8 @@ class TestSendTicket:
                 "department_org_name": "best org name ever",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "branding_url": "branding_url",
+                "alt_text_en": "hello world",
+                "alt_text_fr": "bonjour le monde",
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
