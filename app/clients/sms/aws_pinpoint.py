@@ -4,8 +4,8 @@ import boto3
 import phonenumbers
 
 from app.clients.sms import SmsClient
-
 from app.config import Config
+
 
 class AwsPinpointClient(SmsClient):
     """
@@ -31,7 +31,7 @@ class AwsPinpointClient(SmsClient):
             pool_id = Config.AWS_PINPOINT_SC_POOL_ID
         else:
             pool_id = Config.AWS_PINPOINT_DEFAULT_POOL_ID
-       
+
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
             matched = True
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)

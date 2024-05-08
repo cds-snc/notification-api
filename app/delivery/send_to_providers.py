@@ -338,7 +338,6 @@ def update_notification_to_sending(notification, provider):
 
 
 def provider_to_use(notification_type, notification_id, international=False, sender=None, template_id=None):
-
     # TODO: remove the first option once we have pinpoint fully integrated
     if Config.AWS_PINPOINT_SC_POOL_ID is None or Config.AWS_PINPOINT_DEFAULT_POOL_ID is None:
         active_providers_in_order = [
@@ -346,11 +345,9 @@ def provider_to_use(notification_type, notification_id, international=False, sen
             for p in get_provider_details_by_notification_type(notification_type, international)
             if p.active and p.identifier != PINPOINT_PROVIDER
         ]
-    else:        
+    else:
         active_providers_in_order = [
-            p
-            for p in get_provider_details_by_notification_type(notification_type, international)
-            if p.active
+            p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
         ]
 
     if not active_providers_in_order:
