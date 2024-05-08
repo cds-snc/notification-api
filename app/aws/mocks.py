@@ -192,6 +192,57 @@ def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28
     return _sns_callback(body)
 
 
+# Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
+def pinpoint_success_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_DELIVERED",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "mcc": "302",
+        "mnc": "610",
+        "carrierName": "Bell Cellular Inc. / Aliant Telecom",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "DELIVERED",
+        "messageStatusDescription": "Message has been accepted by phone",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
+
+
+# Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
+def pinpoint_failed_callback(provider_response, reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_CARRIER_UNREACHABLE",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "CARRIER_UNREACHABLE",
+        "messageStatusDescription": provider_response,
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
+
+
 def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
     ses_message_body = {
         "bounce": {
@@ -254,6 +305,22 @@ def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
 
 
 def _sns_callback(body):
+    return {
+        "Type": "Notification",
+        "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
+        "TopicArn": "arn:aws:sns:ca-central-1:12341234:ses_notifications",
+        "Subject": None,
+        "Message": json.dumps(body),
+        "Timestamp": "2017-11-17T12:14:03.710Z",
+        "SignatureVersion": "1",
+        "Signature": "[REDACTED]",
+        "SigningCertUrl": "https://sns.ca-central-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem",
+        "UnsubscribeUrl": "https://sns.ca-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
+        "MessageAttributes": {},
+    }
+
+
+def _pinpoint_callback(body):
     return {
         "Type": "Notification",
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
