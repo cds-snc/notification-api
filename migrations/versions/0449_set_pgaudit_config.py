@@ -19,17 +19,12 @@ def upgrade():
         # Make sure the roles exist in test and local environments
         op.execute(
             f"""
-            DO
-            $do$
+            DO $$
             BEGIN
-               IF NOT EXISTS (
-                  SELECT FROM pg_catalog.pg_roles 
-                  WHERE  rolname = '{role}') THEN
-
-                  CREATE ROLE {role};
-               END IF;
+            CREATE ROLE {role};
+            EXCEPTION WHEN duplicate_object THEN RAISE NOTICE '%, skipping', SQLERRM USING ERRCODE = SQLSTATE;
             END
-            $do$
+            $$;
         """
         )
         op.execute(f"ALTER ROLE {role} IN DATABASE {database_name} SET pgaudit.log TO 'NONE'")
