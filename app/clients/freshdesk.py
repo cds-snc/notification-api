@@ -62,6 +62,9 @@ class Freshdesk(object):
                     f"- Organisation id: {self.contact.organisation_id}",
                     f"- Organisation name: {self.contact.department_org_name}",
                     f"- Logo filename: {self.contact.branding_url}",
+                    f"- Logo name: {self.contact.branding_logo_name}",
+                    f"- Alt text english: {self.contact.alt_text_en}",
+                    f"- Alt text french: {self.contact.alt_text_fr}",
                     "<hr>",
                     f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address}) pour le service suivant :",
                     f"- Identifiant du service : {self.contact.service_id}",
@@ -69,6 +72,9 @@ class Freshdesk(object):
                     f"- Identifiant de l'organisation: {self.contact.organisation_id}",
                     f"- Nom de l'organisation: {self.contact.department_org_name}",
                     f"- Nom du fichier du logo : {self.contact.branding_url}",
+                    f"- Nom du logo : {self.contact.branding_logo_name}",
+                    f"- Texte alternatif anglais : {self.contact.alt_text_en}",
+                    f"- Texte alternatif français : {self.contact.alt_text_fr}",
                 ]
             )
 

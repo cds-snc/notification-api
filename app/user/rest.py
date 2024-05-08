@@ -500,6 +500,7 @@ def send_branding_request(user_id):
             organisation_id=data["organisation_id"],
             department_org_name=data["organisation_name"],
             branding_url=get_logo_url(data["filename"]),
+            branding_logo_name=data["branding_logo_name"] if "branding_logo_name" in data else "",
             alt_text_en=data["alt_text_en"],
             alt_text_fr=data["alt_text_fr"],
         )
