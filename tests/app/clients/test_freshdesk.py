@@ -130,13 +130,19 @@ class TestSendTicket:
                 "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
                 "- Organisation name: best org name ever<br>"
                 "- Logo filename: branding_url<br>"
+                "- Alt text english: en alt text<br>"
+                "- Logo name: branding_logo_name<br>"
+                "- Alt text french: fr alt text<br>"
                 "<hr><br>"
                 "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
                 "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Nom du service : t6<br>"
                 "- Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
                 "- Nom de l'organisation: best org name ever<br>"
-                "- Nom du fichier du logo : branding_url",
+                "- Nom du fichier du logo : branding_url"
+                "- Nom du logo : branding_logo_name<br>"
+                "- Texte alternatif anglais : en alt text<br>"
+                "- Texte alternatif français : fr alt text",
                 "email": "test@email.com",
                 "priority": 1,
                 "status": 2,
