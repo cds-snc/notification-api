@@ -5,6 +5,7 @@ import phonenumbers
 
 from app.clients.sms import SmsClient
 
+from app.config import Config
 
 class AwsPinpointClient(SmsClient):
     """
@@ -22,11 +23,15 @@ class AwsPinpointClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, multi=True, sender=None):
-        pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
+    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None):
         messageType = "TRANSACTIONAL"
         matched = False
 
+        if template_id is not None and str(template_id) in Config.AWS_PINPOINT_SC_TEMPLATE_IDS:
+            pool_id = Config.AWS_PINPOINT_SC_POOL_ID
+        else:
+            pool_id = Config.AWS_PINPOINT_DEFAULT_POOL_ID
+       
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
             matched = True
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)

@@ -105,6 +105,7 @@ def send_sms_to_provider(notification):
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
+                    template_id=notification.template_id,
                 )
             except Exception as e:
                 notification.billable_units = template.fragment_count
@@ -337,15 +338,20 @@ def update_notification_to_sending(notification, provider):
 
 
 def provider_to_use(notification_type, notification_id, international=False, sender=None, template_id=None):
-    # Temporary redirect setup for template IDs that are meant for the short code usage.
-    if notification_type == SMS_TYPE and template_id is not None and str(template_id) in Config.AWS_PINPOINT_SC_TEMPLATE_IDS:
-        return clients.get_client_by_name_and_type("pinpoint", SMS_TYPE)
 
-    active_providers_in_order = [
-        p
-        for p in get_provider_details_by_notification_type(notification_type, international)
-        if p.active and p.identifier != PINPOINT_PROVIDER
-    ]
+    # TODO: remove the first option once we have pinpoint fully integrated
+    if Config.AWS_PINPOINT_SC_POOL_ID is None or Config.AWS_PINPOINT_DEFAULT_POOL_ID is None:
+        active_providers_in_order = [
+            p
+            for p in get_provider_details_by_notification_type(notification_type, international)
+            if p.active and p.identifier != PINPOINT_PROVIDER
+        ]
+    else:        
+        active_providers_in_order = [
+            p
+            for p in get_provider_details_by_notification_type(notification_type, international)
+            if p.active
+        ]
 
     if not active_providers_in_order:
         current_app.logger.error("{} {} failed as no active providers".format(notification_type, notification_id))
