@@ -79,8 +79,6 @@ def grant_test_db(writer_uri, uri_db_reader):
         f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",
         f"GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};",
         f"GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};",
-        "CREATE ROLE app_db_user;",
-        "CREATE ROLE rdsproxyadmin;",
     ]
     for statement in statements:
         try:

@@ -16,9 +16,27 @@ database_name = op.get_bind().engine.url.database  # database name that the migr
 
 def upgrade():
     for role in roles:
+        # Make sure the roles exist in test and local environments
+        op.execute(
+            f"""
+            DO
+            $do$
+            BEGIN
+               IF NOT EXISTS (
+                  SELECT FROM pg_catalog.pg_roles 
+                  WHERE  rolname = '{role}') THEN
+
+                  CREATE ROLE {role};
+               END IF;
+            END
+            $do$
+        """
+        )
         op.execute(f"ALTER ROLE {role} IN DATABASE {database_name} SET pgaudit.log TO 'NONE'")
 
 
 def downgrade():
+    # Reset the pgaudit.log setting, but do not remove the roles as they are managed
+    # outside of the API migrations.
     for role in roles:
         op.execute(f"ALTER ROLE {role} IN DATABASE {database_name} RESET pgaudit.log")
