@@ -221,15 +221,16 @@ def _get_dynamodb_comp_pen_messages(
     https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#querying-and-scanning
     """
 
+    is_processed_index = 'is-processed-index'
+
     filters = (
-        Attr('is_processed').eq(False)
-        & Attr('payment_id').exists()
+        Attr('payment_id').exists()
         & Attr('payment_id').ne(-1)
         & Attr('paymentAmount').exists()
         & Attr('has_duplicate_mappings').ne(True)
     )
 
-    results = table.scan(FilterExpression=filters, Limit=message_limit)
+    results = table.scan(FilterExpression=filters, Limit=message_limit, IndexName=is_processed_index)
     items: list = results.get('Items')
 
     if items is None:
@@ -257,12 +258,12 @@ def _update_dynamo_item_is_processed(batch, item):
     participant_id = item.get('participant_id')
     payment_id = item.get('payment_id')
 
-    item['is_processed'] = True
+    item.pop('is_processed', None)
 
     # update dynamodb entries
     try:
         batch.put_item(Item=item)
-        current_app.logger.info('updated_item from dynamodb ("is_processed" should be "True"): %s', item)
+        current_app.logger.info('updated_item from dynamodb ("is_processed" should no longer exist): %s', item)
     except Exception as e:
         current_app.logger.critical(
             'Exception attempting to update item in dynamodb with participant_id: %s and payment_id: %s - '

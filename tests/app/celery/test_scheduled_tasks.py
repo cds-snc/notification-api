@@ -388,16 +388,61 @@ def test_check_precompiled_letter_state(mocker, sample_template, sample_notifica
 # Setup a pytest fixture to mock the DynamoDB table
 @pytest.fixture
 def dynamodb_mock():
+    bip_table_vars = {
+        'TableName': 'TestTable',
+        'AttributeDefinitions': [
+            {'AttributeName': 'participant_id', 'AttributeType': 'N'},
+            {
+                'AttributeName': 'payment_id',
+                'AttributeType': 'N',
+            },
+            {
+                'AttributeName': 'vaprofile_id',
+                'AttributeType': 'N',
+            },
+            {
+                'AttributeName': 'is_update_allowed',
+                'AttributeType': 'N',
+            },
+            {
+                'AttributeName': 'is_processed',
+                'AttributeType': 'S',
+            },
+        ],
+        'KeySchema': [
+            {'AttributeName': 'participant_id', 'KeyType': 'HASH'},
+            {'AttributeName': 'payment_id', 'KeyType': 'RANGE'},
+        ],
+        'GlobalSecondaryIndexes': [
+            {
+                'IndexName': 'vaprofile-id-index',
+                'KeySchema': [{'AttributeName': 'vaprofile_id', 'KeyType': 'HASH'}],
+                'Projection': {
+                    'ProjectionType': 'KEYS_ONLY',
+                },
+            },
+            {
+                'IndexName': 'is-update-allowed-index',
+                'KeySchema': [{'AttributeName': 'is_update_allowed', 'KeyType': 'HASH'}],
+                'Projection': {
+                    'ProjectionType': 'ALL',
+                },
+            },
+            {
+                'IndexName': 'is-processed-index',
+                'KeySchema': [{'AttributeName': 'is_processed', 'KeyType': 'HASH'}],
+                'Projection': {
+                    'ProjectionType': 'ALL',
+                },
+            },
+        ],
+        'BillingMode': 'PAY_PER_REQUEST',
+    }
     with mock_dynamodb():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
         # Create a mock DynamoDB table
-        table = dynamodb.create_table(
-            TableName='TestTable',
-            KeySchema=[{'AttributeName': 'id', 'KeyType': 'HASH'}],
-            AttributeDefinitions=[{'AttributeName': 'id', 'AttributeType': 'S'}],
-            ProvisionedThroughput={'ReadCapacityUnits': 1, 'WriteCapacityUnits': 1},
-        )
+        table = dynamodb.create_table(**bip_table_vars)
 
         # Wait for table to be created
         table.meta.client.get_waiter('table_exists').wait(TableName='TestTable')
@@ -419,7 +464,7 @@ def sample_dynamodb_insert(dynamodb_mock):
 
     # delete the items added
     for item in items_inserted:
-        dynamodb_mock.delete_item(Key={'id': item['id']})
+        dynamodb_mock.delete_item(Key={'participant_id': item['participant_id'], 'payment_id': item['payment_id']})
 
 
 def test_get_dynamodb_comp_pen_messages_with_empty_table(dynamodb_mock):
@@ -443,39 +488,35 @@ def setup_monetary_decimal_context():
 def test_get_dynamodb_comp_pen_messages_filters(dynamodb_mock, sample_dynamodb_insert, setup_monetary_decimal_context):
     """
     Items should not be returned if any of these apply:
-        1) is_processed is True
         2) has_duplicate_mappings is True
         3) payment_id equals -1
         4) paymentAmount is absent (required by downstream Celery task)
     """
-
     # Insert mock data into the DynamoDB table.
     items_to_insert = [
         # The first 2 items are valid.
-        {'id': '1', 'is_processed': False, 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
+        {'participant_id': 1, 'is_processed': 'F', 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
         {
-            'id': '2',
-            'is_processed': False,
+            'participant_id': 2,
+            'is_processed': 'F',
             'has_duplicate_mappings': False,
             'payment_id': 2,
             'paymentAmount': Decimal(2.50),
         },
-        # Missing payment_id
-        {'id': '3', 'is_processed': False, 'paymentAmount': Decimal(0.00)},
         # Already processed
-        {'id': '4', 'is_processed': True, 'payment_id': 4, 'paymentAmount': Decimal(0)},
+        {'participant_id': 4, 'payment_id': 4, 'paymentAmount': Decimal(0)},
         # Duplicate mappings
         {
-            'id': '5',
-            'is_processed': False,
+            'participant_id': 5,
+            'is_processed': 'F',
             'has_duplicate_mappings': True,
             'payment_id': 5,
             'paymentAmount': Decimal('0.99'),
         },
         # Placeholder payment_id
-        {'id': '6', 'is_processed': False, 'payment_id': -1, 'paymentAmount': Decimal(1.00)},
+        {'participant_id': 6, 'is_processed': 'F', 'payment_id': -1, 'paymentAmount': Decimal(1.00)},
         # Missing paymentAmount
-        {'id': '7', 'is_processed': False, 'payment_id': 1},
+        {'participant_id': 7, 'is_processed': 'F', 'payment_id': 1},
     ]
     sample_dynamodb_insert(items_to_insert)
 
@@ -483,15 +524,17 @@ def test_get_dynamodb_comp_pen_messages_filters(dynamodb_mock, sample_dynamodb_i
     messages = _get_dynamodb_comp_pen_messages(dynamodb_mock, message_limit=7)
 
     for msg in messages:
-        assert msg['id'] in '12', f"The message with ID {msg['id']} should have been filtered out."
+        assert (
+            str(msg['participant_id']) in '12'
+        ), f"The message with ID {msg['participant_id']} should have been filtered out."
     assert len(messages) == 2
 
 
 def test_it_update_dynamo_item_is_processed_updates_properly(dynamodb_mock, sample_dynamodb_insert):
     items_to_insert = [
-        {'id': '1', 'is_processed': False, 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
-        {'id': '2', 'is_processed': False, 'payment_id': 2, 'paymentAmount': Decimal(2.50)},
-        {'id': '3', 'is_processed': True, 'payment_id': 1, 'paymentAmount': Decimal(0.00)},
+        {'participant_id': 1, 'is_processed': 'F', 'payment_id': 1, 'paymentAmount': Decimal(1.00)},
+        {'participant_id': 2, 'is_processed': 'F', 'payment_id': 2, 'paymentAmount': Decimal(2.50)},
+        {'participant_id': 3, 'payment_id': 1, 'paymentAmount': Decimal(0.00)},
     ]
 
     # Insert mock data into the DynamoDB table.
@@ -503,10 +546,10 @@ def test_it_update_dynamo_item_is_processed_updates_properly(dynamodb_mock, samp
 
     response = dynamodb_mock.scan()
 
-    # Ensure we get all 3 records back and they are set to is_processed == True
+    # Ensure we get all 3 records back and they are set with is_processed removed
     assert response['Count'] == 3
     for item in response['Items']:
-        assert item['is_processed']
+        assert 'is_processed' not in item
 
 
 def test_send_scheduled_comp_and_pen_sms_does_not_call_send_notification(mocker, dynamodb_mock):
