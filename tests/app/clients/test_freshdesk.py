@@ -139,7 +139,7 @@ class TestSendTicket:
                 "- Nom du service : t6<br>"
                 "- Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
                 "- Nom de l'organisation: best org name ever<br>"
-                "- Nom du fichier du logo : branding_url"
+                "- Nom du fichier du logo : branding_url<br>"
                 "- Nom du logo : branding_logo_name<br>"
                 "- Texte alternatif anglais : en alt text<br>"
                 "- Texte alternatif français : fr alt text",
@@ -173,8 +173,8 @@ class TestSendTicket:
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "branding_url": "branding_url",
                 "branding_logo_name": "branding_logo_name",
-                "alt_text_en": "hello world",
-                "alt_text_fr": "bonjour le monde",
+                "alt_text_en": "en alt text",
+                "alt_text_fr": "fr alt text",
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
