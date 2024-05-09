@@ -120,6 +120,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(s
         content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
+        template_id=sample_sms_template_with_html.id,
     )
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
@@ -338,6 +339,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
         content="Sample service: This is a template:\nwith a newline",
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
+        template_id=sample_template.id,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
@@ -416,7 +418,7 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
 
     send_to_providers.send_sms_to_provider(db_notification)
 
-    aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=gsm_message, reference=ANY, sender=ANY)
+    aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=gsm_message, reference=ANY, sender=ANY, template_id=ANY)
 
 
 def test_send_sms_should_use_service_sms_sender(sample_service, sample_template, mocker):
@@ -429,7 +431,9 @@ def test_send_sms_should_use_service_sms_sender(sample_service, sample_template,
         db_notification,
     )
 
-    app.aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender)
+    app.aws_sns_client.send_sms.assert_called_once_with(
+        to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender, template_id=ANY
+    )
 
 
 @pytest.mark.parametrize("research_mode,key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
@@ -800,6 +804,7 @@ def test_should_handle_sms_sender_and_prefix_message(
         sender=expected_sender,
         to=ANY,
         reference=ANY,
+        template_id=ANY,
     )
 
 
