@@ -27,7 +27,7 @@ class AwsSnsClient(SmsClient):
         return self.name
 
     @statsd(namespace="clients.sns")
-    def send_sms(self, to, content, reference, multi=True, sender=None):
+    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None):
         matched = False
 
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
