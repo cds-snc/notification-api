@@ -1,0 +1,21 @@
+name: Create And Post Tag with Summary
+
+on: 
+  workflow_call:
+
+jobs:
+  create-and-post-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create and Post Tag
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.VAR_PAT }}
+          script: |
+            const path = '.github/scripts/createAndPostTag.js';
+            const createAndPostTag = require(path);
+            createAndPostTag({github, context, core});
+
