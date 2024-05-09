@@ -304,6 +304,7 @@ class Config(object):
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"
     EMAIL_2FA_TEMPLATE_ID = "299726d2-dba6-42b8-8209-30e1d66ea164"
+    EMAIL_MAGIC_LINK_TEMPLATE_ID = "6e97fd09-6da0-4cc8-829d-33cf5b818103"
     NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID = "ece42649-22a8-4d06-b87f-d52d5d3f0a27"
     PASSWORD_RESET_TEMPLATE_ID = "474e9242-823b-4f99-813d-ed392e7f1201"
     FORCED_PASSWORD_RESET_TEMPLATE_ID = "e9a65a6b-497b-42f2-8f43-1736e43e13b3"
@@ -361,6 +362,7 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
+        "app.celery.process_pinpoint_receipts_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py

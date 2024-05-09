@@ -31,6 +31,7 @@ class ContactRequest:
     notification_types: str = field(default="")
     expected_volume: str = field(default="")
     branding_url: str = field(default="")
+    branding_logo_name: str = field(default="")
     alt_text_en: str = field(default="")
     alt_text_fr: str = field(default="")
 
