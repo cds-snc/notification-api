@@ -130,8 +130,8 @@ class TestSendTicket:
                 "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
                 "- Organisation name: best org name ever<br>"
                 "- Logo filename: branding_url<br>"
-                "- Alt text english: en alt text<br>"
                 "- Logo name: branding_logo_name<br>"
+                "- Alt text english: en alt text<br>"
                 "- Alt text french: fr alt text<br>"
                 "<hr><br>"
                 "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
@@ -172,7 +172,7 @@ class TestSendTicket:
                 "department_org_name": "best org name ever",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "branding_url": "branding_url",
-                "branding_logo_name": "branding_log_name",
+                "branding_logo_name": "branding_logo_name",
                 "alt_text_en": "hello world",
                 "alt_text_fr": "bonjour le monde",
             }
