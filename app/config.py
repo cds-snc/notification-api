@@ -361,6 +361,7 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
+        "app.celery.process_pinpoint_receipts_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
