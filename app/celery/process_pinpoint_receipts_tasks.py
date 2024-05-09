@@ -53,10 +53,10 @@ def process_pinpoint_results(self, response):
         provider_response = receipt["messageStatusDescription"]
 
         notification_status = determine_pinpoint_status(status, provider_response)
-        
+
         if notification_status == NOTIFICATION_SENT:
             return  # we don't want to update the status to sent if it's already sent
-        
+
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
             notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
