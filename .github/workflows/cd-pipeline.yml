@@ -25,8 +25,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-  approval-to-deploy:
+  pr-label-summary:
     needs: prepare-deployment
+    uses: ./.github/workflows/pr-label-semver.yml
+    secrets: inherit
+
+  approval-to-deploy:
+    needs: pr-label-summary
     environment: 
       name: perf-deploy
     runs-on: ubuntu-latest
@@ -46,8 +51,13 @@ jobs:
       lambdaDeploy: true
     secrets: inherit
 
-  approval-to-merge-to-release-branch:
+  pre-tag-summary:
     needs: deploy-to-perf
+    uses: ./.github/workflows/pre-tag-summary.yml
+    secrets: inherit
+
+  approval-to-merge-to-release-branch:
+    needs: pre-tag-summary
     environment: 
       name: perf-merge
     runs-on: ubuntu-latest
@@ -67,6 +77,9 @@ jobs:
         with:
           ref: release
           fetch-depth: 0
+          # Fine-grained PAT with contents:write and workflows:write
+          # scopes
+          token: ${{ secrets.CD_PAT }}
 
       - name: Setup git user
         # The following is taken from https://github.com/actions/checkout/issues/13 as a common work-around
@@ -78,6 +91,11 @@ jobs:
         run: |
           git merge ${{ github.sha }} --no-squash -X theirs
           git push
+
+  create-and-post-tag:
+    needs: merge-to-release
+    uses: ./.github/workflows/create-and-post-tag.yml
+    secrets: inherit
 
   deploy-to-staging:
     needs: merge-to-release 

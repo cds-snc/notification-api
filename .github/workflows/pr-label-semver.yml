@@ -1,0 +1,21 @@
+name: CD Pipeline PR Labels and Semver bump Summary
+
+on: 
+  workflow_call:
+
+jobs:
+  check-pr-sem:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: PR Label Semver
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.VAR_PAT }}
+          script: |
+            const path = '.github/scripts/prLabelSemver.js';
+            const prLabelSemver = require(path);
+            prLabelSemver({github, context, core});
+
