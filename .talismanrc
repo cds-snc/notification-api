@@ -3,4 +3,6 @@ fileignoreconfig:
   checksum: ecd7a6380dde50f907568540a6c45454adc1d2adbd19853f45e0f85a1e27c50c
 - filename: tests/app/celery/test_scheduled_tasks.py
   checksum: cb2b003fb3ee404c293632e4bad6754ec6a35c895f392933d9203b5d93edb095
+- filename: certs/DigiCert-Global-G2-TLS-RSA-SHA256-2020-CA1.cer
+  checksum: e06cc6abd755fa5cb5c2b1deceb1a40f87bf9f2b8be73102623cbfe0f28a20cd
 version: "1.0"
