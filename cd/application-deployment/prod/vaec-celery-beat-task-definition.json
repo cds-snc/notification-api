@@ -188,6 +188,10 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/comp-and-pen/template-id"
         },
         {
+          "name": "COMP_AND_PEN_SMS_SENDER_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/comp-and-pen/sms-sender-id"
+        },
+        {
           "name": "TWILIO_ACCOUNT_SID",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/twilio/account-sid"
         },

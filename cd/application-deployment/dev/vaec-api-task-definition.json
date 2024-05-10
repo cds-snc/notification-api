@@ -246,6 +246,10 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/template-id"
         },
         {
+          "name": "COMP_AND_PEN_SMS_SENDER_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/sms-sender-id"
+        },
+        {
           "name": "ADMIN_CLIENT_USER_NAME",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/admin-client-user"
         },

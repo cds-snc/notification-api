@@ -208,6 +208,10 @@
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/template-id"
         },
         {
+          "name": "COMP_AND_PEN_SMS_SENDER_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/comp-and-pen/sms-sender-id"
+        },
+        {
           "name": "DANGEROUS_SALT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
         },

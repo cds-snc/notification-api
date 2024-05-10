@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from uuid import UUID
 
 import boto3
 from boto3.dynamodb.conditions import Attr
@@ -285,6 +286,7 @@ def send_scheduled_comp_and_pen_sms():
     dynamodb_table_name = current_app.config['COMP_AND_PEN_DYNAMODB_TABLE_NAME']
     service_id = current_app.config['COMP_AND_PEN_SERVICE_ID']
     template_id = current_app.config['COMP_AND_PEN_TEMPLATE_ID']
+    sms_sender_id = current_app.config['COMP_AND_PEN_SMS_SENDER_ID']
     # Perf uses the AWS simulated delivered number
     perf_to_number = current_app.config['COMP_AND_PEN_PERF_TO_NUMBER']
 
@@ -334,6 +336,14 @@ def send_scheduled_comp_and_pen_sms():
         )
         return
 
+    try:
+        # If this line doesn't raise ValueError, the value is a valid UUID.
+        sms_sender_id = UUID(sms_sender_id)
+        current_app.logger.info('Using the SMS sender ID specified in SSM Parameter store.')
+    except ValueError:
+        sms_sender_id = service.get_default_sms_sender_id()
+        current_app.logger.info("Using the service default ServiceSmsSender's ID.")
+
     # send messages and update entries in dynamodb table
     with table.batch_writer() as batch:
         for item in comp_and_pen_messages:
@@ -350,7 +360,7 @@ def send_scheduled_comp_and_pen_sms():
             )
 
             if is_feature_enabled(FeatureFlag.COMP_AND_PEN_MESSAGES_ENABLED):
-                # use perf_to_number as recipient if available, otherwise use vaprofile_id as recipient_item
+                # Use perf_to_number as the recipient if available.  Otherwise, use vaprofile_id as recipient_item.
                 recipient = perf_to_number
                 recipient_item = (
                     None
@@ -368,7 +378,7 @@ def send_scheduled_comp_and_pen_sms():
                         template=template,
                         notification_type=SMS_TYPE,
                         personalisation={'paymentAmount': payment_amount},
-                        sms_sender_id=service.get_default_sms_sender_id(),
+                        sms_sender_id=sms_sender_id,
                         recipient=recipient,
                         recipient_item=recipient_item,
                     )
@@ -403,5 +413,6 @@ def send_scheduled_comp_and_pen_sms():
                     payment_id,
                 )
 
-            # update dynamodb entries
+            # Update DynamoDB entries.  Note that this occurs without knowing if the call to
+            # send_notification_bypass_route raised an exception.
             _update_dynamo_item_is_processed(batch, item)
