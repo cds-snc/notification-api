@@ -70,7 +70,3 @@ def test_send_sms_returns_raises_error_if_there_is_no_valid_number_is_found(noti
         aws_pinpoint_client.send_sms(to, content, reference)
 
     assert "No valid numbers found for SMS delivery" in str(excinfo.value)
-
-
-# TODO: make sure fixed long code sends and sends to us numbers go through old SNS flow.
-# That's not tested here.
