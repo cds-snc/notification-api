@@ -53,11 +53,6 @@ from tests.conftest import set_config_values
 
 class TestProviderToUse:
     def test_should_use_pinpoint_for_sms_by_default(self, restore_provider_details, notify_api):
-        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-        for provider in providers:
-            if provider.identifier == "pinpoint":
-                provider.active = True
-            provider_details_dao.dao_update_provider_details(provider)
         with set_config_values(
             notify_api,
             {
@@ -69,10 +64,6 @@ class TestProviderToUse:
         assert provider.name == "pinpoint"
 
     def test_should_use_sns_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
-        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-        for provider in providers:
-            if provider.identifier == "pinpoint":
-                provider.active = True
         with set_config_values(
             notify_api,
             {
@@ -84,10 +75,6 @@ class TestProviderToUse:
         assert provider.name == "sns"
 
     def test_should_use_sns_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
-        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-        for provider in providers:
-            if provider.identifier == "pinpoint":
-                provider.active = True
         with set_config_values(
             notify_api,
             {
@@ -100,10 +87,6 @@ class TestProviderToUse:
 
     @pytest.mark.parametrize("sc_pool_id, default_pool_id", [(None, "default_pool_id"), ("sc_pool_id", None)])
     def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
-        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-        for provider in providers:
-            if provider.identifier == "pinpoint":
-                provider.active = True
         with set_config_values(
             notify_api,
             {
