@@ -4,7 +4,11 @@ import pytest
 from freezegun import freeze_time
 
 from app import statsd_client
-from app.aws.mocks import pinpoint_failed_callback, pinpoint_success_callback
+from app.aws.mocks import (
+    pinpoint_delivered_callback,
+    pinpoint_failed_callback,
+    pinpoint_successful_callback,
+)
 from app.celery.process_pinpoint_receipts_tasks import process_pinpoint_results
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import (
@@ -39,13 +43,34 @@ def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_d
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-    process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+    process_pinpoint_results(pinpoint_delivered_callback(reference="ref"))
 
     assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
 
     mock_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
+
+
+def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_db_session, mocker):
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
+
+    notification = create_sample_notification(
+        notify_db,
+        notify_db_session,
+        template=sample_template,
+        reference="ref",
+        status=NOTIFICATION_SENT,
+        sent_by="pinpoint",
+        sent_at=datetime.utcnow(),
+    )
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
+
+    process_pinpoint_results(pinpoint_successful_callback(reference="ref"))
+
+    assert mock_callback_task.not_called()
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
+    assert get_notification_by_id(notification.id).provider_response is None
 
 
 @pytest.mark.parametrize(
@@ -120,7 +145,7 @@ def test_pinpoint_callback_should_retry_if_notification_is_missing(notify_db, mo
     mock_retry = mocker.patch("app.celery.process_pinpoint_receipts_tasks.process_pinpoint_results.retry")
     mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
-    process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+    process_pinpoint_results(pinpoint_delivered_callback(reference="ref"))
 
     mock_callback_task.assert_not_called()
     assert mock_retry.call_count == 1
@@ -134,7 +159,7 @@ def test_pinpoint_callback_should_give_up_after_max_tries(notify_db, mocker):
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
     mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
-    process_pinpoint_results(pinpoint_success_callback(reference="ref")) is None
+    process_pinpoint_results(pinpoint_delivered_callback(reference="ref")) is None
     mock_callback_task.assert_not_called()
 
     mock_logger.assert_called_with("notification not found for Pinpoint reference: ref (update to delivered). Giving up.")
@@ -156,7 +181,7 @@ def test_process_pinpoint_results_retry_called(sample_template, mocker):
         side_effect=Exception("EXPECTED"),
     )
     mocked = mocker.patch("app.celery.process_pinpoint_receipts_tasks.process_pinpoint_results.retry")
-    process_pinpoint_results(response=pinpoint_success_callback(reference="ref1"))
+    process_pinpoint_results(response=pinpoint_delivered_callback(reference="ref1"))
     assert mocked.call_count == 1
 
 
@@ -173,7 +198,7 @@ def test_process_pinpoint_results_does_not_process_other_providers(sample_templa
         )
     )
 
-    process_pinpoint_results(response=pinpoint_success_callback(reference="ref1")) is None
+    process_pinpoint_results(response=pinpoint_delivered_callback(reference="ref1")) is None
     assert mock_logger.called_once_with("")
     assert not mock_dao.called
 
@@ -197,7 +222,7 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         callback_api = create_service_callback_api(service=sample_template.service, url="https://example.com")
         assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-        process_pinpoint_results(pinpoint_success_callback(reference="ref"))
+        process_pinpoint_results(pinpoint_delivered_callback(reference="ref"))
 
         assert mock_callback.called_once_with(get_notification_by_id(notification.id))
         assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
