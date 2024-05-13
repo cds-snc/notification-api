@@ -51,6 +51,70 @@ from tests.app.db import (
 from tests.conftest import set_config_values
 
 
+class TestProviderToUse:
+    def test_should_use_pinpoint_for_sms_by_default(self, restore_provider_details, notify_api):
+        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
+        for provider in providers:
+            if provider.identifier == "pinpoint":
+                provider.active = True
+            provider_details_dao.dao_update_provider_details(provider)
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234")
+        assert provider.name == "pinpoint"
+
+    def test_should_use_sns_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
+        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
+        for provider in providers:
+            if provider.identifier == "pinpoint":
+                provider.active = True
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", False, "+12345678901")
+        assert provider.name == "sns"
+
+    def test_should_use_sns_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
+        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
+        for provider in providers:
+            if provider.identifier == "pinpoint":
+                provider.active = True
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
+        assert provider.name == "sns"
+
+    @pytest.mark.parametrize("sc_pool_id, default_pool_id", [(None, "default_pool_id"), ("sc_pool_id", None)])
+    def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
+        providers = provider_details_dao.get_provider_details_by_notification_type("sms")
+        for provider in providers:
+            if provider.identifier == "pinpoint":
+                provider.active = True
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": sc_pool_id,
+                "AWS_PINPOINT_DEFAULT_POOL_ID": default_pool_id,
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234")
+        assert provider.name == "sns"
+
+
 @pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type("sms")
@@ -82,21 +146,6 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     provider_details_dao.dao_update_provider_details(first)
 
     assert send_to_providers.provider_to_use("sms", "1234").name == first.identifier
-
-
-def test_provider_to_use(restore_provider_details):
-    providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-    first = providers[0]
-
-    assert first.identifier == "sns"
-
-    # provider is still SNS if SMS and sender is set
-    provider = send_to_providers.provider_to_use("sms", "1234", False, "+12345678901")
-    assert first.identifier == provider.name
-
-    # provider is highest priority sms provider if sender is not set
-    provider = send_to_providers.provider_to_use("sms", "1234", False)
-    assert first.identifier == provider.name
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
