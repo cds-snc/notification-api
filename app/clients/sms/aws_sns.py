@@ -2,7 +2,6 @@ import re
 from time import monotonic
 
 import boto3
-import botocore
 import phonenumbers
 from notifications_utils.statsd_decorators import statsd
 
@@ -66,12 +65,9 @@ class AwsSnsClient(SmsClient):
             try:
                 start_time = monotonic()
                 response = client.publish(PhoneNumber=to, Message=content, MessageAttributes=attributes)
-            except botocore.exceptions.ClientError as e:
-                self.statsd_client.incr("clients.sns.error")
-                raise str(e)
             except Exception as e:
                 self.statsd_client.incr("clients.sns.error")
-                raise str(e)
+                raise Exception(e)
             finally:
                 elapsed_time = monotonic() - start_time
                 self.current_app.logger.info("AWS SNS request finished in {}".format(elapsed_time))
