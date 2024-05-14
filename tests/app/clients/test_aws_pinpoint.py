@@ -4,6 +4,7 @@ from app import aws_pinpoint_client
 from tests.conftest import set_config_values
 
 
+@pytest.mark.serial
 def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
@@ -31,6 +32,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template):
     )
 
 
+@pytest.mark.serial
 def test_send_sms_sends_to_shortcode_pool(notify_api, mocker, sample_template):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
@@ -47,8 +49,7 @@ def test_send_sms_sends_to_shortcode_pool(notify_api, mocker, sample_template):
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [str(sample_template.id)],
         },
     ):
-        with notify_api.app_context():
-            aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
 
     boto_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber="+16135555555",
