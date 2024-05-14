@@ -964,6 +964,8 @@ def test_send_branding_request(client, sample_service, sample_organisation, mock
         "organisation_id": str(sample_service.organisation.id),
         "organisation_name": sample_service.organisation.name,
         "filename": "branding_url",
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
     mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
