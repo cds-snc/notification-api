@@ -89,7 +89,7 @@ jobs:
           
       - name: Merge commit SHA to release
         run: |
-          git merge ${{ github.sha }} --no-squash -X theirs
+          git merge ${{ github.sha }} -X theirs
           git push
 
   create-and-post-tag:
