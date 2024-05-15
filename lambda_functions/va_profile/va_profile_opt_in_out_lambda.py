@@ -35,7 +35,7 @@ from tempfile import NamedTemporaryFile
 
 
 logger = logging.getLogger('VAProfileOptInOut')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(getattr(logging, os.getenv('LOG_LEVEL', 'DEBUG')))
 
 ALB_CERTIFICATE_ARN = os.getenv('ALB_CERTIFICATE_ARN')
 ALB_PRIVATE_KEY_PATH = os.getenv('ALB_PRIVATE_KEY_PATH')
@@ -297,12 +297,18 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
         return post_response
 
     try:
-        params = (  # Stored function parameters:
-            bio['vaProfileId'],  #     _va_profile_id
-            bio['communicationItemId'],  #     _communication_item_id
-            bio['communicationChannelId'],  #     _communication_channel_name
-            bio['allowed'],  #     _allowed
-            bio['sourceDate'],  #     _source_datetime
+        # Stored function parameters:
+        params = (
+            bio['vaProfileId'],  # _va_profile_id
+            bio['communicationItemId'],  # _communication_item_id
+            bio['communicationChannelId'],  # _communication_channel_name
+            bio['allowed'],  # _allowed
+            bio['sourceDate'],  # _source_datetime
+        )
+
+        logger.info(
+            'The request is an opt-%s.',
+            'in' if (str(bio['allowed']).lower() == 'true') else 'out',
         )
 
         global db_connection
@@ -314,13 +320,12 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
         if db_connection is None:
             raise RuntimeError('No database connection.')
 
-        logger.debug('Executing the stored function . . .')
         with db_connection.cursor() as c:
             # https://www.psycopg.org/docs/cursor.html#cursor.execute
             c.execute(OPT_IN_OUT_QUERY, params)
             put_body['status'] = 'COMPLETED_SUCCESS' if c.fetchone()[0] else 'COMPLETED_NOOP'
             db_connection.commit()
-        logger.debug('. . . Executed the stored function.')
+        logger.debug('Executed the stored function.')
     except KeyError as e:
         # Bad Request.  Required attributes are missing.
         post_response['statusCode'] = 400
