@@ -1,4 +1,5 @@
 from typing import Optional
+
 import requests
 from flask import current_app
 from simple_salesforce import Salesforce

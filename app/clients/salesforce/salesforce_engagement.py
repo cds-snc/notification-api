@@ -22,7 +22,11 @@ ENGAGEMENT_STAGE_TRIAL = "Trial Account"
 
 
 def create(
-    session: Optional[Salesforce], service: Service, field_updates: dict[str, str], account_id: Optional[str], contact_id: Optional[str]
+    session: Optional[Salesforce],
+    service: Service,
+    field_updates: dict[str, str],
+    account_id: Optional[str],
+    contact_id: Optional[str],
 ) -> Optional[str]:
     """Create a Salesforce Engagement for the given Notify service
 
@@ -54,7 +58,7 @@ def create(
                 "Product_to_Add__c": ENGAGEMENT_PRODUCT,
             }
             field_values = field_default_values | field_updates
-            result = session.Opportunity.create( # type: ignore
+            result = session.Opportunity.create(  # type: ignore
                 engagement_maxlengths(field_values),
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
@@ -63,7 +67,7 @@ def create(
 
             # Create the Product association
             if engagement_id:
-                result = session.OpportunityLineItem.create( # type: ignore
+                result = session.OpportunityLineItem.create(  # type: ignore
                     {
                         "OpportunityId": engagement_id,
                         "PricebookEntryId": current_app.config["SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID"],
@@ -84,7 +88,11 @@ def create(
 
 
 def update(
-    session: Optional[Salesforce], service: Service, field_updates: dict[str, str], account_id: Optional[str], contact_id: Optional[str]
+    session: Optional[Salesforce],
+    service: Service,
+    field_updates: dict[str, str],
+    account_id: Optional[str],
+    contact_id: Optional[str],
 ) -> Optional[str]:
     """Update an Engagement.  If the Engagement does not exist, it is created.
 
@@ -104,7 +112,7 @@ def update(
 
         # Existing Engagement, update the stage name
         if engagement:
-            result = session.Opportunity.update( # type: ignore
+            result = session.Opportunity.update(  # type: ignore
                 str(engagement.get("Id")),
                 engagement_maxlengths(field_updates),
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
@@ -120,7 +128,9 @@ def update(
     return engagement_id
 
 
-def contact_role_add(session: Optional[Salesforce], service: Service, account_id: Optional[str], contact_id: Optional[str]) -> None:
+def contact_role_add(
+    session: Optional[Salesforce], service: Service, account_id: Optional[str], contact_id: Optional[str]
+) -> None:
     """Adds an Engagement ContactRole based on the provided Notify service and Contact.  If the
     Engagement does not exist, it is created.
 
@@ -136,7 +146,7 @@ def contact_role_add(session: Optional[Salesforce], service: Service, account_id
     try:
         engagement = get_engagement_by_service_id(session, str(service.id))
         if engagement:
-            result = session.OpportunityContactRole.create( # type: ignore
+            result = session.OpportunityContactRole.create(  # type: ignore
                 {"ContactId": contact_id, "OpportunityId": engagement.get("Id")},
                 headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
             )
@@ -147,7 +157,9 @@ def contact_role_add(session: Optional[Salesforce], service: Service, account_id
         current_app.logger.error(f"SF_ERR Salesforce ContactRole add for {contact_id} with '{service.id}' failed: {ex}")
 
 
-def contact_role_delete(session: Optional[Salesforce], service: Service, account_id: Optional[str], contact_id: Optional[str]) -> None:
+def contact_role_delete(
+    session: Optional[Salesforce], service: Service, account_id: Optional[str], contact_id: Optional[str]
+) -> None:
     """Deletes an Engagement ContactRole based on the provided Notify service and Salesforce Contact.
     If the Engagement does not exist, it is created.
 
@@ -167,7 +179,7 @@ def contact_role_delete(session: Optional[Salesforce], service: Service, account
         engagement_contact_role = get_engagement_contact_role(session, engagement_id, contact_id)
 
         if engagement_contact_role:
-            result = session.OpportunityContactRole.delete(engagement_contact_role.get("Id")) # type: ignore
+            result = session.OpportunityContactRole.delete(engagement_contact_role.get("Id"))  # type: ignore
             parse_result(result, f"Salesforce ContactRole delete for {contact_id} with '{service.id}'")
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce ContactRole delete for {contact_id} with '{service.id}' failed: {ex}")

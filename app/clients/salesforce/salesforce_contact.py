@@ -38,7 +38,7 @@ def create(session: Optional[Salesforce], user: User, field_updates: dict[str, O
             "Email": user.email_address,
         }
         field_values = field_default_values | field_updates
-        result = session.Contact.create( # type: ignore
+        result = session.Contact.create(  # type: ignore
             field_values,
             headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
         )
@@ -67,7 +67,7 @@ def update(session: Optional[Salesforce], user: User, field_updates: dict[str, O
 
         # Existing contact, update the AccountID
         if contact:
-            result = session.Contact.update( # type:ignore
+            result = session.Contact.update(  # type:ignore
                 str(contact.get("Id")), field_updates, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
             )
             parse_result(result, f"Salesforce Contact update '{user.email_address}' with '{field_updates}'")
