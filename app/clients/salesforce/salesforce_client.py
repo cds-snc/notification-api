@@ -28,7 +28,7 @@ class SalesforceClient:
     #
     # Authentication
     #
-    def get_session(self) -> Salesforce:
+    def get_session(self) -> Optional[Salesforce]:
         """Returns an authenticated Salesforce session.
 
         Returns:
@@ -36,7 +36,7 @@ class SalesforceClient:
         """
         return salesforce_auth.get_session(self.client_id, self.username, self.password, self.security_token, self.domain)
 
-    def end_session(self, session: Salesforce) -> None:
+    def end_session(self, session: Optional[Salesforce]) -> None:
         """Revokes a Salesforce session.
 
         Args:
@@ -73,7 +73,7 @@ class SalesforceClient:
         salesforce_contact.update(session, user, user_updates)
         self.end_session(session)
 
-    def contact_update_account_id(self, session: Salesforce, service: Service, user: User) -> Tuple[Optional[str], Optional[str]]:
+    def contact_update_account_id(self, session: Optional[Salesforce], service: Service, user: User) -> Tuple[Optional[str], Optional[str]]:
         """Updates the Account ID for the given Notify user's Salesforce Contact. The Salesforce Account ID
         and Contact ID are returned.
 

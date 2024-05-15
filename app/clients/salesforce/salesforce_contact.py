@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from app.models import User
 
 
-def create(session: Salesforce, user: User, field_updates: dict[str, Optional[str]]) -> Optional[str]:
+def create(session: Optional[Salesforce], user: User, field_updates: dict[str, Optional[str]]) -> Optional[str]:
     """Create a Salesforce Contact from the given Notify User
 
     Args:
@@ -38,7 +38,7 @@ def create(session: Salesforce, user: User, field_updates: dict[str, Optional[st
             "Email": user.email_address,
         }
         field_values = field_default_values | field_updates
-        result = session.Contact.create(
+        result = session.Contact.create( # type: ignore
             field_values,
             headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"},
         )
@@ -50,7 +50,7 @@ def create(session: Salesforce, user: User, field_updates: dict[str, Optional[st
     return contact_id
 
 
-def update(session: Salesforce, user: User, field_updates: dict[str, Optional[str]]) -> Optional[str]:
+def update(session: Optional[Salesforce], user: User, field_updates: dict[str, Optional[str]]) -> Optional[str]:
     """Update a Contact's details.  If the Contact does not  exist, it is created.
 
     Args:
@@ -67,8 +67,8 @@ def update(session: Salesforce, user: User, field_updates: dict[str, Optional[st
 
         # Existing contact, update the AccountID
         if contact:
-            result = session.Contact.update(
-                contact.get("Id"), field_updates, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
+            result = session.Contact.update( # type:ignore
+                str(contact.get("Id")), field_updates, headers={"Sforce-Duplicate-Rule-Header": "allowSave=true"}
             )
             parse_result(result, f"Salesforce Contact update '{user.email_address}' with '{field_updates}'")
             contact_id = contact.get("Id")
@@ -81,7 +81,7 @@ def update(session: Salesforce, user: User, field_updates: dict[str, Optional[st
     return contact_id
 
 
-def get_contact_by_user_id(session: Salesforce, user_id: str) -> Optional[dict[str, str]]:
+def get_contact_by_user_id(session: Optional[Salesforce], user_id: str) -> Optional[dict[str, str]]:
     """Retrieve a Salesforce Contact by their Notify user ID.  If
     they can't be found, `None` is returned.
 
