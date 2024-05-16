@@ -241,7 +241,7 @@ def test_get_sms_provider_with_equal_priority_returns_provider(
 
 
 def test_get_current_sms_provider_returns_active_only(restore_provider_details):
-    # Note that we currently have two acive sms providers, sns and pinpoint
+    # Note that we currently have two active sms providers: sns and pinpoint.
     current_provider = get_current_provider("sms")
     current_provider.active = False
     dao_update_provider_details(current_provider)
