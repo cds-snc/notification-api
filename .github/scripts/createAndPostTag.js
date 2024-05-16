@@ -1,6 +1,6 @@
 // createAndPostTag.js
-const { prData, getReleaseVersionValue } = require("./prData");
-const appendSummary = require("./actionUtils");
+const { prData } = require("./prData");
+const { appendSummary, getReleaseVersionValue } = require("./actionUtils");
 
 /**
  * Creates a new git tag in the repository.
@@ -55,8 +55,19 @@ async function createAndPostTag(params) {
   const repo = context.repo.repo;
 
   try {
+    // Retrieve the current release version, this will be used as the PREVIOUS_VERSION
+    const previousVersion = await getReleaseVersionValue(github, owner, repo);
+
+    // Output previous version to the GitHub actions workflow context
+    // This will be used by the workflow that sets up the release notes
+    core.setOutput("previous_version", previousVersion);
+
     // Retrieve PR data to decide the new version tag
-    const { releaseBranchSha, newVersion } = await prData({ github, context, core });
+    const { releaseBranchSha, newVersion } = await prData({
+      github,
+      context,
+      core,
+    });
 
     // Create and push the tag using the SHA from releaseBranchSha
     await createTag(github, owner, repo, newVersion, releaseBranchSha);
@@ -72,13 +83,14 @@ async function createAndPostTag(params) {
     // Construct the summary content
     const summaryContent = `
 ### Successful Tag Creation!
-- After merge to the release branch, a tag was created. 
+- After merge to the release branch, a tag was created.
+- Previous version was ${previousVersion}
 - New version is ${newVersion}
 - Tag created for version ${newVersion} using the new release branch SHA: ${releaseBranchSha}
 `;
 
     // Append the summary to the GitHub step summary file or log it
-    appendSummary(summaryContent);
+    appendSummary(core, summaryContent);
   } catch (error) {
     core.setFailed(`Failed to generate summary: ${error.message}`);
     console.error(error);

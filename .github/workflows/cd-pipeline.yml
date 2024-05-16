@@ -89,13 +89,20 @@ jobs:
           
       - name: Merge commit SHA to release
         run: |
-          git merge ${{ github.sha }} -X theirs
+          git merge ${{ github.sha }} --no-squash -X theirs
           git push
 
   create-and-post-tag:
     needs: merge-to-release
     uses: ./.github/workflows/create-and-post-tag.yml
     secrets: inherit
+
+  create-release-notes:
+    needs: create-and-post-tag
+    uses: ./.github/workflows/create-release-notes.yml
+    secrets: inherit
+    with:
+      previous_version: ${{ needs.create-and-post-tag.outputs.previous_version }}
 
   deploy-to-staging:
     needs: merge-to-release 

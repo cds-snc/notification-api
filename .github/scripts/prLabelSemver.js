@@ -1,6 +1,6 @@
 // prLabelSemver.js
 const { prData } = require("./prData");
-const appendSummary = require("./actionUtils");
+const { appendSummary } = require("./actionUtils");
 
 /**
  * Automatically labels pull requests based on semantic versioning (semver) guidelines
@@ -36,11 +36,11 @@ async function prLabelSemver(params) {
 - Semver Bump: ${semverValue}
 `;
     // Append the summary to the GitHub step summary file or log it
-    appendSummary(summaryContent);
+    appendSummary(core, summaryContent);
   } catch (error) {
     core.setFailed(`Failed to generate summary: ${error.message}`);
     console.error(error);
   }
-};
+}
 
 module.exports = prLabelSemver;

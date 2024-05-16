@@ -1,4 +1,5 @@
 // prData.js
+const { getReleaseVersionValue } = require("./actionUtils");
 
 /**
  * Fetches all pull requests associated with a specific commit from a GitHub repository.
@@ -14,22 +15,6 @@ async function fetchPullRequests(github, owner, repo, sha) {
     repo,
     commit_sha: sha,
   });
-}
-
-/**
- * Retrieves the current release version from a repository's actions secrets.
- * @param {Object} github - The GitHub client instance.
- * @param {string} owner - The owner of the GitHub repository.
- * @param {string} repo - The repository name.
- * @returns {Promise<string>} - A promise resolving to the current release version.
- */
-async function getReleaseVersionValue(github, owner, repo) {
-  const { data } = await github.rest.actions.getRepoVariable({
-    owner,
-    repo,
-    name: "RELEASE_VERSION",
-  });
-  return data.value;
 }
 
 /**
@@ -114,7 +99,10 @@ async function prData(params) {
     const prNumber = pullRequestData.data[0].number;
     const prUrl = pullRequestData.data[0].html_url;
 
-    const { newVersion, appliedLabel } = processLabelsAndVersion( labels, currentVersion );
+    const { newVersion, appliedLabel } = processLabelsAndVersion(
+      labels,
+      currentVersion,
+    );
 
     return {
       releaseBranchSha,
@@ -133,5 +121,4 @@ async function prData(params) {
 
 module.exports = {
   prData,
-  getReleaseVersionValue,
 };
