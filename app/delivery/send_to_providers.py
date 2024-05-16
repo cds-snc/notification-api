@@ -2,7 +2,7 @@ import base64
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Union
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 import phonenumbers
@@ -342,9 +342,9 @@ def update_notification_to_sending(notification, provider):
 def provider_to_use(
     notification_type: str,
     notification_id: UUID,
-    to: Union[str, None] = None,
+    to: Optional[str] = None,
     international: bool = False,
-    sender: Union[str, None] = None,
+    sender: Optional[str] = None,
 ) -> Any:
     """
     Get the provider to use for sending the notification.
