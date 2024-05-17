@@ -46,6 +46,7 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
+    PINPOINT_PROVIDER,
     SMS_TYPE,
     BounceRateStatus,
     Notification,
@@ -68,6 +69,7 @@ def send_sms_to_provider(notification):
             notification.id,
             notification.international,
             notification.reply_to_text,
+            template_id=notification.template_id,
         )
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
@@ -334,9 +336,15 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
-def provider_to_use(notification_type, notification_id, international=False, sender=None):
+def provider_to_use(notification_type, notification_id, international=False, sender=None, template_id=None):
+    # Temporary redirect setup for template IDs that are meant for the short code usage.
+    if notification_type == SMS_TYPE and template_id is not None and str(template_id) in Config.AWS_PINPOINT_SC_TEMPLATE_IDS:
+        return clients.get_client_by_name_and_type("pinpoint", SMS_TYPE)
+
     active_providers_in_order = [
-        p for p in get_provider_details_by_notification_type(notification_type, international) if p.active
+        p
+        for p in get_provider_details_by_notification_type(notification_type, international)
+        if p.active and p.identifier != PINPOINT_PROVIDER
     ]
 
     if not active_providers_in_order:
@@ -353,12 +361,16 @@ def get_html_email_options(service: Service):
                 "fip_banner_english": False,
                 "fip_banner_french": True,
                 "logo_with_background_colour": False,
+                "alt_text_en": None,
+                "alt_text_fr": None,
             }
         else:
             return {
                 "fip_banner_english": True,
                 "fip_banner_french": False,
                 "logo_with_background_colour": False,
+                "alt_text_en": None,
+                "alt_text_fr": None,
             }
 
     logo_url = get_logo_url(service.email_branding.logo) if service.email_branding.logo else None
@@ -371,6 +383,8 @@ def get_html_email_options(service: Service):
         "brand_logo": logo_url,
         "brand_text": service.email_branding.text,
         "brand_name": service.email_branding.name,
+        "alt_text_en": service.email_branding.alt_text_en,
+        "alt_text_fr": service.email_branding.alt_text_fr,
     }
 
 

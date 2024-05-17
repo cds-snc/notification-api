@@ -11,7 +11,7 @@ from .common import (
 )
 
 
-def test_api_one_off(notification_type: Notification_type, attachment_type: Attachment_type = Attachment_type.NONE):
+def test_api_one_off(notification_type: Notification_type, attachment_type: Attachment_type = Attachment_type.NONE, local: bool = False):
     if attachment_type is Attachment_type.NONE:
         print(f"test_api_oneoff ({notification_type.value})... ", end="", flush=True)
     else:
@@ -51,7 +51,7 @@ def test_api_one_off(notification_type: Notification_type, attachment_type: Atta
         }
     else:
         data["personalisation"] = {
-            "var": "var",
+            "var": "smoke test api one off",
         }
 
     response = requests.post(
@@ -64,10 +64,12 @@ def test_api_one_off(notification_type: Notification_type, attachment_type: Atta
         print(f"FAILED: post to v2/notifications/{notification_type.value} failed")
         exit(1)
 
-    uri = response.json()["uri"]
-
-    success = single_succeeded(uri, use_jwt=False)
-    if not success:
-        print("FAILED: job didn't finish successfully")
-        exit(1)
-    print("Success")
+    if local:
+        print(f"Check manually for 1 {notification_type.value}")
+    else:
+        uri = response.json()["uri"]
+        success = single_succeeded(uri, use_jwt=False)
+        if not success:
+            print("FAILED: job didn't finish successfully")
+            exit(1)
+        print("Success")

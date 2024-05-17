@@ -46,6 +46,10 @@ format:
 smoke-test:
 	cd tests_smoke && poetry run python smoke_test.py
 
+.PHONY: smoke-test-local
+smoke-test-local:
+	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
+
 .PHONY: run
 run: ## Run the web app
 	poetry run flask run -p 6011 --host=0.0.0.0
