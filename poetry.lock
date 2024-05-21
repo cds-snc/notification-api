@@ -2444,7 +2444,6 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-
 version = "52.2.4"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
@@ -4213,4 +4212,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "9e1a33f8f521016baca2402c0604d048bd00acacd454fc9dcff845b1eb677c20"
+content-hash = "62653f4a581d32ac1678c8454f1100320096e8166aca1599cffd6fd3f72cfb4b"
