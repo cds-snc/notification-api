@@ -26,7 +26,7 @@ def get_name_parts(full_name: str) -> dict[str, str]:
     }
 
 
-def query_one(session: Salesforce, query: str) -> Optional[dict[str, Any]]:
+def query_one(session: Optional[Salesforce], query: str) -> Optional[dict[str, Any]]:
     """Execute an SOQL query that expects to return a single record.
 
     Args:
@@ -38,11 +38,14 @@ def query_one(session: Salesforce, query: str) -> Optional[dict[str, Any]]:
     """
     result = None
     try:
-        results = session.query(query)
-        if results.get("totalSize") == 1:
-            result = results.get("records")[0]
+        if session is not None:
+            results = session.query(query)
+            if results.get("totalSize") == 1:
+                result = results.get("records")[0]
+            else:
+                current_app.logger.warn(f"SF_WARN Salesforce no results found for query {query}")
         else:
-            current_app.logger.warn(f"SF_WARN Salesforce no results found for query {query}")
+            current_app.logger.error("SF_ERR Salesforce session is None")
     except Exception as ex:
         current_app.logger.error(f"SF_ERR Salesforce query {query} failed: {ex}")
     return result
