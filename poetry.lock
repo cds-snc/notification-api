@@ -210,18 +210,18 @@ aiohttp = "*"
 
 [[package]]
 name = "awscli"
-version = "1.32.89"
+version = "1.32.100"
 description = "Universal Command Line Environment for AWS."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "awscli-1.32.89-py3-none-any.whl", hash = "sha256:6928106f755312eb8126eebe317e947d64d0337d0a0f468c8ed06c724eed0286"},
-    {file = "awscli-1.32.89.tar.gz", hash = "sha256:0cb9f2145b3c84e7df253ad01589e8d31412644ad83c9ffe4bd3e45ffc2dd9d2"},
+    {file = "awscli-1.32.100-py3-none-any.whl", hash = "sha256:46e4a44dafeffe63980ab2cd0240aa15a4879cf5d84f210c9eb0facc05e7bf0a"},
+    {file = "awscli-1.32.100.tar.gz", hash = "sha256:7bd06388d7853508f96a91291c28b0745ac0a5ac73276cb7db48478d6d3c2a70"},
 ]
 
 [package.dependencies]
-botocore = "1.34.89"
-colorama = ">=0.2.5,<0.4.5"
+botocore = "1.34.100"
+colorama = ">=0.2.5,<0.4.7"
 docutils = ">=0.10,<0.17"
 PyYAML = ">=3.10,<6.1"
 rsa = ">=3.1.2,<4.8"
@@ -371,17 +371,17 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.34.89"
+version = "1.34.100"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.34.89-py3-none-any.whl", hash = "sha256:f9166f485d64b012d46acd212fb29a45b195a85ff66a645b05b06d9f7572af36"},
-    {file = "boto3-1.34.89.tar.gz", hash = "sha256:e0940e43810fe82f5b77442c751491fcc2768af7e7c3e8c15ea158e1ca9b586c"},
+    {file = "boto3-1.34.100-py3-none-any.whl", hash = "sha256:bbe2bb0dfcd92380da2a2fa2c2f586ba06c118b796380b2d0f3d0ebd103ec28d"},
+    {file = "boto3-1.34.100.tar.gz", hash = "sha256:016f6d66900bb1a835dea2063f1e91fc7057dbf7fb7df8add0706f0da9492631"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.89,<1.35.0"
+botocore = ">=1.34.100,<1.35.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -390,13 +390,13 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.89"
+version = "1.34.100"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.34.89-py3-none-any.whl", hash = "sha256:35205ed7db13058a3f7114c28e93058a8ff1490dfc6a5b5dff9c581c738fbf59"},
-    {file = "botocore-1.34.89.tar.gz", hash = "sha256:6624b69bcdf2c5d0568b7bc9cbac13e605f370e7ea06710c61e2e2dc76831141"},
+    {file = "botocore-1.34.100-py3-none-any.whl", hash = "sha256:ee516fb9e9e906d311f2a9921afaf79c594db239a5b4b626e89e6960401aad0b"},
+    {file = "botocore-1.34.100.tar.gz", hash = "sha256:513bea60c6531af8e1ae1fdb2947e3ef99712f39c58f4656b5efef9cb6f75a13"},
 ]
 
 [package.dependencies]
@@ -2444,7 +2444,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.2.3"
+version = "52.2.4"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.10.9"
@@ -2452,9 +2452,9 @@ files = []
 develop = false
 
 [package.dependencies]
-awscli = "1.32.89"
+awscli = "1.32.100"
 bleach = "6.1.0"
-boto3 = "1.34.89"
+boto3 = "1.34.100"
 cachetools = "4.2.4"
 certifi = "^2023.7.22"
 cryptography = "^42.0.3"
@@ -2465,7 +2465,7 @@ Jinja2 = "^3.0.0"
 markupsafe = "2.1.5"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
-phonenumbers = "8.13.35"
+phonenumbers = "8.13.36"
 py_w3c = "0.3.1"
 pypdf2 = "1.28.6"
 python-json-logger = "2.0.7"
@@ -2479,8 +2479,8 @@ werkzeug = "2.3.7"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "reinstate-bulk-sms-limit"
-resolved_reference = "b89daceb96065599f7f6b689b91cfd88dad93aa9"
+reference = "52.2.4"
+resolved_reference = "1e2c279333ee1b86671b82d8f562bb3e98446500"
 
 [[package]]
 name = "ordered-set"
@@ -2554,13 +2554,13 @@ pytzdata = ">=2020.1"
 
 [[package]]
 name = "phonenumbers"
-version = "8.13.35"
+version = "8.13.36"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 optional = false
 python-versions = "*"
 files = [
-    {file = "phonenumbers-8.13.35-py2.py3-none-any.whl", hash = "sha256:58286a8e617bd75f541e04313b28c36398be6d4443a778c85e9617a93c391310"},
-    {file = "phonenumbers-8.13.35.tar.gz", hash = "sha256:64f061a967dcdae11e1c59f3688649e697b897110a33bb74d5a69c3e35321245"},
+    {file = "phonenumbers-8.13.36-py2.py3-none-any.whl", hash = "sha256:68e06d20ae2f8fe5c7c7fd5b433f4257bc3cc747dc5196a029c7898ea449b012"},
+    {file = "phonenumbers-8.13.36.tar.gz", hash = "sha256:b4e2371e35a1172aa2c91c9200b1e48e87b9355eb575768dd38058fc8d72c9ff"},
 ]
 
 [[package]]
@@ -4255,4 +4255,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "8ce59848a30301161a85fcaefd46c576ef5d6a51f4658b2db1e4a817c6d38f7b"
+content-hash = "9e1a33f8f521016baca2402c0604d048bd00acacd454fc9dcff845b1eb677c20"
