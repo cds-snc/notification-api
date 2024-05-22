@@ -241,9 +241,14 @@ def test_get_sms_provider_with_equal_priority_returns_provider(
 
 
 def test_get_current_sms_provider_returns_active_only(restore_provider_details):
+    # Note that we currently have two active sms providers: sns and pinpoint.
     current_provider = get_current_provider("sms")
     current_provider.active = False
     dao_update_provider_details(current_provider)
+    current_provider = get_current_provider("sms")
+    current_provider.active = False
+    dao_update_provider_details(current_provider)
+
     new_current_provider = get_current_provider("sms")
 
     assert new_current_provider is None
@@ -308,5 +313,5 @@ def test_dao_get_provider_stats(notify_db_session):
     assert result[5].identifier == "pinpoint"
     assert result[5].notification_type == "sms"
     assert result[5].supports_international is False
-    assert result[5].active is False
+    assert result[5].active is True
     assert result[5].current_month_billable_sms == 0

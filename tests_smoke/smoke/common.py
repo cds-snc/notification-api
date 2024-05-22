@@ -2,8 +2,6 @@ import csv
 import json
 import os
 import time
-
-# from notifications_utils.s3 import s3upload as utils_s3upload
 import urllib
 import uuid
 from enum import Enum
@@ -15,6 +13,10 @@ import requests
 from boto3 import Session
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
+
+# from app/config.py
+INTERNAL_TEST_NUMBER = "+16135550123"
+INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
 load_dotenv()
 
@@ -32,11 +34,12 @@ class Config:
     AWS_SECRET_ACCESS_KEY = os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY")
     SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
     USER_ID = os.environ.get("SMOKE_USER_ID")
-    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
-    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
+    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", INTERNAL_TEST_EMAIL_ADDRESS)
+    SMS_TO = os.environ.get("SMOKE_SMS_TO", INTERNAL_TEST_NUMBER)
     EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
+    JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
 
 
 boto_session = Session(
@@ -63,8 +66,8 @@ def rows_to_csv(rows: List[List[str]]):
     return output.getvalue()
 
 
-def job_line(data: str, number_of_lines: int) -> Iterator[List[str]]:
-    return map(lambda n: [data, f"var{n}"], range(0, number_of_lines))
+def job_line(data: str, number_of_lines: int, prefix: str = "") -> Iterator[List[str]]:
+    return map(lambda n: [data, f"{prefix} {n}"], range(0, number_of_lines))
 
 
 def pretty_print(data: Any):
@@ -116,7 +119,6 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
     return success
 
 
-# from notifications_utils.s3 import s3upload as utils_s3upload
 def utils_s3upload(filedata, region, bucket_name, file_location, content_type="binary/octet-stream", tags=None):
     _s3 = boto_session.resource("s3")
 

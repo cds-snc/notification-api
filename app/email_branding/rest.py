@@ -20,7 +20,10 @@ register_errors(email_branding_blueprint)
 
 @email_branding_blueprint.route("", methods=["GET"])
 def get_email_branding_options():
-    email_branding_options = [o.serialize() for o in dao_get_email_branding_options()]
+    filter_by_organisation_id = request.args.get("organisation_id", None)
+    email_branding_options = [
+        o.serialize() for o in dao_get_email_branding_options(filter_by_organisation_id=filter_by_organisation_id)
+    ]
     return jsonify(email_branding=email_branding_options)
 
 

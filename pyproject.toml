@@ -46,7 +46,7 @@ psycopg2-binary = "2.9.9"
 PyJWT = "2.8.0"
 pytz = "2021.3"
 PyYAML = "6.0.1"
-SQLAlchemy = "1.4.51"
+SQLAlchemy = "1.4.52"
 cachelib = "0.10.2"
 newrelic = "6.10.0.165"
 notifications-python-client = "6.4.1"
@@ -61,10 +61,10 @@ awscli-cwlogs = "1.4.6"
 aws-embedded-metrics = "1.0.8"
 # Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug = "2.3.7"
-MarkupSafe = "2.1.4"
+MarkupSafe = "2.1.5"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.1.5" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.2.3" }
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.7.1"
 greenlet = "2.0.2"
@@ -99,9 +99,9 @@ sqlalchemy-stubs = "0.4"
 sqlalchemy2-stubs = "0.0.2a38"
 networkx = "2.8.8" # not directly required, pinned by Snyk to avoid a vulnerability
 pytest-mock-resources = { extras = ["redis"], version = "2.9.2" }
-types-boto = "2.49.18.9"
+types-boto = "2.49.18.20240205"
 types-mock = "4.0.15.2"
 types-python-dateutil = "2.8.19.20240106"
 types-pytz = "2022.7.1.2"
-types-requests = "2.31.0.20240106"
-types-redis = "4.6.0.20240106"
+types-requests = "2.31.0.20240406"
+types-redis = "4.6.0.20240425"

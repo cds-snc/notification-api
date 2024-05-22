@@ -351,17 +351,21 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service):
 
 @freeze_time("2016-10-31 10:00:00")
 def test_should_get_limited_number_of_jobs(sample_template):
-    flexable_retention_service = create_service(service_name="Another service")
-    insert_service_data_retention(flexable_retention_service.id, sample_template.template_type, 3)
-    flexable_template = create_template(flexable_retention_service, template_type=sample_template.template_type)
+    flexible_retention_service1 = create_service(service_name="Another service 1")
+    insert_service_data_retention(flexible_retention_service1.id, sample_template.template_type, 3)
+    flexible_template1 = create_template(flexible_retention_service1, template_type=sample_template.template_type)
+
+    flexible_retention_service2 = create_service(service_name="Another service 2")
+    insert_service_data_retention(flexible_retention_service2.id, sample_template.template_type, 2)
+    flexible_template2 = create_template(flexible_retention_service2, template_type=sample_template.template_type)
 
     eight_days_ago = datetime.utcnow() - timedelta(days=8)
     four_days_ago = datetime.utcnow() - timedelta(days=4)
 
-    create_job(flexable_template, created_at=four_days_ago)
-    create_job(flexable_template, created_at=four_days_ago)
-    create_job(sample_template, created_at=eight_days_ago)
-    create_job(sample_template, created_at=eight_days_ago)
+    for _ in range(4):
+        create_job(flexible_template1, created_at=four_days_ago)
+        create_job(flexible_template2, created_at=four_days_ago)
+        create_job(sample_template, created_at=eight_days_ago)
 
     jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type], limit=3)
 
