@@ -100,12 +100,12 @@ const triggerAndWait = async ({ github, core }) => {
   core.setOutput('regression_result', `QA Regression result is ${resultText}; link to this run is ${workflow_url}`);
 
   // Append to GITHUB_STEP_SUMMARY
-  const summaryContent = `### Workflow Result\nResult: ${resultText}\n[Link to Workflow Run](${workflow_url})`;
+  const summaryContent = `### Regression Result\nResult: ${resultText}\n[Link to Workflow Run](${workflow_url})`;
   require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
 
   // Check if the workflow failed and set an appropriate error message
   if (conclusion !== 'success') {
-    const errorMessage = `Workflow failed with conclusion: ${conclusion}. See details: ${workflow_url}`;
+    const errorMessage = `Regression failed with conclusion: ${conclusion}. See details: ${workflow_url}`;
     console.error(errorMessage);
     core.setFailed(errorMessage);
   }

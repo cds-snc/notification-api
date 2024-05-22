@@ -1,0 +1,90 @@
+# .github/workflows/deploy-release.yml
+# This workflow should only be run when a release or prerelease need to be deployed outside the cd-pipeline.yml
+# dev_deploy.yml only deploys hashes - this workflow ensures the tag is deployed
+# this ensures the tag name shows up correctly in Datadog for deployment tracking
+name: Deploy API Release
+run-name: "Deploy Release to ${{ inputs.environment }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment to deploy
+        default: dev
+        options:
+          - dev
+          - perf
+          - staging
+          - prod
+      ref:
+        description: "Tag, branch, or commit"
+        default: master
+        required: true
+        type: string
+      lambdaDeploy:
+        description: "Include Lambda in deployment?"
+        default: true
+        required: false
+        type: boolean
+
+env:
+  TAG: ${{ github.event.inputs.ref }}
+  ENV: ${{ github.event.inputs.environment }}
+
+jobs:
+  setup-environment:
+    name: "setup-env"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Set Outputs
+        id: set-outputs
+        run: |
+          echo "tag=${{ env.TAG }}" >> $GITHUB_OUTPUT
+          echo "environment=${{ env.ENV }}" >> $GITHUB_OUTPUT
+      - name: Env Values
+        run: |
+          echo "The environment is ${{ env.ENV }}"
+          echo "The branch/tag is ${{ env.TAG }}"
+    outputs:
+      tag: ${{ steps.set-outputs.outputs.tag }}
+      environment: ${{ steps.set-outputs.outputs.environment }}
+
+  run-build:
+    needs: [setup-environment]
+    uses: ./.github/workflows/build.yml
+    with:
+      environment: ${{ needs.setup-environment.outputs.environment }}
+      ref: ${{ needs.setup-environment.outputs.tag }}
+    secrets: inherit
+
+  run-lambda-deploy:
+    if: ${{ github.event.inputs.lambdaDeploy }}
+    needs: [setup-environment]
+    uses: ./.github/workflows/lambda-functions.yml
+    with:
+      environment: ${{ needs.setup-environment.outputs.environment }}
+      ref: ${{ needs.setup-environment.outputs.tag }}
+      lambdaName: "All"
+    secrets: inherit
+
+  run-deployment:
+    needs: [setup-environment, run-build]
+    uses: ./.github/workflows/deployment.yml
+    with:
+      environment: ${{ needs.setup-environment.outputs.environment }}
+      ref: ${{ needs.setup-environment.outputs.tag }}
+    secrets: inherit
+
+  run-qa-suite:
+    needs: [run-deployment]
+    uses: ./.github/workflows/run-regression.yml
+    with:
+      environment: ${{ needs.setup-environment.outputs.environment }}
+    secrets: inherit
+

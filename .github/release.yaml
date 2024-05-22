@@ -11,30 +11,16 @@ changelog:
     - title: Exciting New Features 🎉
       labels:
         - enhancement
-    - title: Lambda Functions
-      labels:
-        - lambda
     - title: Bug Fixes 🐜
       labels:
         - bug
         - hotfix
     - title: Security Fixes 🔐
       labels:
-        - cve
         - security
-    - title: DevOps
-      labels:
-        - actions
-        - devops
-    - title: Dependency Upgrades 🆙
-      labels:
-        - dependencies
     - title: Internal Upgrades 📈
       labels:
         - internal
-        - tech debt
-        - tool
-        - maintenance
     - title: Other Changes 🧑‍💻
       labels:
         - "*"
