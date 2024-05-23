@@ -8,8 +8,8 @@ from flask import current_app, json
 from freezegun import freeze_time
 
 from app.aws.mocks import (
+    pinpoint_delivered_callback,
     pinpoint_failed_callback,
-    pinpoint_successful_callback,
     ses_notification_callback,
     sns_failed_callback,
     sns_success_callback,
@@ -55,8 +55,8 @@ def test_make_sns_success_callback(notify_api, mocker, phone_number, sns_callbac
 @pytest.mark.parametrize(
     "phone_number, pinpoint_callback, pinpoint_callback_args",
     [
-        ("+15149301630", pinpoint_successful_callback, {}),
-        ("+15149301631", pinpoint_successful_callback, {}),
+        ("+15149301630", pinpoint_delivered_callback, {}),
+        ("+15149301631", pinpoint_delivered_callback, {}),
         ("+15149301632", pinpoint_failed_callback, {"provider_response": "Phone is currently unreachable/unavailable"}),
         ("+15149301633", pinpoint_failed_callback, {"provider_response": "Phone carrier is currently unreachable/unavailable"}),
     ],

@@ -6,8 +6,8 @@ from notifications_utils.s3 import s3upload
 
 from app import create_uuid, notify_celery
 from app.aws.mocks import (
+    pinpoint_delivered_callback,
     pinpoint_failed_callback,
-    pinpoint_successful_callback,
     ses_hard_bounce_callback,
     ses_notification_callback,
     ses_soft_bounce_callback,
@@ -87,7 +87,7 @@ def aws_pinpoint_callback(notification_id, to):
             "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
         )
     else:
-        return pinpoint_successful_callback(notification_id, destination=to, timestamp=timestamp)
+        return pinpoint_delivered_callback(notification_id, destination=to, timestamp=timestamp)
 
 
 @notify_celery.task(
