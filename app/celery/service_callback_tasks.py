@@ -59,13 +59,7 @@ def send_complaint_to_service(self, complaint_data):
 def _send_data_to_service_callback_api(self, data, service_callback_url, token, function_name):
     notification_id = data["notification_id"] if "notification_id" in data else data["id"]
     try:
-        current_app.logger.info(
-            "{} sending {} to {}".format(
-                function_name,
-                notification_id,
-                service_callback_url
-            )
-        )
+        current_app.logger.info("{} sending {} to {}".format(function_name, notification_id, service_callback_url))
         response = request(
             method="POST",
             url=service_callback_url,
