@@ -2523,7 +2523,7 @@ class TestBulkSend:
         mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
 
         service = create_service(sms_daily_limit=10, message_limit=100)
-        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms", content="a" * 612)
+        template = create_sample_template(notify_db, notify_db_session, service=service, template_type="sms", content="a" * 613)
         data = {
             "name": "job_name",
             "template_id": template.id,
@@ -2574,7 +2574,7 @@ class TestBulkSend:
         )
         assert response.status_code == 400
         assert "has a character count greater than" in str(response.data)
-        assert "row #{}".format(failure_row) in str(response.data)
+        assert "Row {}".format(failure_row) in str(response.data)
 
 
 class TestBatchPriorityLanes:
