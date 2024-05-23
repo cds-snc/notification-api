@@ -6,6 +6,7 @@ from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder
 )
 """
 
+from copy import deepcopy
 import pytest
 import json
 import base64
@@ -134,6 +135,8 @@ def missing_domain_env_param(monkeypatch):
     monkeypatch.setenv('vetext_api_endpoint_path', VETEXT_URI_PATH)
     monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
     monkeypatch.setenv('TWILIO_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('TWILIO_PH_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('LOG_ENCRYPTION_SSM_NAME', 'fake_value')
 
 
 @pytest.fixture
@@ -141,6 +144,8 @@ def missing_api_endpoint_path_env_param(monkeypatch):
     monkeypatch.setenv('vetext_api_endpoint_domain', VETEXT_DOMAIN)
     monkeypatch.setenv('vetext_api_auth_ssm_path', 'ssm')
     monkeypatch.setenv('TWILIO_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('TWILIO_PH_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('LOG_ENCRYPTION_SSM_NAME', 'fake_value')
 
 
 @pytest.fixture
@@ -148,6 +153,8 @@ def missing_ssm_path_env_param(monkeypatch):
     monkeypatch.setenv('vetext_api_endpoint_domain', VETEXT_DOMAIN)
     monkeypatch.setenv('vetext_api_endpoint_path', VETEXT_URI_PATH)
     monkeypatch.setenv('TWILIO_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('TWILIO_PH_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('LOG_ENCRYPTION_SSM_NAME', 'fake_value')
 
 
 @pytest.fixture
@@ -165,6 +172,8 @@ def all_path_env_param_set(monkeypatch):
     monkeypatch.setenv('vetext_request_dead_letter_sqs_url', 'someurl')
 
     monkeypatch.setenv('TWILIO_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('TWILIO_PH_AUTH_TOKEN_SSM_NAME', 'unit_test')
+    monkeypatch.setenv('LOG_ENCRYPTION_SSM_NAME', 'fake_value')
 
 
 LAMBDA_MODULE = 'lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda'
@@ -214,8 +223,9 @@ def test_request_makes_vetext2_call(mocker, monkeypatch, all_path_env_param_set,
     mocker.patch(f'{LAMBDA_MODULE}.read_from_ssm', return_value='ssm')
     mock_requests = mocker.patch(f'{LAMBDA_MODULE}.requests.post', return_value=mocked_requests_post_success())
 
-    event['path'] = '/twoway/vetext2'
-    response = vetext_incoming_forwarder_lambda_handler(event, False)
+    new_event = deepcopy(event)
+    new_event['path'] = '/twoway/vetext2'
+    response = vetext_incoming_forwarder_lambda_handler(new_event, False)
 
     assert mock_requests.call_count == 1
     assert mock_requests.call_args[0][0] == 'https://some.domain-two/some/path/two'
@@ -472,7 +482,7 @@ def test_twilio_validate_failure(mocker, monkeypatch, all_path_env_param_set):
         vetext_incoming_forwarder_lambda_handler,
     )
 
-    broken_headers = albInvokedWithoutAddOn
+    broken_headers = deepcopy(albInvokedWithoutAddOn)
     broken_headers['headers']['x-twilio-signature'] = 'spoofed'
     response = vetext_incoming_forwarder_lambda_handler(broken_headers, True)
     assert response['statusCode'] == 403
@@ -481,3 +491,45 @@ def test_twilio_validate_failure(mocker, monkeypatch, all_path_env_param_set):
     del missing_header['headers']['x-twilio-signature']
     response = vetext_incoming_forwarder_lambda_handler(missing_header, True)
     assert response['statusCode'] == 403
+
+
+@pytest.mark.parametrize('event', [albInvokedWithoutAddOn, albInvokeWithAddOn])
+def test_ut_validate_twilio_event_returns_true(all_path_env_param_set, event):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        validate_twilio_event,
+    )
+
+    assert validate_twilio_event(event)
+
+
+@pytest.mark.parametrize('event', [albInvokedWithoutAddOn, albInvokeWithAddOn])
+def test_ut_validate_twilio_event_returns_false(all_path_env_param_set, event):
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        validate_twilio_event,
+    )
+
+    new_event = deepcopy(event)
+    new_event['headers']['x-twilio-signature'] = 'invalid'
+    assert not validate_twilio_event(new_event)
+
+
+@pytest.mark.parametrize(
+    'fernet',
+    [
+        'xY32dXHvcBordkq7Kjbn9M8imSZDyVUztEmgbKT5nLo=',
+        'xY32dXHvcBordkq7Kjbn9M8imSZDyVUztEmgbKT5nLo=,dLe_roaT68nvG-uHE0I4VRNwAsSIRGpVxybg0mPGaR4=',
+    ],
+)
+@pytest.mark.parametrize('logs', ['test value', {'record': {'test': 'data'}}, None])
+def test_ut_multifernet(all_path_env_param_set, mocker, logs, fernet):
+    mocker.patch(
+        f'{LAMBDA_MODULE}.get_ssm_params',
+        return_value=fernet,  # Fake
+    )
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        get_encryption,
+    )
+
+    encryption = get_encryption()
+    encrypted_value = encryption.encrypt(f'{logs}'.encode())
+    assert str(logs) == encryption.decrypt(encrypted_value).decode()

@@ -1,8 +1,34 @@
 import base64
+from cryptography.fernet import Fernet, MultiFernet
 from urllib.parse import parse_qsl, urlencode
 from uuid import uuid4
 
 from twilio.request_validator import RequestValidator
+
+
+def generate_log_encryption_key() -> str:
+    """Generates a new key
+
+    The value generated here can be applied in SSM for the log encrpytion parameter
+
+    Returns:
+        str: A new key in string form
+    """
+    return Fernet.generate_key().decode()
+
+
+def decrypt_log_event(event: str, keys: str) -> str:
+    """Takes a log event and key string and decrypts the event
+
+    Arsg:
+        event (str): Encrypted string
+        keys (str): Comma-separated string of valid keys
+    Returns:
+        str: The decrypted event as a string
+    """
+    key_list = keys.replace(' ', '').split(',')
+    mf = MultiFernet([Fernet(key.encode()) for key in key_list])
+    return mf.decrypt(event.encode()).decode()
 
 
 def validate_signature_and_body(token, uri, body, signature):
