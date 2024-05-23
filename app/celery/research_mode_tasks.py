@@ -6,6 +6,8 @@ from notifications_utils.s3 import s3upload
 
 from app import create_uuid, notify_celery
 from app.aws.mocks import (
+    pinpoint_failed_callback,
+    pinpoint_successful_callback,
     ses_hard_bounce_callback,
     ses_notification_callback,
     ses_soft_bounce_callback,
@@ -14,9 +16,11 @@ from app.aws.mocks import (
     sns_success_callback,
 )
 from app.aws.s3 import file_exists
+from app.celery.process_pinpoint_receipts_tasks import process_pinpoint_results
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.config import QueueNames
+from app.models import PINPOINT_PROVIDER, SNS_PROVIDER
 
 temp_fail = "+15149301633"
 perm_fail = "+15149301632"
@@ -29,8 +33,14 @@ temp_fail_email = "temp-fail@simulator.notify"
 
 def send_sms_response(provider, to, reference=None):
     reference = reference or str(create_uuid())
-    body = aws_sns_callback(reference, to)
-    process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    if provider == SNS_PROVIDER:
+        body = aws_sns_callback(reference, to)
+        process_sns_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    elif provider == PINPOINT_PROVIDER:
+        body = aws_pinpoint_callback(reference, to)
+        process_pinpoint_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    else:
+        raise ValueError("Provider {} not supported".format(provider))
     return reference
 
 
@@ -62,6 +72,22 @@ def aws_sns_callback(notification_id, to):
         )
     else:
         return sns_success_callback(notification_id, destination=to, timestamp=timestamp)
+
+
+def aws_pinpoint_callback(notification_id, to):
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+    if to.strip().endswith(perm_fail):
+        return pinpoint_failed_callback(
+            "Phone is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
+    elif to.strip().endswith(temp_fail):
+        return pinpoint_failed_callback(
+            "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+        )
+    else:
+        return pinpoint_successful_callback(notification_id, destination=to, timestamp=timestamp)
 
 
 @notify_celery.task(
