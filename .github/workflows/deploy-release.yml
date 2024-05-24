@@ -85,6 +85,5 @@ jobs:
     needs: [run-deployment]
     uses: ./.github/workflows/run-regression.yml
     with:
-      environment: ${{ needs.setup-environment.outputs.environment }}
+      environment: ${{ inputs.environment }}
     secrets: inherit
-
