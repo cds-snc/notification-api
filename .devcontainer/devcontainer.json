@@ -13,13 +13,10 @@
 				"[python]": {
 					"editor.formatOnSave": true
 				},
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.linting.pylintPath": "/usr/local/bin/pylint",
 				"python.pythonPath": "/usr/local/bin/python"
 			},
 			"extensions": [
-				"bungcip.better-toml",
+				"tamasfe.even-better-toml",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
 				"GitHub.copilot",
@@ -61,5 +58,4 @@
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
 	"remoteUser": "vscode",
-
 }
