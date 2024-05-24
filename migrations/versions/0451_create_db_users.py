@@ -16,12 +16,7 @@ database_name = op.get_bind().engine.url.database  # database name that the migr
 
 
 def upgrade():
-    # Skip this migration in the test database as there are multiple test databases that are created.
-    # This leads to a race condition attempting to alter the same users\ multiple times and causes
-    # sporadic unit test failures.
-    if "test_notification_api" in database_name:
-        return
-
+    create_role_if_not_exist(super_role)
     for role in roles:
         create_role_if_not_exist(role)
         op.execute(f"GRANT {role} TO {super_role} WITH ADMIN OPTION;")
