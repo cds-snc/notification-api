@@ -45,21 +45,25 @@ format:
 smoke-test:
 	cd tests_smoke && poetry run python smoke_test.py
 
+.PHONY: smoke-test-local
+smoke-test-local:
+	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
+
 .PHONY: run
 run: ## Run the web app
-	flask run -p 6011 --host=0.0.0.0
+	poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
 run-celery-local: ## Run the celery workers with all the queues
-	./scripts/run_celery_local.sh
+	poetry run ./scripts/run_celery_local.sh
 
 .PHONY: run-celery-local-filtered
 run-celery-local-filtered: ## Run the celery workers with all queues but filter out common scheduled tasks
-	./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+	poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
-	./scripts/run_celery_purge.sh
+	poetry run ./scripts/run_celery_purge.sh
 
 .PHONY: run-db
 run-db: ## psql to access dev database

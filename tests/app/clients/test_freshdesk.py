@@ -127,12 +127,22 @@ class TestSendTicket:
                 "description": "A new logo has been uploaded by name (test@email.com) for the following service:<br>"
                 "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Service name: t6<br>"
+                "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Organisation name: best org name ever<br>"
                 "- Logo filename: branding_url<br>"
+                "- Logo name: branding_logo_name<br>"
+                "- Alt text english: en alt text<br>"
+                "- Alt text french: fr alt text<br>"
                 "<hr><br>"
                 "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
                 "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Nom du service : t6<br>"
-                "- Nom du fichier du logo : branding_url",
+                "- Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Nom de l'organisation: best org name ever<br>"
+                "- Nom du fichier du logo : branding_url<br>"
+                "- Nom du logo : branding_logo_name<br>"
+                "- Texte alternatif anglais : en alt text<br>"
+                "- Texte alternatif français : fr alt text",
                 "email": "test@email.com",
                 "priority": 1,
                 "status": 2,
@@ -158,8 +168,13 @@ class TestSendTicket:
                 "friendly_support_type": "Branding request",
                 "support_type": "branding_request",
                 "service_name": "t6",
+                "organisation_id": "6b72e84f-8591-42e1-93b8-7d24a45e1d79",
+                "department_org_name": "best org name ever",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "branding_url": "branding_url",
+                "branding_logo_name": "branding_logo_name",
+                "alt_text_en": "en alt text",
+                "alt_text_fr": "fr alt text",
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()

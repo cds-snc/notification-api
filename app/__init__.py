@@ -28,6 +28,7 @@ from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.clients.salesforce.salesforce_client import SalesforceClient
+from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
@@ -45,6 +46,7 @@ marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
+aws_pinpoint_client = AwsPinpointClient()
 signer_notification = CryptoSigner()
 signer_personalisation = CryptoSigner()
 signer_complaint = CryptoSigner()
@@ -107,6 +109,7 @@ def create_app(application, config=None):
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
+    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
 
@@ -120,7 +123,7 @@ def create_app(application, config=None):
 
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
-    clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+    clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
 
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)

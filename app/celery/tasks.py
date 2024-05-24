@@ -8,7 +8,10 @@ from uuid import UUID, uuid4
 from flask import current_app
 from itsdangerous import BadSignature
 from more_itertools import chunked
-from notifications_utils.recipients import RecipientCSV
+from notifications_utils.recipients import (
+    RecipientCSV,
+    try_validate_and_format_phone_number,
+)
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
@@ -243,13 +246,18 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
 
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-        elif template.service:
-            reply_to_text = template.get_reply_to_text()
+        if "reply_to_text" in _notification and _notification["reply_to_text"]:
+            reply_to_text = _notification["reply_to_text"]
         else:
-            reply_to_text = service.get_default_sms_sender()  # type: ignore
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = try_validate_and_format_phone_number(
+                    dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+                )
+            elif template.service:
+                reply_to_text = template.get_reply_to_text()
+            else:
+                reply_to_text = service.get_default_sms_sender()  # type: ignore
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore

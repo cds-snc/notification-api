@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from unittest.mock import call
+from unittest.mock import Mock, call
 
 import pytest
 import pytz
@@ -13,6 +13,7 @@ from app.aws.s3 import (
     get_list_of_files_by_suffix,
     get_s3_bucket_objects,
     get_s3_file,
+    remove_jobs_from_s3,
     remove_transformed_dvla_file,
     upload_job_to_s3,
 )
@@ -213,4 +214,31 @@ def test_upload_job_to_s3(notify_api, mocker):
         region=notify_api.config["AWS_REGION"],
         bucket_name=current_app.config["CSV_UPLOAD_BUCKET_NAME"],
         file_location=f"service-{service_id}-notify/{upload_id}.csv",
+    )
+
+
+def test_remove_jobs_from_s3(notify_api, mocker):
+    mock = Mock()
+    mocker.patch("app.aws.s3.resource", return_value=mock)
+    jobs = [
+        type("Job", (object,), {"service_id": "foo", "id": "j1"}),
+        type("Job", (object,), {"service_id": "foo", "id": "j2"}),
+        type("Job", (object,), {"service_id": "foo", "id": "j3"}),
+        type("Job", (object,), {"service_id": "foo", "id": "j4"}),
+        type("Job", (object,), {"service_id": "foo", "id": "j5"}),
+    ]
+
+    remove_jobs_from_s3(jobs, batch_size=2)
+
+    mock.assert_has_calls(
+        [
+            call.Bucket(current_app.config["CSV_UPLOAD_BUCKET_NAME"]),
+            call.Bucket().delete_objects(
+                Delete={"Objects": [{"Key": "service-foo-notify/j1.csv"}, {"Key": "service-foo-notify/j2.csv"}]}
+            ),
+            call.Bucket().delete_objects(
+                Delete={"Objects": [{"Key": "service-foo-notify/j3.csv"}, {"Key": "service-foo-notify/j4.csv"}]}
+            ),
+            call.Bucket().delete_objects(Delete={"Objects": [{"Key": "service-foo-notify/j5.csv"}]}),
+        ]
     )

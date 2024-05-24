@@ -42,10 +42,10 @@ def deliver_throttled_sms(self, notification_id):
 
 # Celery rate limits are per worker instance and not a global rate limit.
 # https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
-# This task is dispatched through the `send-sms-tasks` queue.
-# This queue is consumed by 6 Celery instances with 4 workers in production.
-# The maximum throughput is therefore 6 instances * 4 workers = 24 tasks per second
-# if we set rate_limit="1/s" on the Celery task
+# We currently set rate_limit="1/s" on the Celery task and 4 workers per pod, and so a limit of 4 tasks per second per pod.
+# The number of pods is controlled by the Kubernetes HPA and scales up and down with demand.
+# Currently in production we have 3 celery-sms-send-primary pods, and up to 20 celery-sms-send-scalable pods
+# This means we can send up to 92 messages per second.
 @notify_celery.task(
     bind=True,
     name="deliver_sms",

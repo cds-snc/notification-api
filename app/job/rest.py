@@ -167,28 +167,40 @@ def create_job(service_id):
     )
 
     if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        default_senders = [x for x in service.service_sms_senders if x.is_default]
+        default_sender_id = default_senders[0].id if default_senders else None
+        data["sender_id"] = data.get("sender_id", default_sender_id)
+
         # calculate the number of simulated recipients
-        numberOfSimulated = sum(
-            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
-        )
-        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+        numberOfSimulated = sum(simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows)
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(recipient_csv)
 
         # if they have specified testing and NON-testing recipients, raise an error
         if mixedRecipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
-        is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
+        is_test_notification = len(recipient_csv) == numberOfSimulated
 
         if not is_test_notification:
             check_sms_daily_limit(service, len(recipient_csv))
             increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
     elif template.template_type == EMAIL_TYPE:
-        check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
+        if "notification_count" in data:
+            notification_count = int(data["notification_count"])
+        else:
+            current_app.logger.warning(
+                f"notification_count not in metadata for job {data['id']}, using len(recipient_csv) instead."
+            )
+            notification_count = len(recipient_csv)
+
+        check_email_daily_limit(service, notification_count)
+
         scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
-            increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
+            increment_email_daily_count_send_warnings_if_needed(service, notification_count)
 
     data.update({"template_version": template.version})
 

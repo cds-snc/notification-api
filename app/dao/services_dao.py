@@ -84,7 +84,7 @@ def dao_count_live_services():
     ).count()
 
 
-def dao_fetch_live_services_data():
+def dao_fetch_live_services_data(filter_heartbeats=None):
     year_start_date, year_end_date = get_current_financial_year()
 
     most_recent_annual_billing = (
@@ -176,8 +176,11 @@ def dao_fetch_live_services_data():
             AnnualBilling.free_sms_fragment_limit,
         )
         .order_by(asc(Service.go_live_at))
-        .all()
     )
+
+    if filter_heartbeats:
+        data = data.filter(Service.id != current_app.config["NOTIFY_SERVICE_ID"])
+    data = data.all()
     results = []
     for row in data:
         existing_service = next((x for x in results if x["service_id"] == row.service_id), None)
@@ -310,8 +313,6 @@ def dao_create_service(
     if organisation:
         service.organisation_id = organisation.id
         service.organisation_type = organisation.organisation_type
-        if organisation.email_branding:
-            service.email_branding = organisation.email_branding
 
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding

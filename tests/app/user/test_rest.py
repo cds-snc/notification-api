@@ -954,13 +954,18 @@ def test_send_contact_request_go_live_with_org_notes(organisation_notes, departm
     assert mock_contact_request.department_org_name == department_org_name
 
 
-def test_send_branding_request(client, sample_service, mocker):
+def test_send_branding_request(client, sample_service, sample_organisation, mocker):
     sample_user = sample_service.users[0]
+    sample_service.organisation = sample_organisation
     post_data = {
         "service_name": sample_service.name,
         "email_address": sample_user.email_address,
         "serviceID": str(sample_service.id),
+        "organisation_id": str(sample_service.organisation.id),
+        "organisation_name": sample_service.organisation.name,
         "filename": "branding_url",
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
     mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")

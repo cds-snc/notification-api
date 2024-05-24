@@ -70,6 +70,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_get_service_list(client, service_factory):
@@ -251,6 +252,20 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
     assert first["count"] == 3
+
+
+def test_get_delivered_notification_stats_by_month_data_without_heartbeat(notify_api, admin_request, sample_service):
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+        response = admin_request.get("service.get_delivered_notification_stats_by_month_data", filter_heartbeats=True)["data"]
+        assert len(response) == 0
 
 
 def test_get_service_by_id(admin_request, sample_service):
@@ -443,7 +458,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
+def test_create_service_doesnt_inherit_branding_from_organisation(admin_request, sample_user, mocker):
     org = create_organisation()
     email_branding = create_email_branding()
     org.email_branding = email_branding
@@ -467,8 +482,7 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
         _expected_status=201,
     )
 
-    assert json_resp["data"]["email_branding"] == str(email_branding.id)
-    assert json_resp["data"]["letter_branding"] == str(letter_branding.id)
+    assert json_resp["data"]["email_branding"] is None
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
