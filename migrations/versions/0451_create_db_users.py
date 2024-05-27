@@ -22,7 +22,7 @@ def upgrade():
 
 def create_role_if_not_exist(role):
     """
-    Makes sure the expected user exists in the database before performing the ALTER USER operation.
+    Makes sure the expected user exists in the database before performing the GRANT USER operation.
     If the user already exists, nothing happens.  This is needed so that the migrations can be
     run on localhost where the users do not exist.
     """
