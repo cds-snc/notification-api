@@ -12,8 +12,6 @@ down_revision = "0450_enable_pinpoint_provider"
 
 super_role = "rds_superuser"
 roles = ["app_db_user", "quicksight_db_user"]
-database_name = op.get_bind().engine.url.database  # database name that the migration is being run on
-
 
 def upgrade():
     create_role_if_not_exist(super_role)
