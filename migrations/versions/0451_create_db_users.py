@@ -22,7 +22,7 @@ def upgrade():
 
 
 def downgrade():
-    op.execute(f"REVOKE {super_role} FROM {role};")
+    return
 
 
 def create_role_if_not_exist(role):
