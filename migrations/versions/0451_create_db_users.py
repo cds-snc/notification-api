@@ -18,7 +18,7 @@ def upgrade():
     create_role_if_not_exist(super_role)
     for role in roles:
         create_role_if_not_exist(role)
-        op.execute(f"GRANT {super_user} TO {role} WITH ADMIN OPTION;")
+        op.execute(f"GRANT {super_role} TO {role} WITH ADMIN OPTION;")
 
 
 def create_role_if_not_exist(role):
