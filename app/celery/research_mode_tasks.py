@@ -82,10 +82,12 @@ def aws_pinpoint_callback(notification_id, to):
 
     if using_test_perm_fail_number or using_test_temp_fail_number:
         return pinpoint_failed_callback(
-            "Phone is currently unreachable/unavailable" if using_test_perm_fail_number else "Phone carrier is currently unreachable/unavailable", 
-            notification_id, 
-            destination=to, 
-            timestamp=timestamp
+            "Phone is currently unreachable/unavailable"
+            if using_test_perm_fail_number
+            else "Phone carrier is currently unreachable/unavailable",
+            notification_id,
+            destination=to,
+            timestamp=timestamp,
         )
     else:
         return pinpoint_delivered_callback(notification_id, destination=to, timestamp=timestamp)
