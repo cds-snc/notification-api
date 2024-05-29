@@ -77,14 +77,15 @@ def aws_sns_callback(notification_id, to):
 def aws_pinpoint_callback(notification_id, to):
     now = datetime.now()
     timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    using_test_perm_fail_number = to.strip().endswith(perm_fail)
+    using_test_temp_fail_number = to.strip().endswith(temp_fail)
 
-    if to.strip().endswith(perm_fail):
+    if using_test_perm_fail_number or using_test_temp_fail_number:
         return pinpoint_failed_callback(
-            "Phone is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
-        )
-    elif to.strip().endswith(temp_fail):
-        return pinpoint_failed_callback(
-            "Phone carrier is currently unreachable/unavailable", notification_id, destination=to, timestamp=timestamp
+            "Phone is currently unreachable/unavailable" if using_test_perm_fail_number else "Phone carrier is currently unreachable/unavailable", 
+            notification_id, 
+            destination=to, 
+            timestamp=timestamp
         )
     else:
         return pinpoint_delivered_callback(notification_id, destination=to, timestamp=timestamp)
