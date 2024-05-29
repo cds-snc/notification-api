@@ -247,6 +247,7 @@ def _get_dynamodb_comp_pen_messages(
         results = table.scan(
             FilterExpression=filters,
             Limit=message_limit,
+            IndexName=is_processed_index,
             ExclusiveStartKey=results['LastEvaluatedKey'],
         )
 
@@ -278,7 +279,7 @@ def _update_dynamo_item_is_processed(batch, item):
 
 @notify_celery.task(name='send-scheduled-comp-and-pen-sms')
 @statsd(namespace='tasks')
-def send_scheduled_comp_and_pen_sms():
+def send_scheduled_comp_and_pen_sms() -> None:  # noqa (C901 too complex 11 > 10)
     # this is the agreed upon message per 2 minute limit
     messages_per_min = 3000
 
