@@ -1,5 +1,5 @@
 // prData.js
-const { getReleaseVersionValue } = require("./actionUtils");
+const { getReleaseVersionValue } = require('./actionUtils');
 
 /**
  * Fetches all pull requests associated with a specific commit from a GitHub repository.
@@ -28,54 +28,48 @@ async function fetchReleaseBranchSha(github, owner, repo) {
   const { data } = await github.rest.repos.getCommit({
     owner,
     repo,
-    ref: "heads/release",
+    ref: 'heads/release',
   });
 
   if (data && data.sha) {
-    console.log("The release branch head SHA is: " + data.sha);
+    console.log('The release branch head SHA is: ' + data.sha);
     return data.sha;
   } else {
-    throw new Error("No SHA found in the response");
+    throw new Error('No SHA found in the response');
   }
 }
 
 /**
  * Processes labels from pull requests to determine the new version and relevant labels for a release.
+ * EXPECTS ONLY ONE LABEL, as is currently our process for merging PRs
  * @param {Array<Object>} labels - An array of label objects from pull requests.
  * @param {string} currentVersion - The current release version.
- * @returns {Object} - An object containing the new version and applied label.
+ * @returns {Object} - An object containing the new version and label.
  */
 function processLabelsAndVersion(labels, currentVersion) {
-  let versionParts = currentVersion.split(".").map((x) => parseInt(x, 10));
-  let appliedLabel;
+  // Split the current version into major, minor, and patch parts
+  let versionParts = currentVersion.split('.').map((x) => parseInt(x, 10));
+  let label = labels[0].name;
 
-  // breaking change label is a major version bump
-  if (labels.some((label) => label.name === "breaking-change")) {
+  // Determine the type of version bump based on the label
+  if (label === 'breaking-change') {
+    // Major version bump
     versionParts[0] += 1;
     versionParts[1] = 0;
     versionParts[2] = 0;
-    appliedLabel = "breaking change";
-  } else if (
-    // If hotfix, security, or bug label
-    labels.some((label) => ["hotfix", "security", "bug"].includes(label.name))
-  ) {
-    // patch bump
+  } else if (['hotfix', 'security', 'bug', 'internal'].includes(label)) {
+    // Patch version bump
     versionParts[2] += 1;
-    appliedLabel = labels.find((label) =>
-      ["hotfix", "security", "bug"].includes(label.name),
-    ).name;
   } else {
-    // all other labels are a minor bump
+    // Minor version bump
     versionParts[1] += 1;
     versionParts[2] = 0;
-    appliedLabel = labels[0].name; // Assumes only one label was used, as is currently our process
   }
 
   // newVersion is in the format X.X.X
-  // appliedLabel is a string of the label used for versioning
   return {
-    newVersion: versionParts.join("."),
-    appliedLabel,
+    newVersion: versionParts.join('.'),
+    label,
   };
 }
 
@@ -99,7 +93,7 @@ async function prData(params) {
     const prNumber = pullRequestData.data[0].number;
     const prUrl = pullRequestData.data[0].html_url;
 
-    const { newVersion, appliedLabel } = processLabelsAndVersion(
+    const { newVersion, label } = processLabelsAndVersion(
       labels,
       currentVersion,
     );
@@ -108,13 +102,13 @@ async function prData(params) {
       releaseBranchSha,
       currentVersion,
       newVersion,
-      label: appliedLabel,
+      label,
       prNumber,
       prUrl,
     };
   } catch (error) {
     core.setFailed(`Error processing PR data: ${error.message}`);
-    console.error("Error processing PR data:", error);
+    console.error('Error processing PR data:', error);
     return null; // Ensure to handle null in postQA.js if needed
   }
 }

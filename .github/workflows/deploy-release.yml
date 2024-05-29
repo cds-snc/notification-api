@@ -3,38 +3,51 @@
 # dev_deploy.yml only deploys hashes - this workflow ensures the tag is deployed
 # this ensures the tag name shows up correctly in Datadog for deployment tracking
 name: Deploy API Release
-run-name: "Deploy Release to ${{ inputs.environment }}"
+run-name: 'Deploy Release to ${{ inputs.environment }}'
 
 on:
   workflow_dispatch:
     inputs:
       environment:
+        description: 'Environment to deploy'
+        default: 'dev'
         type: choice
-        description: Environment to deploy
-        default: dev
         options:
           - dev
           - perf
           - staging
           - prod
       ref:
-        description: "Tag, branch, or commit"
-        default: master
-        required: true
+        description: 'Tag, branch, or commit'
+        default: 'master'
         type: string
+        required: true
       lambdaDeploy:
-        description: "Include Lambda in deployment?"
+        description: 'Include Lambda in deployment?'
         default: true
-        required: false
         type: boolean
+        required: false
+  workflow_call:
+    inputs:
+      environment:
+        default: 'dev'
+        type: string
+      ref:
+        default: 'dev'
+        type: string
+        required: true
+      lambdaDeploy:
+        default: true
+        type: boolean
+        required: false
 
 env:
-  TAG: ${{ github.event.inputs.ref }}
-  ENV: ${{ github.event.inputs.environment }}
+  TAG: ${{ inputs.ref }}
+  ENV: ${{ inputs.environment }}
 
 jobs:
   setup-environment:
-    name: "setup-env"
+    name: 'setup-env'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
@@ -64,13 +77,13 @@ jobs:
     secrets: inherit
 
   run-lambda-deploy:
-    if: ${{ github.event.inputs.lambdaDeploy }}
+    if: ${{ inputs.lambdaDeploy }}
     needs: [setup-environment]
     uses: ./.github/workflows/lambda-functions.yml
     with:
       environment: ${{ needs.setup-environment.outputs.environment }}
       ref: ${{ needs.setup-environment.outputs.tag }}
-      lambdaName: "All"
+      lambdaName: 'All'
     secrets: inherit
 
   run-deployment:
@@ -87,3 +100,4 @@ jobs:
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
+

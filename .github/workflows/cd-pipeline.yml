@@ -30,7 +30,7 @@ jobs:
     uses: ./.github/workflows/pr-label-semver.yml
     secrets: inherit
 
-  approval-to-deploy:
+  approval-deploy-perf:
     needs: pr-label-summary
     environment: 
       name: perf-deploy
@@ -41,35 +41,35 @@ jobs:
           echo "Deploying commit SHA ${{ github.sha }}, the latest merge to master"
           echo "Deployment paused for manual approval."
 
-# this job deploys the SHA that triggered this workflow
+  # this job deploys the SHA that triggered this workflow
   deploy-to-perf:
-    needs: approval-to-deploy
+    needs: approval-deploy-perf
     uses: ./.github/workflows/dev_deploy.yml
+    secrets: inherit
     with:
       environment: perf
       ref: ${{ github.sha }}
       lambdaDeploy: true
-    secrets: inherit
 
   pre-tag-summary:
     needs: deploy-to-perf
     uses: ./.github/workflows/pre-tag-summary.yml
     secrets: inherit
 
-  approval-to-merge-to-release-branch:
+  approval-deploy-staging:
     needs: pre-tag-summary
     environment: 
-      name: perf-merge
+      name: staging-deploy
     runs-on: ubuntu-latest
     steps:
       - name: Pause for manual approval
         run: echo "Deployment paused for manual approval."
 
   merge-to-release:
+    needs: approval-deploy-staging
     # These permissions are needed to write to the release branch
     permissions:
       contents: write
-    needs: approval-to-merge-to-release-branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout release branch
@@ -102,18 +102,18 @@ jobs:
     uses: ./.github/workflows/create-release-notes.yml
     secrets: inherit
     with:
-      previous_version: ${{ needs.create-and-post-tag.outputs.previous_version }}
+      previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
 
   deploy-to-staging:
-    needs: merge-to-release 
-    uses: ./.github/workflows/dev_deploy.yml
+    needs: create-release-notes
+    uses: ./.github/workflows/deploy-release.yml
+    secrets: inherit
     with:
       environment: staging
-      ref: release
+      ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
-    secrets: inherit
 
-  QA-approval-of-staging:
+  approval-deploy-prod:
     needs: deploy-to-staging
     environment: 
       name: prod-deploy
@@ -121,4 +121,11 @@ jobs:
     steps:
       - name: Pause for manual approval
         run: echo "Pipeline paused for pending approval of staging by QA"
+
+  publish-release-notes:
+    needs: [create-release-notes, approval-deploy-prod]
+    uses: ./.github/workflows/publish-release-notes.yml
+    secrets: inherit
+    with:
+      draftReleaseReference: ${{ needs.create-release-notes.outputs.draftReleaseReference }}
 

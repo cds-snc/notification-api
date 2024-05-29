@@ -1,5 +1,5 @@
 // createReleaseNotes.js
-const { appendSummary, getReleaseVersionValue } = require("./actionUtils");
+const { appendSummary, getReleaseVersionValue } = require('./actionUtils');
 
 /**
  * Formats the current date in a specific string format for use in release titles.
@@ -8,8 +8,8 @@ const { appendSummary, getReleaseVersionValue } = require("./actionUtils");
  */
 function formatDate() {
   const date = new Date();
-  const options = { day: "2-digit", month: "short", year: "numeric" };
-  return date.toLocaleDateString("en-US", options).toUpperCase();
+  const options = { day: '2-digit', month: 'short', year: 'numeric' };
+  return date.toLocaleDateString('en-US', options).toUpperCase();
 }
 
 /**
@@ -35,10 +35,15 @@ async function createDraftRelease(github, owner, repo, tag_name, body) {
     });
 
     const releaseUrl = response.data.html_url;
-    console.log("Release URL:", releaseUrl);
-    return releaseUrl;
+    const draftReleaseReference = response.data.id;
+
+    console.log('the response is:', response.data);
+    console.log('The release URL is: ', releaseUrl);
+    console.log('The draftReleaseReference is: ', draftReleaseReference);
+
+    return { releaseUrl, draftReleaseReference };
   } catch (error) {
-    console.error("Error creating release:", error);
+    console.error('Error creating release:', error);
   }
 }
 
@@ -64,15 +69,14 @@ async function generateReleaseNotes(
       owner,
       repo,
       tag_name,
-      // target_commitish: 'main',
       previous_tag_name,
-      configuration_file_path: ".github/release.yaml",
+      configuration_file_path: '.github/release.yaml',
     });
     const releaseNotes = response.data.body;
-    console.log("Release notes generated successfully:", response);
-    return { response, releaseNotes };
+    console.log('Release notes generated successfully: ', releaseNotes);
+    return { releaseNotes };
   } catch (error) {
-    console.error("Error generating release notes:", error);
+    console.error('Error generating release notes:', error);
   }
 }
 
@@ -93,16 +97,16 @@ async function createReleaseNotes(params) {
     const currentVersion = await getReleaseVersionValue(github, owner, repo);
 
     // generate release notes based on the previousVersion
-    const { releaseNotes, response } = await generateReleaseNotes(
+    const { releaseNotes } = await generateReleaseNotes(
       github,
       owner,
       repo,
       currentVersion,
       previousVersion,
     );
-    //
-    // create release, attach generated notes, and return the url for the step summary
-    const releaseUrl = await createDraftRelease(
+
+    // create release, attach generated notes, and return the url for the step summary and the id of the created draft
+    const { releaseUrl, draftReleaseReference } = await createDraftRelease(
       github,
       owner,
       repo,
@@ -116,10 +120,13 @@ async function createReleaseNotes(params) {
 [Link to the draft release notes](${releaseUrl})
 Draft notes created based on the update to ${currentVersion} 
 and comparing the tag from the previous version: ${previousVersion}
+The draft release reference is ${draftReleaseReference}
     `;
     appendSummary(core, summaryContent);
 
-    // Output the previous version to the console
+    // Output the draftReleaseReference so it can be published upon QA approval of the staging deploy
+    core.setOutput('draftReleaseReference', draftReleaseReference);
+
     console.log(`The previous release version was: ${previousVersion}`);
   } catch (error) {
     core.setFailed(`Failed to generate summary: ${error.message}`);

@@ -1,4 +1,4 @@
-// This script is capable of triggering a specified workflow, waiting for its completion, 
+// This script is capable of triggering a specified workflow, waiting for its completion,
 // and then logging the conclusion of a job in a nice summary
 
 // Access the environment input from environment variables
@@ -9,7 +9,7 @@ const inputs = {
 };
 
 const triggerAndWait = async ({ github, core }) => {
-  const owner = 'department-of-veterans-affairs'; // user of private repo 
+  const owner = 'department-of-veterans-affairs'; // user of private repo
   const repo = 'notification-api-qa'; // private repo to contact
   const workflow_id = 'regression.yml'; // Replace with your workflow file name or ID
   const ref = 'master'; // Usually main or master.  THIS IS THE REF of the REGRESSION repo!
@@ -27,7 +27,7 @@ const triggerAndWait = async ({ github, core }) => {
   });
 
   // Wait a moment for the workflow run to be initialized
-  await new Promise(r => setTimeout(r, 5000));
+  await new Promise((r) => setTimeout(r, 5000));
 
   // Poll for the workflow run using the timestamp
   let run_id;
@@ -36,7 +36,7 @@ const triggerAndWait = async ({ github, core }) => {
       owner,
       repo,
       workflow_id,
-      created: `>=${triggerTimestamp}`
+      created: `>=${triggerTimestamp}`,
     });
 
     if (runs.data.workflow_runs.length > 0) {
@@ -44,7 +44,7 @@ const triggerAndWait = async ({ github, core }) => {
       break;
     }
 
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 
   console.log(`Triggered workflow run ID: ${run_id}`);
@@ -54,7 +54,7 @@ const triggerAndWait = async ({ github, core }) => {
   let conclusion;
   let workflow_url = `https://github.com/${owner}/${repo}/actions/runs/${run_id}`;
   do {
-    await new Promise(r => setTimeout(r, 30000)); // Poll every 30 seconds
+    await new Promise((r) => setTimeout(r, 30000)); // Poll every 30 seconds
     const result = await github.rest.actions.getWorkflowRun({
       owner,
       repo,
@@ -76,7 +76,7 @@ const triggerAndWait = async ({ github, core }) => {
     run_id,
   });
 
-  const job = jobs.data.jobs.find(j => j.name === jobName);
+  const job = jobs.data.jobs.find((j) => j.name === jobName);
   if (!job) {
     console.log(`Job '${jobName}' not found in workflow run.`);
     return;
@@ -85,19 +85,25 @@ const triggerAndWait = async ({ github, core }) => {
   let job_id = job.id;
 
   // Fetch and handle the job logs
-  github.rest.actions.downloadJobLogsForWorkflowRun({
-    owner,
-    repo,
-    job_id,
-  }).then(response => {
-    console.log(`Job logs: ${response.data}`);
-  }).catch(error => {
-    console.log('Error fetching job logs:', error);
-  });
+  github.rest.actions
+    .downloadJobLogsForWorkflowRun({
+      owner,
+      repo,
+      job_id,
+    })
+    .then((response) => {
+      console.log(`Job logs: ${response.data}`);
+    })
+    .catch((error) => {
+      console.log('Error fetching job logs:', error);
+    });
 
-   // Set the output for the job summary
+  // Set the output for the job summary
   const resultText = conclusion === 'success' ? 'passed' : 'failed';
-  core.setOutput('regression_result', `QA Regression result is ${resultText}; link to this run is ${workflow_url}`);
+  core.setOutput(
+    'regression_result',
+    `QA Regression result is ${resultText}; link to this run is ${workflow_url}`,
+  );
 
   // Append to GITHUB_STEP_SUMMARY
   const summaryContent = `### Regression Result\nResult: ${resultText}\n[Link to Workflow Run](${workflow_url})`;
@@ -112,7 +118,3 @@ const triggerAndWait = async ({ github, core }) => {
 };
 
 module.exports = triggerAndWait;
-
-
-
-

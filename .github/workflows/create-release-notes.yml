@@ -3,24 +3,32 @@ name: Create Release Notes
 on: 
   workflow_call:
     inputs:
-      previous_version:
+      previousVersion:
         required: true
         type: string
+    outputs:
+      draftReleaseReference:
+        description: 'This value is the id that will be used when actually publishing this release notes'
+        value: ${{ jobs.create-release-notes.outputs.draftReleaseReference }}
 
 jobs:
   create-release-notes:
     runs-on: ubuntu-latest
+    outputs:
+      draftReleaseReference: ${{ steps.create_notes.outputs.draftReleaseReference }}
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Create Release Notes
+        id: create_notes
         uses: actions/github-script@v7
         env:
-          previousVersion: ${{ inputs.previous_version }}
+          previousVersion: ${{ inputs.previousVersion }}
         with:
           github-token: ${{ secrets.VAR_PAT }}
+          # This script outputs draftReleaseReference for publish-release-notes.yml
           script: |
             const createReleaseNotes = require('.github/scripts/createReleaseNotes.js');
             createReleaseNotes({github, context, core});
