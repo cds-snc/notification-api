@@ -2181,6 +2181,9 @@ class VAProfileLocalCache(db.Model):
     communication_channel_id = db.Column(db.Integer, nullable=False)
     source_datetime = db.Column(db.DateTime, nullable=False)
 
+    participant_id = db.Column(db.Integer, nullable=True)
+    has_duplicate_mappings = db.Column(db.Boolean, nullable=False, default=False)
+
     __table_args__ = (
         UniqueConstraint('va_profile_id', 'communication_item_id', 'communication_channel_id', name='uix_veteran_id'),
     )
