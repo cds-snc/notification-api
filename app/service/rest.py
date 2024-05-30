@@ -11,7 +11,6 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
-from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -53,13 +52,6 @@ from app.dao.service_email_reply_to_dao import (
     dao_get_reply_to_by_service_id,
     update_reply_to_email_address,
 )
-from app.dao.service_letter_contact_dao import (
-    add_letter_contact_for_service,
-    archive_letter_contact,
-    dao_get_letter_contact_by_id,
-    dao_get_letter_contacts_by_service_id,
-    update_letter_contact,
-)
 from app.dao.service_safelist_dao import (
     dao_add_and_commit_safelisted_contacts,
     dao_fetch_service_safelist,
@@ -93,7 +85,6 @@ from app.dao.services_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
-from app.letters.utils import letter_print_day
 from app.models import (
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
@@ -117,10 +108,7 @@ from app.schemas import (
     service_schema,
 )
 from app.service import statistics
-from app.service.send_notification import (
-    send_one_off_notification,
-    send_pdf_letter_notification,
-)
+from app.service.send_notification import send_one_off_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
@@ -128,7 +116,6 @@ from app.service.service_data_retention_schema import (
 )
 from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
-    add_service_letter_contact_block_request,
     add_service_sms_sender_request,
 )
 from app.service.utils import (
@@ -575,13 +562,6 @@ def cancel_notification_for_service(service_id, notification_id):
             "Notification cannot be cancelled - only letters can be cancelled",
             status_code=400,
         )
-    elif not letter_can_be_cancelled(notification.status, notification.created_at):
-        print_day = letter_print_day(notification.created_at)
-
-        raise InvalidRequest(
-            "It’s too late to cancel this letter. Printing started {} at 5.30pm".format(print_day),
-            status_code=400,
-        )
 
     updated_notification = notifications_dao.update_notification_status_by_id(
         notification_id,
@@ -793,8 +773,7 @@ def create_one_off_notification(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/send-pdf-letter", methods=["POST"])
 def create_pdf_letter(service_id):
-    resp = send_pdf_letter_notification(service_id, request.get_json())
-    return jsonify(resp), 201
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/email-reply-to", methods=["GET"])
@@ -872,41 +851,22 @@ def delete_service_reply_to_email_address(service_id, reply_to_email_id):
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact", methods=["GET"])
 def get_letter_contacts(service_id):
-    result = dao_get_letter_contacts_by_service_id(service_id)
-    return jsonify([i.serialize() for i in result]), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>", methods=["GET"])
 def get_letter_contact_by_id(service_id, letter_contact_id):
-    result = dao_get_letter_contact_by_id(service_id=service_id, letter_contact_id=letter_contact_id)
-    return jsonify(result.serialize()), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact", methods=["POST"])
 def add_service_letter_contact(service_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_letter_contact = add_letter_contact_for_service(
-        service_id=service_id,
-        contact_block=form["contact_block"],
-        is_default=form.get("is_default", True),
-    )
-    return jsonify(data=new_letter_contact.serialize()), 201
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>", methods=["POST"])
 def update_service_letter_contact(service_id, letter_contact_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_reply_to = update_letter_contact(
-        service_id=service_id,
-        letter_contact_id=letter_contact_id,
-        contact_block=form["contact_block"],
-        is_default=form.get("is_default", True),
-    )
-    return jsonify(data=new_reply_to.serialize()), 200
+    pass
 
 
 @service_blueprint.route(
@@ -914,9 +874,7 @@ def update_service_letter_contact(service_id, letter_contact_id):
     methods=["POST"],
 )
 def delete_service_letter_contact(service_id, letter_contact_id):
-    archived_letter_contact = archive_letter_contact(service_id, letter_contact_id)
-
-    return jsonify(data=archived_letter_contact.serialize()), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/sms-sender", methods=["POST"])

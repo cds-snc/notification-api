@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta
 
 import pytest
-from flask import current_app
 from freezegun import freeze_time
 
 from app.dao.notifications_dao import (
@@ -99,7 +98,7 @@ def _create_templates(sample_service):
 @pytest.mark.parametrize("month, delete_run_time", [(4, "2016-04-10 23:40"), (1, "2016-01-11 00:40")])
 @pytest.mark.parametrize(
     "notification_type, expected_sms_count, expected_email_count, expected_letter_count",
-    [("sms", 7, 10, 10), ("email", 10, 7, 10), ("letter", 10, 10, 7)],
+    [("sms", 7, 10, 10), ("email", 10, 7, 10)],
 )
 def test_should_delete_notifications_by_type_after_seven_days(
     sample_service,
@@ -111,7 +110,6 @@ def test_should_delete_notifications_by_type_after_seven_days(
     expected_email_count,
     expected_letter_count,
 ):
-    mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     email_template, letter_template, sms_template = _create_templates(sample_service)
     # create one notification a day between 1st and 10th from 11:00 to 19:00 of each type
     for i in range(1, 11):
@@ -157,7 +155,6 @@ def test_should_delete_notifications_by_type_after_seven_days(
 
 @freeze_time("2016-01-10 12:00:00.000000")
 def test_should_not_delete_notification_history(sample_service, mocker):
-    mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     with freeze_time("2016-01-01 12:00"):
         email_template, letter_template, sms_template = _create_templates(sample_service)
         save_notification(create_notification(template=email_template, status="permanent-failure"))
@@ -169,22 +166,13 @@ def test_should_not_delete_notification_history(sample_service, mocker):
     assert NotificationHistory.query.count() == 1
 
 
-@pytest.mark.parametrize("notification_type", ["sms", "email", "letter"])
+@pytest.mark.parametrize("notification_type", ["sms", "email"])
 def test_delete_notifications_for_days_of_retention(sample_service, notification_type, mocker):
-    mock_get_s3 = mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     create_test_data(notification_type, sample_service)
     assert Notification.query.count() == 9
     delete_notifications_older_than_retention_by_type(notification_type)
     assert Notification.query.count() == 7
     assert Notification.query.filter_by(notification_type=notification_type).count() == 1
-    if notification_type == "letter":
-        mock_get_s3.assert_called_with(
-            bucket_name=current_app.config["LETTERS_PDF_BUCKET_NAME"],
-            subfolder="{}/NOTIFY.LETTER_REF.D.2.C.C".format(str(datetime.utcnow().date())),
-        )
-        assert mock_get_s3.call_count == 2
-    else:
-        mock_get_s3.assert_not_called()
 
 
 def test_delete_notifications_inserts_notification_history(sample_service):
@@ -197,7 +185,6 @@ def test_delete_notifications_inserts_notification_history(sample_service):
 
 
 def test_delete_notifications_updates_notification_history(sample_email_template, mocker):
-    mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     notification = save_notification(
         create_notification(template=sample_email_template, created_at=datetime.utcnow() - timedelta(days=8))
     )
@@ -232,7 +219,6 @@ def test_delete_notifications_keep_data_for_days_of_retention_is_longer(sample_s
 
 
 def test_delete_notifications_with_test_keys(sample_template, mocker):
-    mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     save_notification(
         create_notification(
             template=sample_template,
@@ -279,18 +265,8 @@ def test_delete_notifications_delete_notification_type_for_default_time_if_no_da
     assert Notification.query.filter_by(notification_type="email").count() == 1
 
 
-def test_delete_notifications_does_try_to_delete_from_s3_when_letter_has_not_been_sent(sample_service, mocker):
-    mock_get_s3 = mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
-    letter_template = create_template(service=sample_service, template_type="letter")
-
-    save_notification(create_notification(template=letter_template, status="sending", reference="LETTER_REF"))
-    delete_notifications_older_than_retention_by_type("email", qry_limit=1)
-    mock_get_s3.assert_not_called()
-
-
 @freeze_time("2016-01-10 12:00:00.000000")
 def test_should_not_delete_notification_if_history_does_not_exist(sample_service, mocker):
-    mocker.patch("app.dao.notifications_dao.get_s3_bucket_objects")
     mocker.patch("app.dao.notifications_dao.insert_update_notification_history")
     with freeze_time("2016-01-01 12:00"):
         email_template, letter_template, sms_template = _create_templates(sample_service)
