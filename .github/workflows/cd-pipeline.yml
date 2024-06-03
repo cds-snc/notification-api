@@ -105,7 +105,7 @@ jobs:
       previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
 
   deploy-to-staging:
-    needs: create-release-notes
+    needs: [create-release-notes, create-and-post-tag]
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
     with:
@@ -128,4 +128,13 @@ jobs:
     secrets: inherit
     with:
       draftReleaseReference: ${{ needs.create-release-notes.outputs.draftReleaseReference }}
+
+  deploy-to-prod:
+    needs: [publish-release-notes, create-and-post-tag]
+    uses: ./.github/workflows/deploy-release.yml
+    secrets: inherit
+    with:
+      environment: prod
+      ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+      lambdaDeploy: true
 

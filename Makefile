@@ -32,8 +32,10 @@ install-safety:
 
 check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
 	# 12 Dec 2023: 51668 is fixed with >= 2.0.0b1 of SQLAlchemy. Ongoing refactor to upgrade.
+	# 6 June 2024: 70624 will be resolved with ticket #1794
+	# 6 June 2024: 70612 vulnerability found with jinja2 version 3.1.3
 
-	safety check -r poetry.lock --full-report -i 51668
+	safety check -r poetry.lock --full-report -i 51668,70624,70612
 
 .PHONY:
 	help \
