@@ -72,6 +72,7 @@ def send_sms_to_provider(notification):
             notification.to,
             notification.international,
             notification.reply_to_text,
+            template_id=notification.template_id,
         )
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
@@ -345,6 +346,7 @@ def provider_to_use(
     to: Optional[str] = None,
     international: bool = False,
     sender: Optional[str] = None,
+    template_id: Optional[UUID] = None,
 ) -> Any:
     """
     Get the provider to use for sending the notification.
@@ -356,6 +358,7 @@ def provider_to_use(
         to (str, optional): recipient. Defaults to None.
         international (bool, optional): Recipient is international. Defaults to False.
         sender (str, optional): reply_to_text to use. Defaults to None.
+        template_id (str, optional): template_id to use. Defaults to None.
 
     Raises:
         Exception: No active providers.
@@ -371,12 +374,16 @@ def provider_to_use(
         if match and phonenumbers.region_code_for_number(match.number) == "US":
             sending_to_us_number = True
 
-    if (
+    using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+
+    do_not_use_pinpoint = (
         has_dedicated_number
         or sending_to_us_number
         or current_app.config["AWS_PINPOINT_SC_POOL_ID"] is None
-        or current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"] is None
-    ):
+        or (current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"] is None and not using_sc_pool_template)
+    )
+
+    if do_not_use_pinpoint:
         active_providers_in_order = [
             p
             for p in get_provider_details_by_notification_type(notification_type, international)
