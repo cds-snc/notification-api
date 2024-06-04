@@ -245,6 +245,32 @@ def pinpoint_delivered_callback(reference=None, timestamp=1467074434, destinatio
     return _pinpoint_callback(body)
 
 
+def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_SUCCESSFUL",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+18078061258",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "mcc": "302",
+        "mnc": "610",
+        "carrierName": "Bell Cellular Inc. / Aliant Telecom",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "SUCCESSFUL",
+        "messageStatusDescription": "Message has been accepted by phone carrier",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.00767,
+    }
+
+    return _pinpoint_callback(body)
+
+
 # Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
 def pinpoint_failed_callback(provider_response, reference=None, timestamp=1467074434, destination="+1XXX5550100"):
     body = {
