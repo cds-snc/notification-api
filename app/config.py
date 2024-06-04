@@ -565,6 +565,9 @@ class Config(object):
     SRE_USER_NAME = "SRE_CLIENT_USER"
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
 
+    # TODO: Adjust when actual threshold is defined
+    CALLBACK_FAILURE_THRESHOLD_PERCENTAGE = 0.5
+
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
