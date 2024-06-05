@@ -199,7 +199,7 @@ def pinpoint_successful_callback(reference=None, timestamp=1467074434, destinati
         "eventVersion": "1.0",
         "eventTimestamp": timestamp,
         "isFinal": False,
-        "originationPhoneNumber": "+18078061258",
+        "originationPhoneNumber": "+13655550100",
         "destinationPhoneNumber": destination,
         "isoCountryCode": "CA",
         "mcc": "302",
@@ -240,6 +240,29 @@ def pinpoint_delivered_callback(reference=None, timestamp=1467074434, destinatio
         "totalMessageParts": 1,
         "totalMessagePrice": 0.00581,
         "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
+
+
+def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_SUCCESSFUL",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "555555",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "SUCCESSFUL",
+        "messageStatusDescription": "Message has been accepted by phone carrier",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.02183,
+        "totalCarrierFee": 0.005,
     }
 
     return _pinpoint_callback(body)

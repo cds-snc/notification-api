@@ -7,6 +7,7 @@ from app import statsd_client
 from app.aws.mocks import (
     pinpoint_delivered_callback,
     pinpoint_failed_callback,
+    pinpoint_shortcode_delivered_callback,
     pinpoint_successful_callback,
 )
 from app.celery.process_pinpoint_receipts_tasks import process_pinpoint_results
@@ -28,7 +29,14 @@ from tests.app.db import (
 )
 
 
-def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_db_session, mocker):
+@pytest.mark.parametrize(
+    "callback, expected_response",
+    [
+        (pinpoint_delivered_callback, "Message has been accepted by phone"),
+        (pinpoint_shortcode_delivered_callback, "Message has been accepted by phone carrier"),
+    ],
+)
+def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_db_session, callback, expected_response, mocker):
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
@@ -43,11 +51,11 @@ def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_d
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-    process_pinpoint_results(pinpoint_delivered_callback(reference="ref"))
+    process_pinpoint_results(callback(reference="ref"))
 
     assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-    assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone"
+    assert get_notification_by_id(notification.id).provider_response == expected_response
 
     mock_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
