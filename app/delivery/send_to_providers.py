@@ -379,10 +379,9 @@ def provider_to_use(
     do_not_use_pinpoint = (
         has_dedicated_number
         or sending_to_us_number
-        or current_app.config["AWS_PINPOINT_SC_POOL_ID"] is None
-        or (current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"] is None and not using_sc_pool_template)
+        or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
+        or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
     )
-
     if do_not_use_pinpoint:
         active_providers_in_order = [
             p
