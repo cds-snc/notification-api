@@ -13,6 +13,7 @@ down_revision = "0452_set_pgaudit_config"
 
 callback_failure_template_id = current_app.config["CALLBACK_FAILURE_TEMPLATE_ID"]
 
+
 def upgrade():
     template_insert = """
         INSERT INTO templates (id, name, template_type, created_at, content, archived, service_id, subject,
@@ -52,12 +53,14 @@ def upgrade():
             "[[fr]]",
             "Bonjour ((name)),",
             "",
-            "Les rappels pour « ((service_name)) » ne fonctionnent pas. Cela pourrait signifier que :"
+            "Les rappels pour « ((service_name)) » ne fonctionnent pas. Cela pourrait signifier que :" "",
+            "(1) Votre service de rappel est hors service.",
+            "(2) Votre service utilise un proxy auquel nous ne pouvons pas accéder.",
+            "(3) Nous parvenons à joindre votre service, mais il répond avec des erreurs.",
             "",
-            "Votre service de rappel est hors service.",
-            "Votre service utilise un proxy auquel nous ne pouvons pas accéder.",
-            "Nous parvenons à joindre votre service, mais il répond avec des erreurs.",
-            "Il est important de vérifier que votre service de rappel fonctionne, de consulter les journaux de votre service de rappel pour y détecter des erreurs et de corriger les erreurs dans vos journaux. Une fois ces étapes effectuées, veuillez demander une confirmation que vos rappels fonctionnent à nouveau en nous contactant.",
+            "Il est important de vérifier que votre service de rappel fonctionne, de vérifier les journaux de votre service de rappel pour détecter des erreurs et de corriger toute erreur dans vos journaux. Pour trouver votre configuration de rappel, connectez-vous à votre compte, visitez la page d’intégration API pour « ((service_name)) » et sélectionnez rappels.",
+            "",
+            "Une fois ces étapes effectuées, demandez une confirmation que vos rappels fonctionnent à nouveau en nous contactant. Pour plus d’informations, vous pouvez également consulter notre documentation API sur les rappels.",
             "",
             "L’équipe GC Notify",
             "[[/fr]]",
@@ -89,18 +92,19 @@ def upgrade():
         )
 
     op.execute(
-            template_history_insert.format(
-                template["id"],
-                template["name"],
-                "email",
-                datetime.utcnow(),
-                template["content"],
-                current_app.config["NOTIFY_SERVICE_ID"],
-                template["subject"],
-                current_app.config["NOTIFY_USER_ID"],
-                "normal",
-            )
+        template_history_insert.format(
+            template["id"],
+            template["name"],
+            "email",
+            datetime.utcnow(),
+            template["content"],
+            current_app.config["NOTIFY_SERVICE_ID"],
+            template["subject"],
+            current_app.config["NOTIFY_USER_ID"],
+            "normal",
         )
+    )
+
 
 def downgrade():
     op.execute("DELETE FROM notifications WHERE template_id = '{}'".format(callback_failure_template_id))
