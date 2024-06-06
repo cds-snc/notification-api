@@ -68,7 +68,7 @@ class TestProviderToUse:
             notify_api,
             {
                 "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": None,
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "",
                 "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
             },
         ):
@@ -81,7 +81,7 @@ class TestProviderToUse:
             notify_api,
             {
                 "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": None,
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "",
                 "AWS_PINPOINT_SC_TEMPLATE_IDS": [str(sc_template)],
             },
         ):
@@ -110,7 +110,7 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
 
-    @pytest.mark.parametrize("sc_pool_id, default_pool_id", [(None, "default_pool_id"), ("sc_pool_id", None)])
+    @pytest.mark.parametrize("sc_pool_id, default_pool_id", [("", "default_pool_id"), ("sc_pool_id", "")])
     def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
         with set_config_values(
             notify_api,
