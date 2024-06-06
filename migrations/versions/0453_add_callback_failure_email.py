@@ -53,7 +53,8 @@ def upgrade():
             "[[fr]]",
             "Bonjour ((name)),",
             "",
-            "Les rappels pour « ((service_name)) » ne fonctionnent pas. Cela pourrait signifier que :" "",
+            "Les rappels pour « ((service_name)) » ne fonctionnent pas. Cela pourrait signifier que :"
+            "",
             "(1) Votre service de rappel est hors service.",
             "(2) Votre service utilise un proxy auquel nous ne pouvons pas accéder.",
             "(3) Nous parvenons à joindre votre service, mais il répond avec des erreurs.",
