@@ -267,7 +267,6 @@ def test_update_user_attribute_blocked(
     user = sample_user(mobile_number='+4407700900460')
     assert user.current_session_id is None
     save_user_attribute(user, {'blocked': True, 'mobile_number': '+2407700900460'})
-    print(user.mobile_number, user.current_session_id)
     assert str(getattr(user, 'current_session_id')) == '00000000-0000-0000-0000-000000000000'
 
 
