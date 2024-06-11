@@ -24,6 +24,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
+from pkg_resources import declare_namespace
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -1032,6 +1033,18 @@ template_folder_map = db.Table(
 
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
+class TemplateCategories(BaseModel):
+    __tablename__ = "template_category"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name_en = db.Column(db.String(255), nullable=False)
+    name_fr = db.Column(db.String(255), nullable=False)
+    description_en = db.Column(db.String(200), nullable=True)
+    description_fr = db.Column(db.String(200), nullable=True)
+    sms_process_type = db.Column(db.String(200), nullable=False)
+    email_process_type = db.Column(db.String(200), nullable=False)
+    hidden = db.Column(db.Boolean, nullable=False, default=False)
+
 
 class TemplateBase(BaseModel):
     __abstract__ = True
@@ -1077,6 +1090,10 @@ class TemplateBase(BaseModel):
     @declared_attr
     def created_by_id(cls):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+
+    @declared_attr
+    def template_category_id(cls):
+        return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
 
     @declared_attr
     def created_by(cls):
@@ -1179,6 +1196,8 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
+    template_categories = db.relationship("TemplateCategories", backref="templates")
+
 
     folder = db.relationship(
         "TemplateFolder",
@@ -1197,6 +1216,15 @@ class Template(TemplateBase):
             template_id=self.id,
             _external=True,
         )
+
+    @property
+    def template_process_type(self):
+        if self.template_type == SMS_TYPE:
+            return self.process_type if self.process_type else self.template_categories.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type if self.process_type else self.template_categories.email_process_type
+        return self.process_type
+
 
     @classmethod
     def from_json(cls, data, folder=None):
