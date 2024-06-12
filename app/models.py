@@ -1034,11 +1034,11 @@ template_folder_map = db.Table(
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
 class TemplateCategories(BaseModel):
-    __tablename__ = "template_category"
+    __tablename__ = "template_categories"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name_en = db.Column(db.String(255), nullable=False)
-    name_fr = db.Column(db.String(255), nullable=False)
+    name_en = db.Column(db.String(255), unique=True, nullable=False)
+    name_fr = db.Column(db.String(255), unique=True, nullable=False)
     description_en = db.Column(db.String(200), nullable=True)
     description_fr = db.Column(db.String(200), nullable=True)
     sms_process_type = db.Column(db.String(200), nullable=False)
