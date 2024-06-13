@@ -1,5 +1,3 @@
-import pytest
-
 from app.dao.template_categories_dao import (
     dao_create_template_category,
     dao_get_all_template_categories,
@@ -8,7 +6,7 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.dao.templates_dao import dao_create_template
-from app.models import BULK, NORMAL, PRIORITY, Template, TemplateCategory
+from app.models import BULK, NORMAL, Template, TemplateCategory
 
 
 def test_create_template_category(notify_db_session):
@@ -60,7 +58,7 @@ def test_update_template_category(notify_db_session):
     assert dao_get_all_template_categories()[0].description_fr == "new french description"
     assert dao_get_all_template_categories()[0].sms_process_type == BULK
     assert dao_get_all_template_categories()[0].email_process_type == BULK
-    assert dao_get_all_template_categories()[0].hidden == True
+    assert dao_get_all_template_categories()[0].hidden
     assert dao_get_all_template_categories()[0].id == template_category.id
 
 
@@ -116,8 +114,8 @@ def test_get_all_template_categories(notify_db_session):
         "name_fr": "french",
         "description_en": "english description",
         "description_fr": "french description",
-        "sms_process_type": NORMAL,
-        "email_process_type": NORMAL,
+        "sms_process_type": "normal",
+        "email_process_type": "normal",
         "hidden": False,
     }
 
@@ -143,11 +141,11 @@ def test_get_all_template_categories(notify_db_session):
     assert dao_get_all_template_categories()[0].description_fr == "french description"
     assert dao_get_all_template_categories()[0].sms_process_type == NORMAL
     assert dao_get_all_template_categories()[0].email_process_type == NORMAL
-    assert dao_get_all_template_categories()[0].hidden == False
+    assert not dao_get_all_template_categories()[0].hidden
     assert dao_get_all_template_categories()[1].name_en == "english2"
     assert dao_get_all_template_categories()[1].name_fr == "french2"
     assert dao_get_all_template_categories()[1].description_en == "english description2"
     assert dao_get_all_template_categories()[1].description_fr == "french description2"
     assert dao_get_all_template_categories()[1].sms_process_type == BULK
     assert dao_get_all_template_categories()[1].email_process_type == BULK
-    assert dao_get_all_template_categories()[1].hidden == True
+    assert dao_get_all_template_categories()[1].hidden

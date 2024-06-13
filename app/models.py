@@ -1045,6 +1045,23 @@ class TemplateCategory(BaseModel):
     email_process_type = db.Column(db.String(200), nullable=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
 
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name_en": self.name_en,
+            "name_fr": self.name_fr,
+            "description_en": self.description_en,
+            "description_fr": self.description_fr,
+            "sms_process_type": self.sms_process_type,
+            "email_process_type": self.email_process_type,
+            "hidden": self.hidden,
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        fields = data.copy()
+        return cls(**fields)
+
 
 class TemplateBase(BaseModel):
     __abstract__ = True
@@ -1196,7 +1213,7 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
-    template_category = db.relationship("TemplateCategory", backref="templates")
+    category = db.relationship("TemplateCategory", backref="templates")
 
     folder = db.relationship(
         "TemplateFolder",

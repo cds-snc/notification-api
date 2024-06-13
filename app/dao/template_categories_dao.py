@@ -1,6 +1,5 @@
 import uuid
 
-from flask import current_app
 from sqlalchemy import asc
 
 from app import db
@@ -8,11 +7,13 @@ from app.dao.dao_utils import transactional
 from app.models import TemplateCategory
 
 
+@transactional
 def dao_create_template_category(template_category: TemplateCategory):
     template_category.id = uuid.uuid4()
     db.session.add(template_category)
 
 
+@transactional
 def dao_update_template_category(template_category: TemplateCategory):
     db.session.add(template_category)
 
