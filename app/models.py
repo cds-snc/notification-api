@@ -1218,10 +1218,10 @@ class Template(TemplateBase):
 
     @property
     def template_process_type(self):
-        if self.template_type == SMS_TYPE and self.template_categories.sms_process_type:
-            return self.template_categories.sms_process_type
-        elif self.template_type == EMAIL_TYPE and self.template_categories.email_process_type:
-            return self.template_categories.email_process_type
+        if self.template_type == SMS_TYPE:
+            return self.process_type if self.process_type else self.template_categories.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type if self.process_type else self.template_categories.email_process_type
         return self.process_type
 
     @classmethod
