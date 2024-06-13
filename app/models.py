@@ -24,7 +24,6 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from pkg_resources import declare_namespace
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -1033,7 +1032,8 @@ template_folder_map = db.Table(
 
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
-class TemplateCategories(BaseModel):
+
+class TemplateCategory(BaseModel):
     __tablename__ = "template_categories"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1196,8 +1196,7 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
-    template_categories = db.relationship("TemplateCategories", backref="templates")
-
+    template_category = db.relationship("TemplateCategory", backref="templates")
 
     folder = db.relationship(
         "TemplateFolder",

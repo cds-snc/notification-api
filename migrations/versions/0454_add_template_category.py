@@ -27,13 +27,11 @@ def upgrade():
         sa.Column("email_process_type", sa.String(length=255), nullable=False),
         sa.Column("hidden", sa.Boolean(), nullable=False),
         sa.UniqueConstraint("name_en"),
-        sa.UniqueConstraint("name_fr")
+        sa.UniqueConstraint("name_fr"),
     )
 
-    op.add_column(
-        "templates",
-        sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True)
-    )
+    op.add_column("templates", sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.add_column("templates_history", sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True))
     op.create_index(
         op.f("ix_template_category_id"),
         "templates",
@@ -52,13 +50,7 @@ def upgrade():
         ["name_fr"],
         unique=False,
     )
-    op.create_foreign_key(
-        "fk_template_template_categories",
-        "templates",
-        "template_categories",
-        ["template_category_id"],
-        ["id"]
-    )
+    op.create_foreign_key("fk_template_template_categories", "templates", "template_categories", ["template_category_id"], ["id"])
 
     # Insert the generic Low priority (bulk) category
     # op.execute("""
@@ -67,10 +59,12 @@ def upgrade():
     #     """
     # )
 
+
 def downgrade():
     op.drop_constraint("fk_template_template_categories", "templates", type_="foreignkey")
     op.drop_index(op.f("ix_template_category_id"), table_name="templates")
     op.drop_index(op.f("ix_template_categories_name_en"), table_name="template_categories")
     op.drop_index(op.f("ix_template_categories_name_fr"), table_name="template_categories")
     op.drop_column("templates", "template_category_id")
+    op.drop_column("templates_history", "template_category_id")
     op.drop_table("template_categories")
