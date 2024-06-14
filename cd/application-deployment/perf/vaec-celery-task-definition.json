@@ -179,7 +179,7 @@
         },
         {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
-          "value": "perf-bip-msg-mpi-profile-participant-cache-table"
+          "value": "perf-bip-payment-notification-table"
         },
         {
           "name": "COMP_AND_PEN_PERF_TO_NUMBER",

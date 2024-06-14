@@ -191,7 +191,7 @@
         },
         {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
-          "value": "staging-bip-msg-mpi-profile-participant-cache-table"
+          "value": "staging-bip-payment-notification-table"
         }
       ],
       "secrets": [
