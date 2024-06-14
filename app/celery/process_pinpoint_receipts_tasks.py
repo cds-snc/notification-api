@@ -51,8 +51,9 @@ def process_pinpoint_results(self, response):
         reference = receipt["messageId"]
         status = receipt["messageStatus"]
         provider_response = receipt["messageStatusDescription"]
+        isFinal = receipt["isFinal"]
 
-        notification_status = determine_pinpoint_status(status, provider_response)
+        notification_status = determine_pinpoint_status(status, provider_response, isFinal)
 
         if notification_status == NOTIFICATION_SENT:
             return  # we don't want to update the status to sent if it's already sent
@@ -116,18 +117,19 @@ def process_pinpoint_results(self, response):
         self.retry(queue=QueueNames.RETRY)
 
 
-def determine_pinpoint_status(status: str, provider_response: str) -> Union[str, None]:
+def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool) -> Union[str, None]:
     """Determine the notification status based on the SMS status and provider response.
 
     Args:
         status (str): message status from AWS
         provider_response (str): detailed status from the SMS provider
+        isFinal (bool): whether this is the last update for this send
 
     Returns:
         Union[str, None]: the notification status or None if the status is not handled
     """
 
-    if status == "DELIVERED":
+    if status == "DELIVERED" or status == "SUCCESSFUL" and isFinal:
         return NOTIFICATION_DELIVERED
     elif status == "SUCCESSFUL":  # carrier has accepted the message but it hasn't gone to the phone yet
         return NOTIFICATION_SENT

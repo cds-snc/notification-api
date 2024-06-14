@@ -1,3 +1,5 @@
+from typing import Optional
+
 import requests
 from flask import current_app
 from simple_salesforce import Salesforce
@@ -13,7 +15,7 @@ class TimeoutAdapter(requests.adapters.HTTPAdapter):
         return super().send(*args, **kwargs)
 
 
-def get_session(client_id: str, username: str, password: str, security_token: str, domain: str) -> Salesforce:
+def get_session(client_id: str, username: str, password: str, security_token: str, domain: str) -> Optional[Salesforce]:
     """Return an authenticated Salesforce session
 
     Args:
@@ -46,7 +48,7 @@ def get_session(client_id: str, username: str, password: str, security_token: st
     return session
 
 
-def end_session(session: Salesforce):
+def end_session(session: Optional[Salesforce]):
     """Logout of a Salesforce session
 
     Args:

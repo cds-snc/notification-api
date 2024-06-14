@@ -2,9 +2,10 @@ import base64
 import os
 import re
 from datetime import datetime
-from typing import Dict
+from typing import Any, Dict, Optional
 from uuid import UUID
 
+import phonenumbers
 from flask import current_app
 from notifications_utils.recipients import (
     validate_and_format_email_address,
@@ -48,6 +49,7 @@ from app.models import (
     NOTIFICATION_VIRUS_SCAN_FAILED,
     PINPOINT_PROVIDER,
     SMS_TYPE,
+    SNS_PROVIDER,
     BounceRateStatus,
     Notification,
     Service,
@@ -67,6 +69,7 @@ def send_sms_to_provider(notification):
         provider = provider_to_use(
             SMS_TYPE,
             notification.id,
+            notification.to,
             notification.international,
             notification.reply_to_text,
             template_id=notification.template_id,
@@ -105,6 +108,7 @@ def send_sms_to_provider(notification):
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
+                    template_id=notification.template_id,
                 )
             except Exception as e:
                 notification.billable_units = template.fragment_count
@@ -336,16 +340,60 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
-def provider_to_use(notification_type, notification_id, international=False, sender=None, template_id=None):
-    # Temporary redirect setup for template IDs that are meant for the short code usage.
-    if notification_type == SMS_TYPE and template_id is not None and str(template_id) in Config.AWS_PINPOINT_SC_TEMPLATE_IDS:
-        return clients.get_client_by_name_and_type("pinpoint", SMS_TYPE)
+def provider_to_use(
+    notification_type: str,
+    notification_id: UUID,
+    to: Optional[str] = None,
+    international: bool = False,
+    sender: Optional[str] = None,
+    template_id: Optional[UUID] = None,
+) -> Any:
+    """
+    Get the provider to use for sending the notification.
+    SMS that are being sent with a dedicated number or to a US number should not use Pinpoint.
 
-    active_providers_in_order = [
-        p
-        for p in get_provider_details_by_notification_type(notification_type, international)
-        if p.active and p.identifier != PINPOINT_PROVIDER
-    ]
+    Args:
+        notification_type (str): SMS or EMAIL.
+        notification_id (UUID): id of notification. Just used for logging.
+        to (str, optional): recipient. Defaults to None.
+        international (bool, optional): Recipient is international. Defaults to False.
+        sender (str, optional): reply_to_text to use. Defaults to None.
+        template_id (str, optional): template_id to use. Defaults to None.
+
+    Raises:
+        Exception: No active providers.
+
+    Returns:
+        provider: Provider to use to send the notification.
+    """
+
+    has_dedicated_number = sender is not None and sender.startswith("+1")
+    sending_to_us_number = False
+    if to is not None:
+        match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
+        if match and phonenumbers.region_code_for_number(match.number) == "US":
+            sending_to_us_number = True
+
+    using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+
+    do_not_use_pinpoint = (
+        has_dedicated_number
+        or sending_to_us_number
+        or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
+        or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
+    )
+    if do_not_use_pinpoint:
+        active_providers_in_order = [
+            p
+            for p in get_provider_details_by_notification_type(notification_type, international)
+            if p.active and p.identifier != PINPOINT_PROVIDER
+        ]
+    else:
+        active_providers_in_order = [
+            p
+            for p in get_provider_details_by_notification_type(notification_type, international)
+            if p.active and p.identifier != SNS_PROVIDER
+        ]
 
     if not active_providers_in_order:
         current_app.logger.error("{} {} failed as no active providers".format(notification_type, notification_id))

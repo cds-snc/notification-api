@@ -2,7 +2,6 @@ import functools
 import string
 from datetime import datetime, timedelta
 
-from boto.exception import BotoClientError
 from flask import current_app
 from itsdangerous import BadSignature
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
@@ -25,11 +24,9 @@ from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
-from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
 from app.dao.dao_utils import transactional
 from app.dao.date_util import utc_midnight_n_days_ago
 from app.errors import InvalidRequest
-from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
@@ -391,9 +388,6 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
             convert_utc_to_local_timezone(datetime.utcnow()).date()
         ) - timedelta(days=f.days_of_retention)
 
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, f.service_id, days_of_retention, qry_limit)
-
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
         current_app.logger.info("Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
@@ -409,8 +403,6 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
 
     for row in service_ids_to_purge:
         service_id = row._mapping["id"]
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, service_id, seven_days_ago, qry_limit)
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
@@ -484,38 +476,6 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
     )
     db.session.connection().execute(stmt)
     db.session.commit()
-
-
-def _delete_letters_from_s3(notification_type, service_id, date_to_delete_from, query_limit):
-    letters_to_delete_from_s3 = (
-        db.session.query(Notification)
-        .filter(
-            Notification.notification_type == notification_type,
-            Notification.created_at < date_to_delete_from,
-            Notification.service_id == service_id,
-        )
-        .limit(query_limit)
-        .all()
-    )
-    for letter in letters_to_delete_from_s3:
-        bucket_name = current_app.config["LETTERS_PDF_BUCKET_NAME"]
-        if letter.sent_at:
-            sent_at = str(letter.sent_at.date())
-            prefix = LETTERS_PDF_FILE_LOCATION_STRUCTURE.format(
-                folder=sent_at + "/",
-                reference=letter.reference,
-                duplex="D",
-                letter_class="2",
-                colour="C",
-                crown="C" if letter.service.crown else "N",
-                date="",
-            ).upper()[:-5]
-            s3_objects = get_s3_bucket_objects(bucket_name=bucket_name, subfolder=prefix)
-            for s3_object in s3_objects:
-                try:
-                    remove_s3_object(bucket_name, s3_object["Key"])
-                except BotoClientError:
-                    current_app.logger.exception("Could not delete S3 object with filename: {}".format(s3_object["Key"]))
 
 
 @statsd(namespace="dao")
