@@ -26,6 +26,7 @@ from app.dao.templates_dao import (
     dao_redact_template,
     dao_update_template,
     dao_update_template_category,
+    dao_update_template_process_type,
     dao_update_template_reply_to,
     get_precompiled_letter_template,
 )
@@ -147,9 +148,8 @@ def update_template_process_type(template_id):
         errors = {"process_type": [message]}
         raise InvalidRequest(errors, status_code=400)
 
-    # updated = dao_update_template_process_type(template_id=template_id, process_type=data.get("process_type"))
-    # return jsonify(data=template_schema.dump(updated)), 200
-    pass
+    updated = dao_update_template_process_type(template_id=template_id, process_type=data.get("process_type"))
+    return jsonify(data=template_schema.dump(updated)), 200
 
 
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
