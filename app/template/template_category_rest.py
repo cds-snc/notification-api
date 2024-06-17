@@ -2,11 +2,13 @@ from flask import Blueprint, jsonify, request
 
 from app.dao.template_categories_dao import (
     dao_create_template_category,
+    dao_delete_template_category_by_id,
     dao_get_all_template_categories,
     dao_get_template_category_by_id,
+    dao_get_template_category_by_template_id,
     dao_update_template_category,
 )
-from app.models import TemplateCategory
+from app.models import Template, TemplateCategory
 from app.schemas import template_category_schema
 
 template_category_blueprint = Blueprint(
@@ -28,7 +30,23 @@ def create_template_category():
     return jsonify(data=template_category_schema.dump(template_category)), 201
 
 
-@template_category_blueprint.route("/<template_category_id>", methods=["POST"])
+@template_category_blueprint.route("<uuid:template_category_id>", methods=["GET"])
+def get_template_category(template_category_id = None, template_id = None):
+    if template_id:
+        template_category = dao_get_template_category_by_template_id(template_id)
+    else:
+        template_category = dao_get_template_category_by_id(template_id)
+
+    return jsonify(template_category.dump()), 200
+
+
+@template_category_blueprint.route("", methods=["GET"])
+def get_template_categories():
+    template_categories = dao_get_all_template_categories()
+    return jsonify(data=template_category_schema.dump(template_categories, many=True)), 200
+
+
+@template_category_blueprint.route("/<uuid:template_category_id>", methods=["POST"])
 def update_template_category(template_category_id):
     request_json = request.get_json()
     update_dict = template_category_schema.load(request_json)
@@ -40,10 +58,17 @@ def update_template_category(template_category_id):
 
     dao_update_template_category(category_to_update)
 
-    return jsonify(data=category_to_update.serialize()), 200
+    return jsonify(data=category_to_update.dump()), 200
 
+@template_category_blueprint.route("/<uuid:template_category_id>", methods=["DELETE"])
+def delete_template_category(template_category_id):
+    cascade = request.args.get("cascade", False)
 
-@template_category_blueprint.route("", methods=["GET"])
-def get_template_categories():
-    template_categories = dao_get_all_template_categories()
-    return jsonify(data=template_category_schema.dump(template_categories, many=True)), 200
+    if not cascade:
+        templates = Template.query.filter_by(template_category_id=template_category_id).one()
+        if templates:
+            return jsonify(message="Cannot delete template category with templates assigned to it"), 400
+
+    dao_delete_template_category_by_id(template_category_id, cascade)
+
+    return "", 204

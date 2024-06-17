@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0454_add_template_categories
-Revises: 0453_add_callback_failure_email
+Revision ID: 0453_add_template_categories
+Revises: 0452_set_pgaudit_config
 Create Date: 2024-06-11 13:32:00
 """
 
@@ -9,15 +9,11 @@ from datetime import datetime
 
 import sqlalchemy as sa
 from alembic import op
+from flask import current_app
 from sqlalchemy.dialects import postgresql
 
-revision = "0454_add_template_categories"
+revision = "0453_add_template_categories"
 down_revision = "0452_set_pgaudit_config"
-
-# TODO: Add these to the config instead
-DEFAULT_LOW = "0dda24c2-982a-4f44-9749-0e38b2607e89"
-DEFAULT_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
-DEFAULT_HIGH = "c4f87d7c-a55b-4c0f-91fe-e56c65bb1871"
 
 
 def upgrade():
@@ -61,19 +57,19 @@ def upgrade():
     op.execute(
         f"""
             INSERT INTO template_category (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ({DEFAULT_LOW}, 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', true
+            VALUES ({current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW']}, 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', true
         """
     )
     op.execute(
         f"""
             INSERT INTO template_category (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ({DEFAULT_MEDIUM}, 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', true
+            VALUES ({current_app.config['DEFAULT_TEMPLATE_CATEGORY_MEDIUM']}, 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', true
         """
     )
     op.execute(
         f"""
             INSERT INTO template_category (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ({DEFAULT_HIGH}, 'High Category (Priority)', 'Catégorie Haute (Priorité)', true
+            VALUES ({current_app.config['DEFAULT_TEMPLATE_CATEGORY_HIGH']}, 'High Category (Priority)', 'Catégorie Haute (Priorité)', true
         """
     )
 

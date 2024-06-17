@@ -340,6 +340,9 @@ class Config(object):
     HEARTBEAT_TEMPLATE_SMS_LOW = "ab3a603b-d602-46ea-8c83-e05cb280b950"
     HEARTBEAT_TEMPLATE_SMS_MEDIUM = "a48b54ce-40f6-4e4a-abe8-1e2fa389455b"
     HEARTBEAT_TEMPLATE_SMS_HIGH = "4969a9e9-ddfd-476e-8b93-6231e6f1be4a"
+    DEFAULT_TEMPLATE_CATEGORY_LOW = "0dda24c2-982a-4f44-9749-0e38b2607e89"
+    DEFAULT_TEMPLATE_CATEGORY_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
+    DEFAULT_TEMPLATE_CATEGORY_HIGH = "c4f87d7c-a55b-4c0f-91fe-e56c65bb1871"
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
