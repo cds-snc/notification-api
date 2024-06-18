@@ -78,17 +78,10 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
-    # For normal send of notifications. This is relatively normal volume and flushed
-    # pretty quickly.
-    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
-
     # Queues for sending all SMS, except long dedicated numbers.
     SEND_SMS_HIGH = "send-sms-high"
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
@@ -98,9 +91,6 @@ class QueueNames(object):
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
     SEND_EMAIL_LOW = "send-email-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
     # out Notify.
@@ -117,6 +107,7 @@ class QueueNames(object):
     PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
+    CALLBACKS_RETRY = "service-callbacks-retry"
 
     # Queue for letters, unused by CDS at this time as we don't use these.
     LETTERS = "letter-tasks"
@@ -158,16 +149,15 @@ class QueueNames(object):
             QueueNames.SEND_SMS_HIGH,
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
-            QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
-            QueueNames.SEND_EMAIL,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,
             QueueNames.RETRY,
+            QueueNames.CALLBACKS_RETRY,
             QueueNames.NOTIFY,
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
@@ -276,6 +266,10 @@ class Config(object):
     AWS_SES_ACCESS_KEY = os.getenv("AWS_SES_ACCESS_KEY")
     AWS_SES_SECRET_KEY = os.getenv("AWS_SES_SECRET_KEY")
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
+    AWS_PINPOINT_SC_POOL_ID = os.getenv("AWS_PINPOINT_SC_POOL_ID", "")
+    AWS_PINPOINT_DEFAULT_POOL_ID = os.getenv("AWS_PINPOINT_DEFAULT_POOL_ID", "")
+    AWS_PINPOINT_CONFIGURATION_SET_NAME = os.getenv("AWS_PINPOINT_CONFIGURATION_SET_NAME", "pinpoint-configuration")
+    AWS_PINPOINT_SC_TEMPLATE_IDS = env.list("AWS_PINPOINT_SC_TEMPLATE_IDS", [])
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
@@ -310,6 +304,7 @@ class Config(object):
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"
     EMAIL_2FA_TEMPLATE_ID = "299726d2-dba6-42b8-8209-30e1d66ea164"
+    EMAIL_MAGIC_LINK_TEMPLATE_ID = "6e97fd09-6da0-4cc8-829d-33cf5b818103"
     NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID = "ece42649-22a8-4d06-b87f-d52d5d3f0a27"
     PASSWORD_RESET_TEMPLATE_ID = "474e9242-823b-4f99-813d-ed392e7f1201"
     FORCED_PASSWORD_RESET_TEMPLATE_ID = "e9a65a6b-497b-42f2-8f43-1736e43e13b3"
@@ -367,6 +362,7 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
+        "app.celery.process_pinpoint_receipts_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py

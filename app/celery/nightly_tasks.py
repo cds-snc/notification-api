@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import List
 
 import pytz
 from flask import current_app
@@ -12,7 +13,7 @@ from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
-from app.dao.jobs_dao import dao_archive_job, dao_get_jobs_older_than_data_retention
+from app.dao.jobs_dao import dao_archive_jobs, dao_get_jobs_older_than_data_retention
 from app.dao.notifications_dao import (
     dao_timeout_notifications,
     delete_notifications_older_than_retention_by_type,
@@ -37,26 +38,37 @@ from app.utils import get_local_timezone_midnight_in_utc
 @notify_celery.task(name="remove_sms_email_jobs")
 @cronitor("remove_sms_email_jobs")
 @statsd(namespace="tasks")
-def remove_sms_email_csv_files():
-    _remove_csv_files([EMAIL_TYPE, SMS_TYPE])
+def remove_sms_email_jobs():
+    """
+    Remove csv files from s3 and archive email and sms jobs older than data retention period.
+    """
+
+    _archive_jobs([EMAIL_TYPE, SMS_TYPE])
 
 
 @notify_celery.task(name="remove_letter_jobs")
 @cronitor("remove_letter_jobs")
 @statsd(namespace="tasks")
-def remove_letter_csv_files():
-    _remove_csv_files([LETTER_TYPE])
+def remove_letter_jobs():
+    _archive_jobs([LETTER_TYPE])
 
 
-def _remove_csv_files(job_types):
-    jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types)
-    current_app.logger.info("TEMP LOGGING: trying to remove {} jobs.".format(len(jobs)))
-    for job in jobs:
-        current_app.logger.info("TEMP LOGGING: trying to remove Job ID {} from s3.".format(job.id))
-        s3.remove_job_from_s3(job.service_id, job.id)
-        current_app.logger.info("TEMP LOGGING: trying to archive Job ID {}".format(job.id))
-        dao_archive_job(job)
-        current_app.logger.info("Job ID {} has been removed from s3.".format(job.id))
+def _archive_jobs(job_types: List[str]):
+    """
+    Remove csv files from s3 and archive jobs older than data retention period.
+
+    Args:
+        job_types (List[str]): list of job types to remove csv files and archive jobs for
+    """
+
+    while True:
+        jobs = dao_get_jobs_older_than_data_retention(notification_types=job_types, limit=100)
+        if len(jobs) == 0:
+            break
+        current_app.logger.info("Archiving {} jobs.".format(len(jobs)))
+        s3.remove_jobs_from_s3(jobs)
+        dao_archive_jobs(jobs)
+        current_app.logger.info(f"Jobs archived: {[job.id for job in jobs]}")
 
 
 @notify_celery.task(name="delete-sms-notifications")

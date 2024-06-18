@@ -32,7 +32,7 @@ def get_org_name_from_notes(organisation_notes: str, name_index: int = ORG_NOTES
     return organisation_notes
 
 
-def get_account_id_from_name(session: Salesforce, account_name: str, generic_account_id: str) -> Optional[str]:
+def get_account_id_from_name(session: Optional[Salesforce], account_name: str, generic_account_id: str) -> Optional[str]:
     """Returns the Account ID for the given Account Name.  If no match is found, a generic
     Account not found ID is returned.
 

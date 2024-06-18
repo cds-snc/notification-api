@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import Mock, call
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 import requests_mock
@@ -891,9 +891,10 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
+        template.__len__.return_value = 1
 
         process_rows(
             [
@@ -950,10 +951,11 @@ class TestProcessRows:
     ):
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
-        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
+        template = MagicMock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
+        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -994,10 +996,11 @@ class TestProcessRows:
     ):
         mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
 
-        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        template = MagicMock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
+        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -1066,7 +1069,8 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template.__len__.return_value = 1
         api_key = {}
         job = Mock(
             id="job_id",
@@ -1154,7 +1158,7 @@ class TestSaveSmss:
             notification["sender_id"] = sender_id
 
         sms_sender = ServiceSmsSender()
-        sms_sender.sms_sender = "+16502532222"
+        sms_sender.sms_sender = "6135550123"
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
@@ -1191,6 +1195,8 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
+        assert persisted_notification.reply_to_text == (f"+1{sms_sender.sms_sender}" if sender_id else None)
+
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
         )
