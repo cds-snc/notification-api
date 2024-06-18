@@ -39,7 +39,7 @@ gevent = "23.9.1"
 gunicorn = "20.1.0"
 iso8601 = "2.1.0"
 jsonschema = "3.2.0"
-marshmallow-sqlalchemy = "0.30.0"
+marshmallow-sqlalchemy = "0.29.0"
 marshmallow = "3.21.0"
 python-magic = "0.4.27"
 psycopg2-binary = "2.9.9"
@@ -64,8 +64,9 @@ aws-embedded-metrics = "1.0.8"
 Werkzeug = "3.0.3"
 MarkupSafe = "2.1.5"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
-itsdangerous = "2.1.2"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.2.6" }
+itsdangerous = "2.2.0"
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.2.7" }
+
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.10.0"
 greenlet = "2.0.2"

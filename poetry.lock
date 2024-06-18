@@ -210,17 +210,17 @@ aiohttp = "*"
 
 [[package]]
 name = "awscli"
-version = "1.32.100"
+version = "1.33.5"
 description = "Universal Command Line Environment for AWS."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "awscli-1.32.100-py3-none-any.whl", hash = "sha256:46e4a44dafeffe63980ab2cd0240aa15a4879cf5d84f210c9eb0facc05e7bf0a"},
-    {file = "awscli-1.32.100.tar.gz", hash = "sha256:7bd06388d7853508f96a91291c28b0745ac0a5ac73276cb7db48478d6d3c2a70"},
+    {file = "awscli-1.33.5-py3-none-any.whl", hash = "sha256:46eb5858f154723d3d11900b33035f24b51882758d5f3f753e472ca12375bc46"},
+    {file = "awscli-1.33.5.tar.gz", hash = "sha256:eda29ad39b0907505f78d693e6cc1dc76c2d47a0e5cf5376e86a791d5e830535"},
 ]
 
 [package.dependencies]
-botocore = "1.34.100"
+botocore = "1.34.123"
 colorama = ">=0.2.5,<0.4.7"
 docutils = ">=0.10,<0.17"
 PyYAML = ">=3.10,<6.1"
@@ -391,13 +391,13 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.100"
+version = "1.34.123"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.34.100-py3-none-any.whl", hash = "sha256:ee516fb9e9e906d311f2a9921afaf79c594db239a5b4b626e89e6960401aad0b"},
-    {file = "botocore-1.34.100.tar.gz", hash = "sha256:513bea60c6531af8e1ae1fdb2947e3ef99712f39c58f4656b5efef9cb6f75a13"},
+    {file = "botocore-1.34.123-py3-none-any.whl", hash = "sha256:8c34ada2a708c82e7174bff700611643db7ce2cb18f1130c35045c24310d299d"},
+    {file = "botocore-1.34.123.tar.gz", hash = "sha256:a8577f6574600c4d159b5cd103ee05744a443d77f7778304e17307940b369c4f"},
 ]
 
 [package.dependencies]
@@ -406,7 +406,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""}
 
 [package.extras]
-crt = ["awscrt (==0.20.9)"]
+crt = ["awscrt (==0.20.11)"]
 
 [[package]]
 name = "brotli"
@@ -1623,23 +1623,22 @@ test = ["objgraph", "psutil"]
 
 [[package]]
 name = "gunicorn"
-version = "22.0.0"
+version = "20.1.0"
 description = "WSGI HTTP Server for UNIX"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.5"
 files = [
-    {file = "gunicorn-22.0.0-py3-none-any.whl", hash = "sha256:350679f91b24062c86e386e198a15438d53a7a8207235a78ba1b53df4c4378d9"},
-    {file = "gunicorn-22.0.0.tar.gz", hash = "sha256:4a0b436239ff76fb33f11c07a16482c521a7e09c1ce3cc293c2330afe01bec63"},
+    {file = "gunicorn-20.1.0-py3-none-any.whl", hash = "sha256:9dcc4547dbb1cb284accfb15ab5667a0e5d1881cc443e0677b4882a4067a807e"},
+    {file = "gunicorn-20.1.0.tar.gz", hash = "sha256:e0a968b5ba15f8a328fdfd7ab1fcb5af4470c28aaf7e55df02a99bc13138e6e8"},
 ]
 
 [package.dependencies]
-packaging = "*"
+setuptools = ">=3.0"
 
 [package.extras]
-eventlet = ["eventlet (>=0.24.1,!=0.36.0)"]
+eventlet = ["eventlet (>=0.24.1)"]
 gevent = ["gevent (>=1.4.0)"]
 setproctitle = ["setproctitle"]
-testing = ["coverage", "eventlet", "gevent", "pytest", "pytest-cov"]
 tornado = ["tornado (>=0.2)"]
 
 [[package]]
@@ -1705,13 +1704,13 @@ colors = ["colorama (>=0.4.6)"]
 
 [[package]]
 name = "itsdangerous"
-version = "2.1.2"
+version = "2.2.0"
 description = "Safely pass data to untrusted environments and back."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "itsdangerous-2.1.2-py3-none-any.whl", hash = "sha256:2c2349112351b88699d8d4b6b075022c0808887cb7ad10069318a8b0bc88db44"},
-    {file = "itsdangerous-2.1.2.tar.gz", hash = "sha256:5dbbc68b317e5e42f327f9021763545dc3fc3bfe22e6deb96aaf1fc38874156a"},
+    {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
+    {file = "itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173"},
 ]
 
 [[package]]
@@ -2061,13 +2060,13 @@ tests = ["pytest", "pytz", "simplejson"]
 
 [[package]]
 name = "marshmallow-sqlalchemy"
-version = "0.30.0"
+version = "0.29.0"
 description = "SQLAlchemy integration with the marshmallow (de)serialization library"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.7"
 files = [
-    {file = "marshmallow-sqlalchemy-0.30.0.tar.gz", hash = "sha256:29ad0a4fd1b4a1e52dcb07f9673d284a6b0795141916cc2169d4ee9a5d007347"},
-    {file = "marshmallow_sqlalchemy-0.30.0-py2.py3-none-any.whl", hash = "sha256:808c1e95bf72f4491ad2f3498e73116b33074d7dcef79f0e6997d0d37d648ac7"},
+    {file = "marshmallow-sqlalchemy-0.29.0.tar.gz", hash = "sha256:3523a774390ef0c1c0f7c708a7519809c5396cf608720f14f55c36f74ff5bbec"},
+    {file = "marshmallow_sqlalchemy-0.29.0-py2.py3-none-any.whl", hash = "sha256:3cee0bf61ed10687c0a41448e1916649b28222334a02f7b937c39d1c69c18bee"},
 ]
 
 [package.dependencies]
@@ -2076,9 +2075,9 @@ packaging = ">=21.3"
 SQLAlchemy = ">=1.4.40,<3.0"
 
 [package.extras]
-dev = ["flake8 (==7.0.0)", "flake8-bugbear (==23.12.2)", "pre-commit (==3.6.0)", "pytest", "pytest-lazy-fixture (>=0.6.2)", "tox"]
-docs = ["alabaster (==0.7.13)", "sphinx (==7.2.6)", "sphinx-issues (==3.0.1)"]
-lint = ["flake8 (==7.0.0)", "flake8-bugbear (==23.12.2)", "pre-commit (==3.6.0)"]
+dev = ["flake8 (==6.0.0)", "flake8-bugbear (==23.2.13)", "pre-commit (==3.1.0)", "pytest", "pytest-lazy-fixture (>=0.6.2)", "tox"]
+docs = ["alabaster (==0.7.13)", "sphinx (==6.1.3)", "sphinx-issues (==3.0.1)"]
+lint = ["flake8 (==6.0.0)", "flake8-bugbear (==23.2.13)", "pre-commit (==3.1.0)"]
 tests = ["pytest", "pytest-lazy-fixture (>=0.6.2)"]
 
 [[package]]
@@ -2429,24 +2428,25 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.2.6"
+version = "52.2.7"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
-python-versions = "~3.10.9"
-files = []
-develop = false
+python-versions = ">=3.10.9,<3.11.0"
+files = [
+    {file = "notifications_utils-52.2.7.tar.gz", hash = "sha256:235cdc68f8c5936fc8422a3a81f5ceb42a8c3dc384c107a34f35527c3529eeae"},
+]
 
 [package.dependencies]
-awscli = "1.32.100"
+awscli = "1.33.5"
 bleach = "6.1.0"
 boto3 = "1.34.100"
 cachetools = "4.2.4"
-certifi = "^2023.7.22"
-cryptography = "^42.0.3"
+certifi = ">=2023.7.22,<2024.0.0"
+cryptography = ">=42.0.3,<43.0.0"
 Flask = "2.3.3"
 Flask-Redis = "0.4.0"
-itsdangerous = "2.1.2"
-Jinja2 = "^3.0.0"
+itsdangerous = "2.2.0"
+Jinja2 = ">=3.0.0,<4.0.0"
 markupsafe = "2.1.5"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
@@ -2462,10 +2462,8 @@ statsd = "3.3.0"
 werkzeug = "3.0.3"
 
 [package.source]
-type = "git"
-url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.2.6"
-resolved_reference = "d67d77609378d0e6e33305a007806d32566e21a1"
+type = "file"
+url = "../nutils/notifications_utils-52.2.7.tar.gz"
 
 [[package]]
 name = "ordered-set"
@@ -3797,13 +3795,13 @@ test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.
 
 [[package]]
 name = "types-boto"
-version = "2.49.18.20240205"
+version = "2.49.18.9"
 description = "Typing stubs for boto"
 optional = false
-python-versions = ">=3.8"
+python-versions = "*"
 files = [
-    {file = "types-boto-2.49.18.20240205.tar.gz", hash = "sha256:6c7f3945e5759e1f8a760e2843adbeb1eea64f869f3a3070af7cfcfc25ea71bd"},
-    {file = "types_boto-2.49.18.20240205-py3-none-any.whl", hash = "sha256:9873214ce37756a6145c165fb9beaf80cb4ac1df5a5967f6a0945109c8c4469a"},
+    {file = "types-boto-2.49.18.9.tar.gz", hash = "sha256:fe711d938c237be50346a1bdc2231d3170453fe734789075dd088458e4e9442d"},
+    {file = "types_boto-2.49.18.9-py3-none-any.whl", hash = "sha256:b44e8aead5e34bc336a813af90fdbb9ac5bb1091de839042628163463d9948eb"},
 ]
 
 [[package]]
@@ -4197,5 +4195,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "d248dd0bd87785c37d04487401d2fd432fd03c296223986d5f2c34f3e57b5275"
-
+content-hash = "a8541f5172e42030e2501da57e7080d330a286bd75699a7771b1583df775df65"
