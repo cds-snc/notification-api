@@ -9,12 +9,6 @@ from app.errors import InvalidRequest
 from app.models import Template, TemplateCategory
 
 
-DEFAULT_TEMPLATE_CATEGORIES = {
-    'bulk': current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'],
-    'normal': current_app.config['DEFAULT_TEMPLATE_CATEGORY_MEDIUM'],
-    'priority': current_app.config['DEFAULT_TEMPLATE_CATEGORY_HIGH']
-}
-
 @transactional
 def dao_create_template_category(template_category: TemplateCategory):
     template_category.id = uuid.uuid4()
@@ -64,9 +58,7 @@ def dao_delete_template_category_by_id(template_category_id, cascade = False):
             try:
                 for template in templates:
                     process_type = template_category.sms_process_type if template.template_type == 'sms' else template_category.email_process_type
-                    default_category_id = DEFAULT_TEMPLATE_CATEGORIES.get(process_type, current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'])
-                    template.category = dao_get_template_category_by_id(default_category_id)
-
+                    template.category = dao_get_template_category_by_id(_get_default_category_id(process_type))
                     db.session.add(template)
 
                 db.session.delete(template_category)
@@ -77,3 +69,11 @@ def dao_delete_template_category_by_id(template_category_id, cascade = False):
         db.session.delete(template_category)
         db.session.commit()
 
+
+def _get_default_category_id(process_type):
+    default_categories = {
+        'bulk': current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'],
+        'normal': current_app.config['DEFAULT_TEMPLATE_CATEGORY_MEDIUM'],
+        'priority': current_app.config['DEFAULT_TEMPLATE_CATEGORY_HIGH']
+    }
+    return default_categories.get(process_type, current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'])

@@ -21,6 +21,7 @@ from app.dao.notifications_dao import dao_create_notification
 from app.dao.organisation_dao import dao_create_organisation
 from app.dao.provider_rates_dao import create_provider_rates
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.history_meta import create_history
@@ -52,6 +53,7 @@ from app.models import (
     ServiceEmailReplyTo,
     ServiceSafelist,
     Template,
+    TemplateCategory,
     TemplateHistory,
 )
 from tests import create_authorization_header
@@ -230,6 +232,57 @@ def _sample_service_custom_letter_contact_block(sample_service):
     return sample_service
 
 
+@pytest.fixture(scope="function")
+def sample_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en="Category Name",
+        name_fr="Category Name (FR)",
+        description_en="Category Description",
+        description_fr="Category Description (FR)",
+        sms_process_type="normal",
+        email_process_type="normal",
+        hidden=False,
+    )
+
+
+def create_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    data = {
+        "name_en": name_en,
+        "name_fr": name_fr,
+        "description_en": description_en,
+        "description_fr": description_fr,
+        "sms_process_type": sms_process_type,
+        "email_process_type": email_process_type,
+        "hidden": hidden,
+    }
+    template_category = TemplateCategory(**data)
+    dao_create_template_category(template_category)
+
+    return template_category
+
+
 def create_sample_template(
     notify_db,
     notify_db_session,
@@ -241,6 +294,7 @@ def create_sample_template(
     subject_line="Subject",
     user=None,
     service=None,
+    template_category=None,
     created_by=None,
     process_type="normal",
     permissions=[EMAIL_TYPE, SMS_TYPE],
@@ -268,6 +322,8 @@ def create_sample_template(
         data.update({"subject": subject_line})
     if template_type == "letter":
         data["postage"] = "second"
+    if template_category:
+        data["category"] = template_category
     template = Template(**data)
     dao_create_template(template)
 

@@ -8,15 +8,17 @@ from app.dao.template_categories_dao import (
     dao_get_template_category_by_template_id,
     dao_update_template_category,
 )
+from app.errors import register_errors
 from app.models import Template, TemplateCategory
 from app.schemas import template_category_schema
 
 template_category_blueprint = Blueprint(
     "template_category",
     __name__,
-    url_prefix="template/category",
+    url_prefix="/template/category",
 )
 
+register_errors(template_category_blueprint)
 
 @template_category_blueprint.route("", methods=["POST"])
 def create_template_category():
@@ -27,23 +29,25 @@ def create_template_category():
 
     dao_create_template_category(template_category)
 
-    return jsonify(data=template_category_schema.dump(template_category)), 201
+    return jsonify(template_category=template_category_schema.dump(template_category)), 201
 
 
 @template_category_blueprint.route("<uuid:template_category_id>", methods=["GET"])
-def get_template_category(template_category_id = None, template_id = None):
-    if template_id:
-        template_category = dao_get_template_category_by_template_id(template_id)
-    else:
-        template_category = dao_get_template_category_by_id(template_id)
+def get_template_category(template_category_id = None):
+    template_category = dao_get_template_category_by_id(template_category_id)
+    return jsonify(template_category=template_category_schema.dump(template_category)), 200
 
-    return jsonify(template_category.dump()), 200
+
+@template_category_blueprint.route("<uuid:template_id>", methods=["GET"])
+def get_template_category_by_template_id(template_id):
+    template_category = dao_get_template_category_by_template_id(template_id)
+    return jsonify(template_category=template_category_schema.dump(template_category)), 200
 
 
 @template_category_blueprint.route("", methods=["GET"])
 def get_template_categories():
-    template_categories = dao_get_all_template_categories()
-    return jsonify(data=template_category_schema.dump(template_categories, many=True)), 200
+    template_categories = template_category_schema.dump(dao_get_all_template_categories(), many=True)
+    return jsonify(template_categories=template_categories), 200
 
 
 @template_category_blueprint.route("/<uuid:template_category_id>", methods=["POST"])
@@ -58,7 +62,7 @@ def update_template_category(template_category_id):
 
     dao_update_template_category(category_to_update)
 
-    return jsonify(data=category_to_update.dump()), 200
+    return jsonify(template_category=category_to_update.dump()), 200
 
 @template_category_blueprint.route("/<uuid:template_category_id>", methods=["DELETE"])
 def delete_template_category(template_category_id):
