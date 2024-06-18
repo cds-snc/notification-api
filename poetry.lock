@@ -2431,22 +2431,21 @@ name = "notifications-utils"
 version = "52.2.7"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
-python-versions = ">=3.10.9,<3.11.0"
-files = [
-    {file = "notifications_utils-52.2.7.tar.gz", hash = "sha256:235cdc68f8c5936fc8422a3a81f5ceb42a8c3dc384c107a34f35527c3529eeae"},
-]
+python-versions = "~3.10.9"
+files = []
+develop = false
 
 [package.dependencies]
 awscli = "1.33.5"
 bleach = "6.1.0"
 boto3 = "1.34.100"
 cachetools = "4.2.4"
-certifi = ">=2023.7.22,<2024.0.0"
-cryptography = ">=42.0.3,<43.0.0"
+certifi = "^2023.7.22"
+cryptography = "^42.0.3"
 Flask = "2.3.3"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.2.0"
-Jinja2 = ">=3.0.0,<4.0.0"
+Jinja2 = "^3.0.0"
 markupsafe = "2.1.5"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
@@ -2462,8 +2461,10 @@ statsd = "3.3.0"
 werkzeug = "3.0.3"
 
 [package.source]
-type = "file"
-url = "../nutils/notifications_utils-52.2.7.tar.gz"
+type = "git"
+url = "https://github.com/cds-snc/notifier-utils.git"
+reference = "52.2.7"
+resolved_reference = "cd8943a30aa75f657951716111ff68df737b0fff"
 
 [[package]]
 name = "ordered-set"
@@ -4195,4 +4196,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "a8541f5172e42030e2501da57e7080d330a286bd75699a7771b1583df775df65"
+content-hash = "b163493d3e31a77cdfce353871f6e36b608f1691fc41c5dba65abe00b6e1d164"
