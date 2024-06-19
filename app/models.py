@@ -1236,7 +1236,7 @@ class Template(TemplateBase):
     @property
     def template_process_type(self):
         """By default we use the process_type from TemplateCategory, but allow admins to override it on a per-template basis.
-           Only when overriden do we use the process_type from the template itself.
+        Only when overriden do we use the process_type from the template itself.
         """
         if self.template_type == SMS_TYPE:
             return self.process_type if self.process_type else self.template_categories.sms_process_type

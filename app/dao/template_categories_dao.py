@@ -1,12 +1,10 @@
 import uuid
 
-from sqlalchemy import asc
 from sqlalchemy.orm import joinedload
 
 from flask import current_app
 from app import db
 from app.dao.dao_utils import transactional
-from app.errors import InvalidRequest
 from app.models import Template, TemplateCategory
 
 
@@ -25,14 +23,14 @@ def dao_get_template_category_by_template_id(template_id) -> TemplateCategory:
 
 
 # TODO: Add filters: Select all template categories used by at least 1 sms/email template
-def dao_get_all_template_categories(template_type=None, hidden=False):
+def dao_get_all_template_categories(template_type=None, hidden=None):
     query = TemplateCategory.query
 
     if template_type is not None:
         query = query.join(Template).filter(Template.template_type == template_type)
 
-    if not hidden:
-        query = query.filter(TemplateCategory.hidden == False)
+    if hidden is not None:
+        query = query.filter(TemplateCategory.hidden == hidden)
 
     query = query.distinct()
 

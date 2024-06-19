@@ -1,6 +1,3 @@
-import json
-from flask import url_for
-
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_template, create_template_category
 
@@ -72,7 +69,9 @@ def test_get_template_category_by_template_id(client, notify_db, notify_db_sessi
 
 def test_get_template_categories(client, notify_db, notify_db_session):
     tc_hidden = create_template_category(notify_db, notify_db_session, name_en="hidden", name_fr="hidden(fr)", hidden=True)
-    tc_not_hidden = create_template_category(notify_db, notify_db_session, name_en="not hidden", name_fr="not hidden(fr)", hidden=False)
+    tc_not_hidden = create_template_category(
+        notify_db, notify_db_session, name_en="not hidden", name_fr="not hidden(fr)", hidden=False
+    )
 
     auth_header = create_authorization_header()
     response = client.get(

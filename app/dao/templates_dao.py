@@ -89,7 +89,7 @@ def dao_update_template_process_type(template_id, process_type):
 
     history = TemplateHistory(
         **{
-                        "id": template.id,
+            "id": template.id,
             "name": template.name,
             "template_type": template.template_type,
             "created_at": template.created_at,

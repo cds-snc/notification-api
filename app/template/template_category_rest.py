@@ -20,6 +20,7 @@ template_category_blueprint = Blueprint(
 
 register_errors(template_category_blueprint)
 
+
 @template_category_blueprint.route("", methods=["POST"])
 def create_template_category():
     data = request.get_json()
@@ -33,7 +34,7 @@ def create_template_category():
 
 
 @template_category_blueprint.route("<uuid:template_category_id>", methods=["GET"])
-def get_template_category(template_category_id = None):
+def get_template_category(template_category_id=None):
     template_category = dao_get_template_category_by_id(template_category_id)
     return jsonify(template_category=template_category_schema.dump(template_category)), 200
 
@@ -63,6 +64,7 @@ def update_template_category(template_category_id):
     dao_update_template_category(category_to_update)
 
     return jsonify(template_category=category_to_update.dump()), 200
+
 
 @template_category_blueprint.route("/<uuid:template_category_id>", methods=["DELETE"])
 def delete_template_category(template_category_id):
