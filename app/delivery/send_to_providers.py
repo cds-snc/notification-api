@@ -356,7 +356,7 @@ def provider_to_use(
         notification_type (str): SMS or EMAIL.
         notification_id (UUID): id of notification. Just used for logging.
         to (str, optional): recipient. Defaults to None.
-        international (bool, optional): It is not clear what this flag indicates. Defaults to False.
+        international (bool, optional):  Flags whether or not the message is outside of Canada and the US. Defaults to False.
         sender (str, optional): reply_to_text to use. Defaults to None.
         template_id (str, optional): template_id to use. Defaults to None.
 
