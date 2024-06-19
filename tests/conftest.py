@@ -141,6 +141,7 @@ def notify_db_session(notify_db):
             "auth_type",
             "invite_status_type",
             "service_callback_type",
+            "template_categories",
         ]:
             notify_db.engine.execute(tbl.delete())
     notify_db.session.commit()

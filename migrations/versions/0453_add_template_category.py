@@ -31,6 +31,17 @@ def upgrade():
         sa.UniqueConstraint("name_fr"),
     )
 
+    # Insert the generic low, medium, and high categories
+    op.execute(
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"])
+    )
+    op.execute(
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"])
+    )
+    op.execute(
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'High Category (Priority)', 'Catégorie Haute (Priorité)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"])
+    )
+
     op.add_column("templates", sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True))
     op.add_column("templates_history", sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True))
     op.create_index(
@@ -52,26 +63,6 @@ def upgrade():
         unique=False,
     )
     op.create_foreign_key("fk_template_template_categories", "templates", "template_categories", ["template_category_id"], ["id"])
-
-    # Insert the generic low, medium, and high categories
-    op.execute(
-        f"""
-            INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ('{current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"]}', 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', 'low', 'low', true)
-        """
-    )
-    op.execute(
-        f"""
-            INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ('{current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"]}', 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', 'low', 'low', true)
-        """
-    )
-    op.execute(
-        f"""
-            INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden)
-            VALUES ('{current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"]}', 'High Category (Priority)', 'Catégorie Haute (Priorité)', 'low', 'low', true)
-        """
-    )
 
 
 def downgrade():

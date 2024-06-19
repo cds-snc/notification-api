@@ -1,3 +1,4 @@
+from flask import current_app
 import pytest
 
 from app.dao.template_categories_dao import (
@@ -6,8 +7,9 @@ from app.dao.template_categories_dao import (
     dao_get_template_category_by_id,
     dao_get_template_category_by_template_id,
     dao_update_template_category,
+    dao_delete_template_category_by_id
 )
-from app.dao.templates_dao import dao_create_template
+from app.dao.templates_dao import dao_create_template, dao_get_template_by_id
 from app.models import BULK, NORMAL, Template, TemplateCategory
 from tests.app.conftest import create_sample_template
 
@@ -133,8 +135,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -142,8 +142,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": False,
@@ -203,8 +201,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -212,8 +208,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": True,
@@ -229,8 +223,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -238,8 +230,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": True,
@@ -255,8 +245,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -264,8 +252,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": True,
@@ -280,8 +266,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": True,
@@ -289,8 +273,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": True,
@@ -306,8 +288,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -315,8 +295,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": True,
@@ -331,8 +309,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english",
                     "name_fr": "french",
-                    "description_en": "english description",
-                    "description_fr": "french description",
                     "sms_process_type": "normal",
                     "email_process_type": "normal",
                     "hidden": False,
@@ -340,8 +316,6 @@ def test_get_template_category_by_id(notify_db_session):
                 {
                     "name_en": "english2",
                     "name_fr": "french2",
-                    "description_en": "english description2",
-                    "description_fr": "french description2",
                     "sms_process_type": "bulk",
                     "email_process_type": "bulk",
                     "hidden": False,
@@ -350,7 +324,7 @@ def test_get_template_category_by_id(notify_db_session):
         ),
     ],
 )
-def test_get_all_template_categories(template_type, hidden, expected_count, categories_to_insert, notify_db, notify_db_session):
+def test_get_all_template_categories_with_filters(template_type, hidden, expected_count, categories_to_insert, notify_db, notify_db_session):
     for category_data in categories_to_insert:
         template_category = TemplateCategory(**category_data)
         dao_create_template_category(template_category)
@@ -361,3 +335,26 @@ def test_get_all_template_categories(template_type, hidden, expected_count, cate
     retrieved_categories = dao_get_all_template_categories(template_type=template_type, hidden=hidden)
 
     assert len(retrieved_categories) == expected_count
+
+
+def test_dao_delete_template_category_by_id_should_delete_category_when_no_associated_templates(notify_db_session, sample_template_category):
+    dao_delete_template_category_by_id(sample_template_category.id)
+
+    assert TemplateCategory.query.count() == 0
+
+
+def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_associated_with_template(notify_db, notify_db_session, sample_template_category):
+    template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+
+    dao_delete_template_category_by_id(sample_template_category.id)
+
+    assert TemplateCategory.query.count() == 1
+
+
+def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_when_associated_with_template_(notify_db, notify_db_session, sample_template_category):
+    template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+
+    dao_delete_template_category_by_id(sample_template_category.id, cascade=True)
+    # 3 here because we have 3 generic defaut categories that will remain post-delete
+    assert TemplateCategory.query.count() == 3
+    assert str(template.template_category_id) == current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"]

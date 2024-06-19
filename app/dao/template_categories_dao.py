@@ -1,7 +1,5 @@
 import uuid
 
-from sqlalchemy.orm import joinedload
-
 from flask import current_app
 from app import db
 from app.dao.dao_utils import transactional
