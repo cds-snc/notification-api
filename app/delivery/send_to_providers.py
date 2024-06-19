@@ -372,9 +372,13 @@ def provider_to_use(
     sending_internationally = False
     if to is not None:
         match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
-        if match and phonenumbers.region_code_for_number(match.number) == "US":  # The US is a special case that needs to send from a US toll free number
+        if (
+            match and phonenumbers.region_code_for_number(match.number) == "US"
+        ):  # The US is a special case that needs to send from a US toll free number
             sending_to_us_number = True
-        elif match and phonenumbers.region_code_for_number(match.number) != "CA":  # Currently Pinpoint is having issues sending to non-Canadian numbers.
+        elif (
+            match and phonenumbers.region_code_for_number(match.number) != "CA"
+        ):  # Currently Pinpoint is having issues sending to non-Canadian numbers.
             sending_internationally = True
 
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
