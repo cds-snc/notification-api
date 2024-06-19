@@ -118,7 +118,7 @@ class TestProviderToUse:
                 "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             },
         ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+18692291111")
+            provider = send_to_providers.provider_to_use("sms", "1234", "+4408456021111") # British Telecom test line
         assert provider.name == "sns"
 
 
