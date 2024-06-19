@@ -1213,7 +1213,7 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
-    category = db.relationship("TemplateCategory", backref="templates")
+    category = db.relationship("TemplateCategory", lazy="joined", backref="templates")
 
     folder = db.relationship(
         "TemplateFolder",
