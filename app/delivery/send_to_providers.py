@@ -368,16 +368,19 @@ def provider_to_use(
     """
 
     has_dedicated_number = sender is not None and sender.startswith("+1")
+    cannot_determine_recipient_country = False
     sending_to_us_number = False
     sending_internationally = False
     if to is not None:
         match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
-        if (
-            match and phonenumbers.region_code_for_number(match.number) == "US"
+        if match is None:
+            cannot_determine_recipient_country = True
+        elif (
+            phonenumbers.region_code_for_number(match.number) == "US"
         ):  # The US is a special case that needs to send from a US toll free number
             sending_to_us_number = True
         elif (
-            match and phonenumbers.region_code_for_number(match.number) != "CA"
+            phonenumbers.region_code_for_number(match.number) != "CA"
         ):  # Currently Pinpoint is having issues sending to non-Canadian numbers.
             sending_internationally = True
 
@@ -385,6 +388,7 @@ def provider_to_use(
 
     do_not_use_pinpoint = (
         has_dedicated_number
+        or cannot_determine_recipient_country
         or international  # Defaulting back to SNS: it's not entirely clear what this flag is for. Not always set for international recipients.
         or sending_to_us_number
         or sending_internationally

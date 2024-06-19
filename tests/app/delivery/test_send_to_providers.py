@@ -121,6 +121,17 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+4408456021111")  # British Telecom test line
         assert provider.name == "sns"
 
+    def test_should_use_sns_for_sms_if_match_fails(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "8695550123")  # This number fails our matching code
+        assert provider.name == "sns"
+        
     @pytest.mark.parametrize("sc_pool_id, default_pool_id", [("", "default_pool_id"), ("sc_pool_id", "")])
     def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
         with set_config_values(
