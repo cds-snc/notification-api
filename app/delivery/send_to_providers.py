@@ -356,7 +356,7 @@ def provider_to_use(
         notification_type (str): SMS or EMAIL.
         notification_id (UUID): id of notification. Just used for logging.
         to (str, optional): recipient. Defaults to None.
-        international (bool, optional): Wish to use an international provider. Defaults to False.
+        international (bool, optional): It is not clear what this flag indicates. Defaults to False.
         sender (str, optional): reply_to_text to use. Defaults to None.
         template_id (str, optional): template_id to use. Defaults to None.
 
@@ -381,6 +381,7 @@ def provider_to_use(
 
     do_not_use_pinpoint = (
         has_dedicated_number
+        or international  # Defaulting back to SNS: it's not entirely clear what this flag is for. Not always set for international recipients.
         or sending_to_us_number
         or sending_internationally
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
