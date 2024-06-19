@@ -131,7 +131,7 @@ class TestProviderToUse:
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "8695550123")  # This number fails our matching code
         assert provider.name == "sns"
-        
+
     @pytest.mark.parametrize("sc_pool_id, default_pool_id", [("", "default_pool_id"), ("sc_pool_id", "")])
     def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
         with set_config_values(
