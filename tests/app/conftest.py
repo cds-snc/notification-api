@@ -233,6 +233,47 @@ def _sample_service_custom_letter_contact_block(sample_service):
 
 
 @pytest.fixture(scope="function")
+def sample_template_category_with_templates(notify_db, notify_db_session, sample_template_category):
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    return sample_template_category
+
+
+@pytest.fixture(scope="function")
+def populate_generic_categories(notify_db_session):
+    generic_categories = [
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
+            "name_en": "Low Category (Bulk)",
+            "name_fr": "Catégorie Basse (En Vrac)",
+            "sms_process_type": "low",
+            "email_process_type": "low",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
+            "name_en": "Medium Category (Normal)",
+            "name_fr": "Catégorie Moyenne (Normale)",
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
+            "name_en": "High Category (Priority)",
+            "name_fr": "Catégorie Haute (Priorité)",
+            "sms_process_type": "high",
+            "email_process_type": "high",
+            "hidden": True,
+        },
+    ]
+    for category in generic_categories:
+        dao_create_template_category(TemplateCategory(**category))
+
+    yield
+
+
+@pytest.fixture(scope="function")
 def sample_template_category(
     notify_db,
     notify_db_session,

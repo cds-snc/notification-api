@@ -325,6 +325,7 @@ def test_get_template_category_by_id(notify_db_session):
     ],
 )
 def test_get_all_template_categories_with_filters(template_type, hidden, expected_count, categories_to_insert, notify_db, notify_db_session):
+
     for category_data in categories_to_insert:
         template_category = TemplateCategory(**category_data)
         dao_create_template_category(template_category)
@@ -351,7 +352,7 @@ def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_assoc
     assert TemplateCategory.query.count() == 1
 
 
-def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_when_associated_with_template_(notify_db, notify_db_session, sample_template_category):
+def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_when_associated_with_template(notify_db, notify_db_session, sample_template_category, populate_generic_categories):
     template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
     dao_delete_template_category_by_id(sample_template_category.id, cascade=True)

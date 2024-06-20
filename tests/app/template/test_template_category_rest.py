@@ -1,3 +1,8 @@
+from urllib.parse import urlencode
+import uuid
+from flask import url_for
+import pytest
+
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_template, create_template_category
 
@@ -67,17 +72,84 @@ def test_get_template_category_by_template_id(client, notify_db, notify_db_sessi
     assert response.json["template_category"]["hidden"] == sample_template_category.hidden
 
 
-def test_get_template_categories(client, notify_db, notify_db_session):
-    tc_hidden = create_template_category(notify_db, notify_db_session, name_en="hidden", name_fr="hidden(fr)", hidden=True)
-    tc_not_hidden = create_template_category(
-        notify_db, notify_db_session, name_en="not hidden", name_fr="not hidden(fr)", hidden=False
-    )
-
+@pytest.mark.parametrize(
+    "template_type, hidden, expected_status_code, expected_msg",
+    [
+        ("invalid_template_type", True, 400, "Invalid filter 'template_type', valid template_types: 'sms', 'email'"),
+        ("sms", "not_a_boolean", 400, "Invalid filter 'hidden', must be a boolean."),
+        ("email", "True", 200, None),
+        ("email", "False", 200, None),
+        ("email", None, 200, None),
+        ("sms", "True", 200, None),
+        ("sms", "False", 200, None),
+        ("sms", None, 200, None),
+        (None, None, 200, None),
+        (None, "True", 200, None),
+        (None, "False", 200, None)
+    ]
+)
+def test_get_template_categories(template_type, hidden, expected_status_code, expected_msg, sample_template_category, client, notify_db, notify_db_session, mocker):
     auth_header = create_authorization_header()
+
+    query_params = {}
+    if template_type:
+        query_params["template_type"] = template_type
+    if hidden:
+        query_params["hidden"] = hidden
+
+    query_string = f"?{urlencode(query_params)}" if len(query_params) > 0 else ""
+
+    mocker.patch("app.dao.template_categories_dao.dao_get_all_template_categories", return_value=[sample_template_category])
+
     response = client.get(
-        "/template/category",
+        f"/template/category{query_string}",
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
-    assert response.status_code == 200
-    assert len(response.json["template_categories"]) == 2
+    assert response.status_code == expected_status_code
+    if not expected_status_code == 200:
+        assert response.json['message'] == expected_msg
+
+
+def test_delete_template_category_query_param_validation(client):
+    auth_header = create_authorization_header()
+
+    endpoint = url_for(
+        "template_category.delete_template_category",
+        template_category_id=str(uuid.uuid4()),
+        cascade="not_a_boolean"
+    )
+
+    response = client.delete(
+        endpoint,
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert response.json["message"] == "Invalid query parameter 'cascade', must be a boolean."
+
+@pytest.mark.parametrize(
+    "cascade, expected_status_code, expected_msg",
+    [
+        ("True", 200, ""),
+        ("False", 400, "Cannot delete a template category with templates assigned to it."),
+    ],
+)
+def test_delete_template_category_cascade(cascade, expected_status_code, expected_msg, client, mocker, sample_template_category_with_templates):
+    auth_header = create_authorization_header()
+    mocker.patch("app.dao.template_categories_dao.dao_get_template_category_by_id", return_value=sample_template_category_with_templates)
+
+    endpoint = url_for(
+        "template_category.delete_template_category",
+        template_category_id=sample_template_category_with_templates.id,
+        cascade=cascade
+    )
+
+    response = client.delete(
+        endpoint,
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == expected_status_code
+    if expected_status_code == 400:
+        assert response.json["message"] == expected_msg

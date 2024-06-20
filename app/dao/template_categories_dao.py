@@ -8,7 +8,8 @@ from app.models import Template, TemplateCategory
 
 @transactional
 def dao_create_template_category(template_category: TemplateCategory):
-    template_category.id = uuid.uuid4()
+    if template_category.id is None:
+        template_category.id = uuid.uuid4()
     db.session.add(template_category)
 
 
