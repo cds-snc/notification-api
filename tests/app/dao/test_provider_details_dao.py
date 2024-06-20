@@ -291,7 +291,7 @@ def test_dao_get_provider_stats(notify_db_session):
 
     assert result[1].identifier == "sns"
     assert result[1].display_name == "AWS SNS"
-    assert result[1].supports_international is False
+    assert result[1].supports_international is True
     assert result[1].active is True
     assert result[1].current_month_billable_sms == 4
 
@@ -312,6 +312,6 @@ def test_dao_get_provider_stats(notify_db_session):
 
     assert result[5].identifier == "pinpoint"
     assert result[5].notification_type == "sms"
-    assert result[5].supports_international is False
+    assert result[5].supports_international is True
     assert result[5].active is True
     assert result[5].current_month_billable_sms == 0
