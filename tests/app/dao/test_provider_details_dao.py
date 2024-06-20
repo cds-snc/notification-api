@@ -29,7 +29,7 @@ def test_can_get_sms_non_international_providers(restore_provider_details):
 
 def test_can_get_sms_international_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type("sms", True)
-    assert len(sms_providers) == 1
+    assert len(sms_providers) == 3
     assert all("sms" == prov.notification_type for prov in sms_providers)
     assert all(prov.supports_international for prov in sms_providers)
 
