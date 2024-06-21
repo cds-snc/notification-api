@@ -72,6 +72,7 @@ def send_sms_to_provider(notification):
             notification.to,
             notification.international,
             notification.reply_to_text,
+            template_id=notification.template_id,
         )
 
         template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
@@ -345,17 +346,19 @@ def provider_to_use(
     to: Optional[str] = None,
     international: bool = False,
     sender: Optional[str] = None,
+    template_id: Optional[UUID] = None,
 ) -> Any:
     """
     Get the provider to use for sending the notification.
-    SMS that are being sent with a dedicated number or to a US number should not use Pinpoint.
+    SMS that are being sent with a dedicated number or internationally should not use Pinpoint.
 
     Args:
         notification_type (str): SMS or EMAIL.
         notification_id (UUID): id of notification. Just used for logging.
         to (str, optional): recipient. Defaults to None.
-        international (bool, optional): Recipient is international. Defaults to False.
+        international (bool, optional):  Flags whether or not the message is outside of Canada and the US. Defaults to False.
         sender (str, optional): reply_to_text to use. Defaults to None.
+        template_id (str, optional): template_id to use. Defaults to None.
 
     Raises:
         Exception: No active providers.
@@ -365,18 +368,34 @@ def provider_to_use(
     """
 
     has_dedicated_number = sender is not None and sender.startswith("+1")
+    cannot_determine_recipient_country = False
     sending_to_us_number = False
+    sending_internationally = False
     if to is not None:
         match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
-        if match and phonenumbers.region_code_for_number(match.number) == "US":
+        if match is None:
+            cannot_determine_recipient_country = True
+        elif (
+            phonenumbers.region_code_for_number(match.number) == "US"
+        ):  # The US is a special case that needs to send from a US toll free number
             sending_to_us_number = True
+        elif (
+            phonenumbers.region_code_for_number(match.number) != "CA"
+        ):  # Currently Pinpoint is having issues sending to non-Canadian numbers.
+            sending_internationally = True
 
-    if (
+    using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+
+    do_not_use_pinpoint = (
         has_dedicated_number
+        or cannot_determine_recipient_country
+        or international  # Defaulting back to SNS: it's not entirely clear what this flag is for. Not always set for international recipients.
         or sending_to_us_number
-        or current_app.config["AWS_PINPOINT_SC_POOL_ID"] is None
-        or current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"] is None
-    ):
+        or sending_internationally
+        or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
+        or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
+    )
+    if do_not_use_pinpoint:
         active_providers_in_order = [
             p
             for p in get_provider_details_by_notification_type(notification_type, international)
