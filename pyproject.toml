@@ -119,6 +119,8 @@ unfixable = []
 # Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.format]
 docstring-code-format = true  # https://docs.astral.sh/ruff/settings/#format-docstring-code-format

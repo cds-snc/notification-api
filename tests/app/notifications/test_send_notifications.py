@@ -1,8 +1,65 @@
 import pytest
+from sqlalchemy.orm.exc import NoResultFound
+
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import SMS_TYPE, EMAIL_TYPE, KEY_TYPE_NORMAL
-from app.notifications.send_notifications import send_notification_bypass_route
+from app.models import SMS_TYPE, EMAIL_TYPE, KEY_TYPE_NORMAL, Service, Template
+from app.notifications.send_notifications import lookup_notification_sms_setup_data, send_notification_bypass_route
 from app.va.identifier import IdentifierType
+
+
+@pytest.mark.parametrize('sms_sender_id', ('This is not a UUID.', 'd1abbb27-9c72-4de4-8463-dbdf24d3fdd6'))
+def test_ut_lookup_notification_sms_setup_data_sms_sender_selection(
+    mocker,
+    sms_sender_id,
+):
+    service_id = 'service_id'
+    template_id = 'template_id'
+    sms_sender_id = sms_sender_id
+
+    service = Service()
+    template = Template()
+
+    mock_fetch_service = mocker.patch(
+        'app.notifications.send_notifications.dao_fetch_service_by_id', return_value=service
+    )
+    mock_get_template = mocker.patch(
+        'app.notifications.send_notifications.dao_get_template_by_id', return_value=template
+    )
+    mock_get_default_sms_sender_id = mocker.patch(
+        'app.notifications.send_notifications.Service.get_default_sms_sender_id', return_value='sms-sender-id'
+    )
+
+    result = lookup_notification_sms_setup_data(service_id, template_id, sms_sender_id)
+
+    mock_fetch_service.assert_called_once_with(service_id)
+    mock_get_template.assert_called_once_with(template_id)
+
+    if 'This is not a UUID.' in sms_sender_id:
+        assert result == (service, template, mock_get_default_sms_sender_id.return_value)
+    else:
+        assert result == (service, template, sms_sender_id)
+
+
+def test_ut_lookup_notification_sms_setup_data_no_result_found(mocker):
+    service_id = 'service_id'
+    template_id = 'template_id'
+    sms_sender_id = 'not used in this test'
+
+    dao_fetch_service_by_id_mock = mocker.patch(
+        'app.notifications.send_notifications.dao_fetch_service_by_id', side_effect=(service_id, NoResultFound)
+    )
+    dao_get_template_by_id_mock = mocker.patch(
+        'app.notifications.send_notifications.dao_get_template_by_id', side_effect=(NoResultFound, template_id)
+    )
+
+    mock_logger = mocker.patch('app.notifications.send_notifications.current_app.logger')
+
+    with pytest.raises(NoResultFound):
+        lookup_notification_sms_setup_data(service_id, template_id, sms_sender_id)
+
+    dao_fetch_service_by_id_mock.assert_called_once_with(service_id)
+    dao_get_template_by_id_mock.assert_called_once_with(template_id)
+    mock_logger.error.assert_called_once()
 
 
 def test_send_notification_bypass_route_no_recipient(
