@@ -1127,29 +1127,6 @@ Flask = ">=1.0.4"
 Werkzeug = ">=1.0.1"
 
 [[package]]
-name = "flask-marshmallow"
-version = "0.14.0"
-description = "Flask + marshmallow for beautiful APIs"
-optional = false
-python-versions = "*"
-files = [
-    {file = "flask-marshmallow-0.14.0.tar.gz", hash = "sha256:bd01a6372cbe50e36f205cfff0fc5dab0b7b662c4c8b2c4fc06a3151b2950950"},
-    {file = "flask_marshmallow-0.14.0-py2.py3-none-any.whl", hash = "sha256:2adcd782b5a4a6c5ae3c96701f320d8ca6997995a52b2661093c56cc3ed24754"},
-]
-
-[package.dependencies]
-Flask = "*"
-marshmallow = ">=2.0.0"
-six = ">=1.9.0"
-
-[package.extras]
-dev = ["flake8 (==3.8.3)", "flake8-bugbear (==20.1.4)", "flask-sqlalchemy", "marshmallow-sqlalchemy (>=0.13.0)", "marshmallow-sqlalchemy (>=0.13.0,<0.19.0)", "mock", "pre-commit (>=2.4,<3.0)", "pytest", "tox"]
-docs = ["Sphinx (==3.2.1)", "marshmallow-sqlalchemy (>=0.13.0)", "sphinx-issues (==1.2.0)"]
-lint = ["flake8 (==3.8.3)", "flake8-bugbear (==20.1.4)", "pre-commit (>=2.4,<3.0)"]
-sqlalchemy = ["flask-sqlalchemy", "marshmallow-sqlalchemy (>=0.13.0)", "marshmallow-sqlalchemy (>=0.13.0,<0.19.0)"]
-tests = ["flask-sqlalchemy", "marshmallow-sqlalchemy (>=0.13.0)", "marshmallow-sqlalchemy (>=0.13.0,<0.19.0)", "mock", "pytest"]
-
-[[package]]
 name = "flask-migrate"
 version = "2.7.0"
 description = "SQLAlchemy database migrations for Flask applications using Alembic"
@@ -4102,4 +4079,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "7d83bf89638d85e1abed9c6a87a63c6b1de46e9a64e7bec132f4ca522f8726b0"
+content-hash = "d8eb3ad547c04731502a2ece0973e4b8ff38f4140a2193d08b8a925a31048749"
