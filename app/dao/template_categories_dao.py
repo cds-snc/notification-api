@@ -1,6 +1,7 @@
 import uuid
 
 from flask import current_app
+
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import Template, TemplateCategory
@@ -42,7 +43,7 @@ def dao_update_template_category(template_category: TemplateCategory):
 
 
 @transactional
-def dao_delete_template_category_by_id(template_category_id, cascade = False):
+def dao_delete_template_category_by_id(template_category_id, cascade=False):
     """
     Deletes a `TemplateCategory`. By default, if the `TemplateCategory` is associated with any `Template`, it will not be deleted.
     If the `cascade` option is specified then the category will be forcible removed:
@@ -65,7 +66,11 @@ def dao_delete_template_category_by_id(template_category_id, cascade = False):
         if cascade:
             try:
                 for template in templates:
-                    process_type = template_category.sms_process_type if template.template_type == 'sms' else template_category.email_process_type
+                    process_type = (
+                        template_category.sms_process_type
+                        if template.template_type == "sms"
+                        else template_category.email_process_type
+                    )
                     template.category = dao_get_template_category_by_id(_get_default_category_id(process_type))
                     db.session.add(template)
 
@@ -80,8 +85,8 @@ def dao_delete_template_category_by_id(template_category_id, cascade = False):
 
 def _get_default_category_id(process_type):
     default_categories = {
-        'bulk': current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'],
-        'normal': current_app.config['DEFAULT_TEMPLATE_CATEGORY_MEDIUM'],
-        'priority': current_app.config['DEFAULT_TEMPLATE_CATEGORY_HIGH']
+        "bulk": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
+        "normal": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
+        "priority": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
     }
-    return default_categories.get(process_type, current_app.config['DEFAULT_TEMPLATE_CATEGORY_LOW'])
+    return default_categories.get(process_type, current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"])

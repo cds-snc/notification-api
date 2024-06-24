@@ -9,7 +9,7 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.errors import register_errors
-from app.models import Template, TemplateCategory
+from app.models import TemplateCategory
 from app.schemas import template_category_schema
 
 template_category_blueprint = Blueprint(

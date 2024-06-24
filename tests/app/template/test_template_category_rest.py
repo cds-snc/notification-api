@@ -1,10 +1,11 @@
-from urllib.parse import urlencode
 import uuid
-from flask import url_for
+from urllib.parse import urlencode
+
 import pytest
+from flask import url_for
 
 from tests import create_authorization_header
-from tests.app.conftest import create_sample_template, create_template_category
+from tests.app.conftest import create_sample_template
 
 
 def test_should_create_new_template_category(client, notify_db, notify_db_session):
@@ -85,10 +86,20 @@ def test_get_template_category_by_template_id(client, notify_db, notify_db_sessi
         ("sms", None, 200, None),
         (None, None, 200, None),
         (None, "True", 200, None),
-        (None, "False", 200, None)
-    ]
+        (None, "False", 200, None),
+    ],
 )
-def test_get_template_categories(template_type, hidden, expected_status_code, expected_msg, sample_template_category, client, notify_db, notify_db_session, mocker):
+def test_get_template_categories(
+    template_type,
+    hidden,
+    expected_status_code,
+    expected_msg,
+    sample_template_category,
+    client,
+    notify_db,
+    notify_db_session,
+    mocker,
+):
     auth_header = create_authorization_header()
 
     query_params = {}
@@ -108,16 +119,14 @@ def test_get_template_categories(template_type, hidden, expected_status_code, ex
 
     assert response.status_code == expected_status_code
     if not expected_status_code == 200:
-        assert response.json['message'] == expected_msg
+        assert response.json["message"] == expected_msg
 
 
 def test_delete_template_category_query_param_validation(client):
     auth_header = create_authorization_header()
 
     endpoint = url_for(
-        "template_category.delete_template_category",
-        template_category_id=str(uuid.uuid4()),
-        cascade="not_a_boolean"
+        "template_category.delete_template_category", template_category_id=str(uuid.uuid4()), cascade="not_a_boolean"
     )
 
     response = client.delete(
@@ -128,6 +137,7 @@ def test_delete_template_category_query_param_validation(client):
     assert response.status_code == 400
     assert response.json["message"] == "Invalid query parameter 'cascade', must be a boolean."
 
+
 @pytest.mark.parametrize(
     "cascade, expected_status_code, expected_msg",
     [
@@ -135,14 +145,18 @@ def test_delete_template_category_query_param_validation(client):
         ("False", 400, "Cannot delete a template category with templates assigned to it."),
     ],
 )
-def test_delete_template_category_cascade(cascade, expected_status_code, expected_msg, client, mocker, sample_template_category_with_templates):
+def test_delete_template_category_cascade(
+    cascade, expected_status_code, expected_msg, client, mocker, sample_template_category_with_templates
+):
     auth_header = create_authorization_header()
-    mocker.patch("app.dao.template_categories_dao.dao_get_template_category_by_id", return_value=sample_template_category_with_templates)
+    mocker.patch(
+        "app.dao.template_categories_dao.dao_get_template_category_by_id", return_value=sample_template_category_with_templates
+    )
 
     endpoint = url_for(
         "template_category.delete_template_category",
         template_category_id=sample_template_category_with_templates.id,
-        cascade=cascade
+        cascade=cascade,
     )
 
     response = client.delete(

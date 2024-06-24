@@ -1292,6 +1292,7 @@ class TemplateHistory(TemplateBase):
 
     service = db.relationship("Service")
     version = db.Column(db.Integer, primary_key=True, nullable=False)
+    category = db.relationship("TemplateCategory")
 
     @classmethod
     def from_json(cls, data):

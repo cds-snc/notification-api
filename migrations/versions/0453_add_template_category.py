@@ -33,13 +33,19 @@ def upgrade():
 
     # Insert the generic low, medium, and high categories
     op.execute(
-        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"])
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Low Category (Bulk)', 'Catégorie Basse (En Vrac)', 'low', 'low', true)".format(
+            current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"]
+        )
     )
     op.execute(
-        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"])
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'Medium Category (Normal)', 'Catégorie Moyenne (Normale)', 'low', 'low', true)".format(
+            current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"]
+        )
     )
     op.execute(
-        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'High Category (Priority)', 'Catégorie Haute (Priorité)', 'low', 'low', true)".format(current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"])
+        "INSERT INTO template_categories (id, name_en, name_fr, sms_process_type, email_process_type, hidden) VALUES ('{}', 'High Category (Priority)', 'Catégorie Haute (Priorité)', 'low', 'low', true)".format(
+            current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"]
+        )
     )
 
     op.add_column("templates", sa.Column("template_category_id", postgresql.UUID(as_uuid=True), nullable=True))
