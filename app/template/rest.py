@@ -134,8 +134,8 @@ def create_template(service_id):
     return jsonify(data=template_schema.dump(new_template)), 201
 
 
-@template_blueprint.route("/<uuid:template_id>/template-category/<uuid:template_category_id>", methods=["POST"])
-def update_templates_category(template_id, template_category_id):
+@template_blueprint.route("/<uuid:template_id>/category/<uuid:template_category_id>", methods=["POST"])
+def update_templates_category(service_id, template_id, template_category_id):
     updated = dao_update_template_category(template_id, template_category_id)
     return jsonify(data=template_schema.dump(updated)), 200
 

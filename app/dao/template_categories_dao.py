@@ -32,14 +32,13 @@ def dao_get_all_template_categories(template_type=None, hidden=None):
     if hidden is not None:
         query = query.filter(TemplateCategory.hidden == hidden)
 
-    query = query.distinct()
-
     return query.all()
 
 
 @transactional
 def dao_update_template_category(template_category: TemplateCategory):
     db.session.add(template_category)
+    db.session.commit()
 
 
 @transactional

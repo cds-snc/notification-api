@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0453_add_template_categories
-Revises: 0452_set_pgaudit_config
+Revision ID: 0454_add_template_categories
+Revises: 0453_set_supports_international
 Create Date: 2024-06-11 13:32:00
 """
 
@@ -12,8 +12,8 @@ from alembic import op
 from flask import current_app
 from sqlalchemy.dialects import postgresql
 
-revision = "0453_add_template_categories"
-down_revision = "0452_set_pgaudit_config"
+revision = "0454_add_template_categories"
+down_revision = "0453_set_supports_international"
 
 
 def upgrade():

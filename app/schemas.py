@@ -110,7 +110,6 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
 class TemplateCategorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.TemplateCategory
-        exclude = ("id",)
 
     @validates("name_en")
     def validate_name_en(self, value):

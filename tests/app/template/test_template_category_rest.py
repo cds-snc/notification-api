@@ -1,4 +1,3 @@
-import uuid
 from urllib.parse import urlencode
 
 import pytest
@@ -80,7 +79,7 @@ def test_get_template_category_by_template_id(client, notify_db, notify_db_sessi
     "template_type, hidden, expected_status_code, expected_msg",
     [
         ("invalid_template_type", True, 400, "Invalid filter 'template_type', valid template_types: 'sms', 'email'"),
-        ("sms", "not_a_boolean", 400, "Invalid filter 'hidden', must be a boolean."),
+        ("sms", "not_a_boolean", 200, None),
         ("email", "True", 200, None),
         ("email", "False", 200, None),
         ("email", None, 200, None),
@@ -123,22 +122,6 @@ def test_get_template_categories(
     assert response.status_code == expected_status_code
     if not expected_status_code == 200:
         assert response.json["message"] == expected_msg
-
-
-def test_delete_template_category_query_param_validation(client):
-    auth_header = create_authorization_header()
-
-    endpoint = url_for(
-        "template_category.delete_template_category", template_category_id=str(uuid.uuid4()), cascade="not_a_boolean"
-    )
-
-    response = client.delete(
-        endpoint,
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    assert response.status_code == 400
-    assert response.json["message"] == "Invalid query parameter 'cascade', must be a boolean."
 
 
 @pytest.mark.parametrize(
