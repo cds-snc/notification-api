@@ -1113,6 +1113,10 @@ class TemplateBase(BaseModel):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
 
     @declared_attr
+    def category(cls):
+        return db.relationship("TemplateCategory")
+
+    @declared_attr
     def created_by(cls):
         return db.relationship("User")
 

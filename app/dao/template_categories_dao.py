@@ -19,7 +19,7 @@ def dao_get_template_category_by_id(template_category_id) -> TemplateCategory:
 
 
 def dao_get_template_category_by_template_id(template_id) -> TemplateCategory:
-    return Template.query.filter_by(id=template_id).one().template_category
+    return Template.query.filter_by(id=template_id).one().category
 
 
 # TODO: Add filters: Select all template categories used by at least 1 sms/email template

@@ -94,14 +94,14 @@ def test_update_template_category(notify_db_session, category, updated_category)
         )
     ],
 )
-def test_get_template_category_by_template_id(category, template, notify_db_session, sample_service, sample_user):
+def test_dao_get_template_category_by_template_id(category, template, notify_db_session, sample_service, sample_user):
     template_category = TemplateCategory(**category)
     dao_create_template_category(template_category)
 
     template = Template(**template)
     template.service = sample_service
     template.created_by = sample_user
-    template.template_category = template_category
+    template.category = template_category
     dao_create_template(template)
 
     assert dao_get_template_category_by_template_id(template.id) == template_category

@@ -33,13 +33,13 @@ def create_template_category():
     return jsonify(template_category=template_category_schema.dump(template_category)), 201
 
 
-@template_category_blueprint.route("<uuid:template_category_id>", methods=["GET"])
-def get_template_category(template_category_id=None):
+@template_category_blueprint.route("/<uuid:template_category_id>", methods=["GET"])
+def get_template_category(template_category_id):
     template_category = dao_get_template_category_by_id(template_category_id)
     return jsonify(template_category=template_category_schema.dump(template_category)), 200
 
 
-@template_category_blueprint.route("<uuid:template_id>", methods=["GET"])
+@template_category_blueprint.route("/by-template-id/<uuid:template_id>", methods=["GET"])
 def get_template_category_by_template_id(template_id):
     template_category = dao_get_template_category_by_template_id(template_id)
     return jsonify(template_category=template_category_schema.dump(template_category)), 200

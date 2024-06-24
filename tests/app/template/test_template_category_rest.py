@@ -55,22 +55,25 @@ def test_get_template_category_by_id(client, sample_template_category):
 
 
 def test_get_template_category_by_template_id(client, notify_db, notify_db_session, sample_template_category):
-    template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    category = sample_template_category
+    template = create_sample_template(notify_db, notify_db_session, template_category=category)
 
     auth_header = create_authorization_header()
+    endpoint = url_for("template_category.get_template_category_by_template_id", template_id=template.id)
+
     response = client.get(
-        f"/template/category/{template.id}",
+        endpoint,
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
     assert response.status_code == 200
-    assert response.json["template_category"]["name_en"] == sample_template_category.name_en
-    assert response.json["template_category"]["name_fr"] == sample_template_category.name_fr
-    assert response.json["template_category"]["description_en"] == sample_template_category.description_en
-    assert response.json["template_category"]["description_fr"] == sample_template_category.description_fr
-    assert response.json["template_category"]["sms_process_type"] == sample_template_category.sms_process_type
-    assert response.json["template_category"]["email_process_type"] == sample_template_category.email_process_type
-    assert response.json["template_category"]["hidden"] == sample_template_category.hidden
+    assert response.json["template_category"]["name_en"] == category.name_en
+    assert response.json["template_category"]["name_fr"] == category.name_fr
+    assert response.json["template_category"]["description_en"] == category.description_en
+    assert response.json["template_category"]["description_fr"] == category.description_fr
+    assert response.json["template_category"]["sms_process_type"] == category.sms_process_type
+    assert response.json["template_category"]["email_process_type"] == category.email_process_type
+    assert response.json["template_category"]["hidden"] == category.hidden
 
 
 @pytest.mark.parametrize(

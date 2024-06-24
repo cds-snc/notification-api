@@ -69,10 +69,14 @@ def upgrade():
         unique=False,
     )
     op.create_foreign_key("fk_template_template_categories", "templates", "template_categories", ["template_category_id"], ["id"])
+    op.create_foreign_key(
+        "fk_template_history_template_categories", "templates_history", "template_categories", ["template_category_id"], ["id"]
+    )
 
 
 def downgrade():
     op.drop_constraint("fk_template_template_categories", "templates", type_="foreignkey")
+    op.drop_constraint("fk_template_history_template_categories", "templates_history", type_="foreignkey")
     op.drop_index(op.f("ix_template_category_id"), table_name="templates")
     op.drop_index(op.f("ix_template_categories_name_en"), table_name="template_categories")
     op.drop_index(op.f("ix_template_categories_name_fr"), table_name="template_categories")
