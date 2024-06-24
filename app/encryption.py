@@ -61,7 +61,7 @@ class CryptoSigner:
         Returns:
             List[str | bytes]: A list of signed values.
         """
-        signed = []
+        signed: list[str | bytes] = []
         for k in reversed(self.secret_key):  # reversed so that the default key is last
             signed.append(URLSafeSerializer(k).dumps(to_sign, salt=self.salt))
         return signed
