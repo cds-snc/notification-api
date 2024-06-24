@@ -29,7 +29,7 @@ def test_can_get_sms_non_international_providers(restore_provider_details):
 
 def test_can_get_sms_international_providers(restore_provider_details):
     sms_providers = get_provider_details_by_notification_type("sms", True)
-    assert len(sms_providers) == 1
+    assert len(sms_providers) == 3
     assert all("sms" == prov.notification_type for prov in sms_providers)
     assert all(prov.supports_international for prov in sms_providers)
 
@@ -291,7 +291,7 @@ def test_dao_get_provider_stats(notify_db_session):
 
     assert result[1].identifier == "sns"
     assert result[1].display_name == "AWS SNS"
-    assert result[1].supports_international is False
+    assert result[1].supports_international is True
     assert result[1].active is True
     assert result[1].current_month_billable_sms == 4
 
@@ -312,6 +312,6 @@ def test_dao_get_provider_stats(notify_db_session):
 
     assert result[5].identifier == "pinpoint"
     assert result[5].notification_type == "sms"
-    assert result[5].supports_international is False
+    assert result[5].supports_international is True
     assert result[5].active is True
     assert result[5].current_month_billable_sms == 0
