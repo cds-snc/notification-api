@@ -47,8 +47,7 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
     Deletes a `TemplateCategory`. By default, if the `TemplateCategory` is associated with any `Template`, it will not be deleted.
     If the `cascade` option is specified then the category will be forcible removed:
     1. The `Category` will be dissociated from templates that use it
-    2. Dissociated templates will be assigned a default category based on the sms/email process type of the category it was associated with
-    previously
+    2. The template is assigned a category matching the priority of the previous category
     3. Finally, the `Category` will be deleted
 
     Args:
@@ -61,23 +60,19 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
     template_category = dao_get_template_category_by_id(template_category_id)
     templates = Template.query.filter_by(template_category_id=template_category_id).all()
 
-    if templates:
+    if not templates or cascade:
+        # When there are templates and we are cascading, we set the category to a default
+        # that matches the template's previous category's priority
         if cascade:
-            try:
-                for template in templates:
-                    process_type = (
-                        template_category.sms_process_type
-                        if template.template_type == "sms"
-                        else template_category.email_process_type
-                    )
-                    template.category = dao_get_template_category_by_id(_get_default_category_id(process_type))
-                    db.session.add(template)
+            for template in templates:
+                # Get the a default category that matches the previous priority of the template, based on template type
+                default_category_id = _get_default_category_id(
+                    template_category.sms_process_type if template.template_type == "sms"
+                    else template_category.email_process_type
+                )
+                template.category = dao_get_template_category_by_id(default_category_id)
+                db.session.add(template)
 
-                db.session.delete(template_category)
-            except Exception as e:
-                db.session.rollback()
-                raise e
-    else:
         db.session.delete(template_category)
         db.session.commit()
 
