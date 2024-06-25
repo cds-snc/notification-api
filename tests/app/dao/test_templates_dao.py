@@ -502,5 +502,5 @@ def test_dao_update_template_category(sample_template, sample_template_category)
     assert updated_template.version == 2
 
     history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
-    assert history.template_category_id == None
+    assert not history.template_category_id
     assert history.updated_at == updated_template.updated_at

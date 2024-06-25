@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 import pytest
 from flask import url_for
 

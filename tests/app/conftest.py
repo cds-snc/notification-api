@@ -234,8 +234,8 @@ def _sample_service_custom_letter_contact_block(sample_service):
 
 @pytest.fixture(scope="function")
 def sample_template_category_with_templates(notify_db, notify_db_session, sample_template_category):
-    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
-    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
     return sample_template_category
 
 
