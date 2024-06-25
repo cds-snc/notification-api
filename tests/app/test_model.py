@@ -23,6 +23,7 @@ from app.models import (
     Notification,
     ServiceSafelist,
 )
+from tests.app.conftest import create_template_category
 from tests.app.db import (
     create_inbound_number,
     create_letter_contact,
@@ -32,10 +33,6 @@ from tests.app.db import (
     create_template,
     create_template_folder,
     save_notification,
-)
-
-from tests.app.conftest import (
-    create_template_category,
 )
 
 
@@ -370,18 +367,20 @@ def test_template_folder_is_parent(sample_service):
         (EMAIL_TYPE, BULK, PRIORITY, PRIORITY, BULK),
     ],
 )
-def test_template_process_type(notify_db, notify_db_session, template_type, process_type, sms_process_type, email_process_type, expected_template_process_type):
+def test_template_process_type(
+    notify_db,
+    notify_db_session,
+    template_type,
+    process_type,
+    sms_process_type,
+    email_process_type,
+    expected_template_process_type,
+):
     category = create_template_category(
-        notify_db,
-        notify_db_session,
-        sms_process_type = sms_process_type,
-        email_process_type = email_process_type
+        notify_db, notify_db_session, sms_process_type=sms_process_type, email_process_type=email_process_type
     )
     template = create_template(
-        service=create_service(),
-        template_type=template_type,
-        process_type=process_type,
-        category=category
+        service=create_service(), template_type=template_type, process_type=process_type, category=category
     )
 
     assert template.template_process_type == expected_template_process_type

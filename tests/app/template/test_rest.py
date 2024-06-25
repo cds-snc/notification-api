@@ -1561,7 +1561,6 @@ def test_should_template_be_redacted():
 
 
 def test_update_templates_category(sample_template, sample_template_category, admin_request):
-
     assert sample_template.category == None
 
     response = admin_request.post(

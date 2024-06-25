@@ -17,11 +17,10 @@ def test_should_create_new_template_category(client, notify_db, notify_db_sessio
         "email_process_type": "bulk",
         "hidden": True,
     }
-
     auth_header = create_authorization_header()
 
     response = client.post(
-        "/template/category",
+        url_for("template_category.create_template_category"),
         headers=[("Content-Type", "application/json"), auth_header],
         json=data,
     )
@@ -39,7 +38,7 @@ def test_should_create_new_template_category(client, notify_db, notify_db_sessio
 def test_get_template_category_by_id(client, sample_template_category):
     auth_header = create_authorization_header()
     response = client.get(
-        f"/template/category/{sample_template_category.id}",
+        url_for("template_category.get_template_category", template_category_id=sample_template_category.id),
         headers=[("Content-Type", "application/json"), auth_header],
     )
 
@@ -55,7 +54,7 @@ def test_get_template_category_by_id(client, sample_template_category):
 
 def test_get_template_category_by_template_id(client, notify_db, notify_db_session, sample_template_category):
     category = sample_template_category
-    template = create_sample_template(notify_db, notify_db_session, template_category=category)
+    template = create_sample_template(notify_db, notify_db_session, category=category)
 
     auth_header = create_authorization_header()
     endpoint = url_for("template_category.get_template_category_by_template_id", template_id=template.id)
@@ -104,18 +103,12 @@ def test_get_template_categories(
 ):
     auth_header = create_authorization_header()
 
-    query_params = {}
-    if template_type:
-        query_params["template_type"] = template_type
-    if hidden:
-        query_params["hidden"] = hidden
-
-    query_string = f"?{urlencode(query_params)}" if len(query_params) > 0 else ""
+    endpoint = url_for("template_category.get_template_categories", template_type=template_type, hidden=hidden)
 
     mocker.patch("app.dao.template_categories_dao.dao_get_all_template_categories", return_value=[sample_template_category])
 
     response = client.get(
-        f"/template/category{query_string}",
+        endpoint,
         headers=[("Content-Type", "application/json"), auth_header],
     )
 

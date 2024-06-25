@@ -67,7 +67,8 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
             for template in templates:
                 # Get the a default category that matches the previous priority of the template, based on template type
                 default_category_id = _get_default_category_id(
-                    template_category.sms_process_type if template.template_type == "sms"
+                    template_category.sms_process_type
+                    if template.template_type == "sms"
                     else template_category.email_process_type
                 )
                 template.category = dao_get_template_category_by_id(default_category_id)

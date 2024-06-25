@@ -15,7 +15,7 @@ from app.schemas import template_category_schema
 template_category_blueprint = Blueprint(
     "template_category",
     __name__,
-    url_prefix="/template/category",
+    url_prefix="/template-category",
 )
 
 register_errors(template_category_blueprint)
