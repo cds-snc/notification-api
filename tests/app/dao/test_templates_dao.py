@@ -16,6 +16,7 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_redact_template,
     dao_update_template,
+    dao_update_template_category,
     dao_update_template_reply_to,
 )
 from app.models import Template, TemplateHistory, TemplateRedacted
@@ -490,3 +491,16 @@ def test_template_postage_constraint_on_update(sample_service, sample_user):
     created.postage = "third"
     with pytest.raises(expected_exception=SQLAlchemyError):
         dao_update_template(created)
+
+
+def test_dao_update_template_category(sample_template, sample_template_category):
+    dao_update_template_category(sample_template.id, sample_template_category.id)
+
+    updated_template = Template.query.get(sample_template.id)
+    assert updated_template.template_category_id == sample_template_category.id
+    assert updated_template.updated_at is not None
+    assert updated_template.version == 2
+
+    history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
+    assert history.template_category_id == None
+    assert history.updated_at == updated_template.updated_at

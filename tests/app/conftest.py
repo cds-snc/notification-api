@@ -335,7 +335,7 @@ def create_sample_template(
     subject_line="Subject",
     user=None,
     service=None,
-    template_category=None,
+    category=None,
     created_by=None,
     process_type="normal",
     permissions=[EMAIL_TYPE, SMS_TYPE],
@@ -363,8 +363,8 @@ def create_sample_template(
         data.update({"subject": subject_line})
     if template_type == "letter":
         data["postage"] = "second"
-    if template_category:
-        data["category"] = template_category
+    if category:
+        data["category"] = category
     template = Template(**data)
     dao_create_template(template)
 
@@ -400,6 +400,7 @@ def sample_template(
         service=None,
         created_by=None,
         process_type="normal",
+        category=None,
         permissions=[EMAIL_TYPE, SMS_TYPE],
     )
 

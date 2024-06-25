@@ -1558,3 +1558,20 @@ def test_should_template_be_redacted():
 
     dao_update_organisation(some_org.id, organisation_type="province_or_territory")
     assert should_template_be_redacted(some_org)
+
+
+def test_update_templates_category(sample_template, sample_template_category, admin_request):
+
+    assert sample_template.category == None
+
+    response = admin_request.post(
+        "template.update_templates_category",
+        service_id=sample_template.service_id,
+        template_id=sample_template.id,
+        template_category_id=sample_template_category.id,
+        _expected_status=200,
+    )
+
+    template = dao_get_template_by_id(sample_template.id)
+
+    assert template.category.id == sample_template_category.id
