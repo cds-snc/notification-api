@@ -483,6 +483,7 @@ class Config(object):
             "options": {"queue": QueueNames.PERIODIC},
         },
     }
+
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
 
@@ -563,6 +564,19 @@ class Config(object):
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
+
+    # Feature flag for stack trace debugging
+    FF_DEBUG_STACK_TRACE = env.bool("FF_DEBUG_STACK_TRACE", False)
+    if FF_DEBUG_STACK_TRACE:
+        CELERYBEAT_SCHEDULE.update(
+            {
+                "debug-stack-trace": {
+                    "task": "debug-stack-trace",
+                    "schedule": 10,
+                    "options": {"queue": QueueNames.PERIODIC},
+                },
+            }
+        )
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
