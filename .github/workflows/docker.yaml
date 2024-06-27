@@ -55,9 +55,37 @@ jobs:
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
 
-    - name: Rollout in Kubernetes
+    - name: Install OpenVPN
       run: |
-        ./scripts/callManifestsRollout.sh ${GITHUB_SHA::7}
+        sudo apt update
+        sudo apt install -y openvpn openvpn-systemd-resolved
+
+    - name: Install 1Pass CLI
+      run: |
+        curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
+        sudo dpkg -i 1pass.deb
+
+    - name: One Password Fetch
+      run: |
+        op read op://4eyyuwddp6w4vxlabrr2i2duxm/"Staging Github Actions VPN"/notesPlain > /var/tmp/staging.ovpn
+
+    - name: Connect to VPN
+      uses: "kota65535/github-openvpn-connect-action@v2"
+      with:
+        config_file: /var/tmp/staging.ovpn
+        client_key: ${{ secrets.STAGING_OVPN_CLIENT_KEY }}
+        echo_config: false       
+        
+    - name: Configure kubeconfig
+      run: |
+        aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster     
+        kubectl config rename-context arn:aws:eks:ca-central-1:$STAGING_AWS_ACCOUNT:cluster/notification-canada-ca-staging-eks-cluster staging           
+
+    - name: Update images in staging
+      run: |
+        DOCKER_TAG=${GITHUB_SHA::7}
+        kubectl set image deployment.apps/api api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+
 
     - name: my-app-install token
       id: notify-pr-bot
