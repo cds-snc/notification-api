@@ -21,6 +21,12 @@ def upgrade():
         op.execute(f"GRANT {super_role} TO {role} WITH ADMIN OPTION;")
 
 
+def downgrade():
+    for role in roles:
+        op.execute(f"REVOKE {super_role} FROM {role};")
+        op.execute(f"DROP ROLE IF EXISTS {role};")
+
+
 def create_role_if_not_exist(role):
     """
     Makes sure the expected user exists in the database before performing the GRANT USER operation.
