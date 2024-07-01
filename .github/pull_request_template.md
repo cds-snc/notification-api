@@ -29,7 +29,7 @@ Please provide relevant information and / or links to demonstrate the functional
 ## Checklist
 
 - [ ] I have assigned myself to this PR
-- [ ] PR has an appropriate title: #9999 - What the thing does
+- [ ] PR has an [appropriate title](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/team_agreement.md#naming-prs): #9999 - What the thing does
 - [ ] PR has a detailed description, including links to specific documentation
 - [ ] I have added the [appropriate labels](https://github.com/department-of-veterans-affairs/notification-api/blob/master/.github/release.yaml) to the PR.
 - [ ] I did not remove any parts of the template, such as checkboxes even if they are not used
