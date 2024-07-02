@@ -356,7 +356,7 @@ def provider_to_use(
         notification_type (str): SMS or EMAIL.
         notification_id (UUID): id of notification. Just used for logging.
         to (str, optional): recipient. Defaults to None.
-        international (bool, optional):  Flags whether or not the message recipient is outside of Canada and the US. Defaults to False.
+        international (bool, optional):  Flags whether or not the message recipient is outside Zone 1 (US / Canada / Caribbean). Defaults to False.
         sender (str, optional): reply_to_text to use. Defaults to None.
         template_id (str, optional): template_id to use. Defaults to None.
 
@@ -384,6 +384,7 @@ def provider_to_use(
         has_dedicated_number
         or sending_to_us_number
         or cannot_determine_recipient_country
+        or international
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
     )
