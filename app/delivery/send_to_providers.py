@@ -369,6 +369,7 @@ def provider_to_use(
 
     has_dedicated_number = sender is not None and sender.startswith("+1")
     cannot_determine_recipient_country = False
+    recipient_outside_canada = False
     sending_to_us_number = False
     if to is not None:
         match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
@@ -378,6 +379,8 @@ def provider_to_use(
             phonenumbers.region_code_for_number(match.number) == "US"
         ):  # The US is a special case that needs to send from a US toll free number
             sending_to_us_number = True
+        elif phonenumbers.region_code_for_number(match.number) != "CA":
+            recipient_outside_canada = True
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
 
     do_not_use_pinpoint = (
@@ -385,6 +388,7 @@ def provider_to_use(
         or sending_to_us_number
         or cannot_determine_recipient_country
         or international
+        or recipient_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
     )
