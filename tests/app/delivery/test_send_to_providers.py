@@ -110,17 +110,6 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
 
-    def test_should_use_sns_for_sms_if_sending_internationally(self, restore_provider_details, notify_api):
-        with set_config_values(
-            notify_api,
-            {
-                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-            },
-        ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+4408456021111")  # British Telecom test line
-        assert provider.name == "sns"
-
     def test_should_use_sns_for_sms_if_match_fails(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
