@@ -47,15 +47,12 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
     Deletes a `TemplateCategory`. By default, if the `TemplateCategory` is associated with any `Template`, it will not be deleted.
     If the `cascade` option is specified then the category will be forcible removed:
     1. The `Category` will be dissociated from templates that use it
-    2. The template is assigned a category matching the priority of the previous category
-    3. Finally, the `Category` will be deleted
+    2. The `Template` is assigned to one of the default categories that matches the priority of the deleted category
+    3. Finally the `Category` will be deleted
 
     Args:
         template_category_id (str): The id of the template_category to delete
         cascade (bool, optional): Specify whether to dissociate the category from templates that use it to force removal. Defaults to False.
-
-    Raises:
-        e: _description_
     """
     template_category = dao_get_template_category_by_id(template_category_id)
     templates = Template.query.filter_by(template_category_id=template_category_id).all()
