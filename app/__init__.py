@@ -201,6 +201,7 @@ def register_blueprint(application):
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
     from app.template.rest import template_blueprint
+    from app.template.template_category_rest import template_category_blueprint
     from app.template_folder.rest import template_folder_blueprint
     from app.template_statistics.rest import (
         template_statistics as template_statistics_blueprint,
@@ -258,6 +259,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, template_folder_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
 
 def register_v2_blueprints(application):
