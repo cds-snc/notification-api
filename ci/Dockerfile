@@ -66,7 +66,7 @@ COPY migrations/ migrations
 COPY scripts/ scripts
 
 # Non-relative import since multiple files
-COPY gunicorn_config.py application.py Makefile pytest.ini run_celery.py pyproject.toml /app
+COPY gunicorn_config.py application.py Makefile pytest.ini run_celery.py pyproject.toml /app/
 
 # Assign ownership of the certs to vanotify due to save_certificate.sh
 COPY --chown=vanotify certs/ certs

@@ -379,14 +379,6 @@ class TestRedeemToken:
         assert response.status_code == 200
         assert response.get_json()['data'] == 'some value'
 
-    def test_should_set_cors_headers(self, client, mocker, notify_api):
-        mocker.patch('app.oauth.rest.verify_jwt_in_request', side_effect=None)
-
-        response = client.get('/auth/redeem-token')
-
-        assert response.access_control_allow_credentials
-        assert response.access_control_allow_origin == cookie_config['UI_HOST_NAME']
-
 
 class TestLoginWithPassword:
     @pytest.fixture(autouse=True)

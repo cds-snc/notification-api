@@ -4,7 +4,6 @@ from typing import Tuple
 
 from authlib.integrations.base_client import OAuthError
 from flask import Blueprint, url_for, make_response, redirect, jsonify, current_app, request, Response
-from flask_cors.core import get_cors_options, set_cors_headers
 from flask_jwt_extended import create_access_token, verify_jwt_in_request
 from requests import Response as RequestsResponse
 from requests.exceptions import HTTPError
@@ -248,9 +247,6 @@ def token():
 
     cookie = request.cookies.get(current_app.config['JWT_ACCESS_COOKIE_NAME'])
     response = make_response(jsonify({'data': cookie}))
-
-    cors_options = {'origins': current_app.config['UI_HOST_NAME'], 'supports_credentials': True}
-    set_cors_headers(response, get_cors_options(current_app, cors_options))
 
     return response
 
