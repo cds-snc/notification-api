@@ -366,7 +366,8 @@ def create_sample_template(
     if category:
         data["category"] = category
     else:
-        data.update({"template_category_id": uuid.UUID(current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"])})
+        cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4), name_fr=str(uuid.uuid4))
+        data.update({"template_category_id": cat.id})
     template = Template(**data)
     dao_create_template(template)
 
