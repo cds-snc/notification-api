@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from flask import current_app
 
@@ -69,6 +70,7 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
                     else template_category.email_process_type
                 )
                 template.category = dao_get_template_category_by_id(default_category_id)
+                template.updated_at = datetime.utcnow
                 db.session.add(template)
 
         db.session.delete(template_category)

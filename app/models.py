@@ -1044,6 +1044,8 @@ class TemplateCategory(BaseModel):
     sms_process_type = db.Column(db.String(200), nullable=False)
     email_process_type = db.Column(db.String(200), nullable=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
 
     def serialize(self):
         return {
@@ -1055,6 +1057,8 @@ class TemplateCategory(BaseModel):
             "sms_process_type": self.sms_process_type,
             "email_process_type": self.email_process_type,
             "hidden": self.hidden,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
     @classmethod
