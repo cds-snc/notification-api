@@ -188,6 +188,7 @@ def create_template(
     hidden=False,
     archived=False,
     folder=None,
+    category=None,
     postage=None,
     process_type="normal",
 ):
@@ -200,6 +201,7 @@ def create_template(
         "reply_to": reply_to,
         "hidden": hidden,
         "folder": folder,
+        "category": category,
         "process_type": process_type,
     }
     if template_type == LETTER_TYPE:
