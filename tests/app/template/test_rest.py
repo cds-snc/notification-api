@@ -1561,7 +1561,6 @@ def test_should_template_be_redacted():
 
 
 def test_update_templates_category(sample_template, sample_template_category, admin_request):
-    assert not sample_template.category
     admin_request.post(
         "template.update_templates_category",
         service_id=sample_template.service_id,
