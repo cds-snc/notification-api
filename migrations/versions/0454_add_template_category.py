@@ -28,7 +28,7 @@ def upgrade():
         sa.Column("email_process_type", sa.String(length=255), nullable=False),
         sa.Column("hidden", sa.Boolean(), nullable=False),
         sa.Column("created_at", sa.DateTime(), default=datetime.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.Column("updated_at", sa.DateTime(), default=datetime.now(), nullable=True),
         sa.UniqueConstraint("name_en"),
         sa.UniqueConstraint("name_fr"),
     )
