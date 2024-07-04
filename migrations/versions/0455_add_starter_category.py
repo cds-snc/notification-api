@@ -5,7 +5,6 @@ Revises: 0454_add_template_category
 Create Date: 2024-06-11 13:32:00
 """
 from alembic import op
-from sqlalchemy import text
 
 revision = "0455_add_starter_category"
 down_revision = "0454_add_template_category"
