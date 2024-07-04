@@ -32,6 +32,7 @@ class AwsPinpointClient(SmsClient):
 
         for match in phonenumbers.PhoneNumberMatcher(to, "US"):
             matched = True
+            opted_out = False
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
             destinationNumber = to
 
@@ -44,6 +45,12 @@ class AwsPinpointClient(SmsClient):
                     MessageType=messageType,
                     ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                 )
+            except self._client.exceptions.ConflictException as e:
+                if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
+                    opted_out = True
+                else:
+                    raise e
+
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise Exception(e)
@@ -52,7 +59,7 @@ class AwsPinpointClient(SmsClient):
                 self.current_app.logger.info("AWS Pinpoint request finished in {}".format(elapsed_time))
                 self.statsd_client.timing("clients.pinpoint.request-time", elapsed_time)
                 self.statsd_client.incr("clients.pinpoint.success")
-            return response["MessageId"]
+            return "opted_out" if opted_out else response["MessageId"]
 
         if not matched:
             self.statsd_client.incr("clients.pinpoint.error")

@@ -43,6 +43,7 @@ from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     NOTIFICATION_CONTAINS_PII,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -118,7 +119,10 @@ def send_sms_to_provider(notification):
             else:
                 notification.reference = reference
                 notification.billable_units = template.fragment_count
-                update_notification_to_sending(notification, provider)
+                if reference == "opted_out":
+                    update_notification_to_opted_out(notification, provider)
+                else:
+                    update_notification_to_sending(notification, provider)
 
         # Record StatsD stats to compute SLOs
         statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
@@ -337,6 +341,14 @@ def update_notification_to_sending(notification, provider):
     notification.sent_at = datetime.utcnow()
     notification.sent_by = provider.get_name()
     notification.status = NOTIFICATION_SENT if notification.notification_type == "sms" else NOTIFICATION_SENDING
+    dao_update_notification(notification)
+
+
+def update_notification_to_opted_out(notification, provider):
+    notification.sent_at = datetime.utcnow()
+    notification.sent_by = provider.get_name()
+    notification.status = NOTIFICATION_PERMANENT_FAILURE
+    notification.provider_response = "Phone number is opted out"
     dao_update_notification(notification)
 
 
