@@ -107,6 +107,31 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
         return super(BaseSchema, self).make_instance(data)
 
 
+class TemplateCategorySchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = models.TemplateCategory
+
+    @validates("name_en")
+    def validate_name_en(self, value):
+        if not value:
+            raise ValidationError("Invalid name")
+
+    @validates("name_fr")
+    def validate_name_fr(self, value):
+        if not value:
+            raise ValidationError("Invalid name")
+
+    @validates("sms_process_type")
+    def validate_sms_process_type(self, value):
+        if value not in models.TEMPLATE_PROCESS_TYPE:
+            raise ValidationError("Invalid SMS process type")
+
+    @validates("email_process_type")
+    def validate_email_process_type(self, value):
+        if value not in models.TEMPLATE_PROCESS_TYPE:
+            raise ValidationError("Invalid email process type")
+
+
 class UserSchema(BaseSchema):
     permissions = fields.Method("user_permissions", dump_only=True)
     password_changed_at = field_for(models.User, "password_changed_at", format="%Y-%m-%d %H:%M:%S.%f")
@@ -805,6 +830,7 @@ notifications_filter_schema = NotificationsFilterSchema()
 service_history_schema = ServiceHistorySchema()
 api_key_history_schema = ApiKeyHistorySchema()
 template_history_schema = TemplateHistorySchema()
+template_category_schema = TemplateCategorySchema()
 event_schema = EventSchema()
 provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()

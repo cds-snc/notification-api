@@ -25,6 +25,8 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_redact_template,
     dao_update_template,
+    dao_update_template_category,
+    dao_update_template_process_type,
     dao_update_template_reply_to,
     get_precompiled_letter_template,
 )
@@ -130,6 +132,24 @@ def create_template(service_id):
     dao_create_template(new_template, redact_personalisation=redact_personalisation)
 
     return jsonify(data=template_schema.dump(new_template)), 201
+
+
+@template_blueprint.route("/<uuid:template_id>/category/<uuid:template_category_id>", methods=["POST"])
+def update_templates_category(service_id, template_id, template_category_id):
+    updated = dao_update_template_category(template_id, template_category_id)
+    return jsonify(data=template_schema.dump(updated)), 200
+
+
+@template_blueprint.route("/<uuid:template_id>/process-type", methods=["POST"])
+def update_template_process_type(template_id):
+    data = request.get_json()
+    if "process_type" not in data:
+        message = "Field is required"
+        errors = {"process_type": [message]}
+        raise InvalidRequest(errors, status_code=400)
+
+    updated = dao_update_template_process_type(template_id=template_id, process_type=data.get("process_type"))
+    return jsonify(data=template_schema.dump(updated)), 200
 
 
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
