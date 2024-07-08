@@ -55,7 +55,7 @@ class AwsPinpointClient(SmsClient):
 
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
-                raise Exception(e)
+                raise e
             finally:
                 elapsed_time = monotonic() - start_time
                 self.current_app.logger.info("AWS Pinpoint request finished in {}".format(elapsed_time))
