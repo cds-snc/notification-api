@@ -3,12 +3,8 @@ Revision ID: 0456_update_template_categories
 Revises: 0455_add_starter_category
 Create Date: 2024-06-11 13:32:00
 """
-from datetime import datetime
-
 import sqlalchemy as sa
 from alembic import op
-from flask import current_app
-from sqlalchemy.dialects import postgresql
 
 revision = "0456_update_template_categories"
 down_revision = "0455_add_starter_category"
