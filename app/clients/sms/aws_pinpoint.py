@@ -24,6 +24,7 @@ class AwsPinpointClient(SmsClient):
     def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None):
         messageType = "TRANSACTIONAL"
         matched = False
+        opted_out = False
 
         if template_id is not None and str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
