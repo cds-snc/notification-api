@@ -34,7 +34,7 @@ category_ids = [
 
 # Corresponding English and French names and descriptions and process_type
 category_data = [
-    ("Alert", "Alerte", "System checks and monitoring", "Contrôles et suivi du système", "normal", "normal"),
+    ("Alert", "Alerte", "System checks and monitoring", "Contrôles et suivi du système", "medium", "medium"),
     (
         "Authentication",
         "Authentification",
@@ -51,7 +51,7 @@ category_data = [
         "priority",
         "priority",
     ),
-    ("Decision", "Décision", "Permits, documents and results", "Permis, documents et résultats", "bulk", "bulk"),
+    ("Decision", "Décision", "Permits, documents and results", "Permis, documents et résultats", "low", "low"),
     (
         "Information blast",
         "Information de masse",
@@ -68,6 +68,10 @@ category_data = [
 
 
 def upgrade():
+    # Insert new process_type
+    op.execute("INSERT INTO template_process_type (name) VALUES ('low')")
+    op.execute("INSERT INTO template_process_type (name) VALUES ('medium')")
+    op.execute("INSERT INTO template_process_type (name) VALUES ('high')")
 
     def insert_statement(id, name_en, name_fr, description_en, description_fr, sms_process_type, email_process_type):
         # Escape single quotes in string values
@@ -75,9 +79,9 @@ def upgrade():
         description_fr = description_fr.replace("'", "''")
 
         return f"""
-        INSERT INTO template_categories
+        INSERT INTO template_categories 
         (id, name_en, name_fr, description_en, description_fr, sms_process_type, email_process_type, hidden, created_at)
-        VALUES
+        VALUES 
         ('{id}', '{name_en}', '{name_fr}', '{description_en}', '{description_fr}', '{sms_process_type}', '{email_process_type}', false, now())
         """
 
@@ -89,3 +93,8 @@ def upgrade():
 def downgrade():
     for id in category_ids:
         op.execute(f"DELETE FROM template_categories WHERE id = '{id}'")
+
+    # Delete process_type
+    op.execute("DELETE FROM template_process_type WHERE name = 'low'")
+    op.execute("DELETE FROM template_process_type WHERE name = 'medium'")
+    op.execute("DELETE FROM template_process_type WHERE name = 'high'")
