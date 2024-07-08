@@ -25,10 +25,15 @@ CAT_TEST_ID = "7c16aa95-e2e1-4497-81d6-04c656520fe4"
 SHORT_CODE_CATS = (HIGH_CATEGORY_ID, CAT_AUTH_ID, CAT_AUTO_ID, CAT_DECISION_ID, CAT_REMINDER_ID, CAT_REQUEST_ID, CAT_STATUS_ID)
 LONG_CODE_CATS = (LOW_CATEGORY_ID, MEDIUM_CATEGORY_ID, CAT_ALERT_ID, CAT_INFO_ID, CAT_TEST_ID)
 
+sms_options = ("short_code", "long_code")
+sms_sending_vehicle = sa.Enum(*sms_options, name="sms_sending_vehicle")
+
 
 def upgrade():
+    sms_sending_vehicle.create(op.get_bind(), checkfirst=True)
+
     op.add_column(
-        "template_categories", sa.Column("sms_sending_vehicle", sa.String(length=255), server_default="long_code", nullable=False)
+        "template_categories", sa.Column("sms_sending_vehicle", sms_sending_vehicle, server_default="long_code", nullable=False)
     )
 
     # Update the generic categories
@@ -65,3 +70,4 @@ def upgrade():
 
 def downgrade():
     op.drop_column("template_categories", "sms_sending_vehicle")
+    sms_sending_vehicle.drop(op.get_bind(), checkfirst=True)
