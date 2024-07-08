@@ -189,6 +189,31 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     assert send_to_providers.provider_to_use("sms", "1234").name == first.identifier
 
 
+def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sample_template, mocker):
+    mocker.patch("app.aws_pinpoint_client.send_sms", return_value="opted_out")
+    db_notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16135551234",
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+        },
+    ):
+        send_to_providers.send_sms_to_provider(db_notification)
+
+        notification = Notification.query.filter_by(id=db_notification.id).one()
+        assert notification.status == "permanent-failure"
+        assert notification.provider_response == "Phone number is opted out"
+
+
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
     db_notification = save_notification(
         create_notification(

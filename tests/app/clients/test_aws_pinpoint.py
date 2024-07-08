@@ -71,3 +71,15 @@ def test_send_sms_returns_raises_error_if_there_is_no_valid_number_is_found(noti
         aws_pinpoint_client.send_sms(to, content, reference)
 
     assert "No valid numbers found for SMS delivery" in str(excinfo.value)
+
+
+def test_handles_opted_out_numbers(notify_api, mocker, sample_template):
+    conflict_error = aws_pinpoint_client._client.exceptions.ConflictException(
+        error_response={"Reason": "DESTINATION_PHONE_NUMBER_OPTED_OUT"}, operation_name="send_text_message"
+    )
+    mocker.patch("app.aws_pinpoint_client._client.send_text_message", side_effect=conflict_error)
+
+    to = "6135555555"
+    content = "foo"
+    reference = "ref"
+    assert aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id) == "opted_out"
