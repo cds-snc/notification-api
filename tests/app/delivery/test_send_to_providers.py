@@ -190,7 +190,6 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
 
 
 def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sample_template, mocker):
-    # statsd_mock = mocker.patch("app.delivery.send_to_providers.statsd_client")
     mocker.patch("app.aws_pinpoint_client.send_sms", return_value="opted_out")
     db_notification = save_notification(
         create_notification(
