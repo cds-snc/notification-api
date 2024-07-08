@@ -34,12 +34,12 @@ category_ids = [
 
 # Corresponding English and French names and descriptions and process_type
 category_data = [
-    ("Alert", "Alerte", "System checks and monitoring", "Contrôles et surveillance du système", "medium", "medium"),
+    ("Alert", "Alerte", "System checks and monitoring", "Contrôles et suivi du système", "medium", "medium"),
     (
         "Authentication",
         "Authentification",
         "Password resets and two factor verification",
-        "Réinitialisations de mot de passe et vérification à deux facteurs",
+        "Réinitialisations de mots de passe et vérification à deux facteurs",
         "priority",
         "priority",
     ),
@@ -47,23 +47,23 @@ category_data = [
         "Automatic reply",
         "Réponse automatique",
         "No-reply and confirmation messages",
-        "Messages automatiques de non-réponse et de confirmation",
+        "Messages auxquels il est impossible de répondre et messages de confirmation",
         "priority",
         "priority",
     ),
-    ("Decision", "Décision", "Permits, documents and results", "Livraisons de permis, documents et résultats", "low", "low"),
+    ("Decision", "Décision", "Permits, documents and results", "Permis, documents et résultats", "low", "low"),
     (
         "Information blast",
-        "Diffusion d'informations",
+        "Information de masse",
         "Newsletters, surveys and general information",
-        "Bulletins d'information, enquêtes et informations générales",
+        "Infolettres, sondages et renseignements généraux",
         "bulk",
         "bulk",
     ),
     ("Reminder", "Rappel", "Appointments and deadlines", "Rendez-vous et échéances", "normal", "normal"),
     ("Request", "Demande", "Request: Follow up and next steps", "Suivis et prochaines étapes", "normal", "normal"),
-    ("Status update", "Mise à jour du statut", "Changes and progress", "Changements et progrès", "normal", "normal"),
-    ("Test", "Test", "Practice messages", "Messages de pratique", "bulk", "bulk"),
+    ("Status update", "État d’avancement", "Changes and progress", "Changements et progrès", "normal", "normal"),
+    ("Test", "Test", "Practice messages", "Messages à titre d’entraînement", "bulk", "bulk"),
 ]
 
 
