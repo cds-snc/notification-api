@@ -25,6 +25,7 @@ class AwsPinpointClient(SmsClient):
         messageType = "TRANSACTIONAL"
         matched = False
         opted_out = False
+        response = {}
 
         if template_id is not None and str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
@@ -60,7 +61,7 @@ class AwsPinpointClient(SmsClient):
                 self.current_app.logger.info("AWS Pinpoint request finished in {}".format(elapsed_time))
                 self.statsd_client.timing("clients.pinpoint.request-time", elapsed_time)
                 self.statsd_client.incr("clients.pinpoint.success")
-            return "opted_out" if opted_out else response["MessageId"]
+            return "opted_out" if opted_out else response.get("MessageId")
 
         if not matched:
             self.statsd_client.incr("clients.pinpoint.error")
