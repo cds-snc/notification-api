@@ -123,7 +123,13 @@ def test_get_template_categories(
     ],
 )
 def test_delete_template_category_cascade(
-    cascade, expected_status_code, expected_msg, client, mocker, sample_template_category_with_templates, populate_generic_categories
+    cascade,
+    expected_status_code,
+    expected_msg,
+    client,
+    mocker,
+    sample_template_category_with_templates,
+    populate_generic_categories,
 ):
     auth_header = create_authorization_header()
 
