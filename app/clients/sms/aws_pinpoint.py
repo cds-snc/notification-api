@@ -21,13 +21,17 @@ class AwsPinpointClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None):
+    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None, service_id=None):
         messageType = "TRANSACTIONAL"
         matched = False
         opted_out = False
         response = {}
 
-        if template_id is not None and str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]:
+        use_shortcode_pool = (
+            str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+            or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+        )
+        if use_shortcode_pool:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         else:
             pool_id = self.current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]

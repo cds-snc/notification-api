@@ -5,7 +5,8 @@ from tests.conftest import set_config_values
 
 
 @pytest.mark.serial
-def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template):
+@pytest.mark.parametrize("template_id", [None, "uuid"])
+def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template, template_id):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
     to = "6135555555"
@@ -21,7 +22,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template):
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
         },
     ):
-        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=template_id)
 
     boto_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber="+16135555555",
@@ -50,6 +51,34 @@ def test_send_sms_sends_to_shortcode_pool(notify_api, mocker, sample_template):
         },
     ):
         aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+
+    boto_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber="+16135555555",
+        OriginationIdentity="sc_pool_id",
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+    )
+
+
+@pytest.mark.serial
+def test_send_sms_sends_notify_sms_to_shortcode_pool(notify_api, mocker, sample_template):
+    boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+    to = "6135555555"
+    content = "foo"
+    reference = "ref"
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+            "AWS_PINPOINT_SC_TEMPLATE_IDS": [str(sample_template.id)],
+            "NOTIFY_SERVICE_ID": "notify",
+        },
+    ):
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id, service_id="notify")
 
     boto_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber="+16135555555",
