@@ -1571,4 +1571,4 @@ def test_update_templates_category(sample_template, sample_template_category, ad
 
     template = dao_get_template_by_id(sample_template.id)
 
-    assert template.category.id == sample_template_category.id
+    assert template.template_category.id == sample_template_category.id

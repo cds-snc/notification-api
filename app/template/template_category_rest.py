@@ -9,7 +9,7 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.errors import register_errors
-from app.models import TemplateCategory
+from app.models import Template, TemplateCategory
 from app.schemas import template_category_schema
 
 template_category_blueprint = Blueprint(
@@ -97,8 +97,7 @@ def delete_template_category(template_category_id):
         dao_delete_template_category_by_id(template_category_id, cascade=True)
         return "", 200
 
-    template_category = dao_get_template_category_by_id(template_category_id)
-    if len(template_category.templates) > 0:
+    if Template.query.filter_by(template_category_id=template_category_id).count() > 0:
         return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
     else:
         dao_delete_template_category_by_id(template_category_id)
