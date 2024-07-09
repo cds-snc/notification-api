@@ -14,22 +14,45 @@ from app.models import BULK, NORMAL, Template, TemplateCategory
 from tests.app.conftest import create_sample_template
 
 
-def test_create_template_category(notify_db_session):
-    data = {
-        "name_en": "english",
-        "name_fr": "french",
-        "description_en": "english description",
-        "description_fr": "french description",
-        "sms_process_type": NORMAL,
-        "email_process_type": NORMAL,
-        "hidden": False,
-    }
+class TestCreateTemplateCategory:
+    def test_create_template_category(self, notify_db_session):
+        data = {
+            "name_en": "english",
+            "name_fr": "french",
+            "description_en": "english description",
+            "description_fr": "french description",
+            "sms_process_type": NORMAL,
+            "email_process_type": NORMAL,
+            "hidden": False,
+            "sms_sending_vehicle": "short_code",
+        }
 
-    template_category = TemplateCategory(**data)
-    dao_create_template_category(template_category)
+        template_category = TemplateCategory(**data)
+        dao_create_template_category(template_category)
 
-    assert TemplateCategory.query.count() == 1
-    assert len(dao_get_all_template_categories()) == 1
+        temp_cat = dao_get_all_template_categories()
+        assert TemplateCategory.query.count() == 1
+        assert len(temp_cat) == 1
+        assert temp_cat[0].sms_sending_vehicle == "short_code"
+
+    def test_create_template_category_with_no_sms_sending_vehicle(self, notify_db_session):
+        data = {
+            "name_en": "english",
+            "name_fr": "french",
+            "description_en": "english description",
+            "description_fr": "french description",
+            "sms_process_type": NORMAL,
+            "email_process_type": NORMAL,
+            "hidden": False,
+        }
+
+        template_category = TemplateCategory(**data)
+        dao_create_template_category(template_category)
+
+        temp_cat = dao_get_all_template_categories()
+        assert TemplateCategory.query.count() == 1
+        assert len(temp_cat) == 1
+        assert temp_cat[0].sms_sending_vehicle == "long_code"  # default value
 
 
 @pytest.mark.parametrize(

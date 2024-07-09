@@ -65,6 +65,11 @@ DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
 
+SHORT_CODE = "short_code"
+LONG_CODE = "long_code"
+
+sms_sending_vehicles = db.Enum(*[SHORT_CODE, LONG_CODE], name="sms_sending_vehicles")
+
 
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))
@@ -1046,6 +1051,7 @@ class TemplateCategory(BaseModel):
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def serialize(self):
         return {
@@ -1059,6 +1065,7 @@ class TemplateCategory(BaseModel):
             "hidden": self.hidden,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "sms_sending_vehicle": self.sms_sending_vehicle,
         }
 
     @classmethod
