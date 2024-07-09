@@ -97,8 +97,6 @@ def delete_template_category(template_category_id):
         dao_delete_template_category_by_id(template_category_id, cascade=True)
         return "", 200
 
-    template_category = dao_get_template_category_by_id(template_category_id)
-
     if Template.query.filter_by(template_category_id=template_category_id).count() > 0:
         return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
     else:
