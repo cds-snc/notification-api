@@ -1117,8 +1117,8 @@ class TemplateBase(BaseModel):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
 
     @declared_attr
-    def category(cls):
-        return db.relationship("TemplateCategory")
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="Template.template_category_id == TemplateCategory.id")
 
     @declared_attr
     def created_by(cls):
@@ -1221,7 +1221,6 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
-    category = db.relationship("TemplateCategory", lazy="joined", backref="templates")
 
     folder = db.relationship(
         "TemplateFolder",
@@ -1300,7 +1299,6 @@ class TemplateHistory(TemplateBase):
 
     service = db.relationship("Service")
     version = db.Column(db.Integer, primary_key=True, nullable=False)
-    category = db.relationship("TemplateCategory")
 
     @classmethod
     def from_json(cls, data):
@@ -1312,6 +1310,10 @@ class TemplateHistory(TemplateBase):
         fields.pop("template_redacted", None)
         fields.pop("folder", None)
         return super(TemplateHistory, cls).from_json(fields)
+
+    @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="TemplateHistory.template_category_id == TemplateCategory.id")
 
     @declared_attr
     def template_redacted(cls):

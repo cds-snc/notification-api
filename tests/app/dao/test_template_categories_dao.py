@@ -101,7 +101,7 @@ def test_dao_get_template_category_by_template_id(category, template, notify_db_
     template = Template(**template)
     template.service = sample_service
     template.created_by = sample_user
-    template.category = template_category
+    template.template_category = template_category
     dao_create_template(template)
 
     assert dao_get_template_category_by_template_id(template.id) == template_category
@@ -331,8 +331,8 @@ def test_get_all_template_categories_with_filters(
         template_category = TemplateCategory(**category_data)
         dao_create_template_category(template_category)
 
-        create_sample_template(notify_db, notify_db_session, template_type="email", category=template_category)
-        create_sample_template(notify_db, notify_db_session, template_type="sms", category=template_category)
+        create_sample_template(notify_db, notify_db_session, template_type="email", template_category=template_category)
+        create_sample_template(notify_db, notify_db_session, template_type="sms", template_category=template_category)
 
     retrieved_categories = dao_get_all_template_categories(template_type=template_type, hidden=hidden)
 
@@ -350,7 +350,7 @@ def test_dao_delete_template_category_by_id_should_delete_category_when_no_assoc
 def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_associated_with_template(
     notify_db, notify_db_session, sample_template_category
 ):
-    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
     dao_delete_template_category_by_id(sample_template_category.id)
 
@@ -360,7 +360,7 @@ def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_assoc
 def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_when_associated_with_template(
     notify_db, notify_db_session, sample_template_category, populate_generic_categories
 ):
-    template = create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
     dao_delete_template_category_by_id(sample_template_category.id, cascade=True)
     # 3 here because we have 3 generic defaut categories that will remain post-delete
