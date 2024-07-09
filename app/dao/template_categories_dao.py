@@ -42,6 +42,7 @@ def dao_update_template_category(template_category: TemplateCategory):
     db.session.commit()
 
 
+@transactional
 def dao_delete_template_category_by_id(template_category_id, cascade=False):
     """
     Deletes a `TemplateCategory`. By default, if the `TemplateCategory` is associated with any `Template`, it will not be deleted.
@@ -68,7 +69,7 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
                     if template.template_type == "sms"
                     else template_category.email_process_type
                 )
-                template.template_category_id = dao_get_template_category_by_id(default_category_id).id
+                template.template_category_id = default_category_id
                 template.updated_at = datetime.utcnow()
                 db.session.add(template)
                 db.session.commit()
