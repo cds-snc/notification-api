@@ -101,4 +101,4 @@ def delete_template_category(template_category_id):
         return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
     else:
         dao_delete_template_category_by_id(template_category_id)
-    return "", 200
+    return "", 204
