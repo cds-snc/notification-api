@@ -397,6 +397,7 @@ class TemplateSchema(BaseTemplateSchema):
     is_precompiled_letter = fields.Method("get_is_precompiled_letter")
     process_type = field_for(models.Template, "process_type")
     template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
+    template_category_id = fields.UUID(required=False, allow_none=True)
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
