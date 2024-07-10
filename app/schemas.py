@@ -416,6 +416,12 @@ class TemplateSchema(BaseTemplateSchema):
                 raise ValidationError("Invalid template subject", "subject")
 
 
+class ReducedTemplateSchema(TemplateSchema):
+    class Meta(BaseSchema.Meta):
+        model = models.Template
+        exclude = ["content", "jobs", "service_id", "service_letter_contact_id"]
+
+
 class TemplateHistorySchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
@@ -834,6 +840,7 @@ service_history_schema = ServiceHistorySchema()
 api_key_history_schema = ApiKeyHistorySchema()
 template_history_schema = TemplateHistorySchema()
 template_category_schema = TemplateCategorySchema()
+reduced_template_schema = ReducedTemplateSchema()
 event_schema = EventSchema()
 provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()
