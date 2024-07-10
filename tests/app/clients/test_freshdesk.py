@@ -181,6 +181,48 @@ class TestSendTicket:
                 assert response == 201
                 assert email_freshdesk_ticket_mock.not_called()
 
+    def test_send_ticket_other_category(self, email_freshdesk_ticket_mock, notify_api: Flask):
+        def match_json(request):
+            expected = {
+                "New template category request from name (test@email.com):<br>",
+                "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>",
+                "- New Template Category Request name: test category name <br>",
+                "- Template id request: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>",
+                "<hr><br>",
+                "Demande de nouvelle catégorie de modèle de name (test@email.com):<br>",
+                "- Identifiant du service: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>",
+                "- Nom de la nouvelle catégorie de modèle demandée: test category name <br>",
+                "- Demande d'identifiant de modèle:  http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>",
+            }
+
+            encoded_auth = base64.b64encode(b"freshdesk-api-key:x").decode("ascii")
+            json_matches = request.json() == expected
+            basic_auth_header = request.headers.get("Authorization") == f"Basic {encoded_auth}"
+
+            return json_matches and basic_auth_header
+
+        with requests_mock.mock() as rmock:
+            rmock.request(
+                "POST",
+                "https://freshdesk-test.com/api/v2/tickets",
+                additional_matcher=match_json,
+                status_code=201,
+            )
+            data: Dict[str, Any] = {
+                "email_address": "test@email.com",
+                "name": "name",
+                "friendly_support_type": "New template category request",
+                "support_type": "new_template_category_request",
+                "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
+                "template_category_name_en": "test category name",
+                "template_category_name_fr": "test_category_name",
+                "template_id_link": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103",
+            }
+            with notify_api.app_context():
+                response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
+                assert response == 201
+                assert email_freshdesk_ticket_mock.not_called()
+
     def test_send_ticket_other(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {

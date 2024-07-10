@@ -518,6 +518,36 @@ def send_branding_request(user_id):
     return jsonify({"status_code": status_code}), 204
 
 
+@user_blueprint.route("/<uuid:user_id>/new-template-category-request", methods=["POST"])
+def send_new_template_category_request(user_id):
+    contact = None
+    data = request.json
+    try:
+        user = get_user_by_id(user_id=user_id)
+        contact = ContactRequest(
+            support_type="new_template_category_request",
+            friendly_support_type="New template category request",
+            name=user.name,
+            email_address=user.email_address,
+            service_id=data["service_id"],
+            template_category_name_en=data["template_category_name_en"],
+            template_category_name_fr=data["template_category_name_fr"],
+            template_id_link=f"https://{current_app.config['ADMIN_BASE_URL']}/services/{data['service_id']}/templates/{data['template_id']}",
+        )
+        contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
+
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound as e:
+        # This means that get_user_by_id couldn't find a user
+        current_app.logger.error(e)
+        return jsonify({}), 400
+
+    status_code = Freshdesk(contact).send_ticket()
+    return jsonify({"status_code": status_code}), 204
+
+
 @user_blueprint.route("/<uuid:user_id>", methods=["GET"])
 @user_blueprint.route("", methods=["GET"])
 def get_user(user_id=None):
