@@ -419,7 +419,13 @@ class TemplateSchema(BaseTemplateSchema):
 class ReducedTemplateSchema(TemplateSchema):
     class Meta(BaseSchema.Meta):
         model = models.Template
-        exclude = ["content"]
+        exclude = [
+            "content",
+            "jobs",
+            "users",
+            "service_id"
+            "service_letter_contact_id"
+        ]
 
 
 class TemplateHistorySchema(BaseSchema):
