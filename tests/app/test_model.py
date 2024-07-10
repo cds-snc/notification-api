@@ -376,11 +376,11 @@ def test_template_process_type(
     email_process_type,
     expected_template_process_type,
 ):
-    category = create_template_category(
+    template_category = create_template_category(
         notify_db, notify_db_session, sms_process_type=sms_process_type, email_process_type=email_process_type
     )
     template = create_template(
-        service=create_service(), template_type=template_type, process_type=process_type, category=category
+        service=create_service(), template_type=template_type, process_type=process_type, template_category=template_category
     )
 
     assert template.template_process_type == expected_template_process_type

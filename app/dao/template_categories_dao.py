@@ -20,7 +20,7 @@ def dao_get_template_category_by_id(template_category_id) -> TemplateCategory:
 
 
 def dao_get_template_category_by_template_id(template_id) -> TemplateCategory:
-    return Template.query.filter_by(id=template_id).one().category
+    return Template.query.filter_by(id=template_id).one().template_category
 
 
 # TODO: Add filters: Select all template categories used by at least 1 sms/email template
@@ -69,12 +69,12 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
                     if template.template_type == "sms"
                     else template_category.email_process_type
                 )
-                template.category = dao_get_template_category_by_id(default_category_id)
+                template.template_category_id = default_category_id
                 template.updated_at = datetime.utcnow()
                 db.session.add(template)
+                db.session.commit()
 
         db.session.delete(template_category)
-        db.session.commit()
 
 
 def _get_default_category_id(process_type):
