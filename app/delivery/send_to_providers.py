@@ -104,12 +104,14 @@ def send_sms_to_provider(notification):
 
         else:
             try:
+                sending_vehicle = template.template_category.sms_sending_vehicle
                 reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
                     template_id=notification.template_id,
+                    sending_vehicle=sending_vehicle,
                 )
             except Exception as e:
                 notification.billable_units = template.fragment_count
