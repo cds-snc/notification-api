@@ -422,8 +422,7 @@ class ReducedTemplateSchema(TemplateSchema):
         exclude = [
             "content",
             "jobs",
-            "users",
-            "service_id"
+            "service_id",
             "service_letter_contact_id"
         ]
 
