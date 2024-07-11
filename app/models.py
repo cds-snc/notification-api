@@ -71,11 +71,6 @@ LONG_CODE = "long_code"
 sms_sending_vehicles = db.Enum(*[SHORT_CODE, LONG_CODE], name="sms_sending_vehicles")
 
 
-def get_config_template_category():
-    with current_app.app_context():
-        return current_app.config["FF_TEMPLATE_CATEGORY"]
-
-
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))
 
@@ -1142,7 +1137,7 @@ class TemplateBase(BaseModel):
             db.String(255),
             db.ForeignKey("template_process_type.name"),
             index=True,
-            nullable=get_config_template_category(),
+            nullable=True,
             default=NORMAL,
         )
 
