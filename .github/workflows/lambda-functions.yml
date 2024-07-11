@@ -27,6 +27,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
+  # All of the lambda functions use layers for dependencies, if any.  Bundling dependencies should not be necessary.
   build-and-deploy-lambda-functions:
     runs-on: ubuntu-latest
     defaults:
@@ -47,82 +48,66 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 1800
 
-      - name: Set Python version
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.8"
-
-        # This function does not have any dependencies.
       - name: Package and deploy SES Callback lambda function
         if: ${{ (inputs.lambdaName == 'SESCallback') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j ses_callback_lambda ses_callback/ses_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-ses-callback-lambda --zip-file fileb://ses_callback_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy Two Way SMS lambda function v1
         if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j two_way_sms_lambda two_way_sms/two_way_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-two-way-sms-lambda --zip-file fileb://two_way_sms_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy Two Way SMS lambda function v2
         if: ${{ (inputs.lambdaName == 'TwoWaySMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j two_way_sms two_way_sms/two_way_sms_v2.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-notify-incoming-sms-lambda --zip-file fileb://two_way_sms.zip
 
-        # This function does not have any dependencies.
       - name: Package and deploy pinpoint callback lambda function
         if: ${{ (inputs.lambdaName == 'PinPointCallback') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j pinpoint_callback_lambda pinpoint_callback/pinpoint_callback_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-callback-lambda --zip-file fileb://pinpoint_callback_lambda.zip
 
-        # This function does not have any dependencies.
       - name: Package and deploy pinpoint inbound sms lambda function
         if: ${{ (inputs.lambdaName == 'PinPointInboundSMS') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j pinpoint_inbound_sms_lambda pinpoint_inbound_sms/pinpoint_inbound_sms_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-pinpoint-inbound-sms-lambda --zip-file fileb://pinpoint_inbound_sms_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy VA Profile opt-in/out lambda function
         if: ${{ (inputs.lambdaName == 'ProfileOptInOut') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j va_profile_opt_in_out_lambda va_profile/va_profile_opt_in_out_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-opt-in-out-lambda --zip-file fileb://va_profile_opt_in_out_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy VA Profile remove old opt-outs lambda function
         if: ${{ (inputs.lambdaName == 'ProfileRemoveOldOptOuts') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j va_profile_remove_old_opt_outs_lambda va_profile_remove_old_opt_outs/va_profile_remove_old_opt_outs_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-va-profile-remove-old-opt-outs-lambda --zip-file fileb://va_profile_remove_old_opt_outs_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy nightly stats bigquery upload lambda function
         if: ${{ (inputs.lambdaName == 'NightBigQueryUpload') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload/nightly_stats_bigquery_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy nightly billing stats upload lambda function
         if: ${{ (inputs.lambdaName == 'NightBillingBQUpload') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j nightly_billing_stats_upload_lambda nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-billing-stats-upload-lambda --zip-file fileb://nightly_billing_stats_upload_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy vetext incoming forwarder lambda
         if: ${{ (inputs.lambdaName == 'VetTextIncomingForwarder') || (inputs.lambdaName == 'All') }}
         run: |
           zip -j vetext_incoming_forwarder_lambda vetext_incoming_forwarder_lambda/vetext_incoming_forwarder_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-vetext-incoming-forwarder-lambda --zip-file fileb://vetext_incoming_forwarder_lambda.zip
 
-        # This function uses lambda layers for dependencies.
       - name: Package and deploy delivery status processing lambda
         if: ${{ (inputs.lambdaName == 'DeliveryStatusProcessor') || (inputs.lambdaName == 'All') }}
         run: |
