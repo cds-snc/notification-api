@@ -111,6 +111,7 @@ def send_sms_to_provider(notification):
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
                     template_id=notification.template_id,
+                    service_id=service.id,
                     sending_vehicle=sending_vehicle,
                 )
             except Exception as e:
