@@ -28,6 +28,7 @@ from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
     get_provider_details_by_notification_type,
 )
+from app.dao.template_categories_dao import dao_get_template_category_by_template_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
     DocumentDownloadException,
@@ -104,14 +105,16 @@ def send_sms_to_provider(notification):
 
         else:
             try:
-                sending_vehicle = template.template_category.sms_sending_vehicle
+                # TODO: might be a faster / better way to get the category? maybe using the template_dict?
+                template_category = dao_get_template_category_by_template_id(notification.template_id)
+                sending_vehicle = template_category.sms_sending_vehicle if template_category else None
                 reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
                     template_id=notification.template_id,
-                    service_id=service.id,
+                    service_id=notification.service_id,
                     sending_vehicle=sending_vehicle,
                 )
             except Exception as e:

@@ -27,17 +27,16 @@ class AwsPinpointClient(SmsClient):
         opted_out = False
         response = {}
 
-        use_shortcode_pool = (
-            str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
-            or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
-        )
-        if use_shortcode_pool:
-            pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
+        if self.current_app.config["FF_TEMPLATE_CATEGORY"]:
+            use_shortcode_pool = (
+                sending_vehicle == "short_code" or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+            )
         else:
-            pool_id = self.current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]
-
-        use_sc = str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"] or sending_vehicle == "short_code"
-        if use_sc:
+            use_shortcode_pool = (
+                str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+            )
+        if use_shortcode_pool:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         else:
             pool_id = self.current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]
