@@ -95,10 +95,10 @@ def delete_template_category(template_category_id):
 
     if request.args.get("cascade") == "True":
         dao_delete_template_category_by_id(template_category_id, cascade=True)
-        return "", 200
+        return "", 204
 
     if Template.query.filter_by(template_category_id=template_category_id).count() > 0:
         return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
     else:
         dao_delete_template_category_by_id(template_category_id)
-    return "", 200
+    return "", 204

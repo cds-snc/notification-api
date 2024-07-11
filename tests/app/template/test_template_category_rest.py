@@ -118,7 +118,7 @@ def test_get_template_categories(
 @pytest.mark.parametrize(
     "cascade, expected_status_code, expected_msg",
     [
-        ("True", 200, ""),
+        ("True", 204, ""),
         ("False", 400, "Cannot delete a template category with templates assigned to it."),
     ],
 )
