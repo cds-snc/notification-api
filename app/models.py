@@ -1137,7 +1137,7 @@ class TemplateBase(BaseModel):
             db.String(255),
             db.ForeignKey("template_process_type.name"),
             index=True,
-            nullable=True,
+            nullable=current_app.config["FF_NEW_BRANDING"],
             default=NORMAL,
         )
 
