@@ -32,6 +32,8 @@ def get_ga4():
 
 @ga4_blueprint.errorhandler(ValidationError)
 def ga4_schema_validation_error(error):
+    current_app.logger.error('GA4 ValidationError: %s', error.message)
+
     return {
         'errors': [
             {
