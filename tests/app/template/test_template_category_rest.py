@@ -111,7 +111,7 @@ def test_get_template_categories(
     )
 
     assert response.status_code == expected_status_code
-    if not expected_status_code == 200:
+    if not expected_status_code == 204:
         assert response.json["message"] == expected_msg
 
 
