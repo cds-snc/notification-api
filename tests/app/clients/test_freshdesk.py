@@ -184,15 +184,21 @@ class TestSendTicket:
     def test_send_ticket_other_category(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
             expected = {
-                "New template category request from name (test@email.com):<br>",
-                "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>",
-                "- New Template Category Request name: test category name <br>",
-                "- Template id request: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>",
-                "<hr><br>",
-                "Demande de nouvelle catégorie de modèle de name (test@email.com):<br>",
-                "- Identifiant du service: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>",
-                "- Nom de la nouvelle catégorie de modèle demandée: test category name <br>",
+                "product_id": 42,
+                "subject": "Support Request",
+                "description": "New template category request from name (test@email.com):<br>"
+                "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+                "- New Template Category Request name: test category name <br>"
+                "- Template id request: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>"
+                "<hr><br>"
+                "Demande de nouvelle catégorie de modèle de name (test@email.com):<br>"
+                "- Identifiant du service: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+                "- Nom de la nouvelle catégorie de modèle demandée: test category name <br>"
                 "- Demande d'identifiant de modèle:  http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>",
+                "email": "test@email.com",
+                "priority": 1,
+                "status": 2,
+                "tags": [],
             }
 
             encoded_auth = base64.b64encode(b"freshdesk-api-key:x").decode("ascii")
