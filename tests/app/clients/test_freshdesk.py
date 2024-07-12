@@ -185,16 +185,16 @@ class TestSendTicket:
         def match_json(request):
             expected = {
                 "product_id": 42,
-                "subject": "Support Request",
+                "subject": "New template category request",
                 "description": "New template category request from name (test@email.com):<br>"
                 "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
-                "- New Template Category Request name: test category name <br>"
+                "- New Template Category Request name: test category name<br>"
                 "- Template id request: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>"
                 "<hr><br>"
                 "Demande de nouvelle catégorie de modèle de name (test@email.com):<br>"
                 "- Identifiant du service: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
-                "- Nom de la nouvelle catégorie de modèle demandée: test category name <br>"
-                "- Demande d'identifiant de modèle:  http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>",
+                "- Nom de la nouvelle catégorie de modèle demandée: test category name<br>"
+                "- Demande d'identifiant de modèle: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103",
                 "email": "test@email.com",
                 "priority": 1,
                 "status": 2,
@@ -221,7 +221,7 @@ class TestSendTicket:
                 "support_type": "new_template_category_request",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "template_category_name_en": "test category name",
-                "template_category_name_fr": "test_category_name",
+                "template_category_name_fr": "test category name",
                 "template_id_link": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103",
             }
             with notify_api.app_context():
