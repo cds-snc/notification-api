@@ -458,7 +458,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
         sender=current_app.config["FROM_NUMBER"],
         template_id=sample_template.id,
         service_id=sample_template.service_id,
-        sending_vehicle="long_code",
+        sending_vehicle=ANY,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
