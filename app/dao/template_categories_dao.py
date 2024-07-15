@@ -5,6 +5,7 @@ from flask import current_app
 
 from app import db
 from app.dao.dao_utils import transactional
+from app.errors import InvalidRequest
 from app.models import Template, TemplateCategory
 
 
@@ -58,23 +59,25 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
     template_category = dao_get_template_category_by_id(template_category_id)
     templates = Template.query.filter_by(template_category_id=template_category_id).all()
 
-    if not templates or cascade:
+    if templates and not cascade:
+        raise InvalidRequest(
+            "Cannot delete categories associated with templates. Dissociate the category from templates first.", 400
+        )
+
+    if templates and cascade:
         # When there are templates and we are cascading, we set the category to a default
         # that matches the template's previous category's priority
-        if cascade:
-            for template in templates:
-                # Get the a default category that matches the previous priority of the template, based on template type
-                default_category_id = _get_default_category_id(
-                    template_category.sms_process_type
-                    if template.template_type == "sms"
-                    else template_category.email_process_type
-                )
-                template.template_category_id = default_category_id
-                template.updated_at = datetime.utcnow()
-                db.session.add(template)
-                db.session.commit()
+        for template in templates:
+            # Get the a default category that matches the previous priority of the template, based on template type
+            default_category_id = _get_default_category_id(
+                template_category.sms_process_type if template.template_type == "sms" else template_category.email_process_type
+            )
+            template.template_category_id = default_category_id
+            template.updated_at = datetime.utcnow()
+            db.session.add(template)
+            db.session.commit()
 
-        db.session.delete(template_category)
+    db.session.delete(template_category)
 
 
 def _get_default_category_id(process_type):

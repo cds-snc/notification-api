@@ -10,6 +10,7 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.dao.templates_dao import dao_create_template
+from app.errors import InvalidRequest
 from app.models import BULK, NORMAL, Template, TemplateCategory
 from tests.app.conftest import create_sample_template
 
@@ -375,7 +376,8 @@ def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_assoc
 ):
     create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
-    dao_delete_template_category_by_id(sample_template_category.id)
+    with pytest.raises(InvalidRequest):
+        dao_delete_template_category_by_id(sample_template_category.id)
 
     assert TemplateCategory.query.count() == 1
 
