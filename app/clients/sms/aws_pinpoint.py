@@ -60,7 +60,6 @@ class AwsPinpointClient(SmsClient):
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                     )
-
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
