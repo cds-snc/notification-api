@@ -114,6 +114,7 @@ def test_handles_opted_out_numbers(notify_api, mocker, sample_template):
     assert aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id) == "opted_out"
 
 
+@pytest.mark.serial
 def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample_template):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
