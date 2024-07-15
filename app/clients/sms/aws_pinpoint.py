@@ -45,13 +45,22 @@ class AwsPinpointClient(SmsClient):
                 pool_id = None  # AWS will send with a country specific AWS number, using our custom sender id
             try:
                 start_time = monotonic()
-                response = self._client.send_text_message(
-                    DestinationPhoneNumber=destinationNumber,
-                    OriginationIdentity=pool_id,
-                    MessageBody=content,
-                    MessageType=messageType,
-                    ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
-                )
+                if pool_id is None:
+                    response = self._client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                    )
+                else:
+                    response = self._client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        OriginationIdentity=pool_id,
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                    )
+
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
