@@ -41,7 +41,8 @@ class AwsPinpointClient(SmsClient):
             opted_out = False
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
             destinationNumber = to
-
+            if phonenumbers.region_code_for_number(match.number) != "CA":
+                pool_id = None  # AWS will send with a country specific AWS number, using our custom sender id
             try:
                 start_time = monotonic()
                 response = self._client.send_text_message(
