@@ -34,6 +34,9 @@ class ContactRequest:
     branding_logo_name: str = field(default="")
     alt_text_en: str = field(default="")
     alt_text_fr: str = field(default="")
+    template_category_name_en: str = field(default="")
+    template_category_name_fr: str = field(default="")
+    template_id_link: str = field(default="")
 
     def __post_init__(self):
         # email address is mandatory for us
@@ -56,3 +59,6 @@ class ContactRequest:
 
     def is_branding_request(self):
         return "branding_request" in self.support_type.lower()
+
+    def is_new_template_category_request(self):
+        return "new_template_category_request" in self.support_type.lower()
