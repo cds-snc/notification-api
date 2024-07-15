@@ -110,6 +110,7 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
 
+    @pytest.mark.serial
     def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
