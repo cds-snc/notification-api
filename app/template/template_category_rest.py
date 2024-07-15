@@ -9,7 +9,7 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.errors import register_errors
-from app.models import Template, TemplateCategory
+from app.models import TemplateCategory
 from app.schemas import template_category_schema
 
 template_category_blueprint = Blueprint(
@@ -92,13 +92,6 @@ def delete_template_category(template_category_id):
     Returns:
         (flask.Response): The response message and http status code.
     """
-
-    if request.args.get("cascade") == "True":
-        dao_delete_template_category_by_id(template_category_id, cascade=True)
-        return "", 204
-
-    if Template.query.filter_by(template_category_id=template_category_id).count() > 0:
-        return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
-    else:
-        dao_delete_template_category_by_id(template_category_id)
+    cascade = True if request.args.get("cascade") == "True" else False
+    dao_delete_template_category_by_id(template_category_id, cascade=cascade)
     return "", 204
