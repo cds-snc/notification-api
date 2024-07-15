@@ -114,7 +114,7 @@ def test_handles_opted_out_numbers(notify_api, mocker, sample_template):
     assert aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id) == "opted_out"
 
 
-def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample_template, template_id):
+def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample_template):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
     to = "+447512501324"
@@ -130,7 +130,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
         },
     ):
-        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=template_id)
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
 
     boto_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber="+447512501324",
