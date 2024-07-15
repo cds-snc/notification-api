@@ -119,7 +119,7 @@ def test_get_template_categories(
     "cascade, expected_status_code, expected_msg",
     [
         ("True", 204, ""),
-        ("False", 400, "Cannot delete a template category with templates assigned to it."),
+        ("False", 400, "Cannot delete categories associated with templates. Dissociate the category from templates first."),
     ],
 )
 def test_delete_template_category_cascade(
