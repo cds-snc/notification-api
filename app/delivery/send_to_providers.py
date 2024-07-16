@@ -22,6 +22,7 @@ from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
+from app.clients.sms import SmsSendingVehicles
 from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
@@ -107,7 +108,9 @@ def send_sms_to_provider(notification):
             try:
                 template_category_id = template_dict.get("template_category_id")
                 if current_app.config["FF_TEMPLATE_CATEGORY"] and template_category_id is not None:
-                    sending_vehicle = dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
+                    sending_vehicle = SmsSendingVehicles(
+                        dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
+                    )
                 else:
                     sending_vehicle = None
                 reference = provider.send_sms(

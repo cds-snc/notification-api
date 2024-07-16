@@ -1,6 +1,7 @@
 import pytest
 
 from app import aws_pinpoint_client
+from app.clients.sms import SmsSendingVehicles
 from tests.conftest import set_config_values
 
 
@@ -135,6 +136,7 @@ def test_respects_sending_vehicle_if_FF_enabled(
     to = "6135555555"
     content = "foo"
     reference = "ref"
+    sms_sending_vehicle = None if sending_vehicle is None else SmsSendingVehicles(sending_vehicle)
 
     with set_config_values(
         notify_api,
@@ -147,7 +149,7 @@ def test_respects_sending_vehicle_if_FF_enabled(
         },
     ):
         aws_pinpoint_client.send_sms(
-            to, content, reference=reference, template_id=sample_template.id, sending_vehicle=sending_vehicle
+            to, content, reference=reference, template_id=sample_template.id, sending_vehicle=sms_sending_vehicle
         )
 
     boto_mock.send_text_message.assert_called_once_with(

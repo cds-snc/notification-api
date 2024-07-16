@@ -3,7 +3,7 @@ from time import monotonic
 import boto3
 import phonenumbers
 
-from app.clients.sms import SmsClient
+from app.clients.sms import SmsClient, SmsSendingVehicles
 
 
 class AwsPinpointClient(SmsClient):
@@ -29,7 +29,8 @@ class AwsPinpointClient(SmsClient):
 
         if self.current_app.config["FF_TEMPLATE_CATEGORY"]:
             use_shortcode_pool = (
-                sending_vehicle == "short_code" or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+                sending_vehicle == SmsSendingVehicles.SHORT_CODE
+                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
             )
         else:
             use_shortcode_pool = (
