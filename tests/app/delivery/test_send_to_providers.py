@@ -110,7 +110,8 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
 
-    def test_should_use_sns_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
+    @pytest.mark.serial
+    def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
@@ -118,8 +119,8 @@ class TestProviderToUse:
                 "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             },
         ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234", international=True)
-        assert provider.name == "sns"
+            provider = send_to_providers.provider_to_use("sms", "1234", "+447512501324", international=True)
+        assert provider.name == "pinpoint"
 
     def test_should_use_sns_for_sms_if_sending_to_non_CA_zone_1(self, restore_provider_details, notify_api):
         with set_config_values(

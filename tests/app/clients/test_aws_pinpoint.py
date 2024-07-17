@@ -159,3 +159,30 @@ def test_respects_sending_vehicle_if_FF_enabled(
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
     )
+
+
+@pytest.mark.serial
+def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample_template):
+    boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+    to = "+447512501324"
+    content = "foo"
+    reference = "ref"
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+            "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
+        },
+    ):
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+
+    boto_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber="+447512501324",
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+    )

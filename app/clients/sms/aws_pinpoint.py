@@ -47,16 +47,25 @@ class AwsPinpointClient(SmsClient):
             opted_out = False
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
             destinationNumber = to
-
             try:
                 start_time = monotonic()
-                response = self._client.send_text_message(
-                    DestinationPhoneNumber=destinationNumber,
-                    OriginationIdentity=pool_id,
-                    MessageBody=content,
-                    MessageType=messageType,
-                    ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
-                )
+                # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
+                # Note that Canada does not currently support sender ids.
+                if phonenumbers.region_code_for_number(match.number) != "CA":
+                    response = self._client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                    )
+                else:
+                    response = self._client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        OriginationIdentity=pool_id,
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                    )
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
