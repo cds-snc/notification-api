@@ -170,7 +170,7 @@ class CompPenMsgHelper:
                     service=service,
                     template=template,
                     notification_type=SMS_TYPE,
-                    personalisation={'paymentAmount': payment_amount},
+                    personalisation={'amount': payment_amount},
                     sms_sender_id=sms_sender_id,
                     recipient=recipient,
                     recipient_item=recipient_item,
