@@ -1572,3 +1572,52 @@ def test_update_templates_category(sample_template, sample_template_category, ad
     template = dao_get_template_by_id(sample_template.id)
 
     assert template.template_category.id == sample_template_category.id
+
+
+class TestTemplateCategory:
+    DEFAULT_TEMPLATE_CATEGORY_LOW = "0dda24c2-982a-4f44-9749-0e38b2607e89"
+    DEFAULT_TEMPLATE_CATEGORY_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
+
+    # ensure that the process_type is overridden when a user changes categories
+    @pytest.mark.parametrize(
+        "template_category_id, expected_process_type",
+        [
+            # category doesnt change, process_type should remain as priority
+            (
+                "unchanged",
+                "priority",
+            ),
+            # category changes, process_type should be removed
+            (
+                DEFAULT_TEMPLATE_CATEGORY_MEDIUM,
+                None,
+            ),
+        ],
+    )
+    def test_process_type_should_be_reset_when_template_category_updated(
+        self,
+        sample_service,
+        sample_template_with_priority_override,
+        sample_user,
+        admin_request,
+        populate_generic_categories,
+        template_category_id,
+        expected_process_type,
+    ):
+        template_orig = dao_get_template_by_id(sample_template_with_priority_override.id)
+
+        calculated_tc = template_category_id if template_category_id != "unchanged" else str(template_orig.template_category_id)
+        admin_request.post(
+            "template.update_template",
+            service_id=sample_template_with_priority_override.service_id,
+            template_id=sample_template_with_priority_override.id,
+            _data={
+                "template_category_id": calculated_tc,
+                "redact_personalisation": False,
+            },
+            _expected_status=200,
+        )
+        template = dao_get_template_by_id(sample_template_with_priority_override.id)
+
+        assert str(template.template_category_id) == calculated_tc
+        assert template.process_type == expected_process_type
