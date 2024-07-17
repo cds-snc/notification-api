@@ -395,13 +395,12 @@ def provider_to_use(
         elif phonenumbers.region_code_for_number(match.number) != "CA":
             recipient_outside_canada = True
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
-
+    zone_1_outside_canada = recipient_outside_canada and not international
     do_not_use_pinpoint = (
         has_dedicated_number
         or sending_to_us_number
         or cannot_determine_recipient_country
-        or international
-        or recipient_outside_canada
+        or zone_1_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
     )
