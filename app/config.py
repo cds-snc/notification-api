@@ -285,7 +285,7 @@ class Config(object):
     PERSONALISATION_SIZE_LIMIT = env.int(
         "PERSONALISATION_SIZE_LIMIT", 1024 * 75
     )  # 75k bytes limit by default for personalisation data per notification
-       # temporary limit for GCForms, we will lower it back to 50k soon.
+    # temporary limit for GCForms, we will lower it back to 50k soon.
     API_PAGE_SIZE = 250
     TEST_MESSAGE_FILENAME = "Test message"
     ONE_OFF_MESSAGE_FILENAME = "Report"
