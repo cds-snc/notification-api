@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sys
+from typing import Optional
 from functools import lru_cache
 from urllib.parse import parse_qsl, parse_qs
 
@@ -266,20 +267,16 @@ def process_body_from_alb_invocation(event):
 
 @lru_cache(maxsize=None)
 def read_from_ssm(key: str) -> str:
+    ssm_client = boto3.client('ssm')
+    logger.info('Getting key: %s from SSM', key)
     try:
-        ssm_client = boto3.client('ssm')
-
-        logger.info('Generated ssm_client')
-
         response = ssm_client.get_parameter(Name=key, WithDecryption=True)
-
         logger.info('received ssm parameter')
-
-        return response.get('Parameter', {}).get('Value', '')
     except Exception as e:
-        logger.error('General Exception With Call to VeText')
-        logger.exception(e)
-        return ''
+        logger.critical('Exception raised while looking up SSM key %s. Exception: %s', key, e)
+        response = {}
+
+    return response.get('Parameter', {}).get('Value')
 
 
 def make_vetext_request(request_body):
@@ -322,13 +319,11 @@ def make_vetext_request(request_body):
         return
 
     # Authorization is basic token authentication that is stored in environment.
-    auth_token = read_from_ssm(ssm_path)
+    auth_token: Optional[str] = read_from_ssm(ssm_path)
 
-    if auth_token == '':
+    if not auth_token:
         logger.error('Unable to retrieve auth token from SSM')
         return
-
-    logger.info('Retrieved AuthToken from SSM')
 
     headers = {'Content-type': 'application/json', 'Authorization': 'Basic ' + auth_token}
 
@@ -356,14 +351,25 @@ def make_vetext_request(request_body):
         logger.debug('VeText response: %s', response.content)
         return response.content
     except requests.HTTPError as e:
-        logger.error('HTTPError With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, body, e)
+        logged_body = body.copy()
+        logged_body['body'] = 'redacted'
+        logger.error('HTTPError With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, logged_body, e)
     except requests.RequestException as e:
-        logger.error('RequestException With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, body, e)
+        logged_body = body.copy()
+        logged_body['body'] = 'redacted'
+        logger.error(
+            'RequestException With Call To VeText url: %s, with body: %s and error: %s',
+            endpoint_uri,
+            logged_body,
+            e,
+        )
     except Exception as e:
+        logged_body = body.copy()
+        logged_body['body'] = 'redacted'
         logger.error(
             'Unexpected Exception With Call to VeText url: %s, with body: %s and error: %s',
             endpoint_uri,
-            body,
+            logged_body,
             e,
         )
 
