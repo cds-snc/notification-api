@@ -1,35 +1,33 @@
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 from flask import current_app
 
+from app.models import Notification
 
-def build_ga_pixel_url(
-    notification,
-    provider,
-):
-    url_params_dict = {
-        'v': '1',
-        't': 'event',
-        'tid': current_app.config['GOOGLE_ANALYTICS_TID'],
-        'cid': notification.id,
-        'aip': '1',
-        'ec': 'email',
-        'ea': 'open',
-        'el': notification.template.name,
-        'dp': f"/email/vanotify"
-        f"{'/' + notification.service.organisation.name if notification.service.organisation else ''}"
-        f"/{notification.service.name}"
-        f"/{notification.template.name}",
-        'dt': notification.subject,
-        'cn': notification.template.name,
-        'cs': provider.get_name(),
-        'cm': 'email',
-        'ci': notification.template.id,
-    }
 
-    url_str = current_app.config['GOOGLE_ANALYTICS_URL']
-    url_params = urlencode(url_params_dict)
-    url = f'{url_str}?{url_params}'
+NOTIFICATION_API_GA4_GET_ENDPOINT = 'ga4/open-email-tracking'
 
-    current_app.logger.info(f'Generated google analytics pixel URL: {url}')
+GA4_PIXEL_TRACKING_NAME = 'email_open'
+GA4_PIXEL_TRACKING_SOURCE = 'vanotify'
+GA4_PIXEL_TRACKING_MEDIUM = 'email'
+
+
+def build_dynamic_ga4_pixel_tracking_url(notification: Notification) -> str:
+    """
+    Constructs a dynamic URL that contains information on the notification email being sent.
+    The dynamic URL is used for pixel tracking and sends a request to our application when
+    email is opened.
+
+    :param notification: The notification object containing template and service details.
+    :return: A dynamically constructed URL string.
+    """
+
+    url = (
+        f'{current_app.config["PUBLIC_DOMAIN"]}'
+        f'{NOTIFICATION_API_GA4_GET_ENDPOINT}?'
+        f'campaign={quote(notification.template.name)}&campaign_id={quote(str(notification.template.id))}&'
+        f'name={quote(GA4_PIXEL_TRACKING_NAME)}&source={quote(GA4_PIXEL_TRACKING_SOURCE)}&medium={quote(GA4_PIXEL_TRACKING_MEDIUM)}&'
+        f'content={quote(notification.service.name)}/{quote(str(notification.service.id))}/{quote(str(notification.id))}'
+    )
+    current_app.logger.debug('Generated Google Analytics 4 pixel URL: %s', url)
     return url

@@ -2,20 +2,26 @@
 Google Analytics 4
 """
 
+import os
 from app.googleanalytics.ga4_schemas import ga4_request_schema
 from flask import current_app, Blueprint, request
 from jsonschema import FormatChecker, ValidationError
 from jsonschema.validators import Draft202012Validator
 
+from flask import send_file
+
 ga4_blueprint = Blueprint('ga4', __name__, url_prefix='/ga4')
 
 ga4_request_validator = Draft202012Validator(ga4_request_schema, format_checker=FormatChecker(['uuid']))
+
+GA4_PIXEL_TRACKING_IMAGE_PATH = f'{os.getcwd()}/images/ga4_pixel_tracking.png'
 
 
 @ga4_blueprint.route('/open-email-tracking', methods=['GET'])
 def get_ga4():
     """
     This route is used for pixel tracking.  It is exercised when a veteran opens an e-mail.
+    The route returns a pixel image to avoid a broken icon image in notification emails.
     """
 
     # https://flask.palletsprojects.com/en/3.0.x/api/#flask.Request.args
@@ -26,8 +32,7 @@ def get_ga4():
 
     current_app.logger.info(request.query_string)
 
-    # "No Content"
-    return {}, 204
+    return send_file(GA4_PIXEL_TRACKING_IMAGE_PATH, mimetype='image/png')
 
 
 @ga4_blueprint.errorhandler(ValidationError)

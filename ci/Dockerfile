@@ -64,6 +64,7 @@ COPY app/ app
 COPY cd/ cd
 COPY migrations/ migrations
 COPY scripts/ scripts
+COPY images/ images
 
 # Non-relative import since multiple files
 COPY gunicorn_config.py application.py Makefile pytest.ini run_celery.py pyproject.toml /app/
