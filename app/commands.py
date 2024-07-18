@@ -1045,3 +1045,17 @@ def fix_billable_units():
         Notification.query.filter(Notification.id == notification.id).update({"billable_units": template.fragment_count})
     db.session.commit()
     print("End fix_billable_units")
+
+
+@notify_command(name="admin")
+@click.option("-u", "--user_email", required=True, help="user email address")
+@click.option("--on/--off", required=False, default=True, show_default="on", help="toggle admin on or off")
+def toggle_admin(user_email, on):
+    try:
+        user = User.query.filter(User.email_address == user_email).one()
+    except NoResultFound:
+        print(f"User {user_email} not found")
+        return
+    user.platform_admin = on
+    db.session.commit()
+    print(f"User {user.email_address} is now {'an admin' if user.platform_admin else 'not an admin'}")
