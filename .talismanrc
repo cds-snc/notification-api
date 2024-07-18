@@ -6,7 +6,7 @@ fileignoreconfig:
 - filename: certs/DigiCert-Global-G2-TLS-RSA-SHA256-2020-CA1.cer
   checksum: e06cc6abd755fa5cb5c2b1deceb1a40f87bf9f2b8be73102623cbfe0f28a20cd
 - filename: poetry.lock
-  checksum: 207f0a9fa4515568a6c4e88093df2515713554aebdd5601e164249afd6ac10b0
+  checksum: 556d0c59f58bdc6be2338e82c4dd7defe50548031baa9e6121e4e16f51d3242c
 - filename: tests/app/celery/test_scheduled_tasks.py
   checksum: cb2b003fb3ee404c293632e4bad6754ec6a35c895f392933d9203b5d93edb095
 - filename: tests/app/conftest.py

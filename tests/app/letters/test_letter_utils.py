@@ -1,20 +1,14 @@
 import pytest
 from datetime import datetime
 
-import boto3
 from flask import current_app
 from freezegun import freeze_time
-from moto import mock_s3
 
 from app.letters.utils import (
     get_bucket_name_and_prefix_for_notification,
     get_letter_pdf_filename,
     letter_print_day,
-    ScanErrorType,
 )
-from app.models import SERVICE_PERMISSION_TYPES
-
-from tests.app.db import LETTER_TYPE
 
 FROZEN_DATE_TIME = '2018-03-14 17:00:00'
 

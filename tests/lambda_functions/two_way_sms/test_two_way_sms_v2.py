@@ -8,7 +8,7 @@ from lambda_functions.two_way_sms.two_way_sms_v2 import (
     forward_to_service,
     get_ssm_param_info,
 )
-from moto import mock_ssm
+from moto import mock_aws
 import boto3
 
 LAMBDA_MODULE = 'lambda_functions.two_way_sms.two_way_sms_v2'
@@ -82,7 +82,7 @@ def test_validate_event_body(mocker, event):
     assert response is False
 
 
-@mock_ssm
+@mock_aws
 def test_get_ssm_param_info(mocker):
     param_name = '/auth/token'
     param_value = 'xyz'

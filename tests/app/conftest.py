@@ -7,7 +7,7 @@ import boto3
 import pytest
 import pytz
 import requests_mock
-from moto import mock_dynamodb
+from moto import mock_aws
 
 from app import db
 from app.clients.email import EmailClient
@@ -2404,7 +2404,7 @@ def dynamodb_mock():
         ],
         'BillingMode': 'PAY_PER_REQUEST',
     }
-    with mock_dynamodb():
+    with mock_aws():
         dynamodb = boto3.resource('dynamodb', region_name='us-east-1')
 
         # Create a mock DynamoDB table
