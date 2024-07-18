@@ -207,7 +207,7 @@ def register_blueprint(application):
         template_statistics as template_statistics_blueprint,
     )
     from app.user.rest import user_blueprint
-
+    from app.cypress.rest import cypress_blueprint
     register_notify_blueprint(application, service_blueprint, requires_admin_auth, "/service")
 
     register_notify_blueprint(application, user_blueprint, requires_admin_auth, "/user")
@@ -262,6 +262,7 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
+    register_notify_blueprint(application, cypress_blueprint, requires_no_auth, "/cypress")
 
 def register_v2_blueprints(application):
     from app.authentication.auth import requires_auth

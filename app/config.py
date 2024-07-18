@@ -344,6 +344,9 @@ class Config(object):
     DEFAULT_TEMPLATE_CATEGORY_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
     DEFAULT_TEMPLATE_CATEGORY_HIGH = "c4f87d7c-a55b-4c0f-91fe-e56c65bb1871"
 
+    # UUIDs for Cypress tests
+    CYPRESS_SERVICE = "c6e8d4f1-6999-4b0f-8f3e-0e1f7b7b1f1e"
+    
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
