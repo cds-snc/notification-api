@@ -20,30 +20,27 @@ We do not need what to write showing up in tickets though, so please do not unco
 
 ### User Story(ies)
 
-**As a**    <!-- describe the affected user --><br>
-**I want**  <!-- describe the need          --><br>
+**As a**    <!-- describe the affected user -->  
+**I want**  <!-- describe the need          -->  
 **So that** <!-- describe the outcome]      --> 
 
 ### Additional Info and Resources
 <!--Always attempt to include additional information.  This could include screenshots, log snippets, links to applicable code files, and/or articles/websites that have relevant info on the issue. Leave blank if n/a.-->
 
-## Engineering Checklist
-
-- [ ] 
 
 ## Acceptance Criteria
 <!--_**Required**_
 - e.g. when I send an email using an identifier, we retrieve the user’s email address in VA Profile and successfully deliver the email to that recipient-->
 
-<!--
+
 ## QA Considerations
-_For QA to populate. Leave blank if QA is not applicable on this ticket._
+<!--
+_Populate with relevant info for QA. Leave blank if QA is not applicable on this ticket._
 -->
 
-<!--
+
 ## Potential Dependencies
-_Leave blank if n/a_
--->
+<!-- Leave blank if n/a -->
 
 <!--
 ## Out of Scope
