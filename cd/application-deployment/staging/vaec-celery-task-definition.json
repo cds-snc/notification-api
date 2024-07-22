@@ -86,6 +86,10 @@
           "value": "True"
         },
         {
+          "name": "GA4_URL",
+          "value": "https://www.google-analytics.com/mp/collect"
+        },
+        {
           "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
           "value": "True"
         },
@@ -246,6 +250,14 @@
         {
           "name": "DANGEROUS_SALT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/dangerous-salt"
+        },
+        {
+          "name": "GA4_API_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/google-analytics/api-secret"
+        },
+        {
+          "name": "GA4_MEASUREMENT_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/google-analytics/measurement-id"
         },
         {
           "name": "VANOTIFY_SSL_CERT",

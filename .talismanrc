@@ -1,10 +1,18 @@
 fileignoreconfig:
+- filename: app/celery/process_ga4_measurement_tasks.py
+  checksum: 772d9605c861b6382c0bd488e1f5f52d8a5d8874ace5b80378407a905a514a29
+- filename: app/config.py
+  checksum: 6c8c5f65a1f7a4fbe3cfdfe45de676ee16e0f537cb3aa8b9888e9622bcd4b1e1
+- filename: app/googleanalytics/ga4.py
+  checksum: 287c63712d7ec37b359fde05c9506703c6b8fe8adf370db64aae1a65cacb31e6
 - filename: app/integrations/comp_and_pen/scheduled_message_helpers.py
   checksum: e9c9cd3d123445ab0797fd1387f5d48c775b71ea382fd58c44636f15886c5eff
 - filename: app/notifications/send_notifications.py
   checksum: ecd7a6380dde50f907568540a6c45454adc1d2adbd19853f45e0f85a1e27c50c
 - filename: certs/DigiCert-Global-G2-TLS-RSA-SHA256-2020-CA1.cer
   checksum: e06cc6abd755fa5cb5c2b1deceb1a40f87bf9f2b8be73102623cbfe0f28a20cd
+- filename: ci/.local.env
+  checksum: a2dca7e8e15af2a98112a405725e0b6f07c6adcb61507d8d32715ee17c383b6b
 - filename: poetry.lock
   checksum: 556d0c59f58bdc6be2338e82c4dd7defe50548031baa9e6121e4e16f51d3242c
 - filename: tests/app/celery/test_scheduled_tasks.py

@@ -106,6 +106,10 @@
           "value": "True"
         },
         {
+          "name": "GA4_URL",
+          "value": "https://www.google-analytics.com/mp/collect"
+        },
+        {
           "name": "GRANICUS_URL",
           "value": "https://stage-tms.govdelivery.com"
         },
@@ -242,6 +246,14 @@
         {
           "name": "DANGEROUS_SALT",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/dangerous-salt"
+        },
+        {
+          "name": "GA4_API_SECRET",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/google-analytics/api-secret"
+        },
+        {
+          "name": "GA4_MEASUREMENT_ID",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/google-analytics/measurement-id"
         },
         {
           "name": "GRANICUS_TOKEN",
