@@ -38,6 +38,7 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
+from app.clients.sms import SmsSendingVehicles
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -65,10 +66,7 @@ DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
 
-SHORT_CODE = "short_code"
-LONG_CODE = "long_code"
-
-sms_sending_vehicles = db.Enum(*[SHORT_CODE, LONG_CODE], name="sms_sending_vehicles")
+sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
 def filter_null_value_fields(obj):
