@@ -262,7 +262,7 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
-    register_notify_blueprint(application, cypress_blueprint, requires_no_auth, "/cypress")
+    register_notify_blueprint(application, cypress_blueprint, requires_admin_auth, "/cypress")
 
 def register_v2_blueprints(application):
     from app.authentication.auth import requires_auth
