@@ -22,12 +22,14 @@ from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
+from app.clients.sms import SmsSendingVehicles
 from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
     get_provider_details_by_notification_type,
 )
+from app.dao.template_categories_dao import dao_get_template_category_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
     DocumentDownloadException,
@@ -104,13 +106,21 @@ def send_sms_to_provider(notification):
 
         else:
             try:
+                template_category_id = template_dict.get("template_category_id")
+                if current_app.config["FF_TEMPLATE_CATEGORY"] and template_category_id is not None:
+                    sending_vehicle = SmsSendingVehicles(
+                        dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
+                    )
+                else:
+                    sending_vehicle = None
                 reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
                     template_id=notification.template_id,
-                    service_id=service.id,
+                    service_id=notification.service_id,
+                    sending_vehicle=sending_vehicle,
                 )
             except Exception as e:
                 notification.billable_units = template.fragment_count

@@ -3,7 +3,7 @@ from time import monotonic
 import boto3
 import phonenumbers
 
-from app.clients.sms import SmsClient
+from app.clients.sms import SmsClient, SmsSendingVehicles
 
 
 class AwsPinpointClient(SmsClient):
@@ -21,16 +21,22 @@ class AwsPinpointClient(SmsClient):
     def get_name(self):
         return self.name
 
-    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None, service_id=None):
+    def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None, service_id=None, sending_vehicle=None):
         messageType = "TRANSACTIONAL"
         matched = False
         opted_out = False
         response = {}
 
-        use_shortcode_pool = (
-            str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
-            or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
-        )
+        if self.current_app.config["FF_TEMPLATE_CATEGORY"]:
+            use_shortcode_pool = (
+                sending_vehicle == SmsSendingVehicles.SHORT_CODE
+                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+            )
+        else:
+            use_shortcode_pool = (
+                str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
+                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+            )
         if use_shortcode_pool:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         else:
