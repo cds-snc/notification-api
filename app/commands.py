@@ -1049,8 +1049,11 @@ def fix_billable_units():
 
 @notify_command(name="admin")
 @click.option("-u", "--user_email", required=True, help="user email address")
-@click.option("--on/--off", required=False, default=True, show_default="on", help="toggle admin on or off")
+@click.option("--on/--off", required=False, default=True, show_default="on", help="set admin on or off")
 def toggle_admin(user_email, on):
+    """
+    Set a user to be a platform admin or not
+    """
     try:
         user = User.query.filter(User.email_address == user_email).one()
     except NoResultFound:
