@@ -211,8 +211,9 @@ def update_template(service_id, template_id):
         raise InvalidRequest(errors, status_code=400)
 
     # if the template category is changing, set the process_type to None to remove any priority override
-    if updated_template["template_category_id"] != str(fetched_template.template_category_id):
-        updated_template["process_type"] = None
+    if current_app.config["FF_TEMPLATE_CATEGORY"]:
+        if updated_template["template_category_id"] != str(fetched_template.template_category_id):
+            updated_template["process_type"] = None
 
     update_dict = template_schema.load(updated_template)
     if update_dict.archived:
