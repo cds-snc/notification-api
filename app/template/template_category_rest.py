@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from app.dao.template_categories_dao import (
     dao_create_template_category,
@@ -64,6 +64,8 @@ def get_template_categories():
             return jsonify(message="Invalid filter 'template_type', valid template_types: 'sms', 'email'"), 400
 
     template_categories = template_category_schema.dump(dao_get_all_template_categories(template_type, hidden), many=True)
+    current_app.logger.info(f"get_template_categories schema dump: {template_categories}")
+    current_app.logger.info(f"get_template_categories response dump: {jsonify(template_categories)}")
     return jsonify(template_categories=template_categories), 200
 
 
