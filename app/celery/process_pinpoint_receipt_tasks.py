@@ -7,7 +7,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
-from app import notify_celery, statsd_client
+from app import notify_celery
 from app.celery.common import log_notification_total_time
 from app.celery.exceptions import AutoRetryException
 from app.dao.notifications_dao import (
@@ -18,15 +18,17 @@ from app.dao.notifications_dao import (
 )
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
+    Notification,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    Notification,
+    NOTIFICATION_PREFERENCES_DECLINED,
 )
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 
+# This is not an exhaustive list of all possible record statuses.  See the documentation linked below.
 _record_status_status_mapping = {
     'SUCCESSFUL': NOTIFICATION_DELIVERED,
     'DELIVERED': NOTIFICATION_DELIVERED,
@@ -41,11 +43,16 @@ _record_status_status_mapping = {
     'CARRIER_BLOCKED': NOTIFICATION_PERMANENT_FAILURE,
     'TTL_EXPIRED': NOTIFICATION_TEMPORARY_FAILURE,
     'MAX_PRICE_EXCEEDED': NOTIFICATION_TECHNICAL_FAILURE,
+    'OPTED_OUT': NOTIFICATION_PREFERENCES_DECLINED,
 }
 
 
 def _map_record_status_to_notification_status(record_status):
-    return _record_status_status_mapping[record_status]
+    if record_status not in _record_status_status_mapping:
+        # This is a programming error, or Pinpoint's response format has changed.
+        current_app.logger.critical('Unanticipated Pinpoint record status: %s', record_status)
+
+    return _record_status_status_mapping.get(record_status, NOTIFICATION_TECHNICAL_FAILURE)
 
 
 @notify_celery.task(
@@ -66,7 +73,13 @@ def process_pinpoint_results(
     Process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
     result in one event that contains the aggregate cost.
 
-    https://docs.aws.amazon.com/pinpoint/latest/developerguide/event-streams-data-sms.html
+    Permissible event type and record status values are documented here:
+        https://docs.aws.amazon.com/pinpoint/latest/developerguide/event-streams-data-sms.html
+
+    An _SMS.OPTOUT event occurs when a veteran replies "STOP" to a text message.  An OPTED_OUT status occurs
+    when Pinpoint receives input from Notify, but the Veteran has opted-out at the Pinpoint level.  This is
+    different than Notify's communication item preferences.  If a veteran opts-out at that level, Pinpoint
+    should never receive input trying to send a message to the opted-out veteran.
     """
 
     if not is_feature_enabled(FeatureFlag.PINPOINT_RECEIPTS_ENABLED):
@@ -114,13 +127,21 @@ def process_pinpoint_results(
 
         assert notification is not None
 
+        if notification_status == NOTIFICATION_PREFERENCES_DECLINED:
+            if event_type == '_SMS.OPTOUT':
+                notification.status_reason = 'The veteran responded with STOP.'
+            elif record_status == 'OPTED_OUT':
+                notification.status_reason = 'The veteran is opted-out at the Pinpoint level.'
+
         if price_in_millicents_usd > 0.0:
             notification.status = notification_status
             notification.segments_count = number_of_message_parts
             notification.cost_in_millicents = price_in_millicents_usd
             dao_update_notification(notification)
         else:
-            update_notification_status_by_id(notification_id=notification.id, status=notification_status)
+            update_notification_status_by_id(
+                notification_id=notification.id, status=notification_status, status_reason=notification.status_reason
+            )
 
         current_app.logger.info(
             'Pinpoint callback return status of %s for notification: %s',
@@ -148,10 +169,10 @@ def get_notification_status(
     record_status: str,
     reference: str,
 ) -> str:
-    if event_type in ('_SMS.OPTED_OUT', '_SMS.OPTOUT'):
-        current_app.logger.info('event type is OPTED_OUT for notification with reference %s', reference)
-        statsd_client.incr('callback.pinpoint.optout')
-        notification_status = NOTIFICATION_PERMANENT_FAILURE
+    if event_type == '_SMS.OPTOUT':
+        # The veteran replied "STOP".
+        current_app.logger.info('event type is OPTOUT for notification with reference %s', reference)
+        notification_status = NOTIFICATION_PREFERENCES_DECLINED
     else:
         notification_status = _map_record_status_to_notification_status(record_status)
     return notification_status
@@ -168,7 +189,6 @@ def attempt_to_get_notification(
     except NoResultFound:
         # A race condition exists wherein a callback might be received before a notification
         # persists in the database.  Continue retrying for up to 5 minutes (300 seconds).
-        statsd_client.incr('callback.pinpoint.no_notification_found')
         should_exit = True
         message_time = datetime.datetime.fromtimestamp(int(event_timestamp_in_ms) / 1000)
         if datetime.datetime.utcnow() - message_time < datetime.timedelta(minutes=5):
@@ -184,7 +204,6 @@ def attempt_to_get_notification(
         current_app.logger.warning(
             'multiple notifications found for reference: %s (update to %s)', reference, notification_status
         )
-        statsd_client.incr('callback.pinpoint.multiple_notifications_found')
         should_exit = True
 
     return notification, should_exit
