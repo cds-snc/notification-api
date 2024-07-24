@@ -33,8 +33,7 @@ def dao_get_all_template_categories(template_type=None, hidden=None):
 
     if hidden is not None:
         query = query.filter(TemplateCategory.hidden == hidden)
-    rows = query.all()
-    current_app.logger.info(f"dao_get_all_template_categories length: {len(rows)}")
+
     return query.all()
 
 
