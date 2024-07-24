@@ -1603,12 +1603,14 @@ class TestTemplateCategory:
         populate_generic_categories,
         template_category_id,
         expected_process_type,
-        notify_api
+        notify_api,
     ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": "true"}): # TODO remove statement when FF removed
+        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": "true"}):  # TODO remove statement when FF removed
             template_orig = dao_get_template_by_id(sample_template_with_priority_override.id)
 
-            calculated_tc = template_category_id if template_category_id != "unchanged" else str(template_orig.template_category_id)
+            calculated_tc = (
+                template_category_id if template_category_id != "unchanged" else str(template_orig.template_category_id)
+            )
             admin_request.post(
                 "template.update_template",
                 service_id=sample_template_with_priority_override.service_id,
