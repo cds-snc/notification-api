@@ -5,11 +5,12 @@ import os
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 from apig_wsgi import make_lambda_handler
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
-from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
 
 
 from app import create_app
