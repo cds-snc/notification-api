@@ -10,7 +10,7 @@ from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_update_template
 from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
 from tests import create_authorization_header
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.db import create_api_key, create_notification, save_notification
 
 
@@ -68,7 +68,7 @@ def test_get_notifications_empty_result(client, sample_api_key):
 
     notification = json.loads(response.get_data(as_text=True))
     assert notification["result"] == "error"
-    assert notification["message"] == "No result found"
+    assert notification["message"] == "Notification not found in database"
     assert response.status_code == 404
 
 
@@ -349,7 +349,6 @@ def test_valid_page_size_param(notify_api, notify_db, notify_db_session, sample_
 
 
 def test_invalid_page_size_param(client, notify_db, notify_db_session, sample_email_template):
-
     create_sample_notification(notify_db, notify_db_session)
     create_sample_notification(notify_db, notify_db_session)
     auth_header = create_authorization_header(service_id=sample_email_template.service_id)
@@ -481,7 +480,6 @@ def test_filter_by_status_and_template_type(client, sample_template, sample_emai
 
 
 def test_get_notification_by_id_returns_merged_template_content(client, sample_template_with_placeholders):
-
     sample_notification = save_notification(
         create_notification(sample_template_with_placeholders, personalisation={"name": "world"})
     )
@@ -545,7 +543,6 @@ def test_get_notifications_for_service_returns_merged_template_content(
 
 
 def test_get_notification_selects_correct_template_for_personalisation(client, notify_db, notify_db_session, sample_template):
-
     create_sample_notification(
         notify_db,
         notify_db_session,

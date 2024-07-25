@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from typing import Iterable
 
 from flask import current_app
 from notifications_utils.letter_timings import (
@@ -15,6 +16,7 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     JOB_STATUS_CANCELLED,
     JOB_STATUS_FINISHED,
+    JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     LETTER_TYPE,
@@ -22,6 +24,7 @@ from app.models import (
     NOTIFICATION_CREATED,
     Job,
     Notification,
+    NotificationHistory,
     ServiceDataRetention,
     Template,
 )
@@ -30,16 +33,22 @@ from app.utils import midnight_n_days_ago
 
 @statsd(namespace="dao")
 def dao_get_notification_outcomes_for_job(service_id, job_id):
-    return (
+    notification = (
         db.session.query(func.count(Notification.status).label("count"), Notification.status)
         .filter(Notification.service_id == service_id, Notification.job_id == job_id)
         .group_by(Notification.status)
-        .all()
     )
+    notification_history = (
+        db.session.query(func.count(NotificationHistory.status).label("count"), NotificationHistory.status)
+        .filter(NotificationHistory.service_id == service_id, NotificationHistory.job_id == job_id)
+        .group_by(NotificationHistory.status)
+    )
+
+    return notification.union(notification_history).all()
 
 
 def dao_get_job_by_service_id_and_job_id(service_id, job_id):
-    return Job.query.filter_by(service_id=service_id, id=job_id).one()
+    return Job.query.filter_by(service_id=service_id, id=job_id).first()
 
 
 def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None):
@@ -63,10 +72,20 @@ def dao_get_job_by_id(job_id) -> Job:
     return Job.query.filter_by(id=job_id).one()
 
 
-def dao_archive_job(job):
-    job.archived = True
-    db.session.add(job)
+def dao_archive_jobs(jobs: Iterable[Job]):
+    """
+    Archive the given jobs.
+    Args:
+        jobs (Iterable[Job]): The jobs to archive.
+    """
+    for job in jobs:
+        job.archived = True
+        db.session.add(job)
     db.session.commit()
+
+
+def dao_get_in_progress_jobs():
+    return Job.query.filter(Job.job_status == JOB_STATUS_IN_PROGRESS).all()
 
 
 def dao_set_scheduled_jobs_to_pending():
@@ -117,7 +136,7 @@ def dao_update_job(job):
     db.session.commit()
 
 
-def dao_get_jobs_older_than_data_retention(notification_types):
+def dao_get_jobs_older_than_data_retention(notification_types, limit=None):
     flexible_data_retention = ServiceDataRetention.query.filter(
         ServiceDataRetention.notification_type.in_(notification_types)
     ).all()
@@ -125,8 +144,7 @@ def dao_get_jobs_older_than_data_retention(notification_types):
     today = datetime.utcnow().date()
     for f in flexible_data_retention:
         end_date = today - timedelta(days=f.days_of_retention)
-
-        jobs.extend(
+        query = (
             Job.query.join(Template)
             .filter(
                 func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
@@ -135,13 +153,15 @@ def dao_get_jobs_older_than_data_retention(notification_types):
                 Job.service_id == f.service_id,
             )
             .order_by(desc(Job.created_at))
-            .all()
         )
+        if limit:
+            query = query.limit(limit - len(jobs))
+        jobs.extend(query.all())
 
     end_date = today - timedelta(days=7)
     for notification_type in notification_types:
         services_with_data_retention = [x.service_id for x in flexible_data_retention if x.notification_type == notification_type]
-        jobs.extend(
+        query = (
             Job.query.join(Template)
             .filter(
                 func.coalesce(Job.scheduled_for, Job.created_at) < end_date,
@@ -150,8 +170,10 @@ def dao_get_jobs_older_than_data_retention(notification_types):
                 Job.service_id.notin_(services_with_data_retention),
             )
             .order_by(desc(Job.created_at))
-            .all()
         )
+        if limit:
+            query = query.limit(limit - len(jobs))
+        jobs.extend(query.all())
 
     return jobs
 

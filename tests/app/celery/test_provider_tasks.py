@@ -64,7 +64,7 @@ def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_sms_task
     sms_method(notification_id)
     app.delivery.send_to_providers.send_sms_to_provider.assert_not_called()
 
-    getattr(app.celery.provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=0)
+    getattr(app.celery.provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=25)
 
 
 def test_should_call_send_email_to_provider_from_deliver_email_task(
@@ -87,7 +87,7 @@ def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_email_ta
 
     deliver_email(notification_id)
     app.delivery.send_to_providers.send_email_to_provider.assert_not_called()
-    app.celery.provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks")
+    app.celery.provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks", countdown=25)
 
 
 # DO THESE FOR THE 4 TYPES OF TASK
@@ -114,7 +114,7 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
         sms_method(sample_notification.id)
     assert str(sample_notification.id) in str(e.value)
 
-    getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=0)
+    getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=300)
 
     assert sample_notification.status == "technical-failure"
     queued_callback.assert_called_once_with(sample_notification)
@@ -135,7 +135,7 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task
         deliver_email(sample_notification.id)
     assert str(sample_notification.id) in str(e.value)
 
-    provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks")
+    provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks", countdown=300)
     assert sample_notification.status == "technical-failure"
     queued_callback.assert_called_once_with(sample_notification)
 

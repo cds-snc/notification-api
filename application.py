@@ -3,31 +3,27 @@ from __future__ import print_function
 
 import os
 
-import awsgi
 import newrelic.agent  # See https://bit.ly/2xBVKBH
-import sentry_sdk
+from apig_wsgi import make_lambda_handler
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
 from flask import Flask
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.flask import FlaskIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
 
 load_dotenv()
 
-sentry_sdk.init(
-    dsn=os.environ.get("SENTRY_URL", ""),
-    integrations=[CeleryIntegration(), FlaskIntegration(), RedisIntegration(), SqlalchemyIntegration()],
-    release="notify-api@" + os.environ.get("GIT_SHA", ""),
-)
-
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
+
 app = create_app(application)
-app
+
+xray_recorder.configure(service='api')
+XRayMiddleware(app, xray_recorder)
+
+apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
@@ -42,4 +38,5 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 def handler(event, context):
     newrelic.agent.initialize()  # noqa: E402
-    return awsgi.response(app, event, context)
+    newrelic.agent.register_application(timeout=20.0)
+    return apig_wsgi_handler(event, context)

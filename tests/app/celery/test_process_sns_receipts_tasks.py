@@ -15,7 +15,8 @@ from app.models import (
     NOTIFICATION_TEMPORARY_FAILURE,
 )
 from app.notifications.callbacks import create_delivery_status_callback_data
-from tests.app.conftest import sample_notification as create_sample_notification
+from celery.exceptions import MaxRetriesExceededError
+from tests.app.conftest import create_sample_notification
 from tests.app.db import (
     create_notification,
     create_service_callback_api,
@@ -38,7 +39,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
     assert process_sns_results(sns_success_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-    assert get_notification_by_id(notification.id).provider_response is None
+    assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
 
     mock_logger.assert_called_once_with(f"SNS callback return status of delivered for notification: {notification.id}")
 
@@ -56,15 +57,15 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
             "Phone carrier is currently unreachable/unavailable",
             NOTIFICATION_TEMPORARY_FAILURE,
             False,
-            False,
+            True,
         ),
         (
             "Phone is currently unreachable/unavailable",
             NOTIFICATION_PERMANENT_FAILURE,
             False,
-            False,
+            True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, False),
+        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
     ],
 )
 def test_process_sns_results_failed(
@@ -108,34 +109,21 @@ def test_process_sns_results_failed(
     assert mock_warning_logger.call_count == int(should_log_warning)
 
 
-def test_sns_callback_should_retry_if_notification_is_new(mocker):
+def test_sns_callback_should_retry_if_notification_is_missing(notify_db, mocker):
     mock_retry = mocker.patch("app.celery.process_sns_receipts_tasks.process_sns_results.retry")
-    mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.error")
-
-    with freeze_time("2017-11-17T12:14:03.646Z"):
-        assert process_sns_results(sns_success_callback(reference="ref", timestamp="2017-11-17T12:14:02.000Z")) is None
-        assert mock_logger.call_count == 0
-        assert mock_retry.call_count == 1
+    assert process_sns_results(sns_success_callback(reference="ref")) is None
+    assert mock_retry.call_count == 1
 
 
-def test_sns_callback_should_log_if_notification_is_missing(mocker):
-    mock_retry = mocker.patch("app.celery.process_sns_receipts_tasks.process_sns_results.retry")
+def test_sns_callback_should_give_up_after_max_tries(notify_db, mocker):
+    mocker.patch(
+        "app.celery.process_sns_receipts_tasks.process_sns_results.retry",
+        side_effect=MaxRetriesExceededError,
+    )
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.warning")
 
-    with freeze_time("2017-11-17T12:34:03.646Z"):
-        assert process_sns_results(sns_success_callback(reference="ref")) is None
-        assert mock_retry.call_count == 0
-        mock_logger.assert_called_once_with("notification not found for reference: ref (update to delivered)")
-
-
-def test_sns_callback_should_not_retry_if_notification_is_old(client, notify_db, mocker):
-    mock_retry = mocker.patch("app.celery.process_sns_receipts_tasks.process_sns_results.retry")
-    mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.error")
-
-    with freeze_time("2017-11-17T12:16:00.000Z"):  # 6 minutes apart and max is 5 minutes
-        assert process_sns_results(sns_success_callback(reference="ref", timestamp="2017-11-17T12:10:00.000Z")) is None
-        assert mock_logger.call_count == 0
-        assert mock_retry.call_count == 0
+    assert process_sns_results(sns_success_callback(reference="ref")) is None
+    mock_logger.assert_called_with("notification not found for SNS reference: ref (update to delivered). Giving up.")
 
 
 def test_process_sns_results_retry_called(sample_template, mocker):
@@ -195,9 +183,9 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
 
         assert process_sns_results(sns_success_callback(reference="ref"))
         assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
-        assert get_notification_by_id(notification.id).provider_response is None
+        assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
         statsd_client.timing_with_dates.assert_any_call("callback.sns.elapsed-time", datetime.utcnow(), notification.sent_at)
         statsd_client.incr.assert_any_call("callback.sns.delivered")
         updated_notification = get_notification_by_id(notification.id)
-        encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+        signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
+        send_mock.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")

@@ -1,9 +1,30 @@
 from functools import cached_property, partial
-from typing import Optional
+from typing import Any, Optional
 
-from flask import _app_ctx_stack  # type: ignore
+import greenlet  # type: ignore
+import sqlalchemy.types as types
 from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
 from sqlalchemy import orm
+
+
+# adapted from https://r2c.dev/blog/2020/fixing-leaky-logs-how-to-find-a-bug-and-ensure-it-never-returns/
+class SensitiveString(types.TypeDecorator):
+    """
+    String column type for use with SQLAlchemy models whose
+    content should not appear in logs or exceptions
+    """
+
+    impl = types.String
+
+    class Repr(str):
+        def __repr__(self) -> str:
+            return "********"
+
+    def process_bind_param(self, value: Optional[str], dialect: Any) -> Optional[Repr]:
+        return self.Repr(value) if value else None
+
+    def process_result_value(self, value: Optional[Repr], dialect: Any) -> Optional[str]:
+        return str(value) if value else None
 
 
 class ExplicitRoutingSession(SignallingSession):
@@ -47,12 +68,13 @@ class ExplicitRoutingSession(SignallingSession):
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
+    SensitiveString = SensitiveString
+
     def on_reader(self):
         return self.session().using_bind("reader")
 
     def create_scoped_session(self, options=None):
         options = options or {}
-        scopefunc = options.pop("scopefunc", _app_ctx_stack.__ident_func__)
         options.setdefault("query_cls", BaseQuery)
 
-        return orm.scoped_session(partial(ExplicitRoutingSession, self, **options), scopefunc=scopefunc)
+        return orm.scoped_session(partial(ExplicitRoutingSession, self, **options), scopefunc=greenlet.getcurrent)

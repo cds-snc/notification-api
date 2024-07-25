@@ -58,6 +58,7 @@ def letter_request(
     return json_resp
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 @pytest.mark.parametrize("reference", [None, "reference_from_client"])
 def test_post_letter_notification_returns_201(client, sample_letter_template, mocker, reference):
     mock = mocker.patch("app.celery.tasks.letters_pdf_tasks.create_letters_pdf.apply_async")
@@ -97,6 +98,7 @@ def test_post_letter_notification_returns_201(client, sample_letter_template, mo
     mock.assert_called_once_with([str(notification.id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_post_letter_notification_sets_postage(client, notify_db_session, mocker):
     service = create_service(service_permissions=[LETTER_TYPE])
     template = create_template(service, template_type="letter", postage="first")
@@ -129,7 +131,6 @@ def test_post_letter_notification_sets_postage(client, notify_db_session, mocker
 def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_delivered(
     notify_api, client, sample_letter_template, mocker, env
 ):
-
     data = {
         "template_id": str(sample_letter_template.id),
         "personalisation": {
@@ -170,7 +171,6 @@ def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_d
 def test_post_letter_notification_with_test_key_creates_pdf_and_sets_status_to_sending_and_sends_fake_response_file(
     notify_api, client, sample_letter_template, mocker, env
 ):
-
     data = {
         "template_id": str(sample_letter_template.id),
         "personalisation": {
@@ -278,7 +278,7 @@ def test_notification_returns_400_if_address_doesnt_have_underscores(client, sam
 
 
 def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(client, sample_letter_template, mocker):
-    persist_mock = mocker.patch("app.v2.notifications.post_notifications.persist_notification")
+    persist_mock = mocker.patch("app.notifications.process_notifications.persist_notification")
     mocker.patch(
         "app.v2.notifications.post_notifications.check_rate_limiting",
         side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),

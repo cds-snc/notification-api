@@ -1,28 +1,65 @@
 {
-	"name": "Python 3.9 & PostgreSQL",
+	"name": "notification-api",
 	"dockerComposeFile": "docker-compose.yml",
 	"service": "dev",
 	"workspaceFolder": "/workspace",
-
-	"settings": { 
-		"python.linting.enabled": true,
-		"python.linting.pylintEnabled": true,
-		"python.linting.pylintPath": "/usr/local/bin/pylint",
-		"python.pythonPath": "/usr/local/bin/python",
-		"terminal.integrated.shell.linux": "/bin/bash",
-		"terminal.integrated.fontFamily": "FiraCode Nerd Font Mono"
+	"shutdownAction": "stopCompose",
+	"remoteEnv": {
+		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
-
-	"extensions": [
-		"donjayamanne.python-extension-pack",
-		"ms-azuretools.vscode-docker",
-		"ms-python.vscode-pylance",
-		"eamodio.gitlens",
-		"wholroyd.jinja",
-		"pmbenjamin.vscode-snyk",
-		"visualstudioexptteam.vscodeintellicode",
-		"yzhang.markdown-all-in-one",
-		"ms-ossdata.vscode-postgresql",
-		"googlecloudtools.cloudcode"
-	]
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"[python]": {
+					"editor.formatOnSave": true
+				},
+				"python.formatting.blackPath": "/usr/local/bin/black",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.linting.pylintPath": "/usr/local/bin/pylint",
+				"python.pythonPath": "/usr/local/bin/python"
+			},
+			"extensions": [
+				"bungcip.better-toml",
+				"donjayamanne.python-extension-pack",
+				"eamodio.gitlens",
+				"GitHub.copilot",
+				"GitHub.copilot-labs",
+				"googlecloudtools.cloudcode",
+				"kaiwood.center-editor-window",
+				"matangover.mypy",
+				"ms-azuretools.vscode-docker",
+				"ms-ossdata.vscode-postgresql",
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-vsliveshare.vsliveshare",
+				"mtxr.sqltools",
+				"mtxr.sqltools-driver-pg",
+				"pmbenjamin.vscode-snyk",
+				"timonwong.shellcheck",
+				"usernamehw.errorlens",
+				"visualstudioexptteam.vscodeintellicode",
+				"wenfangdu.jump",
+				"wholroyd.jinja",
+				"yzhang.markdown-all-in-one"
+			]
+		}
+	},
+	"features": {
+		"docker-from-docker": {
+			"version": "latest",
+			"moby": true
+		},
+		"kubectl-helm-minikube": {
+			"version": "latest",
+			"helm": "latest",
+			"minikube": "none"
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "14.17.4"
+		}
+	},
+	"postCreateCommand": "notify-dev-entrypoint.sh",
+	"remoteUser": "vscode",
+	
 }

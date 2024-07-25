@@ -1,0 +1,43 @@
+# Notify + Cypress 🎉
+
+## Setup
+This folder contains Cypress tests suites.  In order to run them, you'll need to install cypress and its dependencies. If you're running inside the dev container, rebuild your dev container to get the necessary packages.  
+
+## Running the tests
+### In your devcontainer
+There are some issues getting the cypress UI to launch within the devcontainer.  For now, you can run the headless tests inside the dev container but if you want to launch the cypress UI you will need to do that outside of the dev container.  
+
+There are 2 helper scripts in `package.json` to run 2 of the test suites.  Run these from the `tests_cypress/` folder:
+- `npm run smoke`:  this will run the smoke tests in headless mode using the electron browser
+- `npm run a11y`: this will run the accessibility tests in headless mode using the electron browser
+
+### Outside of your devcontainer
+To launch the cypress UI, where you can choose your test suite and visually debug and inspect tests, run (from the `tests_cypress/` folder):
+- `npm run cypress`: this will open the cypress UI where you can choose which tests to run and in which browser
+
+### Local installation
+To install cypress locally, use the following command, from the `tests_cypress/` folder:
+```bash
+npm install
+npx cypress install
+```
+
+## Configuration 
+- `cypress.env.json`: this file contains sensitive items like api keys and passphrases that you'll need to run the tests. You'll need to add the file `cypress.env.json` into the `tests_cypress/` folder and its contents can be found in lastpass.
+- `config.js`: this file contains non-sensitive items like template ids and hostnames that you'll need to run the tests
+
+### `cypress.env.json` contents
+| key             | description                                     |
+| --------------- | ----------------------------------------------- |
+| ADMIN_SECRET    | Secret admin uses to authenticate against API   |
+| ADMIN_USERNAME  | Username admin uses to authenticate against API |
+| NOTIFY_USER     | Notify user used by the tests                   |
+| NOTIFY_PASSWORD | Password of NOTIFY_USER                         |
+| IMAP_PASSWORD   | IMAP password of gmail account for NOTIFY_USER  |
+
+### Target environment 🎯
+The tests are configured to run against the staging environment by default.  To run the tests against your local environment, you'll need to create a local service and API keys and store these values in your config.  You will also need to update the `ConfigToUse` variable in `config.js` file:
+```js
+const ConfigToUse = config.LOCAL;
+```
+

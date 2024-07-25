@@ -1,4 +1,6 @@
 import json
+import random
+import string
 import uuid
 from datetime import datetime, timedelta
 
@@ -19,6 +21,7 @@ from app.dao.notifications_dao import dao_create_notification
 from app.dao.organisation_dao import dao_create_organisation
 from app.dao.provider_rates_dao import create_provider_rates
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.history_meta import create_history
@@ -50,6 +53,7 @@ from app.models import (
     ServiceEmailReplyTo,
     ServiceSafelist,
     Template,
+    TemplateCategory,
     TemplateHistory,
 )
 from tests import create_authorization_header
@@ -142,14 +146,14 @@ def sample_sms_code(notify_db, notify_db_session, code=None, code_type="sms", us
     return code
 
 
-@pytest.fixture(scope="function")
-def sample_service(
+def create_sample_service(
     notify_db,
     notify_db_session,
     service_name="Sample service",
     user=None,
     restricted=False,
     limit=1000,
+    sms_limit=1000,
     email_from=None,
     permissions=None,
     research_mode=None,
@@ -162,6 +166,7 @@ def sample_service(
     data = {
         "name": service_name,
         "message_limit": limit,
+        "sms_daily_limit": sms_limit,
         "restricted": restricted,
         "email_from": email_from,
         "created_by": user,
@@ -185,6 +190,31 @@ def sample_service(
     return service
 
 
+@pytest.fixture(scope="function")
+def sample_service(
+    notify_db,
+    notify_db_session,
+    service_name="Sample service",
+    user=None,
+    restricted=False,
+    limit=1000,
+    email_from=None,
+    permissions=None,
+    research_mode=None,
+):
+    return create_sample_service(
+        notify_db,
+        notify_db_session,
+        service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None,
+    )
+
+
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
     service = create_service(
@@ -203,7 +233,98 @@ def _sample_service_custom_letter_contact_block(sample_service):
 
 
 @pytest.fixture(scope="function")
-def sample_template(
+def sample_template_category_with_templates(notify_db, notify_db_session, sample_template_category):
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    return sample_template_category
+
+
+@pytest.fixture(scope="function")
+def populate_generic_categories(notify_db_session):
+    generic_categories = [
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
+            "name_en": "Low Category (Bulk)",
+            "name_fr": "Catégorie Basse (En Vrac)",
+            "sms_process_type": "low",
+            "email_process_type": "low",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
+            "name_en": "Medium Category (Normal)",
+            "name_fr": "Catégorie Moyenne (Normale)",
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
+            "name_en": "High Category (Priority)",
+            "name_fr": "Catégorie Haute (Priorité)",
+            "sms_process_type": "high",
+            "email_process_type": "high",
+            "hidden": True,
+        },
+    ]
+    for category in generic_categories:
+        dao_create_template_category(TemplateCategory(**category))
+
+    yield
+
+
+@pytest.fixture(scope="function")
+def sample_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en="Category Name",
+        name_fr="Category Name (FR)",
+        description_en="Category Description",
+        description_fr="Category Description (FR)",
+        sms_process_type="normal",
+        email_process_type="normal",
+        hidden=False,
+    )
+
+
+def create_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    data = {
+        "name_en": name_en,
+        "name_fr": name_fr,
+        "description_en": description_en,
+        "description_fr": description_fr,
+        "sms_process_type": sms_process_type,
+        "email_process_type": email_process_type,
+        "hidden": hidden,
+    }
+    template_category = TemplateCategory(**data)
+    dao_create_template_category(template_category)
+
+    return template_category
+
+
+def create_sample_template(
     notify_db,
     notify_db_session,
     template_name="Template Name",
@@ -214,6 +335,7 @@ def sample_template(
     subject_line="Subject",
     user=None,
     service=None,
+    template_category=None,
     created_by=None,
     process_type="normal",
     permissions=[EMAIL_TYPE, SMS_TYPE],
@@ -241,6 +363,11 @@ def sample_template(
         data.update({"subject": subject_line})
     if template_type == "letter":
         data["postage"] = "second"
+    if template_category:
+        data["template_category"] = template_category
+    else:
+        cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4), name_fr=str(uuid.uuid4))
+        data.update({"template_category_id": cat.id})
     template = Template(**data)
     dao_create_template(template)
 
@@ -248,13 +375,80 @@ def sample_template(
 
 
 @pytest.fixture(scope="function")
-def sample_template_without_sms_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
+def sample_template(
+    notify_db,
+    notify_db_session,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="normal",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="normal",
+        template_category=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
 
 
 @pytest.fixture(scope="function")
-def sample_template_without_letter_permission(notify_db, notify_db_session):
-    return sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
+def sample_template_with_priority_override(
+    notify_db,
+    notify_db_session,
+    sample_template_category,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="priority",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="priority",
+        template_category=sample_template_category,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+def create_sample_template_without_sms_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, permissions=[EMAIL_TYPE])
+
+
+def create_sample_template_without_letter_permission(notify_db, notify_db_session):
+    return create_sample_template(notify_db, notify_db_session, template_type="letter", permissions=[EMAIL_TYPE])
 
 
 @pytest.fixture(scope="function")
@@ -269,8 +463,7 @@ def sample_sms_template_with_html(sample_service):
     return create_template(sample_service, content="Hello (( Name))\nHere is <em>some HTML</em> & entities")
 
 
-@pytest.fixture(scope="function")
-def sample_email_template(
+def create_sample_email_template(
     notify_db,
     notify_db_session,
     template_name="Email Template Name",
@@ -303,8 +496,32 @@ def sample_email_template(
 
 
 @pytest.fixture(scope="function")
-def sample_template_without_email_permission(notify_db, notify_db_session):
-    return sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
+def sample_email_template(
+    notify_db,
+    notify_db_session,
+    template_name="Email Template Name",
+    template_type="email",
+    user=None,
+    content="This is a template",
+    subject_line="Email Subject",
+    service=None,
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_email_template(
+        notify_db,
+        notify_db_session,
+        template_name,
+        template_type,
+        user,
+        content,
+        subject_line,
+        service=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+def create_sample_template_without_email_permission(notify_db, notify_db_session):
+    return create_sample_email_template(notify_db, notify_db_session, permissions=[SMS_TYPE])
 
 
 @pytest.fixture
@@ -320,7 +537,7 @@ def sample_trial_letter_template(sample_service_full_permissions):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_placeholders(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK",
@@ -330,7 +547,7 @@ def sample_email_template_with_placeholders(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>",
@@ -340,7 +557,7 @@ def sample_email_template_with_html(notify_db, notify_db_session):
 
 @pytest.fixture(scope="function")
 def sample_email_template_with_advanced_html(notify_db, notify_db_session):
-    return sample_email_template(
+    return create_sample_email_template(
         notify_db,
         notify_db_session,
         content="<div style='color: pink' dir='rtl'>((name)) <em>some HTML</em> that should be right aligned</div>",
@@ -348,8 +565,7 @@ def sample_email_template_with_advanced_html(notify_db, notify_db_session):
     )
 
 
-@pytest.fixture(scope="function")
-def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
+def create_sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL, name=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     data = {
@@ -364,17 +580,21 @@ def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE
 
 
 @pytest.fixture(scope="function")
+def sample_api_key(notify_db, notify_db_session, service=None, key_type=KEY_TYPE_NORMAL):
+    return create_sample_api_key(notify_db, notify_db_session, service, key_type)
+
+
+@pytest.fixture(scope="function")
 def sample_test_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEST)
 
 
 @pytest.fixture(scope="function")
 def sample_team_api_key(notify_db, notify_db_session, service=None):
-    return sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
+    return create_sample_api_key(notify_db, notify_db_session, service, KEY_TYPE_TEAM)
 
 
-@pytest.fixture(scope="function")
-def sample_job(
+def create_sample_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -412,6 +632,35 @@ def sample_job(
 
 
 @pytest.fixture(scope="function")
+def sample_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    notification_count=1,
+    created_at=None,
+    job_status="pending",
+    scheduled_for=None,
+    processing_started=None,
+    original_file_name="some.csv",
+    archived=False,
+):
+    return create_sample_job(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        notification_count=1,
+        created_at=None,
+        job_status="pending",
+        scheduled_for=None,
+        processing_started=None,
+        original_file_name="some.csv",
+        archived=False,
+    )
+
+
+@pytest.fixture(scope="function")
 def sample_job_with_placeholdered_template(
     sample_job,
     sample_template_with_placeholders,
@@ -435,7 +684,7 @@ def sample_email_job(notify_db, notify_db_session, service=None, template=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     if template is None:
-        template = sample_email_template(notify_db, notify_db_session, service=service)
+        template = create_sample_email_template(notify_db, notify_db_session, service=service)
     job_id = uuid.uuid4()
     data = {
         "id": job_id,
@@ -471,8 +720,7 @@ def sample_letter_job(sample_letter_template):
     return job
 
 
-@pytest.fixture(scope="function")
-def sample_notification_with_job(
+def create_sample_notification_with_job(
     notify_db,
     notify_db_session,
     service=None,
@@ -514,7 +762,43 @@ def sample_notification_with_job(
 
 
 @pytest.fixture(scope="function")
-def sample_notification(
+def sample_notification_with_job(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+):
+    return create_sample_notification_with_job(
+        notify_db,
+        notify_db_session,
+        service,
+        template,
+        job,
+        job_row_number,
+        to_field,
+        status,
+        reference,
+        created_at,
+        sent_at,
+        billable_units,
+        personalisation,
+        api_key,
+        key_type,
+    )
+
+
+def create_sample_notification(
     notify_db,
     notify_db_session,
     service=None,
@@ -538,6 +822,7 @@ def sample_notification(
     scheduled_for=None,
     normalised_to=None,
     postage=None,
+    queue_name=None,
 ):
     if created_at is None:
         created_at = datetime.utcnow()
@@ -585,6 +870,7 @@ def sample_notification(
         "rate_multiplier": rate_multiplier,
         "normalised_to": normalised_to,
         "postage": postage,
+        "queue_name": queue_name,
     }
     if job_row_number is not None:
         data["job_row_number"] = job_row_number
@@ -602,6 +888,61 @@ def sample_notification(
         db.session.commit()
 
     return notification
+
+
+@pytest.fixture(scope="function")
+def sample_notification(
+    notify_db,
+    notify_db_session,
+    service=None,
+    template=None,
+    job=None,
+    job_row_number=None,
+    to_field=None,
+    status="created",
+    provider_response=None,
+    reference=None,
+    created_at=None,
+    sent_at=None,
+    billable_units=1,
+    personalisation=None,
+    api_key=None,
+    key_type=KEY_TYPE_NORMAL,
+    sent_by=None,
+    international=False,
+    client_reference=None,
+    rate_multiplier=1.0,
+    scheduled_for=None,
+    normalised_to=None,
+    postage=None,
+    queue_name=None,
+):
+    return create_sample_notification(
+        notify_db,
+        notify_db_session,
+        service=None,
+        template=None,
+        job=None,
+        job_row_number=None,
+        to_field=None,
+        status="created",
+        provider_response=None,
+        reference=None,
+        created_at=None,
+        sent_at=None,
+        billable_units=1,
+        personalisation=None,
+        api_key=None,
+        key_type=KEY_TYPE_NORMAL,
+        sent_by=None,
+        international=False,
+        client_reference=None,
+        rate_multiplier=1.0,
+        scheduled_for=None,
+        normalised_to=None,
+        postage=None,
+        queue_name=None,
+    )
 
 
 @pytest.fixture
@@ -622,8 +963,8 @@ def sample_letter_notification(sample_letter_template):
 def sample_email_notification(notify_db, notify_db_session):
     created_at = datetime.utcnow()
     service = create_service(check_if_service_exists=True)
-    template = sample_email_template(notify_db, notify_db_session, service=service)
-    job = sample_job(notify_db, notify_db_session, service=service, template=template)
+    template = create_sample_email_template(notify_db, notify_db_session, service=service)
+    job = create_sample_job(notify_db, notify_db_session, service=service, template=template)
 
     notification_id = uuid.uuid4()
 
@@ -714,12 +1055,10 @@ def mock_celery_send_email(mocker):
 
 @pytest.fixture(scope="function")
 def mock_encryption(mocker):
-    return mocker.patch("app.encryption.encrypt", return_value="something_encrypted")
+    return mocker.patch("app.encryption.CryptoSigner.sign", return_value="something_encrypted")
 
 
-@pytest.fixture(scope="function")
-def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
-
+def create_sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
     if to_email_address is None:
@@ -740,12 +1079,16 @@ def sample_invited_user(notify_db, notify_db_session, service=None, to_email_add
 
 
 @pytest.fixture(scope="function")
+def sample_invited_user(notify_db, notify_db_session, service=None, to_email_address=None):
+    return create_sample_invited_user(notify_db, notify_db_session, service, to_email_address)
+
+
+@pytest.fixture(scope="function")
 def sample_invited_org_user(notify_db, notify_db_session, sample_user, sample_organisation):
     return create_invited_org_user(sample_organisation, sample_user)
 
 
-@pytest.fixture(scope="function")
-def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+def create_sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
     if user is None:
         user = create_user()
     if service is None:
@@ -761,6 +1104,11 @@ def sample_user_service_permission(notify_db, notify_db_session, service=None, u
         db.session.add(p_model)
         db.session.commit()
     return p_model
+
+
+@pytest.fixture(scope="function")
+def sample_user_service_permission(notify_db, notify_db_session, service=None, user=None, permission="manage_settings"):
+    return create_sample_user_service_permission(notify_db, notify_db_session, service, user, permission)
 
 
 @pytest.fixture(scope="function")
@@ -853,6 +1201,20 @@ def password_reset_email_template(notify_db, notify_db_session):
         template_config_name="PASSWORD_RESET_TEMPLATE_ID",
         content="((user_name)) you can reset password by clicking ((url))",
         subject="Reset your password",
+        template_type="email",
+    )
+
+
+@pytest.fixture(scope="function")
+def forced_password_reset_email_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name="FORCED_PASSWORD_RESET_TEMPLATE_ID",
+        content="((user_name)) you can reset password by clicking ((url))",
+        subject="Forced reset your password",
         template_type="email",
     )
 
@@ -999,6 +1361,19 @@ def mou_signed_templates(notify_db, notify_db_session):
     }
 
 
+@pytest.fixture(scope="function")
+def contact_form_email_template(notify_db, notify_db_session):
+    service, user = notify_service(notify_db, notify_db_session)
+    return create_custom_template(
+        service=service,
+        user=user,
+        template_config_name="CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID",
+        content=("contact form subbmission ((contact_us_content))"),
+        subject="Contact form",
+        template_type="email",
+    )
+
+
 def create_custom_template(service, user, template_config_name, template_type, content="", subject=None):
     template = Template.query.get(current_app.config[template_config_name])
     if not template:
@@ -1026,6 +1401,7 @@ def notify_service(notify_db, notify_db_session):
         service = Service(
             name="Notify Service",
             message_limit=1000,
+            sms_daily_limit=1000,
             restricted=False,
             email_from="notify.service",
             created_by=user,
@@ -1050,8 +1426,7 @@ def notify_service(notify_db, notify_db_session):
     return service, user
 
 
-@pytest.fixture(scope="function")
-def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+def create_sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
     if service is None:
         service = create_service(check_if_service_exists=True)
 
@@ -1065,6 +1440,11 @@ def sample_service_safelist(notify_db, notify_db_session, service=None, email_ad
     notify_db.session.add(safelisted_user)
     notify_db.session.commit()
     return safelisted_user
+
+
+@pytest.fixture(scope="function")
+def sample_service_safelist(notify_db, notify_db_session, service=None, email_address=None, mobile_number=None):
+    return create_sample_service_safelist(notify_db, notify_db_session, service, email_address, mobile_number)
 
 
 @pytest.fixture(scope="function")
@@ -1198,6 +1578,12 @@ def app_statsd(mocker):
     return current_app
 
 
+@pytest.fixture(scope="function")
+def app_bounce_rate_client(mocker):
+    current_app.bounce_rate_client = mocker.Mock()
+    return current_app
+
+
 def datetime_in_past(days=0, seconds=0):
     return datetime.now(tz=pytz.utc) - timedelta(days=days, seconds=seconds)
 
@@ -1209,7 +1595,6 @@ def document_download_response(override={}):
         "id": "document-id",
         "direct_file_url": "http://direct-file-url.localdomain",
         "url": "http://frontend-url.localdomain",
-        "mlwr_sid": "mlwr-sid",
         "filename": "filename",
         "sending_method": "sending_method",
         "mime_type": "mime_type",
@@ -1218,3 +1603,7 @@ def document_download_response(override={}):
     }
 
     return {"status": "ok", "document": base | override}
+
+
+def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
+    return "".join(random.choice(chars) for _ in range(size))

@@ -27,7 +27,10 @@ def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
         authenticated_service.id, notification_id, key_type=None
     )
-    return jsonify(notification.serialize()), 200
+    if notification is not None:
+        return jsonify(notification.serialize()), 200
+    else:
+        return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @v2_notification_blueprint.route("/<notification_id>/pdf", methods=["GET"])
@@ -53,7 +56,7 @@ def get_pdf_for_notification(notification_id):
     except Exception:
         raise PDFNotReadyError()
 
-    return send_file(filename_or_fp=BytesIO(pdf_data), mimetype="application/pdf")
+    return send_file(path_or_file=BytesIO(pdf_data), mimetype="application/pdf")
 
 
 @v2_notification_blueprint.route("", methods=["GET"])

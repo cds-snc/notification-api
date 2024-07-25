@@ -4,18 +4,22 @@ import re
 import string
 import uuid
 from time import monotonic
+from typing import Any
 
 from dotenv import load_dotenv
-from flask import _request_ctx_stack, g, jsonify, make_response, request  # type: ignore
+from flask import g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
+from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
+from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 from notifications_utils.clients.zendesk.zendesk_client import ZendeskClient
 from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
+from app.aws.metrics_logger import MetricsLogger
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.document_download import DocumentDownloadClient
@@ -23,61 +27,131 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
+from app.clients.salesforce.salesforce_client import SalesforceClient
+from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
-from app.encryption import Encryption
+from app.encryption import CryptoSigner
+from app.json_provider import NotifyJSONProvider
+from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
 
 load_dotenv()
 
-db = RoutingSQLAlchemy()
+db: RoutingSQLAlchemy = RoutingSQLAlchemy()
 migrate = Migrate()
-ma = Marshmallow()
+marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
-encryption = Encryption()
+aws_pinpoint_client = AwsPinpointClient()
+signer_notification = CryptoSigner()
+signer_personalisation = CryptoSigner()
+signer_complaint = CryptoSigner()
+signer_delivery_status = CryptoSigner()
+signer_bearer_token = CryptoSigner()
+signer_api_key = CryptoSigner()
+signer_inbound_sms = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
+flask_redis = FlaskRedis()
+flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
+bounce_rate_client = RedisBounceRate(redis_store)
+metrics_logger = MetricsLogger()
+# TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
+email_queue = RedisQueue("email")
+sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
+salesforce_client = SalesforceClient()
 
 clients = Clients()
 
-api_user = LocalProxy(lambda: _request_ctx_stack.top.api_user)
-authenticated_service = LocalProxy(lambda: _request_ctx_stack.top.authenticated_service)
+api_user: Any = LocalProxy(lambda: g.api_user)
+authenticated_service: Any = LocalProxy(lambda: g.authenticated_service)
+
+sms_bulk = RedisQueue("sms", process_type="bulk")
+sms_normal = RedisQueue("sms", process_type="normal")
+sms_priority = RedisQueue("sms", process_type="priority")
+email_bulk = RedisQueue("email", process_type="bulk")
+email_normal = RedisQueue("email", process_type="normal")
+email_priority = RedisQueue("email", process_type="priority")
+
+sms_bulk_publish = RedisQueue("sms", process_type="bulk")
+sms_normal_publish = RedisQueue("sms", process_type="normal")
+sms_priority_publish = RedisQueue("sms", process_type="priority")
+email_bulk_publish = RedisQueue("email", process_type="bulk")
+email_normal_publish = RedisQueue("email", process_type="normal")
+email_priority_publish = RedisQueue("email", process_type="priority")
 
 
-def create_app(application):
+def create_app(application, config=None):
     from app.config import configs
 
-    notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
-
-    application.config.from_object(configs[notify_environment])
+    if config is None:
+        notify_environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
+        config = configs[notify_environment]
+        application.config.from_object(configs[notify_environment])
+    else:
+        application.config.from_object(config)
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
+    application.json = NotifyJSONProvider(application)
     request_helper.init_app(application)
     db.init_app(application)
     migrate.init_app(application, db=db)
-    ma.init_app(application)
+    marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
+    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
-    encryption.init_app(application)
-    redis_store.init_app(application)
+
+    signer_notification.init_app(application, secret_key=application.config["SECRET_KEY"], salt="notification")
+    signer_personalisation.init_app(application, secret_key=application.config["SECRET_KEY"], salt="personalisation")
+    signer_complaint.init_app(application, secret_key=application.config["SECRET_KEY"], salt="complaint")
+    signer_delivery_status.init_app(application, secret_key=application.config["SECRET_KEY"], salt="delivery_status")
+    signer_bearer_token.init_app(application, secret_key=application.config["SECRET_KEY"], salt="bearer_token")
+    signer_api_key.init_app(application, secret_key=application.config["SECRET_KEY"], salt="api_key")
+    signer_inbound_sms.init_app(application, secret_key=application.config["SECRET_KEY"], salt="inbound_sms")
+
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
-    clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+    clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
+
+    if application.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.init_app(application)
+
+    flask_redis.init_app(application)
+    flask_redis_publish.init_app(application)
+    redis_store.init_app(application)
+    bounce_rate_client.init_app(application)
+
+    sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_normal_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_priority_publish.init_app(flask_redis_publish, metrics_logger)
+    email_bulk_publish.init_app(flask_redis_publish, metrics_logger)
+    email_normal_publish.init_app(flask_redis_publish, metrics_logger)
+    email_priority_publish.init_app(flask_redis_publish, metrics_logger)
+
+    sms_bulk.init_app(flask_redis, metrics_logger)
+    sms_normal.init_app(flask_redis, metrics_logger)
+    sms_priority.init_app(flask_redis, metrics_logger)
+    email_bulk.init_app(flask_redis, metrics_logger)
+    email_normal.init_app(flask_redis, metrics_logger)
+    email_priority.init_app(flask_redis, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)
+
+    # Log the application configuration
+    application.logger.info(f"Notify config: {config.get_safe_config()}")
 
     # avoid circular imports by importing this file later
     from app.commands import setup_commands
@@ -87,13 +161,23 @@ def create_app(application):
     return application
 
 
+def register_notify_blueprint(application, blueprint, auth_function, prefix=None):
+    if not blueprint._got_registered_once:
+        blueprint.before_request(auth_function)
+        if prefix:
+            application.register_blueprint(blueprint, url_prefix=prefix)
+        else:
+            application.register_blueprint(blueprint)
+
+
 def register_blueprint(application):
     from app.accept_invite.rest import accept_invite
-    from app.api_key.rest import api_key_blueprint
+    from app.api_key.rest import api_key_blueprint, sre_tools_blueprint
     from app.authentication.auth import (
         requires_admin_auth,
         requires_auth,
         requires_no_auth,
+        requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
@@ -118,86 +202,66 @@ def register_blueprint(application):
     from app.status.healthcheck import status as status_blueprint
     from app.support.rest import support_blueprint
     from app.template.rest import template_blueprint
+    from app.template.template_category_rest import template_category_blueprint
     from app.template_folder.rest import template_folder_blueprint
     from app.template_statistics.rest import (
         template_statistics as template_statistics_blueprint,
     )
     from app.user.rest import user_blueprint
 
-    service_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(service_blueprint, url_prefix="/service")
+    register_notify_blueprint(application, service_blueprint, requires_admin_auth, "/service")
 
-    user_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(user_blueprint, url_prefix="/user")
+    register_notify_blueprint(application, user_blueprint, requires_admin_auth, "/user")
 
-    template_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_blueprint)
+    register_notify_blueprint(application, template_blueprint, requires_admin_auth)
 
-    status_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(status_blueprint)
+    register_notify_blueprint(application, status_blueprint, requires_no_auth)
 
-    notifications_blueprint.before_request(requires_auth)
-    application.register_blueprint(notifications_blueprint)
+    register_notify_blueprint(application, notifications_blueprint, requires_auth)
 
-    job_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(job_blueprint)
+    register_notify_blueprint(application, job_blueprint, requires_admin_auth)
 
-    invite_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(invite_blueprint)
+    register_notify_blueprint(application, invite_blueprint, requires_admin_auth)
 
-    inbound_number_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(inbound_number_blueprint)
+    register_notify_blueprint(application, inbound_number_blueprint, requires_admin_auth)
 
-    inbound_sms_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(inbound_sms_blueprint)
+    register_notify_blueprint(application, inbound_sms_blueprint, requires_admin_auth)
 
-    accept_invite.before_request(requires_admin_auth)
-    application.register_blueprint(accept_invite, url_prefix="/invite")
+    register_notify_blueprint(application, accept_invite, requires_admin_auth, "/invite")
 
-    template_statistics_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_statistics_blueprint)
+    register_notify_blueprint(application, template_statistics_blueprint, requires_admin_auth)
 
-    events_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(events_blueprint)
+    register_notify_blueprint(application, events_blueprint, requires_admin_auth)
 
-    provider_details_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(provider_details_blueprint, url_prefix="/provider-details")
+    register_notify_blueprint(application, provider_details_blueprint, requires_admin_auth, "/provider-details")
 
-    email_branding_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(email_branding_blueprint, url_prefix="/email-branding")
+    register_notify_blueprint(application, email_branding_blueprint, requires_admin_auth, "/email-branding")
 
-    api_key_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(api_key_blueprint, url_prefix="/api-key")
+    register_notify_blueprint(application, api_key_blueprint, requires_admin_auth, "/api-key")
 
-    letter_job.before_request(requires_admin_auth)
-    application.register_blueprint(letter_job)
+    register_notify_blueprint(application, sre_tools_blueprint, requires_sre_auth, "/sre-tools")
 
-    letter_callback_blueprint.before_request(requires_no_auth)
-    application.register_blueprint(letter_callback_blueprint)
+    register_notify_blueprint(application, letter_job, requires_admin_auth)
 
-    billing_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(billing_blueprint)
+    register_notify_blueprint(application, letter_callback_blueprint, requires_no_auth)
 
-    service_callback_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(service_callback_blueprint)
+    register_notify_blueprint(application, billing_blueprint, requires_admin_auth)
 
-    organisation_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(organisation_blueprint, url_prefix="/organisations")
+    register_notify_blueprint(application, service_callback_blueprint, requires_admin_auth)
 
-    organisation_invite_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(organisation_invite_blueprint)
+    register_notify_blueprint(application, organisation_blueprint, requires_admin_auth, "/organisations")
 
-    complaint_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(complaint_blueprint)
+    register_notify_blueprint(application, organisation_invite_blueprint, requires_admin_auth)
 
-    platform_stats_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(platform_stats_blueprint, url_prefix="/platform-stats")
+    register_notify_blueprint(application, complaint_blueprint, requires_admin_auth)
 
-    template_folder_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(template_folder_blueprint)
+    register_notify_blueprint(application, platform_stats_blueprint, requires_admin_auth, "/platform-stats")
 
-    letter_branding_blueprint.before_request(requires_admin_auth)
-    application.register_blueprint(letter_branding_blueprint)
+    register_notify_blueprint(application, template_folder_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
     support_blueprint.before_request(requires_admin_auth)
     application.register_blueprint(support_blueprint, url_prefix="/support")
@@ -208,33 +272,25 @@ def register_v2_blueprints(application):
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
-    from app.v2.notifications.get_notifications import (
-        v2_notification_blueprint as get_notifications,
+    from app.v2.notifications import (  # noqa
+        get_notifications,
+        post_notifications,
+        v2_notification_blueprint,
     )
-    from app.v2.notifications.post_notifications import (
-        v2_notification_blueprint as post_notifications,
+    from app.v2.template import (  # noqa
+        get_template,
+        post_template,
+        v2_template_blueprint,
     )
-    from app.v2.template.get_template import v2_template_blueprint as get_template
-    from app.v2.template.post_template import v2_template_blueprint as post_template
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
 
-    post_notifications.before_request(requires_auth)
-    application.register_blueprint(post_notifications)
+    register_notify_blueprint(application, v2_notification_blueprint, requires_auth)
 
-    get_notifications.before_request(requires_auth)
-    application.register_blueprint(get_notifications)
+    register_notify_blueprint(application, get_templates, requires_auth)
 
-    get_templates.before_request(requires_auth)
-    application.register_blueprint(get_templates)
+    register_notify_blueprint(application, v2_template_blueprint, requires_auth)
 
-    get_template.before_request(requires_auth)
-    application.register_blueprint(get_template)
-
-    post_template.before_request(requires_auth)
-    application.register_blueprint(post_template)
-
-    get_inbound_sms.before_request(requires_auth)
-    application.register_blueprint(get_inbound_sms)
+    register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
 
 def init_app(app):

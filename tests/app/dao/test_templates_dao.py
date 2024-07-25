@@ -16,22 +16,25 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_redact_template,
     dao_update_template,
+    dao_update_template_category,
     dao_update_template_reply_to,
 )
-from app.models import Template, TemplateFolder, TemplateHistory, TemplateRedacted
+from app.models import Template, TemplateHistory, TemplateRedacted
 from app.schemas import template_schema
 from tests.app.db import create_letter_contact, create_template
 
 
 @pytest.mark.parametrize(
-    "template_type, subject",
+    "template_type, subject, redact_personalisation",
     [
-        ("sms", None),
-        ("email", "subject"),
-        ("letter", "subject"),
+        ("sms", None, False),
+        ("email", "subject", False),
+        ("letter", "subject", False),
+        ("sms", None, True),
+        ("email", "subject", True),
     ],
 )
-def test_create_template(sample_service, sample_user, template_type, subject):
+def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation):
     data = {
         "name": "Sample Template",
         "template_type": template_type,
@@ -44,12 +47,15 @@ def test_create_template(sample_service, sample_user, template_type, subject):
     if subject:
         data.update({"subject": subject})
     template = Template(**data)
-    dao_create_template(template)
+    dao_create_template(template, redact_personalisation=redact_personalisation)
 
     assert Template.query.count() == 1
     assert len(dao_get_all_templates_for_service(sample_service.id)) == 1
     assert dao_get_all_templates_for_service(sample_service.id)[0].name == "Sample Template"
     assert dao_get_all_templates_for_service(sample_service.id)[0].process_type == "normal"
+    assert (
+        dao_get_all_templates_for_service(sample_service.id)[0].template_redacted.redact_personalisation == redact_personalisation
+    )
 
 
 def test_create_template_creates_redact_entry(sample_service):
@@ -97,35 +103,6 @@ def test_update_template(sample_service, sample_user):
     created.name = "new name"
     dao_update_template(created)
     assert dao_get_all_templates_for_service(sample_service.id)[0].name == "new name"
-
-
-def test_update_template_in_a_folder_to_archived(sample_service, sample_user):
-    template_data = {
-        "name": "Sample Template",
-        "template_type": "sms",
-        "content": "Template content",
-        "service": sample_service,
-        "created_by": sample_user,
-    }
-    template = Template(**template_data)
-
-    template_folder_data = {
-        "name": "My Folder",
-        "service_id": sample_service.id,
-    }
-    template_folder = TemplateFolder(**template_folder_data)
-
-    template.folder = template_folder
-    dao_create_template(template)
-
-    template.archived = True
-    dao_update_template(template)
-
-    template_folder = TemplateFolder.query.one()
-    archived_template = Template.query.one()
-
-    assert template_folder
-    assert not archived_template.folder
 
 
 def test_dao_update_template_reply_to_none_to_some(sample_service, sample_user):
@@ -318,7 +295,7 @@ def test_get_all_templates_ignores_hidden_templates(sample_service):
 def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     sample_template = create_template(template_name="Test Template", service=sample_service)
 
-    json_data = {"data": template_schema.dump(sample_template).data}
+    json_data = {"data": template_schema.dump(sample_template)}
     mocked_redis_get = mocker.patch.object(
         redis_store,
         "get",
@@ -328,13 +305,12 @@ def test_get_template_id_from_redis_when_cached(sample_service, mocker):
     template = dao_get_template_by_id(sample_template.id, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_template.id) == template[0].id
-    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
+    assert str(sample_template.id) == template.id
 
 
 def test_get_template_id_with_specific_version_from_redis(sample_service, mocker, notify_db_session):
     sample_template = create_template(template_name="Test Template", service=sample_service)
-    json_data = {"data": template_schema.dump(sample_template).data}
+    json_data = {"data": template_schema.dump(sample_template)}
     mocked_redis_get = mocker.patch.object(
         redis_store,
         "get",
@@ -344,9 +320,8 @@ def test_get_template_id_with_specific_version_from_redis(sample_service, mocker
     template = dao_get_template_by_id(sample_template.id, version=1, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_template.id) == template[0].id
-    assert isinstance(template[0], TemplateHistory)
-    assert json.dumps(json_data["data"], default=lambda o: o.hex if isinstance(o, UUID) else None) == json.dumps(template[1])
+    assert str(sample_template.id) == template.id
+    assert isinstance(template, TemplateHistory)
 
 
 def test_get_template_by_id_and_service(sample_service):
@@ -377,7 +352,7 @@ def test_get_template_version_returns_none_for_hidden_templates(sample_service):
 def test_get_template_by_id_and_service_returns_none_if_no_template(sample_service, fake_uuid):
     with pytest.raises(NoResultFound) as e:
         dao_get_template_by_id_and_service_id(template_id=fake_uuid, service_id=sample_service.id)
-    assert "No row was found for one" in str(e.value)
+    assert "No row was found when one was required" in str(e.value)
 
 
 def test_create_template_creates_a_history_record_with_current_data(sample_service, sample_user):
@@ -473,8 +448,9 @@ def test_get_template_versions(sample_template):
 
     from app.schemas import template_history_schema
 
-    v = template_history_schema.load(versions, many=True)
+    v = template_history_schema.dump(versions, many=True)
     assert len(v) == 2
+    assert {template_history["version"] for template_history in v} == {1, 2}
 
 
 def test_get_template_versions_is_empty_for_hidden_templates(sample_service):
@@ -515,3 +491,16 @@ def test_template_postage_constraint_on_update(sample_service, sample_user):
     created.postage = "third"
     with pytest.raises(expected_exception=SQLAlchemyError):
         dao_update_template(created)
+
+
+def test_dao_update_template_category(sample_template, sample_template_category):
+    dao_update_template_category(sample_template.id, sample_template_category.id)
+
+    updated_template = Template.query.get(sample_template.id)
+    assert updated_template.template_category_id == sample_template_category.id
+    assert updated_template.updated_at is not None
+    assert updated_template.version == 2
+
+    history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
+    assert not history.template_category_id
+    assert history.updated_at == updated_template.updated_at

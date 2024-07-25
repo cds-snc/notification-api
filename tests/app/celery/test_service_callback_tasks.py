@@ -5,7 +5,7 @@ import pytest
 import requests_mock
 from freezegun import freeze_time
 
-from app import DATETIME_FORMAT, encryption
+from app import DATETIME_FORMAT, signer_complaint, signer_delivery_status
 from app.celery.service_callback_tasks import (
     send_complaint_to_service,
     send_delivery_status_to_service,
@@ -21,8 +21,7 @@ from tests.app.db import (
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
-def test_send_delivery_status_to_service_post_https_request_to_service_with_encrypted_data(notify_db_session, notification_type):
-
+def test_send_delivery_status_to_service_post_https_request_to_service_with_signed_data(notify_db_session, notification_type):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
 
@@ -35,16 +34,17 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
             status="sent",
         )
     )
-    encrypted_status_update = _set_up_data_for_status_update(callback_api, notification)
+    signed_status_update = _set_up_data_for_status_update(callback_api, notification)
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=200)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_status_update)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_status_update)
 
     mock_data = {
         "id": str(notification.id),
         "reference": notification.client_reference,
         "to": notification.to,
         "status": notification.status,
+        "status_description": notification.formatted_status,
         "provider_response": notification.provider_response,
         "created_at": datestr.strftime(DATETIME_FORMAT),
         "completed_at": datestr.strftime(DATETIME_FORMAT),
@@ -60,7 +60,7 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_encr
     assert request_mock.request_history[0].headers["Authorization"] == "Bearer {}".format(callback_api.bearer_token)
 
 
-def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted_data(
+def test_send_complaint_to_service_posts_https_request_to_service_with_signed_data(
     notify_db_session,
 ):
     with freeze_time("2001-01-01T12:00:00"):
@@ -90,8 +90,9 @@ def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
-def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_encrypted_data(
-    notify_db_session, mocker, notification_type
+@pytest.mark.parametrize("status_code", [429, 500, 503])
+def test__send_data_to_service_callback_api_retries_if_request_returns_error_code_with_signed_data(
+    notify_db_session, mocker, notification_type, status_code
 ):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
     datestr = datetime(2017, 6, 20)
@@ -104,18 +105,18 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
             status="sent",
         )
     )
-    encrypted_data = _set_up_data_for_status_update(callback_api, notification)
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
-        request_mock.post(callback_api.url, json={}, status_code=500)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        request_mock.post(callback_api.url, json={}, status_code=status_code)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
 
     assert mocked.call_count == 1
-    assert mocked.call_args[1]["queue"] == "retry-tasks"
+    assert mocked.call_args[1]["queue"] == "service-callbacks-retry"
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
-def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_encrypted_data(
+def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_signed_data(
     notify_db_session, mocker, notification_type
 ):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
@@ -129,11 +130,11 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
             status="sent",
         )
     )
-    encrypted_data = _set_up_data_for_status_update(callback_api, notification)
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=404)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
 
     assert mocked.call_count == 0
 
@@ -150,11 +151,11 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(notify_db_s
             status="technical-failure",
         )
     )
-    encrypted_data = _set_up_data_for_status_update(callback_api, notification)
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=404)
-        send_delivery_status_to_service(notification.id, encrypted_status_update=encrypted_data)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
 
     assert mocked.call_count == 0
 
@@ -177,6 +178,7 @@ def _set_up_data_for_status_update(callback_api, notification):
         "notification_client_reference": notification.client_reference,
         "notification_to": notification.to,
         "notification_status": notification.status,
+        "notification_status_description": notification.formatted_status,
         "notification_provider_response": notification.provider_response,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_updated_at": notification.updated_at.strftime(DATETIME_FORMAT) if notification.updated_at else None,
@@ -185,8 +187,8 @@ def _set_up_data_for_status_update(callback_api, notification):
         "service_callback_api_url": callback_api.url,
         "service_callback_api_bearer_token": callback_api.bearer_token,
     }
-    encrypted_status_update = encryption.encrypt(data)
-    return encrypted_status_update
+    signed_status_update = signer_delivery_status.sign(data)
+    return signed_status_update
 
 
 def _set_up_data_for_complaint(callback_api, complaint, notification):
@@ -199,5 +201,5 @@ def _set_up_data_for_complaint(callback_api, complaint, notification):
         "service_callback_api_url": callback_api.url,
         "service_callback_api_bearer_token": callback_api.bearer_token,
     }
-    obscured_status_update = encryption.encrypt(data)
+    obscured_status_update = signer_complaint.sign(data)
     return obscured_status_update

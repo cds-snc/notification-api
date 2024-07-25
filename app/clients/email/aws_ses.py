@@ -7,7 +7,7 @@ import boto3
 import botocore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
-from unidecode import unidecode
+from notifications_utils.statsd_decorators import statsd
 
 from app.clients.email import EmailClient, EmailClientException
 
@@ -30,6 +30,7 @@ class AwsSesClient(EmailClient):
     def get_name(self):
         return self.name
 
+    @statsd(namespace="clients.ses")
     def send_email(
         self,
         source,
@@ -61,7 +62,7 @@ class AwsSesClient(EmailClient):
         attachments = attachments or []
         if isinstance(to_addresses, str):
             to_addresses = [to_addresses]
-        source = unidecode(source)
+
         reply_to_addresses = [reply_to_address] if reply_to_address else []
 
         # - If sending a TXT email without attachments:
@@ -105,7 +106,7 @@ class AwsSesClient(EmailClient):
 
             # http://docs.aws.amazon.com/ses/latest/DeveloperGuide/api-error-codes.html
             if e.response["Error"]["Code"] == "InvalidParameterValue":
-                raise InvalidEmailError('email: "{}" message: "{}"'.format(to_addresses[0], e.response["Error"]["Message"]))
+                raise InvalidEmailError(f'message: "{e.response["Error"]["Message"]}"')
             else:
                 self.statsd_client.incr("clients.ses.error")
                 raise AwsSesClientException(str(e))

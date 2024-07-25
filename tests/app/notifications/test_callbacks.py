@@ -1,11 +1,11 @@
 from datetime import datetime
 
-from app import DATETIME_FORMAT, encryption
+from app import DATETIME_FORMAT, signer_complaint, signer_delivery_status
 from app.notifications.callbacks import (
     create_complaint_callback_data,
     create_delivery_status_callback_data,
 )
-from tests.app.conftest import sample_notification as create_sample_notification
+from tests.app.conftest import create_sample_notification
 from tests.app.db import create_complaint, create_service_callback_api
 
 
@@ -23,13 +23,14 @@ def test_create_delivery_status_callback_data(
     )
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert encryption.decrypt(create_delivery_status_callback_data(notification, callback_api)) == {
+    assert signer_delivery_status.verify(create_delivery_status_callback_data(notification, callback_api)) == {
         "notification_client_reference": notification.client_reference,
         "notification_created_at": notification.created_at.strftime(DATETIME_FORMAT),
         "notification_id": str(notification.id),
         "notification_provider_response": notification.provider_response,
         "notification_sent_at": notification.sent_at.strftime(DATETIME_FORMAT),
         "notification_status": notification.status,
+        "notification_status_description": notification.formatted_status,
         "notification_to": notification.to,
         "notification_type": notification.notification_type,
         "notification_updated_at": notification.updated_at,
@@ -53,7 +54,9 @@ def test_create_complaint_callback_data(
     complaint = create_complaint(notification=notification, service=notification.service)
     callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert encryption.decrypt(create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com")) == {
+    assert signer_complaint.verify(
+        create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com")
+    ) == {
         "complaint_id": str(complaint.id),
         "notification_id": str(notification.id),
         "reference": notification.client_reference,

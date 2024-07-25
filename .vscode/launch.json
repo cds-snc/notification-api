@@ -1,0 +1,69 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: current file",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Flask",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "application.py",
+                "FLASK_ENV": "development"
+            },
+            "args": [
+                "run",
+                "--no-debugger",
+                "-p 6011",
+                "--host=0.0.0.0"
+            ],
+            "jinja": true,
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Celery",
+            "type": "python",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--app",
+                "run_celery",
+                "worker",
+                "--pidfile",
+                "/tmp/celery.pid",
+                "--concurrency=4",
+                "-l",
+                "DEBUG",
+                "-Q",
+                "database-tasks,-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,service-callbacks-retry,send-sms-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,send-email-tasks,service-callbacks,delivery-receipts",
+            ]
+        },
+        {
+            "name": "Locust",
+            "type": "python",
+            "request": "launch",
+            "module": "locust",
+            "args": [
+                "-f",
+                "${file}",
+                "-u",
+                "1",
+                "-r",
+                "1",
+                "-t",
+                "3",
+                "--headless"
+            ],
+            "gevent": true,
+            "console": "integratedTerminal"
+        }
+    ]
+}

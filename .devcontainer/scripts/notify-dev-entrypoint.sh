@@ -1,39 +1,57 @@
 #!/bin/bash
-set -ex 
+set -ex
 
 ###################################################################
-# This script will get executed *once* the Docker container has 
+# This script will get executed *once* the Docker container has
 # been built. Commands that need to be executed with all available
-# tools and the filesystem mount enabled should be located here. 
+# tools and the filesystem mount enabled should be located here.
 ###################################################################
-
-# We want to enable broadcast message which by default is disabled.
-sed '/mesg/d' ~/.profile > ~/.profile.bak && mv ~/.profile.bak ~/.profile
-echo -e "\ntest -t 0 && mesg n" >> ~/.profile
 
 # Define aliases
-echo -e "\n\n# User's Aliases" >> ~/.profile
-echo -e "alias fd=fdfind" >> ~/.profile
-echo -e "alias l='ls -al --color'" >> ~/.profile
-echo -e "alias ls='exa'" >> ~/.profile
-echo -e "alias l='exa -alh'" >> ~/.profile
-echo -e "alias ll='exa -alh@ --git'" >> ~/.profile
-echo -e "alias lt='exa -al -T -L 2'" >> ~/.profile
+echo -e "\n\n# User's Aliases" >> ~/.zshrc
+echo -e "alias fd=fdfind" >> ~/.zshrc
+echo -e "alias l='ls -al --color'" >> ~/.zshrc
+echo -e "alias ls='exa'" >> ~/.zshrc
+echo -e "alias l='exa -alh'" >> ~/.zshrc
+echo -e "alias ll='exa -alh@ --git'" >> ~/.zshrc
+echo -e "alias lt='exa -al -T -L 2'" >> ~/.zshrc
 
-cd /workspace 
+# Kubectl aliases and command autocomplete
+echo -e "alias k='kubectl'" >> ~/.zshrc
+echo -e "alias k-staging='aws eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-staging-eks-cluster'" >> ~/.zshrc
+echo -e "alias k-prod='aws eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-production-eks-cluster'" >> ~/.zshrc
+echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
+echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
-# Warm up git index prior to display status in prompt else it will 
-# be quite slow on every invocation of starship.
-git status
+# Smoke test
+# requires adding files .env_staging and .env_prod to the root of the project
+echo -e "alias smoke-local='cd /workspace && cp .env_smoke_local tests_smoke/.env && poetry run make smoke-test-local'" >> ~/.zshrc
+echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+
+cd /workspace
+
+# Poetry autocomplete
+echo -e "fpath+=/.zfunc" >> ~/.zshrc
+echo -e "autoload -Uz compinit && compinit"
+
+pip install poetry==${POETRY_VERSION}
+export PATH=$PATH:/home/vscode/.local/bin/
+which poetry
+poetry --version
+
+# Initialize poetry autocompletions
+mkdir ~/.zfunc
+touch ~/.zfunc/_poetry
+poetry completions zsh > ~/.zfunc/_poetry
 
 make generate-version-file
-pip3 install -r requirements.txt
-pip3 install -r requirements_for_test.txt
+
+# Install dependencies
+poetry install
 
 # Upgrade schema of the notification_api database.
-flask db upgrade
+poetry run flask db upgrade
 
-wall "The dev container entrypoint setup is complete!"
-
-# Bubble up the main Docker command to container.
-exec "$@"
+# install npm deps (i.e. cypress)
+cd tests_cypress && npm install && npx cypress install && cd ..

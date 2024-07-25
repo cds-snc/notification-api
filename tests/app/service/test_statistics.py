@@ -73,7 +73,6 @@ NewStatsRow = collections.namedtuple("NewStatsRow", ("notification_type", "statu
     },
 )
 def test_format_statistics(stats, email_counts, sms_counts, letter_counts):
-
     ret = format_statistics(stats)
 
     assert ret["email"] == {status: count for status, count in zip(["requested", "delivered", "failed"], email_counts)}

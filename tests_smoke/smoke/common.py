@@ -2,8 +2,6 @@ import csv
 import json
 import os
 import time
-
-# from notifications_utils.s3 import s3upload as utils_s3upload
 import urllib
 import uuid
 from enum import Enum
@@ -16,29 +14,37 @@ from boto3 import Session
 from dotenv import load_dotenv
 from notifications_python_client.authentication import create_jwt_token
 
+# from app/config.py
+INTERNAL_TEST_NUMBER = "+16135550123"
+INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
+
 load_dotenv()
 
 
 class Config:
-    API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME")
-    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", "")
-    SMS_TO = os.environ.get("SMOKE_SMS_TO", "")
+    API_HOST_NAME = os.environ.get("SMOKE_API_HOST_NAME", "http://localhost:6011")
+    IS_LOCAL = "localhost" in API_HOST_NAME
+    ADMIN_CLIENT_USER_NAME = "notify-admin"
+    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET", "local_app")
+    POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 120))
+    AWS_REGION = "ca-central-1"
+    CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME", "notification-canada-ca-staging-csv-upload")
+
+    AWS_ACCESS_KEY_ID = os.environ.get("SMOKE_AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY")
     SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
+    USER_ID = os.environ.get("SMOKE_USER_ID")
+    EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", INTERNAL_TEST_EMAIL_ADDRESS)
+    SMS_TO = os.environ.get("SMOKE_SMS_TO", INTERNAL_TEST_NUMBER)
     EMAIL_TEMPLATE_ID = os.environ.get("SMOKE_EMAIL_TEMPLATE_ID")
     SMS_TEMPLATE_ID = os.environ.get("SMOKE_SMS_TEMPLATE_ID")
-
-    USER_ID = os.environ.get("SMOKE_USER_ID")
-    AWS_REGION = "ca-central-1"
-    CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME")
-    ADMIN_CLIENT_USER_NAME = "notify-admin"
-    ADMIN_CLIENT_SECRET = os.environ.get("SMOKE_ADMIN_CLIENT_SECRET")
     API_KEY = os.environ.get("SMOKE_API_KEY", "")
-    POLL_TIMEOUT = int(os.environ.get("SMOKE_POLL_TIMEOUT", 20))
+    JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
 
 
 boto_session = Session(
-    aws_access_key_id=os.environ.get("SMOKE_AWS_ACCESS_KEY_ID"),
-    aws_secret_access_key=os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY"),
+    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
 )
 
 
@@ -60,8 +66,8 @@ def rows_to_csv(rows: List[List[str]]):
     return output.getvalue()
 
 
-def job_line(data: str, number_of_lines: int) -> Iterator[List[str]]:
-    return map(lambda n: [data, f"var{n}"], range(0, number_of_lines))
+def job_line(data: str, number_of_lines: int, prefix: str = "") -> Iterator[List[str]]:
+    return map(lambda n: [data, f"{prefix} {n}"], range(0, number_of_lines))
 
 
 def pretty_print(data: Any):
@@ -76,14 +82,14 @@ def single_succeeded(uri: str, use_jwt: bool) -> bool:
             token = create_jwt_token(Config.ADMIN_CLIENT_SECRET, client_id=Config.ADMIN_CLIENT_USER_NAME)
             headers = {"Authorization": f"Bearer {token}"}
         else:
-            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY[-36:]}"}
+            headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
 
         response = requests.get(
             uri,
             headers=headers,
         )
         body = response.json()
-        success = body.get("status") == "delivered"
+        success = body.get("status") == "delivered" or (Config.IS_LOCAL and "fail" not in body.get("status", ""))
         failure = body.get("status") == "permanent-failure"
         if success or failure:
             break
@@ -103,7 +109,7 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
         data = response.json()["data"]
         if data["job_status"] != "finished":
             next
-        success = all([stat["status"] == "delivered" for stat in data["statistics"]])
+        success = all([stat["status"] == "delivered" for stat in data["statistics"]]) or (Config.IS_LOCAL and all(["fail" not in stat["status"] for stat in data["statistics"]]))
         failure = any([stat["status"] == "permanent-failure" for stat in data["statistics"]])
         if success or failure:
             break
@@ -113,7 +119,6 @@ def job_succeeded(service_id: str, job_id: str) -> bool:
     return success
 
 
-# from notifications_utils.s3 import s3upload as utils_s3upload
 def utils_s3upload(filedata, region, bucket_name, file_location, content_type="binary/octet-stream", tags=None):
     _s3 = boto_session.resource("s3")
 

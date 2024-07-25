@@ -36,6 +36,17 @@ You should not have to modify the configuration to run the stress-tests locally.
 
 There are two ways to run Locust, with the UI or headless.
 
+### Add the following to your .env file (see 1Password):
+
+```
+PERF_TEST_AUTH_HEADER =
+PERF_TEST_BULK_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_LINK_TEMPLATE_ID=
+PERF_TEST_EMAIL_TEMPLATE_ID=
+PERF_TEST_EMAIL_WITH_ATTACHMENT_TEMPLATE_ID=
+PERF_TEST_SMS_TEMPLATE_ID =
+```
+
 ### With the UI
 
 Locally, simply run:
@@ -55,6 +66,13 @@ locust -f .\locust-notifications.py --headless --users=5500 --spawn-rate=200 --r
 ```
 
 You can also modify the *locust.config* file to enable the headless mode and define the necessary users, spawn rate and run time.
+
+## Email send rate test
+
+We also max out the email send rate by sending 2000 x 5 emails per minute for 10 minutes. This can be run manually with the command
+```
+locust --headless --host https://api.staging.notification.cdssandbox.xyz --locustfile tests-perf/locust/send_rate_email.py --users 5 --run-time 10m --spawn-rate 1
+```
 
 ### Performance Testing on AWS
 

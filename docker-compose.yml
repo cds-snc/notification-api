@@ -2,7 +2,7 @@ version: '3'
 
 services:
   db:
-    image: postgres:11.2
+    image: postgres:11.16@sha256:5d2aa4a7b5f9bdadeddcf87cf7f90a176737a02a30d917de4ab2e6a329bd2d45
     volumes:
       - ./local/initdb:/docker-entrypoint-initdb.d
     environment:
@@ -18,7 +18,7 @@ services:
       - "listen_addresses=*"
     restart: always
   redis:
-    image: redis:latest
+    image: redis:6.2@sha256:d4948d011cc38e94f0aafb8f9a60309bd93034e07d10e0767af534512cf012a9
   web:
     image: notification-api
     restart: always
@@ -30,11 +30,11 @@ services:
       - SQLALCHEMY_DATABASE_URI=postgres://postgres:chummy@db:5432/notification_api
     entrypoint: local/scripts/notify-web-entrypoint.sh
     command: >
-      bash -c "make generate-version-file && flask run -p 6011 --host=0.0.0.0"
+      bash -c "make generate-version-file && make run"
     volumes:
       - .:/app
     ports:
-        - "6011:6011"
+      - "6011:6011"
     depends_on:
       - db
       - redis

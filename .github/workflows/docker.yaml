@@ -2,41 +2,46 @@ name: Build, push to AWS ECR, and deploy
 on:
   push:
     branches:
-      - master
+      - main
 
 env:
   AWS_REGION: ca-central-1
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
-  KUBECTL_VERSION: '1.18.0'
+  KUBECTL_VERSION: '1.23.6'
+  WORKFLOW_PAT: ${{ secrets.WORKFLOW_GITHUB_PAT }}
+  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+permissions:
+  id-token: write   # This is required for requesting the OIDC JWT
+  contents: read    # This is required for actions/checkout
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip -q awscliv2.zip
         sudo ./aws/install --update
         aws --version
-    - name: Install kubectl
-      run: |
-        curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
-        chmod +x ./kubectl
-        sudo mv ./kubectl /usr/local/bin/kubectl
-        kubectl version --client
-        mkdir -p $HOME/.kube
-    - name: AWS auth with ECR
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ECR_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ECR_SECRET_ACCESS_KEY }}
-      run: |
-        aws ecr-public get-login-password --region us-east-1 > /tmp/aws
-        cat /tmp/aws | docker login --username AWS --password-stdin $DOCKER_ORG
-        rm /tmp/aws
+
+    - name: Configure credentials to CDS public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "us-east-1"
+  
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+      with:
+        registry-type: public
+
     - name: Build
       run: |
         docker pull $DOCKER_SLUG:latest
@@ -46,38 +51,79 @@ jobs:
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
+
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
-    - name: Get Kubernetes configuration
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Install OpenVPN
       run: |
-        aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
+        sudo apt update
+        sudo apt install -y openvpn openvpn-systemd-resolved
+
+    - name: Install 1Pass CLI
+      run: |
+        curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
+        sudo dpkg -i 1pass.deb
+
+    - name: One Password Fetch
+      run: |
+        op read op://4eyyuwddp6w4vxlabrr2i2duxm/"Staging Github Actions VPN"/notesPlain > /var/tmp/staging.ovpn
+
+    - name: Connect to VPN
+      uses: "kota65535/github-openvpn-connect-action@cd2ed8a90cc7b060dc4e001143e811b5f7ea0af5"
+      with:
+        config_file: /var/tmp/staging.ovpn
+        client_key: ${{ secrets.STAGING_OVPN_CLIENT_KEY }}
+        echo_config: false       
+        
+    - name: Configure kubeconfig
+      run: |
+        aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster     
+
     - name: Update images in staging
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       run: |
-        kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery celery=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        DOCKER_TAG=${GITHUB_SHA::7}
+        kubectl set image deployment.apps/api api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-primary celery-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-scalable celery-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-primary celery-sms-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-scalable celery-sms-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-primary celery-email-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-scalable celery-email-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config        
+
 
     - name: my-app-install token
       id: notify-pr-bot
-      uses: getsentry/action-github-app-token@v1
+      uses: getsentry/action-github-app-token@38a3ce582e170ddfe8789f509597c6944f2292a9 # v1.0.6
       with:
-        app_id: ${{ secrets.PRBOT_APP_ID }}
-        private_key: ${{ secrets.PRBOT_PRIVATE_KEY }}
+        app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
+        private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
 
-    - uses: cds-snc/notification-pr-bot@master
+    - uses: cds-snc/notification-pr-bot@main
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+
+    - name: Generate docker SBOM
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
+      with:
+        docker_image: "${{ env.DOCKER_SLUG }}:latest"
+        dockerfile_path: "ci/Dockerfile"
+        sbom_name: "notification-api"
+        token: "${{ secrets.GITHUB_TOKEN }}"
 
     - name: Notify Slack channel if this job failed
       if: ${{ failure() }}
       run: |
-        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/|notification-api> !'}"
+        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+

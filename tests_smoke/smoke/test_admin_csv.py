@@ -13,13 +13,13 @@ from .common import (
 )
 
 
-def test_admin_csv(notification_type: Notification_type):
+def test_admin_csv(notification_type: Notification_type, local: bool = False):
     print(f"test_admin_csv ({notification_type.value})... ", end="", flush=True)
 
     if notification_type == Notification_type.EMAIL:
-        data = rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_TO, 2)])
+        data = rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE, prefix="smoke test admin csv")])
     else:
-        data = rows_to_csv([["phone number", "var"], *job_line(Config.SMS_TO, 2)])
+        data = rows_to_csv([["phone number", "var"], *job_line(Config.SMS_TO, Config.JOB_SIZE, prefix="smoke test admin csv")])
 
     upload_id = s3upload(Config.SERVICE_ID, data)
     metadata_kwargs = {
@@ -42,8 +42,11 @@ def test_admin_csv(notification_type: Notification_type):
         print("FAILED: post to send_notification failed")
         exit(1)
 
-    success = job_succeeded(Config.SERVICE_ID, upload_id)
-    if not success:
-        print("FAILED: job didn't finish successfully")
-        exit(1)
-    print("Success")
+    if local:
+        print(f"Check manually for {Config.JOB_SIZE} {notification_type.value}s")
+    else:
+        success = job_succeeded(Config.SERVICE_ID, upload_id)
+        if not success:
+            print("FAILED: job didn't finish successfully")
+            exit(1)
+        print("Success")

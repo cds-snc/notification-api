@@ -1,4 +1,4 @@
-from flask import _request_ctx_stack, current_app, g, request  # type: ignore
+from flask import current_app, g, request  # type: ignore
 from jwt import PyJWTError
 from notifications_python_client.authentication import (
     decode_jwt_token,
@@ -63,7 +63,7 @@ def get_auth_token(req):
     for el in AUTH_TYPES:
         scheme, auth_type, _ = el
         if auth_header.lower().startswith(scheme.lower()):
-            token = auth_header[len(scheme) + 1 :]
+            token = auth_header[len(scheme) + 1 :].strip()
             return auth_type, token
 
     raise AuthError(
@@ -91,6 +91,21 @@ def requires_admin_auth():
         return handle_admin_key(auth_token, current_app.config.get("ADMIN_CLIENT_SECRET"))
     else:
         raise AuthError("Unauthorized, admin authentication token required", 401)
+
+
+def requires_sre_auth():
+    request_helper.check_proxy_header_before_request()
+
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type != JWT_AUTH_TYPE:
+        raise AuthError("Invalid scheme: can only use JWT for sre authentication", 401)
+    client = __get_token_issuer(auth_token)
+
+    if client == current_app.config.get("SRE_USER_NAME"):
+        g.service_id = current_app.config.get("SRE_USER_NAME")
+        return handle_admin_key(auth_token, current_app.config.get("SRE_CLIENT_SECRET"))
+    else:
+        raise AuthError("Unauthorized, sre authentication token required", 401)
 
 
 def requires_auth():
@@ -138,11 +153,11 @@ def requires_auth():
 
 def _auth_by_api_key(auth_token):
     try:
-        # take last 36 chars of string so that it works even if the full key is provided.
-        auth_token = auth_token[-36:]
         api_key = get_api_key_by_secret(auth_token)
     except NoResultFound:
         raise AuthError("Invalid token: API key not found", 403)
+    except ValueError:
+        raise AuthError("Invalid token: Enter your full API key", 403)
     _auth_with_api_key(api_key, api_key.service)
 
 
@@ -154,9 +169,10 @@ def _auth_with_api_key(api_key, service):
             service_id=service.id,
             api_key_id=api_key.id,
         )
+
     g.service_id = api_key.service_id
-    _request_ctx_stack.top.authenticated_service = service
-    _request_ctx_stack.top.api_user = api_key
+    g.authenticated_service = service
+    g.api_user = api_key
     current_app.logger.info(
         "API authorised for service {} with api key {}, using client {}".format(
             service.id, api_key.id, request.headers.get("User-Agent")

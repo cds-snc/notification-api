@@ -2,8 +2,8 @@ import functools
 import string
 from datetime import datetime, timedelta
 
-from boto.exception import BotoClientError
 from flask import current_app
+from itsdangerous import BadSignature
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
 from notifications_utils.recipients import (
     InvalidEmailError,
@@ -19,21 +19,21 @@ from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql import functions
+from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
-from app import create_uuid, db
-from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
+from app import create_uuid, db, signer_personalisation
 from app.dao.dao_utils import transactional
+from app.dao.date_util import utc_midnight_n_days_ago
 from app.errors import InvalidRequest
-from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
+    NOTIFICATION_HARD_BOUNCE,
     NOTIFICATION_PENDING,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -49,11 +49,86 @@ from app.models import (
     Service,
     ServiceDataRetention,
 )
-from app.utils import (
-    escape_special_characters,
-    get_local_timezone_midnight_in_utc,
-    midnight_n_days_ago,
-)
+from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc
+
+
+@transactional
+def _resign_notifications_chunk(chunk_offset: int, chunk_size: int, resign: bool, unsafe: bool) -> int:
+    """Resign the _personalisation column of the notifications in a chunk of notifications with (potentially) a new key.
+
+    Args:
+        chunk_offset (int): start index of the chunk
+        chunk_size (int): size of the chunk
+        resign (bool): resign the personalisation
+        unsafe (bool): ignore bad signatures
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+
+    Returns:
+        int: number of notifications resigned or needing to be resigned
+    """
+    rows = Notification.query.order_by(Notification.created_at).slice(chunk_offset, chunk_offset + chunk_size).all()
+    current_app.logger.info(f"Processing chunk {chunk_offset} to {chunk_offset + len(rows) - 1}")
+
+    rows_to_update = []
+    for row in rows:
+        old_signature = row._personalisation
+        if old_signature:
+            try:
+                unsigned_personalisation = getattr(row, "personalisation")  # unsign the personalisation
+            except BadSignature as e:
+                if unsafe:
+                    unsigned_personalisation = signer_personalisation.verify_unsafe(row._personalisation)
+                else:
+                    current_app.logger.warning(f"BadSignature for notification {row.id}: {e}")
+                    raise e
+        setattr(
+            row, "personalisation", unsigned_personalisation
+        )  # resigns the personalisation with (potentially) a new signing secret
+        if old_signature != row._personalisation:
+            rows_to_update.append(row)
+        if not resign:
+            row._personalisation = old_signature  # reset the signature to the old value
+
+    if resign and len(rows_to_update) > 0:
+        current_app.logger.info(f"Resigning {len(rows_to_update)} notifications")
+        db.session.bulk_save_objects(rows)
+    elif len(rows_to_update) > 0:
+        current_app.logger.info(f"{len(rows_to_update)} notifications need resigning")
+
+    return len(rows_to_update)
+
+
+def resign_notifications(chunk_size: int, resign: bool, unsafe: bool = False) -> int:
+    """Resign the _personalisation column of the notifications table with (potentially) a new key.
+
+    Args:
+        chunk_size (int): number of rows to update at once.
+        resign (bool): resign the notifications.
+        unsafe (bool, optional): resign regardless of whether the unsign step fails with a BadSignature. Defaults to False.
+        max_update_size(int, -1): max number of rows to update at once, -1 for no limit. Defautls to -1.
+
+    Returns:
+        int: number of notifications that were resigned or need to be resigned.
+
+    Raises:
+        e: BadSignature if the unsign step fails and unsafe is False.
+    """
+
+    total_notifications = Notification.query.count()
+    current_app.logger.info(f"Total of {total_notifications} notifications")
+    num_old_signatures = 0
+
+    for chunk_offset in range(0, total_notifications, chunk_size):
+        num_old_signatures_in_chunk = _resign_notifications_chunk(chunk_offset, chunk_size, resign, unsafe)
+        num_old_signatures += num_old_signatures_in_chunk
+
+    if resign:
+        current_app.logger.info(f"Overall, {num_old_signatures} notifications were resigned")
+    else:
+        current_app.logger.info(f"Overall, {num_old_signatures} notifications need resigning")
+    return num_old_signatures
 
 
 @statsd(namespace="dao")
@@ -123,11 +198,16 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None):
+def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
         notification.provider_response = provider_response
+    if bounce_response:
+        notification.feedback_type = bounce_response.get("feedback_type")
+        notification.feedback_subtype = bounce_response.get("feedback_subtype")
+        notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
+        notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
     dao_update_notification(notification)
     return notification
 
@@ -197,23 +277,29 @@ def get_notifications_for_job(service_id, job_id, filter_dict=None, page=1, page
 
 
 @statsd(namespace="dao")
+def get_notification_count_for_job(service_id, job_id):
+    return Notification.query.filter_by(service_id=service_id, job_id=job_id).count()
+
+
+@statsd(namespace="dao")
 def get_notification_with_personalisation(service_id, notification_id, key_type):
     filter_dict = {"service_id": service_id, "id": notification_id}
     if key_type:
         filter_dict["key_type"] = key_type
 
-    return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
+    try:
+        return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
+    except NoResultFound:
+        current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
+        return None
 
 
 @statsd(namespace="dao")
-def get_notification_by_id(notification_id, service_id=None, _raise=False):
+def get_notification_by_id(notification_id, service_id=None, _raise=False) -> Notification:
     filters = [Notification.id == notification_id]
-
     if service_id:
         filters.append(Notification.service_id == service_id)
-
     query = db.on_reader().query(Notification).filter(*filters)
-
     return query.one() if _raise else query.first()
 
 
@@ -243,7 +329,7 @@ def get_notifications_for_service(
     filters = [Notification.service_id == service_id]
 
     if limit_days is not None:
-        filters.append(Notification.created_at >= midnight_n_days_ago(limit_days))
+        filters.append(Notification.created_at >= utc_midnight_n_days_ago(limit_days))
 
     if older_than is not None:
         older_than_created_at = db.session.query(Notification.created_at).filter(Notification.id == older_than).as_scalar()
@@ -302,9 +388,6 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
             convert_utc_to_local_timezone(datetime.utcnow()).date()
         ) - timedelta(days=f.days_of_retention)
 
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, f.service_id, days_of_retention, qry_limit)
-
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
         current_app.logger.info("Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
@@ -318,9 +401,8 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
-    for service_id in service_ids_to_purge:
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, service_id, seven_days_ago, qry_limit)
+    for row in service_ids_to_purge:
+        service_id = row._mapping["id"]
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
@@ -373,7 +455,7 @@ def _delete_for_query(subquery):
 
 
 def insert_update_notification_history(notification_type, date_to_delete_from, service_id):
-    notifications = db.session.query(*[x.name for x in NotificationHistory.__table__.c]).filter(
+    notifications = db.session.query(*[literal_column(x.name) for x in NotificationHistory.__table__.c]).filter(
         Notification.notification_type == notification_type,
         Notification.service_id == service_id,
         Notification.created_at < date_to_delete_from,
@@ -394,38 +476,6 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
     )
     db.session.connection().execute(stmt)
     db.session.commit()
-
-
-def _delete_letters_from_s3(notification_type, service_id, date_to_delete_from, query_limit):
-    letters_to_delete_from_s3 = (
-        db.session.query(Notification)
-        .filter(
-            Notification.notification_type == notification_type,
-            Notification.created_at < date_to_delete_from,
-            Notification.service_id == service_id,
-        )
-        .limit(query_limit)
-        .all()
-    )
-    for letter in letters_to_delete_from_s3:
-        bucket_name = current_app.config["LETTERS_PDF_BUCKET_NAME"]
-        if letter.sent_at:
-            sent_at = str(letter.sent_at.date())
-            prefix = LETTERS_PDF_FILE_LOCATION_STRUCTURE.format(
-                folder=sent_at + "/",
-                reference=letter.reference,
-                duplex="D",
-                letter_class="2",
-                colour="C",
-                crown="C" if letter.service.crown else "N",
-                date="",
-            ).upper()[:-5]
-            s3_objects = get_s3_bucket_objects(bucket_name=bucket_name, subfolder=prefix)
-            for s3_object in s3_objects:
-                try:
-                    remove_s3_object(bucket_name, s3_object["Key"])
-                except BotoClientError:
-                    current_app.logger.exception("Could not delete S3 object with filename: {}".format(s3_object["Key"]))
 
 
 @statsd(namespace="dao")
@@ -659,6 +709,11 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(start_date
 
 
 @statsd(namespace="dao")
+def get_latest_sent_notification_for_job(job_id):
+    return Notification.query.filter(Notification.job_id == job_id).order_by(Notification.updated_at.desc()).limit(1).first()
+
+
+@statsd(namespace="dao")
 def dao_get_last_notification_added_for_job_id(job_id):
     last_notification_added = (
         Notification.query.filter(Notification.job_id == job_id).order_by(Notification.job_row_number.desc()).first()
@@ -734,12 +789,12 @@ def _duplicate_update_warning(notification, status):
 def send_method_stats_by_service(start_time, end_time):
     return (
         db.session.query(
-            Service.id,
-            Service.name,
-            Organisation.name,
+            Service.id.label("service_id"),
+            Service.name.label("service_name"),
+            Organisation.name.label("organisation_name"),
             NotificationHistory.notification_type,
             case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin").label("send_method"),
-            func.count().label("nb_notifications"),
+            func.count().label("total_notifications"),
         )
         .join(Service, Service.id == NotificationHistory.service_id)
         .join(Organisation, Organisation.id == Service.organisation_id)
@@ -758,3 +813,100 @@ def send_method_stats_by_service(start_time, end_time):
         )
         .all()
     )
+
+
+@statsd(namespace="dao")
+@transactional
+def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcnow()):
+    """
+    This function returns the bounce rate for all services for the last 24 hours.
+    The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
+    The bounce rate is returned as a percentage.
+
+    :param min_emails_sent: the minimum number of emails sent to calculate the bounce rate for
+    :param default_time: the time to calculate the bounce rate for
+    :return: a list of tuple of the service_id, total number of email, # of hard bounces and the bounce rate
+    """
+    twenty_four_hours_ago = default_time - timedelta(hours=24)
+    query = (
+        db.session.query(
+            Notification.service_id.label("service_id"),
+            func.count(Notification.id).label("total_emails"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
+        .group_by(Notification.service_id)
+        .having(
+            func.count(Notification.id) >= min_emails_sent
+        )  # -- this value is the `[bounce-rate-warning-notification-volume-minimum]`
+        .subquery()
+    )
+    data = db.session.query(query, (100 * query.c.hard_bounces / query.c.total_emails).label("bounce_rate")).all()
+    return data
+
+
+@statsd(namespace="dao")
+@transactional
+def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=datetime.utcnow()):
+    """
+    This function returns the bounce rate for a single services for the last 24 hours.
+    The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
+    The bounce rate is returned as a percentage.
+
+    :param service_id: the service id to calculate the bounce rate for
+    :param min_emails_sent: the minimum number of emails sent to calculate the bounce rate for
+    :param default_time: the time to calculate the bounce rate for
+    :return: a tuple of the total number of emails sent, # of bounced emails and the bounce rate or None if not enough emails
+    """
+    twenty_four_hours_ago = default_time - timedelta(hours=24)
+    query = (
+        db.session.query(
+            func.count(Notification.id).label("total_emails"),
+            func.count().filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE).label("hard_bounces"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))  # this value is the `[bounce-rate-window]`
+        .filter(Notification.service_id == service_id)
+        .having(
+            func.count(Notification.id) >= min_emails_sent
+        )  # -- this value is the `[bounce-rate-warning-notification-volume-minimum]`
+        .subquery()
+    )
+    data = db.session.query(query, (100 * query.c.hard_bounces / query.c.total_emails).label("bounce_rate")).first()
+    return data
+
+
+@statsd(namespace="dao")
+@transactional
+def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+    twenty_four_hours_ago = default_time - timedelta(hours=interval)
+    query = (
+        db.session.query(
+            func.date_trunc("hour", Notification.created_at).label("hour"),
+            func.count(Notification.id).label("total_notifications"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))
+        .filter(Notification.service_id == service_id)
+        .filter(Notification.notification_type == EMAIL_TYPE)
+        .group_by(func.date_trunc("hour", Notification.created_at))
+        .order_by(func.date_trunc("hour", Notification.created_at))
+    )
+    return query.all()
+
+
+@statsd(namespace="dao")
+@transactional
+def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+    twenty_four_hours_ago = default_time - timedelta(hours=interval)
+    query = (
+        db.session.query(
+            func.date_trunc("hour", Notification.created_at).label("hour"),
+            func.count(Notification.id).label("total_notifications"),
+        )
+        .filter(Notification.created_at.between(twenty_four_hours_ago, default_time))
+        .filter(Notification.service_id == service_id)
+        .filter(Notification.notification_type == EMAIL_TYPE)
+        .filter(Notification.feedback_type == NOTIFICATION_HARD_BOUNCE)
+        .group_by(func.date_trunc("hour", Notification.created_at))
+        .order_by(func.date_trunc("hour", Notification.created_at))
+    )
+    return query.all()

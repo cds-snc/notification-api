@@ -4,7 +4,7 @@ name: Build, push, and deploy lambda image to staging
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   REGISTRY: ${{ secrets.STAGING_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
@@ -19,7 +19,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Configure AWS credentials
+        id: aws-creds
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+        with:
+          aws-access-key-id: ${{ secrets.STAGING_ECR_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
+          aws-region: ca-central-1
 
       - name: Build container
         run: |
@@ -29,17 +37,9 @@ jobs:
           . \
           -f ci/Dockerfile.lambda
 
-      - name: Configure AWS credentials
-        id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.STAGING_ECR_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.STAGING_ECR_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
-
       - name: Login to ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
       - name: Push containers to ECR
         run: |
@@ -52,4 +52,20 @@ jobs:
         run: |
           aws lambda update-function-code \
             --function-name ${{ matrix.image }} \
-            --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
+            --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
+
+      - name: Publish lambda version and update alias
+        run: |
+          aws lambda wait function-updated --function-name ${{ matrix.image }}
+          VERSION="$(aws lambda publish-version --function-name ${{ matrix.image }} | jq -r '.Version')"
+   
+          aws lambda update-alias \
+            --function-name ${{ matrix.image }} \
+            --name latest \
+            --function-version "$VERSION" > /dev/null 2>&1
+
+      - name: Notify Slack channel if this job failed
+        if: ${{ failure() }}
+        run: |
+          json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
+          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

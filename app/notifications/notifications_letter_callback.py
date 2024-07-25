@@ -3,11 +3,6 @@ from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app.celery.tasks import (
-    record_daily_sorted_counts,
-    update_letter_notifications_statuses,
-)
-from app.config import QueueNames
 from app.notifications.utils import autoconfirm_subscription
 from app.schema_validation import validate
 from app.v2.errors import register_errors
@@ -55,7 +50,5 @@ def process_letter_response():
 
         if filename.lower().endswith("rs.txt") or filename.lower().endswith("rsp.txt"):
             current_app.logger.info("DVLA callback: Calling task to update letter notifications")
-            update_letter_notifications_statuses.apply_async([filename], queue=QueueNames.NOTIFY)
-            record_daily_sorted_counts.apply_async([filename], queue=QueueNames.NOTIFY)
 
     return jsonify(result="success", message="DVLA callback succeeded"), 200

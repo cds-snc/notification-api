@@ -1,25 +1,30 @@
 # Heavily inspired from Dockerfile, this one also install requirements_for_test.txt
 
-FROM python:3.9-alpine
+FROM python:3.10-alpine@sha256:7edffe5acc6a2c4c009fece2fbdc85f04fde4c8481202473b880ef3f8fbb2939
 
 ENV PYTHONDONTWRITEBYTECODE 1
+ENV POETRY_VERSION "1.7.1"
+ARG APP_VENV="/app/.venv"
+ARG POETRY_HOME="/opt/poetry"
+ARG POETRY_VERSION="1.7.1"
+ARG POETRY_VIRTUALENVS_CREATE="false"
+ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl curl-dev && rm -rf /var/cache/apk/*
 
-# update pip
-RUN python -m pip install wheel
-
 RUN set -ex && mkdir /app
-
 WORKDIR /app
 
-COPY requirements.txt /app
-COPY requirements_for_test.txt /app
+# Install Poetry and isolate it from the project
+RUN python -m venv ${POETRY_HOME} \
+    && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION}
 
-RUN set -ex && pip3 install -r requirements.txt
-RUN set -ex && pip3 install -r requirements_for_test.txt
+COPY . /app/
 
-COPY . /app
+RUN python -m venv ${APP_VENV} \
+    && . ${APP_VENV}/bin/activate \
+    && poetry install \
+    && poetry add wheel
 
 RUN make generate-version-file
 
@@ -28,4 +33,4 @@ ENV PORT=6011
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
-CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
+CMD ["sh", "-c", "poetry run gunicorn -c gunicorn_config.py application"]

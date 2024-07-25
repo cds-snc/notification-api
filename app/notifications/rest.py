@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from marshmallow import ValidationError
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import get_international_phone_info
 
@@ -9,8 +10,11 @@ from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
+    NotificationType,
+    Template,
 )
 from app.notifications.process_notifications import (
     persist_notification,
@@ -18,6 +22,7 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from app.notifications.validators import (
+    check_email_daily_limit,
     check_rate_limiting,
     check_template_is_active,
     check_template_is_for_notification_type,
@@ -31,6 +36,7 @@ from app.schemas import (
 )
 from app.service.utils import service_allowed_to_send_to
 from app.utils import (
+    get_delivery_queue_for_template,
     get_document_url,
     get_public_notify_type_text,
     get_template_instance,
@@ -47,15 +53,15 @@ def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
         str(authenticated_service.id), notification_id, key_type=None
     )
-    return (
-        jsonify(data={"notification": notification_with_personalisation_schema.dump(notification).data}),
-        200,
-    )
+    if notification is not None:
+        return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification)}), 200
+    else:
+        return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @notifications.route("/notifications", methods=["GET"])
 def get_all_notifications():
-    data = notifications_filter_schema.load(request.args).data
+    data = notifications_filter_schema.load(request.args)
     include_jobs = data.get("include_jobs", False)
     page = data.get("page", 1)
     page_size = data.get("page_size", current_app.config.get("API_PAGE_SIZE"))
@@ -73,7 +79,7 @@ def get_all_notifications():
     )
     return (
         jsonify(
-            notifications=notification_with_personalisation_schema.dump(pagination.items, many=True).data,
+            notifications=notification_with_personalisation_schema.dump(pagination.items, many=True),
             page_size=page_size,
             total=pagination.total,
             links=pagination_links(pagination, ".get_all_notifications", **request.args.to_dict()),
@@ -83,25 +89,31 @@ def get_all_notifications():
 
 
 @notifications.route("/notifications/<string:notification_type>", methods=["POST"])
-def send_notification(notification_type):
-
+def send_notification(notification_type: NotificationType):
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = "{} notification type is not supported".format(notification_type)
         msg = msg + ", please use the latest version of the client" if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form, errors = (
-        sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
-    ).load(request.get_json())
-
-    if errors:
+    try:
+        notification_form = (  # type: ignore
+            sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
+        ).load(request.get_json())
+    except ValidationError as err:
+        errors = err.messages
         raise InvalidRequest(errors, status_code=400)
+
+    current_app.logger.info(f"POST to V1 API: send_notification, service_id: {authenticated_service.id}")
 
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
         template_id=notification_form["template"], service_id=authenticated_service.id
     )
+
+    simulated = simulated_recipient(notification_form["to"], notification_type)
+    if not simulated != api_user.key_type == KEY_TYPE_TEST and notification_type == EMAIL_TYPE:
+        check_email_daily_limit(authenticated_service, 1)
 
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
@@ -119,12 +131,11 @@ def send_notification(notification_type):
         _service_can_send_internationally(authenticated_service, notification_form["to"])
     # Do not persist or send notification to the queue if it is a simulated recipient
 
-    simulated = simulated_recipient(notification_form["to"], notification_type)
     notification_model = persist_notification(
         template_id=template.id,
         template_version=template.version,
         template_postage=template.postage,
-        recipient=request.get_json()["to"],
+        recipient=request.get_json()["to"],  # type: ignore
         service=authenticated_service,
         personalisation=notification_form.get("personalisation", None),
         notification_type=notification_type,
@@ -137,7 +148,7 @@ def send_notification(notification_type):
         send_notification_to_queue(
             notification=notification_model,
             research_mode=authenticated_service.research_mode,
-            queue=template.queue_to_use(),
+            queue=get_delivery_queue_for_template(template),
         )
     else:
         current_app.logger.debug("POST simulated notification for id: {}".format(notification_model.id))
@@ -174,7 +185,7 @@ def _service_allowed_to_send_to(notification, service):
         # FIXME: hard code it for now until we can get en/fr specific links and text
         if api_user.key_type == KEY_TYPE_TEAM:
             message = (
-                "Can’t send to this recipient using a team-only API key "
+                f"Can’t send to this recipient using a team-only API key (service {service.id}) "
                 f'- see {get_document_url("en", "keys.html#team-and-safelist")}'
             )
         else:
@@ -184,7 +195,7 @@ def _service_allowed_to_send_to(notification, service):
         raise InvalidRequest({"to": [message]}, status_code=400)
 
 
-def create_template_object_for_notification(template, personalisation):
+def create_template_object_for_notification(template, personalisation) -> Template:
     template_object = get_template_instance(template.__dict__, personalisation)
 
     if template_object.missing_data:

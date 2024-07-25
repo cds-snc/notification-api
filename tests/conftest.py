@@ -1,5 +1,6 @@
 import os
 from contextlib import contextmanager
+from typing import List
 from urllib.parse import urlparse
 
 import pytest
@@ -9,6 +10,14 @@ from alembic.config import Config
 from flask import Flask
 
 from app import create_app, db
+from app.encryption import CryptoSigner
+
+
+def pytest_configure(config):
+    # Swap to test database if running from devcontainer
+    if os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") is not None:
+        os.environ["SQLALCHEMY_DATABASE_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
+        os.environ["SQLALCHEMY_DATABASE_READER_URI"] = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI")
 
 
 @pytest.fixture(scope="session")
@@ -94,6 +103,7 @@ def notify_db(notify_api, worker_id):
         "reader": uri_db_reader,
         "writer": uri_db_writer,
     }
+
     create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
@@ -146,7 +156,7 @@ def os_environ():
 
     class EnvironDict(dict):
         def __setitem__(self, key, value):
-            assert type(value) == str
+            assert isinstance(value, str)
             super().__setitem__(key, value)
 
     os.environ = EnvironDict()
@@ -186,6 +196,16 @@ def set_config_values(app, dict):
     finally:
         for key in dict:
             app.config[key] = old_values[key]
+
+
+@contextmanager
+def set_signer_secret_key(signer: CryptoSigner, secret_key: str | List[str]):
+    old_secret_key = signer.secret_key
+    signer.init_app(signer.app, secret_key, signer.salt)
+    try:
+        yield
+    finally:
+        signer.init_app(signer.app, old_secret_key, signer.salt)
 
 
 class Matcher:

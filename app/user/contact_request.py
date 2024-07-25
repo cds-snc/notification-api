@@ -16,6 +16,7 @@ class ContactRequest:
     name: str = field(default="")
     message: str = field(default="")
     user_profile: str = field(default="")
+    organisation_id: str = field(default="")
     department_org_name: str = field(default="")
     program_service_name: str = field(default="")
     intended_recipients: str = field(default="")
@@ -30,6 +31,12 @@ class ContactRequest:
     notification_types: str = field(default="")
     expected_volume: str = field(default="")
     branding_url: str = field(default="")
+    branding_logo_name: str = field(default="")
+    alt_text_en: str = field(default="")
+    alt_text_fr: str = field(default="")
+    template_category_name_en: str = field(default="")
+    template_category_name_fr: str = field(default="")
+    template_id_link: str = field(default="")
 
     def __post_init__(self):
         # email address is mandatory for us
@@ -52,3 +59,6 @@ class ContactRequest:
 
     def is_branding_request(self):
         return "branding_request" in self.support_type.lower()
+
+    def is_new_template_category_request(self):
+        return "new_template_category_request" in self.support_type.lower()

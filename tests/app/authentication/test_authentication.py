@@ -4,11 +4,10 @@ from datetime import datetime
 
 import jwt
 import pytest
-from flask import current_app, json, request
+from flask import current_app, g, json, request
 from freezegun import freeze_time
 from notifications_python_client.authentication import create_jwt_token
 
-from app import api_user
 from app.authentication.auth import (
     AUTH_TYPES,
     AuthError,
@@ -136,18 +135,28 @@ def test_admin_auth_should_not_allow_api_key_scheme(client, sample_api_key):
 @pytest.mark.parametrize("scheme", ["ApiKey-v1", "apikey-v1", "APIKEY-V1"])
 def test_should_allow_auth_with_api_key_scheme(client, sample_api_key, scheme):
     api_key_secret = get_unsigned_secret(sample_api_key.id)
-
-    response = client.get("/notifications", headers={"Authorization": f"{scheme} {api_key_secret}"})
+    unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{api_key_secret}"
+    response = client.get("/notifications", headers={"Authorization": f"{scheme} {unsigned_secret}"})
 
     assert response.status_code == 200
 
 
-def test_should_allow_auth_with_api_key_scheme_36_chars_or_longer(client, sample_api_key):
+def test_should_allow_auth_with_api_key_scheme_and_extra_spaces(client, sample_api_key):
+    api_key_secret = get_unsigned_secret(sample_api_key.id)
+    unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{api_key_secret}"
+    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1    {unsigned_secret}"})
+
+    assert response.status_code == 200
+
+
+def test_should_NOT_allow_auth_with_api_key_scheme_with_incorrect_format(client, sample_api_key):
     api_key_secret = "fhsdkjhfdsfhsd" + get_unsigned_secret(sample_api_key.id)
 
     response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
 
-    assert response.status_code == 200
+    assert response.status_code == 403
+    error_message = json.loads(response.get_data())
+    assert error_message["message"] == {"token": ["Invalid token: Enter your full API key"]}
 
 
 def test_should_not_allow_invalid_api_key(client, sample_api_key):
@@ -155,7 +164,7 @@ def test_should_not_allow_invalid_api_key(client, sample_api_key):
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message["message"] == {"token": ["Invalid token: API key not found"]}
+    assert error_message["message"] == {"token": ["Invalid token: Enter your full API key"]}
 
 
 def test_should_not_allow_expired_api_key(client, sample_api_key):
@@ -163,7 +172,9 @@ def test_should_not_allow_expired_api_key(client, sample_api_key):
 
     expire_api_key(service_id=sample_api_key.service_id, api_key_id=sample_api_key.id)
 
-    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {api_key_secret}"})
+    unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{api_key_secret}"
+
+    response = client.get("/notifications", headers={"Authorization": f"ApiKey-v1 {unsigned_secret}"})
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
@@ -336,7 +347,7 @@ def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_ser
         token = __create_token(sample_api_key.service_id)
         response = client.get("/notifications", headers={"Authorization": "Bearer {}".format(token)})
         assert response.status_code == 200
-        assert api_user == sample_api_key
+        assert g.api_user == sample_api_key
 
 
 def test_should_return_403_when_token_is_expired(
@@ -381,7 +392,6 @@ def test_proxy_key_non_auth_endpoint(notify_api, check_proxy_header, header_valu
             "CHECK_PROXY_HEADER": check_proxy_header,
         },
     ):
-
         with notify_api.test_client() as client:
             response = client.get(
                 path="/_status",
@@ -415,7 +425,6 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
             "CHECK_PROXY_HEADER": check_proxy_header,
         },
     ):
-
         with notify_api.test_client() as client:
             response = client.get(
                 path="/service",

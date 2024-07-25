@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -10,9 +11,14 @@ from app.dao.api_key_dao import (
     get_model_api_keys,
     get_unsigned_secret,
     get_unsigned_secrets,
+    resign_api_keys,
     save_model_api_key,
+    update_compromised_api_key_info,
+    update_last_used_api_key,
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
+from tests.app.db import create_api_key
+from tests.conftest import set_signer_secret_key
 
 
 def test_save_api_key_should_create_new_api_key_and_history(sample_service):
@@ -30,6 +36,7 @@ def test_save_api_key_should_create_new_api_key_and_history(sample_service):
     assert len(all_api_keys) == 1
     assert all_api_keys[0] == api_key
     assert api_key.version == 1
+    assert api_key.last_used_timestamp is None
 
     all_history = api_key.get_history_model().query.all()
     assert len(all_history) == 1
@@ -45,6 +52,37 @@ def test_expire_api_key_should_update_the_api_key_and_create_history_record(noti
     assert all_api_keys[0].secret == sample_api_key.secret
     assert all_api_keys[0].id == sample_api_key.id
     assert all_api_keys[0].service_id == sample_api_key.service_id
+
+    all_history = sample_api_key.get_history_model().query.all()
+    assert len(all_history) == 2
+    assert all_history[0].id == sample_api_key.id
+    assert all_history[1].id == sample_api_key.id
+    sorted_all_history = sorted(all_history, key=lambda hist: hist.version)
+    sorted_all_history[0].version = 1
+    sorted_all_history[1].version = 2
+
+
+def test_last_used_should_update_the_api_key_and_not_create_history_record(notify_api, sample_api_key):
+    last_used = datetime.utcnow()
+    update_last_used_api_key(api_key_id=sample_api_key.id, last_used=last_used)
+    all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
+    assert len(all_api_keys) == 1
+    assert all_api_keys[0].last_used_timestamp == last_used
+
+    all_history = sample_api_key.get_history_model().query.all()
+    assert len(all_history) == 1
+
+
+def test_update_compromised_api_key_info_and_create_history_record(notify_api, sample_api_key):
+    update_compromised_api_key_info(
+        service_id=sample_api_key.service_id, api_key_id=sample_api_key.id, compromised_info={"key": "value"}
+    )
+    all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
+    assert len(all_api_keys) == 1
+    assert all_api_keys[0].secret == sample_api_key.secret
+    assert all_api_keys[0].id == sample_api_key.id
+    assert all_api_keys[0].service_id == sample_api_key.service_id
+    assert all_api_keys[0].compromised_key_info == {"key": "value"}
 
     all_history = sample_api_key.get_history_model().query.all()
     assert len(all_history) == 2
@@ -78,12 +116,27 @@ def test_get_unsigned_secret_returns_key(sample_api_key):
     assert unsigned_api_key == sample_api_key.secret
 
 
-def test_get_api_key_by_secret(sample_api_key):
-    unsigned_secret = get_unsigned_secret(sample_api_key.id)
-    assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
+class TestGetAPIKeyBySecret:
+    def test_get_api_key_by_secret(self, sample_api_key):
+        secret = get_unsigned_secret(sample_api_key.id)
+        # Create token expected from the frontend
+        unsigned_secret = f"gcntfy-keyname-{sample_api_key.service_id}-{secret}"
+        assert get_api_key_by_secret(unsigned_secret).id == sample_api_key.id
 
-    with pytest.raises(NoResultFound):
-        get_api_key_by_secret("nope")
+        with pytest.raises(ValueError):
+            get_api_key_by_secret("nope")
+
+        # Test getting secret without the keyname prefix
+        with pytest.raises(ValueError):
+            get_api_key_by_secret(str(sample_api_key.id))
+
+        # Test the service_name isnt part of the secret
+        with pytest.raises(ValueError):
+            get_api_key_by_secret(f"gcntfy-keyname-hello-{secret}")
+
+        # Test the secret is incorrect
+        with pytest.raises(NoResultFound):
+            get_api_key_by_secret(f"gcntfy-keyname-hello-{sample_api_key.service_id}-1234")
 
 
 def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_uuid):
@@ -159,3 +212,47 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(sample_service, da
     all_api_keys = get_model_api_keys(service_id=sample_service.id)
 
     assert len(all_api_keys) == expected_length
+
+
+class TestResigning:
+    @pytest.mark.parametrize("resign", [True, False])
+    def test_resign_api_keys_resigns_or_previews(self, resign, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
+
+        with set_signer_secret_key(signer_api_key, ["k2", "k3"]):
+            resign_api_keys(resign=resign)
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret  # unsigned value is the same
+            if resign:
+                assert api_key._secret != _secret  # signature is different
+            else:
+                assert api_key._secret == _secret  # signature is the same
+
+    def test_resign_api_keys_fails_if_cannot_verify_signatures(self, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            create_api_key(service=sample_service)
+
+        with set_signer_secret_key(signer_api_key, "k3"):
+            with pytest.raises(BadSignature):
+                resign_api_keys(resign=True)
+
+    def test_resign_api_keys_unsafe_resigns_with_new_key(self, sample_service):
+        from app import signer_api_key
+
+        with set_signer_secret_key(signer_api_key, ["k1", "k2"]):
+            initial_key = create_api_key(service=sample_service)
+            secret = initial_key.secret
+            _secret = initial_key._secret
+
+        with set_signer_secret_key(signer_api_key, ["k3"]):
+            resign_api_keys(resign=True, unsafe=True)
+            api_key = ApiKey.query.get(initial_key.id)
+            assert api_key.secret == secret  # unsigned value is the same
+            assert api_key._secret != _secret  # signature is different

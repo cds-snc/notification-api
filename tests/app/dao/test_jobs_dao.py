@@ -17,10 +17,12 @@ from app.dao.jobs_dao import (
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
+from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Job
 from tests.app.db import (
     create_job,
     create_notification,
+    create_notification_history,
     create_service,
     create_template,
     save_notification,
@@ -59,6 +61,26 @@ def test_should_return_notifications_only_for_this_job(sample_template):
 
     results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
     assert {row.status: row.count for row in results} == {"created": 1}
+
+
+def test_get_notification_outcomes_should_return_history_rows(sample_template):
+    job_1 = create_job(sample_template)
+
+    save_notification(create_notification_history(sample_template, job=job_1, status="created"))
+    save_notification(create_notification_history(sample_template, job=job_1, status="sent"))
+
+    results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
+    assert {row.status: row.count for row in results} == {"created": 1, "sent": 1}
+
+
+def test_get_notification_outcomes_should_return_history_and_non_history_rows(sample_template):
+    job_1 = create_job(sample_template)
+
+    save_notification(create_notification_history(sample_template, job=job_1, status="sent"))
+    save_notification(create_notification(sample_template, job=job_1, status="created"))
+
+    results = dao_get_notification_outcomes_for_job(sample_template.service_id, job_1.id)
+    assert {row.status: row.count for row in results} == {"created": 1, "sent": 1}
 
 
 def test_should_return_notifications_only_for_this_service(
@@ -325,6 +347,42 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service):
 
     assert len(jobs) == 2
     assert job_to_remain.id not in [job.id for job in jobs]
+
+
+@freeze_time("2016-10-31 10:00:00")
+def test_should_get_limited_number_of_jobs(sample_template):
+    flexible_retention_service1 = create_service(service_name="Another service 1")
+    insert_service_data_retention(flexible_retention_service1.id, sample_template.template_type, 3)
+    flexible_template1 = create_template(flexible_retention_service1, template_type=sample_template.template_type)
+
+    flexible_retention_service2 = create_service(service_name="Another service 2")
+    insert_service_data_retention(flexible_retention_service2.id, sample_template.template_type, 2)
+    flexible_template2 = create_template(flexible_retention_service2, template_type=sample_template.template_type)
+
+    eight_days_ago = datetime.utcnow() - timedelta(days=8)
+    four_days_ago = datetime.utcnow() - timedelta(days=4)
+
+    for _ in range(4):
+        create_job(flexible_template1, created_at=four_days_ago)
+        create_job(flexible_template2, created_at=four_days_ago)
+        create_job(sample_template, created_at=eight_days_ago)
+
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type], limit=3)
+
+    assert len(jobs) == 3
+
+
+@freeze_time("2016-10-31 10:00:00")
+def test_should_get_not_get_limited_number_of_jobs_by_default(sample_template):
+    eight_days_ago = datetime.utcnow() - timedelta(days=8)
+
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+    create_job(sample_template, created_at=eight_days_ago)
+
+    jobs = dao_get_jobs_older_than_data_retention(notification_types=[sample_template.template_type])
+
+    assert len(jobs) == 3
 
 
 def assert_job_stat(job, result, sent, delivered, failed):

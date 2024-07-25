@@ -23,7 +23,7 @@ def create_secret_code():
     return "".join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
 
-def save_user_attribute(usr, update_dict={}):
+def save_user_attribute(usr: User, update_dict={}):
     if "blocked" in update_dict and update_dict["blocked"]:
         update_dict.update({"current_session_id": "00000000-0000-0000-0000-000000000000"})
 
@@ -31,10 +31,11 @@ def save_user_attribute(usr, update_dict={}):
     db.session.commit()
 
 
-def save_model_user(usr, update_dict={}, pwd=None):
+def save_model_user(usr: User, update_dict={}, pwd=None):
     if pwd:
         usr.password = pwd
         usr.password_changed_at = datetime.utcnow()
+
     if update_dict:
         _remove_values_for_keys_if_present(update_dict, ["id", "password_changed_at"])
         db.session.query(User).filter_by(id=usr.id).update(update_dict)
@@ -135,6 +136,7 @@ def update_user_password(user, password):
     # reset failed login count - they've just reset their password so should be fine
     user.password = password
     user.password_changed_at = datetime.utcnow()
+    user.password_expired = False
     db.session.add(user)
     db.session.commit()
 

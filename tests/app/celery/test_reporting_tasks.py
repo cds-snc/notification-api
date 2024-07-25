@@ -23,6 +23,7 @@ from app.models import (
 from tests.app.db import (
     create_letter_rate,
     create_notification,
+    create_notification_history,
     create_rate,
     create_service,
     create_template,
@@ -94,7 +95,6 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
     billable_units,
     multiplier,
 ):
-
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
@@ -358,7 +358,6 @@ def test_get_rate_for_sms_and_email(notify_db_session):
 @freeze_time("2018-03-30T05:00:00")
 # summer time starts on 2018-03-25
 def test_create_nightly_billing_for_day_use_BST(sample_service, sample_template, mocker):
-
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     # too late
@@ -407,7 +406,6 @@ def test_create_nightly_billing_for_day_use_BST(sample_service, sample_template,
 @freeze_time("2018-01-15T03:30:00")
 @pytest.mark.skip(reason="Not in use")
 def test_create_nightly_billing_for_day_update_when_record_exists(sample_service, sample_template, mocker):
-
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
     save_notification(
@@ -479,12 +477,13 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
         )
     )
 
-    save_notification(create_notification(template=third_template, status="created"))
+    save_notification(create_notification(template=third_template, status="created", billable_units=100))
     save_notification(
         create_notification(
             template=third_template,
             status="created",
             created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=100,
         )
     )
 
@@ -498,6 +497,64 @@ def test_create_nightly_notification_status_for_day(notify_db_session):
     assert new_data[0].bst_date == date(2019, 1, 1)
     assert new_data[1].bst_date == date(2019, 1, 1)
     assert new_data[2].bst_date == date(2019, 1, 1)
+    assert new_data[2].billable_units == 100
+
+
+@freeze_time("2019-01-05")
+def test_ensure_create_nightly_notification_status_for_day_copies_billable_units(notify_db_session):
+    first_service = create_service(service_name="First Service")
+    first_template = create_template(service=first_service)
+    second_service = create_service(service_name="second Service")
+    second_template = create_template(service=second_service, template_type="email")
+
+    save_notification(
+        create_notification(
+            template=first_template,
+            status="delivered",
+            created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=5,
+        )
+    )
+
+    save_notification(
+        create_notification(
+            template=second_template,
+            status="temporary-failure",
+            created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=10,
+        )
+    )
+
+    assert len(FactNotificationStatus.query.all()) == 0
+
+    create_nightly_notification_status_for_day("2019-01-01")
+
+    new_data = FactNotificationStatus.query.all()
+
+    assert len(new_data) == 2
+    assert new_data[0].billable_units == 5
+    assert new_data[1].billable_units == 10
+
+
+@freeze_time("2019-01-05T06:00:00")
+def test_ensure_create_nightly_notification_status_for_day_copies_billable_units_from_notificationsHistory(notify_db_session):
+    first_service = create_service(service_name="First Service")
+    first_template = create_template(service=first_service)
+    second_service = create_service(service_name="second Service")
+    second_template = create_template(service=second_service, template_type="email")
+
+    create_notification_history(template=first_template, billable_units=5)
+    create_notification_history(template=second_template, billable_units=10)
+
+    assert len(FactNotificationStatus.query.all()) == 0
+
+    create_nightly_notification_status_for_day("2019-01-05")
+
+    new_data = FactNotificationStatus.query.all()
+
+    assert len(new_data) == 2
+    assert new_data[0].billable_units == 5
+    assert new_data[1].billable_units == 10
 
 
 # the job runs at 12:30am London time. 04/01 is in BST.

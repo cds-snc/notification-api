@@ -109,6 +109,7 @@ def create_service(
     email_from=None,
     prefix_sms=True,
     message_limit=1000,
+    sms_daily_limit=1000,
     organisation_type="central",
     check_if_service_exists=False,
     go_live_user=None,
@@ -122,6 +123,7 @@ def create_service(
         service = Service(
             name=service_name,
             message_limit=message_limit,
+            sms_daily_limit=sms_daily_limit,
             restricted=restricted,
             email_from=email_from if email_from else service_name.lower().replace(" ", "."),
             created_by=user if user else create_user(email="{}@digital.cabinet-office.gov.uk".format(uuid.uuid4())),
@@ -186,6 +188,7 @@ def create_template(
     hidden=False,
     archived=False,
     folder=None,
+    template_category=None,
     postage=None,
     process_type="normal",
 ):
@@ -198,6 +201,7 @@ def create_template(
         "reply_to": reply_to,
         "hidden": hidden,
         "folder": folder,
+        "template_category": template_category,
         "process_type": process_type,
     }
     if template_type == LETTER_TYPE:
@@ -238,6 +242,7 @@ def create_notification(
     reply_to_text=None,
     created_by_id=None,
     postage=None,
+    queue_name=None,
 ):
     """
     Creates in memory Notification Model
@@ -295,6 +300,7 @@ def create_notification(
         "reply_to_text": reply_to_text,
         "created_by_id": created_by_id,
         "postage": postage,
+        "queue_name": queue_name,
     }
     return Notification(**data)
 
@@ -396,6 +402,7 @@ def create_job(
     template,
     notification_count=1,
     created_at=None,
+    updated_at=None,
     job_status="pending",
     scheduled_for=None,
     processing_started=None,
@@ -412,6 +419,7 @@ def create_job(
         "original_file_name": original_file_name,
         "notification_count": notification_count,
         "created_at": created_at or datetime.utcnow(),
+        "updated_at": updated_at,
         "created_by": template.created_by,
         "job_status": job_status,
         "scheduled_for": scheduled_for,
@@ -496,13 +504,15 @@ def create_service_callback_api(
     return service_callback_api
 
 
-def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName"):
+def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName", organisation_id=None):
     data = {
         "colour": colour,
         "logo": logo,
         "name": name,
         "text": text,
     }
+    if organisation_id:
+        data["organisation_id"] = organisation_id
     email_branding = EmailBranding(**data)
     dao_create_email_branding(email_branding)
 
@@ -545,7 +555,7 @@ def create_letter_rate(
     return rate
 
 
-def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
+def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, last_used=None):
     id_ = uuid.uuid4()
 
     name = key_name if key_name else "{} api key {}".format(key_type, id_)
@@ -557,6 +567,7 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None):
         key_type=key_type,
         id=id_,
         secret=uuid.uuid4(),
+        last_used_timestamp=last_used,
     )
     db.session.add(api_key)
     db.session.commit()
@@ -635,7 +646,6 @@ def create_annual_billing(service_id, free_sms_fragment_limit, financial_year_st
 
 
 def create_domain(domain, organisation_id):
-
     domain = Domain(domain=domain, organisation_id=organisation_id)
 
     db.session.add(domain)
@@ -733,7 +743,11 @@ def create_ft_notification_status(
     key_type="normal",
     notification_status="delivered",
     count=1,
+    billable_units=None,
 ):
+    if billable_units is None:
+        billable_units = count
+
     if job:
         template = job.template
     if template:
@@ -753,6 +767,7 @@ def create_ft_notification_status(
         key_type=key_type,
         notification_status=notification_status,
         notification_count=count,
+        billable_units=billable_units,
     )
     db.session.add(data)
     db.session.commit()
@@ -789,7 +804,6 @@ def create_service_data_retention(service, notification_type="sms", days_of_rete
 
 
 def create_invited_user(service=None, to_email_address=None):
-
     if service is None:
         service = create_service()
     if to_email_address is None:

@@ -127,6 +127,27 @@ def ses_complaint_callback():
     }
 
 
+def ses_complaint_callback_with_subtype(subtype):
+    """
+    https://docs.aws.amazon.com/ses/latest/DeveloperGuide/notification-contents.html#complaint-object
+    """
+    return {
+        "Signature": "bb",
+        "SignatureVersion": "1",
+        "MessageAttributes": {},
+        "MessageId": "98c6e927-af5d-5f3b-9522-bab736f2cbde",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com",
+        "TopicArn": "arn:ses_notifications",
+        "Type": "Notification",
+        "Timestamp": "2018-06-05T14:00:15.952Z",
+        "Subject": None,
+        "Message": '{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id", "complaintSubType":"'
+        + subtype
+        + '"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
+        "SigningCertUrl": "https://sns.pem",
+    }
+
+
 def sns_success_callback(reference=None, timestamp="2016-06-28 00:40:34.558", destination="+1XXX5550100"):
     # Payload details: https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html
     body = {
@@ -169,6 +190,106 @@ def sns_failed_callback(provider_response, reference=None, timestamp="2016-06-28
     }
 
     return _sns_callback(body)
+
+
+# Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
+def pinpoint_successful_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_SUCCESSFUL",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": False,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "mcc": "302",
+        "mnc": "610",
+        "carrierName": "Bell Cellular Inc. / Aliant Telecom",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "SUCCESSFUL",
+        "messageStatusDescription": "Message has been accepted by phone carrier",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.00767,
+    }
+
+    return _pinpoint_callback(body)
+
+
+def pinpoint_delivered_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_DELIVERED",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "mcc": "302",
+        "mnc": "610",
+        "carrierName": "Bell Cellular Inc. / Aliant Telecom",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "DELIVERED",
+        "messageStatusDescription": "Message has been accepted by phone",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
+
+
+def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_SUCCESSFUL",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "555555",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "SUCCESSFUL",
+        "messageStatusDescription": "Message has been accepted by phone carrier",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.02183,
+        "totalCarrierFee": 0.005,
+    }
+
+    return _pinpoint_callback(body)
+
+
+# Note that 1467074434 = 2016-06-28 00:40:34.558 UTC
+def pinpoint_failed_callback(provider_response, reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_CARRIER_UNREACHABLE",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "isoCountryCode": "CA",
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "CARRIER_UNREACHABLE",
+        "messageStatusDescription": provider_response,
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
 
 
 def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
@@ -233,6 +354,22 @@ def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
 
 
 def _sns_callback(body):
+    return {
+        "Type": "Notification",
+        "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
+        "TopicArn": "arn:aws:sns:ca-central-1:12341234:ses_notifications",
+        "Subject": None,
+        "Message": json.dumps(body),
+        "Timestamp": "2017-11-17T12:14:03.710Z",
+        "SignatureVersion": "1",
+        "Signature": "[REDACTED]",
+        "SigningCertUrl": "https://sns.ca-central-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem",
+        "UnsubscribeUrl": "https://sns.ca-central-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
+        "MessageAttributes": {},
+    }
+
+
+def _pinpoint_callback(body):
     return {
         "Type": "Notification",
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",

@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from freezegun import freeze_time
@@ -37,13 +37,16 @@ from app.dao.services_dao import (
     dao_suspend_service,
     dao_update_service,
     delete_service_and_all_associated_db_objects,
+    fetch_service_email_limit,
     fetch_todays_total_message_count,
+    fetch_todays_total_sms_count,
     get_services_by_partial_name,
 )
 from app.dao.users_dao import create_user_code, save_model_user
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
@@ -66,6 +69,7 @@ from app.models import (
     user_folder_permissions,
 )
 from app.schemas import service_schema
+from tests.app.conftest import create_sample_job
 from tests.app.db import (
     create_annual_billing,
     create_api_key,
@@ -85,6 +89,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 # from unittest import mock
 
@@ -102,6 +107,7 @@ def test_create_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type="central",
         created_by=user,
@@ -134,6 +140,7 @@ def test_create_service_with_organisation(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type="central",
         created_by=user,
@@ -194,6 +201,7 @@ def test_create_nhs_service_get_default_branding_based_on_email_address(
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         organisation_type=organisation_type,
         created_by=user,
@@ -216,6 +224,7 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
         name="service_name",
         email_from="email_from1",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -224,6 +233,7 @@ def test_cannot_create_two_services_with_same_name(notify_db_session):
         name="service_name",
         email_from="email_from2",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -240,6 +250,7 @@ def test_cannot_create_two_services_with_same_email_from(notify_db_session):
         name="service_name1",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -247,6 +258,7 @@ def test_cannot_create_two_services_with_same_email_from(notify_db_session):
         name="service_name2",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -263,6 +275,7 @@ def test_cannot_create_service_with_no_user(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -277,6 +290,7 @@ def test_should_add_user_to_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -347,6 +361,7 @@ def test_should_remove_user_from_service(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -481,7 +496,8 @@ def test_get_all_user_services_should_return_empty_list_if_no_services_for_user(
 
 
 @freeze_time("2019-04-23T10:00:00")
-def test_dao_fetch_live_services_data(sample_user):
+@pytest.mark.parametrize("filter_heartbeats", [True, False])
+def test_dao_fetch_live_services_data_filter_heartbeats(notify_api, sample_user, filter_heartbeats):
     org = create_organisation(organisation_type="nhs_central")
     service = create_service(go_live_user=sample_user, go_live_at="2014-04-20T10:00:00")
     template = create_template(service=service)
@@ -549,8 +565,12 @@ def test_dao_fetch_live_services_data(sample_user):
     # 3rd service: billing from 2019
     create_annual_billing(service_3.id, 200, 2019)
 
-    results = dao_fetch_live_services_data()
-    assert len(results) == 3
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", template.service_id):
+        results = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
+        if not filter_heartbeats:
+            assert len(results) == 3
+        else:
+            assert len(results) == 2
     # checks the results and that they are ordered by date:
     # @todo: this test is temporarily forced to pass until we can add the fiscal year back into
     # the query and create a new endpoint for the homepage stats
@@ -579,7 +599,7 @@ def test_dao_fetch_live_services_data(sample_user):
 def test_get_service_by_id_returns_none_if_no_service(notify_db):
     with pytest.raises(NoResultFound) as e:
         dao_fetch_service_by_id(str(uuid.uuid4()))
-    assert "No row was found for one()" in str(e)
+    assert "No row was found when one was required" in str(e)
 
 
 def test_get_service_by_id_returns_service(notify_db_session):
@@ -589,7 +609,7 @@ def test_get_service_by_id_returns_service(notify_db_session):
 
 def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_session, mocker):
     sample_service = create_service(service_name="testing", email_from="testing")
-    service_json = {"data": service_schema.dump(sample_service).data}
+    service_json = {"data": service_schema.dump(sample_service)}
 
     service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
     service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]
@@ -610,7 +630,7 @@ def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_s
     service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
 
     assert mocked_redis_get.called
-    assert str(sample_service.id) == service[0].id
+    assert str(sample_service.id) == service.id
 
 
 def test_create_service_returns_service_with_default_permissions(notify_db_session):
@@ -700,6 +720,7 @@ def test_create_service_creates_a_history_record_with_current_data(notify_db_ses
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -726,6 +747,7 @@ def test_update_service_creates_a_history_record_with_current_data(notify_db_ses
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -759,6 +781,7 @@ def test_update_service_permission_creates_a_history_record_with_current_data(
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -807,6 +830,7 @@ def test_create_service_and_history_is_transactional(notify_db_session):
         name=None,
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -814,7 +838,7 @@ def test_create_service_and_history_is_transactional(notify_db_session):
     with pytest.raises(IntegrityError) as excinfo:
         dao_create_service(service, user)
 
-    assert 'column "name" of relation "services_history" violates not-null constraint' in str(excinfo.value)
+    assert 'null value in column "name" violates not-null constraint' in str(excinfo.value)
 
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
@@ -863,6 +887,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
         name="service_one",
         email_from="service_one",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=user,
     )
@@ -883,6 +908,7 @@ def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
         name="service_two",
         email_from="service_two",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=other_user,
     )
@@ -919,6 +945,7 @@ def test_fetch_stats_filters_on_service(notify_db_session):
         email_from="hello",
         restricted=False,
         message_limit=1000,
+        sms_daily_limit=1000,
     )
     dao_create_service(service_two, service_one.created_by)
 
@@ -936,7 +963,7 @@ def test_fetch_stats_ignores_historical_notification_data(sample_template):
     assert len(stats) == 0
 
 
-def test_fetch_stats_counts_correctly(notify_db_session):
+def test_fetch_stats_counts_correctly(notify_db_session, notify_api):
     service = create_service()
     sms_template = create_template(service=service)
     email_template = create_template(service=service, template_type="email")
@@ -944,7 +971,7 @@ def test_fetch_stats_counts_correctly(notify_db_session):
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="created"))
     save_notification(create_notification(template=email_template, status="technical-failure"))
-    save_notification(create_notification(template=sms_template, status="created"))
+    save_notification(create_notification(template=sms_template, status="created", billable_units=10))
 
     stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
     stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
@@ -1035,15 +1062,52 @@ def test_fetch_stats_should_not_gather_notifications_older_than_7_days(sample_te
     assert len(stats) == rows_returned
 
 
-def test_dao_fetch_todays_total_message_count_returns_count_for_today(
-    notify_db_session,
-):
-    notification = save_notification(create_notification(template=create_template(service=create_service())))
-    assert fetch_todays_total_message_count(notification.service.id) == 1
+@pytest.mark.usefixtures("notify_db_session")
+class TestFetchTotalMessageCount:
+    def test_dao_fetch_todays_total_message_count_returns_count_for_today(self):
+        notification = save_notification(create_notification(template=create_template(service=create_service())))
+        assert fetch_todays_total_message_count(notification.service.id) == 1
+
+    def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_message_count(uuid.uuid4()) == 0
+
+    def test_dao_fetch_todays_total_message_count_returns_0_with_yesterday_messages(self):
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        notification = save_notification(
+            create_notification(created_at=yesterday, template=create_template(service=create_service()))
+        )
+        assert fetch_todays_total_message_count(notification.service.id) == 0
 
 
-def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(notify_db, notify_db_session):
-    assert fetch_todays_total_message_count(uuid.uuid4()) == 0
+@pytest.mark.usefixtures("notify_db_session")
+class TestFetchTodaysTotalSmsCount:
+    def test_returns_count_for_today(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=sms_template))
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_only_counts_sms(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=sms_template))
+        save_notification(create_notification(template=email_template))
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_sms_count(uuid.uuid4()) == 0
+
+    def test_returns_0_with_yesterday_messages(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        save_notification(create_notification(created_at=yesterday, template=sms_template))
+        assert fetch_todays_total_sms_count(service.id) == 0
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(
@@ -1286,6 +1350,7 @@ def test_dao_fetch_service_creator(notify_db_session):
         name="service_name",
         email_from="email_from",
         message_limit=1000,
+        sms_daily_limit=1000,
         restricted=False,
         created_by=active_user_1,
     )
@@ -1336,3 +1401,137 @@ def create_email_sms_letter_template():
     template_two = create_template(service=service, template_name="2", template_type="sms")
     template_three = create_template(service=service, template_name="3", template_type="letter")
     return template_one, template_three, template_two
+
+
+class TestServiceEmailLimits:
+    def test_get_email_count_for_service(self):
+        active_user_1 = create_user(email="active1@foo.com", state="active")
+        service = Service(
+            name="service_name",
+            email_from="email_from",
+            message_limit=1000,
+            sms_daily_limit=1000,
+            restricted=False,
+            created_by=active_user_1,
+        )
+        dao_create_service(
+            service,
+            active_user_1,
+            service_permissions=[
+                SMS_TYPE,
+                EMAIL_TYPE,
+                INTERNATIONAL_SMS_TYPE,
+            ],
+        )
+        assert fetch_service_email_limit(service.id) == 1000
+
+    def test_dao_fetch_todays_total_message_count_returns_count_for_today(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type="email")
+        save_notification(create_notification(template=email_template, status="created"))
+        assert fetch_todays_total_message_count(service.id) == 1
+
+    def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(self):
+        assert fetch_todays_total_message_count(uuid.uuid4()) == 0
+
+    def test_dao_fetch_todays_total_message_count_returns_0_with_yesterday_messages(self):
+        today = datetime.utcnow().date()
+        yesterday = today - timedelta(days=1)
+        notification = save_notification(
+            create_notification(
+                created_at=yesterday,
+                template=create_template(service=create_service(service_name="tester123"), template_type="email"),
+            )
+        )
+        assert fetch_todays_total_message_count(notification.service.id) == 0
+
+    def test_dao_fetch_todays_total_message_count_counts_notifications_in_jobs_scheduled_for_today(
+        self, notify_db, notify_db_session
+    ):
+        service = create_service(service_name="tester12")
+        template = create_template(service=service, template_type="email")
+        today = datetime.utcnow().date()
+
+        create_sample_job(
+            notify_db,
+            notify_db_session,
+            service=service,
+            template=template,
+            scheduled_for=today,
+            job_status=JOB_STATUS_SCHEDULED,
+            notification_count=10,
+        )
+        save_notification(
+            create_notification(
+                created_at=today,
+                template=template,
+            )
+        )
+        assert fetch_todays_total_message_count(service.id) == 11
+
+    def test_dao_fetch_todays_total_message_count_counts_notifications_in_jobs_scheduled_for_today_but_not_after_today(
+        self, notify_db, notify_db_session
+    ):
+        service = create_service()
+        template = create_template(service=service, template_type="email")
+        today = datetime.utcnow().date()
+
+        create_sample_job(
+            notify_db,
+            notify_db_session,
+            service=service,
+            template=template,
+            scheduled_for=today,
+            job_status=JOB_STATUS_SCHEDULED,
+            notification_count=10,
+        )
+        save_notification(
+            create_notification(
+                created_at=today,
+                template=template,
+            )
+        )
+        create_sample_job(
+            notify_db,
+            notify_db_session,
+            service=service,
+            template=template,
+            scheduled_for=today + timedelta(days=1),
+            job_status=JOB_STATUS_SCHEDULED,
+            notification_count=10,
+        )
+
+        assert fetch_todays_total_message_count(service.id) == 11
+
+    def test_dao_fetch_todays_total_message_count_counts_notifications_in_jobs_scheduled_for_today_but_not_before_today(
+        self, notify_db, notify_db_session
+    ):
+        service = create_service()
+        template = create_template(service=service, template_type="email")
+        today = datetime.utcnow().date()
+
+        create_sample_job(
+            notify_db,
+            notify_db_session,
+            service=service,
+            template=template,
+            scheduled_for=today,
+            job_status=JOB_STATUS_SCHEDULED,
+            notification_count=10,
+        )
+        create_sample_job(
+            notify_db,
+            notify_db_session,
+            service=service,
+            template=template,
+            scheduled_for=today - timedelta(days=1),
+            job_status=JOB_STATUS_SCHEDULED,
+            notification_count=10,
+        )
+        save_notification(
+            create_notification(
+                created_at=today,
+                template=template,
+            )
+        )
+        assert fetch_todays_total_message_count(service.id) == 11

@@ -4,7 +4,7 @@ name: Build and push lambda image to production
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   REGISTRY: ${{ secrets.PRODUCTION_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
@@ -19,31 +19,49 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Build container
-        run: |
-          docker build \
-          --build-arg GIT_SHA=${GITHUB_SHA::7} \
-          -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
-          . \
-          -f ci/Dockerfile.lambda
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
       - name: Configure AWS credentials
         id: aws-creds
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
         with:
           aws-access-key-id: ${{ secrets.PRODUCTION_ECR_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.PRODUCTION_ECR_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
 
+      - name: Set Docker image tag
+        run: |
+          echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build container
+        run: |
+          docker build \
+          --build-arg GIT_SHA=$IMAGE_TAG \
+          -t $REGISTRY/${{ matrix.image }}:$IMAGE_TAG \
+          . \
+          -f ci/Dockerfile.lambda
+
       - name: Login to ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
       - name: Push containers to ECR
         run: |
-          docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
+          docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
+
+      - name: Generate docker SBOM
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
+        with:
+          docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}"
+          dockerfile_path: "ci/Dockerfile.lambda"
+          sbom_name: "notification-api-lambda"
+          token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
+
+      - name: Notify Slack channel if this job failed
+        if: ${{ failure() }}
+        run: |
+          json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
+          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

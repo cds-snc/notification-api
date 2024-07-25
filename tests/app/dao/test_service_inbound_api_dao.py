@@ -3,7 +3,7 @@ import uuid
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import encryption
+from app import signer_bearer_token
 from app.dao.service_inbound_api_dao import (
     get_service_inbound_api,
     get_service_inbound_api_for_service,
@@ -40,7 +40,7 @@ def test_save_service_inbound_api(sample_service):
     assert versioned.service_id == sample_service.id
     assert versioned.updated_by_id == sample_service.users[0].id
     assert versioned.url == "https://some_service/inbound_messages"
-    assert encryption.decrypt(versioned._bearer_token) == "some_unique_string"
+    assert signer_bearer_token.verify(versioned._bearer_token) == "some_unique_string"
     assert versioned.updated_at is None
     assert versioned.version == 1
 
@@ -100,7 +100,7 @@ def test_update_service_inbound_api(sample_service):
         assert x.id is not None
         assert x.service_id == sample_service.id
         assert x.updated_by_id == sample_service.users[0].id
-        assert encryption.decrypt(x._bearer_token) == "some_unique_string"
+        assert signer_bearer_token.verify(x._bearer_token) == "some_unique_string"
 
 
 def test_get_service_inbound_api(sample_service):

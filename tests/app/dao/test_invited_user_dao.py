@@ -13,6 +13,7 @@ from app.dao.invited_user_dao import (
     save_invited_user,
 )
 from app.models import InvitedUser
+from tests.app.conftest import create_sample_invited_user
 
 
 def test_create_invited_user(notify_db, notify_db_session, sample_service):
@@ -78,17 +79,15 @@ def test_get_unknown_invited_user_returns_none(notify_db, notify_db_session, sam
 
     with pytest.raises(NoResultFound) as e:
         get_invited_user(sample_service.id, unknown_id)
-    assert "No row was found for one()" in str(e.value)
+    assert "No row was found when one was required" in str(e.value)
 
 
 def test_get_invited_users_for_service(notify_db, notify_db_session, sample_service):
-    from tests.app.conftest import sample_invited_user
-
     invites = []
     for i in range(0, 5):
         email = "invited_user_{}@service.gov.uk".format(i)
 
-        invited_user = sample_invited_user(notify_db, notify_db_session, sample_service, email)
+        invited_user = create_sample_invited_user(notify_db, notify_db_session, sample_service, email)
         invites.append(invited_user)
 
     all_from_db = get_invited_users_for_service(sample_service.id)

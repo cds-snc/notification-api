@@ -30,11 +30,43 @@ class TooManyRequestsError(InvalidRequest):
         self.message = self.message_template.format(sending_limit)
 
 
+class TooManySMSRequestsError(InvalidRequest):
+    status_code = 429
+    message_template = "Exceeded SMS daily sending limit of {} fragments"
+
+    def __init__(self, sending_limit):
+        self.message = self.message_template.format(sending_limit)
+
+
+class TooManyEmailRequestsError(InvalidRequest):
+    status_code = 429
+    messsage_template = "Exceeded email daily sending limit of {} messages"
+
+    def __init__(self, sending_limit):
+        self.message = self.messsage_template.format(sending_limit)
+
+
 class LiveServiceTooManyRequestsError(TooManyRequestsError):
     pass
 
 
+class LiveServiceTooManySMSRequestsError(TooManySMSRequestsError):
+    pass
+
+
+class LiveServiceTooManyEmailRequestsError(TooManyEmailRequestsError):
+    pass
+
+
 class TrialServiceTooManyRequestsError(TooManyRequestsError):
+    pass
+
+
+class TrialServiceTooManySMSRequestsError(TooManySMSRequestsError):
+    pass
+
+
+class TrialServiceTooManyEmailRequestsError(TooManyEmailRequestsError):
     pass
 
 

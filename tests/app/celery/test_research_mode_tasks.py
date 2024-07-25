@@ -8,6 +8,8 @@ from flask import current_app, json
 from freezegun import freeze_time
 
 from app.aws.mocks import (
+    pinpoint_delivered_callback,
+    pinpoint_failed_callback,
     ses_notification_callback,
     sns_failed_callback,
     sns_success_callback,
@@ -48,6 +50,30 @@ def test_make_sns_success_callback(notify_api, mocker, phone_number, sns_callbac
     message_celery = mock_task.apply_async.call_args[0][0][0]
     sns_callback_args.update({"reference": some_ref, "destination": phone_number, "timestamp": timestamp})
     assert message_celery == sns_callback(**sns_callback_args)
+
+
+@pytest.mark.parametrize(
+    "phone_number, pinpoint_callback, pinpoint_callback_args",
+    [
+        ("+15149301630", pinpoint_delivered_callback, {}),
+        ("+15149301631", pinpoint_delivered_callback, {}),
+        ("+15149301632", pinpoint_failed_callback, {"provider_response": "Phone is currently unreachable/unavailable"}),
+        ("+15149301633", pinpoint_failed_callback, {"provider_response": "Phone carrier is currently unreachable/unavailable"}),
+    ],
+)
+@freeze_time("2018-01-25 14:00:30")
+def test_make_pinpoint_success_callback(notify_api, mocker, phone_number, pinpoint_callback, pinpoint_callback_args):
+    mock_task = mocker.patch("app.celery.research_mode_tasks.process_pinpoint_results")
+    some_ref = str(uuid.uuid4())
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+    send_sms_response("pinpoint", phone_number, some_ref)
+
+    mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
+    message_celery = mock_task.apply_async.call_args[0][0][0]
+    pinpoint_callback_args.update({"reference": some_ref, "destination": phone_number, "timestamp": timestamp})
+    assert message_celery == pinpoint_callback(**pinpoint_callback_args)
 
 
 def test_make_ses_callback(notify_api, mocker):

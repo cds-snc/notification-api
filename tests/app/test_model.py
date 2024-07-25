@@ -2,10 +2,12 @@ import pytest
 from freezegun import freeze_time
 from sqlalchemy.exc import IntegrityError
 
-from app import encryption
+from app import signer_personalisation
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     MOBILE_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_FAILED,
@@ -16,10 +18,12 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
     PRECOMPILED_TEMPLATE_NAME,
+    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceSafelist,
 )
+from tests.app.conftest import create_template_category
 from tests.app.db import (
     create_inbound_number,
     create_letter_contact,
@@ -127,24 +131,30 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
 
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
-    "template_type, status, expected_status",
+    "template_type, status, feedback_subtype, expected_status",
     [
-        ("email", "failed", "Failed"),
-        ("email", "technical-failure", "Technical failure"),
-        ("email", "temporary-failure", "Inbox not accepting messages right now"),
-        ("email", "permanent-failure", "Email address doesn’t exist"),
-        ("sms", "temporary-failure", "Phone not accepting messages right now"),
-        ("sms", "permanent-failure", "Phone number doesn’t exist"),
-        ("sms", "sent", "Sent"),
-        ("letter", "created", "Accepted"),
-        ("letter", "sending", "Accepted"),
-        ("letter", "technical-failure", "Technical failure"),
-        ("letter", "delivered", "Received"),
+        ("email", "failed", None, "Failed"),
+        ("email", "technical-failure", None, "Tech issue"),
+        ("email", "temporary-failure", None, "Content or inbox issue"),
+        ("email", "permanent-failure", None, "No such address"),
+        ("email", "permanent-failure", "suppressed", "Blocked"),
+        ("email", "permanent-failure", "on-account-suppression-list", "Blocked"),
+        ("sms", "temporary-failure", None, "Carrier issue"),
+        ("sms", "permanent-failure", None, "No such number"),
+        ("sms", "sent", None, "Sent"),
+        ("letter", "created", None, "Accepted"),
+        ("letter", "sending", None, "Accepted"),
+        ("letter", "technical-failure", None, "Technical failure"),
+        ("letter", "delivered", None, "Received"),
     ],
 )
-def test_notification_for_csv_returns_formatted_status(sample_service, template_type, status, expected_status):
+def test_notification_for_csv_returns_formatted_status_ff_bouncerate(
+    sample_service, template_type, status, feedback_subtype, expected_status
+):
     template = create_template(sample_service, template_type=template_type)
     notification = save_notification(create_notification(template, status=status))
+    if feedback_subtype:
+        notification.feedback_subtype = feedback_subtype
 
     serialized = notification.serialize_for_csv()
     assert serialized["status"] == expected_status
@@ -166,7 +176,7 @@ def test_notification_personalisation_getter_returns_empty_dict_from_None():
 
 def test_notification_personalisation_getter_always_returns_empty_dict():
     noti = Notification()
-    noti._personalisation = encryption.encrypt({})
+    noti._personalisation = signer_personalisation.sign({})
     assert noti.personalisation == {}
 
 
@@ -175,7 +185,7 @@ def test_notification_personalisation_setter_always_sets_empty_dict(input_value)
     noti = Notification()
     noti.personalisation = input_value
 
-    assert noti._personalisation == encryption.encrypt({})
+    assert noti._personalisation == signer_personalisation.sign({})
 
 
 def test_notification_subject_is_none_for_sms():
@@ -334,19 +344,6 @@ def test_is_precompiled_letter_name_correct_not_hidden(sample_letter_template):
     assert not sample_letter_template.is_precompiled_letter
 
 
-@pytest.mark.parametrize(
-    "process_type, expected_queue",
-    [
-        ("normal", None),
-        ("priority", "priority-tasks"),
-        ("bulk", "bulk-tasks"),
-    ],
-)
-def test_template_queue_to_use(sample_service, process_type, expected_queue):
-    template = create_template(sample_service, process_type=process_type)
-    assert template.queue_to_use() == expected_queue
-
-
 def test_template_folder_is_parent(sample_service):
     x = None
     folders = []
@@ -361,6 +358,34 @@ def test_template_folder_is_parent(sample_service):
     assert not folders[1].is_parent_of(folders[0])
 
 
+@pytest.mark.parametrize(
+    "template_type, process_type, sms_process_type, email_process_type, expected_template_process_type",
+    [
+        (SMS_TYPE, None, NORMAL, BULK, NORMAL),
+        (EMAIL_TYPE, None, BULK, NORMAL, NORMAL),
+        (SMS_TYPE, BULK, PRIORITY, PRIORITY, BULK),
+        (EMAIL_TYPE, BULK, PRIORITY, PRIORITY, BULK),
+    ],
+)
+def test_template_process_type(
+    notify_db,
+    notify_db_session,
+    template_type,
+    process_type,
+    sms_process_type,
+    email_process_type,
+    expected_template_process_type,
+):
+    template_category = create_template_category(
+        notify_db, notify_db_session, sms_process_type=sms_process_type, email_process_type=email_process_type
+    )
+    template = create_template(
+        service=create_service(), template_type=template_type, process_type=process_type, template_category=template_category
+    )
+
+    assert template.template_process_type == expected_template_process_type
+
+
 def test_fido2_key_serialization(sample_fido2_key):
     json = sample_fido2_key.serialize()
     assert json["name"] == sample_fido2_key.name
@@ -371,3 +396,10 @@ def test_login_event_serialization(sample_login_event):
     json = sample_login_event.serialize()
     assert json["data"] == sample_login_event.data
     assert json["created_at"]
+
+
+class TestNotificationModel:
+    def test_queue_name_in_notifications(self, sample_service):
+        template = create_template(sample_service, template_type="email")
+        notification = save_notification(create_notification(template, to_field="test@example.com", queue_name="tester"))
+        assert notification.queue_name == "tester"

@@ -4,6 +4,7 @@ from functools import partial
 
 import pytest
 from freezegun import freeze_time
+from itsdangerous import BadSignature
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -23,13 +24,16 @@ from app.dao.notifications_dao import (
     dao_update_notification,
     dao_update_notifications_by_reference,
     delete_notifications_older_than_retention_by_type,
+    get_latest_sent_notification_for_job,
     get_notification_by_id,
+    get_notification_count_for_job,
     get_notification_for_job,
     get_notification_with_personalisation,
     get_notifications_for_job,
     get_notifications_for_service,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
+    resign_notifications,
     send_method_stats_by_service,
     set_scheduled_notification_to_processed,
     update_notification_status_by_id,
@@ -38,6 +42,7 @@ from app.dao.notifications_dao import (
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import (
     JOB_STATUS_IN_PROGRESS,
+    JOB_STATUS_PENDING,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
@@ -63,6 +68,7 @@ from tests.app.db import (
     save_notification,
     save_scheduled_notification,
 )
+from tests.conftest import set_signer_secret_key
 
 
 def test_should_have_decorated_notifications_dao_functions():
@@ -72,6 +78,7 @@ def test_should_have_decorated_notifications_dao_functions():
     assert dao_update_notification.__wrapped__.__name__ == "dao_update_notification"  # noqa
     assert update_notification_status_by_reference.__wrapped__.__name__ == "update_notification_status_by_reference"  # noqa
     assert get_notification_for_job.__wrapped__.__name__ == "get_notification_for_job"  # noqa
+    assert get_notification_count_for_job.__wrapped__.__name__ == "get_notification_count_for_job"  # noqa
     assert get_notifications_for_job.__wrapped__.__name__ == "get_notifications_for_job"  # noqa
     assert get_notification_with_personalisation.__wrapped__.__name__ == "get_notification_with_personalisation"  # noqa
     assert get_notifications_for_service.__wrapped__.__name__ == "get_notifications_for_service"  # noqa
@@ -439,10 +446,10 @@ def test_save_notification_and_increment_job(sample_template, sample_job):
 
 
 def test_save_notification_and_increment_correct_job(notify_db, notify_db_session, sample_template):
-    from tests.app.conftest import sample_job
+    from tests.app.conftest import create_sample_job
 
-    job_1 = sample_job(notify_db, notify_db_session, sample_template.service)
-    job_2 = sample_job(notify_db, notify_db_session, sample_template.service)
+    job_1 = create_sample_job(notify_db, notify_db_session, sample_template.service)
+    job_2 = create_sample_job(notify_db, notify_db_session, sample_template.service)
 
     assert Notification.query.count() == 0
     data = _notification_json(sample_template, job_id=job_1.id)
@@ -488,6 +495,12 @@ def test_get_notification_with_personalisation_by_id(sample_template):
     notification_from_db = get_notification_with_personalisation(sample_template.service.id, notification.id, key_type=None)
     assert notification == notification_from_db
     assert notification_from_db.scheduled_notification.scheduled_for == datetime(2017, 5, 5, 14, 15)
+
+
+def test_get_notification_with_personalisation_by_id_no_result(sample_template, fake_uuid, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
+    assert get_notification_with_personalisation(sample_template.service.id, fake_uuid, key_type=None) is None
+    assert mock_logger.called
 
 
 def test_get_notification_by_id_when_notification_exists(sample_notification):
@@ -557,6 +570,44 @@ def test_get_all_notifications_for_job(sample_job):
 
     notifications_from_db = get_notifications_for_job(sample_job.service.id, sample_job.id).items
     assert len(notifications_from_db) == 5
+
+
+def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job):
+    one_s = timedelta(seconds=1)
+    now = datetime.utcnow()
+
+    test_data = [
+        (now - 5 * one_s, "sent"),
+        (now - 4 * one_s, "sent"),
+        (now - 3 * one_s, "sent"),
+        (now - 2 * one_s, "pending"),
+        (now - 1 * one_s, "pending"),
+        (now, "sent"),
+    ]
+
+    for updated_at, status in test_data:
+        save_notification(create_notification(template=sample_job.template, job=sample_job, status=status, updated_at=updated_at))
+
+    latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
+    assert latest_sent_notification.updated_at == now
+
+
+def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
+    job = create_job(template=sample_template, notification_count=0, job_status=JOB_STATUS_PENDING)
+
+    latest_sent_notification = get_latest_sent_notification_for_job(job.id)
+    assert latest_sent_notification is None
+
+
+def test_get_notification_count_for_job(sample_job):
+    for i in range(0, 7):
+        try:
+            save_notification(create_notification(template=sample_job.template, job=sample_job))
+        except IntegrityError:
+            pass
+
+    notification_count_from_db = get_notification_count_for_job(sample_job.service.id, sample_job.id)
+    assert notification_count_from_db == 7
 
 
 def test_get_all_notifications_for_job_by_status(sample_job):
@@ -1073,7 +1124,6 @@ def test_delivery_is_delivery_slow_for_provider_filters_out_notifications_it_sho
 
 
 def test_dao_get_notifications_by_to_field(sample_template):
-
     recipient_to_search_for = {
         "to_field": "+16502532222",
         "normalised_to": "+16502532222",
@@ -1171,7 +1221,6 @@ def test_dao_get_notifications_by_to_field_escapes(
     search_term,
     expected_result_count,
 ):
-
     for email_address in {
         "foo%_@example.com",
         "%%bar@example.com",
@@ -1225,7 +1274,6 @@ def test_dao_get_notifications_by_to_field_matches_partial_phone_numbers(
     sample_template,
     search_term,
 ):
-
     notification_1 = save_notification(
         create_notification(
             template=sample_template,
@@ -1336,7 +1384,6 @@ def test_dao_get_notifications_by_to_field_only_searches_one_notification_type(
 
 
 def test_dao_created_scheduled_notification(sample_notification):
-
     scheduled_notification = ScheduledNotification(
         notification_id=sample_notification.id,
         scheduled_for=datetime.strptime("2017-01-05 14:15", "%Y-%m-%d %H:%M"),
@@ -1517,7 +1564,6 @@ def test_dao_get_last_notification_added_for_job_id_no_notifications(sample_temp
 
 
 def test_dao_get_last_notification_added_for_job_id_no_job(sample_template, fake_uuid):
-
     assert dao_get_last_notification_added_for_job_id(fake_uuid) is None
 
 
@@ -1741,7 +1787,10 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
 
     assert NotificationHistory.query.count() == 5
 
-    assert send_method_stats_by_service(datetime.utcnow() - timedelta(days=7), datetime.utcnow(),) == [
+    assert send_method_stats_by_service(
+        datetime.utcnow() - timedelta(days=7),
+        datetime.utcnow(),
+    ) == [
         (
             sample_service.id,
             sample_service.name,
@@ -1769,13 +1818,79 @@ def test_send_method_stats_by_service(sample_service, sample_organisation):
     )
 
 
-def test_bulk_insert_notification(sample_template):
-    assert len(Notification.query.all()) == 0
-    n1 = create_notification(sample_template, client_reference="happy")
-    n1.id = None
-    n1.status = None
-    n2 = create_notification(sample_template, client_reference="sad")
-    n3 = create_notification(sample_template, client_reference="loud")
-    bulk_insert_notifications([n1, n2, n3])
-    all_notifications = get_notifications_for_service(sample_template.service_id).items
-    assert len(all_notifications) == 3
+class TestBulkInsertNotifications:
+    def test_bulk_insert_notification(self, sample_template):
+        assert len(Notification.query.all()) == 0
+        n1 = create_notification(sample_template, client_reference="happy")
+        n1.id = None
+        n1.status = None
+        n2 = create_notification(sample_template, client_reference="sad")
+        n3 = create_notification(sample_template, client_reference="loud")
+        bulk_insert_notifications([n1, n2, n3])
+        all_notifications = get_notifications_for_service(sample_template.service_id).items
+        assert len(all_notifications) == 3
+
+    def test_bulk_insert_notification_duplicate_ids(self, sample_template):
+        assert len(Notification.query.all()) == 0
+        n1 = create_notification(sample_template, client_reference="happy")
+        n2 = create_notification(sample_template, client_reference="sad")
+        n3 = create_notification(sample_template, client_reference="loud")
+        n1.id = n2.id
+        n1.status = n2.status
+        with pytest.raises(Exception):
+            bulk_insert_notifications([n1, n2, n3])
+        assert len(get_notifications_for_service(sample_template.service_id).items) == 0
+
+
+class TestResigning:
+    @pytest.mark.parametrize("resign,chunk_size", [(True, 2), (False, 2), (True, 10), (False, 10)])
+    def test_resign_notifications_resigns_or_previews(self, resign, chunk_size, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notifications = [
+                create_notification(sample_template_with_placeholders, personalisation={"Name": "test"}) for _ in range(5)
+            ]
+            personalisations = [n.personalisation for n in initial_notifications]
+            _personalisations = [n._personalisation for n in initial_notifications]
+            for notification in initial_notifications:
+                save_notification(notification)
+
+        with set_signer_secret_key(signer_personalisation, ["k2", "k3"]):
+            resign_notifications(chunk_size=chunk_size, resign=resign)
+            notifications = [Notification.query.get(n.id) for n in initial_notifications]
+            assert [n.personalisation for n in notifications] == personalisations  # unsigned values are the same
+            if resign:
+                for (
+                    notification,
+                    _personalisation,
+                ) in zip(notifications, _personalisations):
+                    assert notification._personalisation != _personalisation  # signature is different
+            else:
+                assert [n._personalisation for n in notifications] == _personalisations  # signatures are the same
+
+    def test_resign_notifications_fails_if_cannot_verify_signatures(self, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            with pytest.raises(BadSignature):
+                resign_notifications(chunk_size=10, resign=True)
+
+    def test_resign_notifications_unsafe_resigns_with_new_key(self, sample_template_with_placeholders):
+        from app import signer_personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k1", "k2"]):
+            initial_notification = create_notification(sample_template_with_placeholders, personalisation={"Name": "test"})
+            save_notification(initial_notification)
+            personalisation = initial_notification.personalisation
+            _personalisation = initial_notification._personalisation
+
+        with set_signer_secret_key(signer_personalisation, ["k3"]):
+            resign_notifications(chunk_size=10, resign=True, unsafe=True)
+            notification = Notification.query.get(initial_notification.id)
+            assert notification.personalisation == personalisation  # unsigned value is the same
+            assert notification._personalisation != _personalisation  # signature is different

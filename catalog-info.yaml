@@ -1,0 +1,18 @@
+# Metadata for the backstage catalog accessible at this link:
+# https://backstage.cdssandbox.xyz/
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: notification-api-service
+  title: GC Notify API | GC Notification API
+  description: REST API service for GC Notification
+  annotations:
+    github.com/project-slug: cds-snc/notification-api
+  labels:
+    license: MIT
+spec:
+  type: service
+  lifecycle: production
+  owner: group:cds-snc/notify-dev
+  system: gc-notification

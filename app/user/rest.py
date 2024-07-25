@@ -12,9 +12,9 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
-from app.clients.zendesk import Zendesk
-from app.clients.zendesk_sell import ZenDeskSell
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
     create_fido2_session,
@@ -27,7 +27,7 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id
+from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -105,19 +105,14 @@ def handle_integrity_error(exc):
 
 @user_blueprint.route("", methods=["POST"])
 def create_user():
-    # import pdb; pdb.set_trace()
-    user_to_create, errors = create_user_schema.load(request.get_json())
     req_json = request.get_json()
+    user_to_create = create_user_schema.load(req_json)
 
     password = req_json.get("password", None)
-    if not password:
-        errors.update({"password": ["Missing data for required field."]})
+    response = pwnedpasswords.check(password)
+    if response > 0:
+        errors = {"password": ["Password is not allowed."]}
         raise InvalidRequest(errors, status_code=400)
-    else:
-        response = pwnedpasswords.check(password)
-        if response > 0:
-            errors.update({"password": ["Password is not allowed."]})
-            raise InvalidRequest(errors, status_code=400)
 
     save_model_user(user_to_create, pwd=req_json.get("password"))
     result = user_to_create.serialize()
@@ -133,9 +128,7 @@ def update_user_attribute(user_id):
     else:
         updated_by = None
 
-    update_dct, errors = user_update_schema_load_json.load(req_json)
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
+    update_dct = user_update_schema_load_json.load(req_json)
 
     save_user_attribute(user_to_update, update_dict=update_dct)
 
@@ -179,6 +172,13 @@ def update_user_attribute(user_id):
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            updated_user = get_user_by_id(user_id=user_id)
+            salesforce_client.contact_update(updated_user)
+        except Exception as e:
+            current_app.logger.exception(e)
+
     return jsonify(data=user_to_update.serialize()), 200
 
 
@@ -198,6 +198,10 @@ def activate_user(user_id):
 
     user.state = "active"
     save_model_user(user)
+
+    if current_app.config["FF_SALESFORCE_CONTACT"]:
+        salesforce_client.contact_create(user)
+
     return jsonify(data=user.serialize()), 200
 
 
@@ -226,7 +230,12 @@ def verify_user_password(user_id):
         return jsonify({}), 204
     else:
         increment_failed_login_count(user_to_verify)
-        message = "Incorrect password"
+        if user_to_verify.failed_login_count >= current_app.config["FAILED_LOGIN_LIMIT"]:
+            message = "Failed login: Incorrect password for user_id {user_id} failed_login {failed_login_count} times".format(
+                user_id=user_id, failed_login_count=user_to_verify.failed_login_count
+            )
+        else:
+            message = "Incorrect password for user_id {user_id}".format(user_id=user_id)
         errors = {"password": [message]}
         raise InvalidRequest(errors, status_code=400)
 
@@ -350,9 +359,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
 @user_blueprint.route("/<uuid:user_id>/change-email-verification", methods=["POST"])
 def send_user_confirm_new_email(user_id):
     user_to_send_to = get_user_by_id(user_id=user_id)
-    email, errors = email_data_request_schema.load(request.get_json())
-    if errors:
-        raise InvalidRequest(message=errors, status_code=400)
+    email = email_data_request_schema.load(request.get_json())
 
     template = dao_get_template_by_id(current_app.config["CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
@@ -407,7 +414,7 @@ def send_new_user_email_verification(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/email-already-registered", methods=["POST"])
 def send_already_registered_email(user_id):
-    to, errors = email_data_request_schema.load(request.get_json())
+    to = email_data_request_schema.load(request.get_json())
     template = dao_get_template_by_id(current_app.config["ALREADY_REGISTERED_EMAIL_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
@@ -434,14 +441,14 @@ def send_already_registered_email(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/contact-request", methods=["POST"])
 def send_contact_request(user_id):
-
     contact = None
     user = None
 
     try:
         contact = ContactRequest(**request.json)
         user = get_user_by_email(contact.email_address)
-        if not any([not s.restricted for s in user.services]):
+        # If the user has no live services, don't want to escalate the ticket.
+        if all([s.restricted for s in user.services]):
             contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
     except TypeError as e:
@@ -451,22 +458,27 @@ def send_contact_request(user_id):
         # This is perfectly normal if get_user_by_email raises
         pass
 
-    try:
-        if contact.is_go_live_request():
+    # Update the engagement stage in Salesforce for go live requests
+    if contact and contact.is_go_live_request() and current_app.config["FF_SALESFORCE_CONTACT"]:
+        try:
+            engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
             service = dao_fetch_service_by_id(contact.service_id)
-            ZenDeskSell().send_go_live_request(service, user, contact)
-        else:
-            ZenDeskSell().send_contact_request(contact)
-    except Exception as e:
-        current_app.logger.exception(e)
+            salesforce_client.engagement_update(service, user, engagement_updates)
 
-    if contact.is_demo_request():
-        return jsonify({}), 204
+            if not service.organisation_notes:
+                # the service was created before we started requesting the organisation name at creation time
+                if not contact.department_org_name:
+                    # this shouldn't happen, but if it does, we don't want to leave the service with no organisation name
+                    contact.department_org_name = "Unknown"
+                # fall back on the organisation name collected from the go live request
+                service.organisation_notes = contact.department_org_name
+                dao_update_service(service)
+            else:
+                # this is the normal case, where the service has an organisation name collected when it was created
+                contact.department_org_name = service.organisation_notes
 
-    try:
-        Zendesk(contact).send_ticket()
-    except Exception as e:
-        current_app.logger.exception(e)
+        except Exception as e:
+            current_app.logger.exception(e)
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
@@ -474,7 +486,6 @@ def send_contact_request(user_id):
 
 @user_blueprint.route("/<uuid:user_id>/branding-request", methods=["POST"])
 def send_branding_request(user_id):
-
     contact = None
     data = request.json
     try:
@@ -486,7 +497,12 @@ def send_branding_request(user_id):
             email_address=user.email_address,
             service_id=data["serviceID"],
             service_name=data["service_name"],
+            organisation_id=data["organisation_id"],
+            department_org_name=data["organisation_name"],
             branding_url=get_logo_url(data["filename"]),
+            branding_logo_name=data["branding_logo_name"] if "branding_logo_name" in data else "",
+            alt_text_en=data["alt_text_en"],
+            alt_text_fr=data["alt_text_fr"],
         )
         contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
@@ -498,10 +514,35 @@ def send_branding_request(user_id):
         current_app.logger.error(e)
         return jsonify({}), 400
 
+    status_code = Freshdesk(contact).send_ticket()
+    return jsonify({"status_code": status_code}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/new-template-category-request", methods=["POST"])
+def send_new_template_category_request(user_id):
+    contact = None
+    data = request.json
     try:
-        Zendesk(contact).send_ticket()
-    except Exception as e:
-        current_app.logger.exception(e)
+        user = get_user_by_id(user_id=user_id)
+        contact = ContactRequest(
+            support_type="new_template_category_request",
+            friendly_support_type="New template category request",
+            name=user.name,
+            email_address=user.email_address,
+            service_id=data["service_id"],
+            template_category_name_en=data["template_category_name_en"],
+            template_category_name_fr=data["template_category_name_fr"],
+            template_id_link=f"https://{current_app.config['ADMIN_BASE_URL']}/services/{data['service_id']}/templates/{data['template_id']}",
+        )
+        contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
+
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound as e:
+        # This means that get_user_by_id couldn't find a user
+        current_app.logger.error(e)
+        return jsonify({}), 400
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
@@ -520,7 +561,7 @@ def set_permissions(user_id, service_id):
     # TODO fix security hole, how do we verify that the user
     # who is making this request has permission to make the request.
     service_user = dao_get_service_user(user_id, service_id)
-    user = service_user.user
+    user = get_user_by_id(user_id)
     service = dao_fetch_service_by_id(service_id=service_id)
 
     data = request.get_json()
@@ -564,7 +605,7 @@ def get_by_email():
 
 @user_blueprint.route("/find-users-by-email", methods=["POST"])
 def find_users_by_email():
-    email, errors = partial_email_data_request_schema.load(request.get_json())
+    email = partial_email_data_request_schema.load(request.get_json())
     fetched_users = get_users_by_partial_email(email["email"])
     result = [user.serialize_for_users_list() for user in fetched_users]
     return jsonify(data=result), 200
@@ -572,7 +613,7 @@ def find_users_by_email():
 
 @user_blueprint.route("/reset-password", methods=["POST"])
 def send_user_reset_password():
-    email, errors = email_data_request_schema.load(request.get_json())
+    email = email_data_request_schema.load(request.get_json())
 
     user_to_send_to = get_user_by_email(email["email"])
 
@@ -601,21 +642,62 @@ def send_user_reset_password():
     return jsonify({}), 204
 
 
+@user_blueprint.route("/forced-password-reset", methods=["POST"])
+def send_forced_user_reset_password():
+    email = email_data_request_schema.load(request.get_json())
+
+    user_to_send_to = get_user_by_email(email["email"])
+
+    if user_to_send_to.blocked:
+        return jsonify({"message": "cannot reset password: user blocked"}), 400
+
+    template = dao_get_template_by_id(current_app.config["FORCED_PASSWORD_RESET_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=email["email"],
+        service=service,
+        personalisation={
+            "user_name": user_to_send_to.name,
+            "url": _create_reset_password_url(user_to_send_to.email_address),
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
+
+
 @user_blueprint.route("/<uuid:user_id>/update-password", methods=["POST"])
 def update_password(user_id):
     user = get_user_by_id(user_id=user_id)
     req_json = request.get_json()
     pwd = req_json.get("_password")
-    update_dct, errors = user_update_password_schema_load_json.load(req_json)
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
+
+    login_data = {}
+
+    if "loginData" in req_json:
+        login_data = req_json["loginData"]
+        del req_json["loginData"]
+
+    user_update_password_schema_load_json.load(req_json)
 
     response = pwnedpasswords.check(pwd)
     if response > 0:
-        errors.update({"password": ["Password is not allowed."]})
+        errors = {"password": ["Password is not allowed."]}
         raise InvalidRequest(errors, status_code=400)
 
     update_user_password(user, pwd)
+
+    # save login event
+    if login_data:
+        save_login_event(LoginEvent(user_id=user.id, data=login_data))
+
     changes = {"password": "password updated"}
 
     try:

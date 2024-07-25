@@ -16,6 +16,7 @@ def test_dvla_callback_returns_400_with_invalid_request(client):
     assert response.status_code == 400
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_dvla_callback_autoconfirms_subscription(client, mocker):
     autoconfirm_mock = mocker.patch("app.notifications.notifications_letter_callback.autoconfirm_subscription")
 
@@ -25,6 +26,7 @@ def test_dvla_callback_autoconfirms_subscription(client, mocker):
     assert autoconfirm_mock.called
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_dvla_callback_autoconfirm_does_not_call_update_letter_notifications_task(client, mocker):
     autoconfirm_mock = mocker.patch("app.notifications.notifications_letter_callback.autoconfirm_subscription")
     update_task = mocker.patch("app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async")
@@ -37,6 +39,7 @@ def test_dvla_callback_autoconfirm_does_not_call_update_letter_notifications_tas
     assert not update_task.called
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_dvla_callback_calls_does_not_update_letter_notifications_task_with_invalid_file_type(client, mocker):
     update_task = mocker.patch("app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async")
 
@@ -47,6 +50,7 @@ def test_dvla_callback_calls_does_not_update_letter_notifications_task_with_inva
     assert not update_task.called
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 @pytest.mark.parametrize("filename", ["Notify-20170411153023-rs.txt", "Notify-20170411153023-rsp.txt"])
 def test_dvla_rs_and_rsp_txt_file_callback_calls_update_letter_notifications_task(client, mocker, filename):
     update_task = mocker.patch("app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async")
@@ -62,6 +66,7 @@ def test_dvla_rs_and_rsp_txt_file_callback_calls_update_letter_notifications_tas
     daily_sorted_counts_task.assert_called_with([filename], queue="notify-internal-tasks")
 
 
+@pytest.mark.skip(reason="Deprecated: LETTER CODE")
 def test_dvla_ack_calls_does_not_call_letter_notifications_task(client, mocker):
     update_task = mocker.patch("app.notifications.notifications_letter_callback.update_letter_notifications_statuses.apply_async")
     daily_sorted_counts_task = mocker.patch(

@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
     validate_phone_number,
 )
 
-from app.notifications.validators import decode_personalisation_files
+from app.notifications.validators import validate_personalisation_and_decode_files
 
 format_checker = FormatChecker()
 
@@ -87,7 +87,9 @@ def validate(json_to_validate, schema):
     if errors.__len__() > 0:
         raise ValidationError(build_error_message(errors))
     if json_to_validate.get("personalisation", None):
-        json_to_validate["personalisation"], errors = decode_personalisation_files(json_to_validate.get("personalisation", {}))
+        json_to_validate["personalisation"], errors = validate_personalisation_and_decode_files(
+            json_to_validate.get("personalisation", {})
+        )
         if errors.__len__() > 0:
             error_message = json.dumps({"status_code": 400, "errors": errors})
             raise ValidationError(error_message)

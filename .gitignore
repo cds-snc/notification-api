@@ -28,6 +28,9 @@ var/
 .installed.cfg
 *.egg
 /cache
+newrelic-layer.zip
+smoketest.sh
+smoketest-prod.sh
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -49,6 +52,7 @@ htmlcov/
 coverage.xml
 test_results.xml
 *,cover
+test_results_serial.xml
 
 # Translations
 *.mo
@@ -63,20 +67,18 @@ docs/_build/
 # PyBuilder
 target/
 .idea/
-.vscode
+.vscode/settings.json
 
 # Mac
 *.DS_Store
 environment.sh
-.envrc
-.env
+.env*
+!.env.devcontainer
+!.env.example
 
 celerybeat-schedule
 celerybeat-schedule.*
 celerybeat.pid
-
-# CloudFoundry
-.cf
 
 # VSCode
 .vscode
@@ -85,3 +87,7 @@ celerybeat.pid
 # Misc
 /scripts/run_my_tests.sh
 jinja_templates/
+
+cypress.env.json
+node_modules/
+tests_cypress/cypress/videos/

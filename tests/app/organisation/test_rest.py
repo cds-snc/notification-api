@@ -6,6 +6,9 @@ from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
     dao_add_user_to_organisation,
 )
+from app.dao.service_data_retention_dao import (
+    fetch_service_data_retention_by_notification_type,
+)
 from app.models import Organisation
 from tests.app.db import (
     create_domain,
@@ -94,7 +97,6 @@ def test_get_organisation_by_id(admin_request, notify_db_session):
 
 
 def test_get_organisation_by_id_returns_domains(admin_request, notify_db_session):
-
     org = create_organisation(
         domains=[
             "foo.gov.uk",
@@ -230,7 +232,7 @@ def test_post_create_organisation_existing_name_raises_400(admin_request, sample
             },
             (
                 "organisation_type foo is not one of "
-                "[central, local, nhs_central, nhs_local, nhs_gp, emergency_service, school_or_college, other]"
+                "[central, province_or_territory, local, nhs_central, nhs_local, nhs_gp, emergency_service, school_or_college, other]"
             ),
         ),
     ),
@@ -335,7 +337,6 @@ def test_update_organisation_default_branding(
     admin_request,
     notify_db_session,
 ):
-
     org = create_organisation(name="Test Organisation")
 
     email_branding = create_email_branding()
@@ -555,6 +556,26 @@ def test_post_link_service_to_organisation_missing_payload(admin_request, sample
         organisation_id=str(sample_organisation.id),
         _expected_status=400,
     )
+
+
+def test_link_service_to_pt_organisation(admin_request, sample_service, sample_organisation):
+    data = {"service_id": str(sample_service.id)}
+    sample_organisation.organisation_type = "province_or_territory"
+
+    admin_request.post(
+        "organisation.link_service_to_organisation",
+        _data=data,
+        organisation_id=sample_organisation.id,
+        _expected_status=204,
+    )
+
+    assert len(sample_organisation.services) == 1
+
+    email_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "email")
+    sms_retention = fetch_service_data_retention_by_notification_type(sample_service.id, "sms")
+
+    assert email_retention.days_of_retention == 3
+    assert sms_retention.days_of_retention == 3
 
 
 def test_rest_get_organisation_services(admin_request, sample_organisation, sample_service):

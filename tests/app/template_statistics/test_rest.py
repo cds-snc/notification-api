@@ -12,7 +12,7 @@ def set_up_get_all_from_hash(mock_redis, side_effect):
     redis returns binary strings for both keys and values - so given a list of side effects (return values),
     make sure
     """
-    assert type(side_effect) == list
+    assert isinstance(side_effect, list)
     side_effects = []
     for ret_val in side_effect:
         if ret_val is None:
@@ -78,7 +78,6 @@ def test_get_template_statistics_for_service_by_day_accepts_old_query_string(
 
 @freeze_time("2018-01-02 12:00:00")
 def test_get_template_statistics_for_service_by_day_goes_to_db(admin_request, mocker, sample_template):
-
     # first time it is called redis returns data, second time returns none
     mock_dao = mocker.patch(
         "app.template_statistics.rest.fetch_notification_status_for_service_for_today_and_7_previous_days",
@@ -114,7 +113,6 @@ def test_get_template_statistics_for_service_by_day_goes_to_db(admin_request, mo
 
 
 def test_get_template_statistics_for_service_by_day_returns_empty_list_if_no_templates(admin_request, mocker, sample_service):
-
     json_resp = admin_request.get(
         "template_statistics.get_template_statistics_for_service_by_day",
         service_id=sample_service.id,

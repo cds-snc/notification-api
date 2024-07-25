@@ -1,13 +1,14 @@
 import base64
 import json
+from unittest import mock
 from uuid import UUID
 
-import mock
 import pytest
 from fido2 import cbor
 from flask import url_for
 from freezegun import freeze_time
 
+from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions
@@ -117,6 +118,7 @@ def test_post_user(client, notify_db, notify_db_session):
     resp = client.post(url_for("user.create_user"), data=json.dumps(data), headers=headers)
     assert resp.status_code == 201
     user = User.query.filter_by(email_address="user@digital.cabinet-office.gov.uk").first()
+    assert user.check_password("tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm")
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp["data"]["email_address"] == user.email_address
     assert json_resp["data"]["id"] == str(user.id)
@@ -271,6 +273,7 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
 
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
@@ -281,6 +284,8 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     assert resp.status_code == 200
     json_resp = json.loads(resp.get_data(as_text=True))
     assert json_resp["data"][user_attribute] == user_value
+
+    mocked_salesforce_client.contact_update.assert_called_once_with(sample_user)
 
 
 @pytest.mark.parametrize(
@@ -301,6 +306,7 @@ def test_post_user_attribute_send_notification_email(
 
     mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
@@ -376,6 +382,7 @@ def test_post_user_attribute_with_updated_by(
     headers = [("Content-Type", "application/json"), auth_header]
     mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = client.post(
         url_for("user.update_user_attribute", user_id=sample_user.id),
         data=json.dumps(update_dict),
@@ -446,6 +453,7 @@ def test_get_user_by_email(client, sample_service):
     assert sample_user.mobile_number == fetched["mobile_number"]
     assert sample_user.email_address == fetched["email_address"]
     assert sample_user.state == fetched["state"]
+    assert sample_user.password_expired == fetched["password_expired"]
     assert sorted(expected_permissions) == sorted(fetched["permissions"][str(sample_service.id)])
 
 
@@ -703,6 +711,26 @@ def test_send_user_reset_password_should_send_reset_password_link(client, sample
 
 
 @freeze_time("2016-01-01 11:09:00.061258")
+def test_send_user_forced_reset_password_should_send_reset_password_link(
+    client, sample_user, mocker, forced_password_reset_email_template
+):
+    mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    data = json.dumps({"email": sample_user.email_address})
+    auth_header = create_authorization_header()
+    notify_service = forced_password_reset_email_template.service
+    resp = client.post(
+        url_for("user.send_forced_user_reset_password"),
+        data=data,
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert resp.status_code == 204
+    notification = Notification.query.first()
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+
+
+@freeze_time("2016-01-01 11:09:00.061258")
 def test_send_user_reset_password_should_send_400_if_user_blocked(client, mocker, password_reset_email_template):
     blocked_user = create_user(blocked=True, email="blocked@cds-snc.ca")
     mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -807,8 +835,7 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     }
 
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -818,11 +845,10 @@ def test_send_contact_request_no_live_service(client, sample_user, mocker):
     assert resp.status_code == 204
 
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
 
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
-    mocked_zendesk_sell.assert_called_once_with(contact)
 
 
 def test_send_contact_request_with_live_service(client, sample_service, mocker):
@@ -833,8 +859,7 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
         "support_type": "ask_question",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value=200)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -843,8 +868,7 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
-    mocked_zendesk_sell.assert_called_once_with(ContactRequest(**data))
+    mocked_salesforce_client.engagement_update.assert_not_called()
 
 
 def test_send_contact_request_demo(client, sample_user, mocker):
@@ -854,7 +878,7 @@ def test_send_contact_request_demo(client, sample_user, mocker):
         "support_type": "demo",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.ZenDeskSell.send_contact_request", return_value="1")
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -863,11 +887,10 @@ def test_send_contact_request_demo(client, sample_user, mocker):
     )
     assert resp.status_code == 204
 
-    mocked_freshdesk.assert_not_called()
-
+    mocked_freshdesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
     contact = ContactRequest(**data)
     contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
-    mocked_zendesk.assert_called_once_with(contact)
 
 
 def test_send_contact_request_go_live(client, sample_service, mocker):
@@ -875,12 +898,13 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     data = {
         "name": sample_user.name,
         "email_address": sample_user.email_address,
+        "main_use_case": "I want to send emails",
         "support_type": "go_live_request",
         "service_id": str(sample_service.id),
     }
+    mocked_dao_fetch_service_by_id = mocker.patch("app.user.rest.dao_fetch_service_by_id", return_value=sample_service)
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
-    mocked_zendesk_sell = mocker.patch("app.user.rest.ZenDeskSell.send_go_live_request", return_value="1")
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_contact_request", user_id=str(sample_user.id)),
@@ -889,20 +913,62 @@ def test_send_contact_request_go_live(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
-    mocked_zendesk_sell.assert_called_once_with(sample_service, sample_user, ContactRequest(**data))
+    mocked_dao_fetch_service_by_id.assert_called_once_with(str(sample_service.id))
+    mocked_salesforce_client.engagement_update.assert_called_once_with(
+        sample_service, sample_user, {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": "I want to send emails"}
+    )
 
 
-def test_send_branding_request(client, sample_service, mocker):
+@pytest.mark.parametrize(
+    "organisation_notes, department_org_name",
+    [
+        ("TBS > CDS", "TBS > CDS"),
+        (None, "Unknown"),
+    ],
+)
+def test_send_contact_request_go_live_with_org_notes(organisation_notes, department_org_name, client, sample_service, mocker):
     sample_user = sample_service.users[0]
+    sample_service.organisation_notes = organisation_notes
+    data = {
+        "name": sample_user.name,
+        "email_address": sample_user.email_address,
+        "main_use_case": "I want to send emails",
+        "support_type": "go_live_request",
+        "service_id": str(sample_service.id),
+    }
+    mock_contact_request = mocker.MagicMock()
+    mocker.patch("app.user.rest.ContactRequest", return_value=mock_contact_request)
+    mocker.patch("app.user.rest.dao_fetch_service_by_id", return_value=sample_service)
+    mocker.patch("app.user.rest.dao_update_service")
+    mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+    mocker.patch("app.user.rest.get_user_by_email", return_value=sample_user)
+    mocker.patch("app.user.rest.salesforce_client")
+    mock_contact_request.department_org_name = None
+
+    resp = client.post(
+        url_for("user.send_contact_request", user_id=str(sample_user.id)),
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+    assert resp.status_code == 204
+    assert mock_contact_request.department_org_name == department_org_name
+
+
+def test_send_branding_request(client, sample_service, sample_organisation, mocker):
+    sample_user = sample_service.users[0]
+    sample_service.organisation = sample_organisation
     post_data = {
         "service_name": sample_service.name,
         "email_address": sample_user.email_address,
         "serviceID": str(sample_service.id),
+        "organisation_id": str(sample_service.organisation.id),
+        "organisation_name": sample_service.organisation.name,
         "filename": "branding_url",
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
-    mocked_zendesk = mocker.patch("app.user.rest.Zendesk.send_ticket", return_value=201)
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = client.post(
         url_for("user.send_branding_request", user_id=str(sample_user.id)),
@@ -911,7 +977,32 @@ def test_send_branding_request(client, sample_service, mocker):
     )
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
-    mocked_zendesk.assert_called_once_with()
+    mocked_salesforce_client.engagement_update.assert_not_called()
+
+
+class TestFreshDeskRequestTickets:
+    def test_send_request_for_new_category(self, client, sample_service, sample_organisation, mocker):
+        sample_user = sample_service.users[0]
+        sample_service.organisation = sample_organisation
+        post_data = {
+            "service_name": sample_service.name,
+            "email_address": sample_user.email_address,
+            "service_id": str(sample_service.id),
+            "template_category_name_en": "test",
+            "template_category_name_fr": "test",
+            "template_id": "1234",
+        }
+        mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+        mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
+
+        resp = client.post(
+            url_for("user.send_new_template_category_request", user_id=str(sample_user.id)),
+            data=json.dumps(post_data),
+            headers=[("Content-Type", "application/json"), create_authorization_header()],
+        )
+        assert resp.status_code == 204
+        mocked_freshdesk.assert_called_once_with()
+        mocked_salesforce_client.engagement_update.assert_not_called()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):
@@ -986,14 +1077,52 @@ def test_update_user_password_failes_when_banned_password_used(client, sample_se
     assert resp.status_code == 400
 
 
-def test_activate_user(admin_request, sample_user):
+def test_update_user_password_creates_LoginEvent_when_loginData_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password, "loginData": {"some": "data"}}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 1
+
+
+def test_update_user_password_does_not_create_LoginEvent_when_loginData_not_provided(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    new_password = "Sup3rS3cur3_P4ssw0rd"
+    data = {"_password": new_password}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    resp = client.post(
+        url_for("user.update_password", user_id=sample_user.id),
+        data=json.dumps(data),
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    assert LoginEvent.query.count() == 0
+
+
+def test_activate_user(admin_request, sample_user, mocker):
     sample_user.state = "pending"
+
+    mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
 
     resp = admin_request.post("user.activate_user", user_id=sample_user.id)
 
     assert resp["data"]["id"] == str(sample_user.id)
     assert resp["data"]["state"] == "active"
     assert sample_user.state == "active"
+
+    mocked_salesforce_client.contact_create.assert_called_once_with(sample_user)
 
 
 def test_activate_user_fails_if_already_active(admin_request, sample_user):
@@ -1005,6 +1134,7 @@ def test_activate_user_fails_if_already_active(admin_request, sample_user):
 def test_update_user_auth_type(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
 
     assert sample_user.auth_type == "email_auth"
     resp = admin_request.post(
@@ -1020,6 +1150,7 @@ def test_update_user_auth_type(admin_request, sample_user, account_change_templa
 def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = SMS_AUTH_TYPE
 
     admin_request.post(
@@ -1038,6 +1169,7 @@ def test_can_set_email_auth_and_remove_mobile_at_same_time(admin_request, sample
 def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = SMS_AUTH_TYPE
 
     json_resp = admin_request.post(
@@ -1053,6 +1185,7 @@ def test_cannot_remove_mobile_if_sms_auth(admin_request, sample_user, account_ch
 def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     admin_request.post(
@@ -1067,6 +1200,7 @@ def test_can_remove_mobile_if_email_auth(admin_request, sample_user, account_cha
 def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     sample_user.auth_type = EMAIL_AUTH_TYPE
 
     resp = admin_request.post(
@@ -1081,13 +1215,14 @@ def test_cannot_update_user_with_mobile_number_as_empty_string(admin_request, sa
 def test_cannot_update_user_password_using_attributes_method(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = admin_request.post(
         "user.update_user_attribute",
         user_id=sample_user.id,
         _data={"password": "foo"},
         _expected_status=400,
     )
-    assert resp["message"]["_schema"] == ["Unknown field name password"]
+    assert resp == {"message": {"_schema": ["Unknown field name password"]}, "result": "error"}
 
 
 def test_get_orgs_and_services_nests_services(admin_request, sample_user):
@@ -1430,6 +1565,7 @@ def test_list_login_events_for_a_user(client, sample_service):
 def test_update_user_blocked(admin_request, sample_user, account_change_template, mocker):
     mocker.patch("app.user.rest.persist_notification")
     mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
     resp = admin_request.post(
         "user.update_user_attribute",
         user_id=sample_user.id,
@@ -1438,3 +1574,34 @@ def test_update_user_blocked(admin_request, sample_user, account_change_template
 
     assert resp["data"]["id"] == str(sample_user.id)
     assert resp["data"]["blocked"]
+
+
+class TestFailedLogin:
+    def test_update_user_password_saves_correctly(self, client, sample_service, mocker):
+        sample_user = sample_service.users[0]
+        new_password = "tQETOgIO8yzDMyCsDjLZIEVZHAvkFArYfmSI1KTsJnlnPohI2tfIa8kfng7bxCm"
+        data = {"_password": new_password}
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
+        resp = client.post(
+            url_for("user.update_password", user_id=sample_user.id),
+            data=json.dumps(data),
+            headers=headers,
+        )
+        assert resp.status_code == 200
+
+        json_resp = json.loads(resp.get_data(as_text=True))
+        assert json_resp["data"]["password_changed_at"] is not None
+        data = {"password": new_password}
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
+        # We force a the password to fail on login
+        mocker.patch("app.models.User.check_password", return_value=False)
+
+        resp = client.post(
+            url_for("user.verify_user_password", user_id=str(sample_user.id)),
+            data=json.dumps(data),
+            headers=headers,
+        )
+        assert resp.status_code == 400
+        assert "Incorrect password for user_id" in resp.json["message"]["password"][0]

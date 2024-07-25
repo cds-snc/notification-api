@@ -2,63 +2,87 @@ import base64
 import csv
 import functools
 import uuid
+from datetime import datetime
 from io import StringIO
 
 import werkzeug
 from flask import abort, current_app, jsonify, request
+from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
     RecipientCSV,
     try_validate_and_format_phone_number,
 )
+from notifications_utils.template import Template
 
 from app import (
     api_user,
     authenticated_service,
     create_uuid,
     document_download_client,
-    encryption,
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
     notify_celery,
+    redis_store,
+    signer_notification,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
 from app.celery.research_mode_tasks import create_fake_letter_response_file
-from app.celery.tasks import process_job, save_email, save_sms
+from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
+from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
+    PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+    ApiKey,
     Notification,
+    NotificationType,
+    Service,
+    TemplateType,
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    choose_queue,
+    db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
-    send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.notifications.validators import (
+    check_email_daily_limit,
     check_rate_limiting,
     check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
+    check_sms_daily_limit,
+    increment_email_daily_count_send_warnings_if_needed,
+    increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
     validate_template,
     validate_template_exists,
@@ -66,6 +90,8 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
+from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -80,6 +106,8 @@ from app.v2.notifications.notification_schemas import (
     post_precompiled_letter_request,
     post_sms_request,
 )
+
+TWENTY_FOUR_HOURS_S = 24 * 60 * 60
 
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
@@ -117,14 +145,35 @@ def post_precompiled_letter_notification():
     return jsonify(resp), 201
 
 
+def _seed_bounce_data(epoch_timestamp: int, service_id: str):
+    current_time_s = int(datetime.utcnow().timestamp())
+    time_difference_s = current_time_s - epoch_timestamp
+
+    if 0 <= time_difference_s <= TWENTY_FOUR_HOURS_S:
+        # We are in the 24 hour window to seed bounce rate data
+        seed_bounce_rate_in_redis.apply_async(service_id)
+    else:
+        current_app.logger.info("Not in the time period to seed bounce rate {}".format(service_id))
+
+
+# flake8: noqa: C901
 @v2_notification_blueprint.route("/bulk", methods=["POST"])
 def post_bulk():
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(message=f"Error decoding arguments: {e.description}", status_code=400)
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
+        )
 
     max_rows = current_app.config["CSV_MAX_ROWS"]
+    epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
+    if epoch_seeding_bounce:
+        _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
+
     form = validate(request_json, post_bulk_request(max_rows))
 
     if len([source for source in [form.get("rows"), form.get("csv")] if source]) != 1:
@@ -132,7 +181,12 @@ def post_bulk():
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
 
-    remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
+    if template.template_type == SMS_TYPE:
+        fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
+        remaining_messages = authenticated_service.sms_daily_limit - fragments_sent
+    else:
+        current_app.logger.info(f"[post_notifications.post_bulk()] Checking bounce rate for service: {authenticated_service.id}")
+        remaining_messages = authenticated_service.message_limit - fetch_todays_total_message_count(authenticated_service.id)
 
     form["validated_sender_id"] = validate_sender_id(template, form.get("reply_to_id"))
 
@@ -152,24 +206,70 @@ def post_bulk():
             max_rows=max_rows,
             safelist=safelisted_members(authenticated_service, api_user.key_type),
             remaining_messages=remaining_messages,
+            template=Template(template.__dict__),
         )
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_messages)
+
+    for row in recipient_csv.get_rows():
+        try:
+            validate_template(template.id, row.personalisation, authenticated_service, template.template_type)
+        except BadRequestError as e:
+            message = e.message + ". Notification to {} on row #{} exceeds the maximum size limit.".format(
+                row.recipient, row.index + 1
+            )
+            raise BadRequestError(message=message)
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_daily_limit(authenticated_service, len(list(recipient_csv.get_rows())))
+        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
+
+        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+            increment_email_daily_count_send_warnings_if_needed(authenticated_service, len(list(recipient_csv.get_rows())))
+
+    if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        if form["validated_sender_id"] is None:
+            default_senders = [x for x in authenticated_service.service_sms_senders if x.is_default]
+            default_sender_id = default_senders[0].id if default_senders else None
+            form["validated_sender_id"] = default_sender_id
+
+        # calculate the number of simulated recipients
+        numberOfSimulated = sum(
+            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
+        )
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+
+        # if its a live or a team key, and they have specified testing and NON-testing recipients, raise an error
+        if api_user.key_type != KEY_TYPE_TEST and mixedRecipients:
+            raise BadRequestError(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
+
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or len(list(recipient_csv.get_rows())) == numberOfSimulated
+
+        if not is_test_notification:
+            check_sms_daily_limit(authenticated_service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
+
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
-    return jsonify(data=job_schema.dump(job).data), 201
+    return jsonify(data=job_schema.dump(job)), 201
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
-def post_notification(notification_type):
+def post_notification(notification_type: NotificationType):
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
         raise BadRequestError(
             message="Error decoding arguments: {}".format(e.description),
             status_code=400,
+        )
+    except werkzeug.exceptions.UnsupportedMediaType as e:
+        raise BadRequestError(
+            message="UnsupportedMediaType error: {}".format(e.description),
+            status_code=415,
         )
 
     if notification_type == EMAIL_TYPE:
@@ -181,6 +281,10 @@ def post_notification(notification_type):
     else:
         abort(404)
 
+    epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
+    if epoch_seeding_bounce:
+        _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
+
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)
@@ -189,12 +293,23 @@ def post_notification(notification_type):
 
     check_rate_limiting(authenticated_service, api_user)
 
+    personalisation = strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {}))
     template, template_with_content = validate_template(
         form["template_id"],
-        strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {})),
+        personalisation,
         authenticated_service,
         notification_type,
     )
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        check_email_daily_limit(authenticated_service, 1)  # 1 email
+
+    if template.template_type == SMS_TYPE:
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
+        if not is_test_notification:
+            check_sms_daily_limit(authenticated_service, 1)
+
+    current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
     reply_to = get_reply_to_text(notification_type, form, template)
 
@@ -216,6 +331,14 @@ def post_notification(notification_type):
         )
 
         template_with_content.values = notification.personalisation
+
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+        increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
+
+    if template.template_type == SMS_TYPE:
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
+        if not is_test_notification:
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -244,7 +367,36 @@ def post_notification(notification_type):
     return jsonify(resp), 201
 
 
-def process_sms_or_email_notification(*, form, notification_type, api_key, template, service, reply_to_text=None):
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk_publish.publish(signed_notification_data)
+
+
+def process_sms_or_email_notification(
+    *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
+) -> Notification:
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]
 
     send_to = validate_and_format_recipient(
@@ -259,23 +411,25 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    notification = {
+    _notification: NotificationDictToSign = {
         "id": create_uuid(),
         "template": str(template.id),
-        "template_version": str(template.version),
+        "service_id": str(service.id),
+        "template_version": str(template.version),  # type: ignore
         "to": form_send_to,
         "personalisation": personalisation,
         "simulated": simulated,
         "api_key": str(api_key.id),
         "key_type": str(api_key.key_type),
         "client_reference": form.get("reference", None),
+        "reply_to_text": reply_to_text,
     }
 
-    encrypted_notification_data = encryption.encrypt(notification)
-
+    signed_notification_data = signer_notification.sign(_notification)
+    notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
     if scheduled_for:
-        notification = persist_notification(
+        notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -285,27 +439,17 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
+    elif not simulated:
+        triage_notification_to_queues(notification_type, signed_notification_data, template)
 
-    elif current_app.config["FF_NOTIFICATION_CELERY_PERSISTENCE"] and not simulated:
-        # depending on the type route to the appropriate save task
-        if notification_type == EMAIL_TYPE:
-            current_app.logger.info("calling save email task")
-            save_email.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
-                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-            )
-        elif notification_type == SMS_TYPE:
-            save_sms.apply_async(
-                (authenticated_service.id, create_uuid(), encrypted_notification_data, None),
-                queue=QueueNames.DATABASE if not authenticated_service.research_mode else QueueNames.RESEARCH_MODE,
-            )
-
+        current_app.logger.info(
+            f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
+        )
     else:
-        notification = persist_notification(
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -315,15 +459,16 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
             api_key_id=api_key.id,
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
-            simulated=simulated,
             reply_to_text=reply_to_text,
         )
         if not simulated:
-            send_notification_to_queue(
+            notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=template.queue_to_use(),
+                queue=get_delivery_queue_for_template(template),
             )
+            db_save_and_send_notification(notification)
+
         else:
             current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
 
@@ -342,7 +487,7 @@ def process_sms_or_email_notification(*, form, notification_type, api_key, templ
     return notification
 
 
-def process_document_uploads(personalisation_data, service, simulated, template_id):
+def process_document_uploads(personalisation_data, service: Service, simulated, template_id):
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and "file" in v]
     if not file_keys:
         return personalisation_data
@@ -534,10 +679,16 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 status_code=400,
             )
         if recipient_csv.more_rows_than_can_send:
-            raise BadRequestError(
-                message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                status_code=400,
-            )
+            if recipient_csv.template_type == SMS_TYPE:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
+                    status_code=400,
+                )
+            else:
+                raise BadRequestError(
+                    message=f"You only have {remaining_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
+                    status_code=400,
+                )
 
         if recipient_csv.too_many_rows:
             raise BadRequestError(
@@ -555,6 +706,12 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_messages):
                 message=f"You cannot send to these recipients {explanation}",
                 status_code=400,
             )
+        if recipient_csv.template_type == SMS_TYPE and any(recipient_csv.rows_with_combined_variable_content_too_long):
+            raise BadRequestError(
+                message=f"Row {next(recipient_csv.rows_with_combined_variable_content_too_long).index + 1} - has a character count greater than {SMS_CHAR_COUNT_LIMIT} characters. Some messages may be too long due to custom content.",
+                status_code=400,
+            )
+
         if recipient_csv.rows_with_errors:
 
             def row_error(row):
@@ -595,7 +752,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         data["job_status"] = JOB_STATUS_SCHEDULED
         data["scheduled_for"] = form.get("scheduled_for")
 
-    job = job_schema.load(data).data
+    job = job_schema.load(data)
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:

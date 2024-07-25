@@ -23,7 +23,7 @@ register_errors(invite)
 @invite.route("", methods=["POST"])
 def create_invited_user(service_id):
     request_json = request.get_json()
-    invited_user, errors = invited_user_schema.load(request_json)
+    invited_user = invited_user_schema.load(request_json)
     save_invited_user(invited_user)
 
     template = dao_get_template_by_id(current_app.config["INVITATION_EMAIL_TEMPLATE_ID"])
@@ -50,24 +50,24 @@ def create_invited_user(service_id):
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
-    return jsonify(data=invited_user_schema.dump(invited_user).data), 201
+    return jsonify(data=invited_user_schema.dump(invited_user)), 201
 
 
 @invite.route("", methods=["GET"])
 def get_invited_users_by_service(service_id):
     invited_users = get_invited_users_for_service(service_id)
-    return jsonify(data=invited_user_schema.dump(invited_users, many=True).data), 200
+    return jsonify(data=invited_user_schema.dump(invited_users, many=True)), 200
 
 
 @invite.route("/<invited_user_id>", methods=["POST"])
 def update_invited_user(service_id, invited_user_id):
     fetched = get_invited_user(service_id=service_id, invited_user_id=invited_user_id)
 
-    current_data = dict(invited_user_schema.dump(fetched).data.items())
+    current_data = dict(invited_user_schema.dump(fetched).items())
     current_data.update(request.get_json())
-    update_dict = invited_user_schema.load(current_data).data
+    update_dict = invited_user_schema.load(current_data)
     save_invited_user(update_dict)
-    return jsonify(data=invited_user_schema.dump(fetched).data), 200
+    return jsonify(data=invited_user_schema.dump(fetched)), 200
 
 
 def invited_user_url(invited_user_id, invite_link_host=None):
@@ -76,7 +76,6 @@ def invited_user_url(invited_user_id, invite_link_host=None):
     token = generate_token(
         str(invited_user_id),
         current_app.config["SECRET_KEY"],
-        current_app.config["DANGEROUS_SALT"],
     )
 
     if invite_link_host is None:

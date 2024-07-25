@@ -14,14 +14,13 @@ from notifications_utils.template import SMSMessageTemplate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import DATETIME_FORMAT, db, encryption
+from app import DATETIME_FORMAT, db, signer_delivery_status
 from app.aws import s3
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.nightly_tasks import (
     send_total_sent_notifications_to_performance_platform,
 )
 from app.celery.service_callback_tasks import send_delivery_status_to_service
-from app.celery.tasks import record_daily_sorted_counts
 from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
@@ -254,7 +253,6 @@ def backfill_performance_platform_totals(start_date, end_date):
     print("Sending total messages sent for all days between {} and {}".format(start_date, end_date))
 
     for i in range(delta.days + 1):
-
         process_date = start_date + timedelta(days=i)
 
         print("Sending total messages sent for {}".format(process_date.isoformat()))
@@ -429,8 +427,8 @@ def replay_service_callbacks(file_name, service_id):
             "service_callback_api_url": callback_api.url,
             "service_callback_api_bearer_token": callback_api.bearer_token,
         }
-        encrypted_status_update = encryption.encrypt(data)
-        send_delivery_status_to_service.apply_async([str(n.id), encrypted_status_update], queue=QueueNames.CALLBACKS)
+        signed_status_update = signer_delivery_status.sign(data)
+        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update], queue=QueueNames.CALLBACKS)
 
     print(
         "Replay service status for service: {}. Sent {} notification status updates to the queue".format(
@@ -460,7 +458,6 @@ def setup_commands(application):
 )
 @statsd(namespace="tasks")
 def migrate_data_to_ft_billing(start_date, end_date):
-
     current_app.logger.info("Billing migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date
@@ -592,7 +589,6 @@ def rebuild_ft_billing_for_day(service_id, day):
 )
 @statsd(namespace="tasks")
 def migrate_data_to_ft_notification_status(start_date, end_date):
-
     print("Notification statuses migration from date {} to {}".format(start_date, end_date))
 
     process_date = start_date
@@ -841,7 +837,6 @@ def replay_daily_sorted_count_files(file_extension):
         suffix=file_extension or ".rs.txt",
     ):
         print("Create task to record daily sorted counts for file: ", filename)
-        record_daily_sorted_counts.apply_async([filename], queue=QueueNames.NOTIFY)
 
 
 @notify_command(name="populate-organisations-from-file")
@@ -1050,3 +1045,20 @@ def fix_billable_units():
         Notification.query.filter(Notification.id == notification.id).update({"billable_units": template.fragment_count})
     db.session.commit()
     print("End fix_billable_units")
+
+
+@notify_command(name="admin")
+@click.option("-u", "--user_email", required=True, help="user email address")
+@click.option("--on/--off", required=False, default=True, show_default="on", help="set admin on or off")
+def toggle_admin(user_email, on):
+    """
+    Set a user to be a platform admin or not
+    """
+    try:
+        user = User.query.filter(User.email_address == user_email).one()
+    except NoResultFound:
+        print(f"User {user_email} not found")
+        return
+    user.platform_admin = on
+    db.session.commit()
+    print(f"User {user.email_address} is now {'an admin' if user.platform_admin else 'not an admin'}")

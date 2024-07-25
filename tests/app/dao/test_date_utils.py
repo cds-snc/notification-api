@@ -1,11 +1,13 @@
 from datetime import date, datetime
 
 import pytest
+import pytz
 
 from app.dao.date_util import (
     get_april_fools,
     get_financial_year,
     get_financial_year_for_datetime,
+    get_midnight,
     get_month_start_and_end_date_in_utc,
 )
 
@@ -59,9 +61,9 @@ def test_get_april_fools():
 )
 def test_get_month_start_and_end_date_in_utc(month, year, expected_start, expected_end):
     month_year = datetime(year, month, 10, 13, 30, 00)
-    result = get_month_start_and_end_date_in_utc(month_year)
-    assert result[0] == expected_start
-    assert result[1] == expected_end
+    start, end = get_month_start_and_end_date_in_utc(month_year)
+    assert start == expected_start
+    assert end == expected_end
 
 
 @pytest.mark.parametrize(
@@ -76,3 +78,53 @@ def test_get_month_start_and_end_date_in_utc(month, year, expected_start, expect
 )
 def test_get_financial_year_for_datetime(dt, fy):
     assert get_financial_year_for_datetime(dt) == fy
+
+
+class TestMidnightDateTime:
+    eastern = pytz.timezone("US/Eastern")
+    utc = pytz.utc
+
+    @pytest.mark.parametrize(
+        "current_time, expected_midnight",
+        [
+            (
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 4, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 23, 59, 59, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 4, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 5, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 20, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 18, 00, 00, tzinfo=utc),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=utc),
+            ),
+            (
+                datetime(2022, 7, 1, 18, 00, 00, tzinfo=eastern),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=eastern),
+            ),
+            (
+                datetime(2022, 7, 1, 20, 00, 00, tzinfo=eastern),
+                datetime(2022, 7, 1, 0, 00, 00, tzinfo=eastern),
+            ),
+        ],
+    )
+    def test_get_midnight(self, current_time, expected_midnight):
+        actual = get_midnight(current_time)
+        assert expected_midnight == actual

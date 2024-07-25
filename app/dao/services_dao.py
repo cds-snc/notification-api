@@ -1,8 +1,8 @@
 import json
 import uuid
 from datetime import date, datetime, timedelta
-from typing import Tuple, Union
 
+import pytz
 from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
@@ -12,7 +12,7 @@ from sqlalchemy.sql.expression import and_, asc, case, func
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
-from app.dao.date_util import get_current_financial_year
+from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
@@ -23,6 +23,7 @@ from app.models import (
     CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEST,
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
@@ -46,6 +47,7 @@ from app.models import (
     User,
     VerifyCode,
 )
+from app.service.utils import add_pt_data_retention, get_organisation_by_id
 from app.utils import (
     email_address_is_nhs,
     escape_special_characters,
@@ -82,7 +84,7 @@ def dao_count_live_services():
     ).count()
 
 
-def dao_fetch_live_services_data():
+def dao_fetch_live_services_data(filter_heartbeats=None):
     year_start_date, year_end_date = get_current_financial_year()
 
     most_recent_annual_billing = (
@@ -174,8 +176,11 @@ def dao_fetch_live_services_data():
             AnnualBilling.free_sms_fragment_limit,
         )
         .order_by(asc(Service.go_live_at))
-        .all()
     )
+
+    if filter_heartbeats:
+        data = data.filter(Service.id != current_app.config["NOTIFY_SERVICE_ID"])
+    data = data.all()
     results = []
     for row in data:
         existing_service = next((x for x in results if x["service_id"] == row.service_id), None)
@@ -189,12 +194,12 @@ def dao_fetch_live_services_data():
     return results
 
 
-def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Union[Service, Tuple[Service, dict]]:
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
     if use_cache:
         service_cache = redis_store.get(service_cache_key(service_id))
         if service_cache:
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
-            return Service.from_json(service_cache_decoded), service_cache_decoded
+            return Service.from_json(service_cache_decoded)
 
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:
@@ -273,6 +278,7 @@ def dao_create_service(
     user,
     service_id=None,
     service_permissions=None,
+    organisation_id=None,
 ):
     # the default property does not appear to work when there is a difference between the sqlalchemy schema and the
     # db schema (ie: during a migration), so we have to set sms_sender manually here. After the GOVUK sms_sender
@@ -284,7 +290,10 @@ def dao_create_service(
     if service_permissions is None:
         service_permissions = DEFAULT_SERVICE_PERMISSIONS
 
-    organisation = dao_get_organisation_by_email_address(user.email_address)
+    if organisation_id:
+        organisation = get_organisation_by_id(organisation_id)
+    else:
+        organisation = dao_get_organisation_by_email_address(user.email_address)
 
     from app.dao.permissions_dao import permission_dao
 
@@ -304,11 +313,12 @@ def dao_create_service(
     if organisation:
         service.organisation_id = organisation.id
         service.organisation_type = organisation.organisation_type
-        if organisation.email_branding:
-            service.email_branding = organisation.email_branding
 
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding
+
+        if organisation.organisation_type == "province_or_territory":
+            add_pt_data_retention(service.id)
 
     elif service.organisation_type in NHS_ORGANISATION_TYPES or email_address_is_nhs(user.email_address):
         service.email_branding = dao_get_email_branding_by_name("NHS")
@@ -415,20 +425,67 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 
 def fetch_todays_total_message_count(service_id):
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("count")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for >= midnight,
+            Job.scheduled_for < midnight + timedelta(days=1),
+        )
+    ).first()
+
     result = (
-        db.session.query(func.count(Notification.id).label("count"))
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("count")).filter(
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.created_at >= midnight,
+        )
+    ).first()
+
+    return result.count + scheduled.count
+
+
+def fetch_todays_total_sms_count(service_id):
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    result = (
+        db.session.query(func.count(Notification.id).label("total_sms_notifications"))
         .filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            func.date(Notification.created_at) == date.today(),
-        )
-        .group_by(
-            Notification.notification_type,
-            Notification.status,
+            Notification.created_at > midnight,
+            Notification.notification_type == "sms",
         )
         .first()
     )
-    return 0 if result is None else result.count
+    return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+
+
+def fetch_service_email_limit(service_id: uuid.UUID) -> int:
+    return Service.query.get(service_id).message_limit
+
+
+def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("total_scheduled_notifications")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for > midnight,
+            Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
+        )
+    ).first()
+
+    result = (
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.created_at > midnight,
+            Notification.notification_type == "email",
+        )
+    ).first()
+
+    return result.total_email_notifications + scheduled.total_scheduled_notifications
 
 
 def _stats_for_service_query(service_id):
@@ -436,7 +493,7 @@ def _stats_for_service_query(service_id):
         db.session.query(
             Notification.notification_type,
             Notification.status,
-            func.count(Notification.id).label("count"),
+            *([func.count(Notification.id).label("count")]),
         )
         .filter(
             Notification.service_id == service_id,

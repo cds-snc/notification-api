@@ -8,12 +8,14 @@ from freezegun import freeze_time
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES
+from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
 from tests import create_authorization_header
 from tests.app.db import (
     create_ft_notification_status,
     create_job,
     create_notification,
+    create_service_with_inbound_number,
+    create_template,
     save_notification,
 )
 from tests.conftest import set_config
@@ -46,7 +48,7 @@ def test_get_job_with_unknown_id_returns404(client, sample_template, fake_uuid):
     response = client.get(path, headers=[auth_header])
     assert response.status_code == 404
     resp_json = json.loads(response.get_data(as_text=True))
-    assert resp_json == {"message": "No result found", "result": "error"}
+    assert resp_json == {"message": "Job not found in database", "result": "error"}
 
 
 def test_cancel_job(client, sample_scheduled_job):
@@ -72,6 +74,7 @@ def test_cant_cancel_normal_job(client, sample_job, mocker):
     assert mock_update.call_count == 0
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_letter_template, admin_request, mocker):
     job = create_job(template=sample_letter_template, notification_count=1, job_status="finished")
@@ -94,6 +97,7 @@ def test_cancel_letter_job_updates_notifications_and_job_to_cancelled(sample_let
     assert response == 1
 
 
+@pytest.mark.skip(reason="Letter tests")
 @freeze_time("2019-06-13 13:00")
 def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_returns_False(
     sample_letter_template, admin_request, mocker
@@ -123,6 +127,71 @@ def test_cancel_letter_job_does_not_call_cancel_if_can_letter_job_be_cancelled_r
     assert response["message"] == "Sorry, it's too late, letters have already been sent."
 
 
+def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sample_email_job, fake_uuid):
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch("app.job.rest.increment_email_daily_count_send_warnings_if_needed")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": sample_email_job.template_id,
+            "original_file_name": sample_email_job.original_file_name,
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="email address\r\nsome@email.com",
+    )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    data = {
+        "id": fake_uuid,
+        "created_by": str(sample_email_job.created_by.id),
+    }
+    path = "/service/{}/job".format(sample_email_job.service_id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+
+    assert response.status_code == 201
+
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
+    app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_called_once_with(sample_email_job.service, 1)
+
+
+def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily_count(
+    client, mocker, sample_email_job, fake_uuid
+):
+    scheduled_date = (datetime.utcnow() + timedelta(hours=36, minutes=59)).isoformat()
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch("app.job.rest.increment_email_daily_count_send_warnings_if_needed")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": sample_email_job.template_id,
+            "original_file_name": sample_email_job.original_file_name,
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="email address\r\nsome@email.com",
+    )
+    mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    data = {"id": fake_uuid, "created_by": str(sample_email_job.created_by.id), "scheduled_for": scheduled_date}
+    path = "/service/{}/job".format(sample_email_job.service_id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+
+    assert response.status_code == 201
+
+    app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_not_called()
+
+
 def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     mocker.patch("app.celery.tasks.process_job.apply_async")
     mocker.patch(
@@ -133,6 +202,10 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
             "notification_count": "1",
             "valid": "True",
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -171,6 +244,10 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
             "sender_id": fake_uuid,
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -188,6 +265,39 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
     app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
 
 
+def test_create_job_sets_sender_id_from_database(client, mocker, fake_uuid, sample_user):
+    service = create_service_with_inbound_number(inbound_number="12345")
+    template = create_template(service=service)
+    sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
+
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": str(template.id),
+            "original_file_name": "thisisatest.csv",
+            "notification_count": "1",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
+    data = {
+        "id": fake_uuid,
+        "created_by": str(template.created_by.id),
+    }
+    path = "/service/{}/job".format(service.id)
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    response = client.post(path, data=json.dumps(data), headers=headers)
+    resp_json = json.loads(response.get_data(as_text=True))
+
+    assert resp_json["data"]["sender_id"] == str(sms_sender.id)
+
+
 @freeze_time("2016-01-01 12:00:00.000000")
 def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
     scheduled_date = (datetime.utcnow() + timedelta(hours=95, minutes=59)).isoformat()
@@ -200,6 +310,10 @@ def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
             "notification_count": "1",
             "valid": "True",
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -218,7 +332,9 @@ def test_create_scheduled_job(client, sample_template, mocker, fake_uuid):
     resp_json = json.loads(response.get_data(as_text=True))
 
     assert resp_json["data"]["id"] == fake_uuid
-    assert resp_json["data"]["scheduled_for"] == datetime(2016, 1, 5, 11, 59, 0, tzinfo=pytz.UTC).isoformat()
+    assert resp_json["data"]["scheduled_for"] == datetime(2016, 1, 5, 11, 59, 0, tzinfo=pytz.UTC).isoformat(
+        timespec="microseconds"
+    )
     assert resp_json["data"]["job_status"] == "scheduled"
     assert resp_json["data"]["template"] == str(sample_template.id)
     assert resp_json["data"]["original_file_name"] == "thisisatest.csv"
@@ -242,26 +358,22 @@ def test_create_job_returns_403_if_service_is_not_active(client, fake_uuid, samp
     mock_job_dao.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "extra_metadata",
-    (
-        {},
-        {"valid": "anything not the string True"},
-    ),
-)
-def test_create_job_returns_400_if_file_is_invalid(
-    client,
-    fake_uuid,
-    sample_template,
-    mocker,
-    extra_metadata,
-):
+@pytest.mark.parametrize("extra_metadata, test_run", [({}, 1), ({"valid": "anything not the string True"}, 2)])
+def test_create_job_returns_400_if_file_is_invalid(client, fake_uuid, sample_template, mocker, extra_metadata, test_run):
     mock_job_dao = mocker.patch("app.dao.jobs_dao.dao_create_job")
     auth_header = create_authorization_header()
     metadata = dict(
-        template_id=str(sample_template.id), original_file_name="thisisatest.csv", notification_count=1, **extra_metadata
+        template_id=str(sample_template.id),
+        original_file_name=f"thisisatest{test_run}.csv",
+        notification_count=1,
+        **extra_metadata,
     )
     mocker.patch("app.job.rest.get_job_metadata_from_s3", return_value=metadata)
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
+
     data = {"id": fake_uuid}
     response = client.post(
         "/service/{}/job".format(sample_template.service.id),
@@ -276,6 +388,7 @@ def test_create_job_returns_400_if_file_is_invalid(
     mock_job_dao.assert_not_called()
 
 
+@pytest.mark.skip(reason="Letter tests")
 def test_create_job_returns_403_if_letter_template_type_and_service_in_trial(
     client, fake_uuid, sample_trial_letter_template, mocker
 ):
@@ -319,6 +432,10 @@ def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_te
             "valid": "True",
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -351,6 +468,10 @@ def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mo
             "notification_count": "1",
             "valid": "True",
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -402,6 +523,10 @@ def test_create_job_returns_400_if_missing_data(client, sample_template, mocker,
             "template_id": str(sample_template.id),
         },
     )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
+    )
     data = {
         "id": fake_uuid,
         "valid": "True",
@@ -426,6 +551,7 @@ def test_create_job_returns_404_if_template_does_not_exist(client, sample_servic
         "app.job.rest.get_job_metadata_from_s3",
         return_value={
             "template_id": str(sample_service.id),
+            "valid": "True",
         },
     )
     data = {
@@ -476,6 +602,10 @@ def test_create_job_returns_400_if_archived_template(client, sample_template, mo
         return_value={
             "template_id": str(sample_template.id),
         },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222",
     )
     data = {
         "id": fake_uuid,
@@ -666,8 +796,8 @@ def test_get_jobs_should_paginate(admin_request, sample_template):
     with set_config(admin_request.app, "PAGE_SIZE", 2):
         resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id)
 
-    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00+00:00"
-    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00+00:00"
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00.000000+00:00"
     assert resp_json["page_size"] == 2
     assert resp_json["total"] == 10
     assert "links" in resp_json
@@ -680,8 +810,8 @@ def test_get_jobs_accepts_page_parameter(admin_request, sample_template):
     with set_config(admin_request.app, "PAGE_SIZE", 2):
         resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page=2)
 
-    assert resp_json["data"][0]["created_at"] == "2015-01-01T08:00:00+00:00"
-    assert resp_json["data"][1]["created_at"] == "2015-01-01T07:00:00+00:00"
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T08:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T07:00:00.000000+00:00"
     assert resp_json["page_size"] == 2
     assert resp_json["total"] == 10
     assert "links" in resp_json
