@@ -16,12 +16,12 @@ from app import create_app
 load_dotenv()
 
 application = Flask("api")
+application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
+
+app = create_app(application)
 
 xray_recorder.configure(service='api')
-XRayMiddleware(application, xray_recorder)
-
-application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
-app = create_app(application)
+XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
