@@ -8,6 +8,9 @@ from apig_wsgi import make_lambda_handler
 from dotenv import load_dotenv
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
 
 from app import create_app
 
@@ -15,6 +18,10 @@ load_dotenv()
 
 
 application = Flask("api")
+
+xray_recorder.configure(service='api')
+XRayMiddleware(application, xray_recorder)
+
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 app = create_app(application)
 
