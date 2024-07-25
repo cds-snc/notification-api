@@ -11,12 +11,9 @@ from dotenv import load_dotenv
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-
-
 from app import create_app
 
 load_dotenv()
-
 
 application = Flask("api")
 
