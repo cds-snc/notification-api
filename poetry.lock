@@ -3812,17 +3812,6 @@ doc = ["cairosvg (>=2.5.2,<3.0.0)", "mdx-include (>=1.4.1,<2.0.0)", "mkdocs (>=1
 test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.0.0)", "mypy (==0.910)", "pytest (>=4.4.0,<8.0.0)", "pytest-cov (>=2.10.0,<5.0.0)", "pytest-sugar (>=0.9.4,<0.10.0)", "pytest-xdist (>=1.32.0,<4.0.0)", "rich (>=10.11.0,<14.0.0)", "shellingham (>=1.3.0,<2.0.0)"]
 
 [[package]]
-name = "types-aws-xray-sdk"
-version = "2.14.0.20240606"
-description = "Typing stubs for aws-xray-sdk"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "types-aws-xray-sdk-2.14.0.20240606.tar.gz", hash = "sha256:3215f8f80b48c9da9f7ff16021234cd631b538095933d5432e3fa4c5e2d76a22"},
-    {file = "types_aws_xray_sdk-2.14.0.20240606-py3-none-any.whl", hash = "sha256:c238ad639bb50896f1326c12bcc36b7832b5bc7c4b5e2b19a7efcd89d7d28b94"},
-]
-
-[[package]]
 name = "types-boto"
 version = "2.49.18.9"
 description = "Typing stubs for boto"
@@ -4303,4 +4292,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "584389e7b41f57fc430e633b3388be895d1a19279bf2dcdfa922a3a1fb49e60f"
+content-hash = "d95fee17c6e12a5dbec8ad0bdb8e256aadee291d2c2306c4b4f11e3db07fe006"

@@ -77,7 +77,6 @@ certifi = "^2023.7.22" # pinned for security reasons: https://github.com/cds-snc
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 flask-marshmallow = "0.14.0"
 aws-xray-sdk = "^2.14.0"
-types-aws-xray-sdk = "^2.14.0.20240606"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "6.1.0"
