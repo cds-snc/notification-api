@@ -509,12 +509,6 @@ X-B3-TraceId: None
 }
 ```
 
-Example logs:
-
-```
-2024-07-25T11:20:41 app app INFO None "Generic Internal Request: METHOD: POST | ROOT_PATH:  | PATH: /internal/test1 | QUERY_STRING: b'' | URL_RULE: /internal/<generic> | TRACE_ID: None | JSON: {'foo': 'bar'} | HEADERS: X-Forwarded-For: 72.185.145.197, 10.238.28.71, 72.185.145.197, 10.247.97.119, X-Forwarded-Proto: https, X-Forwarded-Port: 443, Host: dev-api.va.gov, X-Amzn-Trace-Id: Self=xxx Content-Length: 20, X-Forwarded-Host: dev-api.va.gov:443, X-Forwarded-Scheme: https, X-Real-Ip: 72.185.145.197, Content-Type: application/json, User-Agent: PostmanRuntime/7.40.0, Accept: */*, Postman-Token: 784f8b66-bf31-487e-a881-3f1aecfa7a2c, Accept-Encoding: gzip, deflate, br" [in /app/app/internal/rest.py:53]
-```
-
 
 ## Using Mountebank Stubs
 
