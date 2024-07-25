@@ -391,3 +391,13 @@ def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_w
     # 3 here because we have 3 generic defaut categories that will remain post-delete
     assert TemplateCategory.query.count() == 3
     assert str(template.template_category_id) == current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"]
+
+
+def test_dao_delete_template_category_by_id_should_allow_deletion_if_only_assciated_with_archived_templates(
+    notify_db, notify_db_session, sample_template_category, populate_generic_categories
+):
+    template = create_sample_template(notify_db, notify_db_session, archived=True, template_category=sample_template_category)
+
+    dao_delete_template_category_by_id(sample_template_category.id)
+    assert TemplateCategory.query.count() == 3
+    assert template.template_category_id is None

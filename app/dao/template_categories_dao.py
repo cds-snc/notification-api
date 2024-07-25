@@ -59,23 +59,37 @@ def dao_delete_template_category_by_id(template_category_id, cascade=False):
     template_category = dao_get_template_category_by_id(template_category_id)
     templates = Template.query.filter_by(template_category_id=template_category_id).all()
 
-    if templates and not cascade:
-        raise InvalidRequest(
-            "Cannot delete categories associated with templates. Dissociate the category from templates first.", 400
-        )
+    if templates:
+        if not cascade:
+            # When a template is "deleted" it is marked as archived, thus the association with the catgory
+            # remains. If the category is only associated with archived templates, we can delete it after
+            # setting the template's category to None. The template's original category is preserved in the
+            # template_history table.
+            if all(template.archived for template in templates):
+                for template in templates:
+                    template.template_category_id = None
+                    template.updated_at = datetime.utcnow()
+                    db.session.add(template)
+                    db.session.commit()
+            else:
+                raise InvalidRequest(
+                    "Cannot delete categories associated with templates. Dissociate the category from templates first.", 400
+                )
 
-    if templates and cascade:
-        # When there are templates and we are cascading, we set the category to a default
-        # that matches the template's previous category's priority
-        for template in templates:
-            # Get the a default category that matches the previous priority of the template, based on template type
-            default_category_id = _get_default_category_id(
-                template_category.sms_process_type if template.template_type == "sms" else template_category.email_process_type
-            )
-            template.template_category_id = default_category_id
-            template.updated_at = datetime.utcnow()
-            db.session.add(template)
-            db.session.commit()
+        if cascade:
+            # When there are templates and we are cascading, we set the category to a default
+            # that matches the template's previous category's priority
+            for template in templates:
+                # Get the a default category that matches the previous priority of the template, based on template type
+                default_category_id = _get_default_category_id(
+                    template_category.sms_process_type
+                    if template.template_type == "sms"
+                    else template_category.email_process_type
+                )
+                template.template_category_id = default_category_id
+                template.updated_at = datetime.utcnow()
+                db.session.add(template)
+                db.session.commit()
 
     db.session.delete(template_category)
 
