@@ -8,7 +8,7 @@ from app.commands.deprecated import (
 
 # This test assumes the local timezone is EST
 def test_backfill_processing_time_works_for_correct_dates(mocker, notify_api):
-    send_mock = mocker.patch("app.commands.send_processing_time_for_start_and_end")
+    send_mock = mocker.patch("app.commands.deprecated.send_processing_time_for_start_and_end")
 
     # backfill_processing_time is a click.Command object - if you try invoking the callback on its own, it
     # throws a `RuntimeError: There is no active click context.` - so get at the original function using __wrapped__
@@ -21,7 +21,7 @@ def test_backfill_processing_time_works_for_correct_dates(mocker, notify_api):
 
 
 def test_backfill_totals_works_for_correct_dates(mocker, notify_api):
-    send_mock = mocker.patch("app.commands.send_total_sent_notifications_to_performance_platform")
+    send_mock = mocker.patch("app.commands.deprecated.send_total_sent_notifications_to_performance_platform")
 
     # backfill_processing_time is a click.Command object - if you try invoking the callback on its own, it
     # throws a `RuntimeError: There is no active click context.` - so get at the original function using __wrapped__
