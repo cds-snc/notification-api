@@ -10,11 +10,8 @@ from flask import cli as flask_cli
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
 
-from app import DATETIME_FORMAT, db, signer_delivery_status
-from app.celery.service_callback_tasks import send_delivery_status_to_service
-from app.config import QueueNames
+from app import db
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
@@ -23,33 +20,24 @@ from app.dao.organisation_dao import (
 from app.dao.provider_rates_dao import (
     create_provider_rates as dao_create_provider_rates,
 )
-from app.dao.service_callback_api_dao import (
-    get_service_delivery_status_callback_api_for_service,
-)
-from app.dao.services_dao import (
-    dao_fetch_all_services_by_user,
-    dao_fetch_service_by_id,
-    delete_service_and_all_associated_db_objects,
-)
-from app.dao.users_dao import delete_model_user, delete_user_verify_codes
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.models import (
     PROVIDERS,
     Domain,
     EmailBranding,
     LetterBranding,
-    Notification,
     Organisation,
     Service,
     User,
 )
 
 
-@click.group(name="command", help="Additional commands")
-def command_group():
+@click.group(name="bulk-db", help="Bulk updates to the database")
+def bulk_db_group():
     pass
 
 
-class notify_command:
+class bulk_db_command:
     def __init__(self, name=None):
         self.name = name
 
@@ -63,29 +51,16 @@ class notify_command:
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        command_group.add_command(wrapper)
+        bulk_db_group.add_command(wrapper)
 
         return wrapper
 
 
-@notify_command(name="admin")
-@click.option("-u", "--user_email", required=True, help="user email address")
-@click.option("--on/--off", required=False, default=True, show_default="on", help="set admin on or off")
-def toggle_admin(user_email, on):
-    """
-    Set a user to be a platform admin or not
-    """
-    try:
-        user = User.query.filter(User.email_address == user_email).one()
-    except NoResultFound:
-        print(f"User {user_email} not found")
-        return
-    user.platform_admin = on
-    db.session.commit()
-    print(f"User {user.email_address} is now {'an admin' if user.platform_admin else 'not an admin'}")
+def setup_bulk_db_commands(application):
+    application.cli.add_command(bulk_db_group)
 
 
-@notify_command()
+@bulk_db_command()
 @click.option("-p", "--provider_name", required=True, type=click.Choice(PROVIDERS))
 @click.option(
     "-c",
@@ -103,40 +78,7 @@ def create_provider_rates(provider_name, cost, valid_from):
     dao_create_provider_rates(provider_name, valid_from, cost)
 
 
-@notify_command()
-@click.option(
-    "-u",
-    "--user_email_prefix",
-    required=True,
-    help="""
-    Functional test user email prefix. eg "notify-test-preview"
-""",
-)  # noqa
-def purge_functional_test_data(user_email_prefix):
-    """
-    Remove non-seeded functional test data
-
-    users, services, etc. Give an email prefix. Probably "notify-test-preview".
-    """
-    users = User.query.filter(User.email_address.like("{}%".format(user_email_prefix))).all()
-    for usr in users:
-        # Make sure the full email includes a uuid in it
-        # Just in case someone decides to use a similar email address.
-        try:
-            uuid.UUID(usr.email_address.split("@")[0].split("+")[1])
-        except ValueError:
-            print("Skipping {} as the user email doesn't contain a UUID.".format(usr.email_address))
-        else:
-            services = dao_fetch_all_services_by_user(usr.id)
-            if services:
-                for service in services:
-                    delete_service_and_all_associated_db_objects(service)
-            else:
-                delete_user_verify_codes(usr)
-                delete_model_user(usr)
-
-
-@notify_command(name="populate-annual-billing")
+@bulk_db_command(name="populate-annual-billing")
 @click.option(
     "-y",
     "--year",
@@ -173,14 +115,7 @@ def populate_annual_billing(year):
         )
 
 
-@notify_command(name="list-routes")
-def list_routes():
-    """List URLs of all application routes."""
-    for rule in sorted(current_app.url_map.iter_rules(), key=lambda r: r.rule):
-        print("{:10} {}".format(", ".join(rule.methods - set(["OPTIONS", "HEAD"])), rule.rule))
-
-
-@notify_command(name="insert-inbound-numbers")
+@bulk_db_command(name="insert-inbound-numbers")
 @click.option(
     "-f",
     "--file_name",
@@ -200,71 +135,7 @@ def insert_inbound_numbers_from_file(file_name):
     file.close()
 
 
-@notify_command(name="replay-service-callbacks")
-@click.option(
-    "-f",
-    "--file_name",
-    required=True,
-    help="""Full path of the file to upload, file is a contains client references of
-              notifications that need the status to be sent to the service.""",
-)
-@click.option(
-    "-s",
-    "--service_id",
-    required=True,
-    help="""The service that the callbacks are for""",
-)
-def replay_service_callbacks(file_name, service_id):
-    print("Start send service callbacks for service: ", service_id)
-    callback_api = get_service_delivery_status_callback_api_for_service(service_id=service_id)
-    if not callback_api:
-        print("Callback api was not found for service: {}".format(service_id))
-        return
-
-    errors = []
-    notifications = []
-    file = open(file_name)
-
-    for ref in file:
-        try:
-            notification = Notification.query.filter_by(client_reference=ref.strip()).one()
-            notifications.append(notification)
-        except NoResultFound:
-            errors.append("Reference: {} was not found in notifications.".format(ref))
-
-    for e in errors:
-        print(e)
-    if errors:
-        raise Exception("Some notifications for the given references were not found")
-
-    for n in notifications:
-        data = {
-            "notification_id": str(n.id),
-            "notification_client_reference": n.client_reference,
-            "notification_to": n.to,
-            "notification_status": n.status,
-            "notification_created_at": n.created_at.strftime(DATETIME_FORMAT),
-            "notification_updated_at": n.updated_at.strftime(DATETIME_FORMAT),
-            "notification_sent_at": n.sent_at.strftime(DATETIME_FORMAT),
-            "notification_type": n.notification_type,
-            "service_callback_api_url": callback_api.url,
-            "service_callback_api_bearer_token": callback_api.bearer_token,
-        }
-        signed_status_update = signer_delivery_status.sign(data)
-        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update], queue=QueueNames.CALLBACKS)
-
-    print(
-        "Replay service status for service: {}. Sent {} notification status updates to the queue".format(
-            service_id, len(notifications)
-        )
-    )
-
-
-def setup_commands(application):
-    application.cli.add_command(command_group)
-
-
-@notify_command(name="bulk-invite-user-to-service")
+@bulk_db_command(name="bulk-invite-user-to-service")
 @click.option(
     "-f",
     "--file_name",
@@ -322,7 +193,7 @@ def bulk_invite_user_to_service(file_name, service_id, user_id, auth_type, permi
     file.close()
 
 
-@notify_command(name="archive-jobs-created-between-dates")
+@bulk_db_command(name="archive-jobs-created-between-dates")
 @click.option(
     "-s",
     "--start_date",
@@ -367,7 +238,7 @@ def update_jobs_archived_flag(start_date, end_date):
     current_app.logger.info("Total archived jobs = {}".format(total_updated))
 
 
-@notify_command(name="populate-organisations-from-file")
+@bulk_db_command(name="populate-organisations-from-file")
 @click.option(
     "-f",
     "--file_name",
@@ -435,7 +306,7 @@ def populate_organisations_from_file(file_name):
                         db.session.rollback()
 
 
-@notify_command(name="associate-services-to-organisations")
+@bulk_db_command(name="associate-services-to-organisations")
 def associate_services_to_organisations():
     services = Service.get_history_model().query.filter_by(version=1).all()
 

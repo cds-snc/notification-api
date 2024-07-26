@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.commands_depricated import (
+from app.commands.depricated import (
     backfill_performance_platform_totals,
     backfill_processing_time,
 )

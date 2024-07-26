@@ -153,10 +153,14 @@ def create_app(application, config=None):
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
 
-    # avoid circular imports by importing this file later
-    from app.commands import setup_commands
+    # avoid circular imports by importing these files later
+    from app.commands.bulk_db import setup_bulk_db_commands
+    from app.commands.commands import setup_commands
+    from app.commands.test_data import setup_test_data_commands
 
     setup_commands(application)
+    setup_test_data_commands(application)
+    setup_bulk_db_commands(application)
 
     return application
 

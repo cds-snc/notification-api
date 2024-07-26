@@ -15,7 +15,7 @@ from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.nightly_tasks import (
     send_total_sent_notifications_to_performance_platform,
 )
-from app.commands import notify_command
+from app.commands.commands import notify_command
 from app.config import QueueNames
 from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
