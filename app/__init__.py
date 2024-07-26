@@ -155,12 +155,14 @@ def create_app(application, config=None):
 
     # avoid circular imports by importing these files later
     from app.commands.bulk_db import setup_bulk_db_commands
-    from app.commands.commands import setup_commands
+    from app.commands.deprecated import setup_deprecated_commands
+    from app.commands.support import setup_support_commands
     from app.commands.test_data import setup_test_data_commands
 
-    setup_commands(application)
-    setup_test_data_commands(application)
+    setup_support_commands(application)
     setup_bulk_db_commands(application)
+    setup_test_data_commands(application)
+    setup_deprecated_commands(application)
 
     return application
 

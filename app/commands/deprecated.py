@@ -1,9 +1,11 @@
 import csv
+import functools
 import itertools
 from datetime import datetime, timedelta
 
 import click
 from click_datetime import Datetime as click_dt
+from flask import cli as flask_cli
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate
@@ -15,7 +17,6 @@ from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.nightly_tasks import (
     send_total_sent_notifications_to_performance_platform,
 )
-from app.commands.commands import notify_command
 from app.config import QueueNames
 from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
@@ -33,7 +34,35 @@ from app.performance_platform.processing_time import (
 from app.utils import get_local_timezone_midnight_in_utc, get_midnight_for_day_before
 
 
-@notify_command()
+@click.group(name="deprecated", help="Depricated commands")
+def deprecated_group():
+    pass
+
+
+class deprecated_command:
+    def __init__(self, name=None):
+        self.name = name
+
+    def __call__(self, func):
+        # we need to call the flask with_appcontext decorator to ensure the config is loaded, db connected etc etc.
+        # we also need to use functools.wraps to carry through the names and docstrings etc of the functions.
+        # Then we need to turn it into a click.Command - that's what command_group.add_command expects.
+        @click.command(name=self.name)
+        @functools.wraps(func)
+        @flask_cli.with_appcontext
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        deprecated_group.add_command(wrapper)
+
+        return wrapper
+
+
+def setup_deprecated_commands(application):
+    application.cli.add_command(deprecated_group)
+
+
+@deprecated_command()
 def update_notification_international_flag():
     """
     DEPRECATED. Set notifications.international=false.
@@ -60,7 +89,7 @@ def update_notification_international_flag():
         result_history = db.session.execute(subq_history).fetchall()
 
 
-@notify_command()
+@deprecated_command()
 def fix_notification_statuses_not_in_sync():
     """
     DEPRECATED.
@@ -93,7 +122,7 @@ def fix_notification_statuses_not_in_sync():
         result = db.session.execute(subq_hist).fetchall()
 
 
-@notify_command()
+@deprecated_command()
 def backfill_notification_statuses():
     """
     DEPRECATED. Populates notification_status.
@@ -113,7 +142,7 @@ def backfill_notification_statuses():
         result = db.session.execute(subq).fetchall()
 
 
-@notify_command()
+@deprecated_command()
 @click.option(
     "-s",
     "--start_date",
@@ -148,7 +177,7 @@ def backfill_performance_platform_totals(start_date, end_date):
         send_total_sent_notifications_to_performance_platform(process_date)
 
 
-@notify_command()
+@deprecated_command()
 @click.option(
     "-s",
     "--start_date",
@@ -188,7 +217,7 @@ def backfill_processing_time(start_date, end_date):
         send_processing_time_for_start_and_end(process_start_date, process_end_date)
 
 
-@notify_command(name="replay-create-pdf-letters")
+@deprecated_command(name="replay-create-pdf-letters")
 @click.option(
     "-n",
     "--notification_id",
@@ -201,7 +230,7 @@ def replay_create_pdf_letters(notification_id):
     create_letters_pdf.apply_async([str(notification_id)], queue=QueueNames.CREATE_LETTERS_PDF)
 
 
-@notify_command(name="migrate-data-to-ft-billing")
+@deprecated_command(name="migrate-data-to-ft-billing")
 @click.option(
     "-s",
     "--start_date",
@@ -295,7 +324,7 @@ def migrate_data_to_ft_billing(start_date, end_date):
     current_app.logger.info("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name="rebuild-ft-billing-for-day")
+@deprecated_command(name="rebuild-ft-billing-for-day")
 @click.option("-s", "--service_id", required=False, type=click.UUID)
 @click.option(
     "-d",
@@ -332,7 +361,7 @@ def rebuild_ft_billing_for_day(service_id, day):
             rebuild_ft_data(day, row.service_id)
 
 
-@notify_command(name="migrate-data-to-ft-notification-status")
+@deprecated_command(name="migrate-data-to-ft-notification-status")
 @click.option(
     "-s",
     "--start_date",
@@ -395,7 +424,7 @@ def migrate_data_to_ft_notification_status(start_date, end_date):
     print("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name="populate-notification-postage")
+@deprecated_command(name="populate-notification-postage")
 @click.option(
     "-s",
     "--start_date",
@@ -446,7 +475,7 @@ def populate_notification_postage(start_date):
     current_app.logger.info("Total inserted/updated records = {}".format(total_updated))
 
 
-@notify_command(name="update-emails-to-remove-gsi")
+@deprecated_command(name="update-emails-to-remove-gsi")
 @click.option(
     "-s",
     "--service_id",
@@ -478,7 +507,7 @@ def update_emails_to_remove_gsi(service_id):
         db.session.commit()
 
 
-@notify_command(name="replay-daily-sorted-count-files")
+@deprecated_command(name="replay-daily-sorted-count-files")
 @click.option(
     "-f",
     "--file_extension",
@@ -496,7 +525,7 @@ def replay_daily_sorted_count_files(file_extension):
         print("Create task to record daily sorted counts for file: ", filename)
 
 
-@notify_command(name="get-letter-details-from-zips-sent-file")
+@deprecated_command(name="get-letter-details-from-zips-sent-file")
 @click.argument("file_paths", required=True, nargs=-1)
 @statsd(namespace="tasks")
 def get_letter_details_from_zips_sent_file(file_paths):
@@ -532,7 +561,7 @@ def get_letter_details_from_zips_sent_file(file_paths):
             csv_writer.writerow(row)
 
 
-@notify_command(name="populate-service-volume-intentions")
+@deprecated_command(name="populate-service-volume-intentions")
 @click.option(
     "-f",
     "--file_name",
@@ -557,7 +586,7 @@ def populate_service_volume_intentions(file_name):
     print("populate-service-volume-intentions complete")
 
 
-@notify_command(name="populate-go-live")
+@deprecated_command(name="populate-go-live")
 @click.option("-f", "--file_name", required=True, help="CSV file containing live service data")
 def populate_go_live(file_name):
     # 0 - count, 1- Link, 2- Service ID, 3- DEPT, 4- Service Name, 5- Main contact,
@@ -596,7 +625,7 @@ def populate_go_live(file_name):
             dao_update_service(service)
 
 
-@notify_command(name="fix-billable-units")
+@deprecated_command(name="fix-billable-units")
 def fix_billable_units():
     query = Notification.query.filter(
         Notification.notification_type == SMS_TYPE,

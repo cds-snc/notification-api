@@ -14,12 +14,12 @@ from app.dao.service_callback_api_dao import (
 from app.models import Notification, User
 
 
-@click.group(name="command", help="Additional commands")
-def command_group():
+@click.group(name="support", help="Support commands")
+def support_group():
     pass
 
 
-class notify_command:
+class support_command:
     def __init__(self, name=None):
         self.name = name
 
@@ -33,16 +33,16 @@ class notify_command:
         def wrapper(*args, **kwargs):
             return func(*args, **kwargs)
 
-        command_group.add_command(wrapper)
+        support_group.add_command(wrapper)
 
         return wrapper
 
 
-def setup_commands(application):
-    application.cli.add_command(command_group)
+def setup_support_commands(application):
+    application.cli.add_command(support_group)
 
 
-@notify_command(name="admin")
+@support_command(name="admin")
 @click.option("-u", "--user_email", required=True, help="user email address")
 @click.option("--on/--off", required=False, default=True, show_default="on", help="set admin on or off")
 def toggle_admin(user_email, on):
@@ -59,14 +59,14 @@ def toggle_admin(user_email, on):
     print(f"User {user.email_address} is now {'an admin' if user.platform_admin else 'not an admin'}")
 
 
-@notify_command(name="list-routes")
+@support_command(name="list-routes")
 def list_routes():
     """List URLs of all application routes."""
     for rule in sorted(current_app.url_map.iter_rules(), key=lambda r: r.rule):
         print("{:10} {}".format(", ".join(rule.methods - set(["OPTIONS", "HEAD"])), rule.rule))
 
 
-@notify_command(name="replay-service-callbacks")
+@support_command(name="replay-service-callbacks")
 @click.option(
     "-f",
     "--file_name",
