@@ -1,6 +1,9 @@
 from datetime import datetime
 
-from app.commands import backfill_performance_platform_totals, backfill_processing_time
+from app.commands_depricated import (
+    backfill_performance_platform_totals,
+    backfill_processing_time,
+)
 
 
 # This test assumes the local timezone is EST
