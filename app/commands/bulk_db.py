@@ -264,7 +264,7 @@ def populate_organisations_from_file(file_name):
                 return True
             elif field == "0":
                 return False
-            elif field == "":
+            else:
                 return None
 
         for line in itertools.islice(f, 1, None):
