@@ -18,7 +18,7 @@ fileignoreconfig:
 - filename: ci/.local.env
   checksum: a2dca7e8e15af2a98112a405725e0b6f07c6adcb61507d8d32715ee17c383b6b
 - filename: poetry.lock
-  checksum: 556d0c59f58bdc6be2338e82c4dd7defe50548031baa9e6121e4e16f51d3242c
+  checksum: c0e0e9628dd38dc4259427eb25b5c79e0c0eeabbbb7debfc724844c3cf64d0a5
 - filename: tests/app/celery/test_scheduled_tasks.py
   checksum: cb2b003fb3ee404c293632e4bad6754ec6a35c895f392933d9203b5d93edb095
 - filename: tests/app/conftest.py
