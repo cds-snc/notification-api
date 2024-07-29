@@ -92,7 +92,9 @@ def test_it_get_dynamodb_comp_pen_messages_with_multiple_scans(msg_helper, sampl
         assert m['paymentAmount'] is not None
 
 
-def test_it_update_dynamo_item_is_processed_updates_properly(mocker, msg_helper, dynamodb_mock, sample_dynamodb_insert):
+def test_it_update_dynamo_item_is_processed_updates_properly(
+    notify_api, mocker, msg_helper, dynamodb_mock, sample_dynamodb_insert
+):
     """Ensure that the 'is_processed' key is removed from the items in the list and the DynamoDB table is updated."""
 
     items_to_insert = [
@@ -161,6 +163,109 @@ def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipie
         template=template,
         notification_type=SMS_TYPE,
         personalisation={'amount': '123.05'},
+        sms_sender_id=sms_sender_id,
+        recipient=None,
+        recipient_item=recipient_item,
+    )
+
+
+@pytest.mark.parametrize(
+    'amount, formatted_amount',
+    [
+        (1123.05, '1,123.05'),
+        (1000.00, '1,000.00'),
+        (10000.00, '10,000.00'),
+        (1234567.89, '1,234,567.89'),
+        (50.5, '50.50'),
+        (0.5, '0.50'),
+        (0.0, '0.00'),
+    ],
+)
+def test_ut_send_scheduled_comp_and_pen_sms_formatted_amount_correctly(
+    mocker, msg_helper, dynamodb_mock, sample_service, sample_template, amount, formatted_amount
+):
+    dynamo_data = [
+        {
+            'participant_id': '123',
+            'vaprofile_id': '123',
+            'payment_id': '123',
+            'paymentAmount': amount,
+            'is_processed': False,
+        },
+    ]
+
+    recipient_item = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '123'}
+
+    mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
+
+    service = sample_service()
+    template = sample_template()
+    sms_sender_id = str(service.get_default_sms_sender_id())
+
+    mock_send_notification = mocker.patch(
+        'app.integrations.comp_and_pen.scheduled_message_helpers.send_notification_bypass_route'
+    )
+
+    msg_helper.send_comp_and_pen_sms(
+        service=service,
+        template=template,
+        sms_sender_id=sms_sender_id,
+        comp_and_pen_messages=dynamo_data,
+        perf_to_number=None,
+    )
+
+    mock_send_notification.assert_called_once_with(
+        service=service,
+        template=template,
+        notification_type=SMS_TYPE,
+        personalisation={'amount': formatted_amount},
+        sms_sender_id=sms_sender_id,
+        recipient=None,
+        recipient_item=recipient_item,
+    )
+
+
+def test_ut_send_scheduled_comp_and_pen_sms_payment_amount_key_does_not_exist(
+    mocker,
+    msg_helper,
+    dynamodb_mock,
+    sample_service,
+    sample_template,
+):
+    dynamo_data = [
+        {
+            'participant_id': '123',
+            'vaprofile_id': '123',
+            'payment_id': '123',
+            'is_processed': False,
+        },
+    ]
+
+    recipient_item = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '123'}
+
+    mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
+
+    service = sample_service()
+    template = sample_template()
+    sms_sender_id = str(service.get_default_sms_sender_id())
+
+    mock_send_notification = mocker.patch(
+        'app.integrations.comp_and_pen.scheduled_message_helpers.send_notification_bypass_route'
+    )
+
+    msg_helper.send_comp_and_pen_sms(
+        service=service,
+        template=template,
+        sms_sender_id=sms_sender_id,
+        comp_and_pen_messages=dynamo_data,
+        perf_to_number=None,
+    )
+
+    mock_send_notification.assert_called_once_with(
+        service=service,
+        template=template,
+        notification_type=SMS_TYPE,
+        personalisation={'amount': '0.00'},
         sms_sender_id=sms_sender_id,
         recipient=None,
         recipient_item=recipient_item,
