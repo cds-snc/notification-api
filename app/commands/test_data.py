@@ -61,34 +61,16 @@ def setup_test_data_commands(application):
     test data prefix"
 """,
 )  # noqa
-@click.option("-s", "--num_services", default=1, help="Number of services to create")
-@click.option("-n", "--num_notifications", default=1, help="Number of notifications to create")
-@click.option("-b", "--batch_size", default=10000, help="Number of notifications to create in each batch")
+@click.option("-s", "--num_services", default=1, show_default=True, help="Number of services to create")
+@click.option("-n", "--num_notifications", default=1, show_default=True, help="Number of notifications to create")
+@click.option("-b", "--batch_size", default=10000, show_default=True, help="Number of notifications to create in each batch")
 def generate(prefix, num_services, num_notifications, batch_size):
     """
     Generate test data
     """
-    data_prefix = f"{prefix}+{uuid.uuid4()}"
-    print(f"\nGenerating test data for prefix {data_prefix}...\n")
-
-    print("Building user...")
-    user_email = f"{data_prefix}@cds-snc.ca"
-    data = {
-        "id": uuid.uuid4(),
-        "name": user_email,
-        "email_address": user_email,
-        "password": f"{uuid.uuid4()}",
-        "mobile_number": "16135550123",
-        "state": "active",
-        "blocked": False,
-    }
-    user = User(**data)
-    save_model_user(user)
-    print(" -> Done.")
-
     print("Building org...")
     org = Organisation(
-        name=f"{data_prefix} org",
+        name=f"{prefix} org",
         organisation_type="central",
     )
     db.session.add(org)
@@ -97,7 +79,23 @@ def generate(prefix, num_services, num_notifications, batch_size):
 
     print("Building services...")
     services = []
+    templates = []
+
     for batch in range(num_services):
+        data_prefix = f"{prefix}+{uuid.uuid4()}"
+        user_email = f"{data_prefix}@cds-snc.ca"
+        data = {
+            "id": uuid.uuid4(),
+            "name": user_email,
+            "email_address": user_email,
+            "password": f"{uuid.uuid4()}",
+            "mobile_number": "16135550123",
+            "state": "active",
+            "blocked": False,
+        }
+        user = User(**data)
+        save_model_user(user)
+
         service = Service(
             organisation_id=org.id,
             name=f"{data_prefix} service {batch}",
@@ -111,52 +109,50 @@ def generate(prefix, num_services, num_notifications, batch_size):
         )
         services.append(service)
         dao_create_service(service, user)
-    db.session.flush()
-    print(" -> Done.")
 
-    # Not bothering to make a template for each service. For our purposes it shouldn't matter.
-    print("Building templates...")
-    TEMPLATES = {
-        "email": Template(
-            name="{data_prefix}: email",
-            service_id=services[0].id,
-            template_type="email",
-            subject="email",
-            content="email body",
-            created_by_id=user.id,
-        ),
-        "sms": Template(
-            name="{data_prefix}: sms",
-            service_id=services[0].id,
-            template_type="sms",
-            subject="sms",
-            content="sms body",
-            created_by_id=user.id,
-        ),
-    }
+        service_templates = {
+            "email": Template(
+                name="{data_prefix}: email",
+                service_id=service.id,
+                template_type="email",
+                subject="email",
+                content="email body",
+                created_by_id=user.id,
+            ),
+            "sms": Template(
+                name="{data_prefix}: sms",
+                service_id=service.id,
+                template_type="sms",
+                subject="sms",
+                content="sms body",
+                created_by_id=user.id,
+            ),
+        }
+        dao_create_template(service_templates["email"])
+        dao_create_template(service_templates["sms"])
+        templates.append(service_templates)
+        db.session.flush()
+        print(" -> Done.")
 
-    dao_create_template(TEMPLATES["email"])
-    dao_create_template(TEMPLATES["sms"])
-    db.session.flush()
-    print(" -> Done.")
-
+    print("Building notifications...")
     num_batches = math.ceil(num_notifications / batch_size)
     print(f"Building {num_notifications} notifications in batches of {batch_size}...")
-    service_ids = [str(service.id) for service in services]
     last_new_year = datetime(datetime.today().year - 1, 1, 1, 12, 0, 0)
     daily_dates_since_last_new_year = list(rrule.rrule(freq=rrule.DAILY, dtstart=last_new_year, until=datetime.today()))
     for batch in range(num_batches):
         print(f" -> Building batch #{batch + 1}...")
         notifications_batch = []
-        for i in range(min(batch_size, num_notifications - (batch * batch_size))):
+        for _ in range(min(batch_size, num_notifications - (batch * batch_size))):
             notification_type = random.choice(["sms", "email"])
-            template = TEMPLATES[notification_type]
+            service_index = random.choice(range(len(services)))
+            service = services[service_index]
+            template = templates[service_index][notification_type]
             notifications_batch.append(
                 NotificationHistory(
                     id=uuid.uuid4(),
                     job_id=None,
                     job_row_number=None,
-                    service_id=random.choice(service_ids),
+                    service_id=service.id,
                     template_id=template.id,
                     template_version=1,
                     api_key_id=None,
@@ -208,9 +204,18 @@ def delete(prefix):
             services = dao_fetch_all_services_by_user(usr.id)
             if services:
                 for service in services:
+                    # if not service.name.endswith("service 0"):
                     delete_service_and_all_associated_db_objects(service)
             else:
                 delete_user_verify_codes(usr)
                 delete_model_user(usr)
             print(" -> Done.")
+
+        db.session.commit()
+
+    org_name = f"{prefix} org"
+    print(f"Deleting organisation {org_name}...")
+    Organisation.query.filter_by(name=org_name).delete(synchronize_session=False)
+    db.session.commit()
+
     print("Finished.")
