@@ -70,14 +70,14 @@ def generate(prefix, num_services, num_notifications, batch_size):
     """
     print("Building org...")
     org = Organisation(
-        name=f"{prefix} org",
+        name=f"{prefix} {uuid.uuid4()}",
         organisation_type="central",
     )
     db.session.add(org)
     db.session.flush()
     print(" -> Done.")
 
-    print("Building services...")
+    print(f"Building {num_services} services...")
     services = []
     templates = []
 
@@ -132,15 +132,14 @@ def generate(prefix, num_services, num_notifications, batch_size):
         dao_create_template(service_templates["sms"])
         templates.append(service_templates)
         db.session.flush()
-        print(" -> Done.")
+    print(" -> Done.")
 
-    print("Building notifications...")
     num_batches = math.ceil(num_notifications / batch_size)
     print(f"Building {num_notifications} notifications in batches of {batch_size}...")
     last_new_year = datetime(datetime.today().year - 1, 1, 1, 12, 0, 0)
     daily_dates_since_last_new_year = list(rrule.rrule(freq=rrule.DAILY, dtstart=last_new_year, until=datetime.today()))
     for batch in range(num_batches):
-        print(f" -> Building batch #{batch + 1}...")
+        print(f" -> Building batch #{batch + 1} of {num_batches}...")
         notifications_batch = []
         for _ in range(min(batch_size, num_notifications - (batch * batch_size))):
             notification_type = random.choice(["sms", "email"])
@@ -165,10 +164,10 @@ def generate(prefix, num_services, num_notifications, batch_size):
                     client_reference=data_prefix,
                 )
             )
-        print(f"-> Adding {len(notifications_batch)} notifications...")
+        print(f"  -> Adding {len(notifications_batch)} notifications...")
         db.session.bulk_save_objects(notifications_batch)
         db.session.flush()
-        print(" -> Done.")
+        print("  -> Done.")
 
     print("Committing...")
     db.session.commit()
@@ -191,6 +190,7 @@ def delete(prefix):
     """
     print(f"\n\nDeleting test data for prefix {prefix}...\n")
     users = User.query.filter(User.email_address.like("{}%".format(prefix))).all()
+    org_ids = []
     if len(users) == 0:
         print("No users found with email prefix {}".format(prefix))
         return
@@ -204,7 +204,7 @@ def delete(prefix):
             services = dao_fetch_all_services_by_user(usr.id)
             if services:
                 for service in services:
-                    # if not service.name.endswith("service 0"):
+                    org_ids.append(service.organisation_id)
                     delete_service_and_all_associated_db_objects(service)
             else:
                 delete_user_verify_codes(usr)
@@ -213,9 +213,9 @@ def delete(prefix):
 
         db.session.commit()
 
-    org_name = f"{prefix} org"
-    print(f"Deleting organisation {org_name}...")
-    Organisation.query.filter_by(name=org_name).delete(synchronize_session=False)
+    for org_id in set(org_ids):
+        print(f"Deleting organisation {org_id}...")
+        Organisation.query.filter_by(id=org_id).delete(synchronize_session=False)
     db.session.commit()
 
     print("Finished.")
