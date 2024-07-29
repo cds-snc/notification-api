@@ -112,7 +112,7 @@ def generate(prefix, num_services, num_notifications, batch_size):
 
         service_templates = {
             "email": Template(
-                name="{data_prefix}: email",
+                name=f"{data_prefix}: email",
                 service_id=service.id,
                 template_type="email",
                 subject="email",
@@ -120,7 +120,7 @@ def generate(prefix, num_services, num_notifications, batch_size):
                 created_by_id=user.id,
             ),
             "sms": Template(
-                name="{data_prefix}: sms",
+                name=f"{data_prefix}: sms",
                 service_id=service.id,
                 template_type="sms",
                 subject="sms",
