@@ -30,7 +30,7 @@ TWILIO_AUTH_TOKEN_SSM_NAME = os.getenv('TWILIO_AUTH_TOKEN_SSM_NAME')
 TWILIO_PH_AUTH_TOKEN_SSM_NAME = os.getenv('TWILIO_PH_AUTH_TOKEN_SSM_NAME')
 LOG_ENCRYPTION_SSM_NAME = os.getenv('LOG_ENCRYPTION_SSM_NAME')
 
-if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT' or LOG_ENCRYPTION_SSM_NAME is None:
+if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT' or LOG_ENCRYPTION_SSM_NAME is None:  # nosec
     sys.exit('A required environment variable is not set. Please ensure all env variables are set')
 
 TWILIO_VETEXT_PATH = '/twoway/vettext'
@@ -72,7 +72,7 @@ def get_twilio_tokens():
     @return: List of Twilio auth tokens from SSM
     """
     try:
-        if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test' or TWILIO_PH_AUTH_TOKEN_SSM_NAME == 'unit_test':
+        if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test' or TWILIO_PH_AUTH_TOKEN_SSM_NAME == 'unit_test':  # nosec
             # item 0 was the auth token used to sign the body of the request
             return ['bad_twilio_auth', 'invalid_auth', 'unit_test']
 
@@ -279,7 +279,7 @@ def read_from_ssm(key: str) -> str:
     return response.get('Parameter', {}).get('Value')
 
 
-def make_vetext_request(request_body):
+def make_vetext_request(request_body):  # noqa: C901 (too complex 13 > 10)
     endpoint = request_body.get('path', TWILIO_VETEXT_PATH)
     logger.debug('Making VeText Request for endpoint: %s', endpoint)
 
@@ -343,7 +343,7 @@ def make_vetext_request(request_body):
     logger.debug('json dumps: %s', json.dumps(body))
 
     try:
-        response = requests.post(endpoint_uri, verify=False, json=body, timeout=HTTPTIMEOUT, headers=headers)
+        response = requests.post(endpoint_uri, verify=False, json=body, timeout=HTTPTIMEOUT, headers=headers)  # nosec
         logger.info('VeText POST complete')
         response.raise_for_status()
 
@@ -353,11 +353,13 @@ def make_vetext_request(request_body):
     except requests.HTTPError as e:
         logged_body = body.copy()
         logged_body['body'] = 'redacted'
-        logger.error('HTTPError With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, logged_body, e)
+        logger.warning(
+            'HTTPError With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, logged_body, e
+        )
     except requests.RequestException as e:
         logged_body = body.copy()
         logged_body['body'] = 'redacted'
-        logger.error(
+        logger.warning(
             'RequestException With Call To VeText url: %s, with body: %s and error: %s',
             endpoint_uri,
             logged_body,
