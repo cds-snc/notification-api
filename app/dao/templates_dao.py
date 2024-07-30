@@ -79,6 +79,71 @@ def dao_update_template_reply_to(template_id, reply_to):
 
 
 @transactional
+def dao_update_template_process_type(template_id, process_type):
+    Template.query.filter_by(id=template_id).update(
+        {
+            "process_type": process_type,
+        }
+    )
+    template = Template.query.filter_by(id=template_id).one()
+
+    history = TemplateHistory(
+        **{
+            "id": template.id,
+            "name": template.name,
+            "template_type": template.template_type,
+            "created_at": template.created_at,
+            "updated_at": template.updated_at,
+            "content": template.content,
+            "service_id": template.service_id,
+            "subject": template.subject,
+            "postage": template.postage,
+            "created_by_id": template.created_by_id,
+            "version": template.version,
+            "archived": template.archived,
+            "process_type": template.process_type,
+            "service_letter_contact_id": template.service_letter_contact_id,
+        }
+    )
+    db.session.add(history)
+    return template
+
+
+@transactional
+def dao_update_template_category(template_id, category_id):
+    Template.query.filter_by(id=template_id).update(
+        {
+            "template_category_id": category_id,
+            "updated_at": datetime.utcnow(),
+            "version": Template.version + 1,
+        }
+    )
+
+    template = Template.query.filter_by(id=template_id).one()
+
+    history = TemplateHistory(
+        **{
+            "id": template.id,
+            "name": template.name,
+            "template_type": template.template_type,
+            "created_at": template.created_at,
+            "updated_at": template.updated_at,
+            "content": template.content,
+            "service_id": template.service_id,
+            "subject": template.subject,
+            "postage": template.postage,
+            "created_by_id": template.created_by_id,
+            "version": template.version,
+            "archived": template.archived,
+            "process_type": template.process_type,
+            "service_letter_contact_id": template.service_letter_contact_id,
+        }
+    )
+    db.session.add(history)
+    return template
+
+
+@transactional
 def dao_redact_template(template, user_id):
     template.template_redacted.redact_personalisation = True
     template.template_redacted.updated_at = datetime.utcnow()

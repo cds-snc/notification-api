@@ -25,6 +25,8 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_redact_template,
     dao_update_template,
+    dao_update_template_category,
+    dao_update_template_process_type,
     dao_update_template_reply_to,
     get_precompiled_letter_template,
 )
@@ -40,7 +42,11 @@ from app.models import (
 )
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
-from app.schemas import template_history_schema, template_schema
+from app.schemas import (
+    reduced_template_schema,
+    template_history_schema,
+    template_schema,
+)
 from app.template.template_schemas import post_create_template_schema
 from app.utils import get_public_notify_type_text, get_template_instance
 
@@ -132,6 +138,24 @@ def create_template(service_id):
     return jsonify(data=template_schema.dump(new_template)), 201
 
 
+@template_blueprint.route("/<uuid:template_id>/category/<uuid:template_category_id>", methods=["POST"])
+def update_templates_category(service_id, template_id, template_category_id):
+    updated = dao_update_template_category(template_id, template_category_id)
+    return jsonify(data=template_schema.dump(updated)), 200
+
+
+@template_blueprint.route("/<uuid:template_id>/process-type", methods=["POST"])
+def update_template_process_type(template_id):
+    data = request.get_json()
+    if "process_type" not in data:
+        message = "Field is required"
+        errors = {"process_type": [message]}
+        raise InvalidRequest(errors, status_code=400)
+
+    updated = dao_update_template_process_type(template_id=template_id, process_type=data.get("process_type"))
+    return jsonify(data=template_schema.dump(updated)), 200
+
+
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
 def update_template(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
@@ -186,6 +210,11 @@ def update_template(service_id, template_id):
         )
         raise InvalidRequest(errors, status_code=400)
 
+    # if the template category is changing, set the process_type to None to remove any priority override
+    if current_app.config["FF_TEMPLATE_CATEGORY"]:
+        if updated_template["template_category_id"] != str(fetched_template.template_category_id):
+            updated_template["process_type"] = None
+
     update_dict = template_schema.load(updated_template)
     if update_dict.archived:
         update_dict.folder = None
@@ -205,7 +234,7 @@ def get_precompiled_template_for_service(service_id):
 @template_blueprint.route("", methods=["GET"])
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
-    data = template_schema.dump(templates, many=True)
+    data = reduced_template_schema.dump(templates, many=True)
     return jsonify(data=data)
 
 
@@ -253,7 +282,7 @@ def get_template_versions(service_id, template_id):
 def _template_has_not_changed(current_data, updated_template):
     return all(
         current_data[key] == updated_template[key]
-        for key in ("name", "content", "subject", "archived", "process_type", "postage")
+        for key in ("name", "content", "subject", "archived", "process_type", "postage", "template_category_id")
     )
 
 

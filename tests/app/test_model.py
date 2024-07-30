@@ -4,8 +4,10 @@ from sqlalchemy.exc import IntegrityError
 
 from app import signer_personalisation
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     MOBILE_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_FAILED,
@@ -16,10 +18,12 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TECHNICAL_FAILURE,
     PRECOMPILED_TEMPLATE_NAME,
+    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceSafelist,
 )
+from tests.app.conftest import create_template_category
 from tests.app.db import (
     create_inbound_number,
     create_letter_contact,
@@ -352,6 +356,34 @@ def test_template_folder_is_parent(sample_service):
     assert folders[0].is_parent_of(folders[4])
     assert folders[1].is_parent_of(folders[2])
     assert not folders[1].is_parent_of(folders[0])
+
+
+@pytest.mark.parametrize(
+    "template_type, process_type, sms_process_type, email_process_type, expected_template_process_type",
+    [
+        (SMS_TYPE, None, NORMAL, BULK, NORMAL),
+        (EMAIL_TYPE, None, BULK, NORMAL, NORMAL),
+        (SMS_TYPE, BULK, PRIORITY, PRIORITY, BULK),
+        (EMAIL_TYPE, BULK, PRIORITY, PRIORITY, BULK),
+    ],
+)
+def test_template_process_type(
+    notify_db,
+    notify_db_session,
+    template_type,
+    process_type,
+    sms_process_type,
+    email_process_type,
+    expected_template_process_type,
+):
+    template_category = create_template_category(
+        notify_db, notify_db_session, sms_process_type=sms_process_type, email_process_type=email_process_type
+    )
+    template = create_template(
+        service=create_service(), template_type=template_type, process_type=process_type, template_category=template_category
+    )
+
+    assert template.template_process_type == expected_template_process_type
 
 
 def test_fido2_key_serialization(sample_fido2_key):

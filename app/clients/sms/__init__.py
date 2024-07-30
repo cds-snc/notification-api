@@ -1,4 +1,11 @@
+from enum import Enum
+
 from app.clients import Client, ClientException
+
+
+class SmsSendingVehicles(Enum):
+    SHORT_CODE = "short_code"
+    LONG_CODE = "long_code"
 
 
 class SmsClientResponseException(ClientException):

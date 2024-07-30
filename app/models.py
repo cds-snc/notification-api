@@ -38,6 +38,7 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
+from app.clients.sms import SmsSendingVehicles
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -64,6 +65,8 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+
+sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
 def filter_null_value_fields(obj):
@@ -1033,6 +1036,42 @@ template_folder_map = db.Table(
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
 
+class TemplateCategory(BaseModel):
+    __tablename__ = "template_categories"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name_en = db.Column(db.String(255), unique=True, nullable=False)
+    name_fr = db.Column(db.String(255), unique=True, nullable=False)
+    description_en = db.Column(db.String(200), nullable=True)
+    description_fr = db.Column(db.String(200), nullable=True)
+    sms_process_type = db.Column(db.String(200), nullable=False)
+    email_process_type = db.Column(db.String(200), nullable=False)
+    hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name_en": self.name_en,
+            "name_fr": self.name_fr,
+            "description_en": self.description_en,
+            "description_fr": self.description_fr,
+            "sms_process_type": self.sms_process_type,
+            "email_process_type": self.email_process_type,
+            "hidden": self.hidden,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "sms_sending_vehicle": self.sms_sending_vehicle,
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        fields = data.copy()
+        return cls(**fields)
+
+
 class TemplateBase(BaseModel):
     __abstract__ = True
 
@@ -1079,6 +1118,14 @@ class TemplateBase(BaseModel):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
 
     @declared_attr
+    def template_category_id(cls):
+        return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
+
+    @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="Template.template_category_id == TemplateCategory.id")
+
+    @declared_attr
     def created_by(cls):
         return db.relationship("User")
 
@@ -1088,7 +1135,7 @@ class TemplateBase(BaseModel):
             db.String(255),
             db.ForeignKey("template_process_type.name"),
             index=True,
-            nullable=False,
+            nullable=True,
             default=NORMAL,
         )
 
@@ -1198,6 +1245,17 @@ class Template(TemplateBase):
             _external=True,
         )
 
+    @property
+    def template_process_type(self):
+        """By default we use the process_type from TemplateCategory, but allow admins to override it on a per-template basis.
+        Only when overriden do we use the process_type from the template itself.
+        """
+        if self.template_type == SMS_TYPE:
+            return self.process_type if self.process_type else self.template_categories.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type if self.process_type else self.template_categories.email_process_type
+        return self.process_type
+
     @classmethod
     def from_json(cls, data, folder=None):
         """
@@ -1257,6 +1315,10 @@ class TemplateHistory(TemplateBase):
         fields.pop("template_redacted", None)
         fields.pop("folder", None)
         return super(TemplateHistory, cls).from_json(fields)
+
+    @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="TemplateHistory.template_category_id == TemplateCategory.id")
 
     @declared_attr
     def template_redacted(cls):
