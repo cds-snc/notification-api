@@ -42,7 +42,11 @@ from app.models import (
 )
 from app.notifications.validators import check_reply_to, service_has_permission
 from app.schema_validation import validate
-from app.schemas import template_history_schema, template_schema
+from app.schemas import (
+    reduced_template_schema,
+    template_history_schema,
+    template_schema,
+)
 from app.template.template_schemas import post_create_template_schema
 from app.utils import get_public_notify_type_text, get_template_instance
 
@@ -206,6 +210,11 @@ def update_template(service_id, template_id):
         )
         raise InvalidRequest(errors, status_code=400)
 
+    # if the template category is changing, set the process_type to None to remove any priority override
+    if current_app.config["FF_TEMPLATE_CATEGORY"]:
+        if updated_template["template_category_id"] != str(fetched_template.template_category_id):
+            updated_template["process_type"] = None
+
     update_dict = template_schema.load(updated_template)
     if update_dict.archived:
         update_dict.folder = None
@@ -225,7 +234,7 @@ def get_precompiled_template_for_service(service_id):
 @template_blueprint.route("", methods=["GET"])
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
-    data = template_schema.dump(templates, many=True)
+    data = reduced_template_schema.dump(templates, many=True)
     return jsonify(data=data)
 
 
@@ -273,7 +282,7 @@ def get_template_versions(service_id, template_id):
 def _template_has_not_changed(current_data, updated_template):
     return all(
         current_data[key] == updated_template[key]
-        for key in ("name", "content", "subject", "archived", "process_type", "postage")
+        for key in ("name", "content", "subject", "archived", "process_type", "postage", "template_category_id")
     )
 
 

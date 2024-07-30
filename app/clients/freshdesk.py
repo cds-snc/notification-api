@@ -77,7 +77,20 @@ class Freshdesk(object):
                     f"- Texte alternatif français : {self.contact.alt_text_fr}",
                 ]
             )
-
+        elif self.contact.is_new_template_category_request():
+            message = "<br>".join(
+                [
+                    f"New template category request from {self.contact.name} ({self.contact.email_address}):",
+                    f"- Service id: {self.contact.service_id}",
+                    f"- New Template Category Request name: {self.contact.template_category_name_en}",
+                    f"- Template id request: {self.contact.template_id_link}",
+                    "<hr>",
+                    f"Demande de nouvelle catégorie de modèle de {self.contact.name} ({self.contact.email_address}):",
+                    f"- Identifiant du service: {self.contact.service_id}",
+                    f"- Nom de la nouvelle catégorie de modèle demandée: {self.contact.template_category_name_fr}",
+                    f"- Demande d'identifiant de modèle: {self.contact.template_id_link}",
+                ]
+            )
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
 

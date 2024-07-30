@@ -12,7 +12,7 @@ from alembic import op
 from flask import current_app
 from sqlalchemy.dialects import postgresql
 
-revision = "0454_add_template_categories"
+revision = "0454_add_template_category"
 down_revision = "0453_set_supports_international"
 
 

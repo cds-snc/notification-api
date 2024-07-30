@@ -10,26 +10,50 @@ from app.dao.template_categories_dao import (
     dao_update_template_category,
 )
 from app.dao.templates_dao import dao_create_template
+from app.errors import InvalidRequest
 from app.models import BULK, NORMAL, Template, TemplateCategory
 from tests.app.conftest import create_sample_template
 
 
-def test_create_template_category(notify_db_session):
-    data = {
-        "name_en": "english",
-        "name_fr": "french",
-        "description_en": "english description",
-        "description_fr": "french description",
-        "sms_process_type": NORMAL,
-        "email_process_type": NORMAL,
-        "hidden": False,
-    }
+class TestCreateTemplateCategory:
+    def test_create_template_category(self, notify_db_session):
+        data = {
+            "name_en": "english",
+            "name_fr": "french",
+            "description_en": "english description",
+            "description_fr": "french description",
+            "sms_process_type": NORMAL,
+            "email_process_type": NORMAL,
+            "hidden": False,
+            "sms_sending_vehicle": "short_code",
+        }
 
-    template_category = TemplateCategory(**data)
-    dao_create_template_category(template_category)
+        template_category = TemplateCategory(**data)
+        dao_create_template_category(template_category)
 
-    assert TemplateCategory.query.count() == 1
-    assert len(dao_get_all_template_categories()) == 1
+        temp_cat = dao_get_all_template_categories()
+        assert TemplateCategory.query.count() == 1
+        assert len(temp_cat) == 1
+        assert temp_cat[0].sms_sending_vehicle == "short_code"
+
+    def test_create_template_category_with_no_sms_sending_vehicle(self, notify_db_session):
+        data = {
+            "name_en": "english",
+            "name_fr": "french",
+            "description_en": "english description",
+            "description_fr": "french description",
+            "sms_process_type": NORMAL,
+            "email_process_type": NORMAL,
+            "hidden": False,
+        }
+
+        template_category = TemplateCategory(**data)
+        dao_create_template_category(template_category)
+
+        temp_cat = dao_get_all_template_categories()
+        assert TemplateCategory.query.count() == 1
+        assert len(temp_cat) == 1
+        assert temp_cat[0].sms_sending_vehicle == "long_code"  # default value
 
 
 @pytest.mark.parametrize(
@@ -101,7 +125,7 @@ def test_dao_get_template_category_by_template_id(category, template, notify_db_
     template = Template(**template)
     template.service = sample_service
     template.created_by = sample_user
-    template.category = template_category
+    template.template_category = template_category
     dao_create_template(template)
 
     assert dao_get_template_category_by_template_id(template.id) == template_category
@@ -331,8 +355,8 @@ def test_get_all_template_categories_with_filters(
         template_category = TemplateCategory(**category_data)
         dao_create_template_category(template_category)
 
-        create_sample_template(notify_db, notify_db_session, template_type="email", category=template_category)
-        create_sample_template(notify_db, notify_db_session, template_type="sms", category=template_category)
+        create_sample_template(notify_db, notify_db_session, template_type="email", template_category=template_category)
+        create_sample_template(notify_db, notify_db_session, template_type="sms", template_category=template_category)
 
     retrieved_categories = dao_get_all_template_categories(template_type=template_type, hidden=hidden)
 
@@ -350,9 +374,10 @@ def test_dao_delete_template_category_by_id_should_delete_category_when_no_assoc
 def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_associated_with_template(
     notify_db, notify_db_session, sample_template_category
 ):
-    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
-    dao_delete_template_category_by_id(sample_template_category.id)
+    with pytest.raises(InvalidRequest):
+        dao_delete_template_category_by_id(sample_template_category.id)
 
     assert TemplateCategory.query.count() == 1
 
@@ -360,7 +385,7 @@ def test_dao_delete_template_category_by_id_should_not_allow_deletion_when_assoc
 def test_dao_delete_template_category_by_id_should_allow_deletion_with_cascade_when_associated_with_template(
     notify_db, notify_db_session, sample_template_category, populate_generic_categories
 ):
-    template = create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    template = create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
 
     dao_delete_template_category_by_id(sample_template_category.id, cascade=True)
     # 3 here because we have 3 generic defaut categories that will remain post-delete
