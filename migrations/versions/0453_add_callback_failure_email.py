@@ -1,15 +1,15 @@
 """
-Revision ID: 0453_add_callback_failure_email
-Revises: 0452_set_pgaudit_config
-Create Date: 2024-06-04 16:09:00
+Revision ID: 0458_add_callback_failure_email
+Revises: 0457_update_categories
+Create Date: 2024-07-30 15:51:00
 """
 from datetime import datetime
 
 from alembic import op
 from flask import current_app
 
-revision = "0453_add_callback_failure_email"
-down_revision = "0452_set_pgaudit_config"
+revision = "0458_add_callback_failure_email"
+down_revision = "0457_update_categories"
 
 callback_failure_template_id = current_app.config["CALLBACK_FAILURE_TEMPLATE_ID"]
 
