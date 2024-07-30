@@ -38,6 +38,7 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
+from app.clients.sms import SmsSendingVehicles
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -64,6 +65,8 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+
+sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
 def filter_null_value_fields(obj):
@@ -1046,6 +1049,7 @@ class TemplateCategory(BaseModel):
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def serialize(self):
         return {
@@ -1059,6 +1063,7 @@ class TemplateCategory(BaseModel):
             "hidden": self.hidden,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "sms_sending_vehicle": self.sms_sending_vehicle,
         }
 
     @classmethod
@@ -1117,8 +1122,8 @@ class TemplateBase(BaseModel):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
 
     @declared_attr
-    def category(cls):
-        return db.relationship("TemplateCategory")
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="Template.template_category_id == TemplateCategory.id")
 
     @declared_attr
     def created_by(cls):
@@ -1130,7 +1135,7 @@ class TemplateBase(BaseModel):
             db.String(255),
             db.ForeignKey("template_process_type.name"),
             index=True,
-            nullable=False,
+            nullable=True,
             default=NORMAL,
         )
 
@@ -1221,7 +1226,6 @@ class Template(TemplateBase):
 
     service = db.relationship("Service", backref="templates")
     version = db.Column(db.Integer, default=0, nullable=False)
-    category = db.relationship("TemplateCategory", lazy="joined", backref="templates")
 
     folder = db.relationship(
         "TemplateFolder",
@@ -1300,7 +1304,6 @@ class TemplateHistory(TemplateBase):
 
     service = db.relationship("Service")
     version = db.Column(db.Integer, primary_key=True, nullable=False)
-    category = db.relationship("TemplateCategory")
 
     @classmethod
     def from_json(cls, data):
@@ -1312,6 +1315,10 @@ class TemplateHistory(TemplateBase):
         fields.pop("template_redacted", None)
         fields.pop("folder", None)
         return super(TemplateHistory, cls).from_json(fields)
+
+    @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="TemplateHistory.template_category_id == TemplateCategory.id")
 
     @declared_attr
     def template_redacted(cls):

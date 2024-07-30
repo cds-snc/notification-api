@@ -110,7 +110,8 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
 
-    def test_should_use_sns_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
+    @pytest.mark.serial
+    def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
@@ -118,8 +119,8 @@ class TestProviderToUse:
                 "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             },
         ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234", international=True)
-        assert provider.name == "sns"
+            provider = send_to_providers.provider_to_use("sms", "1234", "+447512501324", international=True)
+        assert provider.name == "pinpoint"
 
     def test_should_use_sns_for_sms_if_sending_to_non_CA_zone_1(self, restore_provider_details, notify_api):
         with set_config_values(
@@ -189,6 +190,31 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     assert send_to_providers.provider_to_use("sms", "1234").name == first.identifier
 
 
+def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sample_template, mocker):
+    mocker.patch("app.aws_pinpoint_client.send_sms", return_value="opted_out")
+    db_notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16135551234",
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+        },
+    ):
+        send_to_providers.send_sms_to_provider(db_notification)
+
+        notification = Notification.query.filter_by(id=db_notification.id).one()
+        assert notification.status == "permanent-failure"
+        assert notification.provider_response == "Phone number is opted out"
+
+
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
     db_notification = save_notification(
         create_notification(
@@ -211,6 +237,8 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(s
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
         template_id=sample_sms_template_with_html.id,
+        service_id=sample_sms_template_with_html.service_id,
+        sending_vehicle=None,
     )
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
@@ -430,6 +458,8 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
         template_id=sample_template.id,
+        service_id=sample_template.service_id,
+        sending_vehicle=ANY,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
@@ -508,7 +538,9 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
 
     send_to_providers.send_sms_to_provider(db_notification)
 
-    aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=gsm_message, reference=ANY, sender=ANY, template_id=ANY)
+    aws_sns_client.send_sms.assert_called_once_with(
+        to=ANY, content=gsm_message, reference=ANY, sender=ANY, template_id=ANY, service_id=ANY, sending_vehicle=ANY
+    )
 
 
 def test_send_sms_should_use_service_sms_sender(sample_service, sample_template, mocker):
@@ -522,7 +554,13 @@ def test_send_sms_should_use_service_sms_sender(sample_service, sample_template,
     )
 
     app.aws_sns_client.send_sms.assert_called_once_with(
-        to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender, template_id=ANY
+        to=ANY,
+        content=ANY,
+        reference=ANY,
+        sender=sms_sender.sms_sender,
+        template_id=ANY,
+        service_id=ANY,
+        sending_vehicle=ANY,
     )
 
 
@@ -895,6 +933,8 @@ def test_should_handle_sms_sender_and_prefix_message(
         to=ANY,
         reference=ANY,
         template_id=ANY,
+        service_id=ANY,
+        sending_vehicle=ANY,
     )
 
 

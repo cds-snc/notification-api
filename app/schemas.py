@@ -396,6 +396,8 @@ class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
     is_precompiled_letter = fields.Method("get_is_precompiled_letter")
     process_type = field_for(models.Template, "process_type")
+    template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
+    template_category_id = fields.UUID(required=False, allow_none=True)
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
@@ -414,10 +416,17 @@ class TemplateSchema(BaseTemplateSchema):
                 raise ValidationError("Invalid template subject", "subject")
 
 
+class ReducedTemplateSchema(TemplateSchema):
+    class Meta(BaseSchema.Meta):
+        model = models.Template
+        exclude = ["content", "jobs", "service_id", "service_letter_contact_id"]
+
+
 class TemplateHistorySchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
     process_type = field_for(models.Template, "process_type")
+    template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
     created_at = field_for(models.Template, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
     updated_at = FlexibleDateTime()
@@ -831,6 +840,7 @@ service_history_schema = ServiceHistorySchema()
 api_key_history_schema = ApiKeyHistorySchema()
 template_history_schema = TemplateHistorySchema()
 template_category_schema = TemplateCategorySchema()
+reduced_template_schema = ReducedTemplateSchema()
 event_schema = EventSchema()
 provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()

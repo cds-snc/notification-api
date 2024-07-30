@@ -49,7 +49,7 @@ PyYAML = "6.0.1"
 
 cachelib = "0.12.0"
 SQLAlchemy = "1.4.52"
-newrelic = "6.10.0.165"
+newrelic = "8.10.0"
 notifications-python-client = "6.4.1"
 python-dotenv = "1.0.1"
 pwnedpasswords = "2.0.0"
@@ -76,6 +76,7 @@ simple-salesforce = "^1.12.3"
 certifi = "^2023.7.22" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 flask-marshmallow = "0.14.0"
+aws-xray-sdk = "^2.14.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "6.1.0"

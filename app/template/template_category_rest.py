@@ -92,14 +92,6 @@ def delete_template_category(template_category_id):
     Returns:
         (flask.Response): The response message and http status code.
     """
-
-    if request.args.get("cascade") == "True":
-        dao_delete_template_category_by_id(template_category_id, cascade=True)
-        return "", 200
-
-    template_category = dao_get_template_category_by_id(template_category_id)
-    if len(template_category.templates) > 0:
-        return jsonify(message="Cannot delete a template category with templates assigned to it."), 400
-    else:
-        dao_delete_template_category_by_id(template_category_id)
-    return "", 200
+    cascade = True if request.args.get("cascade") == "True" else False
+    dao_delete_template_category_by_id(template_category_id, cascade=cascade)
+    return "", 204

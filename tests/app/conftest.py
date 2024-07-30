@@ -234,8 +234,8 @@ def _sample_service_custom_letter_contact_block(sample_service):
 
 @pytest.fixture(scope="function")
 def sample_template_category_with_templates(notify_db, notify_db_session, sample_template_category):
-    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
-    create_sample_template(notify_db, notify_db_session, category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
     return sample_template_category
 
 
@@ -335,7 +335,7 @@ def create_sample_template(
     subject_line="Subject",
     user=None,
     service=None,
-    category=None,
+    template_category=None,
     created_by=None,
     process_type="normal",
     permissions=[EMAIL_TYPE, SMS_TYPE],
@@ -363,8 +363,8 @@ def create_sample_template(
         data.update({"subject": subject_line})
     if template_type == "letter":
         data["postage"] = "second"
-    if category:
-        data["category"] = category
+    if template_category:
+        data["template_category"] = template_category
     else:
         cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4), name_fr=str(uuid.uuid4))
         data.update({"template_category_id": cat.id})
@@ -403,7 +403,42 @@ def sample_template(
         service=None,
         created_by=None,
         process_type="normal",
-        category=None,
+        template_category=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_with_priority_override(
+    notify_db,
+    notify_db_session,
+    sample_template_category,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="priority",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="priority",
+        template_category=sample_template_category,
         permissions=[EMAIL_TYPE, SMS_TYPE],
     )
 

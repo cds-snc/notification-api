@@ -52,7 +52,7 @@ def test_get_template_category_by_id(client, sample_template_category):
 
 def test_get_template_category_by_template_id(client, notify_db, notify_db_session, sample_template_category):
     category = sample_template_category
-    template = create_sample_template(notify_db, notify_db_session, category=category)
+    template = create_sample_template(notify_db, notify_db_session, template_category=category)
 
     auth_header = create_authorization_header()
     endpoint = url_for("template_category.get_template_category_by_template_id", template_id=template.id)
@@ -118,17 +118,20 @@ def test_get_template_categories(
 @pytest.mark.parametrize(
     "cascade, expected_status_code, expected_msg",
     [
-        ("True", 200, ""),
-        ("False", 400, "Cannot delete a template category with templates assigned to it."),
+        ("True", 204, ""),
+        ("False", 400, "Cannot delete categories associated with templates. Dissociate the category from templates first."),
     ],
 )
 def test_delete_template_category_cascade(
-    cascade, expected_status_code, expected_msg, client, mocker, sample_template_category_with_templates
+    cascade,
+    expected_status_code,
+    expected_msg,
+    client,
+    mocker,
+    sample_template_category_with_templates,
+    populate_generic_categories,
 ):
     auth_header = create_authorization_header()
-    mocker.patch(
-        "app.dao.template_categories_dao.dao_get_template_category_by_id", return_value=sample_template_category_with_templates
-    )
 
     endpoint = url_for(
         "template_category.delete_template_category",

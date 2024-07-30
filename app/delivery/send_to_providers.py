@@ -22,12 +22,14 @@ from urllib3.util import Retry
 
 from app import bounce_rate_client, clients, document_download_client, statsd_client
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
+from app.clients.sms import SmsSendingVehicles
 from app.config import Config
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
     get_provider_details_by_notification_type,
 )
+from app.dao.template_categories_dao import dao_get_template_category_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import (
     DocumentDownloadException,
@@ -43,6 +45,7 @@ from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     NOTIFICATION_CONTAINS_PII,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -103,12 +106,21 @@ def send_sms_to_provider(notification):
 
         else:
             try:
+                template_category_id = template_dict.get("template_category_id")
+                if current_app.config["FF_TEMPLATE_CATEGORY"] and template_category_id is not None:
+                    sending_vehicle = SmsSendingVehicles(
+                        dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
+                    )
+                else:
+                    sending_vehicle = None
                 reference = provider.send_sms(
                     to=validate_and_format_phone_number(notification.to, international=notification.international),
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
                     template_id=notification.template_id,
+                    service_id=notification.service_id,
+                    sending_vehicle=sending_vehicle,
                 )
             except Exception as e:
                 notification.billable_units = template.fragment_count
@@ -118,7 +130,10 @@ def send_sms_to_provider(notification):
             else:
                 notification.reference = reference
                 notification.billable_units = template.fragment_count
-                update_notification_to_sending(notification, provider)
+                if reference == "opted_out":
+                    update_notification_to_opted_out(notification, provider)
+                else:
+                    update_notification_to_sending(notification, provider)
 
         # Record StatsD stats to compute SLOs
         statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
@@ -340,6 +355,14 @@ def update_notification_to_sending(notification, provider):
     dao_update_notification(notification)
 
 
+def update_notification_to_opted_out(notification, provider):
+    notification.sent_at = datetime.utcnow()
+    notification.sent_by = provider.get_name()
+    notification.status = NOTIFICATION_PERMANENT_FAILURE
+    notification.provider_response = "Phone number is opted out"
+    dao_update_notification(notification)
+
+
 def provider_to_use(
     notification_type: str,
     notification_id: UUID,
@@ -382,13 +405,12 @@ def provider_to_use(
         elif phonenumbers.region_code_for_number(match.number) != "CA":
             recipient_outside_canada = True
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
-
+    zone_1_outside_canada = recipient_outside_canada and not international
     do_not_use_pinpoint = (
         has_dedicated_number
         or sending_to_us_number
         or cannot_determine_recipient_country
-        or international
-        or recipient_outside_canada
+        or zone_1_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)
     )
