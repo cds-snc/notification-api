@@ -384,7 +384,6 @@ class TestTemplateProcessType:
         template = create_template(
             service=create_service(), template_type=template_type, process_type=process_type, template_category=template_category
         )
-        import pdb; pdb.set_trace()
         assert template.process_type == expected_template_process_type
 
 

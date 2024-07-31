@@ -1305,6 +1305,17 @@ class TemplateHistory(TemplateBase):
     service = db.relationship("Service")
     version = db.Column(db.Integer, primary_key=True, nullable=False)
 
+    @property
+    def template_process_type(self):
+        """By default we use the process_type from TemplateCategory, but allow admins to override it on a per-template basis.
+        Only when overriden do we use the process_type from the template itself.
+        """
+        if self.template_type == SMS_TYPE:
+            return self.process_type if self.process_type else self.template_categories.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type if self.process_type else self.template_categories.email_process_type
+        return self.process_type
+
     @classmethod
     def from_json(cls, data):
         fields = data.copy()
