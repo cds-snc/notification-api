@@ -1141,11 +1141,13 @@ class TemplateBase(BaseModel):
 
     @hybrid_property
     def process_type(self):
-        if self.template_type == SMS_TYPE:
-            return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
-        elif self.template_type == EMAIL_TYPE:
-            return self.process_type_column if self.process_type_column else self.template_category.email_process_type
-        return self.process_type_column
+        # The if statement is required as a way to check if FF_TEMPLATE_CATEGORY is enabled
+        if self.template_category_id:
+            if self.template_type == SMS_TYPE:
+                return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
+            elif self.template_type == EMAIL_TYPE:
+                return self.process_type_column if self.process_type_column else self.template_category.email_process_type
+        return self.process_type_column if self.process_type_column else NORMAL
 
     @process_type.setter  # type: ignore
     def process_type(self, value):
