@@ -1130,14 +1130,13 @@ class TemplateBase(BaseModel):
         return db.relationship("User")
 
     @declared_attr
-    def process_type_column(self):
+    def process_type_column(cls):
         return db.Column(
             db.String(255),
             db.ForeignKey("template_process_type.name"),
-            name='process_type',
+            name="process_type",
             index=True,
             nullable=True,
-            default=NORMAL,
         )
 
     @hybrid_property
@@ -1148,14 +1147,18 @@ class TemplateBase(BaseModel):
             return self.process_type_column if self.process_type_column else self.template_category.email_process_type
         return self.process_type_column
 
+    @process_type.setter  # type: ignore
+    def process_type(self, value):
+        self.process_type_column = value
+
     @process_type.expression
     def _process_type(self):
         return db.case(
             [
-                (self.template_type == 'sms', db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
-                (self.template_type == 'email', db.coalesce(self.process_type_column, self.template_category.email_process_type)),
+                (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+                (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
             ],
-            else_=self.process_type_column
+            else_=self.process_type_column,
         )
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
@@ -1263,7 +1266,6 @@ class Template(TemplateBase):
             template_id=self.id,
             _external=True,
         )
-
 
     @classmethod
     def from_json(cls, data, folder=None):
