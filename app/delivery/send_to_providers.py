@@ -78,7 +78,9 @@ def send_sms_to_provider(notification):
             template_id=notification.template_id,
         )
 
-        template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
+        template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
+        template_dict = template_obj.__dict__
+        template_dict["process_type"] = template_obj.process_type
 
         template = SMSMessageTemplate(
             template_dict,
@@ -279,7 +281,9 @@ def send_email_to_provider(notification: Notification):
             else:
                 personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
-        template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
+        template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
+        template_dict = template_obj.__dict__
+        template_dict["process_type"] = template_obj.process_type
 
         # Local Jinja support - Add USE_LOCAL_JINJA_TEMPLATES=True to .env
         # Add a folder to the project root called 'jinja_templates'
