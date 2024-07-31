@@ -395,7 +395,7 @@ class BaseTemplateSchema(BaseSchema):
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
     is_precompiled_letter = fields.Method("get_is_precompiled_letter")
-    process_type = field_for(models.Template, "process_type")
+    process_type = fields.String(attribute="template_process_type") # if current_app.config["FF_TEMPLATE_CATEGORY"] else field_for(models.Template, "process_type")
     template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
     template_category_id = fields.UUID(required=False, allow_none=True)
     redact_personalisation = fields.Method("redact")
