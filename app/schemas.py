@@ -395,7 +395,7 @@ class BaseTemplateSchema(BaseSchema):
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
     is_precompiled_letter = fields.Method("get_is_precompiled_letter")
-    process_type = field_for(models.Template, "process_type")
+    process_type = field_for(models.Template, "process_type_column")
     template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
     template_category_id = fields.UUID(required=False, allow_none=True)
     redact_personalisation = fields.Method("redact")
@@ -425,7 +425,7 @@ class ReducedTemplateSchema(TemplateSchema):
 class TemplateHistorySchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
-    process_type = field_for(models.Template, "process_type")
+    process_type = field_for(models.Template, "process_type_column")
     template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
     created_at = field_for(models.Template, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
