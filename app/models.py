@@ -1130,13 +1130,32 @@ class TemplateBase(BaseModel):
         return db.relationship("User")
 
     @declared_attr
-    def process_type(cls):
+    def process_type_column(self):
         return db.Column(
             db.String(255),
             db.ForeignKey("template_process_type.name"),
+            name='process_type',
             index=True,
             nullable=True,
             default=NORMAL,
+        )
+
+    @hybrid_property
+    def process_type(self):
+        if self.template_type == SMS_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.email_process_type
+        return self.process_type_column
+
+    @process_type.expression
+    def _process_type(self):
+        return db.case(
+            [
+                (self.template_type == 'sms', db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+                (self.template_type == 'email', db.coalesce(self.process_type_column, self.template_category.email_process_type)),
+            ],
+            else_=self.process_type_column
         )
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
@@ -1245,16 +1264,6 @@ class Template(TemplateBase):
             _external=True,
         )
 
-    @property
-    def template_process_type(self):
-        """By default we use the process_type from TemplateCategory, but allow admins to override it on a per-template basis.
-        Only when overriden do we use the process_type from the template itself.
-        """
-        if self.template_type == SMS_TYPE:
-            return self.process_type if self.process_type else self.template_categories.sms_process_type
-        elif self.template_type == EMAIL_TYPE:
-            return self.process_type if self.process_type else self.template_categories.email_process_type
-        return self.process_type
 
     @classmethod
     def from_json(cls, data, folder=None):
