@@ -1,5 +1,5 @@
 import pytest
-from requests import RequestException
+from requests import RequestException, ReadTimeout, Timeout
 from requests_mock import ANY
 
 from app.va.va_profile import (
@@ -8,7 +8,7 @@ from app.va.va_profile import (
     VAProfileRetryableException,
     VAProfileNonRetryableException,
 )
-from app.models import RecipientIdentifier, SMS_TYPE
+from app.models import EMAIL_TYPE, RecipientIdentifier, SMS_TYPE
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov/'
@@ -19,11 +19,12 @@ def test_va_profile_client(mocker):
     mock_logger = mocker.Mock()
     mock_ssl_key_path = 'some_key.pem'
     mock_ssl_cert_path = 'some_cert.pem'
+    mock_token = 'mock_token'  # nosec
     mock_statsd_client = mocker.Mock()
 
     test_va_profile_client = VAProfileClient()
     test_va_profile_client.init_app(
-        mock_logger, MOCK_VA_PROFILE_URL, mock_ssl_cert_path, mock_ssl_key_path, mock_statsd_client
+        mock_logger, MOCK_VA_PROFILE_URL, mock_ssl_cert_path, mock_ssl_key_path, mock_token, mock_statsd_client
     )
 
     return test_va_profile_client
@@ -757,3 +758,51 @@ class TestCommunicationPermissions:
         assert test_va_profile_client.get_is_communication_allowed(
             recipient_identifier, 'some-valid-id', 'some-notification-id', SMS_TYPE
         )
+
+
+class TestSendEmailStatus:
+    mock_response = {}
+    mock_notification_data = {
+        'id': '2e9e6920-4f6f-4cd5-9e16-fc306fe23867',  # this is the notification id
+        'reference': None,
+        'to': 'test@email.com',  # this is the recipient's contact info (email)
+        'status': 'delivered',  # this will specify the delivery status of the notification
+        'status_reason': '',  # populated if there's additional context on the delivery status
+        'created_at': '2024-07-25T10:00:00.0',
+        'completed_at': '2024-07-25T11:00:00.0',
+        'sent_at': '2024-07-25T11:00:00.0',
+        'notification_type': EMAIL_TYPE,  # this is the channel/type of notification (email)
+        'provider': 'ses',  # email provider
+    }
+
+    def test_ut_send_va_profile_email_status_sent_successfully(self, rmock, test_va_profile_client):
+        rmock.post(ANY, json=self.mock_response, status_code=200)
+
+        test_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+
+        assert rmock.called
+
+        expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
+        assert rmock.request_history[0].url == expected_url
+
+    def test_ut_send_va_profile_email_status_timeout(self, rmock, test_va_profile_client):
+        rmock.post(ANY, exc=ReadTimeout)
+
+        with pytest.raises(Timeout):
+            test_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+
+        assert rmock.called
+
+        expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
+        assert rmock.request_history[0].url == expected_url
+
+    def test_ut_send_va_profile_email_status_throws_exception(self, rmock, test_va_profile_client):
+        rmock.post(ANY, exc=RequestException)
+
+        with pytest.raises(RequestException):
+            test_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+
+        assert rmock.called
+
+        expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
+        assert rmock.request_history[0].url == expected_url

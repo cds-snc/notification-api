@@ -253,6 +253,7 @@ class Config(object):
             'app.celery.process_pinpoint_inbound_sms',
             'app.celery.process_delivery_status_result_tasks',
             'app.celery.v3.notification_tasks',
+            'app.celery.process_ses_receipts_tasks',
         ),
         'beat_schedule': {
             # app/celery/scheduled_tasks.py
@@ -345,6 +346,7 @@ class Config(object):
             'app.celery.v3.notification_tasks.v3_send_email_notification': {'queue': QueueNames.SEND_EMAIL},
             'app.celery.v3.notification_tasks.v3_send_sms_notification': {'queue': QueueNames.SEND_SMS},
             'app.celery.process_ga4_measurement_tasks.post_to_ga4': {'queue': QueueNames.SEND_EMAIL},
+            'app.celery.process_ses_receipts_tasks.send_email_status_to_va_profile': {'queue': QueueNames.CALLBACKS},
         },
     }
 
@@ -385,6 +387,7 @@ class Config(object):
     GRANICUS_TOKEN = os.environ.get('GRANICUS_TOKEN', '')
     GRANICUS_URL = os.environ.get('GRANICUS_URL', 'https://tms.govdelivery.com')
     VA_PROFILE_URL = os.environ.get('VA_PROFILE_URL', 'https://int.vaprofile.va.gov')
+    VA_PROFILE_TOKEN = os.environ.get('VA_PROFILE_TOKEN', '')
     MPI_URL = os.environ.get('MPI_URL', 'https://ps.dev.iam.va.gov')
 
     VA_ONSITE_URL = os.environ.get('VA_ONSITE_URL', 'https://staging-api.va.gov')
@@ -448,10 +451,6 @@ class Config(object):
 
     SESSION_COOKIE_SECURE = str(True) == os.getenv('SESSION_COOKIE_SECURE', 'False')
     SESSION_COOKIE_SAMESITE = 'Lax'
-
-    # Feature flags
-    GOVDELIVERY_EMAIL_CLIENT_ENABLED = True
-    SWITCH_SLOW_SMS_PROVIDER_ENABLED = False
 
     # Google Analytics
     GOOGLE_ANALYTICS_ENABLED = str(True) == (os.getenv('GOOGLE_ANALYTICS_ENABLED', 'False'))

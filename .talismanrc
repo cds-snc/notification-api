@@ -29,4 +29,6 @@ fileignoreconfig:
   checksum: 21d6c62402baa8ec3451c2d00cf5ffdff96398344d78603f93e3479e711305fb
 - filename: tests/app/notifications/test_send_notifications.py
   checksum: 12f223d78afccf1d48b586c53ca061121ad0666aae4c0e464b47e88531bd630e
+- filename: tests/app/va/va_profile/test_va_profile_client.py
+  checksum: faac058194f6d02342f46fdf7551c246caa58ae164cea973ff1f7089fee664fc
 version: "1.0"

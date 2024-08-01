@@ -89,7 +89,6 @@
           "name": "GA4_URL",
           "value": "https://www.google-analytics.com/mp/collect"
         },
-
         {
           "name": "VA_ONSITE_URL",
           "value": "https://staging-api.va.gov"
@@ -97,6 +96,10 @@
         {
           "name": "VA_PROFILE_URL",
           "value": "https://qa.vaprofile.va.gov"
+        },
+        {
+          "name": "VA_PROFILE_EMAIL_STATUS_ENABLED",
+          "value": "False"
         },
         {
           "name": "VANOTIFY_SSL_CERT_PATH",
@@ -263,6 +266,10 @@
         {
           "name": "VETEXT_PASSWORD",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/vetext/password"
+        },
+        {
+          "name": "VA_PROFILE_TOKEN",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/va-profile/auth-token"
         }
       ],
       "command": [

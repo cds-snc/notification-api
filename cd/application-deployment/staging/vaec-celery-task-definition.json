@@ -102,6 +102,10 @@
           "value": "https://qa.vaprofile.va.gov"
         },
         {
+          "name": "VA_PROFILE_EMAIL_STATUS_ENABLED",
+          "value": "False"
+        },
+        {
           "name": "VANOTIFY_SSL_CERT_PATH",
           "value": "/app/certs/vanotify_ssl_cert.pem"
         },
@@ -290,6 +294,10 @@
         {
           "name": "VA_ONSITE_SECRET",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/onsite/notification-priv"
+        },
+        {
+          "name": "VA_PROFILE_TOKEN",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/va-profile/auth-token"
         }
       ],
       "command": [
@@ -419,4 +427,3 @@
     }
   ]
 }
-

@@ -24,7 +24,7 @@ class PhoneNumberType(Enum):
     TEMPORARY = 'TEMPORARY'
 
     @staticmethod
-    def valid_type_values():
+    def valid_type_values() -> list[str]:
         return [PhoneNumberType.MOBILE.value, PhoneNumberType.HOME.value]
 
 
@@ -40,12 +40,14 @@ class VAProfileClient:
         va_profile_url,
         ssl_cert_path,
         ssl_key_path,
+        va_profile_token,
         statsd_client,
     ):
         self.logger = logger
         self.va_profile_url = va_profile_url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
+        self.va_profile_token = va_profile_token
         self.statsd_client = statsd_client
 
     def get_email(
@@ -264,3 +266,48 @@ class VAProfileClient:
     ):
         if response.get('messages'):
             self._raise_no_contact_info_exception(bio_type, va_profile_id, response.get(self.TX_AUDIT_ID))
+
+    def send_va_profile_email_status(self, notification_data: dict) -> None:
+        """
+        This method sends notification status data to VA Profile. This is part of our integration to help VA Profile
+        provide better service by letting them know which emails are good, and which ones result in bounces.
+
+        :param notification_data: the data to include with the POST request to VA Profile
+
+        Raises:
+            requests.Timeout: if the request to VA Profile times out
+            RequestException: if something unexpected happens when sending the request
+        """
+
+        headers = {'Authorization': f'Bearer {self.va_profile_token}'}
+        url = f'{self.va_profile_url}/contact-information-vanotify/notify/status'
+
+        self.logger.debug(
+            'Sending email status to VA Profile with url: %s | notification: %s', url, notification_data.get('id')
+        )
+
+        # make POST request to VA Profile endpoint for notification statuses
+        # raise errors if they occur, they will be handled by the calling function
+        try:
+            response = requests.post(url, json=notification_data, headers=headers, timeout=(3.05, 1))
+        except requests.Timeout:
+            self.logger.warning(
+                'Request timeout attempting to send email status to VA Profile for notification %s | retrying...',
+                notification_data.get('id'),
+            )
+            raise
+        except requests.RequestException as e:
+            self.logger.exception(
+                'Unexpected request exception, email status NOT sent to VA Profile for notification %s'
+                ' | Exception: %s',
+                notification_data.get('id'),
+                e,
+            )
+            raise
+
+        self.logger.info(
+            'VA Profile response when receiving status of notification %s | status code: %s | json: %s',
+            notification_data.get('id'),
+            response.status_code,
+            response.json(),
+        )
