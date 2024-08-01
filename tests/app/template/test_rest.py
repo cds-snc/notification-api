@@ -1580,17 +1580,19 @@ class TestTemplateCategory:
 
     # ensure that the process_type is overridden when a user changes categories
     @pytest.mark.parametrize(
-        "template_category_id, expected_process_type",
+        "template_category_id, expected_process_type_column, expected_process_type",
         [
             # category doesnt change, process_type should remain as priority
             (
                 "unchanged",
+                "priority",
                 "priority",
             ),
             # category changes, process_type should be removed
             (
                 DEFAULT_TEMPLATE_CATEGORY_MEDIUM,
                 None,
+                "normal",
             ),
         ],
     )
@@ -1602,6 +1604,7 @@ class TestTemplateCategory:
         admin_request,
         populate_generic_categories,
         template_category_id,
+        expected_process_type_column,
         expected_process_type,
         notify_api,
     ):
@@ -1624,4 +1627,5 @@ class TestTemplateCategory:
             template = dao_get_template_by_id(sample_template_with_priority_override.id)
 
             assert str(template.template_category_id) == calculated_tc
+            assert template.process_type_column == expected_process_type_column
             assert template.process_type == expected_process_type
