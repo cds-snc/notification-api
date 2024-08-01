@@ -380,7 +380,11 @@ class NotificationModelSchema(BaseSchema):
 class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    process_type_column = fields.Method("get_hybrid_process_type")
 
+    def get_hybrid_process_type(self, template):
+        return template.process_type_column
+    
     def get_reply_to(self, template):
         return template.reply_to
 
