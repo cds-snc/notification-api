@@ -384,7 +384,7 @@ class BaseTemplateSchema(BaseSchema):
 
     def get_hybrid_process_type(self, template):
         return template.process_type_column
-    
+
     def get_reply_to(self, template):
         return template.reply_to
 
