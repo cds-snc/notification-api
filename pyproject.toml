@@ -49,7 +49,7 @@ PyYAML = "6.0.1"
 
 cachelib = "0.12.0"
 SQLAlchemy = "1.4.52"
-newrelic = "8.10.0"
+newrelic = "8.10.1"
 notifications-python-client = "6.4.1"
 python-dotenv = "1.0.1"
 pwnedpasswords = "2.0.0"
