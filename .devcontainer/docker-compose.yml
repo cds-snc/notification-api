@@ -38,7 +38,7 @@ services:
       - "5432:5432"
 
   redis:
-    image: redis:6.2@sha256:d4948d011cc38e94f0aafb8f9a60309bd93034e07d10e0767af534512cf012a9
+    image: redis:6.2@sha256:bd84e1c73f6d7120282d455b8506220f668cad4544e11e63c2376605dc2d4141
     restart: always
     command: redis-server --port 6380
     ports:
