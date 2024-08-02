@@ -10,6 +10,7 @@ from app.celery.exceptions import AutoRetryException
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import get_notification_by_id, update_notification_status_by_id
 from app.exceptions import NotificationTechnicalFailureException
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED
 from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.va_profile_client import CommunicationItemNotFoundException
@@ -86,9 +87,14 @@ def recipient_has_given_permission(
     default_send_flag = communication_item.default_send_indicator
 
     try:
-        is_allowed = va_profile_client.get_is_communication_allowed(
-            identifier, communication_item.va_profile_item_id, notification_id, notification_type
-        )
+        if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_USE_PROFILE_API_V3):
+            is_allowed = va_profile_client.get_is_communication_allowed_v3(
+                identifier, communication_item.va_profile_item_id, notification_id, notification_type
+            )
+        else:
+            is_allowed = va_profile_client.get_is_communication_allowed(
+                identifier, communication_item.va_profile_item_id, notification_id, notification_type
+            )
     except VAProfileRetryableException as e:
         if can_retry(task.request.retries, task.max_retries, notification_id):
             current_app.logger.warning(
