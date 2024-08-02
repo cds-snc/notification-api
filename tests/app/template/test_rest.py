@@ -1580,20 +1580,17 @@ class TestTemplateCategory:
 
     # ensure that the process_type is overridden when a user changes categories
     @pytest.mark.parametrize(
-        "template_category_id, expected_process_type_column, expected_process_type",
+        "template_category_id, data_process_type, expected_process_type_column, expected_process_type",
         [
             # category doesnt change, process_type should remain as priority
             (
                 "unchanged",
                 "priority",
                 "priority",
+                "priority",
             ),
             # category changes, process_type should be removed
-            (
-                DEFAULT_TEMPLATE_CATEGORY_MEDIUM,
-                None,
-                "normal",
-            ),
+            (DEFAULT_TEMPLATE_CATEGORY_MEDIUM, None, None, "normal"),
         ],
     )
     def test_process_type_should_be_reset_when_template_category_updated(
@@ -1604,6 +1601,7 @@ class TestTemplateCategory:
         admin_request,
         populate_generic_categories,
         template_category_id,
+        data_process_type,
         expected_process_type_column,
         expected_process_type,
         notify_api,
@@ -1621,6 +1619,7 @@ class TestTemplateCategory:
                 _data={
                     "template_category_id": calculated_tc,
                     "redact_personalisation": False,
+                    "process_type": data_process_type,
                 },
                 _expected_status=200,
             )

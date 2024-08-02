@@ -159,7 +159,6 @@ def update_template_process_type(template_id):
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
 def update_template(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-
     if not service_has_permission(fetched_template.template_type, fetched_template.service.permissions):
         message = "Updating {} templates is not allowed".format(get_public_notify_type_text(fetched_template.template_type))
         errors = {"template_type": [message]}

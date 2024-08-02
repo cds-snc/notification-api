@@ -288,13 +288,13 @@ def sample_template_category(
     return create_template_category(
         notify_db,
         notify_db_session,
-        name_en="Category Name",
-        name_fr="Category Name (FR)",
-        description_en="Category Description",
-        description_fr="Category Description (FR)",
-        sms_process_type="normal",
-        email_process_type="normal",
-        hidden=False,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
     )
 
 
