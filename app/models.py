@@ -2176,12 +2176,12 @@ class VAProfileLocalCache(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     allowed = db.Column(db.Boolean, nullable=False)
-    va_profile_id = db.Column(db.Integer, nullable=False)
+    va_profile_id = db.Column(db.BigInteger, nullable=False)
     communication_item_id = db.Column(db.Integer, nullable=False)
     communication_channel_id = db.Column(db.Integer, nullable=False)
     source_datetime = db.Column(db.DateTime, nullable=False)
 
-    participant_id = db.Column(db.Integer, nullable=True)
+    participant_id = db.Column(db.BigInteger, nullable=True)
     has_duplicate_mappings = db.Column(db.Boolean, nullable=False, default=False)
 
     __table_args__ = (
