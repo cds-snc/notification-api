@@ -73,6 +73,7 @@ strict-rfc3339 = "*"
 optional = true
 [tool.poetry.group.static_tools.dependencies]
 ruff = "*"
+pre-commit = "*"
 
 [tool.ruff]
 exclude = [
@@ -132,6 +133,9 @@ line-ending = "auto"
 quote-style = "single"
 skip-magic-trailing-comma = false
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # https://bandit.readthedocs.io/en/latest/plugins/b101_assert_used.html
 
 [build-system]
 requires = ["poetry-core"]
