@@ -117,6 +117,24 @@ def test_should_retry_on_retryable_exception(client, mocker, notification, excep
     mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
 
 
+def test_should_retry_on_timeout(client, mocker, notification):
+    mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_email = mocker.Mock(side_effect=Timeout('Request timed out'))
+    mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
+
+    with pytest.raises(Exception) as exc_info:
+        lookup_contact_info(notification.id)
+
+    assert exc_info.type is AutoRetryException
+
+    assert exc_info.value.args[0] == 'Found Timeout, autoretrying...'
+    assert isinstance(exc_info.value.args[1], Timeout)
+    assert str(exc_info.value.args[1]) == 'Request timed out'
+    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+
+
 def test_should_update_notification_to_technical_failure_on_max_retries(client, mocker, notification):
     mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
 

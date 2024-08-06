@@ -232,6 +232,10 @@
         {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
           "value": "dev-bip-payment-notification-table"
+        },
+        {
+          "name": "VA_PROFILE_V3_USE_PROFILE_API_V3",
+          "value": "True"
         }
       ],
       "secrets": [
