@@ -599,6 +599,20 @@ zookeeper = ["kazoo (>=1.3.1)"]
 zstd = ["zstandard (==0.22.0)"]
 
 [[package]]
+name = "celery-aws-xray-sdk-extension"
+version = "0.1.2"
+description = "Extension for AWS X-Ray SDK which enables tracing of Celery tasks"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "celery-aws-xray-sdk-extension-0.1.2.tar.gz", hash = "sha256:81e8a21259560074cb9dbfd54bf5d47b2d1ba0c64a54d959dd1d960e731186a5"},
+]
+
+[package.dependencies]
+aws-xray-sdk = ">=2.9,<3"
+celery = ">=5,<6"
+
+[[package]]
 name = "certifi"
 version = "2023.11.17"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -4292,4 +4306,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "d95fee17c6e12a5dbec8ad0bdb8e256aadee291d2c2306c4b4f11e3db07fe006"
+content-hash = "e9bf32d4804a1e680a135b7b5bbba07ec05a7e7dc3e5ae4d5a2608c282269fef"
