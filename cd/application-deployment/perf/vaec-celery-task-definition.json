@@ -195,7 +195,7 @@
         },
         {
           "name": "VA_PROFILE_V3_USE_PROFILE_API_V3",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [
