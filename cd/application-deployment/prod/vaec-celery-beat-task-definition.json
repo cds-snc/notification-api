@@ -34,10 +34,6 @@
           "value": "True"
         },
         {
-          "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "True"
-        },
-        {
           "name": "API_HOST_NAME",
           "value": "https://api.notifications.va.gov"
         },
@@ -360,4 +356,3 @@
     }
   ]
 }
-

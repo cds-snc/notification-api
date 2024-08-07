@@ -22,10 +22,6 @@
           "value": "staging"
         },
         {
-          "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "True"
-        },
-        {
           "name": "FLASK_APP",
           "value": "run_celery_beat.py"
         },
@@ -376,4 +372,3 @@
     }
   ]
 }
-

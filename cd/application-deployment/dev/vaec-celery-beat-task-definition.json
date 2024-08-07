@@ -54,10 +54,6 @@
           "value": "True"
         },
         {
-          "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "True"
-        },
-        {
           "name": "DD_ENV",
           "value": "dev"
         },

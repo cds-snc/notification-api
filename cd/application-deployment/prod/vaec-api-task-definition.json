@@ -32,10 +32,6 @@
           "value": "production"
         },
         {
-          "name": "CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED",
-          "value": "True"
-        },
-        {
           "name": "NIGHTLY_NOTIF_CSV_ENABLED",
           "value": "True"
         },
@@ -417,4 +413,3 @@
     }
   ]
 }
-

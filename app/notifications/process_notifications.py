@@ -171,11 +171,7 @@ def send_notification_to_queue(
         # Including sms_sender_id is necessary so the correct sender can be chosen.
         # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
         tasks = [deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue)]
-        if (
-            recipient_id_type
-            and communication_item_id
-            and is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED)
-        ):
+        if recipient_id_type and communication_item_id:
             tasks.insert(
                 0,
                 lookup_recipient_communication_permissions.si(str(notification.id)).set(
@@ -259,15 +255,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
                 queue=QueueNames.SEND_ONSITE_NOTIFICATION
             ),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            deliver_task.si(notification.id).set(queue=deliver_queue),
         ]
-        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
-            tasks.insert(
-                len(tasks) - 1,
-                lookup_recipient_communication_permissions.si(notification.id).set(
-                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-                ),
-            )
 
     else:
         tasks = [
@@ -276,16 +264,16 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
                 queue=QueueNames.SEND_ONSITE_NOTIFICATION
             ),
             lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
-            deliver_task.si(notification.id).set(queue=deliver_queue),
         ]
 
-        if is_feature_enabled(FeatureFlag.CHECK_RECIPIENT_COMMUNICATION_PERMISSIONS_ENABLED) and communication_item_id:
-            tasks.insert(
-                len(tasks) - 1,
-                lookup_recipient_communication_permissions.si(notification.id).set(
-                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-                ),
-            )
+    if communication_item_id:
+        tasks.append(
+            lookup_recipient_communication_permissions.si(notification.id).set(
+                queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
+            ),
+        )
+
+    tasks.append(deliver_task.si(notification.id).set(queue=deliver_queue))
 
     chain(*tasks).apply_async()
 
