@@ -1,9 +1,22 @@
 import time
 
+from celery_aws_xray_sdk_extension.handlers import (
+    xray_after_task_publish,
+    xray_before_task_publish,
+    xray_task_failure,
+    xray_task_postrun,
+    xray_task_prerun,
+)
 from flask import current_app
 
-from celery import Celery, Task
+from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
+
+signals.after_task_publish.connect(xray_after_task_publish)
+signals.before_task_publish.connect(xray_before_task_publish)
+signals.task_failure.connect(xray_task_failure)
+signals.task_postrun.connect(xray_task_postrun)
+signals.task_prerun.connect(xray_task_prerun)
 
 
 @worker_process_shutdown.connect  # type: ignore
