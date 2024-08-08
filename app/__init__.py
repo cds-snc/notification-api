@@ -206,6 +206,7 @@ def register_blueprint(application):
     from app.service.callback_rest import service_callback_blueprint
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
+    from app.support.rest import support_blueprint
     from app.template.rest import template_blueprint
     from app.template.template_category_rest import template_category_blueprint
     from app.template_folder.rest import template_folder_blueprint
@@ -267,6 +268,9 @@ def register_blueprint(application):
     register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
+
+    support_blueprint.before_request(requires_admin_auth)
+    application.register_blueprint(support_blueprint, url_prefix="/support")
 
 
 def register_v2_blueprints(application):
