@@ -1826,6 +1826,7 @@ class TestTemplateCategory:
                 process_type=process_type,
             )
 
+            tc = sample_template_category
             if template_category == "normal":
                 tc = sample_template_category
             elif template_category == "bulk":
@@ -1888,6 +1889,7 @@ class TestTemplateCategory:
         with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": True}):
             service = create_service(service_name="service_1")
 
+            tc = sample_template_category
             if process_type is None:
                 if calculated_process_type == "normal":
                     tc = sample_template_category
