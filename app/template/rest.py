@@ -182,7 +182,7 @@ def update_template(service_id, template_id):
 
     # Check if there is a change to make.
     if _template_has_not_changed(current_data, updated_template):
-       return jsonify(data=updated_template), 200
+        return jsonify(data=updated_template), 200
 
     content_over_limit = _content_count_greater_than_limit(updated_template["content"], fetched_template.template_type)
     name_over_limit = _template_name_over_char_limit(
