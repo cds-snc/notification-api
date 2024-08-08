@@ -26,10 +26,7 @@ def handle_max_retries_exceeded(
     notification_id: str,
     method_name: str,
 ) -> str:
-    """
-    Handles sms/email deliver requests that exceeded the retry maximum.  Updates the Notification status.
-    """
-
+    """Handles sms/email deliver requests that exceeded the retry maximum, updates Notification status"""
     current_app.logger.critical('%s: Notification %s failed by exceeding retry limits', method_name, notification_id)
     message = (
         'RETRY FAILED: Max retries reached. '
