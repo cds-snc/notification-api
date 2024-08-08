@@ -1,6 +1,6 @@
 import time
 
-from celery_aws_xray_sdk_extension.handlers import (
+from app.aws.xray_celery_handlers import (
     xray_after_task_publish,
     xray_before_task_publish,
     xray_task_failure,
