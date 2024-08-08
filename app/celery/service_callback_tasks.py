@@ -6,6 +6,10 @@ from requests import HTTPError, RequestException, request
 
 from app import notify_celery, signer_complaint, signer_delivery_status
 from app.config import QueueNames
+from app.models import Service
+
+# Uncomment when we implement email sending for callback failures
+# from requests.exceptions import InvalidURL, Timeout
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -80,11 +84,73 @@ def _send_data_to_service_callback_api(self, data, service_callback_url, token, 
         current_app.logger.warning(
             f"{function_name} request failed for notification_id: {notification_id} and url: {service_callback_url}. exc: {e}"
         )
+
+        # TODO: Instate once we monitor alarms to determine how often this happens and we implement
+        #       check_cloudwatch_for_callback_failures(), otherwise we risk flooding the service
+        #       owner's inbox with callback failure email notifications.
+
+        # if isinstance(e, Timeout) or isinstance(e, InvalidURL) or e.response.status_code == 500:
+        #     if check_cloudwatch_for_callback_failures():
+        #         send_email_callback_failure_email(current_app.service)
+
         # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
             try:
                 self.retry(queue=QueueNames.CALLBACKS_RETRY)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
-                    "Retry: {function_name} has retried the max num of times for callback url {service_callback_url} and notification_id: {notification_id}"
+                    f"Retry: {function_name} has retried the max num of times for callback url {service_callback_url} and notification_id: {notification_id} for service: {current_app.service.id}"
                 )
+
+
+def send_email_callback_failure_email(service: Service):
+    service.send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["CALLBACK_FAILURE_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
+            "callback_doc_url": f"{current_app.config['DOCUMENTATION_DOAMIN']}/en/callbacks.html",
+        },
+        include_user_fields=["name"],
+    )
+
+
+def check_cloudwatch_for_callback_failures():
+    """
+    TODO: Use boto3 to check cloudwatch for callback failures
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/logs/client/start_query.html
+
+    Check if a service has failed 5 callbacks in a 30 minute time period
+
+    ----------------
+
+    import boto3
+    from datetime import datetime, timedelta
+    import time
+
+    client = boto3.client('logs')
+
+    query = "TODO"
+
+    log_group = 'TODO'
+
+    start_query_response = client.start_query(
+        logGroupName=log_group,
+        startTime=int((datetime.today() - timedelta(minutes=30)).timestamp()),
+        endTime=int(datetime.now().timestamp()),
+        queryString=query,
+    )
+
+    query_id = start_query_response['queryId']
+
+    response = None
+
+    while response == None or response['status'] == 'Running':
+        print('Waiting for query to complete ...')
+        time.sleep(1)
+        response = client.get_query_results(
+            queryId=query_id
+        )
+
+    """
