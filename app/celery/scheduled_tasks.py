@@ -1,6 +1,13 @@
 from datetime import datetime, timedelta
 from typing import List, cast
 
+from celery_aws_xray_sdk_extension.handlers import (
+    xray_after_task_publish,
+    xray_before_task_publish,
+    xray_task_failure,
+    xray_task_postrun,
+    xray_task_prerun,
+)
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
@@ -49,7 +56,13 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
-from celery import Task
+from celery import Task, signals
+
+signals.after_task_publish.connect(xray_after_task_publish)
+signals.before_task_publish.connect(xray_before_task_publish)
+signals.task_failure.connect(xray_task_failure)
+signals.task_postrun.connect(xray_task_postrun)
+signals.task_prerun.connect(xray_task_prerun)
 
 # https://stackoverflow.com/questions/63714223/correct-type-annotation-for-a-celery-task
 save_smss = cast(Task, save_smss)
