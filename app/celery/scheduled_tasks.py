@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import List, cast
+
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_
@@ -48,7 +49,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
-from celery import Task, signals
+from celery import Task
 
 # https://stackoverflow.com/questions/63714223/correct-type-annotation-for-a-celery-task
 save_smss = cast(Task, save_smss)
