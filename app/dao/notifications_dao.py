@@ -182,6 +182,7 @@ def _update_notification_status(
     """
     Update the notification status if it should be updated.
     """
+
     if not (status in TRANSIENT_STATUSES or status in FINAL_STATUS_STATES):
         current_app.logger.error(
             'Attempting to update notification %s to a status that does not exist %s', notification.id, status
@@ -195,23 +196,21 @@ def _update_notification_status(
         db.session.commit()
     except NoResultFound as e:
         current_app.logger.warning(
-            'No result found when attempting to update notification %s to status %s - The exception: %s',
+            'No result found when attempting to update notification %s to status %s',
             notification.id,
             status,
-            e,
         )
+        current_app.logger.exception(e)
         return notification
     except ArgumentError as e:
-        current_app.logger.warning(
-            'Cannot update notification %s to status %s - exception: %s', notification.id, status, e
-        )
+        current_app.logger.warning('Cannot update notification %s to status %s', notification.id, status)
+        current_app.logger.exception(e)
         return notification
-    except Exception as e:
-        current_app.logger.error(
-            'An error occured when attempting to update notification %s to status %s - The exception %s',
+    except:
+        current_app.logger.exception(
+            'An error occured when attempting to update notification %s to status %s',
             notification.id,
             status,
-            e,
         )
         return notification
 
@@ -298,10 +297,9 @@ def update_notification_delivery_status(
             stmt = stmt.values(status=new_status, updated_at=datetime.utcnow())
             db.session.execute(stmt)
             db.session.commit()
-        except Exception as exc:
-            current_app.logger.critical(
-                'Update notification: %s to status: %s - Failed for: %s', notification_id, new_status, exc
-            )
+        except Exception as e:
+            current_app.logger.critical('Updating notification %s to status "%s" failed.', notification_id, new_status)
+            current_app.logger.exception(e)
             db.session.rollback()
 
 
@@ -361,20 +359,17 @@ def dao_update_notification_by_id(
     try:
         db.session.execute(update_statement)
         db.session.commit()
-    except NoResultFound as e:
-        current_app.logger.warning(
-            'No notification found with id %s when attempting to update - exception %s', notification_id, e
-        )
+    except NoResultFound:
+        current_app.logger.exception('No notification found with id %s when attempting to update', notification_id)
         return None
-    except ArgumentError as e:
-        current_app.logger.warning('Cannot update notification %s - exception: %s', notification_id, e)
+    except ArgumentError:
+        current_app.logger.exception('Cannot update notification %s', notification_id)
         return None
-    except Exception as e:
-        current_app.logger.error(
+    except:
+        current_app.logger.exception(
             'Unexpected exception thrown attempting to update notification %s, given parameters for updating '
-            'notification may be incorrect - Exception: %s',
+            'notification may be incorrect',
             notification_id,
-            e,
         )
         return None
 
@@ -706,7 +701,7 @@ def _delete_letters_from_s3(
                 try:
                     remove_s3_object(bucket_name, s3_object['Key'])
                 except ClientError:
-                    current_app.logger.error('Could not delete S3 object with filename: %s', s3_object['Key'])
+                    current_app.logger.exception('Could not delete S3 object with filename: %s', s3_object['Key'])
 
 
 @statsd(namespace='dao')

@@ -46,8 +46,8 @@ class SQSClient:
                     MessageBody=json.dumps(message_body),
                     MessageAttributes=message_attributes,
                 )
-        except ClientError as e:
-            self.logger.error('SQS client failed to send message: %s', message_body)
-            raise e
+        except ClientError:
+            self.logger.exception('SQS client failed to send message: %s', message_body)
+            raise
         else:
             return response

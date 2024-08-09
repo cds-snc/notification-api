@@ -175,9 +175,8 @@ class VAProfileClient:
                     self.statsd_client.incr('clients.va-profile.get-email.success')
                 # This is intentionally allowed to raise KeyError so the problem is logged below.
                 return sorted_bios[0]['emailAddressText']
-        except KeyError as e:
-            self.logger.error('Received a garbled response from VA Profile for ID %s.', va_profile_id)
-            self.logger.exception(e)
+        except KeyError:
+            self.logger.exception('Received a garbled response from VA Profile for ID %s.', va_profile_id)
 
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
@@ -218,9 +217,8 @@ class VAProfileClient:
                     self.statsd_client.incr('clients.va-profile.get-telephone.success')
                 # This is intentionally allowed to raise KeyError so the problem is logged below.
                 return '+' + sorted_bios[0]['countryCode'] + sorted_bios[0]['areaCode'] + sorted_bios[0]['phoneNumber']
-        except KeyError as e:
-            self.logger.error('Received a garbled response from VA Profile for ID %s.', va_profile_id)
-            self.logger.exception(e)
+        except KeyError:
+            self.logger.exception('Received a garbled response from VA Profile for ID %s.', va_profile_id)
 
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
@@ -490,17 +488,15 @@ class VAProfileClient:
         try:
             response = requests.post(url, json=notification_data, headers=headers, timeout=(3.05, 1))
         except requests.Timeout:
-            self.logger.warning(
+            self.logger.exception(
                 'Request timeout attempting to send email status to VA Profile for notification %s | retrying...',
                 notification_data.get('id'),
             )
             raise
-        except requests.RequestException as e:
+        except requests.RequestException:
             self.logger.exception(
-                'Unexpected request exception, email status NOT sent to VA Profile for notification %s'
-                ' | Exception: %s',
+                'Unexpected request exception.  E-mail status NOT sent to VA Profile for notification %s.',
                 notification_data.get('id'),
-                e,
             )
             raise
 

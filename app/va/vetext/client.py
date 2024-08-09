@@ -64,16 +64,16 @@ class VETextClient:
             response.raise_for_status()
         except requests.exceptions.ReadTimeout:
             # Discussion with VEText: read timeouts are still processed, so are marking this as good
-            self.logger.warning('ReadTimeout raised sending push notification - Still processed, returning 201')
+            self.logger.exception('ReadTimeout raised sending push notification - Still processed, returning 201')
             # Logging as error.read_timeout so we can easily track it
             self.statsd.incr(f'{self.STATSD_KEY}.error.read_timeout')
         except requests.exceptions.ConnectTimeout as e:
-            self.logger.warning('ConnectTimeout raised sending push notification - Retrying')
+            self.logger.exception('ConnectTimeout raised sending push notification - Retrying')
             # Logging as error.read_timeout so we can easily track it
             self.statsd.incr(f'{self.STATSD_KEY}.error.connection_timeout')
             raise VETextRetryableException from e
         except requests.HTTPError as e:
-            self.logger.warning('HTTPError raised sending push notification')
+            self.logger.exception('HTTPError raised sending push notification')
             self.statsd.incr(f'{self.STATSD_KEY}.error.{e.response.status_code}')
             if e.response.status_code in [429, 500, 502, 503, 504]:
                 self.logger.warning('Retryable exception raised with status code: %s', e.response.status_code)
@@ -89,10 +89,10 @@ class VETextClient:
                 raise VETextNonRetryableException from e
         except requests.RequestException as e:
             self.logger.critical(
-                '%s raised sending push notification. Not retrying - payload: %s',
-                type(e).__name__,
+                'Exception raised sending push notification. Not retrying - payload: %s',
                 payload,
             )
+            self.logger.exception(e)
             self.statsd.incr(f'{self.STATSD_KEY}.error.request_exception')
             raise VETextNonRetryableException from e
         else:

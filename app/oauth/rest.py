@@ -79,16 +79,16 @@ def authorize():
         email_resp = make_github_get_request('/user/emails', github_token)
         user_resp = make_github_get_request('/user', github_token)
         verified_email, verified_user_id, verified_name = _extract_github_user_info(email_resp, user_resp)
-    except OAuthError as e:
-        current_app.logger.error('User denied authorization: %s', e)
+    except OAuthError:
+        current_app.logger.exception('User denied authorization')
         statsd_client.incr('oauth.authorization.denied')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure?denied_authorization"))
-    except (OAuthException, HTTPError) as e:
-        current_app.logger.error('Authorization exception raised:\n%s\n', e)
+    except (OAuthException, HTTPError):
+        current_app.logger.exception('Authorization exception raised')
         statsd_client.incr('oauth.authorization.failure')
         return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
     except InsufficientGithubScopesException as e:
-        current_app.logger.error(e)
+        current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.github_incorrect_scopes')
         return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure?incorrect_scopes'))
     else:
@@ -107,7 +107,7 @@ def authorize():
                 )
                 return _successful_sso_login_response(user)
             except IncorrectGithubIdException as e:
-                current_app.logger.error(e)
+                current_app.logger.exception(e)
                 statsd_client.incr('oauth.authorization.github_id_mismatch')
                 return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
 
@@ -143,13 +143,11 @@ def callback():
     except OAuthError as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.denied')
-        response = make_response({'error': e.error, 'description': e.description}, 401)
-        return response
+        return make_response({'error': e.error, 'description': e.description}, 401)
     except Exception as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.failure')
-        response = make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
-        return response
+        return make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
 
 
 def _process_sso_user(
@@ -168,13 +166,11 @@ def _process_sso_user(
     except IdpAssignmentException as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.idpassignmentexception')
-        response = make_response({'error': 'Unauthorized', 'description': 'IDP authentication failure'}, 401)
-        return response
+        return make_response({'error': 'Unauthorized', 'description': 'IDP authentication failure'}, 401)
     except Exception as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.failure')
-        response = make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
-        return response
+        return make_response({'error': 'Unauthorized', 'description': 'Authentication failure'}, 401)
     else:
         return _successful_sso_login_response(user)
 

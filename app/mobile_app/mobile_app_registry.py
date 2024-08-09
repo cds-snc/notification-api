@@ -22,7 +22,7 @@ class MobileAppRegistry:
             try:
                 app = MobileApp(type)
             except ValueError as e:
-                current_app.logger.warning(e)
+                current_app.logger.exception(e)
             else:
                 self._registry[type] = app
 

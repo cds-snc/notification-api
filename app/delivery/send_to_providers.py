@@ -225,9 +225,8 @@ def client_to_use(notification: Notification):
         return clients.get_client_by_name_and_type(
             active_providers_in_order[0].identifier, notification.notification_type
         )
-    except ValueError as e:
-        current_app.logger.error("Couldn't retrieve a client for the given provider.")
-        current_app.logger.exception('%s', e)
+    except ValueError:
+        current_app.logger.exception("Couldn't retrieve a client for the given provider.")
         raise
 
 

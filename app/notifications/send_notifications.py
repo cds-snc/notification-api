@@ -29,18 +29,13 @@ def lookup_notification_sms_setup_data(
     try:
         service: Service = dao_fetch_service_by_id(service_id)
         template: Template = dao_get_template_by_id(template_id)
-    except NoResultFound as e:
-        current_app.logger.error(
+    except NoResultFound:
+        current_app.logger.exception(
             'No results found in get_notification_setup_data attempting to lookup service or template'
-            ' - exception: %s',
-            e,
         )
         raise
-    except Exception as e:
-        current_app.logger.critical(
-            'Error in get_notification_setup_data attempting to lookup service or template - exception: %s',
-            e,
-        )
+    except:
+        current_app.logger.exception('Error in get_notification_setup_data attempting to lookup service or template')
         raise
 
     try:

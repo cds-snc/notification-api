@@ -53,7 +53,7 @@ def update_whitelist(service_id):
     except ValueError as e:
         current_app.logger.exception(e)
         dao_rollback()
-        msg = '{} is not a valid email address or phone number'.format(str(e))
+        msg = f'{str(e)} is not a valid email address or phone number'
         raise InvalidRequest(msg, 400)
     else:
         dao_add_and_commit_whitelisted_contacts(whitelist_objs)

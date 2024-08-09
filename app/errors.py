@@ -108,7 +108,7 @@ def register_errors(blueprint):  # noqa: C901
 
     @blueprint.errorhandler(NotImplementedError)
     def not_implemented(e):
-        current_app.logger.warning(e)
+        current_app.logger.exception(e)
         return jsonify(result='error', message='Not Implemented'), 501
 
 

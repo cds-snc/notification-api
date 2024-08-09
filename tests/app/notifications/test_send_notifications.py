@@ -9,6 +9,7 @@ from app.va.identifier import IdentifierType
 
 @pytest.mark.parametrize('sms_sender_id', ('This is not a UUID.', 'd1abbb27-9c72-4de4-8463-dbdf24d3fdd6'))
 def test_ut_lookup_notification_sms_setup_data_sms_sender_selection(
+    notify_api,
     mocker,
     sms_sender_id,
 ):
@@ -40,7 +41,7 @@ def test_ut_lookup_notification_sms_setup_data_sms_sender_selection(
         assert result == (service, template, sms_sender_id)
 
 
-def test_ut_lookup_notification_sms_setup_data_no_result_found(mocker):
+def test_ut_lookup_notification_sms_setup_data_no_result_found(notify_api, mocker):
     service_id = 'service_id'
     template_id = 'template_id'
     sms_sender_id = 'not used in this test'
@@ -59,7 +60,7 @@ def test_ut_lookup_notification_sms_setup_data_no_result_found(mocker):
 
     dao_fetch_service_by_id_mock.assert_called_once_with(service_id)
     dao_get_template_by_id_mock.assert_called_once_with(template_id)
-    mock_logger.error.assert_called_once()
+    mock_logger.exception.assert_called_once()
 
 
 def test_send_notification_bypass_route_no_recipient(

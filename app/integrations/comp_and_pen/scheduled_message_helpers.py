@@ -114,13 +114,8 @@ class CompPenMsgHelper:
                         'updated record from dynamodb ("is_processed" should no longer exist): %s', item
                     )
                 except Exception as e:
-                    current_app.logger.critical(
-                        'Exception attempting to update record from dynamodb: %s - exception_type: %s '
-                        'exception_message: %s',
-                        participant_id,
-                        type(e),
-                        e,
-                    )
+                    current_app.logger.critical('Failed to update the record from dynamodb: %s', participant_id)
+                    current_app.logger.exception(e)
 
         current_app.logger.info('Comp and Pen - Successfully updated dynamodb entries - removed "is_processed" field')
 
@@ -178,12 +173,11 @@ class CompPenMsgHelper:
                 )
             except Exception as e:
                 current_app.logger.critical(
-                    'Error attempting to send Comp and Pen notification with send_comp_and_pen_sms | '
-                    'record from dynamodb: %s | exception_type: %s - exception: %s',
+                    'Error attempting to send Comp and Pen notification with '
+                    'send_comp_and_pen_sms | record from dynamodb: %s',
                     participant_id,
-                    type(e),
-                    e,
                 )
+                current_app.logger.exception(e)
             else:
                 if perf_to_number is not None:
                     current_app.logger.info(

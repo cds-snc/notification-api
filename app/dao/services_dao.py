@@ -207,10 +207,7 @@ def dao_fetch_service_by_id_with_api_keys(
         except (ServiceDataException, NoResultFound, MultipleResultsFound) as err:
             # we handle this failure in the parent
             current_app.logger.error('Could not find unique service with ID %s', service_id)
-            raise NoResultFound(err)
-        except Exception:
-            # we handle this failure in the parent
-            raise
+            raise NoResultFound from err
 
 
 def dao_fetch_all_services_by_user(
@@ -341,9 +338,9 @@ def dao_add_user_to_service(
         service_user.folders = valid_template_folders
         db.session.add(service_user)
 
-    except Exception as e:
+    except:
         db.session.rollback()
-        raise e
+        raise
     else:
         db.session.commit()
 
@@ -359,9 +356,9 @@ def dao_remove_user_from_service(
 
         service_user = dao_get_service_user(user.id, service.id)
         db.session.delete(service_user)
-    except Exception as e:
+    except:
         db.session.rollback()
-        raise e
+        raise
     else:
         db.session.commit()
 

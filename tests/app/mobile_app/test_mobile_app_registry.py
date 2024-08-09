@@ -70,4 +70,4 @@ def test_should_log_error_for_uninitilized_apps(
     for app in MobileAppType.values():
         mocker.patch.dict(os.environ, {f'{app}_SID': ''})
     MobileAppRegistry()
-    assert mock_logger.warning.call_count == len(MobileAppType.values())
+    assert mock_logger.exception.call_count == len(MobileAppType.values())

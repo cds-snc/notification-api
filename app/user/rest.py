@@ -510,7 +510,7 @@ def set_permissions(
     try:
         _update_alert(user, update_dct_to_str(change_dict))
     except Exception as e:
-        current_app.logger.error(e)
+        current_app.logger.exception(e)
 
     permission_dao.set_user_service_permission(user, service, permission_list, _commit=True, replace=True)
 
@@ -593,7 +593,7 @@ def update_password(user_id):
     try:
         _update_alert(user, change_type)
     except Exception as e:
-        current_app.logger.error(e)
+        current_app.logger.exception(e)
 
     return jsonify(data=user.serialize()), 200
 

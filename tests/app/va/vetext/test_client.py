@@ -85,7 +85,7 @@ class TestRequestExceptions:
                 'icn',
             )
 
-    def test_logs_warning_on_read_timeout(self, rmock, test_vetext_client):
+    def test_logs_exception_on_read_timeout(self, rmock, test_vetext_client):
         rmock.post(url=f'{MOCK_VETEXT_URL}/mobile/push/send', exc=requests.exceptions.ReadTimeout)
 
         test_vetext_client.send_push_notification(
@@ -93,7 +93,7 @@ class TestRequestExceptions:
             'template_sid',
             'icn',
         )
-        assert test_vetext_client.logger.warning.called
+        assert test_vetext_client.logger.exception.called_once
 
     def test_increments_statsd_and_timing_on_request_exception(self, rmock, test_vetext_client):
         rmock.post(url=f'{MOCK_VETEXT_URL}/mobile/push/send', exc=requests.exceptions.ConnectTimeout)

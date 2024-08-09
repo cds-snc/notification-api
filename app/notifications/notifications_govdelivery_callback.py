@@ -38,12 +38,12 @@ def process_govdelivery_response():
             notification = notifications_dao.dao_get_notification_by_reference(reference)
 
         except (MultipleResultsFound, NoResultFound) as e:
-            exception_type = type(e).__name__
             current_app.logger.exception(
-                f'Govdelivery callback with sid {sid} for reference {reference} '
-                f'did not find exactly one notification: {exception_type}'
+                'Govdelivery callback with sid %s for reference %s did not find exactly one notification.',
+                sid,
+                reference,
             )
-            statsd_client.incr(f'callback.govdelivery.failure.{exception_type}')
+            statsd_client.incr(f'callback.govdelivery.failure.{type(e).__name__}')
         else:
             current_app.logger.info(
                 f'Govdelivery callback for notification {notification.id} has status {govdelivery_status},'

@@ -28,9 +28,8 @@ def cronitor(task_name):
                     timeout=(3.05, 1),
                 )
                 resp.raise_for_status()
-            except requests.RequestException as e:
-                current_app.logger.warning('Cronitor API failed for task %s.', task_name)
-                current_app.logger.exception(e)
+            except requests.RequestException:
+                current_app.logger.exception('Cronitor API failed for task %s.', task_name)
 
         @wraps(func)
         def inner_decorator(

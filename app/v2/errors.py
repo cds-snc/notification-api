@@ -116,7 +116,7 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(NotImplementedError)
     def not_implemented(e):
-        current_app.logger.warning(e)
+        current_app.logger.exception(e)
         return jsonify(status_code=501, errors=[{'error': e.__class__.__name__, 'message': 'Not implemented'}]), 501
 
     @blueprint.errorhandler(413)

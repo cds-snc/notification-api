@@ -23,7 +23,7 @@ def transactional(func):
             db.session.commit()
             return res
         except Exception as e:
-            current_app.logger.error(e)
+            current_app.logger.exception(e)
             db.session.rollback()
             raise
 

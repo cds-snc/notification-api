@@ -58,7 +58,7 @@ class AttachmentStore:
                 SSECustomerAlgorithm='AES256',
             )
         except BotoClientError as e:
-            self.logger.error(f"error putting attachment object in s3: {e.response['Error']}")
+            self.logger.error('Error putting attachment object in s3: %s', e.response['Error'])
             self.statsd_client.incr('attachments.put.error')
             raise AttachmentStoreError() from e
         else:
@@ -81,7 +81,7 @@ class AttachmentStore:
             )
         except BotoClientError as e:
             self.logger.error(
-                f"error getting attachment object from 3 with key {attachment_key}: {e.response['Error']}"
+                'Error getting attachment object from 3 with key %s: %s', attachment_key, e.response['Error']
             )
             self.statsd_client.incr('attachments.get.error')
             raise AttachmentStoreError() from e

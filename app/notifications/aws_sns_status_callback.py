@@ -45,12 +45,9 @@ def process_sns_delivery_status():
     current_app.logger.debug(f'Full delivery response from AWS SNS for reference: {reference}\n{callback}')
     try:
         notification = dao_get_notification_by_reference(reference)
-    except (NoResultFound, MultipleResultsFound) as e:
+    except (NoResultFound, MultipleResultsFound):
         current_app.logger.exception(
-            (
-                f'AWS SNS delivery status callback for reference {reference} '
-                f'did not find exactly one notification: {type(e)}'
-            )
+            'AWS SNS delivery status callback for reference %s did not find exactly one notification.', reference
         )
         return jsonify(result='error', message='Notification not found'), 404
     else:

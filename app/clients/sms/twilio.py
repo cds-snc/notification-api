@@ -191,13 +191,13 @@ class TwilioSMSClient(SmsClient):
             return message.sid
         except TwilioRestException as e:
             if e.status == 400 and 'phone number' in e.msg:
-                self.logger.error('Twilio send SMS request for %s failed, TwilioRestException - %s', reference, e.msg)
-                raise InvalidProviderException
+                self.logger.exception('Twilio send SMS request for %s failed', reference)
+                raise InvalidProviderException from e
             else:
-                raise e
-        except Exception as e:
-            self.logger.error('Twilio send SMS request for %s failed', reference)
-            raise e
+                raise
+        except:
+            self.logger.exception('Twilio send SMS request for %s failed', reference)
+            raise
         finally:
             elapsed_time = monotonic() - start_time
             self.logger.info(

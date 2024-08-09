@@ -23,8 +23,8 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
     )
     try:
         reference = ses_message['mail']['messageId']
-    except KeyError as e:
-        current_app.logger.exception('Complaint from SES failed to get reference from message', e)
+    except KeyError:
+        current_app.logger.exception('Complaint from SES failed to get reference from message.')
         return
     notification = dao_get_notification_history_by_reference(reference)
     ses_complaint = ses_message.get('complaint', None)
@@ -48,12 +48,12 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
 def handle_smtp_complaint(ses_message):
     recipient_email = remove_emails_from_complaint(ses_message)[0]
     current_app.logger.info(
-        'Complaint from SES SMTP: \n{}'.format(json.dumps(ses_message).replace('{', '(').replace('}', ')'))
+        'Complaint from SES SMTP: \n%s', json.dumps(ses_message).replace('{', '(').replace('}', ')')
     )
     try:
         reference = ses_message['mail']['messageId']
-    except KeyError as e:
-        current_app.logger.exception('Complaint from SES SMTP failed to get reference from message', e)
+    except KeyError:
+        current_app.logger.exception('Complaint from SES SMTP failed to get reference from message.')
         return
     notification = dao_get_notification_history_by_reference(reference)
     ses_complaint = ses_message.get('complaint', None)

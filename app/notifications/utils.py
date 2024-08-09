@@ -5,15 +5,15 @@ from flask import current_app
 def confirm_subscription(confirmation_request):
     url = confirmation_request.get('SubscribeURL')
     if not url:
-        current_app.logger.warning('SubscribeURL does not exist or empty')
+        current_app.logger.warning('SubscribeURL does not exist or empty.')
         return
 
     try:
         response = requests.get(url, timeout=(3.05, 1))
         response.raise_for_status()
-    except requests.RequestException as e:
-        current_app.logger.warning('Response: %s', response.text)
-        raise e
+    except requests.RequestException:
+        current_app.logger.exception('Response: %s', response.text)
+        raise
 
     return confirmation_request['TopicArn']
 
