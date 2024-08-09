@@ -1,5 +1,7 @@
 import time
 
+from flask import current_app
+
 from app.aws.xray_celery_handlers import (
     xray_after_task_publish,
     xray_before_task_publish,
@@ -7,8 +9,6 @@ from app.aws.xray_celery_handlers import (
     xray_task_postrun,
     xray_task_prerun,
 )
-from flask import current_app
-
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
