@@ -6,7 +6,11 @@ from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
-from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
+from app.exceptions import (
+    NotificationPermanentFailureException,
+    NotificationTechnicalFailureException,
+    InvalidProviderException,
+)
 from app.models import (
     EMAIL_TYPE,
     Notification,
@@ -16,6 +20,7 @@ from app.models import (
 )
 from app.v2.errors import RateLimitError
 from collections import namedtuple
+from notifications_utils.field import NullValueForNonConditionalPlaceholderException
 from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
 from uuid import uuid4
 
@@ -45,10 +50,9 @@ def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_sms_task
     send_sms_to_provider = mocker.patch('app.delivery.send_to_providers.send_sms_to_provider')
 
     notification_id = uuid4()
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(AutoRetryException):
         deliver_sms(notification_id)
 
-    assert exc_info.type is AutoRetryException
     send_sms_to_provider.assert_not_called()
 
 
@@ -70,10 +74,9 @@ def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_email_ta
     send_email_to_provider = mocker.patch('app.delivery.send_to_providers.send_email_to_provider')
 
     notification_id = uuid4()
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(AutoRetryException):
         deliver_email(notification_id)
 
-    assert exc_info.type is AutoRetryException
     send_email_to_provider.assert_not_called()
 
 
@@ -87,21 +90,23 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
     sample_notification,
 ):
     mocker.patch('app.delivery.send_to_providers.send_sms_to_provider', side_effect=Exception('EXPECTED'))
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+    mocked_check_and_queue_callback_task = mocker.patch(
+        'app.celery.provider_tasks.check_and_queue_callback_task',
+    )
     mocker.patch('app.celery.provider_tasks.can_retry', return_value=False)
 
     template = sample_template()
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException) as exc_info:
         deliver_sms(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert str(notification.id) in str(exc_info.value)
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == RETRIES_EXCEEDED
+    mocked_check_and_queue_callback_task.assert_called_once()
 
 
 def test_should_technical_error_and_not_retry_if_invalid_email(
@@ -111,27 +116,36 @@ def test_should_technical_error_and_not_retry_if_invalid_email(
     sample_notification,
 ):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+    mocked_check_and_queue_callback_task = mocker.patch(
+        'app.celery.provider_tasks.check_and_queue_callback_task',
+    )
 
     template = sample_template(template_type=EMAIL_TYPE)
     assert template.template_type == EMAIL_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException):
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == 'Email address is in invalid format'
+    mocked_check_and_queue_callback_task.assert_called_once()
 
 
-@pytest.mark.parametrize('exception', [NonRetryableException, InvalidPhoneError])
+@pytest.mark.parametrize(
+    'exception,expected_to_raise',
+    (
+        (NonRetryableException, NotificationPermanentFailureException),
+        (InvalidPhoneError, NotificationTechnicalFailureException),
+    ),
+)
 def test_should_queue_callback_task_if_permanent_failure_exception_is_thrown(
     mocker,
     sample_template,
     sample_notification,
     exception,
+    expected_to_raise,
 ):
     mocker.patch(
         'app.celery.provider_tasks.send_to_providers.send_sms_to_provider',
@@ -143,7 +157,8 @@ def test_should_queue_callback_task_if_permanent_failure_exception_is_thrown(
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    deliver_sms(notification.id)
+    with pytest.raises(expected_to_raise):
+        deliver_sms(notification.id)
 
     mock_callback.assert_called_once()
     assert isinstance(mock_callback.call_args.args[0], Notification)
@@ -165,7 +180,8 @@ def test_should_mark_permanent_failure_when_utils_raises_invalid_phone_error(
     template = sample_template()
     notification = sample_notification(template=template)
 
-    deliver_sms(notification.id)
+    with pytest.raises(NotificationTechnicalFailureException):
+        deliver_sms(notification.id)
 
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_PERMANENT_FAILURE
@@ -188,7 +204,8 @@ def test_should_mark_permanent_failure_when_celery_retries_exceeded(
     template = sample_template()
     notification = sample_notification(template=template)
 
-    deliver_sms(notification.id)
+    with pytest.raises(NotificationPermanentFailureException):
+        deliver_sms(notification.id)
 
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_PERMANENT_FAILURE
@@ -202,46 +219,62 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task
     sample_notification,
 ):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=Exception('EXPECTED'))
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+    mocked_check_and_queue_callback_task = mocker.patch(
+        'app.celery.provider_tasks.check_and_queue_callback_task',
+    )
     mocker.patch('app.celery.provider_tasks.can_retry', return_value=False)
 
     template = sample_template(template_type=EMAIL_TYPE)
     assert template.template_type == EMAIL_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException) as exc_info:
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert str(notification.id) in str(exc_info.value)
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == RETRIES_EXCEEDED
+    mocked_check_and_queue_callback_task.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    'exception, status_reason',
+    (
+        (InvalidProviderException, 'Email provider configuration invalid'),
+        (NullValueForNonConditionalPlaceholderException, 'VA Notify non-retryable technical error'),
+        (AttributeError, 'VA Notify non-retryable technical error'),
+        (RuntimeError, 'VA Notify non-retryable technical error'),
+    ),
+)
 def test_should_technical_error_and_not_retry_if_invalid_email_provider(
     notify_db_session,
     mocker,
     sample_template,
     sample_notification,
+    exception,
+    status_reason,
 ):
     mocker.patch(
         'app.delivery.send_to_providers.send_email_to_provider',
-        side_effect=InvalidProviderException('invalid provider'),
+        side_effect=exception,
     )
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+    mocked_check_and_queue_callback_task = mocker.patch(
+        'app.celery.provider_tasks.check_and_queue_callback_task',
+    )
+    callback_mocker = mocker.patch('app.celery.common.check_and_queue_callback_task')
 
     template = sample_template(template_type=EMAIL_TYPE)
     assert template.template_type == EMAIL_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException):
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == 'Email provider configuration invalid'
+    assert notification.status_reason == status_reason
+    assert mocked_check_and_queue_callback_task.called_once or callback_mocker.called_once
 
 
 def test_should_queue_callback_task_if_technical_failure_exception_is_thrown(
@@ -254,34 +287,41 @@ def test_should_queue_callback_task_if_technical_failure_exception_is_thrown(
         'app.delivery.send_to_providers.send_email_to_provider',
         side_effect=InvalidProviderException('invalid provider'),
     )
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
     callback_mocker = mocker.patch('app.celery.common.check_and_queue_callback_task')
 
     template = sample_template(template_type=EMAIL_TYPE)
     assert template.template_type == EMAIL_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException):
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == 'Email provider configuration invalid'
     assert callback_mocker.called_once
 
 
+@pytest.mark.parametrize(
+    'exception, status_reason',
+    (
+        (InvalidProviderException, 'SMS provider configuration invalid'),
+        (NullValueForNonConditionalPlaceholderException, 'VA Notify non-retryable technical error'),
+        (AttributeError, 'VA Notify non-retryable technical error'),
+        (RuntimeError, 'VA Notify non-retryable technical error'),
+    ),
+)
 def test_should_technical_error_and_not_retry_if_invalid_sms_provider(
     notify_db_session,
     mocker,
     sample_template,
     sample_notification,
+    exception,
+    status_reason,
 ):
-    mocker.patch(
-        'app.delivery.send_to_providers.send_sms_to_provider', side_effect=InvalidProviderException('invalid provider')
-    )
-    mocker.patch('app.celery.provider_tasks.deliver_sms.retry')
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
+    mocker.patch('app.delivery.send_to_providers.send_sms_to_provider', side_effect=exception)
+    callback_mocker = mocker.patch('app.celery.common.check_and_queue_callback_task')
+    retry_mocker = mocker.patch('app.celery.provider_tasks.deliver_sms.retry')
 
     template = sample_template()
     assert template.template_type == SMS_TYPE
@@ -291,9 +331,10 @@ def test_should_technical_error_and_not_retry_if_invalid_sms_provider(
         deliver_sms(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert provider_tasks.deliver_sms.retry.called is False
+    retry_mocker.assert_not_called()
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == 'SMS provider configuration invalid'
+    assert notification.status_reason == status_reason
+    callback_mocker.assert_called_once()
 
 
 def test_should_retry_and_log_exception(mocker, sample_template, sample_notification):
@@ -305,10 +346,9 @@ def test_should_retry_and_log_exception(mocker, sample_template, sample_notifica
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(AutoRetryException) as exc_info:
+    with pytest.raises(AutoRetryException):
         deliver_email(notification.id)
 
-    assert exc_info.type is AutoRetryException
     assert notification.status == 'created'
 
 
@@ -374,15 +414,12 @@ def test_deliver_sms_with_rate_limiting_should_retry_generic_exceptions(
     sample_notification,
 ):
     mocker.patch('app.celery.provider_tasks.send_to_providers.send_sms_to_provider', side_effect=Exception)
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
     template = sample_template()
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(AutoRetryException) as exc_info:
+    with pytest.raises(AutoRetryException):
         deliver_sms_with_rate_limiting(notification.id)
-
-    assert exc_info.type is AutoRetryException
 
 
 def test_deliver_sms_with_rate_limiting_max_retries_exceeded(
@@ -392,17 +429,19 @@ def test_deliver_sms_with_rate_limiting_max_retries_exceeded(
     sample_notification,
 ):
     mocker.patch('app.celery.provider_tasks.send_to_providers.send_sms_to_provider', side_effect=Exception)
+    mocked_check_and_queue_callback_task = mocker.patch(
+        'app.celery.provider_tasks.check_and_queue_callback_task',
+    )
     mocker.patch('app.celery.provider_tasks.can_retry', return_value=False)
-    mocker.patch.dict(os.environ, {'NOTIFICATION_FAILURE_REASON_ENABLED': 'True'})
 
     template = sample_template()
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(NotificationTechnicalFailureException) as exc_info:
+    with pytest.raises(NotificationTechnicalFailureException):
         deliver_sms_with_rate_limiting(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert exc_info.type is NotificationTechnicalFailureException
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == RETRIES_EXCEEDED
+    mocked_check_and_queue_callback_task.assert_called_once()

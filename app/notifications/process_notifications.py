@@ -156,37 +156,42 @@ def send_notification_to_queue(
 ):
     """
     Create, enqueue, and asynchronously execute a Celery task to send a notification.
+    This is the execution path for sending notifications with contact information.
     """
 
-    deliver_task, queue = _get_delivery_task(notification, research_mode, queue, sms_sender_id)
+    tasks = []
 
-    # This is a relationship to a TemplateHistory instance.
-    template = notification.template
+    if recipient_id_type:
+        # This is a relationship to a TemplateHistory instance.
+        template = notification.template
 
-    if template:
         # This is a nullable foreign key reference to a CommunicationItem instance UUID.
-        communication_item_id = template.communication_item_id
+        communication_item_id = template.communication_item_id if template else None
 
-    try:
-        # Including sms_sender_id is necessary so the correct sender can be chosen.
-        # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
-        tasks = [deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue)]
-        if recipient_id_type and communication_item_id:
-            tasks.insert(
-                0,
+        if communication_item_id is not None:
+            if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
+                tasks.append(lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
+
+            tasks.append(
                 lookup_recipient_communication_permissions.si(str(notification.id)).set(
                     queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-                ),
+                )
             )
 
-            if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
-                tasks.insert(0, lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
+    # Including sms_sender_id is necessary so the correct sender can be chosen.
+    # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
+    deliver_task, queue = _get_delivery_task(notification, research_mode, queue, sms_sender_id)
+    tasks.append(deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue))
 
+    try:
         # This executes the task list.  Each task calls a function that makes a request to
         # the backend provider.
         chain(*tasks).apply_async()
-
-    except Exception:
+    except Exception as e:
+        current_app.logger.critical(
+            'apply_async failed in send_notification_to_queue for notification %s.', notification.id
+        )
+        current_app.logger.exception(e)
         dao_delete_notification_by_id(notification.id)
         raise
 
@@ -248,13 +253,16 @@ def _get_delivery_task(
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     notification: Notification, id_type: str, id_value: str, communication_item_id: uuid, onsite_enabled: bool = False
 ) -> None:
-    deliver_task, deliver_queue = _get_delivery_task(notification)
+    """
+    Create, enqueue, and asynchronously execute a Celery task to send a notification.
+    This is the execution path for sending notifications with recipient identifiers.
+    """
+
     if id_type == IdentifierType.VA_PROFILE_ID.value:
         tasks = [
             send_va_onsite_notification_task.s(id_value, str(notification.template.id), onsite_enabled).set(
                 queue=QueueNames.SEND_ONSITE_NOTIFICATION
             ),
-            lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
         ]
 
     else:
@@ -263,8 +271,9 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled).set(
                 queue=QueueNames.SEND_ONSITE_NOTIFICATION
             ),
-            lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO),
         ]
+
+    tasks.append(lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
 
     if communication_item_id:
         tasks.append(
@@ -273,14 +282,25 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
             ),
         )
 
+    deliver_task, deliver_queue = _get_delivery_task(notification)
     tasks.append(deliver_task.si(notification.id).set(queue=deliver_queue))
 
-    chain(*tasks).apply_async()
+    try:
+        # This executes the task list.  Each task calls a function that makes a request to
+        # the backend provider.
+        chain(*tasks).apply_async()
+    except Exception as e:
+        current_app.logger.critical(
+            'apply_async failed in send_to_queue_for_recipient_info_based_on_recipient_identifier '
+            'for notification %s.',
+            notification.id,
+        )
+        current_app.logger.exception(e)
+        dao_delete_notification_by_id(notification.id)
+        raise
 
     current_app.logger.debug(
-        '{} {} passed to tasks: {}'.format(
-            notification.notification_type, notification.id, [task.name for task in tasks]
-        )
+        '%s %s passed to tasks: %s', notification.notification_type, notification.id, [task.name for task in tasks]
     )
 
 

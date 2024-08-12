@@ -7,9 +7,10 @@ from notifications_utils.statsd_decorators import statsd
 from app import notify_celery, va_profile_client
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import get_notification_by_id, update_notification_status_by_id
-from app.exceptions import NotificationTechnicalFailureException
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import RecipientIdentifier, NOTIFICATION_PREFERENCES_DECLINED
 from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.exceptions import CommunicationItemNotFoundException
@@ -30,44 +31,52 @@ def lookup_recipient_communication_permissions(
     self,
     notification_id: str,
 ) -> None:
-    current_app.logger.info(f'Looking up communication preferences for notification_id:{notification_id}')
+    current_app.logger.info('Looking up communication preferences for notification_id: %s', notification_id)
 
     notification = get_notification_by_id(notification_id)
 
     try:
-        notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
+        va_profile_recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
     except KeyError as e:
-        current_app.logger.info(f'{VAProfileIdNotFoundException.failure_reason} on notification ' f'{notification_id}')
-        raise VAProfileIdNotFoundException from e
-
-    va_profile_recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
+        current_app.logger.info('No VA Profile ID for notification %s.', notification_id)
+        raise VAProfileIdNotFoundException(f'No VA Profile ID for notification {notification_id}.') from e
 
     va_profile_id = va_profile_recipient_identifier.id_value
     communication_item_id = notification.template.communication_item_id
     notification_type = notification.notification_type
 
-    status_reason = recipient_has_given_permission(
-        self,
-        IdentifierType.VA_PROFILE_ID.value,
-        va_profile_id,
-        notification_id,
-        notification_type,
-        communication_item_id,
-    )
+    try:
+        status_reason = recipient_has_given_permission(
+            self,
+            IdentifierType.VA_PROFILE_ID.value,
+            va_profile_id,
+            notification_id,
+            notification_type,
+            communication_item_id,
+        )
+    except NotificationTechnicalFailureException:
+        check_and_queue_callback_task(notification)
+        raise
 
     if status_reason is not None:
+        # The recipient doesn't grant permission.  a.k.a. preferences-declined
+
         update_notification_status_by_id(
             notification_id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=status_reason
         )
-        current_app.logger.info(
-            f'Recipient for notification {notification_id}' f'has declined permission to receive notifications'
-        )
-        self.request.chain = None
+        message = f'The recipient for notification {notification_id} has declined permission to receive notifications.'
+        current_app.logger.info(message)
+        check_and_queue_callback_task(notification)
+        raise NotificationPermanentFailureException(message)
 
 
 def recipient_has_given_permission(
     task, id_type: str, id_value: str, notification_id: str, notification_type: str, communication_item_id: str
 ) -> Optional[str]:
+    """
+    Return None if the recipient has the permissions.  Otherwise, return a string to explain the lack of permission.
+    """
+
     default_send_flag = True
     communication_item = None
     identifier = RecipientIdentifier(id_type=id_type, id_value=id_value)

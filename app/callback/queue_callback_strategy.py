@@ -28,6 +28,6 @@ class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
         except ClientError as e:
             statsd_client.incr(f'callback.queue.{callback.callback_type}.non_retryable_error')
             raise NonRetryableException(e)
-        else:
-            current_app.logger.info(f'Callback sent to {callback.url}, {tags}')
-            statsd_client.incr(f'callback.queue.{callback.callback_type}.success')
+
+        current_app.logger.info('Callback sent to %s, %s', callback.url, tags)
+        statsd_client.incr(f'callback.queue.{callback.callback_type}.success')

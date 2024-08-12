@@ -100,10 +100,9 @@ def test_should_retry_on_retryable_exception(client, mocker, sample_notification
     mocked_mpi_client.get_va_profile_id = mocker.Mock(side_effect=MpiRetryableException('some error'))
     mocker.patch('app.celery.lookup_va_profile_id_task.mpi_client', new=mocked_mpi_client)
 
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(AutoRetryException):
         lookup_va_profile_id(notification.id)
 
-    assert exc_info.type is AutoRetryException
     mocked_mpi_client.get_va_profile_id.assert_called_with(notification)
 
 
@@ -226,13 +225,13 @@ def test_caught_exceptions_should_set_status_reason_on_notification(
         mocker_handle_max_retries_exceeded = mocker.patch(
             'app.celery.lookup_va_profile_id_task.handle_max_retries_exceeded'
         )
-        with pytest.raises(NotificationTechnicalFailureException) as exc_info:
+        with pytest.raises(NotificationTechnicalFailureException):
             lookup_va_profile_id(notification.id)
         mocker_handle_max_retries_exceeded.assert_called_once()
     else:
         dao_path = 'app.celery.lookup_va_profile_id_task.notifications_dao.update_notification_status_by_id'
         mocker_mocker_update_notification_status_by_id = mocker.patch(dao_path)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception):
             lookup_va_profile_id(notification.id)
         mocker_mocker_update_notification_status_by_id.assert_called_with(
             notification.id, notification_status, status_reason=failure_reason
@@ -291,9 +290,8 @@ def test_should_not_call_callback_on_retryable_exception(client, mocker, sample_
     mocked_mpi_client = mocker.Mock()
     mocked_mpi_client.get_va_profile_id = mocker.Mock(side_effect=MpiRetryableException('some error'))
     mocker.patch('app.celery.lookup_va_profile_id_task.mpi_client', new=mocked_mpi_client)
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(AutoRetryException):
         lookup_va_profile_id(notification.id)
-    assert exc_info.type is AutoRetryException
 
     mocked_mpi_client.get_va_profile_id.assert_called_with(notification)
     mocked_check_and_queue_callback_task.assert_not_called()
