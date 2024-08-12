@@ -2,6 +2,7 @@ from flask import current_app
 from app import notify_celery, va_profile_client
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.va.identifier import IdentifierType
 from app.va.va_profile import VAProfileRetryableException, VAProfileNonRetryableException, NoContactInfoException
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
@@ -26,7 +27,7 @@ def lookup_contact_info(
     self,
     notification_id,
 ):
-    current_app.logger.info(f'Looking up contact information for notification_id:{notification_id}.')
+    current_app.logger.info('Looking up contact information for notification_id: %s.', notification_id)
 
     notification = get_notification_by_id(notification_id)
     va_profile_id = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
@@ -48,18 +49,20 @@ def lookup_contact_info(
             raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e, e.args)
         else:
             msg = handle_max_retries_exceeded(notification_id, 'lookup_contact_info')
+            check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(msg)
     except NoContactInfoException as e:
         message = (
             f"Can't proceed after querying VA Profile for contact information for {notification_id}. "
             'Stopping execution of following tasks. Notification has been updated to permanent-failure.'
         )
-        current_app.logger.warning(f'{e.__class__.__name__} - {str(e)}: ' + message)
-        self.request.chain = None
+        current_app.logger.warning('%s - %s:  %s', e.__class__.__name__, str(e), message)
 
         update_notification_status_by_id(
             notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
+        check_and_queue_callback_task(notification)
+        raise NotificationPermanentFailureException(message) from e
 
     except (VAProfileIDNotFoundException, VAProfileNonRetryableException) as e:
         current_app.logger.exception(e)
@@ -70,6 +73,7 @@ def lookup_contact_info(
         update_notification_status_by_id(
             notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
+        check_and_queue_callback_task(notification)
         raise NotificationPermanentFailureException(message) from e
 
     else:
