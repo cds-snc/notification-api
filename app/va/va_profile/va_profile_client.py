@@ -1,38 +1,25 @@
 from __future__ import annotations
 
-import iso8601
-import requests
-from app.va.va_profile import (
-    NoContactInfoException,
-    VAProfileNonRetryableException,
-    VAProfileRetryableException,
-)
-from app.va.identifier import is_fhir_format, transform_from_fhir_format, transform_to_fhir_format, OIDS, IdentifierType
-from app.va.va_profile.exceptions import VAProfileIDNotFoundException
 from enum import Enum
 from http.client import responses
-from time import monotonic
-from typing import Dict, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List
 
+import iso8601
+import requests
+from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
+from app.va.va_profile import NoContactInfoException, VAProfileNonRetryableException, VAProfileRetryableException
+from app.va.va_profile.exceptions import CommunicationItemNotFoundException, VAProfileIDNotFoundException
 
 if TYPE_CHECKING:
     from app.models import RecipientIdentifier
-    from va_profile_types import ContactInformation, CommunicationPermissions, Profile, Telephone
 
-EMAIL_TYPE = 'email'
-LETTER_TYPE = 'letter'
-MOBILE_TYPE = 'mobile'
-PUSH_TYPE = 'push'
-SMS_TYPE = 'sms'
+    from va_profile_types import CommunicationPermissions, ContactInformation, Profile, Telephone
+
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
-    EMAIL_TYPE: 'Email',
-    SMS_TYPE: 'Text',
+    'email': 'Email',
+    'sms': 'Text',
 }
-
-
-class CommunicationItemNotFoundException(Exception):
-    failure_reason = 'No communication bio found from VA Profile'
 
 
 class PhoneNumberType(Enum):
@@ -93,7 +80,7 @@ class VAProfileClient:
         response_json: Dict = response.json()
         return response_json.get('profile', {})
 
-    def get_telephone_from_profile_v3(self, va_profile_id: RecipientIdentifier) -> str:
+    def get_telephone(self, va_profile_id: RecipientIdentifier) -> str:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
 
@@ -126,7 +113,7 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_email_from_profile_v3(self, va_profile_id: RecipientIdentifier) -> str:
+    def get_email(self, va_profile_id: RecipientIdentifier) -> str:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
 
@@ -149,81 +136,7 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_email(
-        self,
-        va_profile_id,
-    ) -> str:
-        """
-        Return the e-mail address for a given Profile ID, or raise NoContactInfoException.
-        Upstream code should catch and appropriately handle the requests.Timeout exception.
-        """
-
-        if is_fhir_format(va_profile_id):
-            va_profile_id = transform_from_fhir_format(va_profile_id)
-
-        url = (
-            f'{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/'
-            f'{va_profile_id}/{self.EMAIL_BIO_TYPE}'
-        )
-        response = self._make_request(url, va_profile_id, self.EMAIL_BIO_TYPE)
-
-        try:
-            sorted_bios = sorted(response['bios'], key=lambda bio: iso8601.parse_date(bio['createDate']), reverse=True)
-            if sorted_bios:
-                if sorted_bios[0].get('emailAddressText'):
-                    # The e-mail address attribute is present and not the empty string.
-                    self.statsd_client.incr('clients.va-profile.get-email.success')
-                # This is intentionally allowed to raise KeyError so the problem is logged below.
-                return sorted_bios[0]['emailAddressText']
-        except KeyError:
-            self.logger.exception('Received a garbled response from VA Profile for ID %s.', va_profile_id)
-
-        self.statsd_client.incr('clients.va-profile.get-email.failure')
-        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
-
-    def get_telephone(
-        self,
-        va_profile_id,
-    ) -> str:
-        """
-        Return the phone number for a given Profile ID, or raise NoContactInfoException.
-        Upstream code should catch and appropriately handle the requests.Timeout exception.
-        """
-
-        if is_fhir_format(va_profile_id):
-            va_profile_id = transform_from_fhir_format(va_profile_id)
-
-        url = (
-            f'{self.va_profile_url}/contact-information-hub/cuf/contact-information/v1/'
-            f'{va_profile_id}/{self.PHONE_BIO_TYPE}'
-        )
-        response = self._make_request(url, va_profile_id, self.PHONE_BIO_TYPE)
-
-        try:
-            # First sort by phone type and then by create date.  Since reverse order is used,
-            # potential MOBILE bios will end up before HOME.
-            sorted_bios = sorted(
-                (bio for bio in response['bios'] if bio['phoneType'] in PhoneNumberType.valid_type_values()),
-                key=lambda bio: (bio['phoneType'], iso8601.parse_date(bio['createDate'])),
-                reverse=True,
-            )
-            if sorted_bios:
-                if (
-                    sorted_bios[0].get('countryCode')
-                    and sorted_bios[0].get('areaCode')
-                    and sorted_bios[0].get('phoneNumber')
-                ):
-                    # The required attributes are present and not empty strings.
-                    self.statsd_client.incr('clients.va-profile.get-telephone.success')
-                # This is intentionally allowed to raise KeyError so the problem is logged below.
-                return '+' + sorted_bios[0]['countryCode'] + sorted_bios[0]['areaCode'] + sorted_bios[0]['phoneNumber']
-        except KeyError:
-            self.logger.exception('Received a garbled response from VA Profile for ID %s.', va_profile_id)
-
-        self.statsd_client.incr('clients.va-profile.get-telephone.failure')
-        self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, response.get(self.TX_AUDIT_ID))
-
-    def get_is_communication_allowed_v3(
+    def get_is_communication_allowed(
         self,
         recipient_id: RecipientIdentifier,
         communication_item_id: str,
@@ -290,56 +203,6 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-communication-item-permission.no-permissions')
         raise CommunicationItemNotFoundException
 
-    def get_is_communication_allowed(
-        self, recipient_identifier, communication_item_id: str, notification_id: str, notification_type: str
-    ) -> bool:
-        from app.models import VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES
-
-        recipient_id = transform_to_fhir_format(recipient_identifier)
-        identifier_type = IdentifierType(recipient_identifier.id_type)
-        oid = OIDS.get(identifier_type)
-
-        url = (
-            f'{self.va_profile_url}/communication-hub/communication/v1/'
-            f'{oid}/{recipient_id}/communication-permissions?communicationItemId={communication_item_id}'
-        )
-        self.logger.info(
-            'VA Profile URL used for making request to get communication-permissions for notification %s: %s',
-            notification_id,
-            url,
-        )
-        response = self._make_request(url, recipient_id)
-        self.logger.info(
-            'Made request to communication-permissions VAProfile endpoint for recipient %s for notification %s',
-            recipient_identifier,
-            notification_id,
-        )
-
-        all_bios = response.get('bios', [])
-        for bio in all_bios:
-            self.logger.info(
-                'Found communication item id %s on recipient %s for notification %s',
-                communication_item_id,
-                recipient_id,
-                notification_id,
-            )
-            if bio['communicationChannelName'] == VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type]:
-                self.logger.info('Value of allowed is %s for notification %s', bio['allowed'], notification_id)
-                self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
-                return bio['allowed'] is True
-
-        self.logger.info(
-            'Recipient %s did not have permission for communication item %s and channel %s for notification %s',
-            recipient_id,
-            communication_item_id,
-            notification_type,
-            notification_id,
-        )
-
-        # TODO 893 - use default communication item settings when that has been implemented
-        self.statsd_client.incr('clients.va-profile.get-communication-item-permission.no-permissions')
-        raise CommunicationItemNotFoundException
-
     def _handle_exceptions(self, va_profile_id_value: str, error: Exception):
         """
         Handle exceptions that occur during requests to the VA Profile service.
@@ -392,58 +255,6 @@ class VAProfileClient:
 
             raise exception from error
 
-    def _make_request(
-        self,
-        url: str,
-        va_profile_id: str,
-        bio_type: str = None,
-    ) -> dict:
-        """
-        Make a request to the VA Profile service and handle the response.
-
-        Args:
-            url (str): The URL to send the request to.
-            va_profile_id (str): The VA profile ID associated with the request.
-            bio_type (str, optional): The type of biographical data to validate in the response. Defaults to None.
-
-        Returns:
-            dict: The JSON response from the VA Profile service if the request is successful.
-
-        Raises:
-            VAProfileIDNotFoundException: If the response status is not successful or if the VA profile ID is not found.
-            VAProfileRetryableException: If a retryable error occurs during the request.
-            VAProfileNonRetryableException: If a non-retryable error occurs during the request.
-            requests.Timeout: If the request times out.
-        """
-        start_time = monotonic()
-
-        self.logger.info('Querying VA Profile with ID %s', va_profile_id)
-
-        try:
-            response = requests.get(url, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=(3.05, 1))
-            response.raise_for_status()
-
-        except (requests.HTTPError, requests.RequestException, requests.Timeout) as e:
-            self._handle_exceptions(va_profile_id, e)
-
-        else:
-            response_json = response.json()
-            response_status = response_json['status']
-            if response_status != self.SUCCESS_STATUS:
-                self.statsd_client.incr(f'clients.va-profile.error.{response_status}')
-
-                raise VAProfileIDNotFoundException
-
-            if bio_type:
-                self._validate_response(response_json, va_profile_id, bio_type)
-
-            self.statsd_client.incr('clients.va-profile.success')
-            return response_json
-
-        finally:
-            elapsed_time = monotonic() - start_time
-            self.statsd_client.timing('clients.va-profile.request-time', elapsed_time)
-
     def _raise_no_contact_info_exception(
         self,
         bio_type: str,
@@ -454,15 +265,6 @@ class VAProfileClient:
         raise NoContactInfoException(
             f'No {bio_type} in response for VA Profile ID {va_profile_id} ' f'with AuditId {tx_audit_id}'
         )
-
-    def _validate_response(
-        self,
-        response,
-        va_profile_id,
-        bio_type,
-    ):
-        if response.get('messages'):
-            self._raise_no_contact_info_exception(bio_type, va_profile_id, response.get(self.TX_AUDIT_ID))
 
     def send_va_profile_email_status(self, notification_data: dict) -> None:
         """

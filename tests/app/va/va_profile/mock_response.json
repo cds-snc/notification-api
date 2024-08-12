@@ -132,6 +132,23 @@
           "countryCode": "1",
           "areaCode": "582",
           "phoneNumber": "2015400"
+        },
+        {
+          "createDate": "2022-06-09T15:11:50Z",
+          "updateDate": "2022-06-09T15:11:50Z",
+          "txAuditId": "6706b496-d727-401f-8df7-d6fc9adef0e8",
+          "sourceSystem": "VETSGOV",
+          "sourceDate": "2022-06-09T15:11:49Z",
+          "originatingSourceSystem": "VETSGOV",
+          "sourceSystemUser": "1012833438V267437",
+          "effectiveStartDate": "2022-06-09T15:11:49Z",
+          "vaProfileId": 1550370,
+          "telephoneId": 293412,
+          "internationalIndicator": false,
+          "phoneType": "MOBILE",
+          "countryCode": "1",
+          "areaCode": "582",
+          "phoneNumber": "3028743"
         }
       ],
       "emails": [
@@ -147,6 +164,19 @@
           "vaProfileId": 1550370,
           "emailId": 276486,
           "emailAddressText": "nathan.wright@oddball.io"
+        },
+        {
+          "createDate": "2023-11-19T18:35:09Z",
+          "updateDate": "2023-11-19T18:35:09Z",
+          "txAuditId": "74916268-6ca2-4adb-b98f-50d93061d517",
+          "sourceSystem": "VETSGOV",
+          "sourceDate": "2023-11-19T18:35:08Z",
+          "originatingSourceSystem": "VETSGOV",
+          "sourceSystemUser": "1012833438V267437",
+          "effectiveStartDate": "2023-11-19T18:35:08Z",
+          "vaProfileId": 1550370,
+          "emailId": 276487,
+          "emailAddressText": "nathan.wright2@oddball.io"
         }
       ]
     }

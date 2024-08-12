@@ -53,7 +53,10 @@ def test_should_get_email_address_and_update_notification(client, mocker, notifi
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
     mocked_update_notification.assert_called_with(notification)
     assert notification.to == 'test@test.org'
 
@@ -73,7 +76,10 @@ def test_should_get_phone_number_and_update_notification(client, mocker, notific
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_telephone.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_telephone.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_telephone.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
     mocked_update_notification.assert_called_with(notification)
     assert notification.to == '+15555555555'
 
@@ -95,7 +101,10 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, notificatio
         lookup_contact_info(notification.id)
 
     assert exc_info.type is NotificationPermanentFailureException
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
     mocked_update_notification_status_by_id.assert_called_with(
         notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
@@ -114,7 +123,10 @@ def test_should_retry_on_retryable_exception(client, mocker, notification, excep
         lookup_contact_info(notification.id)
 
     assert exc_info.type is AutoRetryException
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
 
 def test_should_retry_on_timeout(client, mocker, notification):
@@ -132,7 +144,11 @@ def test_should_retry_on_timeout(client, mocker, notification):
     assert exc_info.value.args[0] == 'Found Timeout, autoretrying...'
     assert isinstance(exc_info.value.args[1], Timeout)
     assert str(exc_info.value.args[1]) == 'Request timed out'
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
 
 def test_should_update_notification_to_technical_failure_on_max_retries(client, mocker, notification):
@@ -150,7 +166,10 @@ def test_should_update_notification_to_technical_failure_on_max_retries(client, 
         lookup_contact_info(notification.id)
 
     assert exc_info.type is NotificationTechnicalFailureException
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
     mocked_handle_max_retries_exceeded.assert_called_once()
 
@@ -177,7 +196,10 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
 
     lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email.assert_called_with(EXAMPLE_VA_PROFILE_ID)
+    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
+    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
     mocked_update_notification_status_by_id.assert_called_with(
         notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason

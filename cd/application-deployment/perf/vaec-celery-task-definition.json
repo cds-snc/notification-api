@@ -188,10 +188,6 @@
         {
           "name": "COMP_AND_PEN_PERF_TO_NUMBER",
           "value": "+14254147755"
-        },
-        {
-          "name": "VA_PROFILE_V3_USE_PROFILE_API_V3",
-          "value": "True"
         }
       ],
       "secrets": [

@@ -24,3 +24,7 @@ class VAProfileIDNotFoundException(VAProfileNonRetryableException):
 
 class ContactPreferencesException(VAProfileNonRetryableException):
     failure_reason = 'VA Profile contact preferences not allowing contact'
+
+
+class CommunicationItemNotFoundException(Exception):
+    failure_reason = 'No communication bio found from VA Profile'
