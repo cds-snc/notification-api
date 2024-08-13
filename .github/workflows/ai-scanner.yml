@@ -1,0 +1,23 @@
+name: AI Code Review
+
+on:
+    push:
+      branches: [ "main" ]
+    pull_request:
+      branches: [ "main" ]
+    schedule:
+      - cron: "29 4 * * 3"
+
+jobs:
+  ai_code_review:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: AI Code Review Action
+      uses: freeedcom/ai-codereviewer@v2.7.0
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
