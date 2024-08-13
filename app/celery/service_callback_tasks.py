@@ -72,7 +72,7 @@ def _send_data_to_service_callback_api(self, data, service_callback_url, token, 
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}",
             },
-            timeout=5,
+            timeout=1,
         )
 
         current_app.logger.info(
