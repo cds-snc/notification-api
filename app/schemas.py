@@ -267,6 +267,18 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
+    reply_to_email_addresses = fields.Method(models.Service, "serialize_reply_to_email_addresses")
+
+    def serialize_reply_to_email_addresses(self, service):
+        return [
+            {
+                "id": str(reply_to.id),
+                "email_address": reply_to.email_address,
+                "is_default": reply_to.is_default,
+                "archived": reply_to.archived
+            }
+            for reply_to in service.reply_to_email_addresses
+        ]
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -298,7 +310,6 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             "api_keys",
             "letter_contacts",
             "jobs",
-            "reply_to_email_addresses",
             "service_sms_senders",
             "templates",
             "updated_at",
@@ -776,6 +787,7 @@ class ServiceHistorySchema(Schema):
     email_from = fields.String()
     created_by_id = fields.UUID()
     version = fields.Integer()
+    reply_to_email_addresses = fields.List(fields.String())
 
 
 class ApiKeyHistorySchema(Schema):
