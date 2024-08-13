@@ -40,7 +40,6 @@ jobs:
   setup-environment:
     name: "setup-env-${{ inputs.environment }}"
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     outputs:
       git-hash: ${{ steps.set-hash.outputs.commit-hash }}
     steps:

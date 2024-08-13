@@ -59,7 +59,6 @@ jobs:
 
   deploy-api:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
     needs: [run-migrations]
     steps:
       - uses: actions/checkout@v4
