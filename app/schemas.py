@@ -26,7 +26,7 @@ from notifications_utils.recipients import (
 
 from app import db, marshmallow, models
 from app.dao.permissions_dao import permission_dao
-from app.models import ServicePermission
+from app.models import ServiceEmailReplyTo, ServicePermission
 from app.utils import get_template_instance
 
 
@@ -267,7 +267,7 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
-    reply_to_email_addresses = fields.Method(models.Service, "serialize_reply_to_email_addresses")
+    reply_to_email_addresses = fields.Method("serialize_reply_to_email_addresses", "deserialize_reply_to_email_addresses")
 
     def serialize_reply_to_email_addresses(self, service):
         return [
@@ -279,6 +279,18 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             }
             for reply_to in service.reply_to_email_addresses
         ]
+
+    def deserialize_reply_to_email_addresses(self, in_data):
+        if isinstance(in_data, dict) and "reply_to_email_addresses" in in_data:
+            reply_to_email_addresses = []
+            for reply_to in in_data["reply_to_email_addresses"]:
+                reply_to_email_address = ServiceEmailReplyTo(
+                    email_address=reply_to["email_address"],
+                    is_default=reply_to["is_default"],
+                    archived=reply_to["archived"]
+                )
+                reply_to_email_addresses.append(reply_to_email_address)
+            in_data["reply_to_email_addresses"] = reply_to_email_addresses
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename

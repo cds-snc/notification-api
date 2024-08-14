@@ -608,8 +608,16 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
         fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        reply_to_addresses = fields.get("reply_to_email_addresses", None)
+        fields.pop("reply_to_email_addresses", None)
+        current_service = cls(**fields)
+        # If reply_to_addresses were in the JSON, add them to the service
+        if reply_to_addresses:
+            current_service.reply_to_email_addresses = [
+                ServiceEmailReplyTo(**addr) for addr in reply_to_addresses
+            ]
 
-        return cls(**fields)
+        return current_service
 
     def get_inbound_number(self):
         if self.inbound_number and self.inbound_number.active:
