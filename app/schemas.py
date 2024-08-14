@@ -275,7 +275,7 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
                 "id": str(reply_to.id),
                 "email_address": reply_to.email_address,
                 "is_default": reply_to.is_default,
-                "archived": reply_to.archived
+                "archived": reply_to.archived,
             }
             for reply_to in service.reply_to_email_addresses
         ]
@@ -285,9 +285,7 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             reply_to_email_addresses = []
             for reply_to in in_data["reply_to_email_addresses"]:
                 reply_to_email_address = ServiceEmailReplyTo(
-                    email_address=reply_to["email_address"],
-                    is_default=reply_to["is_default"],
-                    archived=reply_to["archived"]
+                    email_address=reply_to["email_address"], is_default=reply_to["is_default"], archived=reply_to["archived"]
                 )
                 reply_to_email_addresses.append(reply_to_email_address)
             in_data["reply_to_email_addresses"] = reply_to_email_addresses

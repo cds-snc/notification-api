@@ -613,9 +613,7 @@ class Service(BaseModel, Versioned):
         current_service = cls(**fields)
         # If reply_to_addresses were in the JSON, add them to the service
         if reply_to_addresses:
-            current_service.reply_to_email_addresses = [
-                ServiceEmailReplyTo(**addr) for addr in reply_to_addresses
-            ]
+            current_service.reply_to_email_addresses = [ServiceEmailReplyTo(**addr) for addr in reply_to_addresses]
 
         return current_service
 
