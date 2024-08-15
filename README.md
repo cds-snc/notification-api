@@ -103,10 +103,113 @@ Ruff has been added to the pre-commit hook in place of flake8. See [documentatio
 
 ### Using Localstack
 
-TODO
+#### Setup
+1. Sign up for [Localstack](https://app.localstack.cloud/sign-up).
+ 2. Go here and get your auth token - https://app.localstack.cloud/workspace/auth-token.  Put it in your environment,  .i.e.~/.zshrc or ~/.zsh_profile
+3. Add a localstack profile to your ~/.aws/config. This will allow you to set an AWS_PROFILE environment variable in a shell, and the aws cli will use that profile. If you don't have a ~/.aws/config then maybe you don't have the cli, get it [here](https://aws.amazon.com/cli/).
+```
+[profile localstack]
+region = us-east-1
+endpoint_url = http://localhost:4566
+output = json
+```
+4. Add localstack credentials to ~/.aws/credentials
+```
+[localstack]
+aws_access_key_id = test
+aws_secret_access_key = test
+```
+5. Start a localstack container, either through the [web interface](https://app.localstack.cloud/instances) or there is a native desktop app you can download. Make sure when starting the container you enter your localstack auth token, or the pro features will not be available.
+6. Use this aws provider in Terraform
+```
+provider "aws" {
+  profile                     = "localstack"
+  s3_use_path_style           = false
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
 
----
+  endpoints {
+    cloudwatch     = "http://localhost:4566"
+    dynamodb       = "http://localhost:4566"
+    iam            = "http://localhost:4566"
+    lambda         = "http://localhost:4566"
+    s3             = "http://s3.localhost.localstack.cloud:4566"
+    secretsmanager = "http://localhost:4566"
+    sns            = "http://localhost:4566"
+    sqs            = "http://localhost:4566"
+    ssm            = "http://localhost:4566"
+  }
+}
+```
 
+#### Verification
+
+1. You should now be able to terraform resources in Localstack! Verify by creating a new directory and putting this file (`main.tf`) in it -
+```
+# main.tf
+provider "aws" {
+  profile                     = "localstack"
+  s3_use_path_style           = false
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
+
+  endpoints {
+    cloudwatch     = "http://localhost:4566"
+    dynamodb       = "http://localhost:4566"
+    iam            = "http://localhost:4566"
+    lambda         = "http://localhost:4566"
+    s3             = "http://s3.localhost.localstack.cloud:4566"
+    secretsmanager = "http://localhost:4566"
+    sns            = "http://localhost:4566"
+    sqs            = "http://localhost:4566"
+    ssm            = "http://localhost:4566"
+  }
+}
+
+resource "aws_s3_bucket" "test-bucket" {
+  bucket = "test-bucket"
+}
+```
+2. Initialize terraform and apply the plan:
+``` sh
+terraform init
+```
+``` sh
+terraform apply
+```
+3. The localstack [web console](https://app.localstack.cloud/inst/default/resources/s3) should show the bucket and the aws cli should list it:
+``` sh
+aws s3 ls
+2024-08-15 07:20:47 test-bucket
+```
+
+## Using Localstack ECR
+
+The basic idea is to build a docker image, tag it, push it to ECR. This is useful for services which require an image in a repository (having it in your docker images is not enough). From the localstack [web console](https://app.localstack.cloud/inst/default/resources/ecr/repository/vanotify-local-api/images) you can view push commands for a repository, but here are the basics. If you create a repository like this:
+
+``` terraform
+resource "aws_ecr_repository" "api_ecr" {
+  name = "test_api"
+}
+```
+
+Then your build-tag-push docker commands would be
+
+``` sh
+docker build -t test_api .
+```
+``` sh
+docker tag test_api:latest 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/test_api:latest
+```
+``` sh
+docker push 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/test_api:latest
+```
+The image should be useable, .e.g.:
+``` sh
+docker run --rm --env-file=.local.env 000000000000.dkr.ecr.us-east-1.localhost.localstack.cloud:4566/test_api
+```
 
 ## Local Development without docker
 This is not maintained. The recommendation is that individuals use Docker, but we have left this here for those that may wish to try it.
