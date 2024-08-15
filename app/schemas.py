@@ -280,15 +280,13 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             for reply_to in service.reply_to_email_addresses
         ]
 
-    def deserialize_reply_to_email_addresses(self, in_data):
-        if isinstance(in_data, dict) and "reply_to_email_addresses" in in_data:
-            reply_to_email_addresses = []
-            for reply_to in in_data["reply_to_email_addresses"]:
-                reply_to_email_address = ServiceEmailReplyTo(
-                    email_address=reply_to["email_address"], is_default=reply_to["is_default"], archived=reply_to["archived"]
-                )
-                reply_to_email_addresses.append(reply_to_email_address)
-            in_data["reply_to_email_addresses"] = reply_to_email_addresses
+    def deserialize_reply_to_email_addresses(self, value):
+        if isinstance(value, list):
+            return [
+                ServiceEmailReplyTo(email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"])
+                for addr in value
+            ]
+        return []
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -336,16 +334,49 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             duplicates = list(set([x for x in permissions if permissions.count(x) > 1]))
             raise ValidationError("Duplicate Service Permission: {}".format(duplicates))
 
+    @validates("reply_to_email_addresses")
+    def validate_reply_to_email_addresses(self, value):
+        if not value:
+            value = []
+
+        for addr in value:
+            if not isinstance(addr, dict):
+                raise ValidationError("Each reply_to_email_address must be a dictionary")
+
+            required_keys = {"email_address", "is_default", "archived"}
+            if not all(key in addr for key in required_keys):
+                raise ValidationError(f"Each reply_to_email_address must contain keys: {required_keys}")
+
+            if not isinstance(addr["email_address"], str):
+                raise ValidationError("email_address must be a string")
+
+            if not isinstance(addr["is_default"], bool):
+                raise ValidationError("is_default must be a boolean")
+
+            if not isinstance(addr["archived"], bool):
+                raise ValidationError("archived must be a boolean")
+
     @pre_load()
     def format_for_data_model(self, in_data, **kwargs):
-        if isinstance(in_data, dict) and "permissions" in in_data:
-            str_permissions = in_data["permissions"]
-            permissions = []
-            for p in str_permissions:
-                permission = ServicePermission(service_id=in_data["id"], permission=p)
-                permissions.append(permission)
+        if isinstance(in_data, dict):
+            if "permissions" in in_data:
+                str_permissions = in_data["permissions"]
+                permissions = []
+                for p in str_permissions:
+                    permission = ServicePermission(service_id=in_data["id"], permission=p)
+                    permissions.append(permission)
+                in_data["permissions"] = permissions
 
-            in_data["permissions"] = permissions
+            if "reply_to_email_addresses" in in_data:
+                reply_to_addresses = in_data["reply_to_email_addresses"]
+                formatted_addresses = []
+                for addr in reply_to_addresses:
+                    formatted_addr = ServiceEmailReplyTo(
+                        email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"]
+                    )
+                    formatted_addresses.append(formatted_addr)
+                in_data["reply_to_email_addresses"] = formatted_addresses
+
         return in_data
 
 
