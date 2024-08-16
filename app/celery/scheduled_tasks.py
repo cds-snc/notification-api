@@ -148,6 +148,7 @@ def replay_created_notifications():
             )
 
         for n in notifications_to_resend:
+            current_app.logger.info('Replaying notification: %s', n.id)
             send_notification_to_queue(notification=n, research_mode=n.service.research_mode)
 
 

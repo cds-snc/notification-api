@@ -158,6 +158,7 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
     self,
     response,
 ):
+    current_app.logger.debug('Full SES result response: %s', response)
     try:
         ses_message = json.loads(response['Message'])
         notification_type = ses_message.get('eventType')
