@@ -13,8 +13,12 @@ down_revision = "0458_drop_null_history"
 def upgrade():
     op.add_column("services", sa.Column("sensitive_service", sa.Boolean(), nullable=True))
     op.create_index(op.f("ix_service_sensitive_service"), "services", ["sensitive_service"], unique=False)
+    op.add_column("services_history", sa.Column("sensitive_service", sa.Boolean(), nullable=True))
+    op.create_index(op.f("ix_service_history_sensitive_service"), "services_history", ["sensitive_service"], unique=False)
 
 
 def downgrade():
     op.drop_index(op.f("ix_service_sensitive_service"), table_name="services")
     op.drop_column("services", "sensitive_service")
+    op.drop_index(op.f("ix_service_history_sensitive_service"), table_name="services_history")
+    op.drop_column("services_history", "sensitive_service")

@@ -29,6 +29,7 @@ from app.dao.services_dao import (
     dao_fetch_service_by_id,
     dao_fetch_service_by_inbound_number,
     dao_fetch_service_creator,
+    dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_stats_for_service,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -1567,3 +1568,16 @@ class TestServiceEmailLimits:
             )
         )
         assert fetch_todays_total_message_count(service.id) == 11
+
+
+class TestSensitiveService:
+    def test_sensitive_service(self, notify_db, notify_db_session):
+        service = create_service(service_name="test service", sensitive_service=True)
+        assert service.sensitive_service is True
+
+        sensitive_service = dao_fetch_service_ids_of_sensitive_services()
+        assert [str(service.id)] == sensitive_service
+
+    def test_non_sensitive_service(self, notify_db, notify_db_session):
+        sensitive_service = dao_fetch_service_ids_of_sensitive_services()
+        assert sensitive_service == []

@@ -3253,3 +3253,27 @@ class TestSerializationofServiceReplyto:
         assert json_resp["data"]["name"] == sample_service.name
         assert json_resp["data"]["id"] == str(sample_service.id)
         assert json_resp["data"]["reply_to_email_addresses"] == []
+
+
+class TestGetSensitiveServiceids:
+    def test_get_sensitive_service_id(self, client, notify_db, notify_db_session):
+        service = create_service(service_name="service1", sensitive_service=True)
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == [str(service.id)]
+
+    def test_no_sensitive_services(self, client, notify_db, notify_db_session):
+        assert Service.query.count() == 0
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == []
