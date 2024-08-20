@@ -598,4 +598,4 @@ def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
 
 def dao_fetch_service_ids_of_sensitive_services():
     sensitive_service_ids = Service.query.filter(Service.sensitive_service.is_(True)).with_entities(Service.id).all()
-    return [service_id for (service_id,) in sensitive_service_ids]
+    return [str(service_id) for (service_id,) in sensitive_service_ids]
