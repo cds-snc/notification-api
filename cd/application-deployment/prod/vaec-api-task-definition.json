@@ -92,14 +92,6 @@
           "value": "https://www.vaprofile.va.gov"
         },
         {
-          "name": "VANOTIFY_SSL_CERT_PATH",
-          "value": "/app/certs/vanotify_ssl_cert.pem"
-        },
-        {
-          "name": "VANOTIFY_SSL_KEY_PATH",
-          "value": "/app/certs/vanotify_ssl_key.pem"
-        },
-        {
           "name": "MPI_URL",
           "value": "https://services.eauth.va.gov:9303/prod"
         },
@@ -214,18 +206,6 @@
       ],
       "secrets": [
         {
-          "name": "COMP_AND_PEN_SERVICE_ID",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/comp-and-pen/service-id"
-        },
-        {
-          "name": "COMP_AND_PEN_TEMPLATE_ID",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/comp-and-pen/template-id"
-        },
-        {
-          "name": "COMP_AND_PEN_SMS_SENDER_ID",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/comp-and-pen/sms-sender-id"
-        },
-        {
           "name": "TWILIO_ACCOUNT_SID",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/twilio/account-sid"
         },
@@ -288,18 +268,6 @@
         {
           "name": "VETEXT_PASSWORD",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/vetext/password"
-        },
-        {
-          "name": "VA_SSO_CLIENT_ID",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/iam-sso-client-id"
-        },
-        {
-          "name": "VA_SSO_CLIENT_SECRET",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/iam-sso-client-secret"
-        },
-        {
-          "name": "VA_ONSITE_SECRET",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/onsite/notification-priv"
         }
       ]
     },

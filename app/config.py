@@ -438,8 +438,6 @@ class Config(object):
     GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
     GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
 
-    VA_SSO_CLIENT_ID = os.getenv('VA_SSO_CLIENT_ID', '')
-    VA_SSO_CLIENT_SECRET = os.getenv('VA_SSO_CLIENT_SECRET', '')
     VA_SSO_SERVER_METADATA_URL = os.getenv('VA_SSO_SERVER_METADATA_URL', '')
     VA_SSO_AUTHORIZE_URL = os.getenv('VA_SSO_AUTHORIZE_URL', '')
     VA_SSO_ACCESS_TOKEN_URL = os.getenv('VA_SSO_ACCESS_TOKEN_URL', '')
