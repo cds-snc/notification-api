@@ -26,7 +26,7 @@ from notifications_utils.recipients import (
 
 from app import db, marshmallow, models
 from app.dao.permissions_dao import permission_dao
-from app.models import ServicePermission
+from app.models import ServiceEmailReplyTo, ServicePermission
 from app.utils import get_template_instance
 
 
@@ -267,6 +267,26 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
+    reply_to_email_addresses = fields.Method("serialize_reply_to_email_addresses", "deserialize_reply_to_email_addresses")
+
+    def serialize_reply_to_email_addresses(self, service):
+        return [
+            {
+                "id": str(reply_to.id),
+                "email_address": reply_to.email_address,
+                "is_default": reply_to.is_default,
+                "archived": reply_to.archived,
+            }
+            for reply_to in service.reply_to_email_addresses
+        ]
+
+    def deserialize_reply_to_email_addresses(self, value):
+        if isinstance(value, list):
+            return [
+                ServiceEmailReplyTo(email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"])
+                for addr in value
+            ]
+        return []
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -298,7 +318,6 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             "api_keys",
             "letter_contacts",
             "jobs",
-            "reply_to_email_addresses",
             "service_sms_senders",
             "templates",
             "updated_at",
@@ -315,16 +334,49 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             duplicates = list(set([x for x in permissions if permissions.count(x) > 1]))
             raise ValidationError("Duplicate Service Permission: {}".format(duplicates))
 
+    @validates("reply_to_email_addresses")
+    def validate_reply_to_email_addresses(self, value):
+        if not value:
+            value = []
+
+        for addr in value:
+            if not isinstance(addr, dict):
+                raise ValidationError("Each reply_to_email_address must be a dictionary")
+
+            required_keys = {"email_address", "is_default", "archived"}
+            if not all(key in addr for key in required_keys):
+                raise ValidationError(f"Each reply_to_email_address must contain keys: {required_keys}")
+
+            if not isinstance(addr["email_address"], str):
+                raise ValidationError("email_address must be a string")
+
+            if not isinstance(addr["is_default"], bool):
+                raise ValidationError("is_default must be a boolean")
+
+            if not isinstance(addr["archived"], bool):
+                raise ValidationError("archived must be a boolean")
+
     @pre_load()
     def format_for_data_model(self, in_data, **kwargs):
-        if isinstance(in_data, dict) and "permissions" in in_data:
-            str_permissions = in_data["permissions"]
-            permissions = []
-            for p in str_permissions:
-                permission = ServicePermission(service_id=in_data["id"], permission=p)
-                permissions.append(permission)
+        if isinstance(in_data, dict):
+            if "permissions" in in_data:
+                str_permissions = in_data["permissions"]
+                permissions = []
+                for p in str_permissions:
+                    permission = ServicePermission(service_id=in_data["id"], permission=p)
+                    permissions.append(permission)
+                in_data["permissions"] = permissions
 
-            in_data["permissions"] = permissions
+            if "reply_to_email_addresses" in in_data:
+                reply_to_addresses = in_data["reply_to_email_addresses"]
+                formatted_addresses = []
+                for addr in reply_to_addresses:
+                    formatted_addr = ServiceEmailReplyTo(
+                        email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"]
+                    )
+                    formatted_addresses.append(formatted_addr)
+                in_data["reply_to_email_addresses"] = formatted_addresses
+
         return in_data
 
 
@@ -776,6 +828,7 @@ class ServiceHistorySchema(Schema):
     email_from = fields.String()
     created_by_id = fields.UUID()
     version = fields.Integer()
+    reply_to_email_addresses = fields.List(fields.String())
 
 
 class ApiKeyHistorySchema(Schema):

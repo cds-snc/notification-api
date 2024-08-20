@@ -81,6 +81,7 @@ from tests.app.db import (
     create_notification,
     create_notification_history,
     create_organisation,
+    create_reply_to_email,
     create_service,
     create_service_with_defined_sms_sender,
     create_service_with_inbound_number,
@@ -607,30 +608,61 @@ def test_get_service_by_id_returns_service(notify_db_session):
     assert dao_fetch_service_by_id(service.id).name == "testing"
 
 
-def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_session, mocker):
-    sample_service = create_service(service_name="testing", email_from="testing")
-    service_json = {"data": service_schema.dump(sample_service)}
+class TestServiceCache:
+    def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(self, notify_db_session, mocker):
+        sample_service = create_service(service_name="testing", email_from="testing")
+        service_json = {"data": service_schema.dump(sample_service)}
 
-    service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
-    service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]
-    service_json["data"]["email_branding"] = "d51a41b2-c420-48a9-a8c5-e88444013020"
-    service_json["data"]["inbound_number"] = "aa129e4b-d37c-493a-84da-62a31a8199e3"
-    service_json["data"]["inbound_sms"] = ["fsdfdsfdsfdsfdsfsdf"]
-    service_json["data"]["service_callback_api"] = ["wfeewfwefewfewfewfewfew"]
-    service_json["data"]["service_data_retention"] = ["fdsfsdfsdfsdfsdfdsf"]
+        service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
+        service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]
+        service_json["data"]["email_branding"] = "d51a41b2-c420-48a9-a8c5-e88444013020"
+        service_json["data"]["inbound_number"] = "aa129e4b-d37c-493a-84da-62a31a8199e3"
+        service_json["data"]["inbound_sms"] = ["fsdfdsfdsfdsfdsfsdf"]
+        service_json["data"]["service_callback_api"] = ["wfeewfwefewfewfewfewfew"]
+        service_json["data"]["service_data_retention"] = ["fdsfsdfsdfsdfsdfdsf"]
 
-    mocked_redis_get = mocker.patch.object(
-        redis_store,
-        "get",
-        return_value=bytes(
-            json.dumps(service_json, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
-        ),
-    )
+        mocked_redis_get = mocker.patch.object(
+            redis_store,
+            "get",
+            return_value=bytes(
+                json.dumps(service_json, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
+            ),
+        )
 
-    service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
+        service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
 
-    assert mocked_redis_get.called
-    assert str(sample_service.id) == service.id
+        assert mocked_redis_get.called
+        assert str(sample_service.id) == service.id
+
+    def test_get_service_with_reply_to_from_cache_and_db(self, notify_db_session, mocker):
+        sample_service = create_service(service_name="testing", email_from="testing")
+        create_reply_to_email(sample_service, "test@mail.com")
+        service_json = {"data": service_schema.dump(sample_service)}
+
+        service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
+        service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]
+        service_json["data"]["email_branding"] = "d51a41b2-c420-48a9-a8c5-e88444013020"
+        service_json["data"]["inbound_number"] = "aa129e4b-d37c-493a-84da-62a31a8199e3"
+        service_json["data"]["inbound_sms"] = ["fsdfdsfdsfdsfdsfsdf"]
+        service_json["data"]["service_callback_api"] = ["wfeewfwefewfewfewfewfew"]
+        service_json["data"]["service_data_retention"] = ["fdsfsdfsdfsdfsdfdsf"]
+
+        mocked_redis_get = mocker.patch.object(
+            redis_store,
+            "get",
+            return_value=bytes(
+                json.dumps(service_json, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
+            ),
+        )
+
+        service = dao_fetch_service_by_id(sample_service.id, use_cache=True)
+
+        assert mocked_redis_get.called
+        assert str(sample_service.id) == service.id
+        assert str(service.reply_to_email_addresses[0].id) == str(sample_service.reply_to_email_addresses[0].id)
+
+        service = dao_fetch_service_by_id(sample_service.id, use_cache=False)
+        assert str(service.reply_to_email_addresses[0].id) == str(sample_service.reply_to_email_addresses[0].id)
 
 
 def test_create_service_returns_service_with_default_permissions(notify_db_session):
