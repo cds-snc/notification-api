@@ -267,6 +267,7 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
+    sensitive_service = field_for(models.Service, "sensitive_service")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -776,6 +777,7 @@ class ServiceHistorySchema(Schema):
     email_from = fields.String()
     created_by_id = fields.UUID()
     version = fields.Integer()
+    sensitive_service = fields.Boolean()
 
 
 class ApiKeyHistorySchema(Schema):
