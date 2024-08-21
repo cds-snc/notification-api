@@ -28,3 +28,7 @@ class ContactPreferencesException(VAProfileNonRetryableException):
 
 class CommunicationItemNotFoundException(Exception):
     failure_reason = 'No communication bio found from VA Profile'
+
+
+class CommunicationPermissionDenied(Exception):
+    failure_reason = 'VA Profile permission denied for this contact type'
