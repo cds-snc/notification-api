@@ -240,6 +240,9 @@ class Config(object):
     DEBUG = False
     NOTIFY_LOG_PATH = os.getenv("NOTIFY_LOG_PATH")
 
+    # AWS Xray
+    AWS_XRAY_ENABLED = os.getenv("AWS_XRAY_ENABLED", "false")
+
     # Cronitor
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
