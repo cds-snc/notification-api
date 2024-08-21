@@ -8,9 +8,9 @@ This repository implements:
   
 ## API Documentation
 
-VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/master/documents/openapi/openapi.yaml).
+VANotify OpenAPI specification can be downloaded [here](https://github.com/department-of-veterans-affairs/notification-api/blob/main/documents/openapi/openapi.yaml).
 
-Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/master/documents/postman).
+Postman collection and environment files are available [here](https://github.com/department-of-veterans-affairs/notification-api/tree/main/documents/postman).
 
 Information about service callback setup is available [here](/app/callback/README.md).
 
@@ -26,30 +26,40 @@ We currently do not:
 
 ## Table of Contents
 
-- [Local Development Using Docker](#local-development-using-docker)
-  - [Pre-commit hooks](#pre-commit-hooks)
-  - [Run the local Docker containers](#run-the-local-docker-containers)
-  - [Creating database migrations](#creating-database-migrations)
-  - [Unit testing](#unit-testing)
-  - [Building the production application container](#building-the-production-application-container)
-  - [Using Localstack](#using-localstack)
-- [Local Development Without Docker](#local-development-without-docker)
-- [Maintaining Docker Images](#maintaining-docker-images)
-- [Deployment Workflow](#deployment-workflow)
-  - [Update poetry.lock](#update-dependencies)
+- [Notification API](#notification-api)
+  - [API Documentation](#api-documentation)
+  - [Functional Constraints](#functional-constraints)
+  - [Table of Contents](#table-of-contents)
+  - [Local Development Using Docker](#local-development-using-docker)
+    - [Run the local Docker containers](#run-the-local-docker-containers)
+    - [Creating database migrations](#creating-database-migrations)
+    - [Unit testing](#unit-testing)
+    - [Pre-commit hooks](#pre-commit-hooks)
+    - [Using Localstack](#using-localstack)
+      - [Setup](#setup)
+      - [Verification](#verification)
+  - [Using Localstack ECR](#using-localstack-ecr)
+  - [Local Development without docker](#local-development-without-docker)
+    - [Prerequisite installation](#prerequisite-installation)
+  - [Maintaining Docker Images](#maintaining-docker-images)
+  - [Deployment Workflow](#deployment-workflow)
+    - [Update Dependencies](#update-dependencies)
   - [Creating a PR](#creating-a-pr)
   - [Release Process](#release-process)
-    - [Perf Release](#create-a-release-for-perf)
-    - [Staging Release](#create-a-release-for-staging)
-    - [Production Release](#promote-a-release-for-production)
-- [To Run the Queues](#to-run-the-queues)
-- [AWS Lambda Functions](#aws-lambda-functions)
-- [Running Code Scans](#running-code-scans)
-- [Using Our Endpoints](#using-our-endpoints)
-- [Testing Template Changes](#testing-template-changes)
-- [Generic Internal Endpoints](#generic-internal-endpoints)
-- [Using Mountebank Stubs for MPI/VAProfile](#using-mountebank-stubs)
-- [Frequent Problems](#frequent-problems)
+    - [Create a release for Perf](#create-a-release-for-perf)
+    - [Create a release for Staging](#create-a-release-for-staging)
+    - [Promote a release for Production](#promote-a-release-for-production)
+  - [To Run the Queues](#to-run-the-queues)
+  - [AWS Lambda Functions](#aws-lambda-functions)
+  - [Running Code Scans](#running-code-scans)
+  - [Using our Endpoints](#using-our-endpoints)
+    - [Sending a notification](#sending-a-notification)
+  - [Testing Template Changes](#testing-template-changes)
+  - [Generic Internal Endpoints](#generic-internal-endpoints)
+  - [Using Mountebank Stubs](#using-mountebank-stubs)
+  - [Triggering Tasks](#triggering-tasks)
+  - [Adding Environment Variables to Task Definition Files](#adding-environment-variables-to-task-definition-files)
+  - [Frequent Problems](#frequent-problems)
 
 ---
 
@@ -98,7 +108,7 @@ This repository uses [pre-commit](https://pre-commit.com/) and [talisman](https:
 
 OSX users can run `brew bundle` and then `pre-commit install` to register the git hooks.  The configuration is stored in .pre-commit-config.yaml.
 
-Ruff has been added to the pre-commit hook in place of flake8. See [documentation](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/formatter.md) for setup.
+Ruff has been added to the pre-commit hook in place of flake8. See [documentation](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/formatter.md) for setup.
 
 
 ### Using Localstack
@@ -716,6 +726,6 @@ pyenv install --patch 3.10.13 < <(curl -sSL https://github.com/python/cpython/co
 
 **Problem**: Unit tests pass locally but fail when run in Github as a pull request check
 
-**Solution**: Ensure you have properly set environment variables.  When running unit tests locally with containers, the environmnet includes the variables declared in [docker-compose-test.yml](https://github.com/department-of-veterans-affairs/notification-api/blob/master/ci/docker-compose-test.yml).  However, Github does not use this YAML file.
+**Solution**: Ensure you have properly set environment variables.  When running unit tests locally with containers, the environmnet includes the variables declared in [docker-compose-test.yml](https://github.com/department-of-veterans-affairs/notification-api/blob/main/ci/docker-compose-test.yml).  However, Github does not use this YAML file.
 
-Set environment variables for the Github Actions job runner in [tests.yaml](https://github.com/department-of-veterans-affairs/notification-api/blob/master/.github/workflows/tests.yaml).  You probably will want to define them in the `env` section of the `Run Tests` step of the `Test` job, but variables set anywhere are visible to subsequent steps within the same job.
+Set environment variables for the Github Actions job runner in [tests.yaml](https://github.com/department-of-veterans-affairs/notification-api/blob/main/.github/workflows/tests.yaml).  You probably will want to define them in the `env` section of the `Run Tests` step of the `Test` job, but variables set anywhere are visible to subsequent steps within the same job.

@@ -5,7 +5,7 @@ on:
       ref:
         description: Branch to deploy
         required: true
-        default: master
+        default: main
       action:
         type: choice
         description: Choose which actions to test

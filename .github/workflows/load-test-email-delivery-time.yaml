@@ -64,6 +64,6 @@ jobs:
         with:
           instance-id-ssm-parameter-path: /utility/locust/instance
           commands: >-
-            "sudo su - locust -c \"cd notification-api && git checkout origin master && git pull --all && git checkout ${{ inputs.commit_sha }} &>/dev/null\"",
+            "sudo su - locust -c \"cd notification-api && git checkout origin main && git pull --all && git checkout ${{ inputs.commit_sha }} &>/dev/null\"",
             "sudo su - locust -c \"locust -f notification-api/load_testing/send_email_load_test.py --headless --host https://${{ inputs.environment }}.api.notifications.va.gov --email-limit ${{ inputs.email_limit }} --email-status-query-interval ${{ inputs.email_status_query_interval }} --csv results_email 2>/dev/null\"",
             "sudo su - locust -c \"cat results_email_stats.csv\""
