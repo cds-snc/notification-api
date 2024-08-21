@@ -15,7 +15,8 @@ load_dotenv()
 application = Flask("celery")
 create_app(application)
 
-xray_recorder.configure(service='celery')
-XRayMiddleware(application, xray_recorder)
+if application.config["AWS_XRAY_ENABLED"] == "true":
+    xray_recorder.configure(service='celery')
+    XRayMiddleware(application, xray_recorder)
 
 application.app_context().push()
