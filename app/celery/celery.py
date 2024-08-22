@@ -51,16 +51,12 @@ class NotifyCelery(Celery):
 
         if app.config["AWS_XRAY_ENABLED"]:
             # Register the xray handlers
-            def handle_beat_signal(sender=None, **kwargs):
-                app.logger.info("Beat signal received: sender={}, kwargs={}".format(sender, kwargs))
-
             signals.after_task_publish.connect(xray_after_task_publish)
             signals.before_task_publish.connect(xray_before_task_publish)
             signals.task_failure.connect(xray_task_failure)
             signals.task_postrun.connect(xray_task_postrun)
             signals.task_prerun.connect(xray_task_prerun)
-            signals.beat_init.connect(handle_beat_signal)
-            signals.beat_embedded_init.connect(handle_beat_signal)
+            signals.beat_init.connect(xray_task_prerun)
 
         # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
         self.conf.update(
