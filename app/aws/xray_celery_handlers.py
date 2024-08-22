@@ -33,9 +33,11 @@ def xray_before_task_publish(
             subsegment.put_metadata("task_id", task_id, namespace=CELERY_NAMESPACE)
             inject_trace_header(headers, subsegment)
         else:
-            logger.error("Failed to create a X-Ray subsegment on task publish", extra={"celery": {"task_id": task_id}})
+            logger.error(
+                "xray-celery: Failed to create a X-Ray subsegment on task publish", extra={"celery": {"task_id": task_id}}
+            )
     else:
-        logger.warn("No parent segment found for task {task_id} when trying to create subsegment", task_id)
+        logger.warn("xray-celery: No parent segment found for task {task_id} when trying to create subsegment", task_id)
 
 
 def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=None, **kwargs):
@@ -45,7 +47,9 @@ def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=
     if xray_recorder.current_subsegment():
         xray_recorder.end_subsegment()
     else:
-        logger.warn("Skipping subsegment closing after publish as no subsegment was found: {headers}", headers=headers)
+        logger.warn(
+            "xray-celery: Skipping subsegment closing after publish as no subsegment was found: {headers}", headers=headers
+        )
 
 
 def xray_task_prerun(task_id=None, task=None, args=None, **kwargs):
@@ -68,7 +72,7 @@ def xray_task_failure(task_id=None, exception=None, **kwargs):
     segment = xray_recorder.current_segment()
     if not segment:
         logger.error(
-            "Failed to get the current X-Ray segment on task failure", extra={"celery": {"task_id": kwargs.get("task_id")}}
+            "xray-celery: Failed to get the current segment on task failure", extra={"celery": {"task_id": kwargs.get("task_id")}}
         )
         return
 
