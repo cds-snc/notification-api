@@ -56,8 +56,7 @@ class NotifyCelery(Celery):
             signals.task_failure.connect(xray_task_failure)
             signals.task_postrun.connect(xray_task_postrun)
             signals.task_prerun.connect(xray_task_prerun)
-            signals.beat_init.connect(lambda: app.logger.info("Celery beat signal intercepted"))
-            signals.beat_embedded_init.connect(lambda: app.logger.info("Celery embedded beat signal intercepted"))
+            signals.beat_init.connect(xray_task_prerun)
 
         # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
         self.conf.update(
