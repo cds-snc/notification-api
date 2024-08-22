@@ -39,7 +39,7 @@ def lookup_contact_info(
     va_profile_id = recipient_identifier.id_value
 
     communication_item_id_for_permission_check = None
-    if is_feature_enabled(FeatureFlag.COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
+    if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
         communication_item_id = notification.template.communication_item_id
         communication_item_id_for_permission_check = get_communication_item_id_for_permission_check(
             notification_id,
@@ -48,14 +48,14 @@ def lookup_contact_info(
 
     try:
         if EMAIL_TYPE == notification.notification_type:
-            if (is_feature_enabled(FeatureFlag.COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
+            if (is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
                     and communication_item_id_for_permission_check is not None):
                 recipient = va_profile_client.get_email_with_permission(
                     recipient_identifier, communication_item_id_for_permission_check)
             else:
                 recipient = va_profile_client.get_email(recipient_identifier)
         elif SMS_TYPE == notification.notification_type:
-            if (is_feature_enabled(FeatureFlag.COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
+            if (is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
                     and communication_item_id_for_permission_check is not None):
                 recipient = va_profile_client.get_telephone_with_permission(
                     recipient_identifier, communication_item_id_for_permission_check)
