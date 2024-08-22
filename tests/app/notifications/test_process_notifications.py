@@ -512,7 +512,7 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     sample_communication_item,
     sample_template,
 ):
-    mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=True)
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_template(
         template_type=notification_type,
@@ -579,7 +579,7 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
     mocker,
 ):
     notification = sample_notification(api_key=sample_api_key())
-    mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=False)
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'False')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error('EXPECTED'))
     mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
     with pytest.raises(Boto3Error):
@@ -983,7 +983,7 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     expected_tasks,
     sample_template,
 ):
-    mocker.patch('app.notifications.process_notifications.is_feature_enabled', return_value=True)
+    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     template = sample_template(template_type=notification_type)
