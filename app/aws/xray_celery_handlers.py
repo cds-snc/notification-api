@@ -17,8 +17,10 @@ logger = logging.getLogger("celery_aws_xray_sdk_extension")
 CELERY_NAMESPACE = "celery"
 
 
-def xray_before_task_publish(sender=None, headers=None, **kwargs):
-    logger.info(f"xray-celery: before publish: sender: {sender} headers: {headers}")
+def xray_before_task_publish(
+    sender=None, headers=None, exchange=None, routing_key=None, properties=None, declare=None, retry_policy=None, **kwargs
+):
+    logger.info(f"xray-celery: before publish: sender={sender}, headers={headers}, kwargs={kwargs}")
     headers = headers if headers else {}
     task_id = headers.get("id")
 
@@ -31,13 +33,15 @@ def xray_before_task_publish(sender=None, headers=None, **kwargs):
     inject_trace_header(headers, subsegment)
 
 
-def xray_after_task_publish(**kwargs):
-    logger.info(f"xray-celery: after publish: {kwargs}")
+def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=None, **kwargs):
+    logger.info(
+        f"xray-celery: after publish: headers={headers}, body={body}, exchange={exchange}, routing_key={routing_key}, kwargs={kwargs}"
+    )
     xray_recorder.end_subsegment()
 
 
-def xray_task_prerun(task_id=None, task=None, **kwargs):
-    logger.info(f"xray-celery: prerun: {task_id} {task}")
+def xray_task_prerun(task_id=None, task=None, args=None, **kwargs):
+    logger.info(f"xray-celery: prerun: task_id={task_id}, task={task}, kwargs={kwargs}")
     xray_header = construct_xray_header(task.request)
     segment = xray_recorder.begin_segment(name=task.name, traceid=xray_header.root, parent_id=xray_header.parent)
     segment.save_origin_trace_header(xray_header)
@@ -46,12 +50,13 @@ def xray_task_prerun(task_id=None, task=None, **kwargs):
     segment.put_metadata("task_id", task_id, namespace=CELERY_NAMESPACE)
 
 
-def xray_task_postrun(**kwargs):
-    logger.info(f"xray-celery: postrun: {kwargs}")
+def xray_task_postrun(task_id=None, task=None, args=None, **kwargs):
+    logger.info(f"xray-celery: postrun: kwargs={kwargs}")
     xray_recorder.end_segment()
 
 
-def xray_task_failure(exception=None, **kwargs):
+def xray_task_failure(task_id=None, exception=None, **kwargs):
+    logger.info(f"xray-celery: failure: task_id={task_id}, e={exception}, kwargs={kwargs}")
     segment = xray_recorder.current_segment()
     if not segment:
         logger.error(
