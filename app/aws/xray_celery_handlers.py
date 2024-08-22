@@ -23,14 +23,19 @@ def xray_before_task_publish(
     logger.info(f"xray-celery: before publish: sender={sender}, headers={headers}, kwargs={kwargs}")
     headers = headers if headers else {}
     task_id = headers.get("id")
-
-    subsegment = xray_recorder.begin_subsegment(name=sender, namespace="remote")
-    if not subsegment:
-        logger.error("Failed to create a X-Ray subsegment on task publish", extra={"celery": {"task_id": task_id}})
-        return
-
-    subsegment.put_metadata("task_id", task_id, namespace=CELERY_NAMESPACE)
-    inject_trace_header(headers, subsegment)
+    current_segment = xray_recorder.current_segment()
+    # Checks if there is a current segment to create a subsegment,
+    # otherwise we might be in a starter task. The prerun handler will
+    # create the segment for us.
+    if current_segment:
+        subsegment = xray_recorder.begin_subsegment(name=sender, namespace="remote")
+        if subsegment:
+            subsegment.put_metadata("task_id", task_id, namespace=CELERY_NAMESPACE)
+            inject_trace_header(headers, subsegment)
+        else:
+            logger.error("Failed to create a X-Ray subsegment on task publish", extra={"celery": {"task_id": task_id}})
+    else:
+        logger.warn("No segment found for task {task_id}", task_id)
 
 
 def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=None, **kwargs):
