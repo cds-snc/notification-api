@@ -241,7 +241,7 @@ class Config(object):
     NOTIFY_LOG_PATH = os.getenv("NOTIFY_LOG_PATH")
 
     # AWS Xray
-    AWS_XRAY_ENABLED = os.getenv("AWS_XRAY_ENABLED", "false")
+    AWS_XRAY_ENABLED = env.bool("AWS_XRAY_ENABLED", False)
 
     # Cronitor
     CRONITOR_ENABLED = False

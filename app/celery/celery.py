@@ -49,7 +49,7 @@ class NotifyCelery(Celery):
             task_cls=make_task(app),
         )
 
-        if app.config["AWS_XRAY_ENABLED"] == "true":
+        if app.config["AWS_XRAY_ENABLED"]:
             # Register the xray handlers
             signals.after_task_publish.connect(xray_after_task_publish)
             signals.before_task_publish.connect(xray_before_task_publish)
