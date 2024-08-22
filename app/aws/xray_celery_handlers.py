@@ -26,7 +26,7 @@ def xray_before_task_publish(
     current_segment = xray_recorder.current_segment()
     # Checks if there is a current segment to create a subsegment,
     # otherwise we might be in a starter task. The prerun handler will
-    # create the segment for us.
+    # create the segment for us down the road as it will be called after.
     if current_segment:
         subsegment = xray_recorder.begin_subsegment(name=sender, namespace="remote")
         if subsegment:
