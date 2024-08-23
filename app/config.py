@@ -240,8 +240,8 @@ class Config(object):
     DEBUG = False
     NOTIFY_LOG_PATH = os.getenv("NOTIFY_LOG_PATH")
 
-    # AWS Xray
-    AWS_XRAY_ENABLED = env.bool("AWS_XRAY_ENABLED", False)
+    # Xray SDK
+    AWS_XRAY_ENABLED = env.bool("AWS_XRAY_SDK_ENABLED", False)  # X-Ray switch leveraged by the SDK
 
     # Cronitor
     CRONITOR_ENABLED = False
