@@ -20,9 +20,8 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-if app.config["AWS_XRAY_ENABLED"]:
-    xray_recorder.configure(service='api')
-    XRayMiddleware(app, xray_recorder)
+xray_recorder.configure(service='api')
+XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
