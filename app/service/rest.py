@@ -271,6 +271,7 @@ def create_service():
 def update_service(service_id):
     req_json = request.get_json()
     fetched_service = dao_fetch_service_by_id(service_id)
+    service_email_addresses = fetched_service.reply_to_email_addresses
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
     service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
@@ -281,6 +282,14 @@ def update_service(service_id):
     current_data.update(request.get_json())
 
     service = service_schema.load(current_data)
+    # Set the service_id for each reply_to_email_address
+    # Create a dictionary for quick lookup
+    email_to_id_map = {addr.email_address: addr.id for addr in service_email_addresses}
+
+    # Update the service.reply_to_email_addresses list
+    for addr in service.reply_to_email_addresses:
+        if addr.email_address in email_to_id_map:
+            addr.id = email_to_id_map[addr.email_address]
 
     if "email_branding" in req_json:
         email_branding_id = req_json["email_branding"]

@@ -333,10 +333,18 @@ def dao_create_service(
 
     db.session.add(service)
 
-
+from sqlalchemy import inspect
 @transactional
 @version_class(Service)
 def dao_update_service(service):
+    # In your update_service function, before calling dao_update_service
+    for reply_to in service.reply_to_email_addresses:
+        insp = inspect(reply_to)
+        current_app.logger.debug(f"Reply-to {reply_to.id} session state: {insp.session}")
+        current_app.logger.debug(f"Reply-to {reply_to.id} persistent: {insp.persistent}")
+        current_app.logger.debug(f"Reply-to {reply_to.id} detached: {insp.detached}")
+        if inspect(reply_to).transient:
+            db.session.add(reply_to)
     db.session.add(service)
 
 

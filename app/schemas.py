@@ -276,16 +276,21 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
                 "email_address": reply_to.email_address,
                 "is_default": reply_to.is_default,
                 "archived": reply_to.archived,
+                "service_id": str(service.id),
             }
             for reply_to in service.reply_to_email_addresses
         ]
 
     def deserialize_reply_to_email_addresses(self, value):
         if isinstance(value, list):
-            return [
-                ServiceEmailReplyTo(email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"])
-                for addr in value
-            ]
+            response = []
+            for addr in value:
+                if isinstance(addr, dict):
+                    ans = ServiceEmailReplyTo(email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"], service_id=addr["service_id"])
+                    response.append(ans)
+                else:
+                    response.append(addr)
+            return response
         return []
 
     def get_letter_logo_filename(self, service):
@@ -340,10 +345,13 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
             value = []
 
         for addr in value:
+            if isinstance(addr, ServiceEmailReplyTo):
+                continue
+
             if not isinstance(addr, dict):
                 raise ValidationError("Each reply_to_email_address must be a dictionary")
 
-            required_keys = {"email_address", "is_default", "archived"}
+            required_keys = {"email_address", "is_default", "archived", "service_id"}
             if not all(key in addr for key in required_keys):
                 raise ValidationError(f"Each reply_to_email_address must contain keys: {required_keys}")
 
@@ -371,8 +379,11 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
                 reply_to_addresses = in_data["reply_to_email_addresses"]
                 formatted_addresses = []
                 for addr in reply_to_addresses:
+                    if isinstance(addr, ServiceEmailReplyTo):
+                        formatted_addresses.append(addr)
+                        continue
                     formatted_addr = ServiceEmailReplyTo(
-                        email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"]
+                        email_address=addr["email_address"], is_default=addr["is_default"], archived=addr["archived"], service_id=addr["service_id"]
                     )
                     formatted_addresses.append(formatted_addr)
                 in_data["reply_to_email_addresses"] = formatted_addresses
