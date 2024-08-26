@@ -22,7 +22,7 @@ class NotifyContext(Context):
     a threadlocal. The same technical constraints and feature apply.
     """
 
-    def __init__(self, context_missing="LOG_ERROR"):
+    def __init__(self, context_missing="LOG_WARNING"):
         super().__init__(context_missing)
 
     def put_segment(self, segment):
