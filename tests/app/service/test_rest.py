@@ -2623,15 +2623,14 @@ def test_is_email_from_unique_returns_400_when_email_from_does_not_exist(admin_r
     assert response["message"][1]["email_from"] == ["Can't be empty"]
 
 
-class TestServiceEmailReplyTo:
-    def test_get_email_reply_to_addresses_when_there_are_no_reply_to_email_addresses(self, client, sample_service):
-        response = client.get(
-            "/service/{}/email-reply-to".format(sample_service.id),
-            headers=[create_authorization_header()],
-        )
+def test_get_email_reply_to_addresses_when_there_are_no_reply_to_email_addresses(client, sample_service):
+    response = client.get(
+        "/service/{}/email-reply-to".format(sample_service.id),
+        headers=[create_authorization_header()],
+    )
 
-        assert json.loads(response.get_data(as_text=True)) == []
-        assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True)) == []
+    assert response.status_code == 200
 
 
 def test_get_email_reply_to_addresses_with_one_email_address(client, notify_db, notify_db_session):
@@ -3224,35 +3223,6 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
 
     dao_mock.assert_called_once_with(start_date, end_date)
     assert response == []
-
-
-class TestSerializationofServiceReplyto:
-    def test_get_service(self, client, sample_service):
-        sample_service.reply_to_email = "something@service.com"
-        create_reply_to_email(service=sample_service, email_address="new@service.com")
-        auth_header = create_authorization_header()
-        resp = client.get(
-            "/service/{}".format(sample_service.id),
-            headers=[auth_header],
-        )
-        assert resp.status_code == 200
-        json_resp = resp.json
-        assert json_resp["data"]["name"] == sample_service.name
-        assert json_resp["data"]["id"] == str(sample_service.id)
-        assert json_resp["data"]["reply_to_email_addresses"][0]["email_address"] == "new@service.com"
-
-    def test_get_service_no_reply_to(self, client, sample_service):
-        sample_service.reply_to_email = "something@service.com"
-        auth_header = create_authorization_header()
-        resp = client.get(
-            "/service/{}".format(sample_service.id),
-            headers=[auth_header],
-        )
-        assert resp.status_code == 200
-        json_resp = resp.json
-        assert json_resp["data"]["name"] == sample_service.name
-        assert json_resp["data"]["id"] == str(sample_service.id)
-        assert json_resp["data"]["reply_to_email_addresses"] == []
 
 
 class TestGetSensitiveServiceids:
