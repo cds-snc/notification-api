@@ -336,6 +336,10 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     verified_notifications: List[VerifiedNotification] = []
     notification_id_queue: Dict = {}
     saved_notifications: List[Notification] = []
+
+    # temporarily cache services so we don't get them more than once each batch
+    service_id_map = {}
+
     for signed_notification in signed_notifications:
         try:
             _notification = signer_notification.verify(signed_notification)
@@ -343,7 +347,14 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
         service_id = _notification.get("service_id", _service_id)  # take it it out of the notification if it's there
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        # get service from local cache if possible
+        if service_id not in service_id_map:
+            service = dao_fetch_service_by_id(service_id)
+            service_id_map[service_id] = service
+        else:
+            service = service_id_map[service_id]
+
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
