@@ -12,6 +12,7 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
+from app.aws.xray.context import NotifyContext
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-xray_recorder.configure(service='api')
+xray_recorder.configure(service='api', context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
