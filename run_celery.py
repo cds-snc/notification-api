@@ -5,6 +5,8 @@ from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
 from flask import Flask
 
+from app.aws.xray.context import NotifyContext
+
 newrelic.agent.initialize()  # noqa: E402
 
 # notify_celery is referenced from manifest_delivery_base.yml, and cannot be removed
@@ -15,8 +17,7 @@ load_dotenv()
 application = Flask("celery")
 create_app(application)
 
-if application.config["AWS_XRAY_ENABLED"]:
-    xray_recorder.configure(service='celery')
-    XRayMiddleware(application, xray_recorder)
+xray_recorder.configure(service='celery', context=NotifyContext())
+XRayMiddleware(application, xray_recorder)
 
 application.app_context().push()
