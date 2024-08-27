@@ -23,9 +23,15 @@ VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
 }
 
 
-class NotificationType(Enum):
-    EMAIL = 'Email'
-    TEXT = 'Text'
+class CommunicationChannel(Enum):
+    EMAIL = ('Email', 2)
+    TEXT = ('Text', 1)
+
+    def __new__(cls, value, id):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.id = id
+        return obj
 
 
 class PhoneNumberType(Enum):
@@ -142,13 +148,12 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_telephone_with_permission(self, va_profile_id: RecipientIdentifier, communication_item_id: str) -> str:
+    def get_telephone_with_permission(self, va_profile_id: RecipientIdentifier) -> str:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
 
         Args:
             va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the telephone number for.
-            communication_item_id (str): The ID of the communication item.
 
         Returns:
             str: The telephone number retrieved from the VA Profile service.
@@ -157,8 +162,7 @@ class VAProfileClient:
             CommunicationPermissionDenied: If communication permission is denied for the given parameters
         """
         profile = self.get_profile(va_profile_id)
-        communication_allowed = self.get_is_communication_allowed_from_profile(profile, communication_item_id,
-                                                                               NotificationType.TEXT.value)
+        communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
         if not communication_allowed:
             raise CommunicationPermissionDenied
 
@@ -185,13 +189,12 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_email_with_permission(self, va_profile_id: RecipientIdentifier, communication_item_id: str) -> str:
+    def get_email_with_permission(self, va_profile_id: RecipientIdentifier) -> str:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
 
         Args:
             va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the email address for.
-            communication_item_id (str): The ID of the communication item.
 
         Returns:
             str: The email address retrieved from the VA Profile service.
@@ -200,8 +203,7 @@ class VAProfileClient:
             CommunicationPermissionDenied: If communication permission is denied for the given parameters
         """
         profile = self.get_profile(va_profile_id)
-        communication_allowed = self.get_is_communication_allowed_from_profile(profile, communication_item_id,
-                                                                               NotificationType.EMAIL.value)
+        communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.EMAIL)
         if not communication_allowed:
             raise CommunicationPermissionDenied
 
@@ -288,16 +290,14 @@ class VAProfileClient:
     def get_is_communication_allowed_from_profile(
         self,
         profile: Profile,
-        communication_item_id: str,
-        notification_type: str,
+        notification_type: CommunicationChannel,
     ) -> bool:
         """
         Determine if communication is allowed for a given recipient, communication item, and notification type.
 
         Args:
             profile (Profile): The recipient's profile.
-            communication_item_id (str): The ID of the communication item.
-            notification_type (str): The type of the notification.
+            notification_type (CommunicationChannel): The type of the notification.
 
         Returns:
             bool: True if communication is allowed, False otherwise.
@@ -322,8 +322,8 @@ class VAProfileClient:
                 perm['vaProfileId'],
             )
             if (
-                perm['communicationChannelName'] == notification_type
-                and perm['communicationItemId'] == communication_item_id
+                perm['communicationChannelName'] == notification_type.value
+                and perm['communicationItemId'] == notification_type.id
             ):
                 self.logger.debug(
                     'V3 Profile -- %s notification:  Value of allowed is %s',
@@ -336,8 +336,8 @@ class VAProfileClient:
 
         self.logger.debug(
             'V3 Profile -- did not have permission for communication item %s and channel %s',
-            communication_item_id,
-            notification_type,
+            notification_type.id,
+            notification_type.value,
         )
 
         # TODO 893 - use default communication item settings when that has been implemented
