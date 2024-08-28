@@ -32,17 +32,17 @@ Please provide relevant information and / or links to demonstrate the functional
 ## Checklist
 
 - [ ] I have assigned myself to this PR
-- [ ] PR has an [appropriate title](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/team_agreement.md#naming-prs): #9999 - What the thing does
+- [ ] PR has an [appropriate title](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/team_agreement.md#naming-prs): #9999 - What the thing does
 - [ ] PR has a detailed description, including links to specific documentation
-- [ ] I have added the [appropriate labels](https://github.com/department-of-veterans-affairs/notification-api/blob/master/.github/release.yaml) to the PR.
+- [ ] I have added the [appropriate labels](https://github.com/department-of-veterans-affairs/notification-api/blob/main/.github/release.yaml) to the PR.
 - [ ] I did not remove any parts of the template, such as checkboxes even if they are not used
-- [ ] My code follows the [style guidelines](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Process/style_guide.md) of this project
+- [ ] My code follows the [style guidelines](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Process/style_guide.md) of this project
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to any documentation
 - [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works. [Testing guidelines](https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Process/testing_guide.md)
-- [ ] I have ensured the latest master is merged into my branch and all checks are green prior to review
+- [ ] I have added tests that prove my fix is effective or that my feature works. [Testing guidelines](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Process/testing_guide.md)
+- [ ] I have ensured the latest main is merged into my branch and all checks are green prior to review
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] Any dependent changes have been merged and published in downstream modules
 - [ ] The ticket is now moved into the DEV test column

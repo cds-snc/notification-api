@@ -34,7 +34,7 @@ We wish to keep dependencies up to date so that we do not need such massive over
 - [ ] Update performed per the [README.md](https://github.com/department-of-veterans-affairs/notification-api#update-dependencies)
 - [ ] Passes all tests locally
 - [ ] Passes QA Suite regression testing against Dev
-- [ ] If there are any failures, compare the [poetry.lock in master](https://github.com/department-of-veterans-affairs/notification-api/blob/master/poetry.lock) against your local `poetry.lock`. 
+- [ ] If there are any failures, compare the [poetry.lock in main](https://github.com/department-of-veterans-affairs/notification-api/blob/main/poetry.lock) against your local `poetry.lock`. 
   - [ ] Identify the discrepancies and lock those versions in `pyproject.toml`, create a ticket, and label it "tech debt"
   - [ ] Any non-top level dependencies that have to be locked should have a comment added to `pyproject.toml` and have a checkbox to remove that dependency from `pyproject.toml` in the acceptance criteria
   - [ ] Created ticket has the package name in the title

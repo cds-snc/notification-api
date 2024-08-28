@@ -15,7 +15,7 @@ on:
           - prod
       ref:
         description: "Branch or Commit"
-        default: master
+        default: main
         required: true
         type: string
       lambdaDeploy:

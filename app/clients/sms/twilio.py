@@ -216,7 +216,7 @@ class TwilioSMSClient(SmsClient):
         - record_status: the convereted twilio to notification platform status
         - reference: the message id of the twilio message
         - payload: the original payload from twilio
-        https://github.com/department-of-veterans-affairs/vanotify-team/blob/master/Engineering/SPIKES/SMS-Delivery-Status.md#twilio-implementation-of-delivery-statuses
+        https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/SPIKES/SMS-Delivery-Status.md#twilio-implementation-of-delivery-statuses
         """
         self.logger.info('Translating Twilio delivery status')
         self.logger.debug(twilio_delivery_status_message)

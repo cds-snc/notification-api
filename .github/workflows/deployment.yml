@@ -9,7 +9,7 @@ on:
         type: string
       ref:
         required: true
-        default: "master"
+        default: "main"
         type: string
 
 jobs:
@@ -94,7 +94,7 @@ jobs:
             VERSION=${{ inputs.ref }}
 
       - name: Deploy API task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-api-container.outputs.task-definition }}
           service: ${{ inputs.environment }}-notification-api-service
@@ -138,7 +138,7 @@ jobs:
               VERSION=${{ inputs.ref }}
 
       - name: Deploy celery task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-celery-container.outputs.task-definition }}
           service: ${{ inputs.environment }}-notification-celery-service
@@ -182,7 +182,7 @@ jobs:
             VERSION=${{ inputs.ref }}
 
       - name: Deploy celery beat task definition to Fargate
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
         with:
           task-definition: ${{ steps.render-celery-beat-container.outputs.task-definition }}
           service: ${{ inputs.environment }}-notification-celery-beat-service

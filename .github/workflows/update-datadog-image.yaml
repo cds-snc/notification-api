@@ -5,7 +5,7 @@ on:
       ref:
         required: true
         type: string
-        default: master
+        default: main
   workflow_call:
 
 jobs:

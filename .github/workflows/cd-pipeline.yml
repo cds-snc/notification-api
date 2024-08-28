@@ -16,7 +16,7 @@ name: Continuous Deployment Pipeline
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   prepare-deployment:
@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Pause for manual approval
         run: |
-          echo "Deploying commit SHA ${{ github.sha }}, the latest merge to master"
+          echo "Deploying commit SHA ${{ github.sha }}, the latest merge to main"
           echo "Deployment paused for manual approval."
 
   # this job deploys the SHA that triggered this workflow

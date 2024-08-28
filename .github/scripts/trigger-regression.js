@@ -12,7 +12,7 @@ const triggerAndWait = async ({ github, core }) => {
   const owner = 'department-of-veterans-affairs'; // user of private repo
   const repo = 'notification-api-qa'; // private repo to contact
   const workflow_id = 'regression.yml'; // Replace with your workflow file name or ID
-  const ref = 'master'; // Usually main or master.  THIS IS THE REF of the REGRESSION repo!
+  const ref = 'main'; // The main branch. THIS IS THE REF of the REGRESSION repo!
   const jobName = `Test in ${ENVIRONMENT}`; // Replace with the name of the job you want
 
   // Create a timestamp for workflow run tracking

@@ -14,7 +14,7 @@ on:
       ref:
         description: "Branch to deploy from"
         required: true
-        default: master
+        default: main
         type: string
       lambdaName:
         description: "Lambda to deploy"
