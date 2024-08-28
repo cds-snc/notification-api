@@ -8,7 +8,6 @@ from freezegun import freeze_time
 from collections import namedtuple
 from sqlalchemy import delete, select
 
-from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
@@ -41,11 +40,7 @@ from app.va.identifier import IdentifierType
 from tests.app.factories.feature_flag import mock_feature_flag
 
 
-def test_create_content_for_notification_passes(
-    notify_db_session,
-    sample_template,
-    mocker
-):
+def test_create_content_for_notification_passes(notify_db_session, sample_template, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -56,11 +51,7 @@ def test_create_content_for_notification_passes(
     assert str(content) == template.content
 
 
-def test_create_content_for_notification_with_placeholders_passes(
-    notify_db_session,
-    sample_template,
-    mocker
-):
+def test_create_content_for_notification_with_placeholders_passes(notify_db_session, sample_template, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -72,11 +63,7 @@ def test_create_content_for_notification_with_placeholders_passes(
     assert 'Bobby' in str(content)
 
 
-def test_create_content_for_notification_fails_with_missing_personalisation(
-    notify_db_session,
-    sample_template,
-    mocker
-):
+def test_create_content_for_notification_fails_with_missing_personalisation(notify_db_session, sample_template, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -87,11 +74,7 @@ def test_create_content_for_notification_fails_with_missing_personalisation(
         create_content_for_notification(db_template, None)
 
 
-def test_create_content_for_notification_allows_additional_personalisation(
-    notify_db_session,
-    sample_template,
-    mocker
-):
+def test_create_content_for_notification_allows_additional_personalisation(notify_db_session, sample_template, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -159,10 +142,7 @@ def test_persist_notification_creates_and_save_to_db(
     mocked_redis.assert_called_once_with(str(template.service_id) + '-2016-01-01-count')
 
 
-def test_persist_notification_throws_exception_when_missing_template(
-    sample_api_key,
-    mocker
-):
+def test_persist_notification_throws_exception_when_missing_template(sample_api_key, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -651,12 +631,7 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
         ('valid_email@test.com', 'email', False),
     ],
 )
-def test_simulated_recipient(
-    to_address,
-    notification_type,
-    expected,
-    mocker
-):
+def test_simulated_recipient(to_address, notification_type, expected, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -766,12 +741,7 @@ def test_persist_notification_with_international_info_does_not_store_for_email(
 
 
 # This test assumes the local timezone is EST
-def test_persist_scheduled_notification(
-    notify_db_session,
-    sample_api_key,
-    sample_notification,
-    mocker
-):
+def test_persist_scheduled_notification(notify_db_session, sample_api_key, sample_notification, mocker):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 

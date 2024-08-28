@@ -8,13 +8,16 @@ import iso8601
 import requests
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import NoContactInfoException, VAProfileNonRetryableException, VAProfileRetryableException
-from app.va.va_profile.exceptions import (CommunicationItemNotFoundException, CommunicationPermissionDenied,
-                                          VAProfileIDNotFoundException)
+from app.va.va_profile.exceptions import (
+    CommunicationItemNotFoundException,
+    CommunicationPermissionDenied,
+    VAProfileIDNotFoundException,
+)
 
 if TYPE_CHECKING:
     from app.models import RecipientIdentifier
 
-    from va_profile_types import (CommunicationPermissions, ContactInformation, Profile, Telephone)
+    from va_profile_types import CommunicationPermissions, ContactInformation, Profile, Telephone
 
 
 VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
@@ -308,9 +311,7 @@ class VAProfileClient:
             CommunicationItemNotFoundException: If no communication permissions are found for the given parameters.
         """
 
-        communication_permissions: CommunicationPermissions = profile.get(
-            'communicationPermissions', {}
-        )
+        communication_permissions: CommunicationPermissions = profile.get('communicationPermissions', {})
         self.logger.debug(
             'V3 Profile -- Parsing Communication Permissions for \
               notification_type: %s -- %s',

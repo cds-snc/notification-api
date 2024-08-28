@@ -12,10 +12,53 @@ from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
 from app.models import NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PREFERENCES_DECLINED, EMAIL_TYPE, SMS_TYPE
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.va.va_profile.exceptions import (VAProfileIDNotFoundException, CommunicationItemNotFoundException,
-                                          CommunicationPermissionDenied)
+from app.va.va_profile.exceptions import (
+    VAProfileIDNotFoundException,
+    CommunicationItemNotFoundException,
+    CommunicationPermissionDenied,
+)
 from notifications_utils.statsd_decorators import statsd
 from requests import Timeout
+
+
+def get_recipient(notification_type, notification_id, recipient_identifier, communication_item_id_for_permission_check):
+    if notification_type == EMAIL_TYPE:
+        return get_email_recipient(recipient_identifier, communication_item_id_for_permission_check)
+    elif notification_type == SMS_TYPE:
+        return get_sms_recipient(recipient_identifier, communication_item_id_for_permission_check)
+    else:
+        raise NotImplementedError(
+            f'The task lookup_contact_info failed for notification {notification_id}. '
+            f'{notification_type} is not supported'
+        )
+
+
+def get_email_recipient(recipient_identifier, communication_item_id_for_permission_check):
+    if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
+        if communication_item_id_for_permission_check is None:
+            return va_profile_client.get_email_with_permission(
+                recipient_identifier, communication_item_id_for_permission_check, True
+            )
+        else:
+            return va_profile_client.get_email_with_permission(
+                recipient_identifier, communication_item_id_for_permission_check
+            )
+    else:
+        return va_profile_client.get_email(recipient_identifier)
+
+
+def get_sms_recipient(recipient_identifier, communication_item_id_for_permission_check):
+    if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
+        if communication_item_id_for_permission_check is None:
+            return va_profile_client.get_telephone_with_permission(
+                recipient_identifier, communication_item_id_for_permission_check, True
+            )
+        else:
+            return va_profile_client.get_telephone_with_permission(
+                recipient_identifier, communication_item_id_for_permission_check
+            )
+    else:
+        return va_profile_client.get_telephone(recipient_identifier)
 
 
 @notify_celery.task(
@@ -47,33 +90,12 @@ def lookup_contact_info(
         )
 
     try:
-        if EMAIL_TYPE == notification.notification_type:
-            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-                if communication_item_id_for_permission_check is None:
-                    # bypass the permission check when communication item id is None
-                    recipient = va_profile_client.get_email_with_permission(
-                        recipient_identifier, communication_item_id_for_permission_check, True)
-                else:
-                    recipient = va_profile_client.get_email_with_permission(
-                        recipient_identifier, communication_item_id_for_permission_check)
-            else:
-                recipient = va_profile_client.get_email(recipient_identifier)
-        elif SMS_TYPE == notification.notification_type:
-            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-                if communication_item_id_for_permission_check is None:
-                    # bypass the permission check when communication item id is None
-                    recipient = va_profile_client.get_telephone_with_permission(
-                        recipient_identifier, communication_item_id_for_permission_check, True)
-                else:
-                    recipient = va_profile_client.get_telephone_with_permission(
-                        recipient_identifier, communication_item_id_for_permission_check)
-            else:
-                recipient = va_profile_client.get_telephone(recipient_identifier)
-        else:
-            raise NotImplementedError(
-                f'The task lookup_contact_info failed for notification {notification_id}. '
-                f'{notification.notification_type} is not supported'
-            )
+        recipient = get_recipient(
+            notification.notification_type,
+            notification_id,
+            recipient_identifier,
+            communication_item_id_for_permission_check,
+        )
     except (Timeout, VAProfileRetryableException) as e:
         if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning('Unable to get contact info for notification id: %s, retrying', notification_id)
@@ -94,6 +116,20 @@ def lookup_contact_info(
         )
         check_and_queue_callback_task(notification)
         raise NotificationPermanentFailureException(message) from e
+    except CommunicationItemNotFoundException:
+        current_app.logger.info(
+            'Communication item for recipient %s not found on notification %s', va_profile_id, notification_id
+        )
+        reason = 'No recipient opt-in found for explicit preference'
+        handle_lack_of_permission(notification_id, notification, reason)
+    except CommunicationPermissionDenied:
+        current_app.logger.info(
+            'Permission denied for recipient %s for notification %s',
+            va_profile_id,
+            notification_id,
+        )
+        reason = 'Contact preferences set to false'
+        handle_lack_of_permission(notification_id, notification, reason)
     except (VAProfileIDNotFoundException, VAProfileNonRetryableException) as e:
         current_app.logger.exception(e)
         message = (
@@ -105,18 +141,6 @@ def lookup_contact_info(
         )
         check_and_queue_callback_task(notification)
         raise NotificationPermanentFailureException(message) from e
-    except CommunicationItemNotFoundException:
-        current_app.logger.info(
-            'Communication item for recipient %s not found on notification %s', va_profile_id, notification_id
-        )
-        reason = 'No recipient opt-in found for explicit preference'
-        handle_lack_of_permission(notification_id, notification, reason)
-    except CommunicationPermissionDenied:
-        current_app.logger.info(
-            'Permission denied for recipient %s for notification %s', va_profile_id, notification_id,
-        )
-        reason = 'Contact preferences set to false'
-        handle_lack_of_permission(notification_id, notification, reason)
 
     notification.to = recipient
     dao_update_notification(notification)
@@ -153,9 +177,7 @@ def get_communication_item_id_for_permission_check(notification_id: str, communi
 def handle_lack_of_permission(notification_id: str, notification, reason: str):
     # The recipient doesn't grant permission.  a.k.a. preferences-declined
 
-    update_notification_status_by_id(
-        notification_id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=reason
-    )
+    update_notification_status_by_id(notification_id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=reason)
     message = f'The recipient for notification {notification_id} has declined permission to receive notifications.'
     current_app.logger.info(message)
     check_and_queue_callback_task(notification)
