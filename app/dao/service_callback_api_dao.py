@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app
 from itsdangerous import BadSignature
@@ -88,3 +88,13 @@ def get_service_complaint_callback_api_for_service(service_id):
 @transactional
 def delete_service_callback_api(service_callback_api):
     db.session.delete(service_callback_api)
+
+
+@transactional
+@version_class(ServiceCallbackApi)
+def suspend_service_callback_api(service_callback_api, updated_by_id):
+    service_callback_api.is_suspended = True
+    service_callback_api.suspended_at = datetime.now(timezone.utc)
+    service_callback_api.updated_by_id = updated_by_id
+    service_callback_api.updated_at = datetime.now(timezone.utc)
+    db.session.add(service_callback_api)
