@@ -48,17 +48,25 @@ def lookup_contact_info(
 
     try:
         if EMAIL_TYPE == notification.notification_type:
-            if (is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
-                    and communication_item_id_for_permission_check is not None):
-                recipient = va_profile_client.get_email_with_permission(
-                    recipient_identifier, communication_item_id_for_permission_check)
+            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
+                if communication_item_id_for_permission_check is None:
+                    # bypass the permission check when communication item id is None
+                    recipient = va_profile_client.get_email_with_permission(
+                        recipient_identifier, communication_item_id_for_permission_check, True)
+                else:
+                    recipient = va_profile_client.get_email_with_permission(
+                        recipient_identifier, communication_item_id_for_permission_check)
             else:
                 recipient = va_profile_client.get_email(recipient_identifier)
         elif SMS_TYPE == notification.notification_type:
-            if (is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
-                    and communication_item_id_for_permission_check is not None):
-                recipient = va_profile_client.get_telephone_with_permission(
-                    recipient_identifier, communication_item_id_for_permission_check)
+            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
+                if communication_item_id_for_permission_check is None:
+                    # bypass the permission check when communication item id is None
+                    recipient = va_profile_client.get_telephone_with_permission(
+                        recipient_identifier, communication_item_id_for_permission_check, True)
+                else:
+                    recipient = va_profile_client.get_telephone_with_permission(
+                        recipient_identifier, communication_item_id_for_permission_check)
             else:
                 recipient = va_profile_client.get_telephone(recipient_identifier)
         else:

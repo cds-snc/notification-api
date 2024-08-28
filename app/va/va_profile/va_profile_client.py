@@ -148,7 +148,7 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_telephone_with_permission(self, va_profile_id: RecipientIdentifier) -> str:
+    def get_telephone_with_permission(self, va_profile_id: RecipientIdentifier, bypass_permission_check=False) -> str:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
 
@@ -162,9 +162,10 @@ class VAProfileClient:
             CommunicationPermissionDenied: If communication permission is denied for the given parameters
         """
         profile = self.get_profile(va_profile_id)
-        communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
-        if not communication_allowed:
-            raise CommunicationPermissionDenied
+        if not bypass_permission_check:
+            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
+            if not communication_allowed:
+                raise CommunicationPermissionDenied
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
@@ -189,7 +190,7 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_email_with_permission(self, va_profile_id: RecipientIdentifier) -> str:
+    def get_email_with_permission(self, va_profile_id: RecipientIdentifier, bypass_permission_check=False) -> str:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
 
@@ -203,9 +204,10 @@ class VAProfileClient:
             CommunicationPermissionDenied: If communication permission is denied for the given parameters
         """
         profile = self.get_profile(va_profile_id)
-        communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.EMAIL)
-        if not communication_allowed:
-            raise CommunicationPermissionDenied
+        if not bypass_permission_check:
+            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.EMAIL)
+            if not communication_allowed:
+                raise CommunicationPermissionDenied
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
