@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import newrelic.agent  # See https://bit.ly/2xBVKBH
-from aws_xray_sdk.core import xray_recorder, patch_all
+from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
 from flask import Flask
