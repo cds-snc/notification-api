@@ -4,8 +4,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.dao.service_callback_api_dao import (
     delete_service_callback_api,
     get_service_callback_api,
+    get_service_callback_api_with_service_id,
     reset_service_callback_api,
     save_service_callback_api,
+    suspend_unsuspend_service_callback_api,
 )
 from app.dao.service_inbound_api_dao import (
     delete_service_inbound_api,
@@ -127,6 +129,21 @@ def remove_service_callback_api(service_id, callback_api_id):
 
     delete_service_callback_api(callback_api)
     return "", 204
+
+
+@service_callback_blueprint.route("/delivery-receipt-api/suspend-callback", methods=["POST"])
+def suspend_callback_api(service_id):
+    data = request.get_json()
+    callback_api = get_service_callback_api_with_service_id(service_id)
+    if not callback_api:
+        error = "Service delivery receipt callback API not found"
+        raise InvalidRequest(error, status_code=404)
+
+    updated_by_id = data["updated_by_id"]
+    suspend_unsuspend = data["suspend_unsuspend"]
+
+    suspend_unsuspend_service_callback_api(callback_api[0], updated_by_id, suspend_unsuspend)
+    return "", 200
 
 
 def handle_sql_error(e, table_name):
