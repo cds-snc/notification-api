@@ -21,7 +21,7 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-xray_recorder.configure(service='api', context=NotifyContext())
+xray_recorder.configure(service='Notify', context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
