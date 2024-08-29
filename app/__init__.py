@@ -182,9 +182,9 @@ def register_blueprint(application):
     from app.authentication.auth import (
         requires_admin_auth,
         requires_auth,
+        requires_cache_clear_auth,
         requires_no_auth,
         requires_sre_auth,
-        requires_cache_clear_auth
     )
     from app.billing.rest import billing_blueprint
     from app.cache.rest import cache_blueprint
