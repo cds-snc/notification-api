@@ -1,10 +1,7 @@
-from collections import OrderedDict
-
 from flask import Blueprint, current_app, jsonify
 from notifications_utils.clients.redis.cache_keys import CACHE_KEYS_ALL
 
 from app import redis_store
-from app.dao.events_dao import dao_create_event
 from app.errors import register_errors
 from app.schemas import event_schema
 
