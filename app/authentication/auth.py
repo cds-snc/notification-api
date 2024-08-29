@@ -20,6 +20,7 @@ from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
 JWT_AUTH_TYPE = "jwt"
 API_KEY_V1_AUTH_TYPE = "api_key_v1"
+CACHE_CLEAR_V1_AUTH_TYPE = "cache_clear_v1"
 AUTH_TYPES = [
     (
         "Bearer",
@@ -34,6 +35,11 @@ AUTH_TYPES = [
         "the API secret generated for you by GC Notify. "
         "Learn more: https://documentation.notification.canada.ca/en/start.html#headers.",
     ),
+    (
+        "CacheClear-v1",
+        CACHE_CLEAR_V1_AUTH_TYPE,
+        "This is used internally by GC Notify to clear the redis cache after a deployment.",
+    )
 ]
 
 
@@ -107,6 +113,21 @@ def requires_sre_auth():
     else:
         raise AuthError("Unauthorized, sre authentication token required", 401)
 
+
+def requires_cache_clear_auth():
+    request_helper.check_proxy_header_before_request()
+
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type != JWT_AUTH_TYPE:
+        raise AuthError("Invalid scheme: can only use JWT for sre authentication", 401)
+    client = __get_token_issuer(auth_token)
+
+    if client == current_app.config.get("CACHE_CLEAR_USER_NAME"):
+        g.service_id = current_app.config.get("CACHE_CLEAR_USER_NAME")
+        return handle_admin_key(auth_token, current_app.config.get("CACHE_CLEAR_CLIENT_SECRET"))
+    else:
+        raise AuthError("Unauthorized, cache clear authentication token required", 401)
+    
 
 def requires_auth():
     request_helper.check_proxy_header_before_request()
