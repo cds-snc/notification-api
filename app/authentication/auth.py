@@ -39,7 +39,7 @@ AUTH_TYPES = [
         "CacheClear-v1",
         CACHE_CLEAR_V1_AUTH_TYPE,
         "This is used internally by GC Notify to clear the redis cache after a deployment.",
-    )
+    ),
 ]
 
 
@@ -127,7 +127,7 @@ def requires_cache_clear_auth():
         return handle_admin_key(auth_token, current_app.config.get("CACHE_CLEAR_CLIENT_SECRET"))
     else:
         raise AuthError("Unauthorized, cache clear authentication token required", 401)
-    
+
 
 def requires_auth():
     request_helper.check_proxy_header_before_request()

@@ -14,13 +14,10 @@ register_errors(cache_blueprint)
 
 @cache_blueprint.route("", methods=["POST"])
 def clear():
-    
     try:
         max(redis_store.delete_cache_keys_by_pattern(pattern) for pattern in CACHE_KEYS_ALL)
         return jsonify(result="ok"), 201
     except Exception as e:
         current_app.logger.error("Unable to clear the cache", exc_info=e)
-        
-        return jsonify({"error": "Unable to clear the cache"}), 500
 
-    
+        return jsonify({"error": "Unable to clear the cache"}), 500

@@ -272,6 +272,7 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
 
+
 def register_v2_blueprints(application):
     from app.authentication.auth import requires_auth
     from app.v2.inbound_sms.get_inbound_sms import (
