@@ -570,7 +570,10 @@ class Config(object):
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
-
+    # cache clear auth keys
+    CACHE_CLEAR_USER_NAME = "CACHE_CLEAR_USER"
+    CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
+    
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
         "List of config keys that contain sensitive information"
