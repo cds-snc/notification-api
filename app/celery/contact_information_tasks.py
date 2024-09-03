@@ -23,9 +23,9 @@ from requests import Timeout
 
 def get_recipient(notification_type, notification_id, recipient_identifier, communication_item_id_for_permission_check):
     if notification_type == EMAIL_TYPE:
-        return get_email_recipient(recipient_identifier, communication_item_id_for_permission_check)
+        return get_email_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check)
     elif notification_type == SMS_TYPE:
-        return get_sms_recipient(recipient_identifier, communication_item_id_for_permission_check)
+        return get_sms_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check)
     else:
         raise NotImplementedError(
             f'The task lookup_contact_info failed for notification {notification_id}. '
@@ -33,9 +33,10 @@ def get_recipient(notification_type, notification_id, recipient_identifier, comm
         )
 
 
-def get_email_recipient(recipient_identifier, communication_item_id_for_permission_check):
+def get_email_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check):
     if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
         if communication_item_id_for_permission_check is None:
+            current_app.logger.info('Bypassing permission check for %s', notification_id)
             return va_profile_client.get_email_with_permission(
                 recipient_identifier, communication_item_id_for_permission_check, True
             )
@@ -47,9 +48,10 @@ def get_email_recipient(recipient_identifier, communication_item_id_for_permissi
         return va_profile_client.get_email(recipient_identifier)
 
 
-def get_sms_recipient(recipient_identifier, communication_item_id_for_permission_check):
+def get_sms_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check):
     if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
         if communication_item_id_for_permission_check is None:
+            current_app.logger.info('Bypassing permission check for %s', notification_id)
             return va_profile_client.get_telephone_with_permission(
                 recipient_identifier, communication_item_id_for_permission_check, True
             )

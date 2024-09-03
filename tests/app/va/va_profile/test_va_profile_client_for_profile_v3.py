@@ -84,6 +84,19 @@ class TestVAProfileClient:
         assert email == mock_response['profile']['contactInformation']['emails'][0]['emailAddressText']
         assert rmock.called
 
+    def test_ut_get_email_calls_endpoint_and_returns_email_address_with_permission_bypassed(
+        self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker
+    ):
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+
+        rmock.post(url, json=mock_response, status_code=200)
+
+        email = mock_va_profile_client.get_email_with_permission(recipient_identifier, True)
+
+        assert email == mock_response['profile']['contactInformation']['emails'][0]['emailAddressText']
+        assert rmock.called
+
     def test_ut_get_email_raises_NoContactInfoException_if_no_emails_exist(
         self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker
     ):
@@ -145,6 +158,19 @@ class TestVAProfileClient:
         rmock.post(url, json=mock_response, status_code=200)
 
         telephone = mock_va_profile_client.get_telephone_with_permission(recipient_identifier)
+
+        assert telephone is not None
+        assert rmock.called
+
+    def test_ut_get_telephone_calls_endpoint_and_returns_phone_number_with_permission_bypassed(
+        self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker
+    ):
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+
+        rmock.post(url, json=mock_response, status_code=200)
+
+        telephone = mock_va_profile_client.get_telephone_with_permission(recipient_identifier, True)
 
         assert telephone is not None
         assert rmock.called
