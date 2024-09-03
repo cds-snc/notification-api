@@ -872,6 +872,7 @@ class ServiceCallbackApi(BaseModel, Versioned):
     updated_by = db.relationship("User")
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
     is_suspended = db.Column(db.Boolean, nullable=True, default=False)
+    # If is_suspended is False and suspended_at is not None, then the callback was suspended and then unsuspended
     suspended_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("service_id", "callback_type", name="uix_service_callback_type"),)
