@@ -143,7 +143,7 @@ def suspend_callback_api(service_id):
     suspend_unsuspend = data["suspend_unsuspend"]
 
     suspend_unsuspend_service_callback_api(callback_api[0], updated_by_id, suspend_unsuspend)
-    return jsonify(data=callback_api[0].serialize()), 201
+    return jsonify(data=callback_api[0].serialize()), 200
 
 
 def handle_sql_error(e, table_name):
