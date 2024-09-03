@@ -37,13 +37,9 @@ def get_email_recipient(notification_id, recipient_identifier, communication_ite
     if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
         if communication_item_id_for_permission_check is None:
             current_app.logger.info('Bypassing permission check for %s', notification_id)
-            return va_profile_client.get_email_with_permission(
-                recipient_identifier, communication_item_id_for_permission_check, True
-            )
+            return va_profile_client.get_email_with_permission(recipient_identifier, True)
         else:
-            return va_profile_client.get_email_with_permission(
-                recipient_identifier, communication_item_id_for_permission_check
-            )
+            return va_profile_client.get_email_with_permission(recipient_identifier)
     else:
         return va_profile_client.get_email(recipient_identifier)
 
@@ -52,13 +48,9 @@ def get_sms_recipient(notification_id, recipient_identifier, communication_item_
     if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
         if communication_item_id_for_permission_check is None:
             current_app.logger.info('Bypassing permission check for %s', notification_id)
-            return va_profile_client.get_telephone_with_permission(
-                recipient_identifier, communication_item_id_for_permission_check, True
-            )
+            return va_profile_client.get_telephone_with_permission(recipient_identifier, True)
         else:
-            return va_profile_client.get_telephone_with_permission(
-                recipient_identifier, communication_item_id_for_permission_check
-            )
+            return va_profile_client.get_telephone_with_permission(recipient_identifier)
     else:
         return va_profile_client.get_telephone(recipient_identifier)
 

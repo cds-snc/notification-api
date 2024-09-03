@@ -64,7 +64,7 @@ def test_should_get_email_address_and_update_notification(
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -93,7 +93,7 @@ def test_should_get_phone_number_and_update_notification(client, mocker, sample_
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -129,7 +129,7 @@ def test_should_get_email_address_and_update_notification_with_no_communication_
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY, True)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, True)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -161,7 +161,7 @@ def test_should_get_phone_number_and_update_notification_with_no_communication_i
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, mocker.ANY, True)
+    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, True)
     recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -199,7 +199,7 @@ def test_should_not_retry_on_non_retryable_exception(
     with pytest.raises(NotificationPermanentFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -231,7 +231,7 @@ def test_should_retry_on_retryable_exception(
     with pytest.raises(AutoRetryException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -269,10 +269,10 @@ def test_lookup_contact_info_should_retry_on_timeout(
     assert str(exc_info.value.args[1]) == 'Request timed out'
 
     if notification_type == SMS_TYPE:
-        mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+        mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY)
         recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
     else:
-        mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+        mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
         recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
 
     assert isinstance(recipient_identifier, RecipientIdentifier)
@@ -303,7 +303,7 @@ def test_should_update_notification_to_technical_failure_on_max_retries(
     with pytest.raises(NotificationTechnicalFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -340,7 +340,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     with pytest.raises(NotificationPermanentFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, mocker.ANY)
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY)
     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
