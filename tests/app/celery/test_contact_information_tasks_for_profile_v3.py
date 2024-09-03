@@ -137,7 +137,9 @@ def test_should_get_email_address_and_update_notification_with_no_communication_
     assert notification.to == 'test@test.org'
 
 
-def test_should_get_phone_number_and_update_notification_with_no_communication_item(client, mocker, sample_notification, mock_communication_item):
+def test_should_get_phone_number_and_update_notification_with_no_communication_item(
+    client, mocker, sample_notification, mock_communication_item
+):
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
 
@@ -167,6 +169,7 @@ def test_should_get_phone_number_and_update_notification_with_no_communication_i
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
     mocked_update_notification.assert_called_with(notification)
     assert notification.to == '+15555555555'
+
 
 def test_should_not_retry_on_non_retryable_exception(
     client, mocker, sample_template, sample_notification, mock_communication_item
