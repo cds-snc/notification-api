@@ -3,7 +3,6 @@ import sys
 import traceback
 
 workers = 4
-worker_class = 'eventlet'
 worker_connections = 256
 bind = '0.0.0.0:{}'.format(os.getenv('PORT'))
 accesslog = '-'
