@@ -17,7 +17,7 @@ cachelib = "*"
 cachetools = "*"
 celery = {extras = ["sqs"], version = "*"}
 click-datetime = "*"
-ddtrace = "1.18.2"
+ddtrace = "2.0.0"
 docopt = "*"
 fido2 = "*"
 Flask = "*"
