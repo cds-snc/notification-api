@@ -37,7 +37,7 @@ def xray_before_task_publish(
                 "xray-celery: Failed to create a X-Ray subsegment on task publish", extra={"celery": {"task_id": task_id}}
             )
     else:
-        logger.warn("xray-celery: No parent segment found for task {task_id} when trying to create subsegment", task_id)
+        logger.warn(f"xray-celery: No parent segment found for task {task_id} when trying to create subsegment")
 
 
 def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=None, **kwargs):
