@@ -47,9 +47,7 @@ def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=
     if xray_recorder.current_subsegment():
         xray_recorder.end_subsegment()
     else:
-        logger.warn(
-            f"xray-celery: Skipping subsegment closing after publish as no subsegment was found: {headers}"
-        )
+        logger.warn(f"xray-celery: Skipping subsegment closing after publish as no subsegment was found: {headers}")
 
 
 def xray_task_prerun(task_id=None, task=None, args=None, **kwargs):
