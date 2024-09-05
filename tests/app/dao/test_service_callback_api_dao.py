@@ -11,7 +11,7 @@ from app.dao.service_callback_api_dao import (
     reset_service_callback_api,
     resign_service_callbacks,
     save_service_callback_api,
-    suspend_service_callback_api,
+    suspend_unsuspend_service_callback_api,
 )
 from app.models import ServiceCallbackApi
 from tests.app.db import create_service_callback_api
@@ -238,9 +238,10 @@ class TestSuspendedServiceCallback:
         assert len(results) == 1
         saved_callback_api = results[0]
 
-        suspend_service_callback_api(
+        suspend_unsuspend_service_callback_api(
             saved_callback_api,
             updated_by_id=sample_service.users[0].id,
+            suspend=True,
         )
         updated_results = ServiceCallbackApi.query.all()
         assert len(updated_results) == 1

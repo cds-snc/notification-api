@@ -73,15 +73,20 @@ def reset_service_callback_api(service_callback_api, updated_by_id, url=None, be
     db.session.add(service_callback_api)
 
 
-def get_service_callback_api(service_callback_api_id, service_id):
+def get_service_callback_api_with_service_id(service_id) -> ServiceCallbackApi:
+    # There is ONLY one callback configured per service
+    return ServiceCallbackApi.query.filter_by(service_id=service_id).all()
+
+
+def get_service_callback_api(service_callback_api_id, service_id) -> ServiceCallbackApi:
     return ServiceCallbackApi.query.filter_by(id=service_callback_api_id, service_id=service_id).first()
 
 
-def get_service_delivery_status_callback_api_for_service(service_id):
+def get_service_delivery_status_callback_api_for_service(service_id) -> ServiceCallbackApi:
     return ServiceCallbackApi.query.filter_by(service_id=service_id, callback_type=DELIVERY_STATUS_CALLBACK_TYPE).first()
 
 
-def get_service_complaint_callback_api_for_service(service_id):
+def get_service_complaint_callback_api_for_service(service_id) -> ServiceCallbackApi:
     return ServiceCallbackApi.query.filter_by(service_id=service_id, callback_type=COMPLAINT_CALLBACK_TYPE).first()
 
 
@@ -92,8 +97,8 @@ def delete_service_callback_api(service_callback_api):
 
 @transactional
 @version_class(ServiceCallbackApi)
-def suspend_service_callback_api(service_callback_api, updated_by_id):
-    service_callback_api.is_suspended = True
+def suspend_unsuspend_service_callback_api(service_callback_api, updated_by_id, suspend=False):
+    service_callback_api.is_suspended = suspend
     service_callback_api.suspended_at = datetime.now(timezone.utc)
     service_callback_api.updated_by_id = updated_by_id
     service_callback_api.updated_at = datetime.now(timezone.utc)
