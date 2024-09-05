@@ -32,6 +32,7 @@ We do not need what to write showing up in tickets though, so please do not unco
 <!--_**Required**_
 - e.g. when I send an email using an identifier, we retrieve the user’s email address in VA Profile and successfully deliver the email to that recipient-->
 
+- [ ] This work is added to the sprint review slide deck (key win bullet point and demo slide)
 
 ## QA Considerations
 <!--
