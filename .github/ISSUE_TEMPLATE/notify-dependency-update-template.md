@@ -43,6 +43,8 @@ We wish to keep dependencies up to date so that we do not need such massive over
 
 Repo dependencies are updated and we have no broken functionality. Issues opened by Dependabot are resolved. Tickets with the "tech debt" label created for any updates we could, or should, not do.
 
+- [ ] This work is added to the sprint review slide deck (key win bullet point and demo slide)
+
 ## QA Considerations
 
 - [ ] Affected Dependabot PRs are closed after merge (may need to rebase them using dependabot command)

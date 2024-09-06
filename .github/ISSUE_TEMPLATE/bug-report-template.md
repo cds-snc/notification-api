@@ -15,6 +15,7 @@ We do not need what to write showing up in tickets though, so please do not unco
 ## Description
 
 - [ ] Ticket is understood, and QA has been contacted (if the ticket has a QA label).
+- [ ] This work is added to the sprint review slide deck (key win bullet point and demo slide)
 
 <!--_**Required.** Describe the problem._-->
 
@@ -36,10 +37,9 @@ Is there something we can do to work around this issue in the meantime?
 
 - [ ] 
 
-<!--
+
 ## QA Considerations
-_For QA to populate. Leave blank if QA is not applicable on this ticket._
--->
+<!-- Populate with relevant info for QA. Leave blank if QA is not applicable on this ticket. -->
 
 ## Additional Info & Resources
 <!--Always attempt to include additional information.  This could include screenshots, log snippets, links to applicable code files, and/or articles/websites that have relevant info on the issue. Leave blank if n/a.-->

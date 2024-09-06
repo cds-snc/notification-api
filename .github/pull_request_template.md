@@ -9,17 +9,6 @@ Please include a summary of the change and which issue is fixed. Please also inc
 
 issue #(issue)
 
-## Type of change
-
-Please check the relevant option(s).
-
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] Hotfix (quick fix for an urgent bug or issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] This change requires a documentation update
-- [ ] Documentation changes only
-
 ## How Has This Been Tested?
 <!--
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration
@@ -45,5 +34,4 @@ Please provide relevant information and / or links to demonstrate the functional
 - [ ] I have ensured the latest main is merged into my branch and all checks are green prior to review
 - [ ] New and existing unit tests pass locally with my changes
 - [ ] Any dependent changes have been merged and published in downstream modules
-- [ ] The ticket is now moved into the DEV test column
-- [ ] I have added a bullet for this work to the Engineering Key Wins slide for review
+- [ ] The ticket was moved into the DEV test column when I began testing this change
