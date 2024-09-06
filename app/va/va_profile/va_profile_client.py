@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 from http.client import responses
 from typing import TYPE_CHECKING, Dict, List
@@ -10,7 +11,6 @@ from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import NoContactInfoException, VAProfileNonRetryableException, VAProfileRetryableException
 from app.va.va_profile.exceptions import (
     CommunicationItemNotFoundException,
-    CommunicationPermissionDenied,
     VAProfileIDNotFoundException,
 )
 
@@ -47,6 +47,13 @@ class PhoneNumberType(Enum):
     @staticmethod
     def valid_type_values() -> list[str]:
         return [PhoneNumberType.MOBILE.value, PhoneNumberType.HOME.value]
+
+
+@dataclass
+class VAProfileResult:
+    recipient: str
+    communication_allowed: bool
+    permission_message: str | None
 
 
 class VAProfileClient:
@@ -151,7 +158,9 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_telephone_with_permission(self, va_profile_id: RecipientIdentifier, bypass_permission_check=False) -> str:
+    def get_telephone_with_permission(
+        self, va_profile_id: RecipientIdentifier, bypass_permission_check=False
+    ) -> VAProfileResult:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
 
@@ -159,16 +168,22 @@ class VAProfileClient:
             va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the telephone number for.
 
         Returns:
-            str: The telephone number retrieved from the VA Profile service.
-
-        Raises:
-            CommunicationPermissionDenied: If communication permission is denied for the given parameters
+            VAProfileResults: The result data.
+            Property recipient is the telephone number retrieved from the VA Profile service.
+            Property communication_allowed is true when VA Profile service indicates that the recipient has allowed communication.
+            Property permission_message may contain an error message if the permission check encountered an exception.
         """
         profile = self.get_profile(va_profile_id)
+        communication_allowed = True
+        permission_message = None
         if not bypass_permission_check:
-            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
-            if not communication_allowed:
-                raise CommunicationPermissionDenied
+            try:
+                communication_allowed = self.get_is_communication_allowed_from_profile(
+                    profile, CommunicationChannel.TEXT
+                )
+            except CommunicationItemNotFoundException:
+                self.logger.info('Communication item for recipient %s not found', va_profile_id)
+                permission_message = 'No recipient opt-in found for explicit preference'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
@@ -188,12 +203,15 @@ class VAProfileClient:
                 and sorted_telephones[0].get('phoneNumber')
             ):
                 self.statsd_client.incr('clients.va-profile.get-telephone.success')
-            return f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
+            telephone_result = f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
+            return VAProfileResult(telephone_result, communication_allowed, permission_message)
 
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def get_email_with_permission(self, va_profile_id: RecipientIdentifier, bypass_permission_check=False) -> str:
+    def get_email_with_permission(
+        self, va_profile_id: RecipientIdentifier, bypass_permission_check=False
+    ) -> VAProfileResult:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
 
@@ -201,16 +219,22 @@ class VAProfileClient:
             va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the email address for.
 
         Returns:
-            str: The email address retrieved from the VA Profile service.
-
-        Raises:
-            CommunicationPermissionDenied: If communication permission is denied for the given parameters
+            VAProfileResults: The result data.
+            Property recipient is the telephone number retrieved from the VA Profile service.
+            Property communication_allowed is true when VA Profile service indicates that the recipient has allowed communication.
+            Property permission_message may contain an error message if the permission check encountered an exception.
         """
         profile = self.get_profile(va_profile_id)
+        communication_allowed = True
+        permission_message = None
         if not bypass_permission_check:
-            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.EMAIL)
-            if not communication_allowed:
-                raise CommunicationPermissionDenied
+            try:
+                communication_allowed = self.get_is_communication_allowed_from_profile(
+                    profile, CommunicationChannel.EMAIL
+                )
+            except CommunicationItemNotFoundException:
+                self.logger.info('Communication item for recipient %s not found', va_profile_id)
+                permission_message = 'No recipient opt-in found for explicit preference'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
@@ -220,7 +244,8 @@ class VAProfileClient:
         )
         if sorted_emails:
             self.statsd_client.incr('clients.va-profile.get-email.success')
-            return sorted_emails[0].get('emailAddressText')
+            email_result = sorted_emails[0].get('emailAddressText')
+            return VAProfileResult(email_result, communication_allowed, permission_message)
 
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))

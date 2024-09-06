@@ -18,6 +18,7 @@ from app.va.va_profile import (
     VAProfileClient,
     VAProfileNonRetryableException,
     VAProfileRetryableException,
+    VAProfileResult,
 )
 from requests import Timeout
 from sqlalchemy.orm.exc import NoResultFound
@@ -56,7 +57,9 @@ def test_should_get_email_address_and_update_notification(
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email_with_permission = mocker.Mock(return_value='test@test.org')
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(
+        return_value=VAProfileResult('test@test.org', True, None)
+    )
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
@@ -85,7 +88,9 @@ def test_should_get_phone_number_and_update_notification(client, mocker, sample_
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(return_value='+15555555555')
+    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(
+        return_value=VAProfileResult('+15555555555', True, None)
+    )
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
@@ -118,7 +123,9 @@ def test_should_get_email_address_and_update_notification_with_no_communication_
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email_with_permission = mocker.Mock(return_value='test@test.org')
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(
+        return_value=VAProfileResult('test@test.org', True, None)
+    )
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
@@ -152,7 +159,9 @@ def test_should_get_phone_number_and_update_notification_with_no_communication_i
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(return_value='+15555555555')
+    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(
+        return_value=VAProfileResult('+15555555555', True, None)
+    )
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')

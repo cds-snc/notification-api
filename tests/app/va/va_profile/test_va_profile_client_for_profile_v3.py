@@ -79,7 +79,8 @@ class TestVAProfileClient:
 
         rmock.post(url, json=mock_response, status_code=200)
 
-        email = mock_va_profile_client.get_email_with_permission(recipient_identifier)
+        result = mock_va_profile_client.get_email_with_permission(recipient_identifier)
+        email = result.recipient
 
         assert email == mock_response['profile']['contactInformation']['emails'][0]['emailAddressText']
         assert rmock.called
@@ -92,7 +93,8 @@ class TestVAProfileClient:
 
         rmock.post(url, json=mock_response, status_code=200)
 
-        email = mock_va_profile_client.get_email_with_permission(recipient_identifier, True)
+        result = mock_va_profile_client.get_email_with_permission(recipient_identifier, True)
+        email = result.recipient
 
         assert email == mock_response['profile']['contactInformation']['emails'][0]['emailAddressText']
         assert rmock.called
@@ -157,7 +159,8 @@ class TestVAProfileClient:
 
         rmock.post(url, json=mock_response, status_code=200)
 
-        telephone = mock_va_profile_client.get_telephone_with_permission(recipient_identifier)
+        result = mock_va_profile_client.get_telephone_with_permission(recipient_identifier)
+        telephone = result.recipient
 
         assert telephone is not None
         assert rmock.called
@@ -170,7 +173,8 @@ class TestVAProfileClient:
 
         rmock.post(url, json=mock_response, status_code=200)
 
-        telephone = mock_va_profile_client.get_telephone_with_permission(recipient_identifier, True)
+        result = mock_va_profile_client.get_telephone_with_permission(recipient_identifier, True)
+        telephone = result.recipient
 
         assert telephone is not None
         assert rmock.called
