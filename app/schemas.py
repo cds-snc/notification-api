@@ -267,6 +267,7 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
+    sensitive_service = field_for(models.Service, "sensitive_service")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -317,14 +318,14 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
 
     @pre_load()
     def format_for_data_model(self, in_data, **kwargs):
-        if isinstance(in_data, dict) and "permissions" in in_data:
-            str_permissions = in_data["permissions"]
-            permissions = []
-            for p in str_permissions:
-                permission = ServicePermission(service_id=in_data["id"], permission=p)
-                permissions.append(permission)
-
-            in_data["permissions"] = permissions
+        if isinstance(in_data, dict):
+            if "permissions" in in_data:
+                str_permissions = in_data["permissions"]
+                permissions = []
+                for p in str_permissions:
+                    permission = ServicePermission(service_id=in_data["id"], permission=p)
+                    permissions.append(permission)
+                in_data["permissions"] = permissions
         return in_data
 
 
@@ -380,6 +381,10 @@ class NotificationModelSchema(BaseSchema):
 class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    process_type_column = fields.Method("get_hybrid_process_type")
+
+    def get_hybrid_process_type(self, template):
+        return template.process_type_column
 
     def get_reply_to(self, template):
         return template.reply_to
@@ -772,6 +777,7 @@ class ServiceHistorySchema(Schema):
     email_from = fields.String()
     created_by_id = fields.UUID()
     version = fields.Integer()
+    sensitive_service = fields.Boolean()
 
 
 class ApiKeyHistorySchema(Schema):

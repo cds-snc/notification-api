@@ -13,6 +13,7 @@ from app.authentication.auth import (
     AuthError,
     requires_admin_auth,
     requires_auth,
+    requires_cache_clear_auth,
 )
 from app.dao.api_key_dao import (
     expire_api_key,
@@ -24,7 +25,7 @@ from app.models import KEY_TYPE_NORMAL, ApiKey
 from tests.conftest import set_config, set_config_values
 
 
-@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth, requires_cache_clear_auth])
 def test_should_not_allow_request_with_no_token(client, auth_fn):
     request.headers = {}
     with pytest.raises(AuthError) as exc:
@@ -32,7 +33,7 @@ def test_should_not_allow_request_with_no_token(client, auth_fn):
     assert exc.value.short_message == "Unauthorized, authentication token must be provided"
 
 
-@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth, requires_cache_clear_auth])
 def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
     request.headers = {"Authorization": "Basic 1234"}
     with pytest.raises(AuthError) as exc:
@@ -43,10 +44,11 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
         + "GC Notify supports the following authentication methods. "
         + f"{AUTH_TYPES[0][0]}: {AUTH_TYPES[0][2]}"
         + f", {AUTH_TYPES[1][0]}: {AUTH_TYPES[1][2]}"
+        + f", {AUTH_TYPES[2][0]}: {AUTH_TYPES[2][2]}"
     )
 
 
-@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth, requires_cache_clear_auth])
 def test_should_not_allow_request_with_incorrect_token(client, auth_fn):
     request.headers = {"Authorization": "Bearer 1234"}
     with pytest.raises(AuthError) as exc:
@@ -54,7 +56,7 @@ def test_should_not_allow_request_with_incorrect_token(client, auth_fn):
     assert exc.value.short_message == "Invalid token: signature, api token is not valid"
 
 
-@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth])
+@pytest.mark.parametrize("auth_fn", [requires_auth, requires_admin_auth, requires_cache_clear_auth])
 def test_should_not_allow_request_with_no_iss(client, auth_fn):
     # code copied from notifications_python_client.authentication.py::create_jwt_token
     headers = {"typ": "JWT", "alg": "HS256"}

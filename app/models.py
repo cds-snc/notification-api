@@ -562,7 +562,7 @@ class Service(BaseModel, Versioned):
     go_live_at = db.Column(db.DateTime, nullable=True)
     sending_domain = db.Column(db.String(255), nullable=True, unique=False)
     organisation_notes = db.Column(db.String(255), nullable=True, unique=False)
-
+    sensitive_service = db.Column(db.Boolean, nullable=True)
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
 
@@ -871,6 +871,9 @@ class ServiceCallbackApi(BaseModel, Versioned):
     updated_at = db.Column(db.DateTime, nullable=True)
     updated_by = db.relationship("User")
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    is_suspended = db.Column(db.Boolean, nullable=True, default=False)
+    # If is_suspended is False and suspended_at is not None, then the callback was suspended and then unsuspended
+    suspended_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("service_id", "callback_type", name="uix_service_callback_type"),)
 
@@ -893,6 +896,8 @@ class ServiceCallbackApi(BaseModel, Versioned):
             "updated_by_id": str(self.updated_by_id),
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            "is_suspended": self.is_suspended,
+            "suspended_at": self.suspended_at.strftime(DATETIME_FORMAT) if self.suspended_at else None,
         }
 
 

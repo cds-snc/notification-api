@@ -74,6 +74,7 @@ from app.dao.services_dao import (
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
     dao_fetch_service_creator,
+    dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
     dao_remove_user_from_service,
@@ -1047,6 +1048,12 @@ def modify_service_data_retention(service_id, data_retention_id):
         )
 
     return "", 204
+
+
+@service_blueprint.route("/sensitive-service-ids", methods=["GET"])
+def get_sensitive_service_ids():
+    data = dao_fetch_service_ids_of_sensitive_services()
+    return jsonify(data=data), 200
 
 
 @service_blueprint.route("/monthly-data-by-service")
