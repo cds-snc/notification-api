@@ -15,7 +15,13 @@ from app.va.va_profile import (
 )
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
-from app.models import NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PREFERENCES_DECLINED, EMAIL_TYPE, SMS_TYPE
+from app.models import (
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    EMAIL_TYPE,
+    SMS_TYPE,
+    RecipientIdentifier,
+)
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.va.va_profile.exceptions import (
     VAProfileIDNotFoundException,
@@ -25,11 +31,22 @@ from notifications_utils.statsd_decorators import statsd
 from requests import Timeout
 
 
-def get_recipient(notification_type, notification_id, recipient_identifier, communication_item_id_for_permission_check):
+def get_recipient(notification_type: str, notification_id: str, recipient_identifier: RecipientIdentifier) -> str:
+    """
+    Retrieve the recipient email or phone number.
+
+    Args:
+        notification_type (str): The type of recipient info requested.
+        notification_id (str): The notification ID associated with this request.
+        recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+
+    Returns:
+        str: The recipient email or phone number.
+    """
     if notification_type == EMAIL_TYPE:
-        return get_email_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check)
+        return va_profile_client.get_email(recipient_identifier)
     elif notification_type == SMS_TYPE:
-        return get_sms_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check)
+        return va_profile_client.get_telephone(recipient_identifier)
     else:
         raise NotImplementedError(
             f'The task lookup_contact_info failed for notification {notification_id}. '
@@ -38,8 +55,23 @@ def get_recipient(notification_type, notification_id, recipient_identifier, comm
 
 
 def get_result(
-    notification_type, notification_id, recipient_identifier, communication_item_id_for_permission_check
+    notification_type: str,
+    notification_id: str,
+    recipient_identifier: RecipientIdentifier,
+    communication_item_id_for_permission_check: str | None,
 ) -> VAProfileResult:
+    """
+    Retrieve the result of looking up contact info from VA Profile.
+
+    Args:
+        notification_type (str): The type of contact info requested.
+        notification_id (str): The notification ID associated with this request.
+        recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+        communication_item_id_for_permission_check (str): The communication_item_id to use for checking permissions.
+
+    Returns:
+        VAProfileResult: The contact info result from VA Profile.
+    """
     if notification_type == EMAIL_TYPE:
         return get_email_result(notification_id, recipient_identifier, communication_item_id_for_permission_check)
     elif notification_type == SMS_TYPE:
@@ -51,13 +83,22 @@ def get_result(
         )
 
 
-def get_email_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check):
-    return va_profile_client.get_email(recipient_identifier)
-
-
 def get_email_result(
-    notification_id, recipient_identifier, communication_item_id_for_permission_check
+    notification_id: str,
+    recipient_identifier: RecipientIdentifier,
+    communication_item_id_for_permission_check: str | None,
 ) -> VAProfileResult:
+    """
+    Retrieve the result of looking up email from VA Profile.
+
+    Args:
+        notification_id (str): The notification ID associated with this request.
+        recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+        communication_item_id_for_permission_check (str): The communication_item_id to use for checking permissions.
+
+    Returns:
+        VAProfileResult: The email result from VA Profile.
+    """
     if communication_item_id_for_permission_check is None:
         current_app.logger.info('Bypassing permission check for %s', notification_id)
         return va_profile_client.get_email_with_permission(recipient_identifier, True)
@@ -65,13 +106,22 @@ def get_email_result(
         return va_profile_client.get_email_with_permission(recipient_identifier)
 
 
-def get_sms_recipient(notification_id, recipient_identifier, communication_item_id_for_permission_check):
-    return va_profile_client.get_telephone(recipient_identifier)
-
-
 def get_sms_result(
-    notification_id, recipient_identifier, communication_item_id_for_permission_check
+    notification_id: str,
+    recipient_identifier: RecipientIdentifier,
+    communication_item_id_for_permission_check: str | None,
 ) -> VAProfileResult:
+    """
+    Retrieve the result of looking up SMS info from VA Profile.
+
+    Args:
+        notification_id (str): The notification ID associated with this request.
+        recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+        communication_item_id_for_permission_check (str): The communication_item_id to use for checking permissions.
+
+    Returns:
+        VAProfileResult: The SMS result from VA Profile.
+    """
     if communication_item_id_for_permission_check is None:
         current_app.logger.info('Bypassing permission check for %s', notification_id)
         return va_profile_client.get_telephone_with_permission(recipient_identifier, True)
@@ -123,7 +173,6 @@ def lookup_contact_info(
                 notification.notification_type,
                 notification_id,
                 recipient_identifier,
-                communication_item_id_for_permission_check,
             )
     except (Timeout, VAProfileRetryableException) as e:
         if can_retry(self.request.retries, self.max_retries, notification_id):
