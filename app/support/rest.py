@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+from uuid import UUID
+
+from flask import Blueprint, Response, jsonify
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.jobs_dao import dao_get_job_by_id
@@ -12,7 +14,7 @@ support_blueprint = Blueprint("support", __name__)
 register_errors(support_blueprint)
 
 
-def notification_query(id):
+def notification_query(id: UUID) -> dict | None:
     try:
         notification = get_notification_by_id(id)
         if notification:
@@ -31,10 +33,11 @@ def notification_query(id):
                 "api_key_id": notification.api_key_id,
             }
     except NoResultFound:
-        pass
+        return None
+    return None
 
 
-def template_query(id):
+def template_query(id: UUID) -> dict | None:
     try:
         template = dao_get_template_by_id(id)
         if template:
@@ -46,19 +49,21 @@ def template_query(id):
                 "service_name": template.service.name,
             }
     except NoResultFound:
-        pass
+        return None
+    return None
 
 
-def service_query(id):
+def service_query(id: UUID) -> dict | None:
     try:
         service = dao_fetch_service_by_id(id)
         if service:
             return {"type": "service", "id": service.id, "name": service.name}
     except NoResultFound:
-        pass
+        return None
+    return None
 
 
-def job_query(id):
+def job_query(id: UUID) -> dict | None:
     try:
         job = dao_get_job_by_id(id)
         if job:
@@ -77,10 +82,11 @@ def job_query(id):
                 "service_name": job.service.name,
             }
     except NoResultFound:
-        pass
+        return None
+    return None
 
 
-def user_query(id):
+def user_query(id: UUID) -> dict | None:
     try:
         user = get_user_by_id(id)
         if user:
@@ -89,13 +95,13 @@ def user_query(id):
                 "id": user.id,
                 "name": user.name,
             }
-
     except NoResultFound:
-        pass
+        return None
+    return None
 
 
 @support_blueprint.route("/<uuid:id>", methods=["GET"])
-def query_id(id):
+def query_id(id: UUID) -> Response:
     for query_func in [user_query, service_query, template_query, job_query, notification_query]:
         results = query_func(id)
         if results:
