@@ -73,7 +73,7 @@ greenlet = "2.0.2"
 simple-salesforce = "^1.12.3"
 
 # Pinned dependencies
-certifi = "^2023.7.22" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
+certifi = "^2024.0.0" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 flask-marshmallow = "0.14.0"
 aws-xray-sdk = "2.14.0"
