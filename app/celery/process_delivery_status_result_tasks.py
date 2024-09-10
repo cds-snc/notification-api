@@ -75,7 +75,11 @@ def process_delivery_status(
     )
 
     if should_exit:
-        current_app.logger.critical(event)
+        current_app.logger.warning(
+            'Updating notification: %s resulted in should_exit - event: %s',
+            notification.id if notification is not None else f'{reference} (aws ref)',
+            event,
+        )
         return False
 
     try:
