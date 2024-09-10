@@ -31,7 +31,11 @@ from sqlalchemy.orm.exc import NoResultFound
 from typing import Optional
 
 
-def get_recipient(notification_type: str, notification_id: str, recipient_identifier: RecipientIdentifier) -> str:
+def get_recipient(
+    notification_type: str,
+    notification_id: str,
+    recipient_identifier: RecipientIdentifier,
+) -> str:
     """
     Retrieve the recipient email or phone number.
 
@@ -223,7 +227,10 @@ def lookup_contact_info(
             handle_lack_of_permission(notification_id, notification, reason)
 
 
-def get_communication_item_id_for_permission_check(notification_id: str, communication_item_id: str) -> Optional[str]:
+def get_communication_item_id_for_permission_check(
+    notification_id: str,
+    communication_item_id: str,
+) -> Optional[str]:
     """
     Return None if we should send regardless of communication permissions.
     Otherwise, return the communication_item_id for the permissions check.

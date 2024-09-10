@@ -159,7 +159,9 @@ class VAProfileClient:
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
     def get_telephone_with_permission(
-        self, va_profile_id: RecipientIdentifier, bypass_permission_check=False
+        self,
+        va_profile_id: RecipientIdentifier,
+        bypass_permission_check=False,
     ) -> VAProfileResult:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
@@ -210,7 +212,9 @@ class VAProfileClient:
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
     def get_email_with_permission(
-        self, va_profile_id: RecipientIdentifier, bypass_permission_check=False
+        self,
+        va_profile_id: RecipientIdentifier,
+        bypass_permission_check=False,
     ) -> VAProfileResult:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
