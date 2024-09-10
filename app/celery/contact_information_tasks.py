@@ -1,20 +1,11 @@
-from typing import Optional
-from sqlalchemy.orm.exc import NoResultFound
-from flask import current_app
 from app import notify_celery, va_profile_client
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
-from app.feature_flags import FeatureFlag, is_feature_enabled
-from app.va.identifier import IdentifierType
-from app.va.va_profile import (
-    VAProfileRetryableException,
-    VAProfileNonRetryableException,
-    NoContactInfoException,
-    VAProfileResult,
-)
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.notifications_dao import get_notification_by_id, dao_update_notification, update_notification_status_by_id
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_PREFERENCES_DECLINED,
@@ -22,13 +13,22 @@ from app.models import (
     SMS_TYPE,
     RecipientIdentifier,
 )
-from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.va.identifier import IdentifierType
+from app.va.va_profile import (
+    VAProfileRetryableException,
+    VAProfileNonRetryableException,
+    NoContactInfoException,
+    VAProfileResult,
+)
 from app.va.va_profile.exceptions import (
     VAProfileIDNotFoundException,
     CommunicationItemNotFoundException,
 )
+from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from requests import Timeout
+from sqlalchemy.orm.exc import NoResultFound
+from typing import Optional
 
 
 def get_recipient(notification_type: str, notification_id: str, recipient_identifier: RecipientIdentifier) -> str:
