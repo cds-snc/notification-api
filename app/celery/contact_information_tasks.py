@@ -58,7 +58,7 @@ def get_recipient(
         )
 
 
-def get_result(
+def get_profile_result(
     notification_type: str,
     notification_id: str,
     recipient_identifier: RecipientIdentifier,
@@ -163,7 +163,7 @@ def lookup_contact_info(
 
     try:
         if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-            result = get_result(
+            result = get_profile_result(
                 notification.notification_type,
                 notification_id,
                 recipient_identifier,
