@@ -172,12 +172,11 @@ def send_notification_to_queue(
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
                 tasks.append(lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
 
-            if not is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-                tasks.append(
-                    lookup_recipient_communication_permissions.si(str(notification.id)).set(
-                        queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-                    )
+            tasks.append(
+                lookup_recipient_communication_permissions.si(str(notification.id)).set(
+                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
                 )
+            )
 
     # Including sms_sender_id is necessary so the correct sender can be chosen.
     # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
