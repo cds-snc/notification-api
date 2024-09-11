@@ -380,6 +380,10 @@
         {
           "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
           "value": "true"
+        },
+        {
+          "name": "VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP",
+          "value": "true"
         }
       ],
       "secrets": [
