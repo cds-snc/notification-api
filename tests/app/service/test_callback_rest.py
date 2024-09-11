@@ -76,7 +76,7 @@ class TestFetchServiceCallback:
             headers=[('Authorization', f'Bearer {token}')],
         )
         assert response.status_code == 200
-        assert response.json['data'] == service_callback_api_schema.dump(service_callback_api).data
+        assert response.json['data'] == service_callback_api_schema.dump(service_callback_api)
 
     def test_should_return_404_if_trying_to_fetch_callback_from_different_service(
         self,
@@ -124,7 +124,7 @@ class TestFetchServiceCallbacks:
         assert response.status_code == 200
         assert json_compare(
             response.json['data'],
-            [service_callback_api_schema.dump(s).data for s in service_callbacks],
+            [service_callback_api_schema.dump(s) for s in service_callbacks],
         )
 
     @pytest.mark.serial  # Intermittent
@@ -152,7 +152,7 @@ class TestFetchServiceCallbacks:
         assert response.status_code == 200
         assert json_compare(
             response.json['data'],
-            [service_callback_api_schema.dump(s).data for s in service_callbacks],
+            [service_callback_api_schema.dump(s) for s in service_callbacks],
         )
 
 
@@ -622,7 +622,7 @@ class TestUpdateServiceCallback:
                 ],
             )
 
-        assert response.json['data']['updated_at'] == '2021-05-13T12:00:00+00:00'
+        assert response.json['data']['updated_at'] == '2021-05-13T12:00:00'
 
     def test_update_service_callback_modifies_updated_by(
         self,

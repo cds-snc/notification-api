@@ -120,7 +120,7 @@ def create_template(service_id):
 
     dao_create_template(new_template)
 
-    return jsonify(data=template_schema.dump(new_template).data), 201
+    return jsonify(data=template_schema.dump(new_template)), 201
 
 
 @template_blueprint.route('/<uuid:template_id>', methods=['POST'])
@@ -148,10 +148,10 @@ def update_template(
     if 'reply_to' in data:
         check_reply_to(service_id, data.get('reply_to'), fetched_template.template_type)
         updated = dao_update_template_reply_to(template_id=template_id, reply_to=data.get('reply_to'))
-        return jsonify(data=template_schema.dump(updated).data), 200
+        return jsonify(data=template_schema.dump(updated)), 200
 
-    current_data = dict(template_schema.dump(fetched_template).data.items())
-    updated_template = dict(template_schema.dump(fetched_template).data.items())
+    current_data = template_schema.dump(fetched_template)
+    updated_template = template_schema.dump(fetched_template)
     updated_template.update(data)
 
     if (
@@ -173,16 +173,16 @@ def update_template(
         errors = {'content': [message]}
         raise InvalidRequest(errors, status_code=400)
 
-    update_dict = template_schema.load(updated_template).data
+    update_dict = template_schema.load(updated_template)
     dao_update_template(update_dict)
-    return jsonify(data=template_schema.dump(update_dict).data), 200
+    return jsonify(data=template_schema.dump(update_dict)), 200
 
 
 @template_blueprint.route('/precompiled', methods=['GET'])
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_precompiled_template_for_service(service_id):
     template = get_precompiled_letter_template(service_id)
-    template_dict = template_schema.dump(template).data
+    template_dict = template_schema.dump(template)
 
     return jsonify(template_dict), 200
 
@@ -191,7 +191,7 @@ def get_precompiled_template_for_service(service_id):
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_all_templates_for_service(service_id):
     templates = dao_get_all_templates_for_service(service_id=service_id)
-    data = template_schema.dump(templates, many=True).data
+    data = template_schema.dump(templates, many=True)
     return jsonify(data=data)
 
 
@@ -202,7 +202,7 @@ def get_template_by_id_and_service_id(
     template_id,
 ):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template).data
+    data = template_schema.dump(fetched_template)
     return jsonify(data=data)
 
 
@@ -213,7 +213,7 @@ def preview_template_by_id_and_service_id(
     template_id,
 ):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template).data
+    data = template_schema.dump(fetched_template)
     template_object = get_template_instance(data, values=request.args.to_dict())
 
     if template_object.missing_data:
@@ -269,7 +269,8 @@ def get_template_version(
 ):
     data = template_history_schema.dump(
         dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id, version=version)
-    ).data
+    )
+
     return jsonify(data=data)
 
 
@@ -281,7 +282,7 @@ def get_template_versions(
 ):
     data = template_history_schema.dump(
         dao_get_template_versions(service_id=service_id, template_id=template_id), many=True
-    ).data
+    )
     return jsonify(data=data)
 
 
@@ -289,22 +290,26 @@ def _template_has_not_changed(
     current_data,
     updated_template,
 ):
-    return all(
-        current_data[key] == updated_template[key]
-        for key in (
-            'name',
-            'content',
-            'subject',
-            'archived',
-            'process_type',
-            'postage',
-            'provider_id',
-            'communication_item_id',
-            'reply_to_email',
-            'reply_to_text',
-            'onsite_notification',
-        )
+    keys = (
+        'name',
+        'content',
+        'subject',
+        'archived',
+        'process_type',
+        'postage',
+        'provider_id',
+        'communication_item_id',
+        'reply_to_email',
+        'reply_to_text',
+        'onsite_notification',
     )
+
+    try:
+        if any(current_data[key] != updated_template[key] for key in keys):
+            return False
+    except KeyError:
+        return False
+    return True
 
 
 def redact_template(

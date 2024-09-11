@@ -69,7 +69,7 @@ def create_communication_item():
         current_app.logger.exception(e)
         raise
 
-    return communication_item_schema.dump(communication_item).data, 201
+    return communication_item_schema.dump(communication_item), 201
 
 
 #############
@@ -80,7 +80,7 @@ def create_communication_item():
 @communication_item_blueprint.route('', methods=['GET'])
 def get_all_communication_items():
     communication_items = db.session.scalars(select(CommunicationItem)).all()
-    return jsonify(data=communication_item_schema.dump(communication_items, many=True).data)
+    return jsonify(data=communication_item_schema.dump(communication_items, many=True))
 
 
 @communication_item_blueprint.route('/<communication_item_id>', methods=['GET'])
@@ -97,7 +97,7 @@ def get_communication_item(communication_item_id):
             ]
         }, 404
 
-    return communication_item_schema.dump(communication_item).data
+    return communication_item_schema.dump(communication_item)
 
 
 #############
@@ -165,7 +165,7 @@ def partially_update_communication_item(communication_item_id):
         current_app.logger.exception(e)
         raise
 
-    return communication_item_schema.dump(communication_item).data, 200
+    return communication_item_schema.dump(communication_item), 200
 
 
 #############

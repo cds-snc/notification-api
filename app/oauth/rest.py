@@ -125,7 +125,7 @@ def get_services_by_user(user_id):
         if service_id not in permissions_by_service:
             permissions_by_service[service_id] = []
         permissions_by_service[service_id].append(user_permission.permission)
-    data = {'services': service_schema.dump(services, many=True).data, 'permissions': permissions_by_service}
+    data = {'services': service_schema.dump(services, many=True), 'permissions': permissions_by_service}
     return jsonify(data=data)
 
 

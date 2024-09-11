@@ -560,7 +560,7 @@ def test_should_not_update_service_with_incorrect_provider_notification_type(
     assert response['result'] == 'error'
     assert (
         response['message'][f'{notification_type}_provider_id'][0]
-        == f'Invalid {notification_type}_provider_id: {str(fake_uuid)}'
+        == f'Invalid {notification_type}_provider_id: {fake_uuid}'
     )
 
 
@@ -664,7 +664,7 @@ def test_update_service_sets_volumes(
     (
         (True, 200, True),
         (False, 200, False),
-        ('Yes', 400, None),
+        ('Foo', 400, None),
     ),
 )
 def test_update_service_sets_research_consent(
