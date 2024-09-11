@@ -19,7 +19,7 @@ register_errors(invite)
 @invite.route('', methods=['POST'])
 def create_invited_user(service_id):
     request_json = request.get_json()
-    invited_user, errors = invited_user_schema.load(request_json)
+    invited_user = invited_user_schema.load(request_json)
     invited_user_instance = save_invited_user(invited_user)
 
     template = dao_get_template_by_id(current_app.config['INVITATION_EMAIL_TEMPLATE_ID'])
@@ -46,7 +46,7 @@ def create_invited_user(service_id):
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
-    invited_user_data = invited_user_schema.dump(invited_user).data
+    invited_user_data = invited_user_schema.dump(invited_user)
     invited_user_data['id'] = invited_user_instance.id
     return jsonify(data=invited_user_data), 201
 
@@ -54,7 +54,7 @@ def create_invited_user(service_id):
 @invite.route('', methods=['GET'])
 def get_invited_users_by_service(service_id):
     invited_users = get_invited_users_for_service(service_id)
-    return jsonify(data=invited_user_schema.dump(invited_users, many=True).data), 200
+    return jsonify(data=invited_user_schema.dump(invited_users, many=True)), 200
 
 
 @invite.route('/<invited_user_id>', methods=['POST'])
@@ -63,11 +63,11 @@ def update_invited_user(
     invited_user_id,
 ):
     fetched = get_invited_user(service_id=service_id, invited_user_id=invited_user_id)
-    current_data = dict(invited_user_schema.dump(fetched).data.items())
+    current_data = dict(invited_user_schema.dump(fetched))
     current_data.update(request.get_json())
     fetched.status = current_data['status']
     save_invited_user(fetched)
-    return jsonify(data=invited_user_schema.dump(fetched).data), 200
+    return jsonify(data=invited_user_schema.dump(fetched)), 200
 
 
 def invited_user_url(

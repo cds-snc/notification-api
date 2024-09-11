@@ -53,6 +53,6 @@ def get_template_statistics_for_template_id(
     data = None
     notification = dao_get_last_template_usage(template_id, template.template_type, template.service_id)
     if notification:
-        data = notification_with_template_schema.dump(notification).data
+        data = notification_with_template_schema.dump(notification)
 
     return jsonify(data=data)

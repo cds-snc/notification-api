@@ -99,7 +99,7 @@ def test_should_create_a_new_template_for_a_service(
     template = notify_db_session.session.get(Template, json_resp['data']['id'])
     from app.schemas import template_schema
 
-    assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp['data']) == sorted(template_schema.dump(template))
 
 
 @pytest.mark.xfail(reason='Mislabelled for route removal, fails when unskipped', run=False)
@@ -903,7 +903,7 @@ def test_create_a_template_with_reply_to(notify_db_session, admin_request, sampl
     template = notify_db_session.session.get(Template, json_resp['data']['id'])
     from app.schemas import template_schema
 
-    assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp['data']) == sorted(template_schema.dump(template))
 
     stmt = select(TemplateHistory).where(TemplateHistory.id == template.id, TemplateHistory.version == 1)
     th = notify_db_session.session.scalars(stmt).one()
@@ -1662,7 +1662,7 @@ def test_should_create_template_without_created_by_using_current_user_id(
     template = notify_db_session.session.get(Template, json_resp['data']['id'])
     from app.schemas import template_schema
 
-    assert sorted(json_resp['data']) == sorted(template_schema.dump(template).data)
+    assert sorted(json_resp['data']) == sorted(template_schema.dump(template))
 
     # Teardown
     stmt = select(TemplateHistory).where(TemplateHistory.service_id == template.service_id)

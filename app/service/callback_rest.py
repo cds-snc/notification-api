@@ -34,7 +34,7 @@ register_errors(service_callback_blueprint)
 @service_callback_blueprint.route('', methods=['GET'])
 def fetch_service_callbacks(service_id):
     service_callbacks = get_service_callbacks(service_id)
-    return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True).data), 200
+    return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True)), 200
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['GET'])
@@ -44,7 +44,7 @@ def fetch_service_callback(
 ):
     service_callback = query_service_callback(service_id, callback_id)
 
-    return jsonify(data=service_callback_api_schema.dump(service_callback).data), 200
+    return jsonify(data=service_callback_api_schema.dump(service_callback)), 200
 
 
 @service_callback_blueprint.route('', methods=['POST'])
@@ -55,14 +55,14 @@ def create_service_callback(service_id):
     validate(data, create_service_callback_api_request_schema)
     require_admin_for_queue_callback(data)
 
-    new_service_callback = service_callback_api_schema.load(data).data
+    new_service_callback = service_callback_api_schema.load(data)
 
     try:
         save_service_callback_api(new_service_callback)
     except SQLAlchemyError as e:
         return handle_sql_error(e, 'service_callback')
 
-    return jsonify(data=service_callback_api_schema.dump(new_service_callback).data), 201
+    return jsonify(data=service_callback_api_schema.dump(new_service_callback)), 201
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
@@ -77,14 +77,14 @@ def update_service_callback(
     validate(data, update_service_callback_api_request_schema)
     current_service_callback = query_service_callback(service_id, callback_id)
 
-    require_admin_for_queue_callback({**service_callback_api_schema.dump(current_service_callback).data, **data})
+    require_admin_for_queue_callback({**service_callback_api_schema.dump(current_service_callback), **data})
 
     updated_service_callback = service_callback_api_schema.load(
         data, instance=current_service_callback, transient=True, partial=True
-    ).data
+    )
     store_service_callback_api(updated_service_callback)
 
-    return jsonify(data=service_callback_api_schema.dump(updated_service_callback).data), 200
+    return jsonify(data=service_callback_api_schema.dump(updated_service_callback)), 200
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['DELETE'])

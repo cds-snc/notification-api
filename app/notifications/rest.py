@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request, current_app
+from marshmallow import ValidationError
 
 from app import api_user, authenticated_service
 from app.config import QueueNames
@@ -45,12 +46,12 @@ def get_notification_by_id(notification_id):
         str(authenticated_service.id), notification_id, key_type=None
     )
 
-    return jsonify(data={'notification': notification_with_personalisation_schema.dump(notification).data}), 200
+    return jsonify(data={'notification': notification_with_personalisation_schema.dump(notification)}), 200
 
 
 @notifications.route('/notifications', methods=['GET'])
 def get_all_notifications():
-    data = notifications_filter_schema.load(request.args).data
+    data = notifications_filter_schema.load(request.args)
     include_jobs = data.get('include_jobs', False)
     page = data.get('page', 1)
     page_size = data.get('page_size', current_app.config.get('API_PAGE_SIZE'))
@@ -67,7 +68,7 @@ def get_all_notifications():
         include_jobs=include_jobs,
     )
     return jsonify(
-        notifications=notification_with_personalisation_schema.dump(pagination.items, many=True).data,
+        notifications=notification_with_personalisation_schema.dump(pagination.items, many=True),
         page_size=page_size,
         total=pagination.total,
         links=pagination_links(pagination, '.get_all_notifications', **request.args.to_dict()),
@@ -79,18 +80,18 @@ def send_notification(notification_type):
     """
     Create a notification.  This is a version 1 endpoint.
     """
-
     if notification_type not in [SMS_TYPE, EMAIL_TYPE]:
         msg = '{} notification type is not supported'.format(notification_type)
         msg = msg + ', please use the latest version of the client' if notification_type == LETTER_TYPE else msg
         raise InvalidRequest(msg, 400)
 
-    notification_form, errors = (
-        sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
-    ).load(request.get_json())
-
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
+    notification_form = None
+    try:
+        notification_form = (
+            sms_template_notification_schema if notification_type == SMS_TYPE else email_notification_schema
+        ).load(request.get_json())
+    except ValidationError as e:
+        raise InvalidRequest(e.messages, status_code=400)
 
     check_rate_limiting(authenticated_service, api_user)
 

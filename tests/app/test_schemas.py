@@ -11,7 +11,7 @@ def test_notification_schema_ignores_absent_api_key(sample_notification, sample_
 
     notification = sample_notification(template=sample_template())
     notification.api_key = None
-    data = notification_with_template_schema.dump(notification).data
+    data = notification_with_template_schema.dump(notification)
 
     assert data['key_name'] is None
 
@@ -23,7 +23,7 @@ def test_notification_schema_adds_api_key_name(sample_api_key, sample_notificati
     api_key = sample_api_key(service=notification.service, key_name='Test key')
     notification.api_key = api_key
 
-    data = notification_with_template_schema.dump(notification).data
+    data = notification_with_template_schema.dump(notification)
     assert data['key_name'] == 'Test key'
 
 
@@ -40,7 +40,7 @@ def test_notification_schema_has_correct_status(sample_notification, schema_name
     notification = sample_notification()
     from app import schemas
 
-    data = getattr(schemas, schema_name).dump(notification).data
+    data = getattr(schemas, schema_name).dump(notification)
 
     assert data['status'] == notification.status
 
@@ -58,8 +58,7 @@ def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_v
     update_dict = {user_attribute: user_value}
     from app.schemas import user_update_schema_load_json
 
-    data, errors = user_update_schema_load_json.load(update_dict)
-    assert not errors
+    data = user_update_schema_load_json.load(update_dict)
 
 
 @pytest.mark.parametrize(
@@ -98,7 +97,7 @@ def test_user_update_schema_rejects_disallowed_attribute_keys(user_attribute):
     with pytest.raises(ValidationError) as excinfo:
         data, errors = user_update_schema_load_json.load(update_dict)
 
-    assert excinfo.value.messages['_schema'][0] == 'Unknown field name {}'.format(user_attribute)
+    assert excinfo.value.messages[user_attribute][0] == 'Unknown field.'
 
 
 def test_provider_details_schema_returns_user_details(
@@ -113,7 +112,7 @@ def test_provider_details_schema_returns_user_details(
     provider = sample_provider(created_by=user)
 
     provider_from_db = notify_db_session.session.get(ProviderDetails, provider.id)
-    data = provider_details_schema.dump(provider_from_db).data
+    data = provider_details_schema.dump(provider_from_db)
 
     assert sorted(data['created_by'].keys()) == sorted(['id', 'email_address', 'name'])
 
@@ -130,7 +129,7 @@ def test_provider_details_history_schema_returns_user_details(
     mocker.patch('app.provider_details.switch_providers.get_user_by_id', return_value=user)
     provider = sample_provider()
     provider.created_by_id = user.id
-    data = provider_details_schema.dump(provider).data
+    data = provider_details_schema.dump(provider)
 
     dao_update_provider_details(provider)
 
@@ -141,7 +140,7 @@ def test_provider_details_history_schema_returns_user_details(
     )
 
     current_sms_provider_in_history = notify_db_session.session.scalar(stmt)
-    data = provider_details_schema.dump(current_sms_provider_in_history).data
+    data = provider_details_schema.dump(current_sms_provider_in_history)
 
     assert sorted(data['created_by'].keys()) == sorted(['id', 'email_address', 'name'])
 
@@ -158,7 +157,7 @@ def test_services_schema_includes_providers(
     service.email_provider_id = email_provider.id
     service.sms_provider_id = sms_provider.id
 
-    data = service_schema.dump(service).data
+    data = service_schema.dump(service)
     try:
         assert data
         assert data['email_provider_id'] == str(email_provider.id)

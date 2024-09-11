@@ -103,8 +103,10 @@ def test_send_notification_invalid_template_id(
             data = {
                 'to': to,
                 'template': mocked_uuid,
-                'sms_sender_id': mocked_uuid,
             }
+            if template_type == SMS_TYPE:
+                data['sms_sender_id'] = str(uuid4())
+
             auth_header = create_authorization_header(sample_api_key(service=sample_service()))
 
             response = client.post(
@@ -169,8 +171,9 @@ def test_should_not_send_notification_if_restricted_and_not_a_service_user(
             data = {
                 'to': to,
                 'template': template.id,
-                'sms_sender_id': str(uuid4()),
             }
+            if template_type == SMS_TYPE:
+                data['sms_sender_id'] = str(uuid4())
 
             auth_header = create_authorization_header(sample_api_key(service=template.service))
 
@@ -214,8 +217,9 @@ def test_should_not_allow_template_from_another_service(
             data = {
                 'to': to,
                 'template': service_2_templates[0].id,
-                'sms_sender_id': str(uuid4()),
             }
+            if template_type == SMS_TYPE:
+                data['sms_sender_id'] = str(uuid4())
 
             auth_header = create_authorization_header(sample_api_key(service=service_1))
 
@@ -224,7 +228,6 @@ def test_should_not_allow_template_from_another_service(
                 data=json.dumps(data),
                 headers=[('Content-Type', 'application/json'), auth_header],
             )
-
             json_resp = response.get_json()
             mocked.assert_not_called()
             assert response.status_code == 404
@@ -252,7 +255,6 @@ def test_should_reject_email_notification_with_bad_email(
                 data=json.dumps(data),
                 headers=[('Content-Type', 'application/json'), auth_header],
             )
-
             data = json.loads(response.get_data(as_text=True))
             mocked.apply_async.assert_not_called()
             assert response.status_code == 400
@@ -468,8 +470,9 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
     data = {
         'to': to,
         'template': str(template.id),
-        'sms_sender_id': str(sample_sms_sender(service_id=service.id).id),
     }
+    if notification_type == SMS_TYPE:
+        data['sms_sender_id'] = str(sample_sms_sender(service_id=service.id).id)
 
     auth_header = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
 
@@ -478,7 +481,6 @@ def test_should_not_send_notification_to_non_whitelist_recipient_in_trial_mode(
         data=json.dumps(data),
         headers=[('Content-Type', 'application/json'), ('Authorization', 'Bearer {}'.format(auth_header))],
     )
-
     assert response.status_code == 400
     expected_response_message = (
         (
@@ -512,8 +514,10 @@ def test_should_error_if_notification_type_does_not_match_template_type(
     data = {
         'to': to,
         'template': template.id,
-        'sms_sender_id': str(sample_sms_sender(service_id=template.service.id).id),
     }
+    if notification_type == SMS_TYPE:
+        data['sms_sender_id'] = str(sample_sms_sender(service_id=template.service.id).id)
+
     auth_header = create_authorization_header(sample_api_key(service=template.service))
     response = client.post(
         '/notifications/{}'.format(notification_type),

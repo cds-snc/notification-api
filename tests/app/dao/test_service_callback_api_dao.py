@@ -149,11 +149,11 @@ def test_update_service_callback_can_add_two_api_of_different_types(
     results = notify_db_session.session.scalars(stmt).all()
     assert len(results) == 2
 
-    results0_dump = service_callback_api_schema.dump(results[0]).data
-    results1_dump = service_callback_api_schema.dump(results[1]).data
+    results0_dump = service_callback_api_schema.dump(results[0])
+    results1_dump = service_callback_api_schema.dump(results[1])
 
-    assert results0_dump == service_callback_api_schema.dump(complaint).data
-    assert results1_dump == service_callback_api_schema.dump(delivery_status).data
+    assert results0_dump == service_callback_api_schema.dump(complaint)
+    assert results1_dump == service_callback_api_schema.dump(delivery_status)
 
 
 def test_update_service_callback_api(

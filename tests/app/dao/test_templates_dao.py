@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from uuid import uuid4
 
 from freezegun import freeze_time
@@ -673,7 +674,7 @@ def test_get_template_versions(
     assert versions[0].updated_at is None
     assert versions[1].updated_at is not None
 
-    v = template_history_schema.load(versions, many=True)
+    v = template_history_schema.dump(versions, many=True)
     assert len(v) == 2
 
 
