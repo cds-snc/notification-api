@@ -161,7 +161,8 @@ class VAProfileClient:
     def get_telephone_with_permission(
         self,
         va_profile_id: RecipientIdentifier,
-        bypass_permission_check=False,
+        default_send=True,
+        # bypass_permission_check=False,
     ) -> VAProfileResult:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
@@ -178,14 +179,15 @@ class VAProfileClient:
         profile = self.get_profile(va_profile_id)
         communication_allowed = True
         permission_message = None
-        if not bypass_permission_check:
-            try:
-                communication_allowed = self.get_is_communication_allowed_from_profile(
-                    profile, CommunicationChannel.TEXT
-                )
-            except CommunicationItemNotFoundException:
-                self.logger.info('Communication item for recipient %s not found', va_profile_id)
-                permission_message = 'No recipient opt-in found for explicit preference'
+        # if not bypass_permission_check:
+        try:
+            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
+        except CommunicationItemNotFoundException:
+            self.logger.info('Communication item for recipient %s not found', va_profile_id)
+            communication_allowed = default_send
+            permission_message = (
+                f'No recipient opt-in found for explicit preference, falling back to default send: {default_send}'
+            )
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
@@ -214,7 +216,8 @@ class VAProfileClient:
     def get_email_with_permission(
         self,
         va_profile_id: RecipientIdentifier,
-        bypass_permission_check=False,
+        default_send=True,
+        # bypass_permission_check=False,
     ) -> VAProfileResult:
         """
         Retrieve the email address from the profile information for a given VA profile ID.
@@ -231,14 +234,15 @@ class VAProfileClient:
         profile = self.get_profile(va_profile_id)
         communication_allowed = True
         permission_message = None
-        if not bypass_permission_check:
-            try:
-                communication_allowed = self.get_is_communication_allowed_from_profile(
-                    profile, CommunicationChannel.EMAIL
-                )
-            except CommunicationItemNotFoundException:
-                self.logger.info('Communication item for recipient %s not found', va_profile_id)
-                permission_message = 'No recipient opt-in found for explicit preference'
+        # if not bypass_permission_check:
+        try:
+            communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.EMAIL)
+        except CommunicationItemNotFoundException:
+            self.logger.info('Communication item for recipient %s not found', va_profile_id)
+            communication_allowed = default_send
+            permission_message = (
+                f'No recipient opt-in found for explicit preference, falling back to default send: {default_send}'
+            )
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
