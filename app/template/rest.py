@@ -159,7 +159,6 @@ def update_template_process_type(template_id):
 @template_blueprint.route("/<uuid:template_id>", methods=["POST"])
 def update_template(service_id, template_id):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-
     if not service_has_permission(fetched_template.template_type, fetched_template.service.permissions):
         message = "Updating {} templates is not allowed".format(get_public_notify_type_text(fetched_template.template_type))
         errors = {"template_type": [message]}
@@ -209,11 +208,6 @@ def update_template(service_id, template_id):
             }
         )
         raise InvalidRequest(errors, status_code=400)
-
-    # if the template category is changing, set the process_type to None to remove any priority override
-    if current_app.config["FF_TEMPLATE_CATEGORY"]:
-        if updated_template["template_category_id"] != str(fetched_template.template_category_id):
-            updated_template["process_type"] = None
 
     update_dict = template_schema.load(updated_template)
     if update_dict.archived:
@@ -280,6 +274,8 @@ def get_template_versions(service_id, template_id):
 
 
 def _template_has_not_changed(current_data, updated_template):
+    if not current_data["process_type_column"] == updated_template["process_type"]:
+        return False
     return all(
         current_data[key] == updated_template[key]
         for key in ("name", "content", "subject", "archived", "process_type", "postage", "template_category_id")

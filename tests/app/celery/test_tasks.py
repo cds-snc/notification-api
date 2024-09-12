@@ -1555,18 +1555,16 @@ class TestSaveEmails:
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
         json_template_date = {"data": template_schema.dump(sample_template)}
-        json_service_data = {"data": service_schema.dump(sample_service)}
+
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             False,
             False,
         ]

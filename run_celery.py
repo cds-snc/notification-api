@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 import newrelic.agent  # See https://bit.ly/2xBVKBH
+from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
 from flask import Flask
+
+from app.aws.xray.context import NotifyContext
 
 newrelic.agent.initialize()  # noqa: E402
 
@@ -12,4 +16,8 @@ load_dotenv()
 
 application = Flask("celery")
 create_app(application)
+
+xray_recorder.configure(service='Notify', context=NotifyContext())
+XRayMiddleware(application, xray_recorder)
+
 application.app_context().push()

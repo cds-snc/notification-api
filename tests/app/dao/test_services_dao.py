@@ -29,6 +29,7 @@ from app.dao.services_dao import (
     dao_fetch_service_by_id,
     dao_fetch_service_by_inbound_number,
     dao_fetch_service_creator,
+    dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_stats_for_service,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -609,8 +610,8 @@ def test_get_service_by_id_returns_service(notify_db_session):
 
 def test_get_service_by_id_uses_redis_cache_when_use_cache_specified(notify_db_session, mocker):
     sample_service = create_service(service_name="testing", email_from="testing")
-    service_json = {"data": service_schema.dump(sample_service)}
 
+    service_json = {"data": service_schema.dump(sample_service)}
     service_json["data"]["all_template_folders"] = ["b5035a31-b1da-42f8-b2b8-ce2acaa0b819"]
     service_json["data"]["annual_billing"] = ["8676fa80-a97b-43e7-8318-ee905de2d652", "a0751f79-984b-4d9e-9edd-42457fd458e9"]
     service_json["data"]["email_branding"] = "d51a41b2-c420-48a9-a8c5-e88444013020"
@@ -1535,3 +1536,16 @@ class TestServiceEmailLimits:
             )
         )
         assert fetch_todays_total_message_count(service.id) == 11
+
+
+class TestSensitiveService:
+    def test_sensitive_service(self, notify_db, notify_db_session):
+        service = create_service(service_name="test service", sensitive_service=True)
+        assert service.sensitive_service is True
+
+        sensitive_service = dao_fetch_service_ids_of_sensitive_services()
+        assert [str(service.id)] == sensitive_service
+
+    def test_non_sensitive_service(self, notify_db, notify_db_session):
+        sensitive_service = dao_fetch_service_ids_of_sensitive_services()
+        assert sensitive_service == []
