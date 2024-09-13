@@ -36,7 +36,7 @@ def create_test_user(email_name):
         "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
         "password": hashlib.sha256(
             (password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")
-        ).hexdigest(),  # "e01221bcb56f1fb931c0ca310e2a13e23390b267b4cd80dc36366b6c9ef8eb5d", # TODO: move this to a secret!
+        ).hexdigest(),
         "mobile_number": "9025555555",
         "state": "active",
         "blocked": False,
