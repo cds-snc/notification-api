@@ -350,7 +350,7 @@ class Config(object):
     # UUIDs for Cypress tests
     CYPRESS_SERVICE_ID = "5c8a0501-2aa8-433a-ba51-cefb8063ab93"
     CYPRESS_TEST_USER_ID = "5e8fdc9b-4080-430d-962a-8065a1a17274"
-    
+
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
