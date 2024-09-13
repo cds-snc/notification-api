@@ -34,9 +34,7 @@ def create_test_user(email_name):
         "id": uuid.uuid4(),
         "name": "Notify UI testing account",
         "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
-        "password": hashlib.sha256(
-            (password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")
-        ).hexdigest(),
+        "password": hashlib.sha256((password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
         "mobile_number": "9025555555",
         "state": "active",
         "blocked": False,
