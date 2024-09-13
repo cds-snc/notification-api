@@ -11,17 +11,20 @@ from app.models import LoginEvent, Permission, Service, ServiceUser, Template, T
 cypress_blueprint = Blueprint("cypress", __name__)
 register_errors(cypress_blueprint)
 
-CYPRESS_SERVICE_ID = "5c8a0501-2aa8-433a-ba51-cefb8063ab93"
-NOTIFY_TEST_USER_ID = "5e8fdc9b-4080-430d-962a-8065a1a17274"
-
-@cypress_blueprint.route("/create_user/<email_name>", methods=["GET"])
+@cypress_blueprint.route("/create_user/<email_name>", methods=["POST"])
 def create_test_user(email_name):
+    data = request.get_json()
+    password = data.get('password')
+
+    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
+        return jsonify(message="Forbidden"), 403
+
     # Create the user
     data = {
         "id": uuid.uuid4(),
         "name": "Notify UI testing account",
         "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
-        "password": "1a38490122e3455643d7b7d5f9f98c00765aed1a2b27227cb915f33737f2040f", # TODO: move this to a secret!
+        "password": hashlib.sha256((password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(), #"e01221bcb56f1fb931c0ca310e2a13e23390b267b4cd80dc36366b6c9ef8eb5d", # TODO: move this to a secret!
         "mobile_number": "9025555555",
         "state": "active",
         "blocked": False,
