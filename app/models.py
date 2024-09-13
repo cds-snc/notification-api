@@ -38,6 +38,7 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
+from app.clients.sms import SmsSendingVehicles
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -65,10 +66,7 @@ DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
 
-SHORT_CODE = "short_code"
-LONG_CODE = "long_code"
-
-sms_sending_vehicles = db.Enum(*[SHORT_CODE, LONG_CODE], name="sms_sending_vehicles")
+sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
 def filter_null_value_fields(obj):
@@ -564,7 +562,7 @@ class Service(BaseModel, Versioned):
     go_live_at = db.Column(db.DateTime, nullable=True)
     sending_domain = db.Column(db.String(255), nullable=True, unique=False)
     organisation_notes = db.Column(db.String(255), nullable=True, unique=False)
-
+    sensitive_service = db.Column(db.Boolean, nullable=True)
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
 
@@ -873,6 +871,9 @@ class ServiceCallbackApi(BaseModel, Versioned):
     updated_at = db.Column(db.DateTime, nullable=True)
     updated_by = db.relationship("User")
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    is_suspended = db.Column(db.Boolean, nullable=True, default=False)
+    # If is_suspended is False and suspended_at is not None, then the callback was suspended and then unsuspended
+    suspended_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("service_id", "callback_type", name="uix_service_callback_type"),)
 
@@ -895,6 +896,8 @@ class ServiceCallbackApi(BaseModel, Versioned):
             "updated_by_id": str(self.updated_by_id),
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            "is_suspended": self.is_suspended,
+            "suspended_at": self.suspended_at.strftime(DATETIME_FORMAT) if self.suspended_at else None,
         }
 
 
@@ -1132,13 +1135,37 @@ class TemplateBase(BaseModel):
         return db.relationship("User")
 
     @declared_attr
-    def process_type(cls):
+    def process_type_column(cls):
         return db.Column(
             db.String(255),
             db.ForeignKey("template_process_type.name"),
+            name="process_type",
             index=True,
             nullable=True,
-            default=NORMAL,
+        )
+
+    @hybrid_property
+    def process_type(self):
+        # The if statement is required as a way to check if FF_TEMPLATE_CATEGORY is enabled
+        if self.template_category_id:
+            if self.template_type == SMS_TYPE:
+                return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
+            elif self.template_type == EMAIL_TYPE:
+                return self.process_type_column if self.process_type_column else self.template_category.email_process_type
+        return self.process_type_column if self.process_type_column else NORMAL
+
+    @process_type.setter  # type: ignore
+    def process_type(self, value):
+        self.process_type_column = value
+
+    @process_type.expression
+    def _process_type(self):
+        return db.case(
+            [
+                (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+                (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
+            ],
+            else_=self.process_type_column,
         )
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
@@ -1246,17 +1273,6 @@ class Template(TemplateBase):
             template_id=self.id,
             _external=True,
         )
-
-    @property
-    def template_process_type(self):
-        """By default we use the process_type from TemplateCategory, but allow admins to override it on a per-template basis.
-        Only when overriden do we use the process_type from the template itself.
-        """
-        if self.template_type == SMS_TYPE:
-            return self.process_type if self.process_type else self.template_categories.sms_process_type
-        elif self.template_type == EMAIL_TYPE:
-            return self.process_type if self.process_type else self.template_categories.email_process_type
-        return self.process_type
 
     @classmethod
     def from_json(cls, data, folder=None):

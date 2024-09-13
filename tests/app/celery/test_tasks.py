@@ -12,6 +12,21 @@ from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from tests.app import load_example_csv
+from tests.app.conftest import create_sample_service, create_sample_template
+from tests.app.db import (
+    create_inbound_sms,
+    create_job,
+    create_notification,
+    create_reply_to_email,
+    create_service,
+    create_service_inbound_api,
+    create_service_with_defined_sms_sender,
+    create_template,
+    create_user,
+    save_notification,
+)
+from tests.conftest import set_config_values
 
 from app import (
     DATETIME_FORMAT,
@@ -56,21 +71,6 @@ from app.models import (
 )
 from app.schemas import service_schema, template_schema
 from celery.exceptions import Retry
-from tests.app import load_example_csv
-from tests.app.conftest import create_sample_service, create_sample_template
-from tests.app.db import (
-    create_inbound_sms,
-    create_job,
-    create_notification,
-    create_reply_to_email,
-    create_service,
-    create_service_inbound_api,
-    create_service_with_defined_sms_sender,
-    create_template,
-    create_user,
-    save_notification,
-)
-from tests.conftest import set_config_values
 
 
 class AnyStringWith(str):
@@ -1555,18 +1555,16 @@ class TestSaveEmails:
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
         json_template_date = {"data": template_schema.dump(sample_template)}
-        json_service_data = {"data": service_schema.dump(sample_service)}
+
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             False,
             False,
         ]

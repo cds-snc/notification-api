@@ -116,6 +116,7 @@ def create_service(
     go_live_at=None,
     crown=True,
     organisation=None,
+    sensitive_service=None,
 ):
     if check_if_service_exists:
         service = Service.query.filter_by(name=service_name).first()
@@ -132,6 +133,7 @@ def create_service(
             go_live_user=go_live_user,
             go_live_at=go_live_at,
             crown=crown,
+            sensitive_service=sensitive_service,
         )
         dao_create_service(
             service,
@@ -283,6 +285,7 @@ def create_notification(
         "reference": reference,
         "created_at": created_at,
         "sent_at": sent_at,
+        "updated_at": updated_at,
         "billable_units": billable_units,
         "personalisation": personalisation,
         "notification_type": template.template_type,
@@ -290,7 +293,6 @@ def create_notification(
         "api_key_id": api_key and api_key.id,
         "key_type": api_key.key_type if api_key else key_type,
         "sent_by": sent_by,
-        "updated_at": updated_at,
         "client_reference": client_reference,
         "job_row_number": job_row_number,
         "rate_multiplier": rate_multiplier,
@@ -490,12 +492,14 @@ def create_service_inbound_api(
 def create_service_callback_api(
     service,
     url="https://something.com",
+    is_suspended=False,
     bearer_token="some_super_secret",
     callback_type="delivery_status",
 ):
     service_callback_api = ServiceCallbackApi(
         service_id=service.id,
         url=url,
+        is_suspended=is_suspended,
         bearer_token=bearer_token,
         updated_by_id=service.users[0].id,
         callback_type=callback_type,

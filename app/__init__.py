@@ -153,10 +153,16 @@ def create_app(application, config=None):
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
 
-    # avoid circular imports by importing this file later
-    from app.commands import setup_commands
+    # avoid circular imports by importing these files later
+    from app.commands.bulk_db import setup_bulk_db_commands
+    from app.commands.deprecated import setup_deprecated_commands
+    from app.commands.support import setup_support_commands
+    from app.commands.test_data import setup_test_data_commands
 
-    setup_commands(application)
+    setup_support_commands(application)
+    setup_bulk_db_commands(application)
+    setup_test_data_commands(application)
+    setup_deprecated_commands(application)
 
     return application
 
@@ -176,10 +182,12 @@ def register_blueprint(application):
     from app.authentication.auth import (
         requires_admin_auth,
         requires_auth,
+        requires_cache_clear_auth,
         requires_no_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
+    from app.cache.rest import cache_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
@@ -263,6 +271,9 @@ def register_blueprint(application):
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, cypress_blueprint, requires_admin_auth, "/cypress")
+
+    register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
+
 
 def register_v2_blueprints(application):
     from app.authentication.auth import requires_auth

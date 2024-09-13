@@ -288,13 +288,63 @@ def sample_template_category(
     return create_template_category(
         notify_db,
         notify_db_session,
-        name_en="Category Name",
-        name_fr="Category Name (FR)",
-        description_en="Category Description",
-        description_fr="Category Description (FR)",
-        sms_process_type="normal",
-        email_process_type="normal",
-        hidden=False,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_category_bulk(
+    notify_db,
+    notify_db_session,
+    name_en="Category Low",
+    name_fr="Category Low (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="bulk",
+    email_process_type="bulk",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_category_priority(
+    notify_db,
+    notify_db_session,
+    name_en="Category Priority",
+    name_fr="Category Priority (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="priority",
+    email_process_type="priority",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
     )
 
 
@@ -404,6 +454,41 @@ def sample_template(
         created_by=None,
         process_type="normal",
         template_category=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_with_priority_override(
+    notify_db,
+    notify_db_session,
+    sample_template_category,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="priority",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="priority",
+        template_category=sample_template_category,
         permissions=[EMAIL_TYPE, SMS_TYPE],
     )
 
