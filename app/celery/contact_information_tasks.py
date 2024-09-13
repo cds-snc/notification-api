@@ -20,14 +20,11 @@ from app.va.va_profile import (
     NoContactInfoException,
     VAProfileResult,
 )
-from app.va.va_profile.exceptions import (
-    VAProfileIDNotFoundException,
-)
+from app.va.va_profile.exceptions import VAProfileIDNotFoundException, CommunicationItemNotFoundException
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from requests import Timeout
 from sqlalchemy.orm.exc import NoResultFound
-from typing import Optional
 
 
 def get_recipient(
@@ -135,7 +132,9 @@ def get_profile_result(
 #         return va_profile_client.get_telephone_with_permission(recipient_identifier)
 
 
-def handle_lookup_contact_info_exception(self, notification, notification_id, e):
+def handle_lookup_contact_info_exception(
+    self, notification, notification_id, recipient_identifier, default_send_flag, e
+):
     if isinstance(e, (Timeout, VAProfileRetryableException)):
         if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning('Unable to get contact info for notification id: %s, retrying', notification_id)
@@ -167,6 +166,15 @@ def handle_lookup_contact_info_exception(self, notification, notification_id, e)
         )
         check_and_queue_callback_task(notification)
         raise NotificationPermanentFailureException(message) from e
+    elif isinstance(e, CommunicationItemNotFoundException):
+        current_app.logger.info(
+            'Communication item for recipient %s not found on notification %s',
+            recipient_identifier.id_value,
+            notification_id,
+        )
+
+        # return status reason message if message should not be sent
+        return None if default_send_flag else 'No recipient opt-in found for explicit preference'
     else:
         current_app.logger.exception(f'Unhandled exception for notification {notification_id}: {e}')
         raise e
@@ -191,16 +199,17 @@ def lookup_contact_info(
     notification = get_notification_by_id(notification_id)
     recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
 
+    default_send = True
     try:
         if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
             # check if the template has a communication_item_id.
             # if it does, check the communication item: get the default_send_indicator.
             communication_item_id = notification.template.communication_item_id
-            default_send = False
             if communication_item_id:
                 try:
                     communication_item = get_communication_item(communication_item_id)
                     default_send = communication_item.default_send_indicator
+                    current_app.logger.debug(f'V3 Profile -- Default send for communication: {default_send}')
                 except NoResultFound:
                     pass
 
@@ -217,7 +226,7 @@ def lookup_contact_info(
                 recipient_identifier,
             )
     except Exception as e:
-        handle_lookup_contact_info_exception(self, notification, notification_id, e)
+        handle_lookup_contact_info_exception(self, notification, notification_id, recipient_identifier, default_send, e)
 
     notification.to = recipient
     dao_update_notification(notification)
@@ -239,7 +248,7 @@ def lookup_contact_info(
 def get_communication_item_id_for_permission_check(
     notification_id: str,
     communication_item_id: str,
-) -> Optional[str]:
+) -> str | None:
     """
     Return None if we should send regardless of communication permissions.
     Otherwise, return the communication_item_id for the permissions check.
