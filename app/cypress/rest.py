@@ -1,3 +1,8 @@
+"""
+This module will be used by the cypress tests to create users on the fly whenever a test suite is run, and clean
+them up periodically to keep the data footprint small.
+"""
+
 import hashlib
 import uuid
 from datetime import datetime, timedelta
@@ -11,54 +16,64 @@ from app.dao.users_dao import save_model_user
 from app.errors import register_errors
 from app.models import LoginEvent, Permission, Service, ServiceUser, Template, TemplateHistory, TemplateRedacted, User, VerifyCode
 
-"""
-This module will be used by the cypress tests to create users on the fly whenever a test suite is run.
-
-Additionally, this module will also be used to clean up test users periodically to keep the data footprint small.
-"""
-
 cypress_blueprint = Blueprint("cypress", __name__)
 register_errors(cypress_blueprint)
 
 
 @cypress_blueprint.route("/create_user/<email_name>", methods=["POST"])
 def create_test_user(email_name):
-    data = request.get_json()
-    password = data.get("password")
+    """
+    Create a test user for Notify UI testing.
 
+    Args:
+        email_name (str): The name to be used in the email address of the test user.
+
+    Returns:
+        dict: A dictionary containing the serialized user information.
+    """
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
         return jsonify(message="Forbidden"), 403
 
-    # Create the user
-    data = {
-        "id": uuid.uuid4(),
-        "name": "Notify UI testing account",
-        "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
-        "password": hashlib.sha256((password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
-        "mobile_number": "9025555555",
-        "state": "active",
-        "blocked": False,
-    }
+    try:
+        data = request.get_json()
+        password = data.get("password")
+    except Exception:
+        return jsonify(message="Invalid JSON"), 400
 
-    user = User(**data)
-    save_model_user(user)
+    try:
+        # Create the user
+        data = {
+            "id": uuid.uuid4(),
+            "name": "Notify UI testing account",
+            "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
+            "password": hashlib.sha256((password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
+            "mobile_number": "9025555555",
+            "state": "active",
+            "blocked": False,
+        }
 
-    # add user to cypress service w/ full permissions
-    service = Service.query.filter_by(id="5c8a0501-2aa8-433a-ba51-cefb8063ab93").first()
-    permissions = []
-    for p in [
-        "manage_users",
-        "manage_templates",
-        "manage_settings",
-        "send_texts",
-        "send_emails",
-        "send_letters",
-        "manage_api_keys",
-        "view_activity",
-    ]:
-        permissions.append(Permission(permission=p))
+        user = User(**data)
+        save_model_user(user)
 
-    dao_add_user_to_service(service, user, permissions=permissions)
+        # add user to cypress service w/ full permissions
+        service = Service.query.filter_by(id="5c8a0501-2aa8-433a-ba51-cefb8063ab93").first()
+        permissions = []
+        for p in [
+            "manage_users",
+            "manage_templates",
+            "manage_settings",
+            "send_texts",
+            "send_emails",
+            "send_letters",
+            "manage_api_keys",
+            "view_activity",
+        ]:
+            permissions.append(Permission(permission=p))
+
+        dao_add_user_to_service(service, user, permissions=permissions)
+
+    except Exception:
+        return jsonify(message="Error creating user"), 400
 
     return jsonify(user.serialize()), 201
 
@@ -111,45 +126,39 @@ def _destroy_test_user(email_name):
         # remove the user
         User.query.filter_by(email_address=f"notify-ui-tests+{email_name}@cds-snc.ca").delete()
 
-        print("removal success: " + email_name)
-    except Exception as e:
-        print(f"Error cleaning up test user: {e}")
+    except Exception:
         db.session.rollback()
-
-
-"""
-Endpoint for cleaning up stale users.  This endpoint will only be used internally by the Cypress tests.
-
-This endpoint is responsible for removing stale testing users from the database.
-Stale users are identified as users whose email addresses match the pattern "%notify-ui-tests+%@cds-snc.ca%" and whose creation time is older than three hours ago.
-
-Returns:
-    A JSON response with a success message if the cleanup is successful, or an error message if an exception occurs during the cleanup process.
-"""
 
 
 @cypress_blueprint.route("/cleanup", methods=["GET"])
 def cleanup_stale_users():
+    """
+    Endpoint for cleaning up stale users.  This endpoint will only be used internally by the Cypress tests.
+
+    This endpoint is responsible for removing stale testing users from the database.
+    Stale users are identified as users whose email addresses match the pattern "%notify-ui-tests+%@cds-snc.ca%" and whose creation time is older than three hours ago.
+
+    If this is accessed from production, it will return a 403 Forbidden response.
+
+    Returns:
+        A JSON response with a success message if the cleanup is successful, or an error message if an exception occurs during the cleanup process.
+    """
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
         return jsonify(message="Forbidden"), 403
 
-    three_hours_ago = datetime.utcnow() - timedelta(hours=3)
-    users = User.query.filter(User.email_address.like("%notify-ui-tests+%@cds-snc.ca%"), User.created_at < three_hours_ago).all()
+    try:
+        three_hours_ago = datetime.utcnow() - timedelta(hours=3)
+        users = User.query.filter(
+            User.email_address.like("%notify-ui-tests+%@cds-snc.ca%"), User.created_at < three_hours_ago
+        ).all()
 
-    # get the list of email_address property from users
-    users_emails = [user for user in users]
-
-    print("users to clean: " + str(users_emails))
-
-    # loop through users and call destroy_user on each one
-    for user in users:
-        user_email = user.email_address.split("+")[1].split("@")[0]
-        print("Trying to remove:" + user_email)
-
-        try:
+        # loop through users and call destroy_user on each one
+        for user in users:
+            user_email = user.email_address.split("+")[1].split("@")[0]
             _destroy_test_user(user_email)
-        except Exception:
-            return jsonify(message="Error cleaning up"), 500
 
-    db.session.commit()
+        db.session.commit()
+    except Exception:
+        return jsonify(message="Error cleaning up"), 500
+
     return jsonify(message="Zeds dead, baby"), 201
