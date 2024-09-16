@@ -17,6 +17,7 @@ from locust import HttpUser, constant_pacing, task
 
 
 class NotifyAdminUser(HttpUser):
+
     host = "https://notification.canada.ca"
     spawn_rate = 10
     wait_time = constant_pacing(1)
