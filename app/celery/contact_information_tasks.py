@@ -197,7 +197,7 @@ def lookup_contact_info(
     current_app.logger.info('Looking up contact information for notification_id: %s.', notification_id)
 
     notification = get_notification_by_id(notification_id)
-    current_app.logger.Debug(
+    current_app.logger.debug(
         f'V3 Profile notification_id: {notification.id}, template_id: {notification.template.id} communication_item_id: {notification.template.communication_item_id}'
     )
 
@@ -231,7 +231,6 @@ def lookup_contact_info(
                 notification_id,
                 recipient_identifier,
             )
-
     except Exception as e:
         handle_lookup_contact_info_exception(self, notification, notification_id, recipient_identifier, default_send, e)
 
