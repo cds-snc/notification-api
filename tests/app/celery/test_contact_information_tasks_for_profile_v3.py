@@ -24,6 +24,8 @@ from requests import Timeout
 
 from tests.app.factories.feature_flag import mock_feature_flag
 
+from sqlalchemy.orm.exc import NoResultFound
+
 EXAMPLE_VA_PROFILE_ID = '135'
 notification_id = str(uuid.uuid4())
 
@@ -105,79 +107,79 @@ def test_should_get_phone_number_and_update_notification(client, mocker, sample_
     assert notification.to == '+15555555555'
 
 
-# def test_should_get_email_address_and_update_notification_with_no_communication_item(
-#     client, mocker, sample_template, sample_notification
-# ):
-#     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-#     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-#
-#     template = sample_template(template_type=EMAIL_TYPE)
-#     notification = sample_notification(
-#         template=template,
-#         recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': EXAMPLE_VA_PROFILE_ID}],
-#     )
-#
-#     mocked_get_notification_by_id = mocker.patch(
-#         'app.celery.contact_information_tasks.get_notification_by_id', return_value=notification
-#     )
-#
-#     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-#     mocked_va_profile_client.get_email_with_permission = mocker.Mock(
-#         return_value=VAProfileResult('test@test.org', True, None)
-#     )
-#     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
-#
-#     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
-#
-#     exception = NoResultFound
-#     mocker.patch('app.celery.contact_information_tasks.get_communication_item', side_effect=exception)
-#
-#     lookup_contact_info(notification.id)
-#
-#     mocked_get_notification_by_id.assert_called()
-#     mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, True)
-#     recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
-#     assert isinstance(recipient_identifier, RecipientIdentifier)
-#     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
-#     mocked_update_notification.assert_called_with(notification)
-#     assert notification.to == 'test@test.org'
-#
-#
-# def test_should_get_phone_number_and_update_notification_with_no_communication_item(
-#     client, mocker, sample_notification, mock_communication_item
-# ):
-#     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-#     mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-#
-#     notification = sample_notification(
-#         recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': EXAMPLE_VA_PROFILE_ID}]
-#     )
-#     notification.template.communication_item_id = None
-#     assert notification.notification_type == SMS_TYPE
-#     mocked_get_notification_by_id = mocker.patch(
-#         'app.celery.contact_information_tasks.get_notification_by_id', return_value=notification
-#     )
-#
-#     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-#     mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(
-#         return_value=VAProfileResult('+15555555555', True, None)
-#     )
-#     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
-#
-#     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
-#
-#     exception = NoResultFound
-#     mocker.patch('app.celery.contact_information_tasks.get_communication_item', side_effect=exception)
-#
-#     lookup_contact_info(notification.id)
-#
-#     mocked_get_notification_by_id.assert_called()
-#     mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, True)
-#     recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
-#     assert isinstance(recipient_identifier, RecipientIdentifier)
-#     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
-#     mocked_update_notification.assert_called_with(notification)
-#     assert notification.to == '+15555555555'
+def test_should_get_email_address_and_update_notification_with_no_communication_item(
+    client, mocker, sample_template, sample_notification
+):
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+
+    template = sample_template(template_type=EMAIL_TYPE)
+    notification = sample_notification(
+        template=template,
+        recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': EXAMPLE_VA_PROFILE_ID}],
+    )
+
+    mocked_get_notification_by_id = mocker.patch(
+        'app.celery.contact_information_tasks.get_notification_by_id', return_value=notification
+    )
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(
+        return_value=VAProfileResult('test@test.org', True, None)
+    )
+    mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
+
+    mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
+
+    exception = NoResultFound
+    mocker.patch('app.celery.contact_information_tasks.get_communication_item', side_effect=exception)
+
+    lookup_contact_info(notification.id)
+
+    mocked_get_notification_by_id.assert_called()
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, True)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
+    mocked_update_notification.assert_called_with(notification)
+    assert notification.to == 'test@test.org'
+
+
+def test_should_get_phone_number_and_update_notification_with_no_communication_item(
+    client, mocker, sample_notification, mock_communication_item
+):
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+
+    notification = sample_notification(
+        recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': EXAMPLE_VA_PROFILE_ID}]
+    )
+    notification.template.communication_item_id = None
+    assert notification.notification_type == SMS_TYPE
+    mocked_get_notification_by_id = mocker.patch(
+        'app.celery.contact_information_tasks.get_notification_by_id', return_value=notification
+    )
+
+    mocked_va_profile_client = mocker.Mock(VAProfileClient)
+    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(
+        return_value=VAProfileResult('+15555555555', True, None)
+    )
+    mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
+
+    mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
+
+    exception = NoResultFound
+    mocker.patch('app.celery.contact_information_tasks.get_communication_item', side_effect=exception)
+
+    lookup_contact_info(notification.id)
+
+    mocked_get_notification_by_id.assert_called()
+    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, True)
+    recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
+    assert isinstance(recipient_identifier, RecipientIdentifier)
+    assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
+    mocked_update_notification.assert_called_with(notification)
+    assert notification.to == '+15555555555'
 
 
 def test_should_not_retry_on_non_retryable_exception(

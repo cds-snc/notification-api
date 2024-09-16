@@ -19,6 +19,8 @@ from app.va.va_profile import VAProfileRetryableException
 from app.va.va_profile.exceptions import CommunicationItemNotFoundException
 from app.va.va_profile.va_profile_client import VAProfileClient
 from app.va.identifier import IdentifierType
+from app.feature_flags import FeatureFlag
+from tests.app.factories.feature_flag import mock_feature_flag
 
 
 @pytest.fixture
@@ -183,6 +185,7 @@ def test_recipient_has_given_permission_should_return_none_if_user_permissions_n
 def test_recipient_has_given_permission_with_default_send_indicator_and_no_preference_set(
     client, mocker, send_indicator: bool
 ):
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     mocked_va_profile_client.get_is_communication_allowed = mocker.Mock(side_effect=CommunicationItemNotFoundException)
     mocker.patch(
@@ -217,6 +220,7 @@ def test_recipient_has_given_permission_max_retries_exceeded(client, mocker, fak
         id=uuid.uuid4(), va_profile_item_id=1, name='name', default_send_indicator=send_indicator
     )
 
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
     mocker.patch(
         'app.celery.lookup_recipient_communication_permissions_task.get_communication_item',
         return_value=test_communication_item,
