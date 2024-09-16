@@ -209,7 +209,9 @@ def lookup_contact_info(
                 try:
                     communication_item = get_communication_item(communication_item_id)
                     default_send = communication_item.default_send_indicator
-                    current_app.logger.debug(f'V3 Profile -- Default send for communication: {default_send}')
+                    current_app.logger.debug(
+                        f'V3 Profile -- Default send for communication: {default_send} -- Recipient ID: {recipient_identifier}'
+                    )
                 except NoResultFound:
                     pass
 

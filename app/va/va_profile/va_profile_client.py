@@ -185,9 +185,7 @@ class VAProfileClient:
         except CommunicationItemNotFoundException:
             self.logger.info('Communication item for recipient %s not found', va_profile_id)
             communication_allowed = default_send
-            permission_message = (
-                f'No recipient opt-in found for explicit preference, falling back to default send: {default_send}'
-            )
+            permission_message = f'V3 Profile - No recipient opt-in found for explicit preference, falling back to default send: {default_send} (Recipient Identifier {va_profile_id})'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
@@ -240,9 +238,7 @@ class VAProfileClient:
         except CommunicationItemNotFoundException:
             self.logger.info('Communication item for recipient %s not found', va_profile_id)
             communication_allowed = default_send
-            permission_message = (
-                f'No recipient opt-in found for explicit preference, falling back to default send: {default_send}'
-            )
+            permission_message = f'V3 Profile - No recipient opt-in found for explicit preference, falling back to default send: {default_send} (Recipient Identifier {va_profile_id})'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
