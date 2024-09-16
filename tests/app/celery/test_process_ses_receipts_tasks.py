@@ -3,12 +3,6 @@ from datetime import datetime
 
 import pytest
 from freezegun import freeze_time
-from tests.app.conftest import create_sample_notification
-from tests.app.db import (
-    create_notification,
-    create_service_callback_api,
-    save_notification,
-)
 
 from app import bounce_rate_client, signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback
@@ -41,6 +35,12 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_complaint,
 )
 from celery.exceptions import MaxRetriesExceededError
+from tests.app.conftest import create_sample_notification
+from tests.app.db import (
+    create_notification,
+    create_service_callback_api,
+    save_notification,
+)
 
 
 def test_process_ses_results(sample_email_template):
