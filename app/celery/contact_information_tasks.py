@@ -128,14 +128,14 @@ def get_profile_result(
     Returns:
         VAProfileResult: The contact info result from VA Profile.
     """
-    if notification.type == EMAIL_TYPE:
+    if notification.notification_type == EMAIL_TYPE:
         return va_profile_client.get_email_with_permission(recipient_identifier, notification.default_send)
-    elif notification.type == SMS_TYPE:
+    elif notification.notification_type == SMS_TYPE:
         return va_profile_client.get_telephone_with_permission(recipient_identifier, notification.default_send)
     else:
         raise NotImplementedError(
             f'The task lookup_contact_info failed for notification {notification.id}. '
-            f'{notification.type} is not supported'
+            f'{notification.notification_type} is not supported'
         )
 
 
