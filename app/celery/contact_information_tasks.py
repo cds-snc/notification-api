@@ -209,6 +209,9 @@ def lookup_contact_info(
             # check if the template has a communication_item_id.
             # if it does, check the communication item: get the default_send_indicator.
             communication_item_id = notification.template.communication_item_id
+            current_app.logger.debug(
+                f'V3 Profile -- Looking for communication_item_id associated with template: {notification.template.id}'
+            )
             if communication_item_id:
                 try:
                     communication_item = get_communication_item(communication_item_id)
