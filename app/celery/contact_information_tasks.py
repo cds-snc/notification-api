@@ -64,15 +64,14 @@ def lookup_contact_info(
 def handle_combined_contact_info_and_permissions_lookup(self, notification, recipient_identifier):
     try:
         if notification.notification_type == EMAIL_TYPE:
-            client_fn = va_profile_client.get_email_with_permission
+            result = va_profile_client.get_email_with_permission(recipient_identifier, notification.default_send)
         elif notification.notification_type == SMS_TYPE:
-            client_fn = va_profile_client.get_telephone_with_permission
+            result = va_profile_client.get_telephone_with_permission(recipient_identifier, notification.default_send)
         else:
             raise NotImplementedError(
                 f'The task lookup_contact_info failed for notification {notification.id}. '
                 f'{notification.notification_type} is not supported'
             )
-        result = client_fn(recipient_identifier, notification.default_send)
     except Exception as e:
         handle_lookup_contact_info_exception(self, notification, recipient_identifier, e)
 

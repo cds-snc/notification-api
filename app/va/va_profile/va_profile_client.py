@@ -116,8 +116,6 @@ class VAProfileClient:
         self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
 
         telephones: List[Telephone] = contact_info.get(self.PHONE_BIO_TYPE, [])
-        phone_numbers = ', '.join([tel['phoneNumber'] for tel in telephones])
-        self.logger.debug('V3 Profile telephones: %s', phone_numbers)
         sorted_telephones = sorted(
             [phone for phone in telephones if phone['phoneType'] == PhoneNumberType.MOBILE.value],
             key=lambda phone: iso8601.parse_date(phone['createDate']),
@@ -186,11 +184,8 @@ class VAProfileClient:
             permission_message = f'V3 Profile - No recipient opt-in found for explicit preference, falling back to default send: {default_send} (Recipient Identifier {va_profile_id})'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
-        self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
 
         telephones: List[Telephone] = contact_info.get(self.PHONE_BIO_TYPE, [])
-        phone_numbers = ', '.join([tel['phoneNumber'] for tel in telephones])
-        self.logger.debug('V3 Profile telephones: %s', phone_numbers)
         sorted_telephones = sorted(
             [phone for phone in telephones if phone['phoneType'] == PhoneNumberType.MOBILE.value],
             key=lambda phone: iso8601.parse_date(phone['createDate']),
@@ -275,31 +270,11 @@ class VAProfileClient:
         communication_permissions: CommunicationPermissions = self.get_profile(recipient_id).get(
             'communicationPermissions', {}
         )
-        self.logger.debug(
-            'V3 Profile -- Retrieved Communication Permissions for recipient_id: %s, notification_id: \
-              %s, notification_type: %s -- %s',
-            recipient_id.id_value,
-            notification_id,
-            notification_type,
-            communication_permissions,
-        )
         for perm in communication_permissions:
-            self.logger.debug(
-                'V3 Profile -- Found communication item id %s on recipient %s for notification %s',
-                communication_item_id,
-                recipient_id.id_value,
-                notification_id,
-            )
             if (
                 perm['communicationChannelName'] == VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type]
                 and perm['communicationItemId'] == communication_item_id
             ):
-                self.logger.debug(
-                    'V3 Profile -- %s notification:  Value of allowed is %s for notification %s',
-                    perm['communicationChannelName'],
-                    perm['allowed'],
-                    notification_id,
-                )
                 self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
                 assert isinstance(perm['allowed'], bool)
                 return perm['allowed']
@@ -336,27 +311,11 @@ class VAProfileClient:
         """
 
         communication_permissions: CommunicationPermissions = profile.get('communicationPermissions', {})
-        self.logger.debug(
-            'V3 Profile -- Parsing Communication Permissions for \
-              notification_type: %s -- %s',
-            notification_type,
-            communication_permissions,
-        )
         for perm in communication_permissions:
-            self.logger.debug(
-                'V3 Profile -- Found communication item id %s on vaProfileId %s',
-                perm['communicationItemId'],
-                perm['vaProfileId'],
-            )
             if (
                 perm['communicationChannelName'] == notification_type.value
                 and perm['communicationItemId'] == notification_type.id
             ):
-                self.logger.debug(
-                    'V3 Profile -- %s notification:  Value of allowed is %s',
-                    perm['communicationChannelName'],
-                    perm['allowed'],
-                )
                 self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
                 assert isinstance(perm['allowed'], bool)
                 return perm['allowed']
