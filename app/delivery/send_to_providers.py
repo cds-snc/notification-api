@@ -2,9 +2,9 @@ import base64
 import os
 import re
 from datetime import datetime
+from time import sleep
 from typing import Any, Dict, Optional
 from uuid import UUID
-from time import sleep
 
 import phonenumbers
 from flask import current_app
@@ -106,8 +106,10 @@ def send_sms_to_provider(notification):
             notification.reference = send_sms_response(provider.get_name(), notification.to)
             notification.billable_units = template.fragment_count
             update_notification_to_sending(notification, provider)
-            current_app.logger.info(f"Sleeping {current_app.config['AWS_SEND_SMS_BOTO_CALL_LATENCY']} seconds to simulate AWS boto call latency.")
-            sleep(current_app.config["AWS_SEND_SMS_BOTO_CALL_LATENCY"]) # simulate boto3 client send_sms() delay
+            current_app.logger.info(
+                f"Sleeping {current_app.config['AWS_SEND_SMS_BOTO_CALL_LATENCY']} seconds to simulate AWS boto call latency."
+            )
+            sleep(current_app.config["AWS_SEND_SMS_BOTO_CALL_LATENCY"])  # simulate boto3 client send_sms() delay
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
