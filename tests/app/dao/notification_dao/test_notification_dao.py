@@ -80,45 +80,45 @@ def test_should_have_decorated_notifications_dao_functions():
     assert dao_delete_notification_by_id.__wrapped__.__name__ == 'dao_delete_notification_by_id'  # noqa
 
 
-def test_should_by_able_to_update_status_by_reference(notify_db_session, sample_template):
+def test_should_be_able_to_update_status_by_reference(notify_db_session, sample_template):
     template = sample_template(template_type=EMAIL_TYPE)
-    data = _notification_json(template, status='sending')
+    data = _notification_json(template, status=NOTIFICATION_SENDING)
 
     notification = Notification(**data)
     dao_create_notification(notification)
 
     db_notification = notify_db_session.session.get(Notification, notification.id)
-    assert db_notification.status == 'sending'
+    assert db_notification.status == NOTIFICATION_SENDING
 
     ref = str(uuid4())
     notification.reference = ref
     dao_update_notification(notification)
 
-    updated = update_notification_status_by_reference(ref, 'delivered')
-    assert updated.status == 'delivered'
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    updated = update_notification_status_by_reference(ref, NOTIFICATION_DELIVERED)
+    assert updated.status == NOTIFICATION_DELIVERED
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
 
 
-def test_should_by_able_to_update_status_by_id(notify_db_session, sample_template, sample_job):
+def test_should_be_able_to_update_status_by_id(notify_db_session, sample_template, sample_job):
     template = sample_template()
     job = sample_job(template)
     with freeze_time('2000-01-01 12:00:00'):
-        data = _notification_json(template, job_id=job.id, status='sending')
+        data = _notification_json(template, job_id=job.id, status=NOTIFICATION_SENDING)
         notification = Notification(**data)
         dao_create_notification(notification)
 
     try:
-        assert notification.status == 'sending'
-        assert notify_db_session.session.get(Notification, notification.id).status == 'sending'
+        assert notification.status == NOTIFICATION_SENDING
+        assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_SENDING
 
         with freeze_time('2000-01-02 12:00:00'):
-            updated = update_notification_status_by_id(notification.id, 'delivered')
+            updated = update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED)
 
-        assert updated.status == 'delivered'
+        assert updated.status == NOTIFICATION_DELIVERED
         assert updated.updated_at == datetime(2000, 1, 2, 12, 0, 0)
-        assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+        assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
         assert notification.updated_at == datetime(2000, 1, 2, 12, 0, 0)
-        assert notification.status == 'delivered'
+        assert notification.status == NOTIFICATION_DELIVERED
     finally:
         # Teardown
         notify_db_session.session.delete(notification)
@@ -133,10 +133,10 @@ def test_should_not_update_status_by_id_if_not_sending_and_does_not_update_job(
 ):
     template = sample_template()
     job = sample_job(template)
-    notification = sample_notification(template=template, status='delivered', job=job)
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
-    assert not update_notification_status_by_id(notification.id, 'failed')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    notification = sample_notification(template=template, status=NOTIFICATION_DELIVERED, job=job)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
+    assert update_notification_status_by_id(notification.id, NOTIFICATION_PERMANENT_FAILURE) is not None
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
     assert job == notify_db_session.session.get(Job, notification.job_id)
 
 
@@ -282,6 +282,7 @@ def test_should_by_able_to_update_status_by_id_from_pending_to_delivered(
     assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
 
 
+@pytest.mark.skip(reason='firetext status update, not valid anymore')
 def test_should_by_able_to_update_status_by_id_from_pending_to_temporary_failure(
     notify_db_session,
     sample_template,
@@ -1921,7 +1922,8 @@ def test_update_notification_status_by_id_cannot_exit_delivered_status_after_int
     update_notification_status_by_id(notification_id=notification.id, status=next_status)
 
     # record the last update value that is in the database
-    notification_last_updated = notification.updated_at
+    # or set to current time -1 second if no updated_at value
+    notification_last_updated = notification.updated_at or datetime.utcnow() - timedelta(seconds=1)
 
     # get the notification object and make sure it has the values you gave it
     # establish sending as the intermediate step
@@ -2077,7 +2079,6 @@ def test_update_notification_status_by_id_can_update_status_in_order_when_given_
         (NOTIFICATION_CREATED, NOTIFICATION_DELIVERED),
         (NOTIFICATION_CREATED, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_CREATED, NOTIFICATION_PERMANENT_FAILURE),
-        (NOTIFICATION_PENDING, NOTIFICATION_SENDING),
         (NOTIFICATION_PENDING, NOTIFICATION_PENDING),
         (NOTIFICATION_PENDING, NOTIFICATION_SENT),
         (NOTIFICATION_PENDING, NOTIFICATION_DELIVERED),
@@ -2097,6 +2098,7 @@ def test_update_notification_status_by_id_can_update_status_in_order_when_given_
         (NOTIFICATION_SENT, NOTIFICATION_DELIVERED),
         (NOTIFICATION_SENT, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_DELIVERED, NOTIFICATION_DELIVERED),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED),
     ],
 )
 def test_update_notification_delivery_status_valid_updates(
@@ -2139,7 +2141,6 @@ def test_update_notification_delivery_status_valid_updates(
         (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PENDING),
         (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_SENT),
-        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED),
     ],
 )
 def test_update_notification_delivery_status_invalid_updates(

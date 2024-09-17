@@ -902,6 +902,7 @@ def test_save_email_should_use_template_version_from_job_not_latest(
     )
 
 
+@pytest.mark.serial
 def test_should_use_email_template_subject_placeholders(
     notify_db_session,
     sample_template,
@@ -914,15 +915,16 @@ def test_should_use_email_template_subject_placeholders(
     )
 
     # Cleaned by sample_template
-    notification = _notification_json(template, 'my_email@my_email.com', {'name': 'Jo'})
+    notification_data = _notification_json(template, 'my_email@my_email.com', {'name': 'Jo'})
     mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
 
     notification_id = uuid4()
     now = datetime.utcnow()
+    # Intermittently makes the status 'technical-failure'
     save_email(
         template.service_id,
         notification_id,
-        encryption.encrypt(notification),
+        encryption.encrypt(notification_data),
     )
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 

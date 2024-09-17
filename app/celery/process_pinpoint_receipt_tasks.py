@@ -12,7 +12,8 @@ from app.celery.common import log_notification_total_time
 from app.celery.exceptions import AutoRetryException
 from app.dao.notifications_dao import (
     dao_get_notification_by_reference,
-    dao_update_notification,
+    dao_update_notification_by_id,
+    duplicate_update_warning,
     update_notification_status_by_id,
     FINAL_STATUS_STATES,
 )
@@ -134,10 +135,12 @@ def process_pinpoint_results(
                 notification.status_reason = 'The veteran is opted-out at the Pinpoint level.'
 
         if price_in_millicents_usd > 0.0:
-            notification.status = notification_status
-            notification.segments_count = number_of_message_parts
-            notification.cost_in_millicents = price_in_millicents_usd
-            dao_update_notification(notification)
+            dao_update_notification_by_id(
+                notification_id=notification.id,
+                status=notification_status,
+                segments_count=number_of_message_parts,
+                cost_in_millicents=price_in_millicents_usd,
+            )
         else:
             update_notification_status_by_id(
                 notification_id=notification.id, status=notification_status, status_reason=notification.status_reason
@@ -209,10 +212,21 @@ def attempt_to_get_notification(
     return notification, should_exit
 
 
-def check_notification_status(
-    notification: Notification,
-    notification_status: str,
-) -> bool:
+def check_notification_status(notification: Notification, notification_status: str) -> bool:
+    """
+    Check if the notification status should be updated. If the status has not changed, or if the status is in a final
+    state, do not update the notification. *Unless* the status is being updated to delivered from a different final
+    status, in which case, the notification should always be updated.
+
+    Args:
+        notification (Notification): The notification to check.
+        notification_status (str): The status to update the notification to.
+
+    Returns:
+        bool: False if the notification status should not be updated, True if the downstream task should exit.
+    """
+    should_exit = False
+
     # Do not update if the status has not changed.
     if notification_status == notification.status:
         current_app.logger.info(
@@ -220,28 +234,13 @@ def check_notification_status(
             notification_status,
             notification_status,
         )
-        return True
+        should_exit = True
+    elif notification_status == NOTIFICATION_DELIVERED:
+        # ensure the notification is updated to delivered whenever we receive a delivered status
+        should_exit = False
+    elif notification.status in FINAL_STATUS_STATES:
+        # Do not update if notification status is in a final state.
+        duplicate_update_warning(notification, notification_status)
+        should_exit = True
 
-    # Do not update if notification status is in a final state.
-    if notification.status in FINAL_STATUS_STATES:
-        log_notification_status_warning(notification, notification_status)
-        return True
-
-    return False
-
-
-def log_notification_status_warning(
-    notification,
-    status: str,
-) -> None:
-    time_diff = datetime.datetime.utcnow() - (notification.updated_at or notification.created_at)
-    current_app.logger.warning(
-        'Invalid callback received. Notification id %s received a status update to %s '
-        '%s after being set to %s. %s sent by %s',
-        notification.id,
-        status,
-        time_diff,
-        notification.status,
-        notification.notification_type,
-        notification.sent_by,
-    )
+    return should_exit
