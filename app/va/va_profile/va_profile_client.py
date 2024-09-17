@@ -162,7 +162,6 @@ class VAProfileClient:
         self,
         va_profile_id: RecipientIdentifier,
         default_send=True,
-        # bypass_permission_check=False,
     ) -> VAProfileResult:
         """
         Retrieve the telephone number from the profile information for a given VA profile ID.
@@ -179,7 +178,6 @@ class VAProfileClient:
         profile = self.get_profile(va_profile_id)
         communication_allowed = True
         permission_message = None
-        # if not bypass_permission_check:
         try:
             communication_allowed = self.get_is_communication_allowed_from_profile(profile, CommunicationChannel.TEXT)
         except CommunicationItemNotFoundException:
