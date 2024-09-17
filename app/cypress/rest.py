@@ -56,7 +56,7 @@ def create_test_user(email_name):
         save_model_user(user)
 
         # add user to cypress service w/ full permissions
-        service = Service.query.filter_by(id="5c8a0501-2aa8-433a-ba51-cefb8063ab93").first()
+        service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
         permissions = []
         for p in [
             "manage_users",
