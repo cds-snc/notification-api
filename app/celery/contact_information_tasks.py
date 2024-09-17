@@ -42,16 +42,11 @@ def lookup_contact_info(
     current_app.logger.info('Looking up contact information for notification_id: %s.', notification_id)
 
     notification = get_notification_by_id(notification_id)
-    current_app.logger.debug(
-        f'V3 Profile notification_id: {notification.id}, template_id: {notification.template.id} communication_item_id: {notification.template.communication_item_id}'
-    )
-
     recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
+    should_send = notification.default_send
 
-    should_send = True
     try:
         if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-            should_send = notification.default_send
             result = get_profile_result(
                 notification.notification_type, notification_id, recipient_identifier, should_send
             )
@@ -70,7 +65,7 @@ def lookup_contact_info(
     notification.to = recipient
     dao_update_notification(notification)
 
-    if should_send:
+    if not should_send:
         handle_communication_not_allowed(notification, recipient_identifier, permission_message)
 
 
