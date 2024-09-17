@@ -73,6 +73,9 @@ def get_profile_result(
     Returns:
         VAProfileResult: The contact info result from VA Profile.
     """
+    current_app.logger.debug(
+        f'V3 Profile -- get_profile_result called with notification_type: {notification_type}, notification_id: {notification_id}, default_send: {default_send}'
+    )
     if notification_type == EMAIL_TYPE:
         return va_profile_client.get_email_with_permission(recipient_identifier, default_send)
         # return get_email_result(notification_id, recipient_identifier, communication_item_id)
