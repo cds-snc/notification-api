@@ -12,5 +12,5 @@ fileignoreconfig:
   - filename: app/service/rest.py
     checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
   - filename: app/celery/contact_information_tasks.py
-    checksum: 6c1cd28e2c8e2918c5534c735502864d02214bcb0b080d11a91a7ff4f6f17a3b
+    checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
 version: "1.0"
