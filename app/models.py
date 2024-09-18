@@ -1,7 +1,6 @@
 import datetime
 import uuid
 import itertools
-from functools import cached_property
 from typing import Dict, Any
 from app import (
     DATETIME_FORMAT,
@@ -1386,14 +1385,6 @@ class Notification(db.Model):
         ),
         {},
     )
-
-    @cached_property
-    def default_send(self):
-        if self.template.communication_item_id:
-            communication_item = CommunicationItem.query.get(self.template.communication_item_id)
-            if communication_item:
-                return communication_item.default_send_indicator
-        return True
 
     @property
     def personalisation(self):

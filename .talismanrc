@@ -11,12 +11,4 @@ fileignoreconfig:
   checksum: 34d12acdf749363555c31add4e7e7afa9e2a27afd792bd98c85f331b87bd7112
 - filename: scripts/trigger_task.py
   checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
-- filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
-  checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
-- filename: app/template/rest.py
-  checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
-- filename: app/service/rest.py
-  checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
-- filename: app/celery/contact_information_tasks.py
-  checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
 version: "1.0"

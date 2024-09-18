@@ -275,10 +275,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
 
     tasks.append(lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
 
-    if (
-        not is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
-        and communication_item_id
-    ):
+    if communication_item_id:
         tasks.append(
             lookup_recipient_communication_permissions.si(notification.id).set(
                 queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
