@@ -39,14 +39,14 @@ def create_nightly_billing(day_start=None):
 
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
             tasks = [
-                create_nightly_billing_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING),
-                generate_nightly_billing_csv_report.si(process_day.isoformat()).set(queue=QueueNames.REPORTING),
+                create_nightly_billing_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+                generate_nightly_billing_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
             ]
 
             chain(*tasks).apply_async()
         else:
             create_nightly_billing_for_day.apply_async(
-                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.REPORTING
+                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.NOTIFY
             )
 
 
@@ -123,16 +123,14 @@ def create_nightly_notification_status(day_start=None):
 
         if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
             tasks = [
-                create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.REPORTING),
-                generate_daily_notification_status_csv_report.si(process_day.isoformat()).set(
-                    queue=QueueNames.REPORTING
-                ),
+                create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+                generate_daily_notification_status_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
             ]
             chain(*tasks).apply_async()
 
         else:
             create_nightly_notification_status_for_day.apply_async(
-                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.REPORTING
+                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.NOTIFY
             )
 
 

@@ -165,7 +165,7 @@ def deliver_sms_with_rate_limiting(
             retry_time,
         )
 
-        self.retry(queue=QueueNames.RATE_LIMIT_RETRY, max_retries=None, countdown=retry_time)
+        self.retry(queue=QueueNames.RETRY, max_retries=None, countdown=retry_time)
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
         log_and_update_technical_failure(notification_id, 'deliver_sms_with_rate_limiting', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)

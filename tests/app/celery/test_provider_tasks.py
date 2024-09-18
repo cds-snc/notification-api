@@ -402,7 +402,7 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(
     deliver_sms_with_rate_limiting(notification.id)
 
     retry.assert_called_once_with(
-        queue=QueueNames.RATE_LIMIT_RETRY,
+        queue=QueueNames.RETRY,
         max_retries=None,
         countdown=sms_sender.rate_limit_interval / sms_sender.rate_limit,
     )

@@ -104,9 +104,7 @@ def post_notification(notification_type):  # noqa: C901
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
-        notification = process_letter_notification(
-            letter_data=form, api_key=api_user, template=template, reply_to_text=reply_to
-        )
+        return jsonify(result='error', message='Not Implemented'), 501
     else:
         if 'email_address' in form or 'phone_number' in form:
             notification = process_sms_or_email_notification(
@@ -206,12 +204,10 @@ def process_sms_or_email_notification(
         if simulated:
             current_app.logger.debug('POST simulated notification for id: %s', notification.id)
         else:
-            queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
             recipient_id_type = recipient_identifier.get('id_type') if recipient_identifier else None
             send_notification_to_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=queue_name,
                 recipient_id_type=recipient_id_type,
                 sms_sender_id=form.get('sms_sender_id'),
             )

@@ -4,7 +4,7 @@ import boto3
 import os
 import uuid
 
-ROUTING_KEY = 'delivery-receipts'
+ROUTING_KEY = 'delivery-status-result-tasks'
 
 
 def lambda_handler(

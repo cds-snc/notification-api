@@ -429,7 +429,7 @@ def test_should_send_email_to_anyone_with_test_key(
     result_notification_id, result_queue = mocked.call_args
     result_id, *rest = result_notification_id[0]
     assert result_id == mocked_uuid
-    assert result_queue['queue'] == 'research-mode-tasks'
+    assert result_queue['queue'] == 'notify-internal-tasks'
 
     # Teardown
     notification = notify_db_session.session.get(Notification, response.get_json()['data']['notification']['id'])

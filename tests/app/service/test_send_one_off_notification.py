@@ -5,13 +5,11 @@ import pytest
 from notifications_utils.recipients import InvalidPhoneError
 from sqlalchemy import delete
 
-from app.config import QueueNames
 from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     MOBILE_TYPE,
-    PRIORITY,
     SMS_TYPE,
     Notification,
     ServiceWhitelist,
@@ -49,7 +47,7 @@ def test_send_one_off_notification_calls_celery_correctly(
 
     assert resp == {'id': str(persist_mock.return_value.id)}
 
-    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=persist_mock.return_value, research_mode=False)
 
 
 def test_send_one_off_notification_calls_persist_correctly_for_sms(
@@ -141,24 +139,6 @@ def test_send_one_off_notification_honors_research_mode(
     send_one_off_notification(service.id, post_data)
 
     assert celery_mock.call_args[1]['research_mode'] is True
-
-
-def test_send_one_off_notification_honors_priority(
-    notify_db_session,
-    persist_mock,
-    celery_mock,
-    sample_service,
-    sample_template,
-):
-    service = sample_service()
-    template = sample_template(service=service)
-    template.process_type = PRIORITY
-
-    post_data = {'template_id': str(template.id), 'to': '6502532222', 'created_by': str(service.created_by_id)}
-
-    send_one_off_notification(service.id, post_data)
-
-    assert celery_mock.call_args[1]['queue'] == QueueNames.PRIORITY
 
 
 def test_send_one_off_notification_raises_if_invalid_recipient(
@@ -259,7 +239,7 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
 
     notification_id: str = send_one_off_notification(service_id=template.service.id, post_data=data)['id']
     notification = notify_db_session.session.get(Notification, notification_id)
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False)
     assert notification.reply_to_text == reply_to_email.email_address
 
     # Teardown
@@ -288,7 +268,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(
 
     notification_id: dict = send_one_off_notification(service_id=service.id, post_data=data)
     notification = notify_db_session.session.get(Notification, notification_id['id'])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False)
 
     assert notification.reply_to_text == '+16502532222'
 
@@ -318,7 +298,7 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
 
     notification_id: dict = send_one_off_notification(service_id=service.id, post_data=data)
     notification = notify_db_session.session.get(Notification, notification_id['id'])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=None)
+    celery_mock.assert_called_once_with(notification=notification, research_mode=False)
 
     assert notification.reply_to_text == '+16502532222'
 

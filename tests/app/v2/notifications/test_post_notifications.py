@@ -535,7 +535,7 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     'notification_type, key_send_to, send_to',
     [(SMS_TYPE, 'phone_number', '6502532222'), (EMAIL_TYPE, 'email_address', 'sample@email.com')],
 )
-def test_send_notification_uses_priority_queue_when_template_is_marked_as_priority(
+def test_send_notification_uses_email_or_sms_queue_when_template_is_marked_as_priority(
     client,
     sample_api_key,
     sample_service,
@@ -559,7 +559,7 @@ def test_send_notification_uses_priority_queue_when_template_is_marked_as_priori
     mocked_chain.assert_called_once()
 
     args, _ = mocked_chain.call_args
-    for called_task, expected_task in zip(args, ['priority-tasks']):
+    for called_task, expected_task in zip(args, [f'send-{notification_type}-tasks']):
         assert called_task.options['queue'] == expected_task
         assert called_task.args[0] == str(notification_id)
 

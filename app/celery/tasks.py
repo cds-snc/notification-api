@@ -161,7 +161,7 @@ def process_row(
             encrypted,
         ),
         task_kwargs,
-        queue=QueueNames.DATABASE if not service.research_mode else QueueNames.RESEARCH_MODE,
+        queue=QueueNames.NOTIFY,
     )
 
 
@@ -229,12 +229,12 @@ def save_sms(
         if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(
                 [str(saved_notification.id)],
-                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE,
+                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.NOTIFY,
             )
         else:
             provider_tasks.deliver_sms.apply_async(
                 [str(saved_notification.id)],
-                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.RESEARCH_MODE,
+                queue=QueueNames.SEND_SMS if not service.research_mode else QueueNames.NOTIFY,
             )
 
         current_app.logger.debug(
@@ -290,7 +290,7 @@ def save_email(
 
         provider_tasks.deliver_email.apply_async(
             [str(saved_notification.id)],
-            queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.RESEARCH_MODE,
+            queue=QueueNames.SEND_EMAIL if not service.research_mode else QueueNames.NOTIFY,
         )
 
         current_app.logger.debug('Email %s created at %s', saved_notification.id, saved_notification.created_at)
@@ -338,7 +338,8 @@ def save_letter(
         )
         if current_app.config['NOTIFY_ENVIRONMENT'] in ['preview', 'development']:
             research_mode_tasks.create_fake_letter_response_file.apply_async(
-                (saved_notification.reference,), queue=QueueNames.RESEARCH_MODE
+                (saved_notification.reference,),
+                queue=QueueNames.NOTIFY,
             )
         else:
             update_notification_status_by_reference(saved_notification.reference, 'delivered')

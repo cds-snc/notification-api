@@ -82,8 +82,6 @@ def send_one_off_notification(
         reference=create_one_off_reference(template.template_type),
     )
 
-    queue_name = QueueNames.PRIORITY if template.process_type == PRIORITY else None
-
     if template.template_type == LETTER_TYPE and service.research_mode:
         _update_notification_status(
             notification,
@@ -93,7 +91,6 @@ def send_one_off_notification(
         send_notification_to_queue(
             notification=notification,
             research_mode=service.research_mode,
-            queue=queue_name,
         )
 
     return {'id': str(notification.id)}

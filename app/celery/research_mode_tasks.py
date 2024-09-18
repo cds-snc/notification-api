@@ -49,7 +49,7 @@ def send_sms_response(
         headers = {'Content-type': 'application/json'}
     elif provider == 'pinpoint':
         body = pinpoint_notification_callback_record(reference)
-        process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+        process_pinpoint_receipt_tasks.process_pinpoint_results.apply_async([body], queue=QueueNames.NOTIFY)
         return
     else:
         headers = {'Content-type': 'application/x-www-form-urlencoded'}
@@ -75,7 +75,7 @@ def send_email_response(
     else:
         body = ses_notification_callback(reference)
 
-    process_ses_receipts_tasks.process_ses_results.apply_async([body], queue=QueueNames.RESEARCH_MODE)
+    process_ses_receipts_tasks.process_ses_results.apply_async([body], queue=QueueNames.NOTIFY)
 
 
 def make_request(

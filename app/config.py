@@ -32,50 +32,30 @@ env_name_map = {'development': 'dev', 'test': 'test', 'staging': 'staging', 'pro
 
 
 class QueueNames(object):
-    PERIODIC = 'periodic-tasks'
-    PRIORITY = 'priority-tasks'
-    DATABASE = 'database-tasks'
-    SEND_SMS = 'send-sms-tasks'
-    SEND_EMAIL = 'send-email-tasks'
-    RESEARCH_MODE = 'research-mode-tasks'
-    REPORTING = 'reporting-tasks'
-    JOBS = 'job-tasks'
-    RETRY = 'retry-tasks'
-    RATE_LIMIT_RETRY = 'rate-limit-retry-tasks'
-    NOTIFY = 'notify-internal-tasks'
-    PROCESS_FTP = 'process-ftp-tasks'
     CALLBACKS = 'service-callbacks'
-    ANTIVIRUS = 'antivirus-tasks'
+    COMMUNICATION_ITEM_PERMISSIONS = 'communication-item-permissions'
+    DELIVERY_STATUS_RESULT_TASKS = 'delivery-status-result-tasks'
     LOOKUP_CONTACT_INFO = 'lookup-contact-info-tasks'
     LOOKUP_VA_PROFILE_ID = 'lookup-va-profile-id-tasks'
-    DELIVERY_RECEIPTS = 'delivery-receipts'
-    COMMUNICATION_ITEM_PERMISSIONS = 'communication-item-permissions'
-    SEND_ONSITE_NOTIFICATION = 'onsite-notification-tasks'
-    DELIVERY_STATUS_RESULT_TASKS = 'delivery-status-result-tasks'
+    NOTIFY = 'notify-internal-tasks'
+    PERIODIC = 'periodic-tasks'
+    RETRY = 'retry-tasks'
+    SEND_EMAIL = 'send-email-tasks'
+    SEND_SMS = 'send-sms-tasks'
 
     @staticmethod
     def all_queues():
         return [
-            QueueNames.PRIORITY,
-            QueueNames.PERIODIC,
-            QueueNames.DATABASE,
-            QueueNames.SEND_SMS,
-            QueueNames.SEND_EMAIL,
-            QueueNames.RESEARCH_MODE,
-            QueueNames.REPORTING,
-            QueueNames.JOBS,
-            QueueNames.RETRY,
-            QueueNames.RATE_LIMIT_RETRY,
-            QueueNames.NOTIFY,
-            # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
-            # QueueNames.LETTERS,
+            QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
+            QueueNames.DELIVERY_STATUS_RESULT_TASKS,
             QueueNames.LOOKUP_CONTACT_INFO,
             QueueNames.LOOKUP_VA_PROFILE_ID,
-            QueueNames.DELIVERY_RECEIPTS,
-            QueueNames.COMMUNICATION_ITEM_PERMISSIONS,
-            QueueNames.SEND_ONSITE_NOTIFICATION,
-            QueueNames.DELIVERY_STATUS_RESULT_TASKS,
+            QueueNames.NOTIFY,
+            QueueNames.PERIODIC,
+            QueueNames.RETRY,
+            QueueNames.SEND_EMAIL,
+            QueueNames.SEND_SMS,
         ]
 
 
@@ -233,12 +213,13 @@ class Config(object):
         'broker_url': os.getenv('BROKER_URL', 'sqs://sqs.us-gov-west-1.amazonaws.com'),
         'broker_transport_options': {
             'region': AWS_REGION,
-            'polling_interval': 1,  # 1 second
+            'polling_interval': 0.5,  # seconds
             'visibility_timeout': 310,
             'queue_name_prefix': NOTIFICATION_QUEUE_PREFIX,
             'is_secure': os.getenv('BROKER_SSL_ENABLED', 'True') == 'True',
         },
         'worker_enable_remote_control': False,
+        'worker_prefetch_multiplier': 16,
         'enable_utc': True,
         'timezone': os.getenv('TIMEZONE', 'America/New_York'),
         'accept_content': ['json', 'pickle'],
@@ -291,12 +272,12 @@ class Config(object):
             'create-nightly-billing': {
                 'task': 'create-nightly-billing',
                 'schedule': crontab(hour=0, minute=15),
-                'options': {'queue': QueueNames.REPORTING},
+                'options': {'queue': QueueNames.NOTIFY},
             },
             'create-nightly-notification-status': {
                 'task': 'create-nightly-notification-status',
                 'schedule': crontab(hour=0, minute=30),
-                'options': {'queue': QueueNames.REPORTING},
+                'options': {'queue': QueueNames.NOTIFY},
             },
             'delete-sms-notifications': {
                 'task': 'delete-sms-notifications',

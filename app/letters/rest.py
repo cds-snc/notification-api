@@ -15,6 +15,6 @@ register_errors(letter_job)
 def create_process_returned_letters_job():
     references = validate(request.get_json(), letter_references)
 
-    process_returned_letters_list.apply_async([references['references']], queue=QueueNames.DATABASE)
+    process_returned_letters_list.apply_async([references['references']], queue=QueueNames.NOTIFY)
 
     return jsonify(references=references['references']), 200

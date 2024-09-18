@@ -666,10 +666,10 @@ the script for the command line given that you provide the task name, prefix and
 required arguments to the task. For example, running the command
 
 ```bash
-python scripts/trigger_task.py --task-name generate-daily-notification-status-report --queue-prefix dev-notification- --routing-key delivery-receipts --task-args 2022-01-28
+python scripts/trigger_task.py --task-name generate-daily-notification-status-report --queue-prefix dev-notification- --routing-key delivery-status-result-tasks --task-args 2022-01-28
 ```
 
-Will run the `generate-daily-notification-status-report` task in the queue `dev-notification-delivery-receipts` with
+Will run the `generate-daily-notification-status-report` task in the queue `dev-notification-delivery-status-result-tasks` with
 a date string of `2022-01-28` passed to the task.
 
 ## Adding Environment Variables to Task Definition Files

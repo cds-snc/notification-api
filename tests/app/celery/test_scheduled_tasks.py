@@ -76,7 +76,7 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db_session, mocker
 
     notify_db_session.session.refresh(job)
     assert job.job_status == JOB_STATUS_PENDING
-    mocked.assert_called_with([str(job.id)], queue='job-tasks')
+    mocked.assert_called_with([str(job.id)], queue='notify-internal-tasks')
 
 
 def test_should_update_all_scheduled_jobs_and_put_on_queue(
@@ -103,9 +103,9 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(
 
     mocked.assert_has_calls(
         [
-            call([str(job_3.id)], queue='job-tasks'),
-            call([str(job_2.id)], queue='job-tasks'),
-            call([str(job_1.id)], queue='job-tasks'),
+            call([str(job_3.id)], queue='notify-internal-tasks'),
+            call([str(job_2.id)], queue='notify-internal-tasks'),
+            call([str(job_1.id)], queue='notify-internal-tasks'),
         ]
     )
 
@@ -155,7 +155,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
     mock_celery.assert_called_once_with(
-        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.JOBS
+        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.NOTIFY
     )
 
 
@@ -179,7 +179,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
     mock_celery.assert_called_once_with(
-        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.JOBS
+        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.NOTIFY
     )
 
 
@@ -210,7 +210,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
     assert str(job_2.id) in e.value.message
 
     mock_celery.assert_called_once_with(
-        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id), str(job_2.id)],), queue=QueueNames.JOBS
+        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id), str(job_2.id)],), queue=QueueNames.NOTIFY
     )
 
 
@@ -241,7 +241,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template, sam
 
     # job 2 not in celery task
     mock_celery.assert_called_once_with(
-        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.JOBS
+        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.NOTIFY
     )
 
 
@@ -272,7 +272,7 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sampl
 
     # job 2 not in celery task
     mock_celery.assert_called_once_with(
-        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.JOBS
+        name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=([str(job.id)],), queue=QueueNames.NOTIFY
     )
     assert job.job_status == JOB_STATUS_ERROR
     assert job_2.job_status == JOB_STATUS_IN_PROGRESS

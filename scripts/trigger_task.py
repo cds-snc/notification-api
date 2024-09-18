@@ -56,7 +56,7 @@ if __name__ == '__main__':
         '--task-name', dest='task_name', type=str, default='generate-daily-notification-status-csv-report'
     )
     parser.add_argument('--queue-prefix', dest='queue_prefix', type=str, default='dev-notification-')
-    parser.add_argument('--routing-key', dest='routing_key', type=str, default='delivery-receipts')
+    parser.add_argument('--routing-key', dest='routing_key', type=str, default='delivery-status-result-tasks')
     parser.add_argument('--task-args', dest='task_args', nargs='+', default=[])
 
     args = parser.parse_args()

@@ -40,7 +40,7 @@ from app.v2.errors import JobIncompleteError
 def run_scheduled_jobs():
     try:
         for job in dao_set_scheduled_jobs_to_pending():
-            process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+            process_job.apply_async([str(job.id)], queue=QueueNames.NOTIFY)
             current_app.logger.info('Job ID {} added to process job queue'.format(job.id))
     except SQLAlchemyError:
         current_app.logger.exception('Failed to run scheduled jobs')
@@ -128,7 +128,7 @@ def check_job_status():
         job_ids.append(str(job.id))
 
     if job_ids:
-        notify_celery.send_task(name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=(job_ids,), queue=QueueNames.JOBS)
+        notify_celery.send_task(name=TaskNames.PROCESS_INCOMPLETE_JOBS, args=(job_ids,), queue=QueueNames.NOTIFY)
         raise JobIncompleteError('Job(s) {} have not completed.'.format(job_ids))
 
 

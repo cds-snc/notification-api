@@ -96,7 +96,7 @@ def test_should_process_sms_job(
     assert encryption.encrypt.call_args[0][0]['personalisation'] == {'phonenumber': '+441234123123'}
     assert encryption.encrypt.call_args[0][0]['row_number'] == 0
     tasks.save_sms.apply_async.assert_called_once_with(
-        (str(job.service_id), 'uuid', 'something_encrypted'), {}, queue='database-tasks'
+        (str(job.service_id), 'uuid', 'something_encrypted'), {}, queue='notify-internal-tasks'
     )
 
     # Retrieve job from db
@@ -120,7 +120,7 @@ def test_should_process_sms_job_with_sender_id(
     process_job(job.id, sender_id=fake_uuid)
 
     tasks.save_sms.apply_async.assert_called_once_with(
-        (str(job.service_id), 'uuid', 'something_encrypted'), {'sender_id': fake_uuid}, queue='database-tasks'
+        (str(job.service_id), 'uuid', 'something_encrypted'), {'sender_id': fake_uuid}, queue='notify-internal-tasks'
     )
 
 
@@ -241,7 +241,7 @@ def test_should_process_email_job_if_exactly_on_send_limits(
             'something_encrypted',
         ),
         {},
-        queue='database-tasks',
+        queue='notify-internal-tasks',
     )
 
 
@@ -299,7 +299,7 @@ def test_should_process_email_job(
             'something_encrypted',
         ),
         {},
-        queue='database-tasks',
+        queue='notify-internal-tasks',
     )
 
     notify_db_session.session.refresh(job)
@@ -330,7 +330,7 @@ def test_should_process_email_job_with_sender_id(
     tasks.save_email.apply_async.assert_called_once_with(
         (str(job.service_id), 'uuid', 'something_encrypted'),
         {'sender_id': fake_uuid},
-        queue='database-tasks',
+        queue='notify-internal-tasks',
     )
 
 
@@ -365,12 +365,12 @@ def test_should_process_all_sms_job(
 @pytest.mark.parametrize(
     'template_type, research_mode, expected_function, expected_queue',
     [
-        (SMS_TYPE, False, 'save_sms', 'database-tasks'),
-        (SMS_TYPE, True, 'save_sms', 'research-mode-tasks'),
-        (EMAIL_TYPE, False, 'save_email', 'database-tasks'),
-        (EMAIL_TYPE, True, 'save_email', 'research-mode-tasks'),
-        (LETTER_TYPE, False, 'save_letter', 'database-tasks'),
-        (LETTER_TYPE, True, 'save_letter', 'research-mode-tasks'),
+        (SMS_TYPE, False, 'save_sms', 'notify-internal-tasks'),
+        (SMS_TYPE, True, 'save_sms', 'notify-internal-tasks'),
+        (EMAIL_TYPE, False, 'save_email', 'notify-internal-tasks'),
+        (EMAIL_TYPE, True, 'save_email', 'notify-internal-tasks'),
+        (LETTER_TYPE, False, 'save_letter', 'notify-internal-tasks'),
+        (LETTER_TYPE, True, 'save_letter', 'notify-internal-tasks'),
     ],
 )
 def test_process_row_sends_letter_task(
@@ -457,7 +457,7 @@ def test_process_row_when_sender_id_is_provided(mocker, fake_uuid):
             encrypt_mock.return_value,
         ),
         {'sender_id': fake_uuid},
-        queue='database-tasks',
+        queue='notify-internal-tasks',
     )
 
 
@@ -521,7 +521,7 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='research-mode-tasks'
+        [str(persisted_notification.id)], queue='notify-internal-tasks'
     )
     assert mocked_deliver_sms.called
 
@@ -740,7 +740,7 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='research-mode-tasks'
+        [str(persisted_notification.id)], queue='notify-internal-tasks'
     )
 
 
