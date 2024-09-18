@@ -192,6 +192,10 @@
         {
           "name": "COMP_AND_PEN_DYNAMODB_NAME",
           "value": "prod-bip-payment-notification-table"
+        },
+        {
+          "name": "VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP",
+          "value": "False"
         }
       ],
       "secrets": [
