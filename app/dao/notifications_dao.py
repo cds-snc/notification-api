@@ -1,6 +1,6 @@
 import functools
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
 from itsdangerous import BadSignature
@@ -49,7 +49,7 @@ from app.models import (
     Service,
     ServiceDataRetention,
 )
-from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc
+from app.utils import escape_special_characters
 
 
 @transactional
@@ -384,9 +384,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     flexible_data_retention = ServiceDataRetention.query.filter(ServiceDataRetention.notification_type == notification_type).all()
     deleted = 0
     for f in flexible_data_retention:
-        days_of_retention = get_local_timezone_midnight_in_utc(
-            convert_utc_to_local_timezone(datetime.utcnow()).date()
-        ) - timedelta(days=f.days_of_retention)
+        days_of_retention = datetime.combine(datetime.now(timezone.utc) - timedelta(days=f.days_of_retention), time.max)
 
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
@@ -395,9 +393,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
 
     current_app.logger.info("Deleting {} notifications for services without flexible data retention".format(notification_type))
 
-    seven_days_ago = get_local_timezone_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(
-        days=7
-    )
+    seven_days_ago = datetime.combine(datetime.now(datetime.timezone.utc) - timedelta(days=7), time.max)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
