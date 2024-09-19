@@ -3,13 +3,13 @@ import json
 import requests
 import requests_mock
 from urllib import parse
+from unittest.mock import PropertyMock
 
 from app.feature_flags import FeatureFlag
 from app.models import EMAIL_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, transform_to_fhir_format, OIDS
 from app.va.va_profile import VAProfileClient
 from app.va.va_profile.exceptions import (
-    CommunicationItemNotFoundException,
     NoContactInfoException,
     VAProfileIDNotFoundException,
     VAProfileNonRetryableException,
@@ -345,6 +345,58 @@ class TestCommunicationPermissions:
         )
 
         assert allowed is expected
+
+    @pytest.mark.parametrize(
+        'default_send, user_set, expected',
+        [
+            # If the user has set a preference, we always go with that and override default_send
+            [True, True, True],
+            [True, False, False],
+            [False, True, True],
+            [False, False, False],
+            # If the user has not set a preference, go with the default_send
+            [True, None, True],
+            [False, None, False],
+        ],
+    )
+    @pytest.mark.parametrize('notification_type', [CommunicationChannel.EMAIL, CommunicationChannel.TEXT])
+    def test_ut_get_email_or_sms_with_permission_utilizes_default_send(
+        self,
+        mock_va_profile_client,
+        mock_response,
+        sample_email_notification,
+        sample_sms_notification,
+        recipient_identifier,
+        default_send,
+        user_set,
+        expected,
+        notification_type,
+        mocker,
+    ):
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+
+        profile = mock_response['profile']
+        profile['communicationPermissions'][0]['communicationItemId'] = notification_type.id
+        profile['communicationPermissions'][0]['communicationChannelName'] = notification_type.value
+
+        if user_set is not None:
+            profile['communicationPermissions'][0]['allowed'] = user_set
+        else:
+            profile['communicationPermissions'] = []
+
+        mocker.patch.object(mock_va_profile_client, 'get_profile', return_value=profile)
+
+        if notification_type == CommunicationChannel.EMAIL:
+            notification = sample_email_notification
+            client_fn = mock_va_profile_client.get_email_with_permission
+        else:
+            notification = sample_sms_notification
+            client_fn = mock_va_profile_client.get_telephone_with_permission
+
+        mocker.patch.object(type(notification), 'default_send', new_callable=PropertyMock, return_value=default_send)
+        result = client_fn(recipient_identifier, notification.default_send)
+        assert result.communication_allowed == expected
 
 
 class TestSendEmailStatus:

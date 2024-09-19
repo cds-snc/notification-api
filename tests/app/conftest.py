@@ -1504,6 +1504,12 @@ def sample_email_notification(sample_template, sample_notification):
 
 
 @pytest.fixture
+def sample_sms_notification(sample_template, sample_notification):
+    template = sample_template(template_type=SMS_TYPE)
+    return sample_notification(template=template)
+
+
+@pytest.fixture
 def sample_notification_history(
     notify_db_session,
     sample_template,
