@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -12,6 +12,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
     update_fact_notification_status,
 )
+from app.models import Service
 
 
 @notify_celery.task(name="create-nightly-billing")
@@ -76,6 +77,9 @@ def create_nightly_notification_status_for_day(process_day):
 
     start = datetime.utcnow()
     transit_data = fetch_notification_status_for_day(process_day=process_day)
+
+    service_ids = [x.id for x in Service.query.all()]
+
     end = datetime.utcnow()
     current_app.logger.info(
         "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
