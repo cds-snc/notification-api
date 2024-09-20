@@ -12,17 +12,14 @@ function determineSemverValue(label) {
   console.log('Received label:', label);
 
   try {
-    if (label.includes('breaking change')) {
+    if (label.includes('major')) {
       return 'MAJOR';
     } else if (
-      label.includes('hotfix') ||
-      label.includes('security') ||
-      label.includes('internal') ||
-      label.includes('bug')
+      label.includes('minor')
     ) {
-      return 'PATCH';
-    } else {
       return 'MINOR';
+    } else {
+      return 'PATCH';
     }
   } catch (error) {
     console.error('Error determining semver value:', error);
