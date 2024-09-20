@@ -388,7 +388,11 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
 
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
-        current_app.logger.info("Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} retention_days {}".format(
+                notification_type, f.service_id, days_of_retention, f.days_of_retention
+            )
+        )
         deleted += _delete_notifications(notification_type, days_of_retention, f.service_id, qry_limit)
 
     current_app.logger.info("Deleting {} notifications for services without flexible data retention".format(notification_type))
@@ -400,6 +404,11 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     for row in service_ids_to_purge:
         service_id = row._mapping["id"]
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} for 7days".format(
+                notification_type, service_id, seven_days_ago
+            )
+        )
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
     current_app.logger.info("Finished deleting {} notifications".format(notification_type))
