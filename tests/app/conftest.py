@@ -1498,12 +1498,6 @@ def sample_notification(notify_db_session, sample_api_key, sample_template):  # 
 
 
 @pytest.fixture
-def sample_email_notification(sample_template, sample_notification):
-    template = sample_template(template_type=EMAIL_TYPE)
-    return sample_notification(template=template)
-
-
-@pytest.fixture
 def sample_notification_history(
     notify_db_session,
     sample_template,
@@ -2167,16 +2161,20 @@ def sample_communication_item(notify_db_session):
     created_communication_item_ids = []
     va_profile_ids = set([])
 
-    def _sample_communication_item():
-        va_profile_item_id = randint(1, 10000000)
+    def _sample_communication_item(default_send: bool = True):
+        va_profile_item_id = randint(111, 10000000)
         # This actually hit a duplicate during testing!
         while va_profile_item_id in va_profile_ids:
             va_profile_item_id = randint(1, 10000000)
-        communication_item = CommunicationItem(id=uuid4(), va_profile_item_id=va_profile_item_id, name=uuid4())
+        communication_item = CommunicationItem(
+            id=uuid4(),
+            va_profile_item_id=va_profile_item_id,
+            name=uuid4(),
+            default_send_indicator=default_send,
+        )
         notify_db_session.session.add(communication_item)
         notify_db_session.session.commit()
 
-        assert communication_item.default_send_indicator, 'Should be True by default.'
         created_communication_item_ids.append(communication_item.id)
         va_profile_ids.add(va_profile_item_id)
 

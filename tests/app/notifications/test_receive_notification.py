@@ -101,7 +101,7 @@ def test_create_inbound_mmg_sms_object(
     service = sample_service()
     data = {
         'Message': 'hello+there+%F0%9F%93%A9',
-        'Number': '+15551234567',
+        'Number': '+15551234566',
         'MSISDN': '447700900001',
         'DateReceived': '2017-01-02+03%3A04%3A05',
         'ID': 'bar',
@@ -117,7 +117,7 @@ def test_create_inbound_mmg_sms_object(
     )
 
     assert inbound_sms.service_id == service.id
-    assert inbound_sms.notify_number == '+15551234567'
+    assert inbound_sms.notify_number == '+15551234566'
     assert inbound_sms.user_number == '447700900001'
     assert inbound_sms.provider_date == datetime(2017, 1, 2, 8, 4, 5)
     assert inbound_sms.provider_reference == 'bar'

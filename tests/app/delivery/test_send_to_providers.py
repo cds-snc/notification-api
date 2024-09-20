@@ -889,12 +889,12 @@ def test_send_sms_to_provider_should_format_phone_number(
 
 
 def test_send_email_to_provider_should_format_email_address(
-    sample_email_notification,
+    sample_notification,
     mock_email_client,
 ):
-    sample_email_notification.to = 'test@example.com\t'
+    notification = sample_notification(to_field='test@example.com\t')
 
-    send_to_providers.send_email_to_provider(sample_email_notification)
+    send_to_providers.send_email_to_provider(notification)
 
     _, kwargs = mock_email_client.send_email.call_args
     assert kwargs['to_addresses'] == 'test@example.com'

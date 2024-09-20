@@ -1,20 +1,17 @@
 import datetime
-import uuid
 import itertools
-from typing import Dict, Any
-from app import (
-    DATETIME_FORMAT,
-    encryption,
-)
-from app.db import db
-from app.encryption import (
-    check_hash,
-    hashpw,
-)
-from app.history_meta import Versioned
-from app.model import User, EMAIL_AUTH_TYPE
-from app.va.identifier import IdentifierType
-from flask import url_for, current_app
+import uuid
+from typing import Any, Dict, Optional
+
+from flask import current_app, url_for
+
+from sqlalchemy import CheckConstraint, Index, UniqueConstraint, and_, select
+from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm.collections import InstrumentedList, attribute_mapped_collection
+
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -30,12 +27,13 @@ from notifications_utils.template import (
     SMSMessageTemplate,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
-from sqlalchemy import and_, CheckConstraint, Index, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
-from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm.collections import attribute_mapped_collection, InstrumentedList
+
+from app import DATETIME_FORMAT, encryption
+from app.db import db
+from app.encryption import check_hash, hashpw
+from app.history_meta import Versioned
+from app.model import EMAIL_AUTH_TYPE, User
+from app.va.identifier import IdentifierType
 
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
@@ -1385,6 +1383,25 @@ class Notification(db.Model):
         ),
         {},
     )
+
+    @property
+    def communication_item(self) -> Optional['CommunicationItem']:
+        if self.template and self.template.communication_item_id:
+            communication_item = db.session.scalar(
+                select(CommunicationItem).where(CommunicationItem.id == self.template.communication_item_id)
+            )
+            return communication_item
+
+    @property
+    def va_profile_item_id(self):
+        if self.communication_item:
+            return self.communication_item.va_profile_item_id
+
+    @property
+    def default_send(self):
+        if self.communication_item:
+            return self.communication_item.default_send_indicator
+        return True
 
     @property
     def personalisation(self):
