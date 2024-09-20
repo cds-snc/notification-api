@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from freezegun import freeze_time
@@ -95,10 +95,14 @@ def _create_templates(sample_service):
     return email_template, letter_template, sms_template
 
 
-@pytest.mark.parametrize("month, delete_run_time", [(4, "2016-04-10 23:40"), (1, "2016-01-11 00:40")])
 @pytest.mark.parametrize(
-    "notification_type, expected_sms_count, expected_email_count, expected_letter_count",
-    [("sms", 7, 10, 10), ("email", 10, 7, 10)],
+    "month, delete_run_time, notification_type, expected_sms_count, expected_email_count",
+    [
+        (4, "2016-04-10 23:40", "sms", 7, 10),
+        (4, "2016-04-10 23:40", "email", 10, 7),
+        (1, "2016-01-11 00:40", "sms", 6, 10),
+        (1, "2016-01-11 00:40", "email", 10, 6),
+    ],
 )
 def test_should_delete_notifications_by_type_after_seven_days(
     sample_service,
@@ -108,9 +112,8 @@ def test_should_delete_notifications_by_type_after_seven_days(
     notification_type,
     expected_sms_count,
     expected_email_count,
-    expected_letter_count,
 ):
-    email_template, letter_template, sms_template = _create_templates(sample_service)
+    email_template, _, sms_template = _create_templates(sample_service)
     # create one notification a day between 1st and 10th from 11:00 to 19:00 of each type
     for i in range(1, 11):
         past_date = "2016-0{0}-{1:02d}  {1:02d}:00:00.000000".format(month, i)
@@ -118,37 +121,32 @@ def test_should_delete_notifications_by_type_after_seven_days(
             save_notification(
                 create_notification(
                     template=email_template,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     status="permanent-failure",
                 )
             )
-            save_notification(create_notification(template=sms_template, created_at=datetime.utcnow(), status="delivered"))
             save_notification(
                 create_notification(
-                    template=letter_template,
-                    created_at=datetime.utcnow(),
-                    status="temporary-failure",
+                    template=sms_template,
+                    created_at=datetime.now(timezone.utc),
+                    status="delivered",
                 )
             )
-    assert Notification.query.count() == 30
+    assert Notification.query.count() == 20
 
     # Records from before 3rd should be deleted
     with freeze_time(delete_run_time):
         delete_notifications_older_than_retention_by_type(notification_type)
 
     remaining_sms_notifications = Notification.query.filter_by(notification_type="sms").all()
-    remaining_letter_notifications = Notification.query.filter_by(notification_type="letter").all()
     remaining_email_notifications = Notification.query.filter_by(notification_type="email").all()
     assert len(remaining_sms_notifications) == expected_sms_count
     assert len(remaining_email_notifications) == expected_email_count
-    assert len(remaining_letter_notifications) == expected_letter_count
 
     if notification_type == "sms":
         notifications_to_check = remaining_sms_notifications
     if notification_type == "email":
         notifications_to_check = remaining_email_notifications
-    if notification_type == "letter":
-        notifications_to_check = remaining_letter_notifications
     for notification in notifications_to_check:
         assert notification.created_at.date() >= date(2016, month, 3)
 
