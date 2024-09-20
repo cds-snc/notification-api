@@ -41,7 +41,6 @@ async function fetchReleaseBranchSha(github, owner, repo) {
 
 /**
  * Processes labels from pull requests to determine the new version and relevant labels for a release.
- * EXPECTS ONLY ONE LABEL, as is currently our process for merging PRs
  * @param {Array<Object>} labels - An array of label objects from pull requests.
  * @param {string} currentVersion - The current release version.
  * @returns {Object} - An object containing the new version and label.
@@ -49,21 +48,28 @@ async function fetchReleaseBranchSha(github, owner, repo) {
 function processLabelsAndVersion(labels, currentVersion) {
   // Split the current version into major, minor, and patch parts
   let versionParts = currentVersion.split('.').map((x) => parseInt(x, 10));
-  let label = labels[0].name;
+  
+  // Extract the label names from the labels array
+  const labelNames = labels.map(labelObj => labelObj.name);
+  
+  let label; // To store the resulting label for the version bump
 
-  // Determine the type of version bump based on the label
-  if (label === 'breaking-change') {
+  // Determine the type of version bump based on the presence of labels
+  if (labelNames.includes('major')) {
     // Major version bump
     versionParts[0] += 1;
     versionParts[1] = 0;
     versionParts[2] = 0;
-  } else if (['hotfix', 'security', 'bug', 'internal'].includes(label)) {
-    // Patch version bump
-    versionParts[2] += 1;
-  } else {
+    label = 'major';
+  } else if (labelNames.includes('minor')) {
     // Minor version bump
     versionParts[1] += 1;
     versionParts[2] = 0;
+    label = 'minor';
+  } else {
+    // Patch version bump (default)
+    versionParts[2] += 1;
+    label = 'patch';
   }
 
   // newVersion is in the format X.X.X
@@ -72,6 +78,7 @@ function processLabelsAndVersion(labels, currentVersion) {
     label,
   };
 }
+
 
 /**
  * Main function to handle pull request data for a GitHub repository.
