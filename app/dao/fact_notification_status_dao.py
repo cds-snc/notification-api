@@ -37,7 +37,7 @@ from app.utils import (
 )
 
 
-def fetch_notification_status_for_day(process_day, service_id=None):
+def fetch_notification_status_for_day(process_day, service_ids=None):
     start_date = datetime.combine(process_day, time.min)
     end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
@@ -45,7 +45,7 @@ def fetch_notification_status_for_day(process_day, service_id=None):
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))
 
     all_data_for_process_day = []
-    service_ids = [x.id for x in Service.query.all()]
+    service_ids = service_ids if service_ids else [x.id for x in Service.query.all()]
     # for each service
     # for each notification type
     # query notifications for day
