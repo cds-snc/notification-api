@@ -350,7 +350,9 @@ class Config(object):
     # UUIDs for Cypress tests
     CYPRESS_SERVICE_ID = "d4e8a7f4-2b8a-4c9a-8b3f-9c2d4e8a7f4b"
     CYPRESS_TEST_USER_ID = "e5f9d8c7-3a9b-4d8c-9b4f-8d3e5f9d8c7a"
+    CYPRESS_TEST_USER_ADMIN_ID = "4f8b8b1e-9c4f-4d8b-8b1e-4f8b8b1e9c4f"
     CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID = "e4b8f8d0-6a3b-4b9e-8c2b-1f2d3e4a5b6c"
     CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET")
 
     # Allowed service IDs able to send HTML through their templates.

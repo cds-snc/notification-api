@@ -7,7 +7,7 @@ import hashlib
 import uuid
 from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify
 
 from app import db
 from app.dao.services_dao import dao_add_user_to_service
@@ -35,29 +35,38 @@ def create_test_user(email_name):
         return jsonify(message="Forbidden"), 403
 
     try:
-        data = request.get_json()
-        password = data.get("password")
-    except Exception:
-        return jsonify(message="Invalid JSON"), 400
-
-    try:
-        # Create the user
-        data = {
+        # Create the users
+        user_regular = {
             "id": uuid.uuid4(),
             "name": "Notify UI testing account",
             "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
-            "password": hashlib.sha256((password + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
+            "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
             "mobile_number": "9025555555",
             "state": "active",
             "blocked": False,
         }
 
-        user = User(**data)
+        user = User(**user_regular)
         save_model_user(user)
+
+        # Create the users
+        user_admin = {
+            "id": uuid.uuid4(),
+            "name": "Notify UI testing account",
+            "email_address": f"notify-ui-tests+{email_name}_admin@cds-snc.ca",
+            "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
+            "mobile_number": "9025555555",
+            "state": "active",
+            "blocked": False,
+            "platform_admin": True,
+        }
+
+        user2 = User(**user_admin)
+        save_model_user(user2)
 
         # add user to cypress service w/ full permissions
         service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
-        permissions = []
+        permissions_reg = []
         for p in [
             "manage_users",
             "manage_templates",
@@ -68,14 +77,31 @@ def create_test_user(email_name):
             "manage_api_keys",
             "view_activity",
         ]:
-            permissions.append(Permission(permission=p))
+            permissions_reg.append(Permission(permission=p))
 
-        dao_add_user_to_service(service, user, permissions=permissions)
+        dao_add_user_to_service(service, user, permissions=permissions_reg)
 
+        permissions_admin = []
+        for p in [
+            "manage_users",
+            "manage_templates",
+            "manage_settings",
+            "send_texts",
+            "send_emails",
+            "send_letters",
+            "manage_api_keys",
+            "view_activity",
+        ]:
+            permissions_admin.append(Permission(permission=p))
+        dao_add_user_to_service(service, user2, permissions=permissions_admin)
+
+        current_app.logger.info(f"Created test user {user.email_address} and {user2.email_address}")
     except Exception:
         return jsonify(message="Error creating user"), 400
 
-    return jsonify(user.serialize()), 201
+    users = { "regular": user.serialize(), "admin": user2.serialize() }
+
+    return jsonify(users), 201
 
 
 def _destroy_test_user(email_name):
