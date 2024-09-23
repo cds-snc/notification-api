@@ -5,9 +5,6 @@ changelog:
     authors:
       - dependabot
   categories:
-    - title: Major Changes
-      labels:
-        - major
-    - title: Other Changes
+    - title: ""
       labels:
         - "*"
