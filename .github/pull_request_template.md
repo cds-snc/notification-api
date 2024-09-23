@@ -23,7 +23,7 @@ Please provide relevant information and / or links to demonstrate the functional
 - [ ] I have assigned myself to this PR
 - [ ] PR has an [appropriate title](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/team_agreement.md#naming-prs): #9999 - What the thing does
 - [ ] PR has a detailed description, including links to specific documentation
-- [ ] I have added the [appropriate labels](https://github.com/department-of-veterans-affairs/notification-api/blob/main/.github/release.yaml) to the PR.
+- [ ] I have added the [appropriate labels](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/pull_request_labels.md#vanotify-labels) to the PR.
 - [ ] I did not remove any parts of the template, such as checkboxes even if they are not used
 - [ ] My code follows the [style guidelines](https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Process/style_guide.md) of this project
 - [ ] I have performed a self-review of my own code
