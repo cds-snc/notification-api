@@ -532,7 +532,7 @@ def send_new_template_category_request(user_id):
             service_id=data["service_id"],
             template_category_name_en=data["template_category_name_en"],
             template_category_name_fr=data["template_category_name_fr"],
-            template_id_link=f"https://{current_app.config['ADMIN_BASE_URL']}/services/{data['service_id']}/templates/{data['template_id']}",
+            template_id_link=f"{current_app.config['ADMIN_BASE_URL']}/services/{data['service_id']}/templates/{data['template_id']}",
         )
         contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
