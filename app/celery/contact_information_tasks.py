@@ -69,28 +69,23 @@ def lookup_contact_info(
 
     notification = get_notification_by_id(notification_id)
     recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
-    should_send = notification.default_send
 
     try:
         if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
             result = get_profile_result(notification, recipient_identifier)
-            recipient = result.recipient
-            should_send = result.communication_allowed
-            permission_message = result.permission_message
+            notification.to = result.recipient
+            if not result.communication_allowed:
+                handle_communication_not_allowed(notification, recipient_identifier, result.permission_message)
+            # Otherwise, this communication is allowed. We will update the notification below and continue the chain.
         else:
-            recipient = get_recipient(
+            notification.to = get_recipient(
                 notification.notification_type,
                 notification_id,
                 recipient_identifier,
             )
+        dao_update_notification(notification)
     except Exception as e:
         handle_lookup_contact_info_exception(self, notification, recipient_identifier, e)
-
-    notification.to = recipient
-    dao_update_notification(notification)
-
-    if not should_send:
-        handle_communication_not_allowed(notification, recipient_identifier, permission_message)
 
 
 def get_recipient(
@@ -203,15 +198,23 @@ def handle_lookup_contact_info_exception(
             recipient_identifier.id_value,
             notification.id,
         )
-
-        return None if notification.default_send else 'No recipient opt-in found for explicit preference'
+        if not notification.default_send:
+            update_notification_status_by_id(
+                notification_id=notification.id,
+                status=NOTIFICATION_PERMANENT_FAILURE,
+                status_reason='No recipient opt-in found for explicit preference',
+            )
+            raise e
+        else:
+            # Means the default_send is True and this does not require an explicit opt-in
+            return None
     else:
         current_app.logger.exception(f'Unhandled exception for notification {notification.id}: {e}')
         raise e
 
 
 def handle_communication_not_allowed(
-    notification: Notification, recipient_identifier: RecipientIdentifier, permission_message: str
+    notification: Notification, recipient_identifier: RecipientIdentifier, permission_message: str | None = None
 ):
     """
     Handles the scenario where communication is not allowed for a given notification.
@@ -224,17 +227,16 @@ def handle_communication_not_allowed(
     Raises:
         NotificationPermanentFailureException: If the recipient has declined permission to receive notifications.
     """
-    if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-        current_app.logger.info(
-            'Permission denied for recipient %s for notification %s',
-            recipient_identifier.id_value,
-            notification.id,
-        )
-        reason = permission_message if permission_message is not None else 'Contact preferences set to false'
-        update_notification_status_by_id(notification.id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=reason)
+    current_app.logger.info(
+        'Permission denied for recipient %s for notification %s',
+        recipient_identifier.id_value,
+        notification.id,
+    )
+    reason = permission_message if permission_message is not None else 'Contact preferences set to false'
+    update_notification_status_by_id(notification.id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=reason)
 
-        message = f'The recipient for notification {notification.id} has declined permission to receive notifications.'
-        current_app.logger.info(message)
+    message = f'The recipient for notification {notification.id} has declined permission to receive notifications.'
+    current_app.logger.info(message)
 
-        check_and_queue_callback_task(notification)
-        raise NotificationPermanentFailureException(message)
+    check_and_queue_callback_task(notification)
+    raise NotificationPermanentFailureException(message)

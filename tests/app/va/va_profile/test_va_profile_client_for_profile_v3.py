@@ -1,15 +1,15 @@
 import json
 from urllib import parse
-from unittest.mock import PropertyMock
 
 import pytest
 import requests
 import requests_mock
 
+from app.celery.contact_information_tasks import lookup_contact_info
+from app.exceptions import NotificationPermanentFailureException
 from app.feature_flags import FeatureFlag
 from app.models import EMAIL_TYPE, SMS_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
-from app.va.va_profile import VAProfileClient
 from app.va.va_profile.exceptions import (
     NoContactInfoException,
     VAProfileIDNotFoundException,
@@ -19,30 +19,7 @@ from app.va.va_profile.exceptions import (
 from app.va.va_profile.va_profile_client import CommunicationChannel
 
 from tests.app.factories.feature_flag import mock_feature_flag
-
-MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov'
-
-
-@pytest.fixture(scope='function')
-def mock_va_profile_client(mocker, notify_api):
-    with notify_api.app_context():
-        mock_logger = mocker.Mock()
-        mock_ssl_key_path = 'some_key.pem'
-        mock_ssl_cert_path = 'some_cert.pem'
-        mock_statsd_client = mocker.Mock()
-        mock_va_profile_token = mocker.Mock()
-
-        client = VAProfileClient()
-        client.init_app(
-            logger=mock_logger,
-            va_profile_url=MOCK_VA_PROFILE_URL,
-            ssl_cert_path=mock_ssl_cert_path,
-            ssl_key_path=mock_ssl_key_path,
-            va_profile_token=mock_va_profile_token,
-            statsd_client=mock_statsd_client,
-        )
-
-        return client
+from tests.app.conftest import MOCK_VA_PROFILE_URL
 
 
 @pytest.fixture(scope='function')
@@ -380,7 +357,7 @@ class TestCommunicationPermissions:
         ],
     )
     @pytest.mark.parametrize('notification_type', [CommunicationChannel.EMAIL, CommunicationChannel.TEXT])
-    def test_ut_get_email_or_sms_with_permission_utilizes_default_send(
+    def test_get_email_or_sms_with_permission_utilizes_default_send(
         self,
         mock_va_profile_client,
         mock_response,
@@ -478,3 +455,65 @@ class TestSendEmailStatus:
 
         expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
         assert rmock.request_history[0].url == expected_url
+
+
+@pytest.mark.parametrize(
+    'default_send, user_set, expected',
+    [
+        # If the user has set a preference, we always go with that and override default_send
+        [True, True, True],
+        [True, False, False],
+        [False, True, True],
+        [False, False, False],
+        # If the user has not set a preference, go with the default_send
+        [True, None, True],
+        [False, None, False],
+    ],
+)
+@pytest.mark.parametrize('notification_type', [CommunicationChannel.EMAIL, CommunicationChannel.TEXT])
+def test_get_email_or_sms_with_permission_utilizes_default_send(
+    mock_va_profile_response,
+    sample_communication_item,
+    sample_notification,
+    sample_template,
+    default_send,
+    user_set,
+    expected,
+    notification_type,
+    mocker,
+):
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
+    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
+    # Test each combo, ensuring contact info responds with expected result
+    channel = EMAIL_TYPE if notification_type == CommunicationChannel.EMAIL else SMS_TYPE
+    profile = mock_va_profile_response['profile']
+    communication_item = sample_communication_item(default_send)
+    template = sample_template(template_type=channel, communication_item_id=communication_item.id)
+    notification = sample_notification(
+        template=template,
+        gen_type=channel,
+        recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '1234'}],
+    )
+
+    profile['communicationPermissions'][0]['allowed'] = user_set
+    profile['communicationPermissions'][0]['communicationItemId'] = notification.va_profile_item_id
+    profile['communicationPermissions'][0]['communicationChannelId'] = notification_type.id
+
+    mocker.patch('app.va.va_profile.va_profile_client.VAProfileClient.get_profile', return_value=profile)
+
+    if default_send:
+        if user_set or user_set is None:
+            # Implicit + user has not opted out
+            assert lookup_contact_info(notification.id) is None
+        else:
+            # Implicit + user has opted out
+            with pytest.raises(NotificationPermanentFailureException):
+                lookup_contact_info(notification.id)
+    else:
+        if user_set:
+            # Explicit + User has opted in
+            assert lookup_contact_info(notification.id) is None
+        else:
+            # Explicit + User has not defined opted in
+            with pytest.raises(NotificationPermanentFailureException):
+                lookup_contact_info(notification.id)

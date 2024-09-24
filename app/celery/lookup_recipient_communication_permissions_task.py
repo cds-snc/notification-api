@@ -96,7 +96,7 @@ def recipient_has_given_permission(
 
     try:
         is_allowed = va_profile_client.get_is_communication_allowed(
-            identifier, communication_item.va_profile_item_id, notification_id, notification_type
+            identifier, communication_item.va_profile_item_id, notification_id, notification_type, default_send_flag
         )
     except VAProfileRetryableException as e:
         if can_retry(task.request.retries, task.max_retries, notification_id):

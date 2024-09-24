@@ -1,7 +1,11 @@
-import pytest
 import uuid
+
+import pytest
+from requests import Timeout
+
 from app.celery.common import RETRIES_EXCEEDED
 from app.celery.contact_information_tasks import lookup_contact_info
+from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.exceptions import AutoRetryException
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import (
@@ -18,7 +22,7 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException,
 )
-from requests import Timeout
+from app.va.va_profile.va_profile_client import CommunicationChannel
 
 
 EXAMPLE_VA_PROFILE_ID = '135'
@@ -314,3 +318,66 @@ def test_exception_sets_failure_reason_if_thrown(
             )
 
     mocked_check_and_queue_callback_task.assert_called_once_with(notification)
+
+
+@pytest.mark.parametrize(
+    'default_send, user_set, expected',
+    [
+        # If the user has set a preference, we always go with that and override default_send
+        [True, True, True],
+        [True, False, False],
+        [False, True, True],
+        [False, False, False],
+        # If the user has not set a preference, go with the default_send
+        [True, None, True],
+        [False, None, False],
+    ],
+)
+@pytest.mark.parametrize('notification_type', [CommunicationChannel.EMAIL, CommunicationChannel.TEXT])
+def test_get_email_or_sms_with_permission_utilizes_default_send(
+    mock_va_profile_client,
+    mock_va_profile_response,
+    sample_communication_item,
+    sample_notification,
+    sample_template,
+    default_send,
+    user_set,
+    expected,
+    notification_type,
+    mocker,
+):
+    # Test each combo, ensuring contact info responds with expected result
+    channel = EMAIL_TYPE if notification_type == CommunicationChannel.EMAIL else SMS_TYPE
+    profile = mock_va_profile_response['profile']
+    communication_item = sample_communication_item(default_send)
+    template = sample_template(template_type=channel, communication_item_id=communication_item.id)
+
+    notification = sample_notification(
+        template=template,
+        gen_type=channel,
+        recipient_identifiers=[{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '1234'}],
+    )
+
+    profile['communicationPermissions'][0]['allowed'] = user_set
+    profile['communicationPermissions'][0]['communicationItemId'] = notification.va_profile_item_id
+    profile['communicationPermissions'][0]['communicationChannelId'] = notification_type.id
+
+    mocker.patch('app.va.va_profile.va_profile_client.VAProfileClient.get_profile', return_value=profile)
+
+    if default_send:
+        # Leaving this logic so it's easier to understand
+        if user_set or user_set is None:
+            # Implicit + user has not opted out
+            assert lookup_contact_info(notification.id) is None
+        else:
+            # Implicit + user has opted out
+            with pytest.raises(NotificationPermanentFailureException):
+                lookup_recipient_communication_permissions(notification.id)
+    else:
+        if user_set:
+            # Explicit + User has opted in
+            assert lookup_recipient_communication_permissions(notification.id) is None
+        else:
+            # Explicit + User has not defined opted in
+            with pytest.raises(NotificationPermanentFailureException):
+                lookup_recipient_communication_permissions(notification.id)

@@ -188,7 +188,7 @@ class TestVAProfileClientExceptionHandling:
         [
             ('get_email', ['recipient_identifier']),
             ('get_telephone', ['recipient_identifier']),
-            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo']),
+            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo', True]),
         ],
     )
     def test_ut_client_raises_retryable_exception(
@@ -208,7 +208,7 @@ class TestVAProfileClientExceptionHandling:
         [
             ('get_email', ['recipient_identifier']),
             ('get_telephone', ['recipient_identifier']),
-            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo']),
+            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo', True]),
         ],
     )
     def test_ut_client_raises_nonretryable_exception(
@@ -227,7 +227,7 @@ class TestVAProfileClientExceptionHandling:
         [
             ('get_email', ['recipient_identifier']),
             ('get_telephone', ['recipient_identifier']),
-            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo']),
+            ('get_is_communication_allowed', ['recipient_identifier', 1, 2, 'foo', True]),
         ],
     )
     def test_ut_client_raises_retryable_exception_when_request_exception_is_thrown(
@@ -253,7 +253,7 @@ class TestCommunicationPermissions:
 
         perm = mock_response['profile']['communicationPermissions'][0]
         allowed = mock_va_profile_client.get_is_communication_allowed(
-            recipient_identifier, perm['communicationItemId'], 'bar', 'sms'
+            recipient_identifier, perm['communicationItemId'], 'bar', 'sms', expected
         )
 
         assert allowed is expected
@@ -268,7 +268,11 @@ class TestCommunicationPermissions:
 
         perm = mock_response['profile']['communicationPermissions'][1]
         allowed = mock_va_profile_client.get_is_communication_allowed(
-            recipient_identifier, perm['communicationItemId'], 'bar', 'email'
+            recipient_identifier,
+            perm['communicationItemId'],
+            'bar',
+            'email',
+            expected,
         )
 
         assert allowed is expected
@@ -281,7 +285,7 @@ class TestCommunicationPermissions:
 
         # no entry exists in the response which has a communicationItemId of 999
         with pytest.raises(CommunicationItemNotFoundException):
-            mock_va_profile_client.get_is_communication_allowed(recipient_identifier, 999, 'bar', 'email')
+            mock_va_profile_client.get_is_communication_allowed(recipient_identifier, 999, 'bar', 'email', True)
 
         assert rmock.called
 

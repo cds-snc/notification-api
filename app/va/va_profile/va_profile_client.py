@@ -129,7 +129,8 @@ class VAProfileClient:
                 and sorted_telephones[0].get('phoneNumber')
             ):
                 self.statsd_client.incr('clients.va-profile.get-telephone.success')
-            return f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
+                # https://en.wikipedia.org/wiki/E.164 format
+                return f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
 
         self.statsd_client.incr('clients.va-profile.get-telephone.failure')
         self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
@@ -175,7 +176,7 @@ class VAProfileClient:
             Property communication_allowed is true when VA Profile service indicates that the recipient has allowed communication.
             Property permission_message may contain an error message if the permission check encountered an exception.
         """
-        profile = self.get_profile(va_profile_id)
+        profile: Profile = self.get_profile(va_profile_id)
         communication_allowed = notification.default_send
         permission_message = None
         try:
@@ -184,7 +185,7 @@ class VAProfileClient:
             )
         except CommunicationItemNotFoundException:
             self.logger.info('Communication item for recipient %s not found', va_profile_id)
-            permission_message = f'V3 Profile - No recipient opt-in found for explicit preference, falling back to default send: {notification.default_send} (Recipient Identifier {va_profile_id.id_value})'
+            permission_message = 'No recipient opt-in found for explicit preference'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
 
@@ -235,7 +236,7 @@ class VAProfileClient:
             )
         except CommunicationItemNotFoundException:
             self.logger.info('Communication item for recipient %s not found', va_profile_id)
-            permission_message = f'V3 Profile - No recipient opt-in found for explicit preference, falling back to default send: {notification.default_send} (Recipient Identifier {va_profile_id.id_value})'
+            permission_message = 'No recipient opt-in found for explicit preference'
 
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
@@ -257,6 +258,7 @@ class VAProfileClient:
         communication_item_id: str,
         notification_id: str,
         notification_type: str,
+        default_send: bool,
     ) -> bool:
         """
         Determine if communication is allowed for a given recipient, communication item, and notification type.
@@ -277,14 +279,21 @@ class VAProfileClient:
         communication_permissions: CommunicationPermissions = self.get_profile(recipient_id).get(
             'communicationPermissions', {}
         )
+        communication_channel = CommunicationChannel(VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type])
         for perm in communication_permissions:
             if (
-                perm['communicationChannelName'] == VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type]
+                perm['communicationChannelId'] == communication_channel.id
                 and perm['communicationItemId'] == communication_item_id
             ):
                 self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
-                assert isinstance(perm['allowed'], bool)
-                return perm['allowed']
+                # if default send is true and allowed is false, return false
+                # if default send is true and allowed is true, return true
+                # if default send is false, default to what it finds
+                permission: bool | None = perm['allowed']
+                if permission is not None:
+                    return perm['allowed']
+                else:
+                    return default_send
 
         self.logger.debug(
             'V3 Profile -- Recipient %s did not have permission for communication item %s and channel %s for notification %s',
@@ -326,8 +335,14 @@ class VAProfileClient:
                 and perm['communicationItemId'] == notification.va_profile_item_id
             ):
                 self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
-                assert isinstance(perm['allowed'], bool)
-                return perm['allowed']
+                # if default send is true and allowed is false, return false
+                # if default send is true and allowed is true, return true
+                # if default send is false, default to what it finds
+                permission: bool | None = perm['allowed']
+                if permission is not None:
+                    return perm['allowed']
+                else:
+                    return notification.default_send
 
         self.logger.debug(
             'V3 Profile -- did not have permission for communication item %s and channel %s',
