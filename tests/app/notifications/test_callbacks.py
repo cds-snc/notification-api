@@ -86,7 +86,7 @@ def test_check_and_queue_callback_task_calls_delivery_task(
         _check_and_queue_callback_task(notification)
 
         mock_apply_async.assert_called_once_with(
-            [str(notification.id), create_delivery_status_callback_data(notification, callback_api)],
+            [str(notification.id), create_delivery_status_callback_data(notification, callback_api), notification.service_id],
             queue="service-callbacks",
         )
 

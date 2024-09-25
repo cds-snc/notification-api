@@ -188,4 +188,4 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
         statsd_client.incr.assert_any_call("callback.sns.delivered")
         updated_notification = get_notification_by_id(notification.id)
         signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")
+        send_mock.assert_called_once_with([str(notification.id), signed_data, notification.service_id], queue="service-callbacks")
