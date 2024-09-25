@@ -82,7 +82,7 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
         response.raise_for_status()
     except RequestException as e:
         current_app.logger.warning(
-            f"{function_name} request failed for notification_id: {notification_id} to url: {service_callback_url} for service: {service_id} exc: {e}"
+            f"{function_name} request failed for notification_id: {notification_id} to url: {service_callback_url} service: {service_id} exc: {e}"
         )
         # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
