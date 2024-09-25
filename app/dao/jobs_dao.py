@@ -29,7 +29,6 @@ from app.models import (
     ServiceDataRetention,
     Template,
 )
-from app.utils import midnight_n_days_ago
 
 
 @statsd(namespace="dao")
