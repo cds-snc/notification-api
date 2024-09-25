@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 import pytest
 import pytz
+from freezegun import freeze_time
 
 from app.dao.date_util import (
     get_april_fools,
@@ -9,6 +10,7 @@ from app.dao.date_util import (
     get_financial_year_for_datetime,
     get_midnight,
     get_month_start_and_end_date_in_utc,
+    get_query_date_based_on_retention_period,
 )
 
 
@@ -128,3 +130,49 @@ class TestMidnightDateTime:
     def test_get_midnight(self, current_time, expected_midnight):
         actual = get_midnight(current_time)
         assert expected_midnight == actual
+
+
+@freeze_time("2024-09-25 12:25:00")
+@pytest.mark.parametrize(
+    "current_time, retention_period, expected_date",
+    [
+        (
+            datetime(2024, 9, 25, 12, 25, 00),
+            7,
+            datetime(2024, 9, 18, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2024, 9, 20, 0, 0, 0),
+            7,
+            datetime(2024, 9, 13, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2024, 9, 10, 23, 59, 59),
+            7,
+            datetime(2024, 9, 3, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2020, 5, 7, 5, 59, 59),
+            3,
+            datetime(2020, 5, 4, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2017, 8, 8, 12, 33, 6),
+            3,
+            datetime(2017, 8, 5, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2014, 8, 8, 18, 0, 59),
+            3,
+            datetime(2014, 8, 5, 23, 59, 59, 999999),
+        ),
+        (
+            datetime(2012, 1, 30, 22, 0, 59),
+            3,
+            datetime(2012, 1, 27, 23, 59, 59, 999999),
+        ),
+    ],
+)
+def test_get_query_date_based_on_retention_period(current_time, retention_period, expected_date):
+    with freeze_time(current_time):
+        assert get_query_date_based_on_retention_period(retention_period) == expected_date
