@@ -438,6 +438,11 @@ class Config(object):
     GA4_URL = os.getenv('GA4_URL', 'https://www.google-analytics.com/mp/collect')
     GA4_MEASUREMENT_ID = os.getenv('GA4_MEASUREMENT_ID', '')
     GA4_API_SECRET = os.getenv('GA4_API_SECRET', '')
+    NOTIFICATION_API_GA4_GET_ENDPOINT = 'ga4/open-email-tracking'
+
+    GA4_PIXEL_TRACKING_NAME = 'email_open'
+    GA4_PIXEL_TRACKING_SOURCE = 'vanotify'
+    GA4_PIXEL_TRACKING_MEDIUM = 'email'
 
     # Attachments
     ATTACHMENTS_ALLOWED_MIME_TYPES = ['text/calendar']

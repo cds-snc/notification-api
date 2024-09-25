@@ -22,27 +22,7 @@ class TestGA4PixelTracking:
             url = build_dynamic_ga4_pixel_tracking_url(sample_notification_model_with_organization)
             assert domain in url
 
-    def test_ut_build_dynamic_ga4_pixel_tracking_url_contains_expected_parameters(
-        self, sample_notification_model_with_organization
-    ):
-        url = build_dynamic_ga4_pixel_tracking_url(sample_notification_model_with_organization)
-
-        all_expected_parameters = [
-            'campaign=',
-            'campaign_id=',
-            'name=email_open',
-            'source=vanotify',
-            'medium=email',
-            'content=',
-        ]
-
-        assert all(parameter in url for parameter in all_expected_parameters)
-
-    def test_ut_build_dynamic_ga4_pixel_tracking_url_encodes_spaces(self, sample_notification_model_with_organization):
-        sample_notification_model_with_organization.template.name = 'Test Campaign'
-        sample_notification_model_with_organization.service.name = 'Test Service'
-
-        url = build_dynamic_ga4_pixel_tracking_url(sample_notification_model_with_organization)
-
-        assert 'Test%20Campaign' in url
-        assert 'Test%20Service' in url
+    def test_ut_build_dynamic_ga4_pixel_tracking_url_correct_path(self, sample_notification):
+        notification = sample_notification()
+        url = build_dynamic_ga4_pixel_tracking_url(notification)
+        assert f'ga4/open-email-tracking/{notification.id}' in url
