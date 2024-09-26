@@ -1721,13 +1721,13 @@ def test_get_notifications_for_service_gets_data_from_correct_timeframe(
     for i in range(retention_period):
         for j in range(24):
             save_notification(
-                create_notification(email_template, created_at=datetime(2018, 11, 13 + i, j, 0, 0), status="delivered")
+                create_notification(email_template, created_at=datetime(2018, 11, 14 + i, j, 0, 0), status="delivered")
             )
 
     resp = admin_request.get(
         "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
     )
-    assert resp["total"] == expected_count_of_notifications
+    assert resp["total"] == expected_count_of_notifications # 
 
 
 @pytest.mark.parametrize(
