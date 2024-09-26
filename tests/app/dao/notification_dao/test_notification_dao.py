@@ -1895,13 +1895,15 @@ class TestResigning:
             assert notification.personalisation == personalisation  # unsigned value is the same
             assert notification._personalisation != _personalisation  # signature is different
 
+
 @freeze_time("2024-09-25 12:25:00")
 def test_get_notifications_for_service(sample_template):
     # create notifications for the past 10 days
     for i in range(1, 11):
-        save_notification(create_notification(sample_template, client_reference="xyz",created_at=datetime(2024, 9, 26-i, 23, 59, 59)))
+        save_notification(
+            create_notification(sample_template, client_reference="xyz", created_at=datetime(2024, 9, 26 - i, 23, 59, 59))
+        )
 
     # ensure as we increase limit_days by 1, we get 1 more notification in the total each time
-    for i in range(1, 11):    
+    for i in range(1, 11):
         assert len(get_notifications_for_service(sample_template.service_id, limit_days=i).items) == i
-
