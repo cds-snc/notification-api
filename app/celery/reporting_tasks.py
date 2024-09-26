@@ -102,10 +102,10 @@ def create_nightly_notification_status_for_day(process_day):
         current_app.logger.info(
             "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
         )
-        update_fact_notification_status(transit_data, process_day)
+        update_fact_notification_status(transit_data, process_day, service_ids=chunk)
 
         current_app.logger.info(
             "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}, for service_ids: {}".format(
-                len(transit_data), process_day, service_ids
+                len(transit_data), process_day, chunk
             )
         )

@@ -104,9 +104,14 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
     return query.all()
 
 
-def update_fact_notification_status(data, process_day):
+def update_fact_notification_status(data, process_day, service_ids=None):
     table = FactNotificationStatus.__table__
-    FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
+    if service_ids:
+        FactNotificationStatus.query.filter(
+            FactNotificationStatus.bst_date == process_day, FactNotificationStatus.service_id.in_(service_ids)
+        ).delete()
+    else:
+        FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
 
     for row in data:
         stmt = insert(table).values(
