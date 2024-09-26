@@ -163,16 +163,17 @@ def test_get_jobs_for_service_with_limit_days_param(sample_template):
 @freeze_time("2024-09-25 12:25:00")
 def test_get_jobs_for_service_with_limit_days_edge_case(sample_template):
     one_job = create_job(sample_template)
-    # create 1 job for each day of the last 10 days
-    for i in range(1, 10):
-        create_job(sample_template, created_at=datetime(2024, 9, 25 - i, i, 0, 0))
+    # create 2 jobs for each day of the last 10 days
+    for i in range(1, 11):
+        create_job(sample_template, created_at=datetime(2024, 9, 25 - i, 0, 0, 0))
+        create_job(sample_template, created_at=datetime(2024, 9, 25 - i, 23, 59, 59))
 
     too_old_job = create_job(sample_template, created_at=datetime(2024, 9, 18, 0, 1, 0))
     just_right_job = create_job(sample_template, created_at=datetime(2024, 9, 19, 0, 0, 0))
 
     jobs_limit_days = dao_get_jobs_by_service_id(one_job.service_id, limit_days=7).items
 
-    assert len(jobs_limit_days) == 8  # one for each day: today (1) + the last 6 days (6) + one for just_right_job (1)
+    assert len(jobs_limit_days) == 14  # 2 for one for each day: today (1) + 12 the last 6 days (12) + one for just_right_job (1)
     assert one_job in jobs_limit_days
     assert just_right_job in jobs_limit_days
     assert too_old_job not in jobs_limit_days
