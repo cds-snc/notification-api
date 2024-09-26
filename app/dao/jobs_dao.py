@@ -12,6 +12,7 @@ from sqlalchemy import asc, desc, func
 
 from app import db
 from app.dao.dao_utils import transactional
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     JOB_STATUS_CANCELLED,
@@ -28,7 +29,6 @@ from app.models import (
     ServiceDataRetention,
     Template,
 )
-from app.utils import midnight_n_days_ago
 
 
 @statsd(namespace="dao")
@@ -58,7 +58,8 @@ def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50
         Job.original_file_name != current_app.config["ONE_OFF_MESSAGE_FILENAME"],
     ]
     if limit_days is not None:
-        query_filter.append(Job.created_at >= midnight_n_days_ago(limit_days))
+        query_filter.append(Job.created_at > get_query_date_based_on_retention_period(limit_days))
+
     if statuses is not None and statuses != [""]:
         query_filter.append(Job.job_status.in_(statuses))
     return (
