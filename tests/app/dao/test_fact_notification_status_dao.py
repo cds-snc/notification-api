@@ -418,10 +418,6 @@ class TestFetchNotificationStatusfortodayand7days:
             ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
         ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
 
-    # Freezegun is currently unable of handling non-timezone naive dates:
-    # https://github.com/spulec/freezegun/issues/89 : https://github.com/spulec/freezegun/issues/487
-    # So while the timeframe boundaries we're testing here are 5AM to 5AM UTC across 2 days, because the start/end dates
-    # are timezone aware our boundaries for the purpose of this test are 23h to 23h.
     @freeze_time("2018-11-01T18:00:00")
     def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
         self,
