@@ -41,7 +41,6 @@ from app.dao.notifications_dao import (
 )
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import (
-    EMAIL_TYPE,
     JOB_STATUS_IN_PROGRESS,
     JOB_STATUS_PENDING,
     KEY_TYPE_NORMAL,
