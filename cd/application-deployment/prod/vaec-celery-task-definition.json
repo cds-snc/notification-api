@@ -95,7 +95,7 @@
         },
         {
           "name": "VA_PROFILE_EMAIL_STATUS_ENABLED",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "VANOTIFY_SSL_CERT_PATH",
