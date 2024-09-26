@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
 from sqlalchemy import Date, case, func
@@ -7,7 +7,7 @@ from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.dao.date_util import tz_aware_midnight_n_days_ago, utc_midnight_n_days_ago
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -104,9 +104,14 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
     return query.all()
 
 
-def update_fact_notification_status(data, process_day):
+def update_fact_notification_status(data, process_day, service_ids=None):
     table = FactNotificationStatus.__table__
-    FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
+    if service_ids:
+        FactNotificationStatus.query.filter(
+            FactNotificationStatus.bst_date == process_day, FactNotificationStatus.service_id.in_(service_ids)
+        ).delete()
+    else:
+        FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
 
     for row in data:
         stmt = insert(table).values(
@@ -241,32 +246,41 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
     )
 
 
-def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    if limit_days == 1:
-        ft_start_date = utc_midnight_n_days_ago(limit_days - 1)
-        # For daily stats, service limits reset at 12:00am UTC each night, so we need to fetch the data from 12:00 UTC to now
-        start = utc_midnight_n_days_ago(0)
-        end = datetime.utcnow()
-    else:
-        ft_start_date = utc_midnight_n_days_ago(limit_days)
+def _stats_for_days_facts(service_id, start_time, by_template=False, notification_type=None):
+    """
+    We want to take the data from the fact_notification_status table for bst_data>=start_date
 
-        # The nightly task that populates ft_notification_status counts collects notifications from
-        # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
-        # we fetch notifications for the current day.
-        start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-        end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-
-    stats_for_7_days = db.session.query(
+    Returns:
+        Aggregate data in a certain format for total notifications
+    """
+    stats_from_facts = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
         *([FactNotificationStatus.notification_count.label("count")]),
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= ft_start_date,
+        FactNotificationStatus.bst_date >= start_time,
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     )
 
+    if notification_type:
+        stats_from_facts = stats_from_facts.filter(FactNotificationStatus.notification_type == notification_type)
+
+    return stats_from_facts
+
+
+def _timing_notification_table(service_id):
+    max_date_from_facts = (
+        FactNotificationStatus.query.with_entities(func.max(FactNotificationStatus.bst_date))
+        .filter(FactNotificationStatus.service_id == service_id)
+        .scalar()
+    )
+    date_to_use = max_date_from_facts + timedelta(days=1) if max_date_from_facts else datetime.now(timezone.utc)
+    return datetime.combine(date_to_use, time.min)
+
+
+def _stats_for_today(service_id, start_time, by_template=False, notification_type=None):
     stats_for_today = (
         db.session.query(
             Notification.notification_type.cast(db.Text),
@@ -275,8 +289,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= start,
-            Notification.created_at <= end,
+            Notification.created_at >= start_time,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
@@ -286,8 +299,41 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.status,
         )
     )
+    if notification_type:
+        stats_for_today = stats_for_today.filter(Notification.notification_type == notification_type)
 
-    all_stats_table = stats_for_7_days.union_all(stats_for_today).subquery()
+    return stats_for_today
+
+
+def fetch_notification_status_for_service_for_today_and_7_previous_days(
+    service_id, by_template=False, limit_days=7, notification_type=None
+):
+    """
+    We want to take the data from the fact_notification_status table and the notifications table and combine them
+    We will take the data from notifications ONLY for today and the fact_notification_status for the last 6 days.
+    In total we will have 7 days worth of data.
+
+    As the data in facts is populated by a job, instead of
+    keeping track of the job - we will find the max date in the facts table and then use that date to get the
+    data from the notifications table.
+
+    Args:
+        service_id (uuid): service_id
+        by_template (bool, optional): aggregate by template Defaults to False.
+        limit_days (int, optional): Number of days we want to get data for - it can depend on sensitive services.
+            Defaults to 7.
+        notification_type (str, optional): notification type. Defaults to None which means all notification types.
+
+    Returns:
+        Aggregate data in a certain format for total notifications
+    """
+    facts_notification_start_time = get_query_date_based_on_retention_period(limit_days)
+    stats_from_facts = _stats_for_days_facts(service_id, facts_notification_start_time, by_template, notification_type)
+
+    start_time_notify_table = _timing_notification_table(service_id)
+    stats_for_today = _stats_for_today(service_id, start_time_notify_table, by_template, notification_type)
+
+    all_stats_table = stats_from_facts.union_all(stats_for_today).subquery()
 
     query = db.session.query(
         *(
