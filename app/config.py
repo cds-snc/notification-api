@@ -450,7 +450,7 @@ class Config(object):
         },
         "create-nightly-notification-status": {
             "task": "create-nightly-notification-status",
-            "schedule": crontab(hour=5, minute=30),  # 00:30 EST in UTC, after 'timeout-sending-notifications'
+            "schedule": crontab(hour=15, minute=40),  # 00:30 EST in UTC, after 'timeout-sending-notifications'
             "options": {"queue": QueueNames.REPORTING},
         },
         "delete-sms-notifications": {
