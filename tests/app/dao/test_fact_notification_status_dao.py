@@ -105,31 +105,58 @@ def test_update_fact_notification_status(notify_db_session):
     assert new_fact_data[2].notification_count == 1
 
 
-def test__update_fact_notification_status_updates_row(notify_db_session):
-    first_service = create_service(service_name="First Service")
-    first_template = create_template(service=first_service)
-    save_notification(create_notification(template=first_template, status="delivered"))
+class TestUpdateFactNotificationStatus:
+    def test_update_fact_notification_status_updates_row(self, notify_db_session):
+        first_service = create_service(service_name="First Service")
+        first_template = create_template(service=first_service)
+        save_notification(create_notification(template=first_template, status="delivered"))
 
-    process_day = convert_utc_to_local_timezone(datetime.utcnow())
-    data = fetch_notification_status_for_day(process_day=process_day)
-    update_fact_notification_status(data=data, process_day=process_day.date())
+        process_day = convert_utc_to_local_timezone(datetime.utcnow())
+        data = fetch_notification_status_for_day(process_day=process_day)
+        update_fact_notification_status(data=data, process_day=process_day.date())
 
-    new_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
-    assert len(new_fact_data) == 1
-    assert new_fact_data[0].notification_count == 1
+        new_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(new_fact_data) == 1
+        assert new_fact_data[0].notification_count == 1
 
-    save_notification(create_notification(template=first_template, status="delivered"))
+        save_notification(create_notification(template=first_template, status="delivered"))
 
-    data = fetch_notification_status_for_day(process_day=process_day)
-    update_fact_notification_status(data=data, process_day=process_day.date())
+        data = fetch_notification_status_for_day(process_day=process_day)
+        update_fact_notification_status(data=data, process_day=process_day.date())
 
-    updated_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
-    assert len(updated_fact_data) == 1
-    assert updated_fact_data[0].notification_count == 2
+        updated_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(updated_fact_data) == 1
+        assert updated_fact_data[0].notification_count == 2
+
+    @freeze_time("2018-10-3T18:00:00")
+    def test_update_fact_notification_status_where_service_id_exits(self, notify_db_session):
+        """
+        We have exisiting data for 2018-1-1 in the facts table, with count = 4, we are going to update facts
+        for that day with only 1 notification, so the count should be updated to 1
+        """
+        service_1 = create_service(service_name="service_1")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 1, 2), "sms", service_1, count=10)
+
+        first_template = create_template(service=service_1)
+        save_notification(
+            create_notification(template=first_template, status="delivered", created_at=datetime(2018, 1, 1, 12, 0, 0))
+        )
+        data = fetch_notification_status_for_day(process_day=datetime(2018, 1, 1))
+        update_fact_notification_status(data=data, process_day=date(2018, 1, 1), service_ids=[service_1.id])
+        updated_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(updated_fact_data) == 2
+        assert (
+            updated_fact_data[0].notification_count == 1
+        )  # this means the data was deleted for 2018-1-1 and count was updated to 1 notification
+        assert updated_fact_data[1].notification_count == 10  # this means the data for 2018-1-2 was not touched
 
 
 def test_fetch_notification_status_for_service_by_month(notify_db_session):
