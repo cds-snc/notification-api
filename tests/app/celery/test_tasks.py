@@ -811,6 +811,7 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(
     assert provider_tasks.deliver_sms.apply_async.called is False
 
 
+@pytest.mark.serial
 def test_should_use_email_template_and_persist(
     notify_db_session,
     sample_template,
@@ -830,6 +831,7 @@ def test_should_use_email_template_and_persist(
         # Cleaned by sample_template
         notification = _notification_json(template, 'my_email@my_email.com', {'name': 'Jo'}, row_number=1)
 
+    # persist_notification in save_email intermittently fails when ran in parallel
     with freeze_time('2016-01-01 11:10:00.00000'):
         save_email(
             template.service_id,

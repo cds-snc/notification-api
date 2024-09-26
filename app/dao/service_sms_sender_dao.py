@@ -26,7 +26,7 @@ def insert_service_sms_sender(
 def dao_get_service_sms_sender_by_id(
     service_id,
     service_sms_sender_id,
-):
+) -> ServiceSmsSender:
     stmt = select(ServiceSmsSender).where(
         ServiceSmsSender.id == service_sms_sender_id,
         ServiceSmsSender.service_id == service_id,

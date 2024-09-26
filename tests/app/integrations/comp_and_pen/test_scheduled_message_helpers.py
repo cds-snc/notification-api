@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from app.integrations.comp_and_pen.scheduled_message_helpers import CompPenMsgHelper
-from app.models import SMS_TYPE
+from app.models import SMS_TYPE, Service
 from app.va.identifier import IdentifierType
 
 
@@ -141,9 +141,10 @@ def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipie
 
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
 
-    service = sample_service()
+    service: Service = sample_service()
     template = sample_template()
     sms_sender_id = str(service.get_default_sms_sender_id())
+    sender_number = service.get_default_sms_sender()
 
     mock_send_notification = mocker.patch(
         'app.integrations.comp_and_pen.scheduled_message_helpers.send_notification_bypass_route'
@@ -162,6 +163,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipie
         service=service,
         template=template,
         notification_type=SMS_TYPE,
+        reply_to_text=sender_number,
         personalisation={'amount': '123.05'},
         sms_sender_id=sms_sender_id,
         recipient=None,
@@ -198,7 +200,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_formatted_amount_correctly(
 
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
 
-    service = sample_service()
+    service: Service = sample_service()
     template = sample_template()
     sms_sender_id = str(service.get_default_sms_sender_id())
 
@@ -218,6 +220,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_formatted_amount_correctly(
         service=service,
         template=template,
         notification_type=SMS_TYPE,
+        reply_to_text=service.get_default_sms_sender(),
         personalisation={'amount': formatted_amount},
         sms_sender_id=sms_sender_id,
         recipient=None,
@@ -265,6 +268,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_payment_amount_key_does_not_exist(
         service=service,
         template=template,
         notification_type=SMS_TYPE,
+        reply_to_text=service.get_default_sms_sender(),
         personalisation={'amount': '0.00'},
         sms_sender_id=sms_sender_id,
         recipient=None,

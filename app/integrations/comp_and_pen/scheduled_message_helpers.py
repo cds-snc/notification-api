@@ -1,7 +1,9 @@
 import boto3
 from boto3.dynamodb.conditions import Attr
 from flask import current_app
+from sqlalchemy.orm.exc import NoResultFound
 
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.models import (
     SMS_TYPE,
     Service,
@@ -141,6 +143,12 @@ class CompPenMsgHelper:
         Raises:
             Exception: If there is an error while sending the SMS notification.
         """
+        try:
+            reply_to_text = dao_get_service_sms_sender_by_id(service.id, sms_sender_id).sms_sender
+        except (NoResultFound, AttributeError):
+            current_app.logger.exception('Unable to send comp and pen notifications due to improper sms_sender')
+            raise
+
         for item in comp_and_pen_messages:
             vaprofile_id = str(item.get('vaprofile_id'))
             participant_id = item.get('participant_id')
@@ -166,6 +174,7 @@ class CompPenMsgHelper:
                     service=service,
                     template=template,
                     notification_type=SMS_TYPE,
+                    reply_to_text=reply_to_text,
                     personalisation={'amount': payment_amount},
                     sms_sender_id=sms_sender_id,
                     recipient=recipient,

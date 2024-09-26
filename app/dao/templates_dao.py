@@ -148,7 +148,7 @@ def dao_get_number_of_templates_by_service_id_and_name(
 def dao_get_template_by_id(
     template_id,
     version=None,
-):
+) -> Template:
     if version is None:
         stmt = select(Template).where(Template.id == template_id)
     else:

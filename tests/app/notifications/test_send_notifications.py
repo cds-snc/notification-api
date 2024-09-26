@@ -67,13 +67,21 @@ def test_send_notification_bypass_route_no_recipient(
     mocker,
     sample_template,
 ):
-    template = sample_template()
+    template: Template = sample_template()
+    service: Service = template.service
     persist_notification_mock = mocker.patch('app.notifications.send_notifications.persist_notification')
     mock_logger = mocker.patch('app.notifications.send_notifications.current_app.logger.critical')
 
     # Test the case where recipient and recipient_item are None, should log critical error.
     with pytest.raises(NotificationTechnicalFailureException):
-        send_notification_bypass_route(template.service, template, SMS_TYPE, recipient=None, recipient_item=None)
+        send_notification_bypass_route(
+            service,
+            template,
+            SMS_TYPE,
+            reply_to_text=service.get_default_sms_sender(),
+            recipient=None,
+            recipient_item=None,
+        )
 
     persist_notification_mock.assert_not_called()
     mock_logger.assert_called_once()
@@ -88,7 +96,8 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
 ):
     notification = sample_notification()
     template = notification.template
-    service = notification.template.service
+    service: Service = notification.template.service
+    sender_number = service.get_default_sms_sender()
 
     persist_notification_mock = mocker.patch(
         'app.notifications.send_notifications.persist_notification', return_value=notification
@@ -100,6 +109,7 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
         service=service,
         template=template,
         notification_type=SMS_TYPE,
+        reply_to_text=sender_number,
         recipient='+11234567890',
     )
 
@@ -117,6 +127,7 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
         key_type=KEY_TYPE_NORMAL,
         recipient_identifier=None,
         sms_sender_id=default_sms_sender,
+        reply_to_text=sender_number,
     )
 
     # Assert that the notification was queued correctly
@@ -135,7 +146,8 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
 ):
     notification = sample_notification()
     template = notification.template
-    service = notification.template.service
+    service: Service = notification.template.service
+    sender_number = service.get_default_sms_sender()
 
     persist_notification_mock = mocker.patch(
         'app.notifications.send_notifications.persist_notification', return_value=notification
@@ -151,6 +163,7 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
         service=service,
         template=template,
         notification_type=SMS_TYPE,
+        reply_to_text=sender_number,
         recipient_item=recipient_item,
         sms_sender_id='test_sms_sender',
     )
@@ -167,6 +180,7 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
         key_type=KEY_TYPE_NORMAL,
         recipient_identifier=recipient_item,
         sms_sender_id='test_sms_sender',
+        reply_to_text=sender_number,
     )
 
     # Assert that the notification was queued correctly, with expected params
@@ -188,7 +202,8 @@ def test_send_notification_bypass_route_email_with_recipient(
 ):
     notification = sample_notification(gen_type=EMAIL_TYPE)
     template = notification.template
-    service = template.service
+    service: Service = template.service
+    send_number = service.get_default_sms_sender()
 
     persist_notification_mock = mocker.patch(
         'app.notifications.send_notifications.persist_notification', return_value=notification
@@ -199,6 +214,7 @@ def test_send_notification_bypass_route_email_with_recipient(
     send_notification_bypass_route(
         service=service,
         template=template,
+        reply_to_text=send_number,
         notification_type=EMAIL_TYPE,
         recipient='test123@email.com',
     )
@@ -215,6 +231,7 @@ def test_send_notification_bypass_route_email_with_recipient(
         key_type=KEY_TYPE_NORMAL,
         recipient_identifier=None,
         sms_sender_id=None,
+        reply_to_text=send_number,
     )
 
     # Assert the notification was queued correctly, with expected params
@@ -232,8 +249,9 @@ def test_send_notification_bypass_route_email_with_recipient_item(
     sample_notification,
 ):
     notification = sample_notification(gen_type=EMAIL_TYPE)
-    template = notification.template
-    service = template.service
+    template: Template = notification.template
+    service: Service = template.service
+    reply_to = template.get_reply_to_text()
 
     persist_notification_mock = mocker.patch(
         'app.notifications.send_notifications.persist_notification', return_value=notification
@@ -248,6 +266,7 @@ def test_send_notification_bypass_route_email_with_recipient_item(
         service=service,
         template=template,
         notification_type=EMAIL_TYPE,
+        reply_to_text=reply_to,
         recipient_item=recipient_item,
     )
 
@@ -263,6 +282,7 @@ def test_send_notification_bypass_route_email_with_recipient_item(
         key_type=KEY_TYPE_NORMAL,
         recipient_identifier=recipient_item,
         sms_sender_id=None,
+        reply_to_text=reply_to,
     )
 
     # Assert that the notification was queued correctly, with the expected params

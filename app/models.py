@@ -1,7 +1,9 @@
+from __future__ import annotations
+from typing import Any, Dict, Optional
+
 import datetime
 import itertools
 import uuid
-from typing import Any, Dict, Optional
 
 from flask import current_app, url_for
 
@@ -34,6 +36,7 @@ from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 from app.model import EMAIL_AUTH_TYPE, User
 from app.va.identifier import IdentifierType
+
 
 EMAIL_TYPE = 'email'
 LETTER_TYPE = 'letter'
@@ -373,7 +376,7 @@ class Service(db.Model, Versioned):
 
         return cls(**fields)
 
-    def get_default_sms_sender(self):
+    def get_default_sms_sender(self) -> str | None:
         """
         service_sms_senders is a back reference from the ServiceSmsSender table.
         """
@@ -554,7 +557,7 @@ class ServiceSmsSender(db.Model):
     rate_limit_interval = db.Column(db.Integer, nullable=True)
     service = db.relationship(Service, backref=db.backref('service_sms_senders', uselist=True))
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
-    sms_sender = db.Column(db.String(12), nullable=False, doc="This is the sender's phone number.")
+    sms_sender: str = db.Column(db.String(12), nullable=False, doc="This is the sender's phone number.")
     sms_sender_specifics = db.Column(db.JSON(), doc='A placeholder for any service provider we might want to use.')
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
@@ -1351,7 +1354,7 @@ class Notification(db.Model):
     sms_sender = db.relationship(ServiceSmsSender)
     sms_sender_id = db.Column(UUID(as_uuid=True), db.ForeignKey('service_sms_senders.id'), nullable=True)
 
-    reply_to_text = db.Column(db.String, nullable=True)
+    reply_to_text: str | None = db.Column(db.String, nullable=True)
     status_reason = db.Column(db.String, nullable=True)
 
     # These attributes are for SMS billing stats.  AWS Pinpoint relays price in millicents.
