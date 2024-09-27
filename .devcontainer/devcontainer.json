@@ -13,14 +13,10 @@
 				"[python]": {
 					"editor.formatOnSave": true
 				},
-				"python.formatting.blackPath": "/usr/local/bin/black",
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.linting.pylintPath": "/usr/local/bin/pylint",
 				"python.pythonPath": "/usr/local/bin/python"
 			},
 			"extensions": [
-				"bungcip.better-toml",
+				"tamasfe.even-better-toml",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
 				"GitHub.copilot",
@@ -41,7 +37,8 @@
 				"visualstudioexptteam.vscodeintellicode",
 				"wenfangdu.jump",
 				"wholroyd.jinja",
-				"yzhang.markdown-all-in-one"
+				"yzhang.markdown-all-in-one",
+				"charliermarsh.ruff"
 			]
 		}
 	},
@@ -61,5 +58,4 @@
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
 	"remoteUser": "vscode",
-	
 }
