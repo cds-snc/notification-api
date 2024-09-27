@@ -1,26 +1,26 @@
 fileignoreconfig:
-- filename: README.md
-  checksum: b2cbbb8508af49abccae8b35b317f7ce09215f3508430ed31440add78f450e5a
-- filename: app/celery/contact_information_tasks.py
-  checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
-- filename: app/notifications/process_notifications.py
-  checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
-- filename: app/service/rest.py
-  checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
-- filename: app/template/rest.py
-  checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
-- filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
-  checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
-- filename: lambda_functions/ses_callback/ses_callback_lambda.py
-  checksum: b20c36921290a9609f158784e2a3278c36190887e6054ea548004a67675fd79b
-- filename: poetry.lock
-  checksum: 34d12acdf749363555c31add4e7e7afa9e2a27afd792bd98c85f331b87bd7112
-- filename: scripts/trigger_task.py
-  checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
-- filename: tests/app/celery/test_process_ga4_measurement_task.py
-  checksum: d33a6911258922f4bd3d149c90c2ee16c021a8e59e462594e4b1cd972902d689
-- filename: tests/app/conftest.py
-  checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
-- filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
-  checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
+  - filename: README.md
+    checksum: b2cbbb8508af49abccae8b35b317f7ce09215f3508430ed31440add78f450e5a
+  - filename: app/celery/contact_information_tasks.py
+    checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
+  - filename: app/notifications/process_notifications.py
+    checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
+  - filename: app/service/rest.py
+    checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
+  - filename: app/template/rest.py
+    checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
+  - filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
+    checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
+  - filename: lambda_functions/ses_callback/ses_callback_lambda.py
+    checksum: b20c36921290a9609f158784e2a3278c36190887e6054ea548004a67675fd79b
+  - filename: poetry.lock
+    checksum: 34d12acdf749363555c31add4e7e7afa9e2a27afd792bd98c85f331b87bd7112
+  - filename: scripts/trigger_task.py
+    checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
+  - filename: tests/app/celery/test_process_ga4_measurement_task.py
+    checksum: d33a6911258922f4bd3d149c90c2ee16c021a8e59e462594e4b1cd972902d689
+  - filename: tests/app/conftest.py
+    checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
+  - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
+    checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
 version: "1.0"

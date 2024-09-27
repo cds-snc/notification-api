@@ -6,7 +6,6 @@ from urllib import parse
 
 from app.models import EMAIL_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, transform_to_fhir_format, OIDS
-from app.va.va_profile import VAProfileClient
 from app.va.va_profile.exceptions import (
     CommunicationItemNotFoundException,
     NoContactInfoException,
@@ -17,28 +16,6 @@ from app.va.va_profile.exceptions import (
 
 
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov'
-
-
-@pytest.fixture(scope='function')
-def mock_va_profile_client(mocker, notify_api):
-    with notify_api.app_context():
-        mock_logger = mocker.Mock()
-        mock_ssl_key_path = 'some_key.pem'
-        mock_ssl_cert_path = 'some_cert.pem'
-        mock_statsd_client = mocker.Mock()
-        mock_va_profile_token = mocker.Mock()
-
-        client = VAProfileClient()
-        client.init_app(
-            logger=mock_logger,
-            va_profile_url=MOCK_VA_PROFILE_URL,
-            ssl_cert_path=mock_ssl_cert_path,
-            ssl_key_path=mock_ssl_key_path,
-            va_profile_token=mock_va_profile_token,
-            statsd_client=mock_statsd_client,
-        )
-
-        return client
 
 
 @pytest.fixture(scope='function')

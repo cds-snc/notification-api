@@ -114,7 +114,11 @@
           "phoneType": "MOBILE",
           "countryCode": "1",
           "areaCode": "582",
-          "phoneNumber": "3028742"
+          "phoneNumber": "3028742",
+          "classification": {
+            "classificationCode": 0,
+            "classificationName": "MOBILE"
+          }
         },
         {
           "createDate": "2022-06-09T15:12:10Z",
@@ -131,7 +135,11 @@
           "phoneType": "HOME",
           "countryCode": "1",
           "areaCode": "582",
-          "phoneNumber": "2015400"
+          "phoneNumber": "2015400",
+          "classification": {
+            "classificationCode": 1,
+            "classificationName": "LANDLINE"
+          }
         },
         {
           "createDate": "2022-06-09T15:11:50Z",
@@ -148,7 +156,11 @@
           "phoneType": "MOBILE",
           "countryCode": "1",
           "areaCode": "582",
-          "phoneNumber": "3028743"
+          "phoneNumber": "3028743",
+          "classification": {
+            "classificationCode": 0,
+            "classificationName": "MOBILE"
+          }
         }
       ],
       "emails": [
