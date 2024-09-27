@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from itertools import islice
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -12,6 +13,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
     update_fact_notification_status,
 )
+from app.models import Service
 
 
 @notify_celery.task(name="create-nightly-billing")
@@ -72,19 +74,38 @@ def create_nightly_notification_status(day_start=None):
 @notify_celery.task(name="create-nightly-notification-status-for-day")
 @statsd(namespace="tasks")
 def create_nightly_notification_status_for_day(process_day):
+    """
+    This function gets all the service ids and fetches the notification status for the given day.
+    It does it in chunks of 20 service ids at a time.
+
+    Args:
+        process_day (_type_): datetime object
+    """
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
+    service_ids = [x.id for x in Service.query.all()]
+    chunk_size = 20
+    iter_service_ids = iter(service_ids)
 
-    start = datetime.utcnow()
-    transit_data = fetch_notification_status_for_day(process_day=process_day)
-    end = datetime.utcnow()
-    current_app.logger.info(
-        "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
-    )
+    while True:
+        chunk = list(islice(iter_service_ids, chunk_size))
 
-    update_fact_notification_status(transit_data, process_day)
-
-    current_app.logger.info(
-        "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}".format(
-            len(transit_data), process_day
+        if not chunk:
+            current_app.logger.info(
+                "create-nightly-notification-status-for-day job completed for process_day {} on {}".format(
+                    process_day, datetime.now(timezone.utc).date()
+                )
+            )
+            break
+        start = datetime.now(timezone.utc)
+        transit_data = fetch_notification_status_for_day(process_day=process_day, service_ids=chunk)
+        end = datetime.now(timezone.utc)
+        current_app.logger.info(
+            "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
         )
-    )
+        update_fact_notification_status(transit_data, process_day, service_ids=chunk)
+
+        current_app.logger.info(
+            "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}, for service_ids: {}".format(
+                len(transit_data), process_day, chunk
+            )
+        )

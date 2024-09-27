@@ -1721,13 +1721,13 @@ def test_get_notifications_for_service_gets_data_from_correct_timeframe(
     for i in range(retention_period):
         for j in range(24):
             save_notification(
-                create_notification(email_template, created_at=datetime(2018, 11, 13 + i, j, 0, 0), status="delivered")
+                create_notification(email_template, created_at=datetime(2018, 11, 14 + i, j, 0, 0), status="delivered")
             )
 
     resp = admin_request.get(
         "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
     )
-    assert resp["total"] == expected_count_of_notifications
+    assert resp["total"] == expected_count_of_notifications  #
 
 
 @pytest.mark.parametrize(
@@ -1835,10 +1835,10 @@ def test_get_services_with_detailed_flag(client, notify_db, notify_db_session):
 
 
 def test_get_services_with_detailed_flag_excluding_from_test_key(notify_api, notify_db, notify_db_session):
-    (create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_NORMAL),)
-    (create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEAM),)
-    (create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEST),)
-    (create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEST),)
+    create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_NORMAL),
+    create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEAM),
+    create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEST),
+    create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEST),
     create_sample_notification(notify_db, notify_db_session, key_type=KEY_TYPE_TEST)
 
     with notify_api.test_request_context(), notify_api.test_client() as client:

@@ -6,7 +6,6 @@ import pytest
 import pytz
 from flask import current_app
 from freezegun import freeze_time
-from tests.app.conftest import datetime_in_past
 
 from app.aws.s3 import (
     filter_s3_bucket_objects_within_date_range,
@@ -17,6 +16,7 @@ from app.aws.s3 import (
     remove_transformed_dvla_file,
     upload_job_to_s3,
 )
+from tests.app.conftest import datetime_in_past
 
 
 def single_s3_object_stub(key="foo", last_modified=datetime.utcnow()):

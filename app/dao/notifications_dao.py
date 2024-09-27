@@ -25,7 +25,7 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
 from app.dao.dao_utils import transactional
-from app.dao.date_util import utc_midnight_n_days_ago
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.errors import InvalidRequest
 from app.models import (
     EMAIL_TYPE,
@@ -49,7 +49,7 @@ from app.models import (
     Service,
     ServiceDataRetention,
 )
-from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc
+from app.utils import escape_special_characters
 
 
 @transactional
@@ -329,7 +329,7 @@ def get_notifications_for_service(
     filters = [Notification.service_id == service_id]
 
     if limit_days is not None:
-        filters.append(Notification.created_at >= utc_midnight_n_days_ago(limit_days))
+        filters.append(Notification.created_at > get_query_date_based_on_retention_period(limit_days))
 
     if older_than is not None:
         older_than_created_at = db.session.query(Notification.created_at).filter(Notification.id == older_than).as_scalar()
@@ -384,26 +384,31 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     flexible_data_retention = ServiceDataRetention.query.filter(ServiceDataRetention.notification_type == notification_type).all()
     deleted = 0
     for f in flexible_data_retention:
-        days_of_retention = get_local_timezone_midnight_in_utc(
-            convert_utc_to_local_timezone(datetime.utcnow()).date()
-        ) - timedelta(days=f.days_of_retention)
+        days_of_retention = get_query_date_based_on_retention_period(f.days_of_retention)
 
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
-        current_app.logger.info("Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} retention_days {}".format(
+                notification_type, f.service_id, days_of_retention, f.days_of_retention
+            )
+        )
         deleted += _delete_notifications(notification_type, days_of_retention, f.service_id, qry_limit)
 
     current_app.logger.info("Deleting {} notifications for services without flexible data retention".format(notification_type))
 
-    seven_days_ago = get_local_timezone_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(
-        days=7
-    )
+    seven_days_ago = get_query_date_based_on_retention_period(7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
     for row in service_ids_to_purge:
         service_id = row._mapping["id"]
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} for 7days".format(
+                notification_type, service_id, seven_days_ago
+            )
+        )
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
     current_app.logger.info("Finished deleting {} notifications".format(notification_type))
