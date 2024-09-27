@@ -1,6 +1,6 @@
 import functools
 import string
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask import current_app
 from itsdangerous import BadSignature
@@ -25,7 +25,10 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
 from app.dao.dao_utils import transactional
-from app.dao.date_util import utc_midnight_n_days_ago
+from app.dao.date_util import (
+    get_query_date_based_on_retention_period,
+    utc_midnight_n_days_ago,
+)
 from app.errors import InvalidRequest
 from app.models import (
     EMAIL_TYPE,
@@ -384,7 +387,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     flexible_data_retention = ServiceDataRetention.query.filter(ServiceDataRetention.notification_type == notification_type).all()
     deleted = 0
     for f in flexible_data_retention:
-        days_of_retention = datetime.combine(datetime.now(timezone.utc) - timedelta(days=f.days_of_retention), time.max)
+        days_of_retention = get_query_date_based_on_retention_period(f.days_of_retention)
 
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
@@ -397,7 +400,7 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
 
     current_app.logger.info("Deleting {} notifications for services without flexible data retention".format(notification_type))
 
-    seven_days_ago = datetime.combine(datetime.now(timezone.utc) - timedelta(days=7), time.max)
+    seven_days_ago = get_query_date_based_on_retention_period(7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
