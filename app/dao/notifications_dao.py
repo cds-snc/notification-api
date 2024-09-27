@@ -25,10 +25,7 @@ from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
 from app.dao.dao_utils import transactional
-from app.dao.date_util import (
-    get_query_date_based_on_retention_period,
-    utc_midnight_n_days_ago,
-)
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.errors import InvalidRequest
 from app.models import (
     EMAIL_TYPE,
@@ -332,7 +329,7 @@ def get_notifications_for_service(
     filters = [Notification.service_id == service_id]
 
     if limit_days is not None:
-        filters.append(Notification.created_at >= utc_midnight_n_days_ago(limit_days))
+        filters.append(Notification.created_at > get_query_date_based_on_retention_period(limit_days))
 
     if older_than is not None:
         older_than_created_at = db.session.query(Notification.created_at).filter(Notification.id == older_than).as_scalar()
