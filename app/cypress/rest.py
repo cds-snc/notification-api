@@ -4,6 +4,7 @@ them up periodically to keep the data footprint small.
 """
 
 import hashlib
+import re
 import uuid
 from datetime import datetime, timedelta
 
@@ -11,14 +12,14 @@ from flask import Blueprint, current_app, jsonify
 
 from app import db
 from app.dao.services_dao import dao_add_user_to_service
-from app.dao.templates_dao import dao_update_template
 from app.dao.users_dao import save_model_user
 from app.errors import register_errors
-from app.models import LoginEvent, Permission, Service, ServiceUser, Template, TemplateHistory, TemplateRedacted, User, VerifyCode
+from app.models import AnnualBilling, LoginEvent, Permission, Service, ServicePermission, ServiceUser, Template, TemplateHistory, TemplateRedacted, User, VerifyCode
 
 cypress_blueprint = Blueprint("cypress", __name__)
 register_errors(cypress_blueprint)
 
+EMAIL_PREFIX = "notify-ui-tests+ag_"
 
 @cypress_blueprint.route("/create_user/<email_name>", methods=["POST"])
 def create_test_user(email_name):
@@ -34,12 +35,16 @@ def create_test_user(email_name):
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
         return jsonify(message="Forbidden"), 403
 
+    # Sanitize email_name to allow only alphanumeric characters
+    if not re.match(r'^[a-z0-9]+$', email_name):
+        return jsonify(message="Invalid email name"), 400
+    
     try:
         # Create the users
         user_regular = {
             "id": uuid.uuid4(),
             "name": "Notify UI testing account",
-            "email_address": f"notify-ui-tests+{email_name}@cds-snc.ca",
+            "email_address": f"{EMAIL_PREFIX}{email_name}@cds-snc.ca",
             "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
             "mobile_number": "9025555555",
             "state": "active",
@@ -53,7 +58,7 @@ def create_test_user(email_name):
         user_admin = {
             "id": uuid.uuid4(),
             "name": "Notify UI testing account",
-            "email_address": f"notify-ui-tests+{email_name}_admin@cds-snc.ca",
+            "email_address": f"{EMAIL_PREFIX}{email_name}_admin@cds-snc.ca",
             "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
             "mobile_number": "9025555555",
             "state": "active",
@@ -105,64 +110,55 @@ def create_test_user(email_name):
 
 
 def _destroy_test_user(email_name):
-    CYPRESS_TEST_USER_ID = current_app.config["CYPRESS_TEST_USER_ID"]
-
-    user = User.query.filter_by(email_address=f"notify-ui-tests+{email_name}@cds-snc.ca").first()
+    user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}{email_name}@cds-snc.ca").first()
 
     if not user:
+        current_app.logger.error(f"Error destroying test user {user.email_address}: no user found")
         return
 
     try:
-        # update the created_by field for each template to use id CYPRESS_TEST_USER_ID
-        templates = Template.query.filter_by(created_by=user).all()
-        for template in templates:
-            template.created_by_id = CYPRESS_TEST_USER_ID
-            dao_update_template(template)
+        # update the cypress service's created_by to be the main cypress user
+        # this value gets changed when updating branding (and possibly other updates to service)
+        # and is a bug
+        cypress_service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
+        cypress_service.created_by_id  = current_app.config["CYPRESS_TEST_USER_ID"]
 
-        # update the created_by field for each template to use id CYPRESS_TEST_USER_ID
-        history_templates = TemplateHistory.query.filter_by(created_by=user).all()
-        for templateh in history_templates:
-            templateh.created_by_id = CYPRESS_TEST_USER_ID
-            db.session.add(templateh)
+        # cycle through all the services created by this user, remove associated entities
+        services = Service.query.filter_by(created_by=user).filter(Service.id != current_app.config["CYPRESS_SERVICE_ID"])
+        for service in services.all():
+            TemplateHistory.query.filter_by(service_id=service.id).delete()
+            
+            Template.query.filter_by(service_id=service.id).delete()
+            AnnualBilling.query.filter_by(service_id=service.id).delete()
+            ServicePermission.query.filter_by(service_id=service.id).delete()
+            Permission.query.filter_by(service_id=service.id).delete()
+        
+        services.delete()           
 
-        # update the created_by field for each template_redacted to use id CYPRESS_TEST_USER_ID
-        redacted_templates = TemplateRedacted.query.filter_by(updated_by=user).all()
-        for templater in redacted_templates:
-            templater.updated_by_id = CYPRESS_TEST_USER_ID
-            db.session.add(templater)
-
-        # Update services create by this user to use CYPRESS_TEST_USER_ID
-        services = Service.query.filter_by(created_by=user).all()
-        for service in services:
-            service.created_by_id = CYPRESS_TEST_USER_ID
-            db.session.add(service)
-
-        # remove all the login events for this user
-        LoginEvent.query.filter_by(user=user).delete()
-
-        # remove all permissions for this user
+        # remove all entities related to the user itself
+        TemplateRedacted.query.filter_by(updated_by=user).delete()
+        TemplateHistory.query.filter_by(created_by=user).delete()
+        Template.query.filter_by(created_by=user).delete()  
         Permission.query.filter_by(user=user).delete()
-
-        # remove user_to_service entries
+        LoginEvent.query.filter_by(user=user).delete()
         ServiceUser.query.filter_by(user_id=user.id).delete()
-
-        # remove verify codes
         VerifyCode.query.filter_by(user=user).delete()
+        User.query.filter_by(email_address=f"{EMAIL_PREFIX}{email_name}@cds-snc.ca").delete()
 
-        # remove the user
-        User.query.filter_by(email_address=f"notify-ui-tests+{email_name}@cds-snc.ca").delete()
+        db.session.commit()
 
-    except Exception:
+    except Exception as e:
+        current_app.logger.error(f"Error destroying test user {user.email_address}: {str(e)}")
         db.session.rollback()
 
 
 @cypress_blueprint.route("/cleanup", methods=["GET"])
 def cleanup_stale_users():
     """
-    Endpoint for cleaning up stale users.  This endpoint will only be used internally by the Cypress tests.
+    Method for cleaning up stale users.  This method will only be used internally by the Cypress tests.
 
-    This endpoint is responsible for removing stale testing users from the database.
-    Stale users are identified as users whose email addresses match the pattern "%notify-ui-tests+%@cds-snc.ca%" and whose creation time is older than three hours ago.
+    This method is responsible for removing stale testing users from the database.
+    Stale users are identified as users whose email addresses match the pattern "%notify-ui-tests+ag_%@cds-snc.ca%" and whose creation time is older than three hours ago.
 
     If this is accessed from production, it will return a 403 Forbidden response.
 
@@ -170,21 +166,24 @@ def cleanup_stale_users():
         A JSON response with a success message if the cleanup is successful, or an error message if an exception occurs during the cleanup process.
     """
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
-        return jsonify(message="Forbidden"), 403
+            return jsonify(message="Forbidden"), 403
+            raise Exception("")
 
     try:
         three_hours_ago = datetime.utcnow() - timedelta(hours=3)
         users = User.query.filter(
-            User.email_address.like("%notify-ui-tests+%@cds-snc.ca%"), User.created_at < three_hours_ago
+            User.email_address.like(f"%{EMAIL_PREFIX}%@cds-snc.ca%"), User.created_at < three_hours_ago
         ).all()
 
         # loop through users and call destroy_user on each one
         for user in users:
-            user_email = user.email_address.split("+")[1].split("@")[0]
+            user_email = user.email_address.split("+ag_")[1].split("@")[0]
             _destroy_test_user(user_email)
 
         db.session.commit()
     except Exception:
+        current_app.logger.error("[cleanup_stale_users]: error cleaning up test users")
         return jsonify(message="Error cleaning up"), 500
 
-    return jsonify(message="Zeds dead, baby"), 201
+    current_app.logger.info("[cleanup_stale_users]: Cleaned up stale test users")
+    return jsonify(message="Clean up ccomplete"), 201
