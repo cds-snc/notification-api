@@ -29,8 +29,13 @@ email_template_id = current_app.config["CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID"]
 sms_template_id = current_app.config["CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID"]
 default_category_id = current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"]
 
+
 def upgrade():
-    password = hashpw(hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest())
+    password = hashpw(
+        hashlib.sha256(
+            (current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")
+        ).hexdigest()
+    )
     current_year = get_current_financial_year_start_year()
     default_limit = 250000
 
@@ -59,7 +64,7 @@ def upgrade():
                     """
     op.execute(service_insert.format(service_id, datetime.utcnow(), user_id))
 
-    for send_type in ('sms', 'email'):
+    for send_type in ("sms", "email"):
         service_perms_insert = """INSERT INTO service_permissions (service_id, permission, created_at) 
         VALUES ('{}', '{}', '{}')"""
         op.execute(service_perms_insert.format(service_id, send_type, datetime.utcnow()))
@@ -67,13 +72,19 @@ def upgrade():
     insert_row_if_not_exist = """INSERT INTO annual_billing (id, service_id, financial_year_start, free_sms_fragment_limit, created_at, updated_at) 
         VALUES ('{}', '{}', {}, {}, '{}', '{}')
     """
-    op.execute(insert_row_if_not_exist.format(uuid.uuid4(), service_id, current_year, default_limit, datetime.utcnow(), datetime.utcnow()))
-    
+    op.execute(
+        insert_row_if_not_exist.format(
+            uuid.uuid4(), service_id, current_year, default_limit, datetime.utcnow(), datetime.utcnow()
+        )
+    )
+
     user_to_service_insert = """INSERT INTO user_to_service (user_id, service_id) VALUES ('{}', '{}')"""
     op.execute(user_to_service_insert.format(user_id, service_id))
 
     for permission in PERMISSION_LIST:
-        perms_insert = """INSERT INTO permissions (id, service_id, user_id, permission, created_at) VALUES ('{}', '{}', '{}', '{}', '{}')"""
+        perms_insert = (
+            """INSERT INTO permissions (id, service_id, user_id, permission, created_at) VALUES ('{}', '{}', '{}', '{}', '{}')"""
+        )
         op.execute(perms_insert.format(uuid.uuid4(), service_id, user_id, permission, datetime.utcnow()))
 
     # insert test email template
@@ -84,10 +95,12 @@ def upgrade():
 
     # insert 10 random email templates
     for i in range(10):
-        _insert_template(uuid.uuid4(), "Template {}".format(i), "Template {}".format(i), "email", "Template {}".format(i), default_category_id)
-    
-    #insert 1 random sms template
-    _insert_template(uuid.uuid4(), "Template 11", "Template 11", "sms", "Template 11", 'b6c42a7e-2a26-4a07-802b-123a5c3198a9')
+        _insert_template(
+            uuid.uuid4(), "Template {}".format(i), "Template {}".format(i), "email", "Template {}".format(i), default_category_id
+        )
+
+    # insert 1 random sms template
+    _insert_template(uuid.uuid4(), "Template 11", "Template 11", "sms", "Template 11", "b6c42a7e-2a26-4a07-802b-123a5c3198a9")
 
 
 def downgrade():
@@ -121,27 +134,7 @@ def _insert_template(id, name, content, type, subject, category_id):
 
     op.execute(
         template_history_insert.format(
-            uuid.uuid4(),
-            name,
-            type,
-            datetime.utcnow(),
-            content,
-            service_id,
-            subject,
-            user_id,
-            category_id
+            uuid.uuid4(), name, type, datetime.utcnow(), content, service_id, subject, user_id, category_id
         )
     )
-    op.execute(
-        template_insert.format(
-            id,
-            name,
-            type,
-            datetime.utcnow(),
-            content,
-            service_id,
-            subject,
-            user_id,
-            category_id
-        )
-    )
+    op.execute(template_insert.format(id, name, type, datetime.utcnow(), content, service_id, subject, user_id, category_id))

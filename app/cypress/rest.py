@@ -14,12 +14,25 @@ from app import db
 from app.dao.services_dao import dao_add_user_to_service
 from app.dao.users_dao import save_model_user
 from app.errors import register_errors
-from app.models import AnnualBilling, LoginEvent, Permission, Service, ServicePermission, ServiceUser, Template, TemplateHistory, TemplateRedacted, User, VerifyCode
+from app.models import (
+    AnnualBilling,
+    LoginEvent,
+    Permission,
+    Service,
+    ServicePermission,
+    ServiceUser,
+    Template,
+    TemplateHistory,
+    TemplateRedacted,
+    User,
+    VerifyCode,
+)
 
 cypress_blueprint = Blueprint("cypress", __name__)
 register_errors(cypress_blueprint)
 
 EMAIL_PREFIX = "notify-ui-tests+ag_"
+
 
 @cypress_blueprint.route("/create_user/<email_name>", methods=["POST"])
 def create_test_user(email_name):
@@ -36,16 +49,18 @@ def create_test_user(email_name):
         return jsonify(message="Forbidden"), 403
 
     # Sanitize email_name to allow only alphanumeric characters
-    if not re.match(r'^[a-z0-9]+$', email_name):
+    if not re.match(r"^[a-z0-9]+$", email_name):
         return jsonify(message="Invalid email name"), 400
-    
+
     try:
         # Create the users
         user_regular = {
             "id": uuid.uuid4(),
             "name": "Notify UI testing account",
             "email_address": f"{EMAIL_PREFIX}{email_name}@cds-snc.ca",
-            "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
+            "password": hashlib.sha256(
+                (current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")
+            ).hexdigest(),
             "mobile_number": "9025555555",
             "state": "active",
             "blocked": False,
@@ -59,7 +74,9 @@ def create_test_user(email_name):
             "id": uuid.uuid4(),
             "name": "Notify UI testing account",
             "email_address": f"{EMAIL_PREFIX}{email_name}_admin@cds-snc.ca",
-            "password": hashlib.sha256((current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest(),
+            "password": hashlib.sha256(
+                (current_app.config["CYPRESS_USER_PW_SECRET"] + current_app.config["DANGEROUS_SALT"]).encode("utf-8")
+            ).hexdigest(),
             "mobile_number": "9025555555",
             "state": "active",
             "blocked": False,
@@ -104,7 +121,7 @@ def create_test_user(email_name):
     except Exception:
         return jsonify(message="Error creating user"), 400
 
-    users = { "regular": user.serialize(), "admin": user2.serialize() }
+    users = {"regular": user.serialize(), "admin": user2.serialize()}
 
     return jsonify(users), 201
 
@@ -121,24 +138,24 @@ def _destroy_test_user(email_name):
         # this value gets changed when updating branding (and possibly other updates to service)
         # and is a bug
         cypress_service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
-        cypress_service.created_by_id  = current_app.config["CYPRESS_TEST_USER_ID"]
+        cypress_service.created_by_id = current_app.config["CYPRESS_TEST_USER_ID"]
 
         # cycle through all the services created by this user, remove associated entities
         services = Service.query.filter_by(created_by=user).filter(Service.id != current_app.config["CYPRESS_SERVICE_ID"])
         for service in services.all():
             TemplateHistory.query.filter_by(service_id=service.id).delete()
-            
+
             Template.query.filter_by(service_id=service.id).delete()
             AnnualBilling.query.filter_by(service_id=service.id).delete()
             ServicePermission.query.filter_by(service_id=service.id).delete()
             Permission.query.filter_by(service_id=service.id).delete()
-        
-        services.delete()           
+
+        services.delete()
 
         # remove all entities related to the user itself
         TemplateRedacted.query.filter_by(updated_by=user).delete()
         TemplateHistory.query.filter_by(created_by=user).delete()
-        Template.query.filter_by(created_by=user).delete()  
+        Template.query.filter_by(created_by=user).delete()
         Permission.query.filter_by(user=user).delete()
         LoginEvent.query.filter_by(user=user).delete()
         ServiceUser.query.filter_by(user_id=user.id).delete()
@@ -166,8 +183,8 @@ def cleanup_stale_users():
         A JSON response with a success message if the cleanup is successful, or an error message if an exception occurs during the cleanup process.
     """
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
-            return jsonify(message="Forbidden"), 403
-            raise Exception("")
+        return jsonify(message="Forbidden"), 403
+        raise Exception("")
 
     try:
         three_hours_ago = datetime.utcnow() - timedelta(hours=3)
