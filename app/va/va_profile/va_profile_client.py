@@ -11,9 +11,14 @@ import requests
 
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
-from app.va.va_profile import NoContactInfoException, VAProfileNonRetryableException, VAProfileRetryableException
+from app.va.va_profile import (
+    NoContactInfoException,
+    VAProfileNonRetryableException,
+    VAProfileRetryableException,
+)
 from app.va.va_profile.exceptions import (
     CommunicationItemNotFoundException,
+    InvalidPhoneNumberException,
     VAProfileIDNotFoundException,
 )
 
@@ -165,35 +170,38 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def has_valid_mobile_telephone_classification(self, telephone: Telephone) -> bool:
+    def has_valid_mobile_telephone_classification(self, telephone: Telephone, contact_info: ContactInformation) -> bool:
         """
         Args:
           telephone (Telephone): telephone entry from ContactInformation object retrieved from Vet360 API endpoint
 
         Returns:
           bool - if AWS-classified telephone is a valid sms recipient (if nonexistent, return True)
+
+        Raises:
+          InvalidPhoneNumberException - if AWS-classified telephone is not a valid sms recipient
         """
         classification = telephone.get('classification', {})
         classification_code = classification.get('classificationCode', None)
-        if classification_code is not None:
-            if classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
-                self.logger.debug(
-                    'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
-                    classification_code,
-                    telephone['vaProfileId'],
-                )
-                return False
-
+        if classification_code is None:
+            # fall back, if no phone number classification is present
             self.logger.debug(
-                'V3 Profile -- Phone classification code of %s is a valid SMS recipient (VA Profile ID: %s)',
-                classification_code,
+                'V3 Profile -- No telephone classification present, assuming the number is a valid SMS recipient (VA Profile ID: %s)',
                 telephone['vaProfileId'],
             )
             return True
 
-        # fall back, if no phone number classification is present
+        if classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
+            self.logger.debug(
+                'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
+                classification_code,
+                telephone['vaProfileId'],
+            )
+            self._raise_invalid_phone_number_exception(contact_info)
+
         self.logger.debug(
-            'V3 Profile -- No telephone classification present, assuming the number is a valid SMS recipient (VA Profile ID: %s)',
+            'V3 Profile -- Phone classification code of %s is a valid SMS recipient (VA Profile ID: %s)',
+            classification_code,
             telephone['vaProfileId'],
         )
         return True
@@ -222,7 +230,7 @@ class VAProfileClient:
                 self.logger.debug(
                     'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS enabled.  Checking telephone classification info.'
                 )
-                is_mobile = self.has_valid_mobile_telephone_classification(sorted_telephones[0])
+                is_mobile = self.has_valid_mobile_telephone_classification(sorted_telephones[0], contact_info)
             else:
                 self.logger.debug(
                     'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS is not enabled.  Will not check classification info.'
@@ -268,6 +276,7 @@ class VAProfileClient:
         contact_info: ContactInformation = profile.get('contactInformation', {})
 
         telephone = self.get_mobile_telephone_from_contact_info(contact_info)
+
         if not telephone:
             self.statsd_client.incr('clients.va-profile.get-telephone.failure')
             self._raise_no_contact_info_exception(
@@ -483,6 +492,13 @@ class VAProfileClient:
         self.statsd_client.incr(f'clients.va-profile.get-{bio_type}.no-{bio_type}')
         raise NoContactInfoException(
             f'No {bio_type} in response for VA Profile ID {va_profile_id} ' f'with AuditId {tx_audit_id}'
+        )
+
+    def _raise_invalid_phone_number_exception(self, contact_info: ContactInformation):
+        self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
+        raise InvalidPhoneNumberException(
+            f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
+            f'with AuditId {contact_info.get("txAuditId")}'
         )
 
     def send_va_profile_email_status(self, notification_data: dict) -> None:

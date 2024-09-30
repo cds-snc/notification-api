@@ -14,6 +14,7 @@ from app.models import EMAIL_TYPE, SMS_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
 from app.va.va_profile.exceptions import (
     NoContactInfoException,
+    InvalidPhoneNumberException,
     VAProfileIDNotFoundException,
     VAProfileNonRetryableException,
     VAProfileRetryableException,
@@ -233,7 +234,14 @@ class TestVAProfileClient:
         if classification_code is None:
             telephone_instance.pop('classification')
 
-        assert mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance) is expected
+        mock_contact_info = {'vaProfileId': 'test', 'txAuditId': '1234'}
+        if expected:
+            assert mock_va_profile_client.has_valid_mobile_telephone_classification(
+                telephone_instance, mock_contact_info
+            )
+        else:
+            with pytest.raises(InvalidPhoneNumberException):
+                mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance, mock_contact_info)
 
 
 class TestVAProfileClientExceptionHandling:
