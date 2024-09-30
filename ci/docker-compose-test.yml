@@ -8,6 +8,11 @@ services:
         POETRY_ARGS: --with static_tools,test
         FLASK_DEBUG: 1
         TEST_FOLDER: tests
+    environment:
+      - AWS_ACCESS_KEY_ID=your_access_key_id
+      - AWS_DEFAULT_REGION=us-gov-west-1
+      - AWS_SECRET_ACCESS_KEY=your_secret_access_key
+      - VAEC_AWS_ACCESS_KEY_ID=your_vaec_aws_access_key_id
     image: &notify_image test-notification-api
     volumes: &notify_volumes
       - "../:/app"
