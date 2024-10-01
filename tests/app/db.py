@@ -26,6 +26,7 @@ from app.dao.service_sms_sender_dao import (
     update_existing_sms_sender_with_inbound_number,
 )
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
 from app.models import (
@@ -62,6 +63,7 @@ from app.models import (
     ServicePermission,
     ServiceSmsSender,
     Template,
+    TemplateCategory,
     TemplateFolder,
     User,
 )
@@ -194,6 +196,19 @@ def create_template(
     postage=None,
     process_type="normal",
 ):
+    if not template_category:
+        data = {
+            "name_en": str(uuid.uuid4()),
+            "name_fr": str(uuid.uuid4()),
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": False,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "sms_sending_vehicle": "long_code",
+        }
+        template_category = TemplateCategory(**data)
+        template_category = dao_create_template_category(template_category)
     data = {
         "name": template_name or "{} Template Name".format(template_type),
         "template_type": template_type,
