@@ -18,6 +18,7 @@ from app.celery.service_callback_tasks import (
     publish_complaint,
     send_inbound_sms_to_service,
     create_delivery_status_callback_data,
+    create_delivery_status_callback_data_v3,
 )
 
 from app.config import QueueNames
@@ -536,3 +537,22 @@ def test_create_delivery_status_callback_data(
         ]
     else:
         assert 'provider_payload' not in decrypted_message
+
+
+def test_create_delivery_status_callback_data_v3(
+    sample_notification,
+):
+    notification: Notification = sample_notification()
+    data = create_delivery_status_callback_data_v3(notification)
+
+    assert data['id'] == str(notification.id)
+    assert data['reference'] == notification.client_reference
+    assert data['to'] == notification.to
+    assert data['status'] == notification.status
+    assert data['created_at'] == notification.created_at.strftime(DATETIME_FORMAT)
+    assert data['completed_at'] is None
+    assert data['sent_at'] is None
+    assert data['notification_type'] == notification.notification_type
+    assert data['status_reason'] == notification.status_reason
+    assert data['provider'] == notification.sent_by
+    assert data['provider_payload'] is None

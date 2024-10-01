@@ -4,9 +4,26 @@ import pytest
 import requests_mock
 from requests import RequestException
 
-from app.callback.webhook_callback_strategy import WebhookCallbackStrategy
-from app.celery.exceptions import RetryableException, NonRetryableException
-from app.models import ServiceCallback
+from app.callback.webhook_callback_strategy import WebhookCallbackStrategy, generate_callback_signature
+from app.celery.exceptions import NonRetryableException, RetryableException
+from app.models import ApiKey, ServiceCallback
+
+
+@pytest.fixture
+def sample_callback_data_v3():
+    return {
+        'notification_id': '342d2432-6a79-4e18-afef-8c254751969b',
+        'reference': 'some client reference',
+        'to': '+16502532222',
+        'status': 'created',
+        'created_at': '2024-10-01T00:00:00.000000Z',
+        'updated_at': None,
+        'sent_at': None,
+        'notification_type': 'sms',
+        'provider': 'pinpoint',
+        'status_reason': None,
+        'provider_payload': None,
+    }
 
 
 @pytest.fixture
@@ -111,3 +128,31 @@ def test_send_callback_increments_statsd_client_with_non_retryable_error_for_sta
             )
 
     mock_statsd_client.incr.assert_called_with(f'callback.webhook.{mock_callback.callback_type}.non_retryable_error')
+
+
+def test_generate_callback_signature(
+    sample_callback_data_v3,
+    sample_api_key,
+    mocker,
+) -> None:
+    mocker.patch(
+        'app.callback.webhook_callback_strategy.get_unsigned_secret',
+        return_value='test_generate_callback_signature',
+    )
+    api_key: ApiKey = sample_api_key()
+
+    signature = generate_callback_signature(
+        api_key.id,
+        sample_callback_data_v3,
+    )
+    assert signature == '18689cf9fb9c6a9dc1e0840245d48c666d97499d3894deb0e4cf3a5ba82f3d6e'
+
+
+def test_callback_signature_length(
+    sample_api_key,
+) -> None:
+    signature = generate_callback_signature(
+        sample_api_key().id,
+        {'data': 'test'},
+    )
+    assert len(signature) == 64  # Expected length from HMAC-SHA256

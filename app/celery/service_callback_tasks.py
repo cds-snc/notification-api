@@ -278,6 +278,36 @@ def create_delivery_status_callback_data(
     return encryption.encrypt(data)
 
 
+def create_delivery_status_callback_data_v3(notification: Notification) -> dict[str, str]:
+    """Create all data that will be sent to a callback url specified in the Notification object.
+
+    Args:
+        notification (Notification): Notification object
+
+    Returns:
+        dict[str, str]: Data for callbacks
+    """
+
+    from app import DATETIME_FORMAT  # Circular import
+
+    data = {
+        'id': str(notification.id),
+        'reference': notification.client_reference,
+        'to': notification.to,
+        'status': notification.status,
+        'created_at': notification.created_at.strftime(DATETIME_FORMAT),
+        'completed_at': notification.updated_at.strftime(DATETIME_FORMAT) if notification.updated_at else None,
+        'sent_at': notification.sent_at.strftime(DATETIME_FORMAT) if notification.sent_at else None,
+        'notification_type': notification.notification_type,
+        'status_reason': notification.status_reason,
+        'provider': notification.sent_by,
+        'provider_payload': None,
+    }
+
+    current_app.logger.debug('Created notification callback data: %s', data)
+    return data
+
+
 def create_complaint_callback_data(
     complaint,
     notification,

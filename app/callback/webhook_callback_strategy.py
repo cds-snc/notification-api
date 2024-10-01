@@ -1,14 +1,17 @@
-from app.callback.service_callback_strategy_interface import ServiceCallbackStrategyInterface
-
+import hashlib
 import json
+from hmac import HMAC
+from urllib.parse import urlencode
+from uuid import UUID
 
 from flask import current_app
-
 from requests.api import request
-from requests.exceptions import RequestException, HTTPError
+from requests.exceptions import HTTPError, RequestException
 
 from app import statsd_client
-from app.celery.exceptions import RetryableException, NonRetryableException
+from app.callback.service_callback_strategy_interface import ServiceCallbackStrategyInterface
+from app.celery.exceptions import NonRetryableException, RetryableException
+from app.dao.api_key_dao import get_unsigned_secret
 from app.models import ServiceCallback
 
 
@@ -43,3 +46,26 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
                 raise NonRetryableException(e)
         else:
             statsd_client.incr(f'callback.webhook.{callback.callback_type}.success')
+
+
+def generate_callback_signature(
+    api_key_id: UUID,
+    callback_params: dict[str, str],
+) -> str:
+    """Generate a signature based on key and params
+
+    Args:
+        api_key_id (UUID): ID of the key to generate the signature
+        callback_params (dict[str, str]): Parameters being sent to the client
+
+    Returns:
+        str: The signature for this callback
+    """
+    signature = HMAC(
+        get_unsigned_secret(api_key_id).encode(),
+        urlencode(callback_params).encode(),
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+
+    current_app.logger.debug('Generated signature: %s with params: %s', signature, callback_params)
+    return signature

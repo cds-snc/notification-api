@@ -58,9 +58,14 @@ def get_unsigned_secrets(service_id):
     return keys
 
 
-def get_unsigned_secret(key_id):
-    """
-    This method can only be exposed to the Authentication of the api calls.
+def get_unsigned_secret(key_id: uuid.UUID) -> str:
+    """Retrieve the secret for a given key.
+
+    Args:
+        key_id (uuid.UUID): The id related to the secret being looked up
+
+    Returns:
+        str: The secret
     """
     stmt = select(ApiKey).where(ApiKey.id == key_id, ApiKey.expiry_date.is_(None))
     api_key = db.session.scalars(stmt).one()
