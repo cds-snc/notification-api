@@ -1430,8 +1430,21 @@ def contact_form_email_template(notify_db, notify_db_session):
     )
 
 
-def create_custom_template(service, user, template_config_name, template_type, content="", subject=None):
-    template = Template.query.get(current_app.config[template_config_name])
+def create_custom_template(
+    service,
+    user,
+    template_config_name,
+    template_type,
+    content="",
+    subject=None,
+    template_category=None,
+):
+    id = current_app.config[template_config_name]
+    template = Template.query.get(id)
+    if not template_category:
+        template_category = create_template_category(db, db.session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4()))
+    if template:
+        template.template_category_id = template_category.id
     if not template:
         data = {
             "id": current_app.config[template_config_name],
@@ -1442,6 +1455,7 @@ def create_custom_template(service, user, template_config_name, template_type, c
             "created_by": user,
             "subject": subject,
             "archived": False,
+            "template_category_id": template_category.id,
         }
         template = Template(**data)
         db.session.add(template)
