@@ -1365,6 +1365,8 @@ class Notification(db.Model):
 
     postage = db.Column(db.String, nullable=True)
     billing_code = db.Column(db.String(256), nullable=True)
+    callback_url = db.Column(db.String(255), nullable=True)
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
