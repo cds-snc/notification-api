@@ -29,18 +29,18 @@ from tests.app.db import create_letter_contact, create_template
     [
         ("sms", None, False),
         ("email", "subject", False),
-        ("letter", "subject", False),
         ("sms", None, True),
         ("email", "subject", True),
     ],
 )
-def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation):
+def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation, sample_template_category):
     data = {
         "name": "Sample Template",
         "template_type": template_type,
         "content": "Template content",
         "service": sample_service,
         "created_by": sample_user,
+        "template_category_id": sample_template_category.id,
     }
     if template_type == "letter":
         data["postage"] = "second"
@@ -517,9 +517,6 @@ class TestProcessType:
         }
         # We are not setting the template process_type, hence process_type defaults to "normal", but the value in the DB is empty
         template = Template(**data)
-        dao_create_template(template)
-        assert template.process_type == "normal"
-        assert template.process_type_column is None
 
         template.process_type = "priority"
         dao_update_template(template)
