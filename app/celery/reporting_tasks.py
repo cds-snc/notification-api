@@ -96,16 +96,24 @@ def create_nightly_notification_status_for_day(process_day):
                 )
             )
             break
-        start = datetime.now(timezone.utc)
-        transit_data = fetch_notification_status_for_day(process_day=process_day, service_ids=chunk)
-        end = datetime.now(timezone.utc)
-        current_app.logger.info(
-            "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
-        )
-        update_fact_notification_status(transit_data, process_day, service_ids=chunk)
 
-        current_app.logger.info(
-            "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}, for service_ids: {}".format(
-                len(transit_data), process_day, chunk
+        try:
+            start = datetime.now(timezone.utc)
+            transit_data = fetch_notification_status_for_day(process_day=process_day, service_ids=chunk)
+            end = datetime.now(timezone.utc)
+            current_app.logger.info(
+                "create-nightly-notification-status-for-day {} fetched in {} seconds".format(process_day, (end - start).seconds)
             )
-        )
+            update_fact_notification_status(transit_data, process_day, service_ids=chunk)
+
+            current_app.logger.info(
+                "create-nightly-notification-status-for-day task complete: {} rows updated for day: {}, for service_ids: {}".format(
+                    len(transit_data), process_day, chunk
+                )
+            )
+        except Exception as e:
+            current_app.logger.error(
+                "create-nightly-notification-status-for-day task failed for day: {}, for service_ids: {}. Error: {}".format(
+                    process_day, chunk, e
+                )
+            )
