@@ -2,6 +2,9 @@
 from __future__ import print_function
 
 import os
+import time
+
+start_time = time.time()
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 from apig_wsgi import make_lambda_handler
@@ -40,6 +43,9 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("========================================================")
     print("")
 
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Elapsed time: {elapsed_time:.2f}s")
 
 def handler(event, context):
     newrelic.agent.initialize()  # noqa: E402
