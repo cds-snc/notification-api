@@ -416,7 +416,7 @@ def create_sample_template(
     if template_category:
         data["template_category"] = template_category
     else:
-        cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4), name_fr=str(uuid.uuid4))
+        cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4()))
         data.update({"template_category_id": cat.id})
     template = Template(**data)
     dao_create_template(template)
@@ -523,7 +523,12 @@ def create_sample_email_template(
     subject_line="Email Subject",
     service=None,
     permissions=[EMAIL_TYPE, SMS_TYPE],
+    template_category=None,
 ):
+    if not template_category:
+        template_category = create_template_category(
+            notify_db, notify_db_session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4())
+        )
     if user is None:
         user = create_user()
     if service is None:
@@ -539,6 +544,7 @@ def create_sample_email_template(
         "service": service,
         "created_by": user,
         "subject": subject_line,
+        "template_category_id": template_category.id,
     }
     template = Template(**data)
     dao_create_template(template)
@@ -1424,8 +1430,21 @@ def contact_form_email_template(notify_db, notify_db_session):
     )
 
 
-def create_custom_template(service, user, template_config_name, template_type, content="", subject=None):
-    template = Template.query.get(current_app.config[template_config_name])
+def create_custom_template(
+    service,
+    user,
+    template_config_name,
+    template_type,
+    content="",
+    subject=None,
+    template_category=None,
+):
+    id = current_app.config[template_config_name]
+    template = Template.query.get(id)
+    if not template_category:
+        template_category = create_template_category(db, db.session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4()))
+    if template:
+        template.template_category_id = template_category.id
     if not template:
         data = {
             "id": current_app.config[template_config_name],
@@ -1436,6 +1455,7 @@ def create_custom_template(service, user, template_config_name, template_type, c
             "created_by": user,
             "subject": subject,
             "archived": False,
+            "template_category_id": template_category.id,
         }
         template = Template(**data)
         db.session.add(template)
