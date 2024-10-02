@@ -14,6 +14,7 @@ from app.models import EMAIL_TYPE, SMS_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
 from app.va.va_profile.exceptions import (
     NoContactInfoException,
+    InvalidPhoneNumberException,
     VAProfileIDNotFoundException,
     VAProfileNonRetryableException,
     VAProfileRetryableException,
@@ -233,7 +234,14 @@ class TestVAProfileClient:
         if classification_code is None:
             telephone_instance.pop('classification')
 
-        assert mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance) is expected
+        mock_contact_info = {'vaProfileId': 'test', 'txAuditId': '1234'}
+        if expected:
+            assert mock_va_profile_client.has_valid_mobile_telephone_classification(
+                telephone_instance, mock_contact_info
+            )
+        else:
+            with pytest.raises(InvalidPhoneNumberException):
+                mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance, mock_contact_info)
 
 
 class TestVAProfileClientExceptionHandling:
@@ -271,7 +279,7 @@ class TestVAProfileClientExceptionHandling:
         with pytest.raises(NoContactInfoException):
             mock_va_profile_client.get_telephone_with_permission(recipient_identifier, sample_notification())
 
-    def test_get_telephone_raises_NoContactInfoException_if_number_classified_as_not_mobile(
+    def test_get_telephone_raises_InvalidPhoneNumberException_if_number_classified_as_not_mobile(
         self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker, sample_notification
     ):
         mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
@@ -282,7 +290,7 @@ class TestVAProfileClientExceptionHandling:
         mock_response['profile']['contactInformation']['telephones'] = telephones
         rmock.post(url, json=mock_response, status_code=200)
 
-        with pytest.raises(NoContactInfoException):
+        with pytest.raises(InvalidPhoneNumberException):
             mock_va_profile_client.get_telephone_with_permission(recipient_identifier, sample_notification())
 
     def test_get_telephone_with_permission_prefers_user_specified_mobile_phone(
