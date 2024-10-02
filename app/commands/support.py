@@ -117,7 +117,7 @@ def replay_service_callbacks(file_name, service_id):
             "service_callback_api_bearer_token": callback_api.bearer_token,
         }
         signed_status_update = signer_delivery_status.sign(data)
-        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update], queue=QueueNames.CALLBACKS)
+        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update, service_id], queue=QueueNames.CALLBACKS)
 
     print(
         "Replay service status for service: {}. Sent {} notification status updates to the queue".format(
