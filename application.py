@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# flake8: noqa
 from __future__ import print_function
 
 import os
@@ -73,6 +74,7 @@ if enable_profiling:
         stats = pstats.Stats('profile_results.prof', stream=f)
         stats.sort_stats(SortKey.CUMULATIVE)
         stats.print_stats()
+
 
 def handler(event, context):
     newrelic.agent.initialize()  # noqa: E402
