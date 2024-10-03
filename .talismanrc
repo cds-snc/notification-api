@@ -31,4 +31,6 @@ fileignoreconfig:
     checksum: ab93313f306c8a3f6576141e8f32d9fc99b0de7da8d44a1ddbe6ea55d167dcdb
   - filename: ci/docker-compose-test.yml
     checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
+  - filename: cd/application-deployment/dev/vaec-api-task-definition.json
+    checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
 version: "1.0"

@@ -21,8 +21,8 @@ class MobileAppRegistry:
         for type in MobileAppType:
             try:
                 app = MobileApp(type)
-            except ValueError as e:
-                current_app.logger.exception(e)
+            except ValueError:
+                current_app.logger.warning('Missing environment sid for type: %s and value: %s_SID', type, type.value)
             else:
                 self._registry[type] = app
 
