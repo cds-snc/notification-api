@@ -35,6 +35,8 @@ def test_find_ids_job(admin_request, sample_job):
     assert json_resp["job_status"] == sample_job.job_status
     assert json_resp["service_id"] == str(sample_job.service_id)
     assert json_resp["service_name"] == sample_job.service.name
+    assert json_resp["template_id"] == str(sample_job.template_id)
+    assert json_resp["template_name"] == sample_job.template.name
 
 
 def test_find_ids_notification(admin_request, sample_notification_with_job):
@@ -46,6 +48,8 @@ def test_find_ids_notification(admin_request, sample_notification_with_job):
     assert json_resp["to"] == sample_notification_with_job.to
     assert json_resp["service_id"] == str(sample_notification_with_job.service_id)
     assert json_resp["service_name"] == sample_notification_with_job.service.name
+    assert json_resp["template_id"] == str(sample_notification_with_job.template_id)
+    assert json_resp["template_name"] == sample_notification_with_job.template.name
     assert json_resp["job_id"] == str(sample_notification_with_job.job_id)
     assert json_resp["job_row_number"] == sample_notification_with_job.job_row_number
     assert json_resp["api_key_id"] is None

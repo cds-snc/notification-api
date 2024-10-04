@@ -28,6 +28,8 @@ def notification_query(id: str) -> dict | None:
                 "to": notification.to,
                 "service_id": notification.service_id,
                 "service_name": notification.service.name,
+                "template_id": notification.template_id,
+                "template_name": notification.template.name,
                 "job_id": notification.job_id,
                 "job_row_number": notification.job_row_number,
                 "api_key_id": notification.api_key_id,
@@ -80,6 +82,8 @@ def job_query(id: str) -> dict | None:
                 "job_status": job.job_status,
                 "service_id": job.service_id,
                 "service_name": job.service.name,
+                "template_id": job.template_id,
+                "template_name": job.template.name,
             }
     except NoResultFound:
         return None
