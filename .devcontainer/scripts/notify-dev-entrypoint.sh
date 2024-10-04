@@ -28,6 +28,7 @@ echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 echo -e "alias smoke-local='cd /workspace && cp .env_smoke_local tests_smoke/.env && poetry run make smoke-test-local'" >> ~/.zshrc
 echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
 echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-dev='cd /workspace && cp .env_smoke_dev tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
 
 cd /workspace
 
