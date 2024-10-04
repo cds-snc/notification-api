@@ -184,7 +184,6 @@ def cleanup_stale_users():
     """
     if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
         return jsonify(message="Forbidden"), 403
-        raise Exception("")
 
     try:
         three_hours_ago = datetime.utcnow() - timedelta(hours=3)
