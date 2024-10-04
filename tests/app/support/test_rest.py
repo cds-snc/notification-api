@@ -2,26 +2,27 @@ import uuid
 
 
 def test_query_id_unknown_uuid(admin_request, sample_user):
-    json_resp = admin_request.get("support.query_id", id=uuid.uuid4())
+    id = str(uuid.uuid4())
+    json_resp = admin_request.get("support.query_id", ids=id)[0][id]
     assert json_resp["type"] == "no result found"
 
 
 def test_query_id_user(admin_request, sample_user):
-    json_resp = admin_request.get("support.query_id", id=sample_user.id)
+    json_resp = admin_request.get("support.query_id", ids=sample_user.id)[0][str(sample_user.id)]
     assert json_resp["type"] == "user"
     assert json_resp["id"] == str(sample_user.id)
     assert json_resp["name"] == sample_user.name
 
 
 def test_query_id_service(admin_request, sample_service):
-    json_resp = admin_request.get("support.query_id", id=sample_service.id)
+    json_resp = admin_request.get("support.query_id", ids=sample_service.id)[0][str(sample_service.id)]
     assert json_resp["type"] == "service"
     assert json_resp["id"] == str(sample_service.id)
     assert json_resp["name"] == sample_service.name
 
 
 def test_query_id_template(admin_request, sample_template):
-    json_resp = admin_request.get("support.query_id", id=sample_template.id)
+    json_resp = admin_request.get("support.query_id", ids=sample_template.id)[0][str(sample_template.id)]
     assert json_resp["type"] == "template"
     assert json_resp["id"] == str(sample_template.id)
     assert json_resp["name"] == sample_template.name
@@ -30,15 +31,12 @@ def test_query_id_template(admin_request, sample_template):
 
 
 def test_query_id_job(admin_request, sample_job):
-    json_resp = admin_request.get("support.query_id", id=sample_job.id)
+    json_resp = admin_request.get("support.query_id", ids=sample_job.id)[0][str(sample_job.id)]
     assert json_resp["type"] == "job"
     assert json_resp["id"] == str(sample_job.id)
     assert json_resp["original_file_name"] == sample_job.original_file_name
-    # assert json_resp["created_at"] == str(sample_job.created_at)
     assert json_resp["created_by_id"] == str(sample_job.created_by_id)
     assert json_resp["created_by_name"] == sample_job.created_by.name
-    # assert json_resp["processing_started"] == str(sample_job.processing_started)
-    # assert json_resp["processing_finished"] == str(sample_job.processing_finished)
     assert json_resp["notification_count"] == sample_job.notification_count
     assert json_resp["job_status"] == sample_job.job_status
     assert json_resp["service_id"] == str(sample_job.service_id)
@@ -46,16 +44,38 @@ def test_query_id_job(admin_request, sample_job):
 
 
 def test_query_id_notification(admin_request, sample_notification_with_job):
-    json_resp = admin_request.get("support.query_id", id=sample_notification_with_job.id)
+    json_resp = admin_request.get("support.query_id", ids=sample_notification_with_job.id)[0][
+        str(sample_notification_with_job.id)
+    ]
     assert json_resp["type"] == "notification"
     assert json_resp["id"] == str(sample_notification_with_job.id)
     assert json_resp["notification_type"] == sample_notification_with_job.notification_type
     assert json_resp["status"] == sample_notification_with_job.status
-    # assert json_resp["created_at"] == sample_notification_with_job.created_at
-    # assert json_resp["sent_at"] == sample_notification_with_job.sent_at
     assert json_resp["to"] == sample_notification_with_job.to
     assert json_resp["service_id"] == str(sample_notification_with_job.service_id)
     assert json_resp["service_name"] == sample_notification_with_job.service.name
     assert json_resp["job_id"] == str(sample_notification_with_job.job_id)
     assert json_resp["job_row_number"] == sample_notification_with_job.job_row_number
     assert json_resp["api_key_id"] is None
+
+
+def test_no_ids(admin_request):
+    json_resp = admin_request.get("support.query_id", ids=None)
+    assert json_resp == {"error": "no ids provided"}
+
+
+def test_empty_ids(admin_request):
+    json_resp = admin_request.get("support.query_id", ids=[])
+    assert json_resp == {"error": "no ids provided"}
+
+
+def test_id_not_uuid(admin_request):
+    id = "hello"
+    json_resp = admin_request.get("support.query_id", ids=id)[0][id]
+    assert json_resp["type"] == "not a uuid"
+
+
+def test_two_ids(admin_request, sample_user, sample_service):
+    json_resp = admin_request.get("support.query_id", ids=f"{sample_user.id},{sample_service.id}")
+    assert json_resp[0][str(sample_user.id)]["type"] == "user"
+    assert json_resp[1][str(sample_service.id)]["type"] == "service"

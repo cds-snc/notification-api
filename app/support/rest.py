@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from flask import Blueprint, Response, jsonify
+from flask import Blueprint, Response, jsonify, request
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao.jobs_dao import dao_get_job_by_id
@@ -14,7 +14,7 @@ support_blueprint = Blueprint("support", __name__)
 register_errors(support_blueprint)
 
 
-def notification_query(id: UUID) -> dict | None:
+def notification_query(id: str) -> dict | None:
     try:
         notification = get_notification_by_id(id)
         if notification:
@@ -37,7 +37,7 @@ def notification_query(id: UUID) -> dict | None:
     return None
 
 
-def template_query(id: UUID) -> dict | None:
+def template_query(id: str) -> dict | None:
     try:
         template = dao_get_template_by_id(id)
         if template:
@@ -53,7 +53,7 @@ def template_query(id: UUID) -> dict | None:
     return None
 
 
-def service_query(id: UUID) -> dict | None:
+def service_query(id: str) -> dict | None:
     try:
         service = dao_fetch_service_by_id(id)
         if service:
@@ -63,7 +63,7 @@ def service_query(id: UUID) -> dict | None:
     return None
 
 
-def job_query(id: UUID) -> dict | None:
+def job_query(id: str) -> dict | None:
     try:
         job = dao_get_job_by_id(id)
         if job:
@@ -86,7 +86,7 @@ def job_query(id: UUID) -> dict | None:
     return None
 
 
-def user_query(id: UUID) -> dict | None:
+def user_query(id: str) -> dict | None:
     try:
         user = get_user_by_id(id)
         if user:
@@ -100,11 +100,24 @@ def user_query(id: UUID) -> dict | None:
     return None
 
 
-@support_blueprint.route("/<uuid:id>", methods=["GET"])
-def query_id(id: UUID) -> Response:
-    for query_func in [user_query, service_query, template_query, job_query, notification_query]:
-        results = query_func(id)
-        if results:
-            return jsonify(results)
+@support_blueprint.route("/search", methods=["GET"])
+def query_id() -> Response:
+    ids = request.args.get("ids")
+    if not ids:
+        return jsonify({"error": "no ids provided"})
 
-    return jsonify({"type": "no result found"})
+    info = []
+    for id in ids.split(","):
+        try:
+            UUID(id)
+        except ValueError:
+            info.append({id: {"type": "not a uuid"}})
+            continue
+        for query_func in [user_query, service_query, template_query, job_query, notification_query]:
+            results = query_func(id)
+            if results:
+                info.append({id: results})
+                break
+        if not results:
+            info.append({id: {"type": "no result found"}})
+    return jsonify(info)
