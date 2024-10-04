@@ -751,7 +751,9 @@ def test_get_jobs_with_limit_days(admin_request, sample_template):
             limit_days=7,
         )
 
-    assert len(resp_json["data"]) == 2
+    # get_jobs_by_service should return data from the current day (Monday 9th) and the previous 6 days (Tuesday 3rd)
+    # so only 1 job should be returned
+    assert len(resp_json["data"]) == 1
 
 
 def test_get_jobs_should_return_statistics(admin_request, sample_template):

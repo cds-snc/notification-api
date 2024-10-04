@@ -16,7 +16,6 @@ from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     BULK,
-    LETTER_TYPE,
     NORMAL,
     PRIORITY,
     ApiKey,
@@ -38,7 +37,7 @@ from app.notifications.process_notifications import (
 )
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
-from tests.app.db import create_service, create_service_sms_sender, create_template
+from tests.app.db import create_service_sms_sender
 from tests.conftest import set_config
 
 
@@ -373,29 +372,6 @@ class TestPersistNotification:
 
         assert persisted_notification.to == recipient
         assert persisted_notification.normalised_to == expected_recipient_normalised
-
-    def test_persist_notification_with_billable_units_stores_correct_info(self, mocker, notify_db_session):
-        service = create_service(service_permissions=[LETTER_TYPE])
-        template = create_template(service, template_type=LETTER_TYPE)
-        mocker.patch("app.dao.templates_dao.dao_get_template_by_id", return_value=template)
-        persist_notifications(
-            [
-                dict(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient="123 Main Street",
-                    service=template.service,
-                    personalisation=None,
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type="normal",
-                    billable_units=3,
-                    template_postage=template.postage,
-                )
-            ]
-        )
-        persisted_notification = Notification.query.all()[0]
-        assert persisted_notification.billable_units == 3
 
     def test_persist_notifications_list(self, sample_job, sample_api_key, notify_db_session):
         persist_notifications(

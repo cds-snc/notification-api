@@ -10,7 +10,6 @@ from app.dao.service_safelist_dao import dao_add_and_commit_safelisted_contacts
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
-    LETTER_TYPE,
     MOBILE_TYPE,
     SMS_TYPE,
     Notification,
@@ -23,7 +22,6 @@ from app.v2.errors import (
     LiveServiceTooManySMSRequestsError,
 )
 from tests.app.db import (
-    create_letter_contact,
     create_reply_to_email,
     create_service,
     create_service_sms_sender,
@@ -128,50 +126,6 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(persist_moc
         created_by_id=str(service.created_by_id),
         reply_to_text=None,
         reference=None,
-    )
-
-
-def test_send_one_off_notification_calls_persist_correctly_for_letter(mocker, persist_mock, celery_mock, notify_db_session):
-    mocker.patch(
-        "app.service.send_notification.create_random_identifier",
-        return_value="this-is-random-in-real-life",
-    )
-    service = create_service()
-    template = create_template(
-        service=service,
-        template_type=LETTER_TYPE,
-        postage="first",
-        subject="Test subject",
-        content="Hello (( Name))\nYour thing is due soon",
-    )
-
-    post_data = {
-        "template_id": str(template.id),
-        "to": "First Last",
-        "personalisation": {
-            "name": "foo",
-            "address line 1": "First Last",
-            "address line 2": "1 Example Street",
-            "postcode": "SW1A 1AA",
-        },
-        "created_by": str(service.created_by_id),
-    }
-
-    send_one_off_notification(service.id, post_data)
-
-    persist_mock.assert_called_once_with(
-        template_id=template.id,
-        template_version=template.version,
-        template_postage="first",
-        recipient=post_data["to"],
-        service=template.service,
-        personalisation=post_data["personalisation"],
-        notification_type=LETTER_TYPE,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        created_by_id=str(service.created_by_id),
-        reply_to_text=None,
-        reference="this-is-random-in-real-life",
     )
 
 
@@ -381,40 +335,6 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
     notification = Notification.query.get(notification_id["id"])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_EMAIL_MEDIUM)
     assert notification.reply_to_text == reply_to_email.email_address
-
-
-def test_send_one_off_letter_notification_should_use_template_reply_to_text(sample_letter_template, celery_mock):
-    letter_contact = create_letter_contact(sample_letter_template.service, "Edinburgh, ED1 1AA", is_default=False)
-    sample_letter_template.reply_to = str(letter_contact.id)
-
-    data = {
-        "to": "user@example.com",
-        "template_id": str(sample_letter_template.id),
-        "created_by": str(sample_letter_template.service.created_by_id),
-    }
-
-    notification_id = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification_id["id"])
-    celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.NORMAL)
-
-    assert notification.reply_to_text == "Edinburgh, ED1 1AA"
-
-
-def test_send_one_off_letter_should_not_make_pdf_in_research_mode(
-    sample_letter_template,
-):
-    sample_letter_template.service.research_mode = True
-
-    data = {
-        "to": "A. Name",
-        "template_id": str(sample_letter_template.id),
-        "created_by": str(sample_letter_template.service.created_by_id),
-    }
-
-    notification = send_one_off_notification(service_id=sample_letter_template.service.id, post_data=data)
-    notification = Notification.query.get(notification["id"])
-
-    assert notification.status == "delivered"
 
 
 def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sample_service, celery_mock):
