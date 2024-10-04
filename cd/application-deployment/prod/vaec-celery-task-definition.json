@@ -195,11 +195,11 @@
         },
         {
           "name": "VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP",
-          "value": "False"
+          "value": "True"
         },
         {
           "name": "VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS",
-          "value": "False"
+          "value": "True"
         }
       ],
       "secrets": [
