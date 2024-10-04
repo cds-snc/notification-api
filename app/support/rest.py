@@ -100,8 +100,8 @@ def user_query(id: str) -> dict | None:
     return None
 
 
-@support_blueprint.route("/search", methods=["GET"])
-def query_id() -> Response:
+@support_blueprint.route("/find-ids", methods=["GET"])
+def find_ids() -> Response:
     ids = request.args.get("ids")
     if not ids:
         return jsonify({"error": "no ids provided"})
