@@ -1,37 +1,31 @@
 import uuid
 
 
-def test_find_ids_unknown_uuid(admin_request, sample_user):
-    id = str(uuid.uuid4())
-    json_resp = admin_request.get("support.find_ids", ids=id)[0][id]
-    assert json_resp["type"] == "no result found"
-
-
 def test_find_ids_user(admin_request, sample_user):
-    json_resp = admin_request.get("support.find_ids", ids=sample_user.id)[0][str(sample_user.id)]
+    json_resp = admin_request.get("support.find_ids", ids=sample_user.id)[0]
     assert json_resp["type"] == "user"
     assert json_resp["id"] == str(sample_user.id)
-    assert json_resp["name"] == sample_user.name
+    assert json_resp["user_name"] == sample_user.name
 
 
 def test_find_ids_service(admin_request, sample_service):
-    json_resp = admin_request.get("support.find_ids", ids=sample_service.id)[0][str(sample_service.id)]
+    json_resp = admin_request.get("support.find_ids", ids=sample_service.id)[0]
     assert json_resp["type"] == "service"
     assert json_resp["id"] == str(sample_service.id)
-    assert json_resp["name"] == sample_service.name
+    assert json_resp["service_name"] == sample_service.name
 
 
 def test_find_ids_template(admin_request, sample_template):
-    json_resp = admin_request.get("support.find_ids", ids=sample_template.id)[0][str(sample_template.id)]
+    json_resp = admin_request.get("support.find_ids", ids=sample_template.id)[0]
     assert json_resp["type"] == "template"
     assert json_resp["id"] == str(sample_template.id)
-    assert json_resp["name"] == sample_template.name
+    assert json_resp["template_name"] == sample_template.name
     assert json_resp["service_id"] == str(sample_template.service_id)
     assert json_resp["service_name"] == sample_template.service.name
 
 
 def test_find_ids_job(admin_request, sample_job):
-    json_resp = admin_request.get("support.find_ids", ids=sample_job.id)[0][str(sample_job.id)]
+    json_resp = admin_request.get("support.find_ids", ids=sample_job.id)[0]
     assert json_resp["type"] == "job"
     assert json_resp["id"] == str(sample_job.id)
     assert json_resp["original_file_name"] == sample_job.original_file_name
@@ -44,9 +38,7 @@ def test_find_ids_job(admin_request, sample_job):
 
 
 def test_find_ids_notification(admin_request, sample_notification_with_job):
-    json_resp = admin_request.get("support.find_ids", ids=sample_notification_with_job.id)[0][
-        str(sample_notification_with_job.id)
-    ]
+    json_resp = admin_request.get("support.find_ids", ids=sample_notification_with_job.id)[0]
     assert json_resp["type"] == "notification"
     assert json_resp["id"] == str(sample_notification_with_job.id)
     assert json_resp["notification_type"] == sample_notification_with_job.notification_type
@@ -59,23 +51,29 @@ def test_find_ids_notification(admin_request, sample_notification_with_job):
     assert json_resp["api_key_id"] is None
 
 
-def test_no_ids(admin_request):
+def test_find_ids_unknown_uuid(admin_request, sample_user):
+    id = str(uuid.uuid4())
+    json_resp = admin_request.get("support.find_ids", ids=id)[0]
+    assert json_resp["type"] == "no result found"
+
+
+def test_find_ids_no_ids(admin_request):
     json_resp = admin_request.get("support.find_ids", ids=None)
     assert json_resp == {"error": "no ids provided"}
 
 
-def test_empty_ids(admin_request):
+def test_find_ids_empty_ids(admin_request):
     json_resp = admin_request.get("support.find_ids", ids=[])
     assert json_resp == {"error": "no ids provided"}
 
 
-def test_id_not_uuid(admin_request):
+def test_find_ids_id_not_uuid(admin_request):
     id = "hello"
-    json_resp = admin_request.get("support.find_ids", ids=id)[0][id]
+    json_resp = admin_request.get("support.find_ids", ids=id)[0]
     assert json_resp["type"] == "not a uuid"
 
 
-def test_two_ids(admin_request, sample_user, sample_service):
+def test_find_ids_two_ids(admin_request, sample_user, sample_service):
     json_resp = admin_request.get("support.find_ids", ids=f"{sample_user.id},{sample_service.id}")
-    assert json_resp[0][str(sample_user.id)]["type"] == "user"
-    assert json_resp[1][str(sample_service.id)]["type"] == "service"
+    assert json_resp[0]["type"] == "user"
+    assert json_resp[1]["type"] == "service"

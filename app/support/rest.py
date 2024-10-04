@@ -19,8 +19,8 @@ def notification_query(id: str) -> dict | None:
         notification = get_notification_by_id(id)
         if notification:
             return {
-                "type": "notification",
                 "id": notification.id,
+                "type": "notification",
                 "notification_type": notification.notification_type,
                 "status": notification.status,
                 "created_at": notification.created_at,
@@ -42,9 +42,9 @@ def template_query(id: str) -> dict | None:
         template = dao_get_template_by_id(id)
         if template:
             return {
-                "type": "template",
                 "id": template.id,
-                "name": template.name,
+                "type": "template",
+                "template_name": template.name,
                 "service_id": template.service_id,
                 "service_name": template.service.name,
             }
@@ -57,7 +57,7 @@ def service_query(id: str) -> dict | None:
     try:
         service = dao_fetch_service_by_id(id)
         if service:
-            return {"type": "service", "id": service.id, "name": service.name}
+            return {"id": service.id, "type": "service", "service_name": service.name}
     except NoResultFound:
         return None
     return None
@@ -68,8 +68,8 @@ def job_query(id: str) -> dict | None:
         job = dao_get_job_by_id(id)
         if job:
             return {
-                "type": "job",
                 "id": job.id,
+                "type": "job",
                 "original_file_name": job.original_file_name,
                 "created_at": job.created_at,
                 "created_by_id": job.created_by_id,
@@ -91,9 +91,9 @@ def user_query(id: str) -> dict | None:
         user = get_user_by_id(id)
         if user:
             return {
-                "type": "user",
                 "id": user.id,
-                "name": user.name,
+                "type": "user",
+                "user_name": user.name,
             }
     except NoResultFound:
         return None
@@ -107,17 +107,17 @@ def find_ids() -> Response:
         return jsonify({"error": "no ids provided"})
 
     info = []
-    for id in ids.split(","):
+    for id in [x.strip() for x in ids.split(",")]:
         try:
             UUID(id)
         except ValueError:
-            info.append({id: {"type": "not a uuid"}})
+            info.append({"id": id, "type": "not a uuid"})
             continue
         for query_func in [user_query, service_query, template_query, job_query, notification_query]:
             results = query_func(id)
             if results:
-                info.append({id: results})
+                info.append(results)
                 break
         if not results:
-            info.append({id: {"type": "no result found"}})
+            info.append({"id": id, "type": "no result found"})
     return jsonify(info)
