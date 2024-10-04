@@ -121,7 +121,9 @@ def test_ses_callback_should_update_notification_status(notify_db, notify_db_ses
         statsd_client.incr.assert_any_call("callback.ses.delivered")
         updated_notification = Notification.query.get(notification.id)
         encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+        send_mock.assert_called_once_with(
+            [str(notification.id), encrypted_data, notification.service_id], queue="service-callbacks"
+        )
 
 
 def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):

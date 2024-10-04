@@ -43,10 +43,9 @@ from tests.conftest import set_config_values
     [
         (SMS_TYPE, None),
         (EMAIL_TYPE, "subject"),
-        (LETTER_TYPE, "subject"),
     ],
 )
-def test_should_create_a_new_template_for_a_service(client, sample_user, template_type, subject):
+def test_should_create_a_new_template_for_a_service(client, sample_user, template_type, subject, sample_template_category):
     service = create_service(service_permissions=[template_type])
     data = {
         "name": "my template",
@@ -54,6 +53,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
         "content": "template <b>content</b>",
         "service": str(service.id),
         "created_by": str(sample_user.id),
+        "template_category_id": str(sample_template_category.id),
     }
     if subject:
         data.update({"subject": subject})
@@ -77,6 +77,7 @@ def test_should_create_a_new_template_for_a_service(client, sample_user, templat
     assert json_resp["data"]["version"] == 1
     assert json_resp["data"]["process_type"] == "normal"
     assert json_resp["data"]["created_by"] == str(sample_user.id)
+    assert json_resp["data"]["template_category_id"] == str(sample_template_category.id)
     if subject:
         assert json_resp["data"]["subject"] == "subject"
     else:
@@ -549,11 +550,6 @@ def test_should_get_only_templates_for_that_service(admin_request, notify_db_ses
             EMAIL_TYPE,
         ),
         (None, "hello ((name)) we’ve received your ((thing))", SMS_TYPE),
-        (
-            "about your ((thing))",
-            "hello ((name)) we’ve received your ((thing))",
-            LETTER_TYPE,
-        ),
     ],
 )
 def test_should_get_a_single_template(notify_db, client, sample_user, service_factory, subject, content, template_type):
@@ -1606,112 +1602,25 @@ class TestTemplateCategory:
         expected_process_type,
         notify_api,
     ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": "true"}):  # TODO remove statement when FF removed
-            template_orig = dao_get_template_by_id(sample_template_with_priority_override.id)
+        template_orig = dao_get_template_by_id(sample_template_with_priority_override.id)
 
-            calculated_tc = (
-                template_category_id if template_category_id != "unchanged" else str(template_orig.template_category_id)
-            )
-            admin_request.post(
-                "template.update_template",
-                service_id=sample_template_with_priority_override.service_id,
-                template_id=sample_template_with_priority_override.id,
-                _data={
-                    "template_category_id": calculated_tc,
-                    "redact_personalisation": False,
-                    "process_type": data_process_type,
-                },
-                _expected_status=200,
-            )
-            template = dao_get_template_by_id(sample_template_with_priority_override.id)
+        calculated_tc = template_category_id if template_category_id != "unchanged" else str(template_orig.template_category_id)
+        admin_request.post(
+            "template.update_template",
+            service_id=sample_template_with_priority_override.service_id,
+            template_id=sample_template_with_priority_override.id,
+            _data={
+                "template_category_id": calculated_tc,
+                "redact_personalisation": False,
+                "process_type": data_process_type,
+            },
+            _expected_status=200,
+        )
+        template = dao_get_template_by_id(sample_template_with_priority_override.id)
 
-            assert str(template.template_category_id) == calculated_tc
-            assert template.process_type_column == expected_process_type_column
-            assert template.process_type == expected_process_type
-
-    # TODO remove TEST when FF removed
-    @pytest.mark.parametrize(
-        "template_type, process_type",
-        [
-            (SMS_TYPE, "bulk"),
-            (EMAIL_TYPE, "bulk"),
-            (SMS_TYPE, "normal"),
-            (EMAIL_TYPE, "normal"),
-            (SMS_TYPE, "priority"),
-            (EMAIL_TYPE, "priority"),
-        ],
-    )
-    def test_update_template_override_process_type_ff_off(
-        self, admin_request, sample_user, notify_api, template_type, process_type
-    ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": False}):
-            service = create_service(service_name="service_1")
-            template = create_template(
-                service,
-                template_type=template_type,
-                template_name="testing template",
-                subject="Template subject",
-                content="Dear Sir/Madam, Hello. Yours Truly, The Government.",
-                template_category=None,
-                process_type="normal",
-            )
-
-            template_data = {
-                "id": str(template.id),
-                "name": "new name",
-                "template_type": template_type,
-                "content": "some content here :)",
-                "service": str(service.id),
-                "created_by": str(sample_user.id),
-                "template_category_id": None,
-                "process_type": process_type,
-            }
-
-            response = admin_request.post(
-                "template.update_template",
-                service_id=service.id,
-                template_id=template.id,
-                _data=template_data,
-                _expected_status=200,
-            )
-            assert response["data"]["process_type"] == process_type
-            assert response["data"]["template_category"] is None
-
-    # TODO remove TEST when FF removed
-    @pytest.mark.parametrize(
-        "template_type, process_type",
-        [
-            (SMS_TYPE, "bulk"),
-            (EMAIL_TYPE, "bulk"),
-            (SMS_TYPE, "normal"),
-            (EMAIL_TYPE, "normal"),
-            (SMS_TYPE, "priority"),
-            (EMAIL_TYPE, "priority"),
-        ],
-    )
-    def test_create_template_default_process_type_ff_off(
-        self, admin_request, sample_user, notify_api, template_type, process_type
-    ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": False}):
-            service = create_service(service_name="service_1")
-
-            template_data = {
-                "name": "new name",
-                "template_type": template_type,
-                "content": "some content here :)",
-                "subject": "yo",
-                "service": str(service.id),
-                "created_by": str(sample_user.id),
-                "template_category_id": None,
-                "process_type": process_type,
-            }
-
-            response = admin_request.post(
-                "template.create_template", service_id=service.id, _data=template_data, _expected_status=201
-            )
-
-            assert response["data"]["process_type"] == process_type
-            assert response["data"]["template_category"] is None
+        assert str(template.template_category_id) == calculated_tc
+        assert template.process_type_column == expected_process_type_column
+        assert template.process_type == expected_process_type
 
     @pytest.mark.parametrize(
         "template_type, initial_process_type, updated_process_type",
@@ -1740,38 +1649,37 @@ class TestTemplateCategory:
         initial_process_type,
         updated_process_type,
     ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": True}):
-            service = create_service(service_name="service_1")
-            template = create_template(
-                service,
-                template_type=template_type,
-                template_name="testing template",
-                subject="Template subject",
-                content="Dear Sir/Madam, Hello. Yours Truly, The Government.",
-                template_category=sample_template_category,
-                process_type=initial_process_type,
-            )
+        service = create_service(service_name="service_1")
+        template = create_template(
+            service,
+            template_type=template_type,
+            template_name="testing template",
+            subject="Template subject",
+            content="Dear Sir/Madam, Hello. Yours Truly, The Government.",
+            template_category=sample_template_category,
+            process_type=initial_process_type,
+        )
 
-            template_data = {
-                "id": str(template.id),
-                "name": "new name",
-                "template_type": template_type,
-                "content": "some content here :)",
-                "service": str(service.id),
-                "created_by": str(sample_user.id),
-                "template_category_id": str(sample_template_category.id),
-                "process_type": updated_process_type,
-            }
+        template_data = {
+            "id": str(template.id),
+            "name": "new name",
+            "template_type": template_type,
+            "content": "some content here :)",
+            "service": str(service.id),
+            "created_by": str(sample_user.id),
+            "template_category_id": str(sample_template_category.id),
+            "process_type": updated_process_type,
+        }
 
-            response = admin_request.post(
-                "template.update_template",
-                service_id=service.id,
-                template_id=template.id,
-                _data=template_data,
-                _expected_status=200,
-            )
-            assert response["data"]["process_type"] == updated_process_type
-            assert response["data"]["template_category"]["id"] == str(sample_template_category.id)
+        response = admin_request.post(
+            "template.update_template",
+            service_id=service.id,
+            template_id=template.id,
+            _data=template_data,
+            _expected_status=200,
+        )
+        assert response["data"]["process_type"] == updated_process_type
+        assert response["data"]["template_category"]["id"] == str(sample_template_category.id)
 
     @pytest.mark.parametrize(
         "template_type, process_type, template_category",
@@ -1814,48 +1722,47 @@ class TestTemplateCategory:
         sample_template_category_priority,
         sample_template_category_bulk,
     ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": True}):
-            service = create_service(service_name="service_1")
-            template = create_template(
-                service,
-                template_type=template_type,
-                template_name="testing template",
-                subject="Template subject",
-                content="Dear Sir/Madam, Hello. Yours Truly, The Government.",
-                template_category=sample_template_category,
-                process_type=process_type,
-            )
+        service = create_service(service_name="service_1")
+        template = create_template(
+            service,
+            template_type=template_type,
+            template_name="testing template",
+            subject="Template subject",
+            content="Dear Sir/Madam, Hello. Yours Truly, The Government.",
+            template_category=sample_template_category,
+            process_type=process_type,
+        )
 
+        tc = sample_template_category
+        if template_category == "normal":
             tc = sample_template_category
-            if template_category == "normal":
-                tc = sample_template_category
-            elif template_category == "bulk":
-                tc = sample_template_category_bulk
-            elif template_category == "priority":
-                tc = sample_template_category_priority
+        elif template_category == "bulk":
+            tc = sample_template_category_bulk
+        elif template_category == "priority":
+            tc = sample_template_category_priority
 
-            template_data = {
-                "name": "new name",
-                "template_type": template_type,
-                "content": "some content here :)",
-                "subject": "yo",
-                "service": str(service.id),
-                "created_by": str(sample_user.id),
-                "template_category_id": str(tc.id),
-                "process_type": process_type,
-            }
+        template_data = {
+            "name": "new name",
+            "template_type": template_type,
+            "content": "some content here :)",
+            "subject": "yo",
+            "service": str(service.id),
+            "created_by": str(sample_user.id),
+            "template_category_id": str(tc.id),
+            "process_type": process_type,
+        }
 
-            response = admin_request.post(
-                "template.update_template",
-                service_id=service.id,
-                template_id=template.id,
-                _data=template_data,
-                _expected_status=200,
-            )
+        response = admin_request.post(
+            "template.update_template",
+            service_id=service.id,
+            template_id=template.id,
+            _data=template_data,
+            _expected_status=200,
+        )
 
-            assert response["data"]["process_type_column"] == process_type
-            assert response["data"]["process_type"] == template_category if process_type is None else process_type
-            assert response["data"]["template_category_id"] == str(tc.id)
+        assert response["data"]["process_type_column"] == process_type
+        assert response["data"]["process_type"] == template_category if process_type is None else process_type
+        assert response["data"]["template_category_id"] == str(tc.id)
 
     @pytest.mark.parametrize(
         "template_type, process_type, calculated_process_type",
@@ -1886,35 +1793,34 @@ class TestTemplateCategory:
         sample_template_category_priority,
         sample_template_category_bulk,
     ):
-        with set_config_values(notify_api, {"FF_TEMPLATE_CATEGORY": True}):
-            service = create_service(service_name="service_1")
+        service = create_service(service_name="service_1")
 
-            tc = sample_template_category
-            if process_type is None:
-                if calculated_process_type == "normal":
-                    tc = sample_template_category
-                elif calculated_process_type == "bulk":
-                    tc = sample_template_category_bulk
-                elif calculated_process_type == "priority":
-                    tc = sample_template_category_priority
-            else:
+        tc = sample_template_category
+        if process_type is None:
+            if calculated_process_type == "normal":
                 tc = sample_template_category
+            elif calculated_process_type == "bulk":
+                tc = sample_template_category_bulk
+            elif calculated_process_type == "priority":
+                tc = sample_template_category_priority
+        else:
+            tc = sample_template_category
 
-            template_data = {
-                "name": "new name",
-                "template_type": template_type,
-                "content": "some content here :)",
-                "subject": "yo",
-                "service": str(service.id),
-                "created_by": str(sample_user.id),
-                "template_category_id": str(tc.id),
-                "process_type": process_type,
-            }
+        template_data = {
+            "name": "new name",
+            "template_type": template_type,
+            "content": "some content here :)",
+            "subject": "yo",
+            "service": str(service.id),
+            "created_by": str(sample_user.id),
+            "template_category_id": str(tc.id),
+            "process_type": process_type,
+        }
 
-            response = admin_request.post(
-                "template.create_template", service_id=service.id, _data=template_data, _expected_status=201
-            )
+        response = admin_request.post(
+            "template.create_template", service_id=service.id, _data=template_data, _expected_status=201
+        )
 
-            assert response["data"]["process_type_column"] == process_type
-            assert response["data"]["process_type"] == calculated_process_type
-            assert response["data"]["template_category_id"] == str(tc.id)
+        assert response["data"]["process_type_column"] == process_type
+        assert response["data"]["process_type"] == calculated_process_type
+        assert response["data"]["template_category_id"] == str(tc.id)

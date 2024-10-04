@@ -113,7 +113,7 @@ def send_sms_to_provider(notification):
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
-                if current_app.config["FF_TEMPLATE_CATEGORY"] and template_category_id is not None:
+                if template_category_id is not None:
                     sending_vehicle = SmsSendingVehicles(
                         dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
                     )
