@@ -1631,6 +1631,7 @@ class Notification(db.Model):
             'sms_sender_id': self.sms_sender_id,
             'segments_count': self.segments_count,
             'cost_in_millicents': self.cost_in_millicents,
+            'callback_url': self.callback_url,
         }
 
         if self.notification_type == LETTER_TYPE:

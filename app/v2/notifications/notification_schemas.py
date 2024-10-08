@@ -5,7 +5,12 @@ from app.models import (
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     TEMPLATE_TYPES,
 )
-from app.schema_validation.definitions import nullable_uuid, uuid, personalisation, letter_personalisation
+from app.schema_validation.definitions import (
+    nullable_uuid,
+    uuid,
+    personalisation,
+    letter_personalisation,
+)
 from app.va.identifier import IdentifierType
 
 
@@ -55,6 +60,7 @@ get_notification_response = {
         'sent_by': {'type': ['string', 'null']},
         'completed_at': {'type': ['string', 'null']},
         'scheduled_for': {'type': ['string', 'null']},
+        'callback_url': {'type': ['string', 'null'], 'format': 'uri', 'pattern': '^https.*', 'maxLength': 255},
     },
     'required': [
         # technically, all keys are required since we always have all of them
@@ -153,6 +159,7 @@ post_sms_request = {
         'scheduled_for': {'type': ['string', 'null'], 'format': 'datetime_within_next_day'},
         'sms_sender_id': nullable_uuid,
         'billing_code': {'type': ['string', 'null'], 'maxLength': 256},
+        'callback_url': {'type': ['string', 'null'], 'format': 'uri', 'pattern': '^https.*', 'maxLength': 255},
     },
     # This is necessary to get the content of the message and who it's from.
     'required': ['template_id'],
@@ -202,6 +209,7 @@ post_email_request = {
         'scheduled_for': {'type': ['string', 'null'], 'format': 'datetime_within_next_day'},
         'email_reply_to_id': uuid,
         'billing_code': {'type': ['string', 'null'], 'maxLength': 256},
+        'callback_url': {'type': ['string', 'null'], 'format': 'uri', 'pattern': '^https.*', 'maxLength': 255},
     },
     'required': ['template_id'],
     'anyOf': [{'required': ['email_address']}, {'required': ['recipient_identifier']}],

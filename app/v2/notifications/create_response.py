@@ -52,4 +52,5 @@ def __create_notification_response(
         },
         'billing_code': notification.billing_code if notification.billing_code else None,
         'scheduled_for': scheduled_for if scheduled_for else None,
+        'callback_url': notification.callback_url if notification.callback_url else None,
     }

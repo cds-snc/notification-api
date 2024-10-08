@@ -64,7 +64,9 @@ def test_post_sms_notification_returns_201(
     mocker,
 ):
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
-    data.update({'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}})
+    data.update(
+        {'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}, 'callback_url': 'https://www.test.com'}
+    )
     if reference is not None:
         # Have to set reference for the asserts below, can't add it to data in the None case
         reference = str(uuid.uuid4())
@@ -89,6 +91,7 @@ def test_post_sms_notification_returns_201(
     assert len(notifications) == 1
     assert notifications[0].status == NOTIFICATION_CREATED
     assert notifications[0].postage is None
+    assert notifications[0].callback_url == 'https://www.test.com'
 
     # endpoint checks
     assert resp_json['id'] == str(notifications[0].id)
@@ -100,7 +103,7 @@ def test_post_sms_notification_returns_201(
     assert resp_json['template']['version'] == template.version
     assert 'services/{}/templates/{}'.format(template.service_id, template.id) in resp_json['template']['uri']
     assert not resp_json['scheduled_for']
-
+    assert resp_json['callback_url'] == 'https://www.test.com'
     if 'recipient_identifier' not in data:
         assert mock_deliver_sms.called
     # Else, for sending with a recipient ID, the delivery function won't get called because the preceeding
@@ -392,6 +395,76 @@ def test_notification_returns_400_and_for_schema_problems(
     } in error_resp['errors']
 
 
+def test_post_sms_notification_without_callback_url(
+    client,
+    notify_db_session,
+    sample_api_key,
+    sample_template,
+):
+    template = sample_template(content='Hello (( Name))\nYour thing is due soon')
+
+    data = {'phone_number': '+16502532222', 'template_id': str(template.id), 'personalisation': {' Name': 'Jo'}}
+
+    response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
+
+    assert response.status_code == 201
+    resp_json = response.get_json()
+    assert validate(resp_json, post_sms_response) == resp_json
+
+    notifications = notify_db_session.session.scalars(
+        select(Notification).where(Notification.service_id == template.service_id)
+    ).all()
+
+    assert len(notifications) == 1
+
+    notification = notifications[0]
+    assert notification.callback_url is None
+
+    assert resp_json['id'] == str(notification.id)
+    assert resp_json['content']['body'] == template.content.replace('(( Name))', 'Jo')
+    assert resp_json['callback_url'] is None
+
+
+@pytest.mark.parametrize(
+    'callback_url, expected_error',
+    [
+        ('invalid-url', 'is not a valid URI.'),
+        ('http://wrongformat.com', 'does not match ^https.*'),
+        ('www.missingprotocol.com', 'does not match ^https.*'),
+        (
+            'https://example.com/search?query=this_is_a_search_term_to_reach_exactly_256_charactersaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&filter=type=all&status=active&sort=ascending&page=1234567890&session_token=abc123&tracking_id=unique_user_tracking_value',
+            'is too long',
+        ),
+    ],
+)
+def test_notification_returns_400_if_invalid_callback_url(
+    client,
+    sample_api_key,
+    sample_template,
+    callback_url,
+    expected_error,
+):
+    template = sample_template(content='Hello (( Name))\nYour thing is due soon')
+
+    data = {
+        'phone_number': '+16502532222',
+        'template_id': str(template.id),
+        'personalisation': {' Name': 'Jo'},
+        'callback_url': callback_url,
+    }
+
+    response = post_send_notification(client, sample_api_key(service=template.service), SMS_TYPE, data)
+
+    assert response.status_code == 400
+    assert response.headers['Content-type'] == 'application/json'
+    error_resp = response.get_json()
+
+    assert error_resp['status_code'] == 400
+    assert {'error': 'ValidationError', 'message': f'callback_url {callback_url} {expected_error}'} in error_resp[
+        'errors'
+    ]
+
+
 @pytest.mark.parametrize('reference', [None, 'reference_from_client'])
 def test_post_email_notification_returns_201(
     client,
@@ -407,6 +480,7 @@ def test_post_email_notification_returns_201(
         'template_id': template.id,
         'personalisation': {'name': 'Bob'},
         'billing_code': 'TESTCODE',
+        'callback_url': 'https://www.test.com',
     }
 
     if reference is not None:
@@ -421,6 +495,8 @@ def test_post_email_notification_returns_201(
     )
     assert notification.status == NOTIFICATION_CREATED
     assert notification.postage is None
+    assert notification.callback_url == 'https://www.test.com'
+
     assert resp_json['id'] == str(notification.id)
     assert resp_json['billing_code'] == 'TESTCODE'
     assert resp_json['reference'] == reference
@@ -432,6 +508,7 @@ def test_post_email_notification_returns_201(
     assert resp_json['template']['id'] == str(template.id)
     assert resp_json['template']['version'] == template.version
     assert 'services/{}/templates/{}'.format(str(template.service_id), str(template.id)) in resp_json['template']['uri']
+    assert resp_json['callback_url'] == 'https://www.test.com'
     assert not resp_json['scheduled_for']
     assert mock_deliver_email.called
 
@@ -456,6 +533,7 @@ def test_post_email_notification_with_reply_to_returns_201(
         'template_id': template.id,
         'personalisation': {'name': 'Bob'},
         'billing_code': 'TESTCODE',
+        'callback_url': 'https://www.test.com',
     }
 
     if reference is not None:
@@ -474,6 +552,7 @@ def test_post_email_notification_with_reply_to_returns_201(
     assert notification.status == NOTIFICATION_CREATED
     assert notification.postage is None
     assert notification.reply_to_text == 'testing@email.com'
+    assert notification.callback_url == 'https://www.test.com'
 
     # endpoint checks
     assert resp_json['id'] == str(notification.id)
@@ -486,6 +565,7 @@ def test_post_email_notification_with_reply_to_returns_201(
     assert resp_json['template']['version'] == template.version
     assert 'services/{}/templates/{}'.format(str(template.service_id), str(template.id)) in resp_json['template']['uri']
     assert not resp_json['scheduled_for']
+    assert resp_json['callback_url'] == 'https://www.test.com'
     assert mock_deliver_email.called
 
 

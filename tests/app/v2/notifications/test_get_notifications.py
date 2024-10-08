@@ -26,6 +26,7 @@ def test_get_notification_by_id_returns_200(
         sent_by=provider,
         scheduled_for='2017-05-12 15:15',
         billing_code='billing_code',
+        callback_url='https://www.test.com',
     )
 
     second_notification = create_notification(
@@ -80,6 +81,7 @@ def test_get_notification_by_id_returns_200(
         'sms_sender_id': None,
         'cost_in_millicents': 0.0,
         'segments_count': 0,
+        'callback_url': 'https://www.test.com',
     }
 
     assert json_response == expected_response
@@ -110,7 +112,10 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
 ):
     template = sample_template(template_type=EMAIL_TYPE, content='Hello ((name))\nThis is an email from va.gov')
     notification = create_notification(
-        template=template, personalisation={'name': 'Bob'}, recipient_identifiers=recipient_identifiers
+        template=template,
+        personalisation={'name': 'Bob'},
+        recipient_identifiers=recipient_identifiers,
+        callback_url='https://www.test.com',
     )
 
     auth_header = create_authorization_header(sample_api_key(service=template.service))
@@ -160,6 +165,7 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
         'sms_sender_id': None,
         'cost_in_millicents': 0.0,
         'segments_count': 0,
+        'callback_url': 'https://www.test.com',
     }
 
     assert json_response == expected_response

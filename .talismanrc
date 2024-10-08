@@ -23,6 +23,8 @@ fileignoreconfig:
     checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
   - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
     checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
+  - filename: tests/app/v2/notifications/test_post_notifications.py
+    checksum: 3181930a13e3679bb2f17eaa3f383512eb9caf4ed5d5e14496ca4193c6083965
   - filename: tests/app/callback/test_webhook_callback_strategy.py
     checksum: 288841d3209dc3ca885cd0bb08591221f7f15e5b3406fb7140505096db212554
   - filename: app/callback/webhook_callback_strategy.py

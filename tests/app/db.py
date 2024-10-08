@@ -291,6 +291,7 @@ def create_notification(  # noqa: C901
     recipient_identifiers=None,
     billing_code=None,
     sms_sender_id=None,
+    callback_url=None,
 ):
     assert job or template
     if job:
@@ -351,6 +352,7 @@ def create_notification(  # noqa: C901
         'postage': postage,
         'billing_code': billing_code,
         'sms_sender_id': sms_sender_id,
+        'callback_url': callback_url,
     }
     notification = Notification(**data)
 

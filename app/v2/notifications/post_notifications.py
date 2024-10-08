@@ -1,4 +1,3 @@
-import base64
 import functools
 
 import werkzeug
@@ -10,7 +9,6 @@ from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.attachments.types import UploadedAttachmentMetadata
 
-from app.config import QueueNames
 from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.models import (
     SCHEDULE_NOTIFICATIONS,
@@ -18,7 +16,6 @@ from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
     UPLOAD_DOCUMENT,
-    PRIORITY,
 )
 from app.notifications.process_notifications import (
     persist_notification,
@@ -196,6 +193,7 @@ def process_sms_or_email_notification(
         recipient_identifier=recipient_identifier,
         billing_code=form.get('billing_code'),
         sms_sender_id=form.get('sms_sender_id'),
+        callback_url=form.get('callback_url'),
     )
 
     if 'scheduled_for' in form:
@@ -233,6 +231,7 @@ def process_notification_with_recipient_identifier(
         recipient_identifier=form.get('recipient_identifier'),
         billing_code=form.get('billing_code'),
         sms_sender_id=form.get('sms_sender_id'),
+        callback_url=form.get('callback_url'),
     )
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(
