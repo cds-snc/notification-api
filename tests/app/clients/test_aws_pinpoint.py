@@ -158,7 +158,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
 
 @pytest.mark.serial
 @pytest.mark.parametrize("template_id", [None, "uuid"])
-def test_send_sms_used_dryrun_for_tests(notify_api, mocker, sample_template, template_id):
+def test_send_sms_uses_dryrun_for_tests(notify_api, mocker, sample_template, template_id):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
     content = "foo"
