@@ -22,7 +22,7 @@ from app.va.va_profile import (
     VAProfileNonRetryableException,
     VAProfileRetryableException,
 )
-from app.va.va_profile.va_profile_client import CommunicationChannel
+from app.va.va_profile.va_profile_client import CommunicationChannel, VAProfileResult
 
 
 EXAMPLE_VA_PROFILE_ID = '135'
@@ -41,7 +41,8 @@ def test_should_get_email_address_and_update_notification(client, mocker, sample
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(return_value='test@test.org')
+    va_profile_result = VAProfileResult(recipient='test@test.org', communication_allowed=True, permission_message=None)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(return_value=va_profile_result)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
@@ -49,8 +50,9 @@ def test_should_get_email_address_and_update_notification(client, mocker, sample
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
     mocked_update_notification.assert_called_with(notification)
@@ -67,7 +69,8 @@ def test_should_get_phone_number_and_update_notification(client, mocker, sample_
     )
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_telephone = mocker.Mock(return_value='+15555555555')
+    va_profile_result = VAProfileResult(recipient='+15555555555', communication_allowed=True, permission_message=None)
+    mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(return_value=va_profile_result)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification = mocker.patch('app.celery.contact_information_tasks.dao_update_notification')
@@ -75,8 +78,8 @@ def test_should_get_phone_number_and_update_notification(client, mocker, sample_
     lookup_contact_info(notification.id)
 
     mocked_get_notification_by_id.assert_called()
-    mocked_va_profile_client.get_telephone.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_telephone.call_args[0][0]
+    mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
     mocked_update_notification.assert_called_with(notification)
@@ -99,7 +102,7 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, sample_temp
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
 
     exception = VAProfileNonRetryableException
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=exception)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_update_notification_status_by_id = mocker.patch(
@@ -109,8 +112,8 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, sample_temp
     with pytest.raises(NotificationPermanentFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
@@ -130,14 +133,14 @@ def test_should_retry_on_retryable_exception(client, mocker, sample_template, sa
     mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception_type('some error'))
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=exception_type('some error'))
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     with pytest.raises(AutoRetryException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
@@ -157,9 +160,9 @@ def test_lookup_contact_info_should_retry_on_timeout(
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
 
     if notification_type == SMS_TYPE:
-        mocked_va_profile_client.get_telephone = mocker.Mock(side_effect=Timeout('Request timed out'))
+        mocked_va_profile_client.get_telephone_with_permission = mocker.Mock(side_effect=Timeout('Request timed out'))
     else:
-        mocked_va_profile_client.get_email = mocker.Mock(side_effect=Timeout('Request timed out'))
+        mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=Timeout('Request timed out'))
 
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
@@ -171,11 +174,11 @@ def test_lookup_contact_info_should_retry_on_timeout(
     assert str(exc_info.value.args[1]) == 'Request timed out'
 
     if notification_type == SMS_TYPE:
-        mocked_va_profile_client.get_telephone.assert_called_with(mocker.ANY)
-        recipient_identifier = mocked_va_profile_client.get_telephone.call_args[0][0]
+        mocked_va_profile_client.get_telephone_with_permission.assert_called_with(mocker.ANY, notification)
+        recipient_identifier = mocked_va_profile_client.get_telephone_with_permission.call_args[0][0]
     else:
-        mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-        recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+        mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+        recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
 
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
@@ -192,7 +195,7 @@ def test_should_update_notification_to_technical_failure_on_max_retries(
     mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=VAProfileRetryableException)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=VAProfileRetryableException)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
     mocker.patch('app.celery.contact_information_tasks.can_retry', return_value=False)
     mocked_handle_max_retries_exceeded = mocker.patch(
@@ -202,8 +205,8 @@ def test_should_update_notification_to_technical_failure_on_max_retries(
     with pytest.raises(NotificationTechnicalFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
@@ -222,7 +225,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
     exception = NoContactInfoException
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=exception)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
 
     mocked_check_and_queue_callback_task = mocker.patch(
@@ -236,8 +239,8 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     with pytest.raises(NotificationPermanentFailureException):
         lookup_contact_info(notification.id)
 
-    mocked_va_profile_client.get_email.assert_called_with(mocker.ANY)
-    recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
+    mocked_va_profile_client.get_email_with_permission.assert_called_with(mocker.ANY, notification)
+    recipient_identifier = mocked_va_profile_client.get_email_with_permission.call_args[0][0]
     assert isinstance(recipient_identifier, RecipientIdentifier)
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
@@ -289,7 +292,7 @@ def test_exception_sets_failure_reason_if_thrown(
     mocker.patch('app.celery.contact_information_tasks.get_notification_by_id', return_value=notification)
 
     mocked_va_profile_client = mocker.Mock(VAProfileClient)
-    mocked_va_profile_client.get_email = mocker.Mock(side_effect=exception)
+    mocked_va_profile_client.get_email_with_permission = mocker.Mock(side_effect=exception)
     mocker.patch('app.celery.contact_information_tasks.va_profile_client', new=mocked_va_profile_client)
     mocker.patch('app.celery.contact_information_tasks.can_retry', return_value=False)
 

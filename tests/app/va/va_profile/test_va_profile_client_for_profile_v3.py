@@ -9,7 +9,6 @@ import requests_mock
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.exceptions import NotificationPermanentFailureException
-from app.feature_flags import FeatureFlag
 from app.models import EMAIL_TYPE, SMS_TYPE, RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
 from app.va.va_profile.exceptions import (
@@ -23,7 +22,6 @@ from app.va.va_profile.va_profile_client import CommunicationChannel, VALID_PHON
 from app.va.va_profile.va_profile_types import Telephone
 
 from tests.app.conftest import MOCK_VA_PROFILE_URL
-from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def telephone_entry(
@@ -88,9 +86,6 @@ class TestVAProfileClient:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(url, json=mock_response, status_code=200)
 
         result = mock_va_profile_client.get_email_with_permission(
@@ -112,9 +107,6 @@ class TestVAProfileClient:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         mock_response['profile']['contactInformation']['emails'] = []
         rmock.post(url, json=mock_response, status_code=200)
 
@@ -136,9 +128,6 @@ class TestVAProfileClient:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(url, json=mock_response, status_code=200)
 
         mock_va_profile_client.get_email_with_permission(recipient_identifier, sample_notification())
@@ -159,9 +148,6 @@ class TestVAProfileClient:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         response = {
             'messages': [
                 {
@@ -191,9 +177,6 @@ class TestVAProfileClient:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(url, json=mock_response, status_code=200)
 
         result = mock_va_profile_client.get_telephone_with_permission(recipient_identifier, sample_notification())
@@ -236,9 +219,7 @@ class TestVAProfileClient:
 
         mock_contact_info = {'vaProfileId': 'test', 'txAuditId': '1234'}
         if expected:
-            assert mock_va_profile_client.has_valid_mobile_telephone_classification(
-                telephone_instance, mock_contact_info
-            )
+            mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance, mock_contact_info)
         else:
             with pytest.raises(InvalidPhoneNumberException):
                 mock_va_profile_client.has_valid_mobile_telephone_classification(telephone_instance, mock_contact_info)
@@ -255,9 +236,6 @@ class TestVAProfileClientExceptionHandling:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         mock_response['profile']['contactInformation']['telephones'] = []
         rmock.post(url, json=mock_response, status_code=200)
 
@@ -267,9 +245,6 @@ class TestVAProfileClientExceptionHandling:
     def test_get_telephone_raises_NoContactInfoException_if_no_mobile_telephones_exist(
         self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker, sample_notification
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         telephones = mock_response['profile']['contactInformation']['telephones']
         mock_response['profile']['contactInformation']['telephones'] = [
             telephone for telephone in telephones if telephone['phoneType'] != 'MOBILE'
@@ -282,8 +257,6 @@ class TestVAProfileClientExceptionHandling:
     def test_get_telephone_raises_InvalidPhoneNumberException_if_number_classified_as_not_mobile(
         self, rmock, mock_va_profile_client, mock_response, recipient_identifier, url, mocker, sample_notification
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         telephones = mock_response['profile']['contactInformation']['telephones']
         for telephone in telephones:
             telephone['classification'] = {'classificationCode': 1}  # LANDLINE classification
@@ -299,8 +272,6 @@ class TestVAProfileClientExceptionHandling:
         # A veteran has configured a mobile telephone to receive notifications.  They add an additional mobile
         # phone, and save it as their "home" phone. Even though it is technically a mobile device and is newer,
         # we should send notifications to the device specified by the user
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         today = datetime.today()
         yesterday_morning = (datetime.today() - timedelta(days=1)).replace(hour=6)
         yesterday_evening = yesterday_morning.replace(hour=20)
@@ -326,17 +297,11 @@ class TestVAProfileClientExceptionHandling:
         )
 
     def test_handle_exceptions_retryable_exception(self, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         # This test checks if VAProfileRetryableException is raised for a RequestException
         with pytest.raises(VAProfileRetryableException):
             mock_va_profile_client._handle_exceptions('some_va_profile_id', requests.RequestException())
 
     def test_handle_exceptions_id_not_found_exception(self, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         # Simulate a 404 HTTP error
         error = requests.HTTPError(response=requests.Response())
         error.response.status_code = 404
@@ -345,20 +310,6 @@ class TestVAProfileClientExceptionHandling:
             mock_va_profile_client._handle_exceptions('some_va_profile_id', error)
 
     def test_handle_exceptions_non_retryable_exception(self, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
-        # Simulate a 400 HTTP error
-        error = requests.HTTPError(response=requests.Response())
-        error.response.status_code = 400
-        # This test checks if VAProfileNonRetryableException is raised for a 400 error
-        with pytest.raises(VAProfileNonRetryableException):
-            mock_va_profile_client._handle_exceptions('some_va_profile_id', error)
-
-    def test_handle_exceptions_timeout_exception(self, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         # This test checks if VAProfileRetryableExcception is raised for a Timeout exception
         # Timeout inherits from requests.RequestException, so all exceptions of type RequestException should
         # raise a VAProfileRetryableException
@@ -375,9 +326,6 @@ class TestVAProfileClientExceptionHandling:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(requests_mock.ANY, status_code=status)
 
         with pytest.raises(VAProfileRetryableException):
@@ -395,9 +343,6 @@ class TestVAProfileClientExceptionHandling:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         with requests_mock.Mocker(real_http=True) as rmock:
             rmock.post(requests_mock.ANY, exc=requests.RequestException)
 
@@ -422,9 +367,6 @@ class TestCommunicationPermissions:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         notification = sample_notification()
         mock_response['profile']['communicationPermissions'][0]['allowed'] = expected
         mock_response['profile']['communicationPermissions'][0]['communicationItemId'] = notification.va_profile_item_id
@@ -446,9 +388,6 @@ class TestCommunicationPermissions:
         mocker,
         sample_notification,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         notification = sample_notification(gen_type=EMAIL_TYPE)
         mock_response['profile']['communicationPermissions'][1]['allowed'] = expected
         mock_response['profile']['communicationPermissions'][1]['communicationItemId'] = notification.va_profile_item_id
@@ -487,9 +426,6 @@ class TestCommunicationPermissions:
         notification_type,
         mocker,
     ):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         profile = mock_response['profile']
         communication_item = sample_communication_item(default_send)
         template = sample_template(communication_item_id=communication_item.id)
@@ -532,9 +468,6 @@ class TestSendEmailStatus:
     }
 
     def test_send_va_profile_email_status_sent_successfully(self, rmock, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(requests_mock.ANY, json=self.mock_response, status_code=200)
 
         mock_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
@@ -545,9 +478,6 @@ class TestSendEmailStatus:
         assert rmock.request_history[0].url == expected_url
 
     def test_send_va_profile_email_status_timeout(self, rmock, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(requests_mock.ANY, exc=requests.ReadTimeout)
 
         with pytest.raises(requests.Timeout):
@@ -559,9 +489,6 @@ class TestSendEmailStatus:
         assert rmock.request_history[0].url == expected_url
 
     def test_send_va_profile_email_status_throws_exception(self, rmock, mock_va_profile_client, mocker):
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-        mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
         rmock.post(requests_mock.ANY, exc=requests.RequestException)
 
         with pytest.raises(requests.RequestException):
@@ -598,8 +525,6 @@ def test_get_email_or_sms_with_permission_utilizes_default_send(
     notification_type,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
     # Test each combo, ensuring contact info responds with expected result
     channel = EMAIL_TYPE if notification_type == CommunicationChannel.EMAIL else SMS_TYPE
     profile = mock_va_profile_response['profile']

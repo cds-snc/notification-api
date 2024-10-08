@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Optional
 import iso8601
 import requests
 
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import (
     NoContactInfoException,
@@ -170,41 +169,31 @@ class VAProfileClient:
         self.statsd_client.incr('clients.va-profile.get-email.failure')
         self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
 
-    def has_valid_mobile_telephone_classification(self, telephone: Telephone, contact_info: ContactInformation) -> bool:
+    def has_valid_mobile_telephone_classification(self, telephone: Telephone, contact_info: ContactInformation):
         """
         Args:
           telephone (Telephone): telephone entry from ContactInformation object retrieved from Vet360 API endpoint
 
         Returns:
-          bool - if AWS-classified telephone is a valid sms recipient (if nonexistent, return True)
+          None, if the provided telephone has no classificationCode or is classified as a number which can receive
+          SMS messages
 
         Raises:
           InvalidPhoneNumberException - if AWS-classified telephone is not a valid sms recipient
         """
         classification = telephone.get('classification', {})
         classification_code = classification.get('classificationCode', None)
-        if classification_code is None:
-            # fall back, if no phone number classification is present
-            self.logger.debug(
-                'V3 Profile -- No telephone classification present, assuming the number is a valid SMS recipient (VA Profile ID: %s)',
-                telephone['vaProfileId'],
-            )
-            return True
-
-        if classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
+        if classification_code and classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
             self.logger.debug(
                 'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
                 classification_code,
                 telephone['vaProfileId'],
             )
-            self._raise_invalid_phone_number_exception(contact_info)
-
-        self.logger.debug(
-            'V3 Profile -- Phone classification code of %s is a valid SMS recipient (VA Profile ID: %s)',
-            classification_code,
-            telephone['vaProfileId'],
-        )
-        return True
+            self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
+            raise InvalidPhoneNumberException(
+                f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
+                f'with AuditId {contact_info.get("txAuditId")}'
+            )
 
     def get_mobile_telephone_from_contact_info(self, contact_info: ContactInformation) -> Optional[str]:
         """
@@ -225,19 +214,9 @@ class VAProfileClient:
         )
 
         if sorted_telephones:
-            is_mobile = True
-            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS):
-                self.logger.debug(
-                    'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS enabled.  Checking telephone classification info.'
-                )
-                is_mobile = self.has_valid_mobile_telephone_classification(sorted_telephones[0], contact_info)
-            else:
-                self.logger.debug(
-                    'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS is not enabled.  Will not check classification info.'
-                )
+            self.has_valid_mobile_telephone_classification(sorted_telephones[0], contact_info)
             if (
-                is_mobile
-                and sorted_telephones[0].get('countryCode')
+                sorted_telephones[0].get('countryCode')
                 and sorted_telephones[0].get('areaCode')
                 and sorted_telephones[0].get('phoneNumber')
             ):

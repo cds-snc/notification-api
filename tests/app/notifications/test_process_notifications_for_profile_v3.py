@@ -9,7 +9,6 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.celery.contact_information_tasks import lookup_contact_info
-from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
 from app.celery.provider_tasks import deliver_email, deliver_sms
@@ -41,9 +40,6 @@ from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def test_create_content_for_notification_passes(notify_db_session, sample_template, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template(template_type=EMAIL_TYPE)
     db_template = notify_db_session.session.get(Template, template.id)
 
@@ -52,9 +48,6 @@ def test_create_content_for_notification_passes(notify_db_session, sample_templa
 
 
 def test_create_content_for_notification_with_placeholders_passes(notify_db_session, sample_template, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template(content='Hello ((name))')
     db_template = notify_db_session.session.get(Template, template.id)
 
@@ -64,9 +57,6 @@ def test_create_content_for_notification_with_placeholders_passes(notify_db_sess
 
 
 def test_create_content_for_notification_fails_with_missing_personalisation(notify_db_session, sample_template, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template(content='Hello ((name))\n((Additional placeholder))')
     db_template = notify_db_session.session.get(Template, template.id)
 
@@ -75,9 +65,6 @@ def test_create_content_for_notification_fails_with_missing_personalisation(noti
 
 
 def test_create_content_for_notification_allows_additional_personalisation(notify_db_session, sample_template, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template(content='Hello ((name))\n((Additional placeholder))')
     db_template = notify_db_session.session.get(Template, template.id)
 
@@ -92,9 +79,6 @@ def test_persist_notification_creates_and_save_to_db(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
 
     template = sample_template()
@@ -143,9 +127,6 @@ def test_persist_notification_creates_and_save_to_db(
 
 
 def test_persist_notification_throws_exception_when_missing_template(sample_api_key, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     notification = None
 
@@ -168,9 +149,6 @@ def test_cache_is_not_incremented_on_failure_to_persist_notification(
     sample_api_key,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     mocked_redis = mocker.patch('app.redis_store.get')
     mock_service_template_cache = mocker.patch('app.redis_store.get_all_from_hash')
@@ -195,9 +173,6 @@ def test_persist_notification_does_not_increment_cache_if_test_key(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template()
     api_key = sample_api_key(service=template.service, key_type=KEY_TYPE_TEST)
 
@@ -234,9 +209,6 @@ def test_persist_notification_with_optionals(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     template = sample_template(service=api_key.service)
     service = api_key.service
@@ -280,9 +252,6 @@ def test_persist_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     template = sample_template(service=api_key.service)
     mock_incr = mocker.patch('app.notifications.process_notifications.redis_store.incr')
@@ -311,9 +280,6 @@ def test_persist_notification_increments_cache_if_key_exists(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     template = sample_template(service=api_key.service)
     service = template.service
@@ -363,9 +329,6 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     mocker,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_template(template_type=notification_type)
     MockService = namedtuple('Service', ['id'])
@@ -416,7 +379,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_sms],
+            [deliver_sms],
         ),
         (
             True,
@@ -426,7 +389,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             True,
@@ -436,7 +399,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             True,
@@ -446,7 +409,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_email],
+            [deliver_email],
         ),
         (
             False,
@@ -456,7 +419,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-sms-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -466,7 +429,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-email-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             False,
@@ -476,7 +439,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-sms-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_sms],
+            [deliver_sms],
         ),
         (
             False,
@@ -486,7 +449,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -496,7 +459,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -506,7 +469,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_email],
+            [deliver_email],
         ),
         (
             False,
@@ -516,7 +479,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'research-mode-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
     ],
 )
@@ -533,9 +496,6 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     sample_communication_item,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_template(
@@ -602,9 +562,6 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
     sample_notification,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     notification = sample_notification(api_key=sample_api_key())
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'False')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error('EXPECTED'))
@@ -632,9 +589,6 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
     ],
 )
 def test_simulated_recipient(to_address, notification_type, expected, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     """
     The values where the expected = 'research-mode' are listed in the config['SIMULATED_EMAIL_ADDRESSES']
     and config['SIMULATED_SMS_NUMBERS']. These values should result in using the research mode queue.
@@ -676,9 +630,6 @@ def test_persist_notification_with_international_info_stores_correct_info(
     expected_prefix,
     expected_units,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template()
     api_key = sample_api_key(service=template.service)
 
@@ -711,9 +662,6 @@ def test_persist_notification_with_international_info_does_not_store_for_email(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template()
     api_key = sample_api_key(service=template.service)
 
@@ -742,9 +690,6 @@ def test_persist_notification_with_international_info_does_not_store_for_email(
 
 # This test assumes the local timezone is EST
 def test_persist_scheduled_notification(notify_db_session, sample_api_key, sample_notification, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     api_key = sample_api_key()
     notification = sample_notification(api_key=api_key)
 
@@ -773,9 +718,6 @@ def test_persist_sms_notification_stores_normalised_number(
     recipient,
     expected_recipient_normalised,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template()
     api_key = sample_api_key(service=template.service)
 
@@ -811,9 +753,6 @@ def test_persist_email_notification_stores_normalised_email(
     recipient,
     expected_recipient_normalised,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     template = sample_template()
     api_key = sample_api_key(service=template.service)
 
@@ -844,9 +783,6 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     sample_service,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     service = sample_service(service_permissions=[LETTER_TYPE])
     template = sample_template(service=service, template_type=LETTER_TYPE)
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
@@ -895,9 +831,6 @@ def test_persist_notification_persists_recipient_identifiers(
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mocker.patch('app.notifications.process_notifications.accept_recipient_identifiers_enabled', return_value=True)
     template = sample_template(template_type=notification_type)
     api_key = sample_api_key()
@@ -943,9 +876,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     sample_template,
     mocker,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mocker.patch(
         'app.notifications.process_notifications.accept_recipient_identifiers_enabled',
         return_value=recipient_identifiers_enabled,
@@ -1025,9 +955,6 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     expected_tasks,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
@@ -1046,9 +973,6 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
 
 
 def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_task(client, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
@@ -1080,9 +1004,6 @@ def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_t
 
 
 def test_send_notification_without_sms_sender_rate_limit_uses_regular_delivery_task(client, mocker):
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, 'True')
-    mock_feature_flag(mocker, FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS, 'True')
-
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     deliver_sms_with_rate_limiting = mocker.patch(
         'app.celery.provider_tasks.deliver_sms_with_rate_limiting.apply_async'

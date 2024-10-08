@@ -8,7 +8,6 @@ from freezegun import freeze_time
 from collections import namedtuple
 from sqlalchemy import delete, select
 
-from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
@@ -395,7 +394,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_sms],
+            [deliver_sms],
         ),
         (
             True,
@@ -405,7 +404,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             True,
@@ -415,7 +414,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             True,
@@ -425,7 +424,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_email],
+            [deliver_email],
         ),
         (
             False,
@@ -435,7 +434,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-sms-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -445,7 +444,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-email-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_email],
+            [lookup_va_profile_id, deliver_email],
         ),
         (
             False,
@@ -455,7 +454,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'send-sms-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_sms],
+            [deliver_sms],
         ),
         (
             False,
@@ -465,7 +464,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -475,7 +474,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.ICN.value,
             'some icn',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
         (
             False,
@@ -485,7 +484,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.VA_PROFILE_ID.value,
             'some va profile id',
-            [lookup_recipient_communication_permissions, deliver_email],
+            [deliver_email],
         ),
         (
             False,
@@ -495,7 +494,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
             'notify-internal-tasks',
             IdentifierType.PID.value,
             'some pid',
-            [lookup_va_profile_id, lookup_recipient_communication_permissions, deliver_sms],
+            [lookup_va_profile_id, deliver_sms],
         ),
     ],
 )
@@ -937,7 +936,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             [
                 send_va_onsite_notification_task,
                 lookup_contact_info,
-                lookup_recipient_communication_permissions,
                 deliver_email,
             ],
         ),
@@ -947,7 +945,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             [
                 send_va_onsite_notification_task,
                 lookup_contact_info,
-                lookup_recipient_communication_permissions,
                 deliver_sms,
             ],
         ),
@@ -958,7 +955,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
                 lookup_va_profile_id,
                 send_va_onsite_notification_task,
                 lookup_contact_info,
-                lookup_recipient_communication_permissions,
                 deliver_email,
             ],
         ),
@@ -969,7 +965,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
                 lookup_va_profile_id,
                 send_va_onsite_notification_task,
                 lookup_contact_info,
-                lookup_recipient_communication_permissions,
                 deliver_sms,
             ],
         ),
