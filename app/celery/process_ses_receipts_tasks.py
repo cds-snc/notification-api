@@ -25,6 +25,7 @@ from app.models import (
     Notification,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
+    NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     NOTIFICATION_PENDING,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -172,6 +173,7 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
 
         aws_response_dict = get_aws_responses(notification_type)
 
+        # This is the prospective, updated status.
         notification_status = aws_response_dict['notification_status']
         reference = ses_message['mail']['messageId']
 
@@ -187,8 +189,27 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
                 )
             return
 
-        # Add status reason to notification if the status is some kind of failure
+        # Prevent regressing bounce status.  Note that this is a test of the existing status; not the new status.
+        if (
+            notification.status_reason
+            and 'bounce' in notification.status_reason
+            and notification.status
+            in {
+                NOTIFICATION_TEMPORARY_FAILURE,
+                NOTIFICATION_PERMANENT_FAILURE,
+            }
+        ):
+            # async from AWS means we may get a delivered status after a bounce, in rare cases
+            current_app.logger.warning(
+                'Notification: %s was marked as a bounce, cannot be updated to: %s',
+                notification.id,
+                notification_status,
+            )
+            return
+
+        # This is a test of the new status.  Is it a bounce?
         if notification_status in (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
+            # Add the failure status reason to the notification.
             if notification_status == NOTIFICATION_PERMANENT_FAILURE:
                 status_reason = 'Failed to deliver email due to hard bounce'
             else:
@@ -209,24 +230,9 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
             check_and_queue_va_profile_email_status_callback(notification)
 
             return
-
-        # Prevent regressing bounce status
-        if (
-            notification.status_reason
-            and 'bounce' in notification.status_reason
-            and notification.status
-            in {
-                NOTIFICATION_TEMPORARY_FAILURE,
-                NOTIFICATION_PERMANENT_FAILURE,
-            }
-        ):
-            # async from AWS means we may get a delivered status after a bounce, in rare cases
-            current_app.logger.warning(
-                'Notification: %s was marked as a bounce, cannot be updated to: %s',
-                notification.id,
-                notification_status,
-            )
-            return
+        elif notification_status == NOTIFICATION_DELIVERED:
+            # Delivered messages should never have a status reason.
+            notification.status_reason = None
 
         if notification.status not in (NOTIFICATION_SENDING, NOTIFICATION_PENDING):
             notifications_dao.duplicate_update_warning(notification, notification_status)

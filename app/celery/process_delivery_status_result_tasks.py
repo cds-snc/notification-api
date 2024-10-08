@@ -37,7 +37,9 @@ def process_delivery_status(
     self,
     event: CeleryEvent,
 ) -> bool:
-    """Celery task for updating the delivery status of a notification"""
+    """
+    This is a Celery task for updating the delivery status of a notification.
+    """
 
     # preset variables to address "unbounded local variable"
     sqs_message = None
@@ -56,7 +58,7 @@ def process_delivery_status(
     current_app.logger.info('retrieved delivery status body: %s', body)
 
     # get notification_platform_status
-    notification_platform_status = _get_notification_platform_status(self, provider, body, sqs_message)
+    notification_platform_status: dict = _get_notification_platform_status(self, provider, body, sqs_message)
 
     # get parameters from notification platform status
     current_app.logger.info('Get Notification Parameters')
@@ -68,7 +70,7 @@ def process_delivery_status(
         price_in_millicents_usd,
     ) = _get_notification_parameters(notification_platform_status)
 
-    # retrieves the inbound message for this provider we are updating the status of the outbound message
+    # Retrieve the inbound message for this provider.  We are updating the status of the outbound message.
     notification, should_exit = attempt_to_get_notification(
         reference, notification_status, self.request.retries * self.default_retry_delay
     )
@@ -90,7 +92,10 @@ def process_delivery_status(
             number_of_message_parts,
             getattr(notification, 'id', 'unknown'),
         )
-        _calculate_pricing(price_in_millicents_usd, notification, notification_status, number_of_message_parts)
+
+        _calculate_pricing_and_update_notification(
+            price_in_millicents_usd, notification, notification_status, number_of_message_parts
+        )
 
         current_app.logger.info(
             '%s callback return status of %s for notification: %s',
@@ -194,20 +199,30 @@ def _get_notification_parameters(notification_platform_status: dict) -> Tuple[st
     return payload, reference, notification_status, number_of_message_parts, price_in_millicents_usd
 
 
-def _calculate_pricing(
+def _calculate_pricing_and_update_notification(
     price_in_millicents_usd: float, notification: Notification, notification_status: str, number_of_message_parts: int
 ):
-    """Calculate pricing"""
+    """
+    Calculate pricing, and update the notification.
+    """
+
     current_app.logger.debug('Calculate pricing and update notification %s', notification.id)
+
+    # Delivered messages should not have an associated reason.
+    status_reason = None if (notification_status == NOTIFICATION_DELIVERED) else notification.status_reason
+
     if price_in_millicents_usd > 0.0:
         dao_update_notification_by_id(
             notification_id=notification.id,
             status=notification_status,
+            status_reason=status_reason,
             segments_count=number_of_message_parts,
             cost_in_millicents=price_in_millicents_usd,
         )
     else:
-        update_notification_delivery_status(notification_id=notification.id, new_status=notification_status)
+        update_notification_delivery_status(
+            notification_id=notification.id, new_status=notification_status, new_status_reason=status_reason
+        )
 
 
 def _get_notification_platform_status(

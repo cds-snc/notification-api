@@ -37,18 +37,31 @@ from tests.app.db import (
 )
 
 
-def test_process_ses_results(sample_template, sample_notification):
+def test_process_ses_results(notify_db_session, sample_template, sample_notification):
     template = sample_template(template_type=EMAIL_TYPE)
     ref = str(uuid4())
-    sample_notification(template=template, reference=ref, sent_at=datetime.utcnow(), status='sending')
+
+    notification = sample_notification(
+        template=template,
+        reference=ref,
+        sent_at=datetime.utcnow(),
+        status=NOTIFICATION_SENDING,
+        status_reason='just because',
+    )
+    assert notification.status == NOTIFICATION_SENDING
+    assert notification.status_reason == 'just because'
 
     assert process_ses_receipts_tasks.process_ses_results(response=ses_notification_callback(reference=ref))
+
+    notify_db_session.session.refresh(notification)
+    assert notification.status == NOTIFICATION_DELIVERED
+    assert notification.status_reason is None
 
 
 def test_process_ses_results_retry_called(mocker, sample_template, sample_notification):
     template = sample_template(template_type=EMAIL_TYPE)
     ref = str(uuid4())
-    sample_notification(template=template, reference=ref, sent_at=datetime.utcnow(), status='sending')
+    sample_notification(template=template, reference=ref, sent_at=datetime.utcnow(), status=NOTIFICATION_SENDING)
 
     mocker.patch('app.dao.notifications_dao._update_notification_status', side_effect=Exception('EXPECTED'))
     mocked = mocker.patch('app.celery.process_ses_receipts_tasks.process_ses_results.retry')
@@ -90,7 +103,7 @@ def test_ses_callback_should_call_send_delivery_status_to_service(
 
     template = sample_template(template_type=EMAIL_TYPE)
     ref = str(uuid4())
-    notification = sample_notification(template=template, status='sending', reference=ref)
+    notification = sample_notification(template=template, status=NOTIFICATION_SENDING, reference=ref)
 
     service_callback = create_service_callback_api(service=template.service, url='https://original_url.com')
 
@@ -116,7 +129,7 @@ def test_wt_ses_callback_should_log_total_time(
         mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
         ref = str(uuid4())
 
-        notification = sample_notification(template=template, status='sending', reference=ref)
+        notification = sample_notification(template=template, status=NOTIFICATION_SENDING, reference=ref)
         # Mock db call
         mocker.patch(
             'app.dao.notifications_dao.dao_get_notification_by_reference',
@@ -344,7 +357,7 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     with freeze_time('2001-01-01T12:00:00'):
         ref = str(uuid4())
         send_mock = mocker.patch('app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async')
-        notification_id = sample_notification(template=template, status='sending', reference=ref).id
+        notification_id = sample_notification(template=template, status=NOTIFICATION_SENDING, reference=ref).id
 
         assert process_ses_receipts_tasks.process_ses_results(ses_notification_callback(reference=ref))
         # The ORM does not update the notification object for some reason, so query it again (only affects tests)
@@ -364,17 +377,17 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
     template = sample_template(template_type=EMAIL_TYPE)
     sample_notification(
         template=template,
-        status='sending',
+        status=NOTIFICATION_SENDING,
         reference='ref1',
     )
     sample_notification(
         template=template,
-        status='sending',
+        status=NOTIFICATION_SENDING,
         reference='ref2',
     )
     sample_notification(
         template=template,
-        status='sending',
+        status=NOTIFICATION_SENDING,
         reference='ref3',
     )
     create_service_callback_api(service=template.service, url='https://original_url.com')
@@ -583,7 +596,7 @@ def get_complaint_notification_and_email(mocker):
         service=template.service,
         template_id=template.id,
         template=template,
-        status='sending',
+        status=NOTIFICATION_SENDING,
         reference='ref1',
     )
     complaint = mocker.Mock(
@@ -671,3 +684,32 @@ class TestSendEmailStatusToVAProfile:
             process_ses_receipts_tasks.send_email_status_to_va_profile(self.mock_notification_data)
 
         mock_send_va_profile_email_status.assert_called_once()
+
+
+@pytest.mark.parametrize('status', (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE))
+def test_process_ses_results_no_bounce_regression(
+    notify_db_session,
+    sample_template,
+    sample_notification,
+    status,
+):
+    """
+    If a bounce status has been persisted for a notificaiton, no further status updates should occur.
+    Soft bounces are temporary failures.  Hard bounces are permanent failures.
+    """
+
+    notification = sample_notification(
+        template=sample_template(template_type=EMAIL_TYPE),
+        status=status,
+        status_reason='bounce',
+        reference=str(uuid4()),
+    )
+
+    # Simulate a delivery callback arriving after the message already bounced.
+    response = ses_notification_callback(notification.reference)
+    assert json.loads(response['Message'])['eventType'] == 'Delivery'
+    assert process_ses_receipts_tasks.process_ses_results(response) is None
+
+    notify_db_session.session.refresh(notification)
+    assert notification.status == status, 'The status should not have changed.'
+    assert notification.status_reason == 'bounce'

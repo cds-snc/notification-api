@@ -117,6 +117,7 @@ def process_pinpoint_results(
     )
 
     try:
+        # This is the new status.
         notification_status = get_notification_status(event_type, record_status, reference)
 
         notification, should_exit = attempt_to_get_notification(
@@ -133,11 +134,15 @@ def process_pinpoint_results(
                 notification.status_reason = 'The veteran responded with STOP.'
             elif record_status == 'OPTED_OUT':
                 notification.status_reason = 'The veteran is opted-out at the Pinpoint level.'
+        elif notification_status == NOTIFICATION_DELIVERED:
+            # Never include a status reason for a delivered notification.
+            notification.status_reason = None
 
         if price_in_millicents_usd > 0.0:
             dao_update_notification_by_id(
                 notification_id=notification.id,
                 status=notification_status,
+                status_reason=notification.status_reason,
                 segments_count=number_of_message_parts,
                 cost_in_millicents=price_in_millicents_usd,
             )
@@ -215,8 +220,8 @@ def attempt_to_get_notification(
 def check_notification_status(notification: Notification, notification_status: str) -> bool:
     """
     Check if the notification status should be updated. If the status has not changed, or if the status is in a final
-    state, do not update the notification. *Unless* the status is being updated to delivered from a different final
-    status, in which case, the notification should always be updated.
+    state, do not update the notification *unless* the status is being updated to delivered from a different final
+    status.  In that case, always update the notification.
 
     Args:
         notification (Notification): The notification to check.

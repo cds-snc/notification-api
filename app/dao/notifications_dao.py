@@ -128,6 +128,7 @@ def country_records_delivery(phone_prefix):
 def _get_notification_status_update_statement(
     notification_id: str,
     incoming_status: str,
+    incoming_status_reason: str | None,
     **kwargs,
 ):
     """
@@ -136,13 +137,15 @@ def _get_notification_status_update_statement(
 
     Args:
         notification_id (str): String value of notification uuid to be updated
-        incoming_status (str): String value of the status the given notification will attempt to update to
-        notification (Notification): The notification to update, or None
+        incoming_status (str): String value of the status to which the given notification will attempt to update
+        incoming_status_reason (str): String value of the status reason to which the given notification will
+            attempt to update, or None
         **kwargs: Additional key-value pairs to be updated
 
     Returns:
         update_statement: An update statement to be executed, or None if the notification should not be updated
     """
+
     notification = db.session.get(Notification, notification_id)
     if notification is None:
         current_app.logger.error(
@@ -155,6 +158,9 @@ def _get_notification_status_update_statement(
         kwargs['status'] = incoming_status
     elif incoming_status == NOTIFICATION_TEMPORARY_FAILURE:
         kwargs['status'] = NOTIFICATION_TEMPORARY_FAILURE
+
+    if incoming_status_reason is not None:
+        kwargs['status_reason'] = incoming_status_reason
 
     kwargs['updated_at'] = datetime.utcnow()
 
@@ -191,8 +197,7 @@ def _get_notification_status_update_statement(
 
 
 def _update_notification_status(
-    notification: Notification,
-    status: str,
+    notification: Notification, status: str, status_reason: str | None = None
 ) -> Notification:
     """
     Update the notification status if it should be updated.
@@ -212,7 +217,7 @@ def _update_notification_status(
             'Attempting to update notification %s to a status that does not exist %s', notification.id, status
         )
 
-    update_statement = _get_notification_status_update_statement(notification.id, status)
+    update_statement = _get_notification_status_update_statement(notification.id, status, status_reason)
 
     try:
         db.session.execute(update_statement)
@@ -277,6 +282,7 @@ def update_notification_status_by_id(
 def update_notification_delivery_status(
     notification_id: UUID,
     new_status: str,
+    new_status_reason: str = None,
 ) -> None:
     """
     Update a notification's delivery status.
@@ -287,10 +293,15 @@ def update_notification_delivery_status(
         notification_id (UUID): Notification id,
         new_status (str): Status to update the notification to,
     """
+
     current_app.logger.info('Update notification: %s to status: %s', notification_id, new_status)
+    stmt = _get_notification_status_update_statement(
+        notification_id=notification_id,
+        incoming_status=new_status,
+        incoming_status_reason=new_status_reason,
+    )
 
     try:
-        stmt = _get_notification_status_update_statement(notification_id=notification_id, incoming_status=new_status)
         db.session.execute(stmt)
         db.session.commit()
     except Exception as e:
@@ -301,10 +312,7 @@ def update_notification_delivery_status(
 
 @statsd(namespace='dao')
 @transactional
-def update_notification_status_by_reference(
-    reference,
-    status,
-):
+def update_notification_status_by_reference(reference: UUID, status: str, status_reason: str | None = None):
     # this is used to update letters and emails
     stmt = select(Notification).where(Notification.reference == reference)
     notification = db.session.scalar(stmt)
@@ -323,7 +331,7 @@ def update_notification_status_by_reference(
     if current_index < sending_index:
         return None
 
-    return _update_notification_status(notification=notification, status=status)
+    return _update_notification_status(notification=notification, status=status, status_reason=status_reason)
 
 
 @statsd(namespace='dao')
@@ -343,12 +351,14 @@ def dao_update_notification_by_id(
     Returns:
         Notification: The updated notification or None if the notification was not found
     """
+
     kwargs['updated_at'] = datetime.utcnow()
     status = kwargs.get('status')
+    status_reason = kwargs.get('status_reason')
 
     if notification_id and status is not None:
         update_statement = _get_notification_status_update_statement(
-            notification_id=notification_id, incoming_status=status, **kwargs
+            notification_id=notification_id, incoming_status=status, incoming_status_reason=status_reason, **kwargs
         )
     elif notification_id:
         update_statement = update(Notification).where(Notification.id == notification_id).values(kwargs)
@@ -820,6 +830,10 @@ def dao_update_notifications_by_reference(
     references,
     update_dict,
 ):
+    """
+    references - A list or tuple; update or notificaitons in this iterable.
+    """
+
     stmt = update(Notification).where(Notification.reference.in_(references)).values(**update_dict)
     updated_count = db.session.execute(stmt, execution_options={'synchronize_session': False}).rowcount
 

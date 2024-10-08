@@ -77,7 +77,11 @@ def test_process_pinpoint_results_notification_final_status(
     test_reference = str(uuid4())
     template = sample_template()
     sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
+        template=template,
+        reference=test_reference,
+        sent_at=datetime.datetime.utcnow(),
+        status=NOTIFICATION_SENDING,
+        status_reason='just because',
     )
     process_pinpoint_receipt_tasks.process_pinpoint_results(
         response=pinpoint_notification_callback_record(
@@ -86,12 +90,16 @@ def test_process_pinpoint_results_notification_final_status(
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == expected_notification_status
+
     if expected_notification_status == NOTIFICATION_PREFERENCES_DECLINED:
         assert notification.status_reason == (
             'The veteran is opted-out at the Pinpoint level.'
             if (record_status == 'OPTED_OUT')
             else 'The veteran responded with STOP.'
         )
+    elif expected_notification_status == NOTIFICATION_DELIVERED:
+        assert notification.status_reason is None
+
     mock_callback.assert_called_once()
 
 
@@ -109,7 +117,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
     test_reference = f'{uuid4()}-sms-reference-1'
     template = sample_template()
     sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
+        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
     )
     process_pinpoint_receipt_tasks.process_pinpoint_results(
         response=pinpoint_notification_callback_record(
@@ -172,7 +180,13 @@ def test_process_pinpoint_results_should_update_notification_status_with_deliver
 
     test_reference = f'{uuid4()}=sms-reference-1'
     template = sample_template()
-    sample_notification(template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=status)
+    sample_notification(
+        template=template,
+        reference=test_reference,
+        sent_at=datetime.datetime.utcnow(),
+        status=status,
+        status_reason=None if (status == NOTIFICATION_DELIVERED) else 'just because',
+    )
     process_pinpoint_receipt_tasks.process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference,
@@ -182,6 +196,7 @@ def test_process_pinpoint_results_should_update_notification_status_with_deliver
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == NOTIFICATION_DELIVERED
+    assert notification.status_reason is None
 
     update_notification_status.assert_not_called()
 
@@ -199,7 +214,7 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
     notify_db_session,
 ):
     """
-    Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
+    Test processing a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
     result in one event that contains the aggregate cost.
     """
 
@@ -207,7 +222,7 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
     test_reference = f'{uuid4()}=sms-reference-1'
     template = sample_template()
     notification = sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
+        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
     )
     assert notification.segments_count == 0, 'This is the default.'
     assert notification.cost_in_millicents == 0.0, 'This is the default.'
@@ -223,11 +238,11 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
         )
     )
 
-    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     notify_db_session.session.refresh(notification)
-
+    assert notification.status == NOTIFICATION_DELIVERED
     assert notification.segments_count == 6
     assert notification.cost_in_millicents == 4986.0
+    assert notification.status_reason is None
 
     # A subsequent _SMS.SUCCESS+DELIVERED event should not alter the segments and price columns.
     process_pinpoint_receipt_tasks.process_pinpoint_results(
@@ -240,14 +255,18 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
         )
     )
 
-    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    notify_db_session.session.refresh(notification)
+    assert notification.status == NOTIFICATION_DELIVERED
     assert notification.segments_count == 6
     assert notification.cost_in_millicents == 4986.0
+    assert notification.status_reason is None
 
 
-def test_process_pinpoint_results_segments_and_price_success_first(mocker, sample_template, sample_notification):
+def test_process_pinpoint_results_segments_and_price_success_first(
+    notify_db_session, mocker, sample_template, sample_notification
+):
     """
-    Test process a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
+    Test processing a Pinpoint SMS stream event.  Messages long enough to require multiple segments only
     result in one event that contains the aggregate cost.
 
     Receiving a _SMS.SUCCESS+DELIVERED without any preceeding _SMS.BUFFERED event should update the
@@ -257,8 +276,8 @@ def test_process_pinpoint_results_segments_and_price_success_first(mocker, sampl
     mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
     test_reference = f'{uuid4()}-sms-reference-1'
     template = sample_template()
-    sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status='sending'
+    notification = sample_notification(
+        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
     )
 
     process_pinpoint_receipt_tasks.process_pinpoint_results(
@@ -271,9 +290,11 @@ def test_process_pinpoint_results_segments_and_price_success_first(mocker, sampl
         )
     )
 
-    notification = notifications_dao.dao_get_notification_by_reference(test_reference)
+    notify_db_session.session.refresh(notification)
+    assert notification.status == NOTIFICATION_DELIVERED
     assert notification.segments_count == 4
     assert notification.cost_in_millicents == 2986.0
+    assert notification.status_reason is None
 
 
 def pinpoint_notification_callback_record(
@@ -324,7 +345,7 @@ def test_wt_process_pinpoint_callback_should_log_total_time(
     mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
 
     # Reference is used by many tests, can lead to trouble
-    notification = sample_notification(template=sample_template(), status='sending', reference='SMyyy')
+    notification = sample_notification(template=sample_template(), status=NOTIFICATION_SENDING, reference='SMyyy')
     # Mock db call
     mocker.patch(
         'app.dao.notifications_dao.dao_get_notification_by_reference',

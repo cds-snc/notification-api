@@ -10,7 +10,7 @@ from app.celery.process_delivery_status_result_tasks import (
     attempt_to_get_notification,
     process_delivery_status,
 )
-from app.models import Notification, NOTIFICATION_DELIVERED, SMS_TYPE
+from app.models import Notification, NOTIFICATION_DELIVERED, NOTIFICATION_SENT, SMS_TYPE
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def sample_notification_platform_status():
         'lbGl2ZXJlZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNaGFyZGNvZGVkS1dNJkFjY291bnRTaWQ9QUN6enomRnJvbT'
         '0lMkIxMjIyMzMzNDQ0NCZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
         'reference': 'SMhardcodedKWM',
-        'record_status': 'delivered',
+        'record_status': NOTIFICATION_DELIVERED,
     }
 
 
@@ -133,7 +133,7 @@ def test_get_provider_info_with_twilio(notify_api, sample_sqs_message_with_provi
 def test_attempt_to_get_notification_with_good_data(sample_template, sample_notification):
     """Test that we will exit the celery task when sqs message matches what has already been reported in the database"""
 
-    notification_status = 'delivered'
+    notification_status = NOTIFICATION_DELIVERED
     reference = str(uuid4())
 
     sample_notification(
@@ -151,14 +151,13 @@ def test_attempt_to_get_notification_with_good_data(sample_template, sample_noti
 
 
 def test_attempt_to_get_notification_duplicate_notification(
-    sample_notification_platform_status,
     sample_template,
     sample_notification,
 ):
     """Test that duplicate notifications will make notification = None, should_exit=True"""
 
     template = sample_template()
-    notification_status = 'delivered'
+    notification_status = NOTIFICATION_DELIVERED
     reference = str(uuid4())
 
     sample_notification(
@@ -211,10 +210,12 @@ def test_attempt_to_get_notification_NoResultFound(notify_api, event_duration_in
     if event_duration_in_seconds < 300:
         with pytest.raises(Exception) as exc_info:
             # Ignore the returns, we are expecting an exception
-            attempt_to_get_notification('bad_reference', 'delivered', event_duration_in_seconds)
+            attempt_to_get_notification('bad_reference', NOTIFICATION_DELIVERED, event_duration_in_seconds)
         assert exc_info.type is AutoRetryException
     else:
-        notification, should_exit = attempt_to_get_notification('bad_reference', 'delivered', event_duration_in_seconds)
+        notification, should_exit = attempt_to_get_notification(
+            'bad_reference', NOTIFICATION_DELIVERED, event_duration_in_seconds
+        )
         assert notification is None
         assert should_exit
 
@@ -236,9 +237,10 @@ def test_process_delivery_status_with_valid_message_with_no_payload(
     Test that the Celery task will complete if correct data is provided.
     """
 
-    # Reference is used by many tests, can lead to trouble
+    # This test is marked "serial" because the reference is used by many tests.  Making it a random
+    # value causes the test to fail.
     notification = sample_notification(
-        template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status='sent'
+        template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENT
     )
 
     callback_mock = mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
@@ -255,11 +257,14 @@ def test_process_delivery_status_with_valid_message_with_payload(
     sample_template,
     sample_notification,
 ):
-    """Test that celery task will complete if correct data is provided"""
+    """
+    Test that the Celery task will complete if correct data is provided.
+    """
 
-    # Reference is used by many tests, can lead to trouble
+    # This test is marked "serial" because the reference is used by many tests.  Making it a random
+    # value causes the test to fail.
     sample_notification(
-        template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status='sent'
+        template=sample_template(), reference='SMyyy', sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENT
     )
 
     mocker.patch('app.celery.process_delivery_status_result_tasks._get_include_payload_status', returns=True)
@@ -279,7 +284,7 @@ def test_get_notification_parameters(notify_api, sample_notification_platform_st
 
     """Test our ability to get parameters such as payload or reference from notification_platform_status"""
 
-    assert notification_status == 'delivered'
+    assert notification_status == NOTIFICATION_DELIVERED
     assert reference == 'SMhardcodedKWM'
     assert number_of_message_parts == 1
     assert price_in_millicents_usd >= 0
@@ -297,7 +302,7 @@ def test_wt_delivery_status_callback_should_log_total_time(
     mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
     mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
 
-    notification = sample_notification(template=sample_template(), status='sent', reference='SMyyy')
+    notification = sample_notification(template=sample_template(), status=NOTIFICATION_SENT, reference='SMyyy')
     # Mock db call
     mocker.patch(
         'app.dao.notifications_dao.dao_get_notification_by_reference',
@@ -313,3 +318,46 @@ def test_wt_delivery_status_callback_should_log_total_time(
         NOTIFICATION_DELIVERED,
         'twilio',
     )
+
+
+@pytest.mark.serial
+def test_process_delivery_status_no_status_reason_for_delivered(
+    notify_db_session,
+    mocker,
+    sample_template,
+    sample_notification,
+    sample_delivery_status_result_message,
+    sample_notification_platform_status,
+):
+    """
+    When a notification is updated to "delivered" status, its "status_reason" should be set to
+    the empty string.
+    """
+
+    # This test is marked "serial" because the reference is used by many tests.  Making it a random
+    # value causes the test to fail.
+    notification = sample_notification(
+        template=sample_template(),
+        reference='SMhardcodedKWM',
+        sent_at=datetime.datetime.utcnow(),
+        status=NOTIFICATION_SENT,
+        status_reason='This is not the empty string.',
+    )
+    assert notification.reference == 'SMhardcodedKWM'
+    assert notification.status == NOTIFICATION_SENT
+    assert notification.status_reason
+
+    mocker.patch('app.celery.process_delivery_status_result_tasks._get_include_payload_status', returns=True)
+    mocker.patch(
+        'app.celery.process_delivery_status_result_tasks._get_notification_parameters',
+        return_value=tuple(sample_notification_platform_status.values()) + (1, 1),
+    )
+    callback_mock = mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
+
+    assert process_delivery_status(event=sample_delivery_status_result_message)
+    callback_mock.assert_called_once()
+
+    notify_db_session.session.refresh(notification)
+    assert notification.reference == 'SMhardcodedKWM'
+    assert notification.status == NOTIFICATION_DELIVERED
+    assert notification.status_reason is None

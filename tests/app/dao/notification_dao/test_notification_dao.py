@@ -18,6 +18,7 @@ from app.dao.notifications_dao import (
     dao_get_scheduled_notifications,
     dao_timeout_notifications,
     dao_update_notification,
+    dao_update_notification_by_id,
     dao_update_notifications_by_reference,
     delete_notifications_older_than_retention_by_type,
     get_notification_by_id,
@@ -1616,24 +1617,27 @@ def test_dao_update_notifications_by_reference_updated_notifications(
     sample_template,
     sample_notification,
 ):
-    ref_0 = str(uuid4())
-    ref_1 = str(uuid4())
     template = sample_template()
-    notification_1 = sample_notification(template=template, reference=ref_0)
-    notification_2 = sample_notification(template=template, reference=ref_1)
+    notification_1 = sample_notification(
+        template=template, reference=str(uuid4()), status=NOTIFICATION_CREATED, status_reason='just because'
+    )
+    notification_2 = sample_notification(
+        template=template, reference=str(uuid4()), status=NOTIFICATION_CREATED, status_reason='just because'
+    )
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
-        references=[ref_0, ref_1], update_dict={'status': 'delivered', 'billable_units': 2}
+        references=(notification_1.reference, notification_2.reference),
+        update_dict={'status': NOTIFICATION_DELIVERED, 'status_reason': '', 'billable_units': 2},
     )
-    assert updated_count == 2
-    updated_1 = notify_db_session.session.get(Notification, notification_1.id)
-    assert updated_1.billable_units == 2
-    assert updated_1.status == 'delivered'
-    updated_2 = notify_db_session.session.get(Notification, notification_2.id)
-    assert updated_2.billable_units == 2
-    assert updated_2.status == 'delivered'
 
+    assert updated_count == 2
     assert updated_history_count == 0
+
+    for notification_id in (notification_1.id, notification_2.id):
+        updated_notification = notify_db_session.session.get(Notification, notification_id)
+        assert updated_notification.status == NOTIFICATION_DELIVERED
+        assert not updated_notification.status_reason, 'This should be the empty string.'
+        assert updated_notification.billable_units == 2
 
 
 def test_dao_update_notifications_by_reference_updates_history_some_notifications_exist(
@@ -1648,7 +1652,7 @@ def test_dao_update_notifications_by_reference_updates_history_some_notification
     sample_notification_history(template=template, reference=ref_1)
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
-        references=[ref_0, ref_1], update_dict={'status': 'delivered', 'billable_units': 2}
+        references=[ref_0, ref_1], update_dict={'status': NOTIFICATION_DELIVERED, 'billable_units': 2}
     )
     assert updated_count == 1
     assert updated_history_count == 1
@@ -2025,6 +2029,7 @@ def test_update_notification_status_by_id_cannot_update_status_out_of_order_with
     assert notification.status == current_status
 
 
+@pytest.mark.parametrize('use_current_status', (True, False))
 @pytest.mark.parametrize(
     'current_status, next_status',
     [
@@ -2034,39 +2039,42 @@ def test_update_notification_status_by_id_cannot_update_status_out_of_order_with
     ],
 )
 def test_update_notification_status_by_id_can_update_status_in_order_when_given_valid_values(
-    current_status,
-    next_status,
     sample_notification,
     sample_template,
+    current_status,
+    next_status,
+    use_current_status,
 ):
-    reference_tuple = (str(uuid4()), str(uuid4()))
-    notification_list = []
+    reference = str(uuid4())
+    initial_status_reason = 'Because I said so!'
+    final_status_reason = 'just because'
 
-    for ref in reference_tuple:
-        # create first notification object
-        sample_notification(template=sample_template(), reference=ref, sent_at=datetime.now(), status=current_status)
-
-        # add the notification object to the notification list
-        notification_list.append(dao_get_notification_by_reference(ref))
-
-        # make sure we pass all the init setup
-        i = len(notification_list) - 1
-        assert isinstance(notification_list[i], Notification)
-        assert notification_list[i].status == current_status
-
-    # attempt update without the condition current state
-    update_notification_status_by_id(notification_id=notification_list[0].id, status=next_status)
-
-    # attempt update with the conditional current state
-    update_notification_status_by_id(
-        notification_id=notification_list[1].id, status=next_status, current_status=current_status
+    notification = sample_notification(
+        template=sample_template(),
+        reference=reference,
+        sent_at=datetime.now(),
+        status=current_status,
+        status_reason=initial_status_reason,
     )
+    assert notification.status == current_status
+    assert notification.status_reason == initial_status_reason
 
-    # get the notification object and make sure the values have changed
-    for ref in reference_tuple:
-        notification = dao_get_notification_by_reference(ref)
-        assert isinstance(notification, Notification)
-        assert notification.status == next_status
+    if use_current_status:
+        update_notification_status_by_id(
+            notification_id=notification.id,
+            status=next_status,
+            status_reason=final_status_reason,
+            current_status=current_status,
+        )
+    else:
+        update_notification_status_by_id(
+            notification_id=notification.id, status=next_status, status_reason=final_status_reason
+        )
+
+    notification = dao_get_notification_by_reference(reference)
+    assert isinstance(notification, Notification)
+    assert notification.status == next_status
+    assert notification.status_reason == final_status_reason
 
 
 @pytest.mark.parametrize(
@@ -2107,19 +2115,26 @@ def test_update_notification_delivery_status_valid_updates(
     current_status,
     new_status,
 ):
+    initial_status_reason = '' if (current_status == NOTIFICATION_DELIVERED) else 'Because I said so!'
+    final_status_reason = initial_status_reason if (new_status == current_status) else 'just because'
+
     notification = sample_notification(
         template=sample_template(),
         status=current_status,
+        status_reason=initial_status_reason,
     )
 
     assert notification.status == current_status
+    assert notification.status_reason == initial_status_reason
 
     update_notification_delivery_status(
         notification_id=notification.id,
         new_status=new_status,
+        new_status_reason=final_status_reason,
     )
 
     assert notification.status == new_status
+    assert notification.status_reason == final_status_reason
 
 
 @pytest.mark.parametrize(
@@ -2149,16 +2164,69 @@ def test_update_notification_delivery_status_invalid_updates(
     current_status,
     new_status,
 ):
+    status_reason = '' if (current_status == NOTIFICATION_DELIVERED) else 'Because I said so!'
+
     notification = sample_notification(
         template=sample_template(),
         status=current_status,
+        status_reason=status_reason,
     )
 
     assert notification.status == current_status
+    assert notification.status_reason == status_reason
 
     update_notification_delivery_status(
         notification_id=notification.id,
         new_status=new_status,
+    )
+
+    assert notification.status != new_status
+    assert notification.status_reason == status_reason
+
+
+@pytest.mark.parametrize(
+    'current_status, new_status',
+    [
+        (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_CREATED),
+        (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_SENDING),
+        (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PENDING),
+        (NOTIFICATION_SENT, NOTIFICATION_CREATED),
+        (NOTIFICATION_SENT, NOTIFICATION_SENDING),
+        (NOTIFICATION_SENT, NOTIFICATION_PENDING),
+        (NOTIFICATION_DELIVERED, NOTIFICATION_CREATED),
+        (NOTIFICATION_DELIVERED, NOTIFICATION_SENDING),
+        (NOTIFICATION_DELIVERED, NOTIFICATION_PENDING),
+        (NOTIFICATION_DELIVERED, NOTIFICATION_TEMPORARY_FAILURE),
+        (NOTIFICATION_DELIVERED, NOTIFICATION_SENT),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_CREATED),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_SENDING),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PENDING),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE),
+        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_SENT),
+    ],
+)
+def test_dao_update_notification_by_id(
+    sample_template,
+    sample_notification,
+    current_status,
+    new_status,
+):
+    initial_status_reason = '' if (current_status == NOTIFICATION_DELIVERED) else 'Because I said so!'
+    final_status_reason = initial_status_reason if (new_status == current_status) else 'just because'
+
+    notification = sample_notification(
+        template=sample_template(),
+        status=current_status,
+        status_reason=initial_status_reason,
+    )
+
+    assert notification.status == current_status
+    assert notification.status_reason == initial_status_reason
+
+    dao_update_notification_by_id(
+        notification_id=notification.id,
+        status=new_status,
+        status_reason=final_status_reason,
     )
 
     assert notification.status != new_status
