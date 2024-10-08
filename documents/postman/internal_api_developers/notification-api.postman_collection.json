@@ -828,7 +828,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"template_id\": \"{{sms-template-id}}\",\n    \"phone_number\": \"+16502532222\",\n    \"sms_sender_id\": \"{{sms-sender-id}}\"\n}"
+									"raw": "{\n    \"template_id\": \"{{sms-template-id}}\",\n    \"phone_number\": \"+16502532222\",\n    \"callback_url\": \"https://www.example.com/callback\",\n    \"sms_sender_id\": \"{{sms-sender-id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/sms",
@@ -841,7 +841,7 @@
 										"sms"
 									]
 								},
-								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token.\n\ncallback_url is an optional property, which overrides the service level callback.\n\nsms_sender_id is an optional property, which overrides the service level sms sender."
 							},
 							"response": []
 						},
@@ -939,7 +939,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"template_id\": \"{{sms-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    },\n    \"sms_sender_id\": \"{{sms-sender-id}}\"\n}"
+									"raw": "{\n    \"template_id\": \"{{sms-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    },\n    \"callback_url\": \"https://www.example.com/callback\",\n    \"sms_sender_id\": \"{{sms-sender-id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/sms",
@@ -952,7 +952,7 @@
 										"sms"
 									]
 								},
-								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token.\n\ncallback_url is an optional property, which overrides the service level callback.\n\nsms_sender_id is an optional property, which overrides the service level sms sender."
 							},
 							"response": []
 						}
@@ -1054,7 +1054,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"template_id\": \"{{email-template-id}}\",\n    \"email_address\": \"test@email.com\"\n}"
+									"raw": "{\n    \"template_id\": \"{{email-template-id}}\",\n    \"email_address\": \"test@email.com\",\n    \"callback_url\": \"https://www.example.com/callback\"\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/email",
@@ -1067,7 +1067,7 @@
 										"email"
 									]
 								},
-								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token.\n\ncallback_url is an optional property, which overrides the service level callback."
 							},
 							"response": []
 						},
@@ -1164,7 +1164,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"template_id\": \"{{email-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    }\n}"
+									"raw": "{\n    \"template_id\": \"{{email-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"VAPROFILEID\",\n        \"id_value\": \"example\"\n    },\n    \"callback_url\": \"https://www.example.com/callback\"\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/email",
@@ -1177,7 +1177,7 @@
 										"email"
 									]
 								},
-								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token"
+								"description": "api-key field combines key name, service id and secret:\n<key name>-<service id>-<secret>\nwhere secret is the return value when calling create api key\nThis is important as the jwt token for sending message should use service-id and service-api-key to generate the JWT bearer token.\n\ncallback_url is an optional property, which overrides the service level callback."
 							},
 							"response": []
 						}

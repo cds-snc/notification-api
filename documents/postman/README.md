@@ -42,6 +42,7 @@ curl -x POST https:://api-staging.va.gov/vanotify/v2/notifications/email \
 `````
 {
   "billing_code": null,
+  "callback_url": null,
   "content": {
     "body": "Test",
     "subject": "Test"

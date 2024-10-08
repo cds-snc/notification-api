@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.7
+  version: 1.0.8
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -1090,6 +1090,22 @@ paths:
   /v2/notifications/email:
     post:
       summary: Send an email notification
+      description: |
+        ### Required properties
+        
+        * `template_id` - The UUID of the template
+        * `email_address` - The email address of the recipient
+        * _or_ `recipient_identifier` - a VAPROFILEID, ICN, EDIPI, PID, or BIRLSID (see examples)
+        
+        ### Optional properties
+        
+        * `billing_code` - A string to indicate your billing code
+        * `callback_url` - An https URL; note that this overrides any service level callback
+        * `email_reply_to_id` - A UUID
+        * `personalisation` - If the template includes personalisation, the fields to populate (see examples)
+        * `reference` - A string to indicate any reference
+        * `scheduled_for` - A datetime indicated when to send the notification (not available at this time)
+
       security:
         - serviceAuth: []
       tags:
@@ -1103,28 +1119,30 @@ paths:
             examples:
               email:
                 value:
-                  reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  email_address: test@notification.com
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
                   billing_code: string
+                  callback_url: https://www.example.com/callback
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email_address: "test@notification.com"
+                  reference: string
+                  scheduled_for: string
               recipient_identifier:
                 value:
-                  reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: '123456'
-                  scheduled_for: string
-                  billing_code: string
-                  email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   recipient_identifier:
                     id_type: ICN
                     id_value: 1000000000V000000
+                  personalisation:
+                    full_name: John Smith
+                    claim_id: '123456'
+                  billing_code: string
+                  callback_url: https://www.example.com/callback
+                  email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  reference: string
+                  scheduled_for: string
       responses:
         '201':
           description: CREATED
@@ -1159,6 +1177,23 @@ paths:
   /v2/notifications/sms:
     post:
       summary: Send an sms notification
+      description: |
+        ### Required properties
+
+        * `template_id` - The UUID of the template
+        * `phone_number` - The mobile phone number of the recipient
+        * _or_ `recipient_identifier` - a VAPROFILEID, ICN, EDIPI, PID, or BIRLSID (see examples)
+
+        ### Optional properties
+
+        * `billing_code` - A string to indicate your billing code
+        * `callback_url` - An https URL; note that this overrides any service level callback
+        * `email_reply_to_id` - A UUID
+        * `personalisation` - If the template includes personalisation, the fields to populate (see examples)
+        * `reference` - A string to indicate any reference
+        * `scheduled_for` - A datetime indicated when to send the notification (not available at this time)
+        * `sms_sender_id` - A UUID; note that this overrides any service level sms sender
+
       security:
         - serviceAuth: []
       tags:
@@ -1172,28 +1207,30 @@ paths:
             examples:
               phone_number:
                 value:
-                  reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                  phone_number: '+12125551212'
                   personalisation:
                     full_name: John Smith
                     claim_id: '123456'
-                  scheduled_for: string
                   billing_code: string
+                  callback_url: https://www.example.com/callback
+                  reference: string
+                  scheduled_for: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  phone_number: "+19876543210"
               recipient_identifier:
                 value:
-                  reference: string
                   template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: '123456'
-                  scheduled_for: string
-                  billing_code: string
-                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
                   recipient_identifier:
                     id_type: ICN
                     id_value: 1000000000V000000
+                  personalisation:
+                    full_name: John Smith
+                    claim_id: '123456'
+                  billing_code: string
+                  callback_url: https://www.example.com/callback
+                  reference: string
+                  scheduled_for: string
+                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
       responses:
         '201':
           description: CREATED
@@ -1301,6 +1338,7 @@ paths:
                   value:
                     billing_code: string
                     body: string
+                    callback_url: string
                     completed_at: 2022-11-28T18:59:00.542420Z
                     cost_in_millicents: 634.0
                     created_at: 2022-11-28T18:58:18.998715Z
@@ -2512,6 +2550,11 @@ components:
           description: datetime within next day
         billing_code:
           type: string
+          maxLength: 256
+        callback_url:
+          type: string
+          format: uri
+          maxLength: 255
       required:
         - template_id
     SMSNotificationRequest:
@@ -2759,13 +2802,17 @@ components:
     Notification:
       type: object
       properties:
+        billing_code:
+          type: string
+        callback_url:
+          type: string
+          format: uri
         id:
           $ref: '#/components/schemas/Id'
         reference:
           type: string
-        uri:
+        scheduled_for:
           type: string
-          format: uri
         template:
           type: object
           properties:
@@ -2776,8 +2823,9 @@ components:
             uri:
               type: string
               format: uri
-        scheduled_for:
+        uri:
           type: string
+          format: uri
     NotificationStatusResponse:
       type: object
       properties:
@@ -2785,6 +2833,9 @@ components:
           type: string
         body:
           type: string
+        callback_url:
+          type: string
+          format: uri
         completed_at:
           type: string
           format: date-time
