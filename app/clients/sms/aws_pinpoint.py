@@ -52,13 +52,19 @@ class AwsPinpointClient(SmsClient):
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                     )
                 else:
+                    dryrun = destinationNumber == self.current_app.config["INTERNAL_TEST_NUMBER"]
                     response = self._client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=pool_id,
                         MessageBody=content,
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        DryRun=dryrun,
                     )
+                    if dryrun:
+                        self.current_app.logger.info(
+                            f"Dry run enabled for SMS to {self.current_app.config['INTERNAL_TEST_NUMBER']} with message id {response.get('MessageId')}. SMS not sent by AWS."
+                        )
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
