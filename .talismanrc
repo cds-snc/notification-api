@@ -18,7 +18,7 @@ fileignoreconfig:
   - filename: scripts/trigger_task.py
     checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
   - filename: tests/app/celery/test_process_ga4_measurement_task.py
-    checksum: d33a6911258922f4bd3d149c90c2ee16c021a8e59e462594e4b1cd972902d689
+    checksum: 6ffb8742a19c5b834c608826fd459cc1b6ea35ebfffd2d929a3a0f269c74183d
   - filename: tests/app/conftest.py
     checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
   - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
