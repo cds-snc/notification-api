@@ -125,7 +125,10 @@ def send_sms_to_provider(notification):
                 if reference == "opted_out":
                     update_notification_to_opted_out(notification, provider)
                 else:
-                    if validate_and_format_phone_number(notification.to, international=notification.international) == current_app.config["INTERNAL_TEST_NUMBER"]:
+                    if (
+                        validate_and_format_phone_number(notification.to, international=notification.international)
+                        == current_app.config["INTERNAL_TEST_NUMBER"]
+                    ):
                         send_sms_response(provider.get_name(), notification.to, reference)
                     update_notification_to_sending(notification, provider)
 
