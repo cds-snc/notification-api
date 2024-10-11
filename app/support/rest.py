@@ -111,7 +111,7 @@ def find_ids() -> Response:
         return jsonify({"error": "no ids provided"})
 
     info = []
-    for id in [x.strip() for x in ids.split(",")]:
+    for id in ids.replace(',', ' ').split():
         try:
             UUID(id)
         except ValueError:
