@@ -406,6 +406,7 @@ class TemplateSchema(BaseTemplateSchema):
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
+    text_direction_rtl = field_for(models.Template, "text_direction_rtl")
 
     def get_is_precompiled_letter(self, template):
         return template.is_precompiled_letter
@@ -578,6 +579,7 @@ class NotificationWithTemplateSchema(BaseSchema):
             "subject",
             "redact_personalisation",
             "is_precompiled_letter",
+            "text_direction_rtl",
         ],
         dump_only=True,
     )
