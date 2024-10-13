@@ -7,7 +7,7 @@ import newrelic.agent  # See https://bit.ly/2xBVKBH
 
 newrelic.agent.initialize()  # noqa: E402
 
-workers = 4
+workers = 1
 worker_class = "gevent"
 worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
