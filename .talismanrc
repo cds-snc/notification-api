@@ -1,38 +1,42 @@
 fileignoreconfig:
-  - filename: README.md
-    checksum: b2cbbb8508af49abccae8b35b317f7ce09215f3508430ed31440add78f450e5a
-  - filename: app/celery/contact_information_tasks.py
-    checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
-  - filename: app/notifications/process_notifications.py
-    checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
-  - filename: app/service/rest.py
-    checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
-  - filename: app/template/rest.py
-    checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
-  - filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
-    checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
-  - filename: lambda_functions/ses_callback/ses_callback_lambda.py
-    checksum: b20c36921290a9609f158784e2a3278c36190887e6054ea548004a67675fd79b
-  - filename: poetry.lock
-    checksum: 29057b41776a4bda33e4cb80fdba023e4a1a2327f9e9ec5eddbabfe26a13dcf3
-  - filename: scripts/trigger_task.py
-    checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
-  - filename: tests/app/celery/test_process_ga4_measurement_task.py
-    checksum: 6ffb8742a19c5b834c608826fd459cc1b6ea35ebfffd2d929a3a0f269c74183d
-  - filename: tests/app/conftest.py
-    checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
-  - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
-    checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
-  - filename: tests/app/v2/notifications/test_post_notifications.py
-    checksum: 3181930a13e3679bb2f17eaa3f383512eb9caf4ed5d5e14496ca4193c6083965
-  - filename: tests/app/callback/test_webhook_callback_strategy.py
-    checksum: 288841d3209dc3ca885cd0bb08591221f7f15e5b3406fb7140505096db212554
-  - filename: app/callback/webhook_callback_strategy.py
-    checksum: 47846ab651c27512d3ac7864c08cb25d647f63bb84321953f907551fd9d2e85f
-  - filename: app/dao/api_key_dao.py
-    checksum: ab93313f306c8a3f6576141e8f32d9fc99b0de7da8d44a1ddbe6ea55d167dcdb
-  - filename: ci/docker-compose-test.yml
-    checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
-  - filename: cd/application-deployment/dev/vaec-api-task-definition.json
-    checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
+- filename: README.md
+  checksum: b2cbbb8508af49abccae8b35b317f7ce09215f3508430ed31440add78f450e5a
+- filename: app/callback/webhook_callback_strategy.py
+  checksum: 47846ab651c27512d3ac7864c08cb25d647f63bb84321953f907551fd9d2e85f
+- filename: app/celery/contact_information_tasks.py
+  checksum: 80d0acf88bafb1358583016b9e143f4523ef1160d6eacdc9754ca68859b90eae
+- filename: app/celery/service_callback_tasks.py
+  checksum: 83b61b21668c1b1a0ea33a4c3130e82c9b14edbd6542079f1dd3d7493f3e9a79
+- filename: app/dao/api_key_dao.py
+  checksum: ab93313f306c8a3f6576141e8f32d9fc99b0de7da8d44a1ddbe6ea55d167dcdb
+- filename: app/notifications/process_notifications.py
+  checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
+- filename: app/service/rest.py
+  checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
+- filename: app/template/rest.py
+  checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
+- filename: cd/application-deployment/dev/vaec-api-task-definition.json
+  checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
+- filename: ci/docker-compose-test.yml
+  checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
+- filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
+  checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
+- filename: lambda_functions/ses_callback/ses_callback_lambda.py
+  checksum: b20c36921290a9609f158784e2a3278c36190887e6054ea548004a67675fd79b
+- filename: poetry.lock
+  checksum: 29057b41776a4bda33e4cb80fdba023e4a1a2327f9e9ec5eddbabfe26a13dcf3
+- filename: scripts/trigger_task.py
+  checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
+- filename: tests/app/callback/test_webhook_callback_strategy.py
+  checksum: 288841d3209dc3ca885cd0bb08591221f7f15e5b3406fb7140505096db212554
+- filename: tests/app/celery/test_process_ga4_measurement_task.py
+  checksum: 6ffb8742a19c5b834c608826fd459cc1b6ea35ebfffd2d929a3a0f269c74183d
+- filename: tests/app/celery/test_service_callback_tasks.py
+  checksum: 70575434f7a4fedd43d4c9164bc899a606768526d432c364db372524eec26542
+- filename: tests/app/conftest.py
+  checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
+- filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
+  checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
+- filename: tests/app/v2/notifications/test_post_notifications.py
+  checksum: 3181930a13e3679bb2f17eaa3f383512eb9caf4ed5d5e14496ca4193c6083965
 version: "1.0"

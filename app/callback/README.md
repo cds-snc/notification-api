@@ -1,4 +1,13 @@
-## Callbacks
+# Callbacks
+
+> [!Note]
+> SQS callbacks are not supported at this time, as of 2024. The permissions around setting them up is tricky and makes for a bad experience for our clients.
+
+## Notification Level Callbacks
+
+Clients can send a `callback_url` with their notification request. They will then receive callbacks for notification updates to the specified endpoint.
+
+## Service Level Callbacks
 
 Can configure callbacks to be sent either via queue or webhook.
 

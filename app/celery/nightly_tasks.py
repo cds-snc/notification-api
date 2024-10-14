@@ -8,18 +8,13 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import db, notify_celery, performance_platform_client, zendesk_client
 from app.aws import s3
-from app.celery.service_callback_tasks import (
-    send_delivery_status_to_service,
-    create_delivery_status_callback_data,
-)
-from app.config import QueueNames
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
 from app.dao.jobs_dao import dao_get_jobs_older_than_data_retention, dao_archive_job
 from app.dao.notifications_dao import (
     dao_timeout_notifications,
     delete_notifications_older_than_retention_by_type,
 )
-from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Notification, NOTIFICATION_SENDING, EMAIL_TYPE, SMS_TYPE, LETTER_TYPE, KEY_TYPE_NORMAL
 from app.performance_platform import total_sent_notifications, processing_time
@@ -104,20 +99,14 @@ def delete_letter_notifications_older_than_retention():
 @cronitor('timeout-sending-notifications')
 @statsd(namespace='tasks')
 def timeout_notifications():
+    """A task that runs every night at 12:05 AM EST to update the status of notifications that have timed out."""
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(
         current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD')
     )
     notifications = technical_failure_notifications + temporary_failure_notifications
     for notification in notifications:
         # queue callback task only if the service_callback_api exists
-        service_callback_api = get_service_delivery_status_callback_api_for_service(
-            service_id=notification.service_id, notification_status=notification.status
-        )
-        if service_callback_api:
-            encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async(
-                [service_callback_api.id, str(notification.id), encrypted_notification], queue=QueueNames.CALLBACKS
-            )
+        check_and_queue_callback_task(notification)
 
     current_app.logger.info(
         'Timeout period reached for {} notifications, status has been updated.'.format(len(notifications))

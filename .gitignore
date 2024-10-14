@@ -35,6 +35,11 @@ var/
 *.manifest
 *.spec
 
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+.python-version
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -80,7 +85,6 @@ celerybeat-schedule
 .cf
 
 /scripts/run_my_tests.sh
-.vscode
 
 # Terraform
 .terraform
@@ -89,6 +93,7 @@ celerybeat-schedule
 user_flows_exit_code.txt
 
 # These files can get written in the notification_api directory if you run bash commands on a container with read-write access.
+.ash_history
 .bash_history
 .python_history
 

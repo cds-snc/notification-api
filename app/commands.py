@@ -271,6 +271,7 @@ def replay_service_callbacks(
     service_id,
     notification_status,
 ):
+    # not updated for notification callback_url as it doesn't appear to be used
     print('Start send service callbacks for service: ', service_id)
     callback_api = get_service_delivery_status_callback_api_for_service(
         service_id=service_id, notification_status=notification_status

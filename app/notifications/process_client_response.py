@@ -10,13 +10,8 @@ from app.clients.sms.twilio import get_twilio_responses
 from app.dao import notifications_dao
 from app.clients.sms.firetext import get_firetext_responses
 from app.clients.sms.mmg import get_mmg_responses
-from app.celery.service_callback_tasks import (
-    send_delivery_status_to_service,
-    create_delivery_status_callback_data,
-)
-from app.config import QueueNames
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao.notifications_dao import dao_update_notification
-from app.dao.service_callback_api_dao import get_service_delivery_status_callback_api_for_service
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import NOTIFICATION_PENDING
 
@@ -81,7 +76,7 @@ def _process_for_status(
     notification_status,
     client_name,
     provider_reference,
-):
+) -> None | str:
     # record stats
     notification = notifications_dao.update_notification_status_by_id(
         notification_id=provider_reference, status=notification_status, sent_by=client_name.lower()
@@ -110,29 +105,10 @@ def _process_for_status(
         notifications_dao.dao_update_notification(notification)
 
     if notification_status != NOTIFICATION_PENDING:
-        service_callback_api = get_service_delivery_status_callback_api_for_service(
-            service_id=notification.service_id, notification_status=notification.status
-        )
-        # queue callback task only if the service_callback_api exists
-        if service_callback_api:
-            encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async(
-                [service_callback_api.id, str(notification.id), encrypted_notification], queue=QueueNames.CALLBACKS
-            )
+        check_and_queue_callback_task(notification)
 
     success = '{} callback succeeded. reference {} updated'.format(client_name, provider_reference)
     return success
-
-
-def process_service_callback(notification):
-    if notification.status != NOTIFICATION_PENDING:
-        service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
-        # queue callback task only if the service_callback_api exists
-        if service_callback_api:
-            encrypted_notification = create_delivery_status_callback_data(notification, service_callback_api)
-            send_delivery_status_to_service.apply_async(
-                [service_callback_api.id, notification.id, encrypted_notification], queue=QueueNames.CALLBACKS
-            )
 
 
 def set_notification_sent_by(

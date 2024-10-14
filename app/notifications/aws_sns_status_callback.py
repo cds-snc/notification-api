@@ -3,11 +3,11 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from flask import current_app, request, jsonify
 from http import HTTPStatus
 from app import statsd_client
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.schema_validation import validate
 from app.schema_validation.definitions import uuid
-from app.models import NOTIFICATION_FAILED, NOTIFICATION_DELIVERED
+from app.models import NOTIFICATION_FAILED, NOTIFICATION_DELIVERED, NOTIFICATION_PENDING
 from app.dao.notifications_dao import dao_get_notification_by_reference, _update_notification_status
-from app.notifications.process_client_response import process_service_callback
 
 SNS_STATUS_SUCCESS = 'SUCCESS'
 SNS_STATUS_FAILURE = 'FAILURE'
@@ -61,6 +61,7 @@ def process_sns_delivery_status():
         notification = _update_notification_status(notification, status)
         send_callback_metrics(notification)
 
-        process_service_callback(notification)
+        if notification.status != NOTIFICATION_PENDING:
+            check_and_queue_callback_task(notification)
 
     return jsonify({}), HTTPStatus.NO_CONTENT

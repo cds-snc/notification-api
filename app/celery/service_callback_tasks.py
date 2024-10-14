@@ -1,7 +1,13 @@
+import json
+
+from celery import Task
 from flask import current_app
+from requests import post
+from requests.exceptions import Timeout, RequestException
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, encryption, statsd_client, DATETIME_FORMAT
+from app.callback.webhook_callback_strategy import generate_callback_signature
 from app.celery.exceptions import AutoRetryException, NonRetryableException, RetryableException
 from app.config import QueueNames
 from app.dao.complaint_dao import fetch_complaint_by_id
@@ -278,7 +284,7 @@ def create_delivery_status_callback_data(
     return encryption.encrypt(data)
 
 
-def create_delivery_status_callback_data_v3(notification: Notification) -> dict[str, str]:
+def create_delivery_status_callback_data_v3(notification: Notification) -> dict[str, str | None]:
     """Create all data that will be sent to a callback url specified in the Notification object.
 
     Args:
@@ -328,10 +334,7 @@ def create_complaint_callback_data(
     return encryption.encrypt(data)
 
 
-def check_and_queue_callback_task(
-    notification,
-    payload=None,
-):
+def check_and_queue_service_callback_task(notification: Notification, payload=None):
     # https://peps.python.org/pep-0557/#mutable-default-values
     # do not want to have mutable type in definition so we set provider_payload to empty dictionary
     # when one was not provided by the caller
@@ -353,6 +356,117 @@ def check_and_queue_callback_task(
         current_app.logger.debug(
             'No callbacks found for notification %s and service %s.', notification.id, notification.service_id
         )
+
+
+@notify_celery.task(
+    bind=True,
+    name='send-notification-delivery-status',
+    throws=(AutoRetryException,),
+    autoretry_for=(AutoRetryException,),
+    max_retries=60,
+    retry_backoff=True,
+    retry_backoff_max=3600,
+)
+@statsd(namespace='tasks')
+def send_delivery_status_from_notification(
+    self: Task,
+    callback_signature: str,
+    callback_url: str,
+    notification_data: dict[str, str],
+) -> None:
+    """
+    Send a delivery status notification to the given callback URL.
+
+    Args:
+        callback_signature (str): Signature for the callback
+        callback_url (str): URL to send the callback to
+        notification_data (dict[str, str]): Data to send in the callback
+
+    Raises:
+        AutoRetryException: If the request should be retried
+        NonRetryableException: If the request should not be retried
+    """
+    try:
+        response = post(
+            url=callback_url,
+            data=json.dumps(notification_data),
+            headers={
+                'Content-Type': 'application/json',
+                'x-enp-signature': callback_signature,
+            },
+            timeout=(3.05, 1),
+        )
+        response.raise_for_status()
+    except Timeout as e:
+        current_app.logger.warning(
+            'Timeout error sending callback for notification %s, url %s', notification_data['id'], callback_url
+        )
+        raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e)
+    except RequestException as e:
+        # retryable error codes:
+        #   429: Too Many Requests
+        #   5xx: Server Error
+        if e.response is not None and e.response.status_code == 429 or e.response.status_code >= 500:
+            current_app.logger.warning(
+                'Retryable error sending callback for notification %s, url %s | status code: %s, exception: %s',
+                notification_data.get('id'),
+                callback_url,
+                e.response.status_code if e.response is not None else 'unknown',
+                str(e),
+            )
+            raise AutoRetryException(f'Found {type(e).__name__}, autoretrying...', e)
+        else:
+            current_app.logger.warning(
+                'Non-retryable error sending callback for notification %s, url %s | status code: %s, exception: %s',
+                notification_data.get('id'),
+                callback_url,
+                e.response.status_code if e.response is not None else 'unknown',
+                str(e),
+            )
+            raise NonRetryableException(f'Found {type(e).__name__}, will not retry.', e)
+
+    current_app.logger.debug(
+        'Callback successfully sent for notification %s, url: %s | status code: %d',
+        notification_data.get('id'),
+        callback_url,
+        response.status_code,
+    )
+
+
+def check_and_queue_notification_callback_task(notification: Notification) -> None:
+    """
+    When a callback URL is included in the notification, collect the required information and
+    queue a task to send the callback.
+
+    Args:
+        notification (Notification): Notification object
+    """
+    notification_data = create_delivery_status_callback_data_v3(notification)
+
+    callback_signature = generate_callback_signature(notification.api_key_id, notification_data)
+
+    send_delivery_status_from_notification.apply_async(
+        [callback_signature, notification.callback_url, notification_data],
+        queue=QueueNames.CALLBACKS,
+    )
+
+
+def check_and_queue_callback_task(
+    notification: Notification,
+    payload: dict[str, str] | None = None,
+):
+    """
+    Check if a callback url is included in the notification and call the appropriate funcation to queue the callback.
+
+    Args:
+        notification (Notification): a Notification object which includes the callback information
+        payload (dict[str, str]): the payload from the provider to include in the callback if the service requires it
+    """
+    if notification.callback_url:
+        # payload is not passed here because the service callback indicates whether the payload should be included
+        check_and_queue_notification_callback_task(notification)
+    else:
+        check_and_queue_service_callback_task(notification, payload)
 
 
 def _check_and_queue_complaint_callback_task(

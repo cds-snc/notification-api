@@ -12,10 +12,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from app import DATETIME_FORMAT, encryption
 from app.celery.exceptions import AutoRetryException, NonRetryableException
 from app.celery.service_callback_tasks import (
+    check_and_queue_notification_callback_task,
     send_complaint_to_service,
     send_complaint_to_vanotify,
     check_and_queue_callback_task,
     publish_complaint,
+    send_delivery_status_from_notification,
     send_inbound_sms_to_service,
     create_delivery_status_callback_data,
     create_delivery_status_callback_data_v3,
@@ -264,28 +266,59 @@ def test_send_email_complaint_to_vanotify_fails(
     )
 
 
-def test_check_and_queue_callback_task_does_not_queue_task_if_service_callback_api_does_not_exist(
+def test_check_and_queue_callback_task_does_not_queue_task_if_callback_does_not_exist(
     notify_api,
     mocker,
+    sample_notification,
 ):
-    mock_notification = create_mock_notification(mocker)
+    mock_notification = sample_notification()
     mocker.patch(
         'app.celery.service_callback_tasks.get_service_delivery_status_callback_api_for_service', return_value=None
     )
-
     mock_send_delivery_status = mocker.patch(
         'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+    )
+    mock_notification_callback = mocker.patch(
+        'app.celery.service_callback_tasks.check_and_queue_notification_callback_task'
     )
 
     check_and_queue_callback_task(mock_notification)
     mock_send_delivery_status.assert_not_called()
+    mock_notification_callback.assert_not_called()
+
+
+def test_check_and_queue_callback_task_queues_task_if_notification_callback_exists(
+    notify_api,
+    mocker,
+    sample_notification,
+):
+    notification = sample_notification(callback_url='https://test.com')
+    mock_get_service_callback = mocker.patch(
+        'app.celery.service_callback_tasks.get_service_delivery_status_callback_api_for_service'
+    )
+    mock_send_delivery_status = mocker.patch(
+        'app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async'
+    )
+    mock_notification_callback = mocker.patch(
+        'app.celery.service_callback_tasks.check_and_queue_notification_callback_task'
+    )
+
+    check_and_queue_callback_task(notification)
+
+    # service level callback is not needed
+    mock_get_service_callback.assert_not_called()
+    mock_send_delivery_status.assert_not_called()
+
+    # notification level callback called
+    mock_notification_callback.assert_called_once_with(notification)
 
 
 def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exists(
     notify_api,
     mocker,
+    sample_notification,
 ):
-    mock_notification = create_mock_notification(mocker)
+    mock_notification = sample_notification()
     mock_service_callback_api = mocker.Mock(ServiceCallback)
     mock_notification_data = mocker.Mock()
 
@@ -377,13 +410,6 @@ def get_complaint_notification_and_email(mocker):
         created_at=datetime.now(),
     )
     return complaint, notification, 'recipient1@example.com'
-
-
-def create_mock_notification(mocker):
-    notification = mocker.Mock(Notification)
-    notification.id = uuid.uuid4()
-    notification.service_id = uuid.uuid4()
-    return notification
 
 
 def _set_up_test_data(
@@ -556,3 +582,67 @@ def test_create_delivery_status_callback_data_v3(
     assert data['status_reason'] == notification.status_reason
     assert data['provider'] == notification.sent_by
     assert data['provider_payload'] is None
+
+
+def test_check_and_queue_notification_callback_task_queues_task_with_proper_data(mocker, sample_notification):
+    test_url = 'https://test_url.com'
+    notification = sample_notification(callback_url=test_url)
+
+    notification_data = {'callback_url': test_url}
+    callback_signature_value = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
+
+    mocker.patch(
+        'app.celery.service_callback_tasks.create_delivery_status_callback_data_v3',
+        return_value=notification_data,
+    )
+    mocker.patch(
+        'app.celery.service_callback_tasks.generate_callback_signature',
+        return_value='6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014',
+    )
+    mock_delivery_status_from_notification = mocker.patch(
+        'app.celery.service_callback_tasks.send_delivery_status_from_notification.apply_async'
+    )
+
+    check_and_queue_notification_callback_task(notification)
+
+    mock_delivery_status_from_notification.assert_called_once_with(
+        [callback_signature_value, test_url, notification_data],
+        queue=QueueNames.CALLBACKS,
+    )
+
+
+def test_send_delivery_status_from_notification_posts_https_request_to_service(rmock):
+    callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
+    callback_url = 'https://test_url.com/'
+    notification_data = {'callback_url': callback_url}
+
+    rmock.post(callback_url, json=notification_data, status_code=200)
+    send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
+
+    assert rmock.call_count == 1
+    assert rmock.request_history[0].url == callback_url
+    assert rmock.request_history[0].headers['Content-type'] == 'application/json'
+    assert rmock.request_history[0].headers['x-enp-signature'] == callback_signature
+    assert rmock.request_history[0].text == json.dumps(notification_data)
+
+
+@pytest.mark.parametrize('status_code', [429, 500, 502])
+def test_send_delivery_status_from_notification_raises_auto_retry_exception(rmock, status_code):
+    callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
+    callback_url = 'https://test_url.com/'
+    notification_data = {'callback_url': callback_url}
+
+    rmock.post(callback_url, json=notification_data, status_code=status_code)
+    with pytest.raises(AutoRetryException):
+        send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
+
+
+@pytest.mark.parametrize('status_code', [400, 403, 404])
+def test_send_delivery_status_from_notification_raises_non_retryable_exception(rmock, status_code):
+    callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
+    callback_url = 'https://test_url.com/'
+    notification_data = {'callback_url': callback_url}
+
+    rmock.post(callback_url, json=notification_data, status_code=status_code)
+    with pytest.raises(NonRetryableException):
+        send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
