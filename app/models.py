@@ -1733,6 +1733,14 @@ class Notification(BaseModel):
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
+    # SMS columns
+    sms_totalMessagePrice = db.Column(db.Numeric(), nullable=True)
+    sms_totalCarrierFee = db.Column(db.Numeric(), nullable=True)
+    sms_isoCountryCode = db.Column(db.String(), nullable=True)
+    sms_carrierName = db.Column(db.String(), nullable=True)
+    sms_messageEncoding = db.Column(db.String(), nullable=True)
+    sms_originationPhoneNumber = db.Column(db.String(), nullable=True)
+    
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -2043,6 +2051,15 @@ class NotificationHistory(BaseModel, HistoryModel):
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
+
+    # SMS columns
+    sms_totalMessagePrice = db.Column(db.Numeric(), nullable=True)
+    sms_totalCarrierFee = db.Column(db.Numeric(), nullable=True)
+    sms_isoCountryCode = db.Column(db.String(), nullable=True)
+    sms_carrierName = db.Column(db.String(), nullable=True)
+    sms_messageEncoding = db.Column(db.String(), nullable=True)
+    sms_originationPhoneNumber = db.Column(db.String(), nullable=True)
+
 
     CheckConstraint(
         """
