@@ -261,8 +261,8 @@ def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, 
         "messageStatus": "SUCCESSFUL",
         "messageStatusDescription": "Message has been accepted by phone carrier",
         "totalMessageParts": 1,
-        "totalMessagePrice": 0.02183,
-        "totalCarrierFee": 0.005,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
     }
 
     return _pinpoint_callback(body)

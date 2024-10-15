@@ -198,7 +198,13 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
+def _update_notification_status(notification, status, provider_response=None, bounce_response=None, sms_total_message_price=None,
+                sms_total_carrier_fee=None,
+                sms_iso_country_code=None,
+                sms_carrier_name=None,
+                sms_message_encoding=None,
+                sms_origination_phone_number=None,
+                ):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
@@ -208,6 +214,19 @@ def _update_notification_status(notification, status, provider_response=None, bo
         notification.feedback_subtype = bounce_response.get("feedback_subtype")
         notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
         notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+    if sms_total_message_price:
+        notification.sms_total_message_price = sms_total_message_price
+    if sms_total_carrier_fee:
+        notification.sms_total_carrier_fee = sms_total_carrier_fee
+    if sms_iso_country_code:
+        notification.sms_iso_country_code = sms_iso_country_code
+    if sms_carrier_name:
+        notification.sms_carrier_name = sms_carrier_name
+    if sms_message_encoding:
+        notification.sms_message_encoding = sms_message_encoding
+    if sms_origination_phone_number:
+        notification.sms_origination_phone_number = sms_origination_phone_number
+    
     dao_update_notification(notification)
     return notification
 

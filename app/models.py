@@ -1734,7 +1734,7 @@ class Notification(BaseModel):
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     # SMS columns
-    sms_total_message_fee = db.Column(db.Numeric(), nullable=True)
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
     sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
     sms_iso_country_code = db.Column(db.String(), nullable=True)
     sms_carrier_name = db.Column(db.String(), nullable=True)
@@ -2053,7 +2053,7 @@ class NotificationHistory(BaseModel, HistoryModel):
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     # SMS columns
-    sms_total_message_fee = db.Column(db.Numeric(), nullable=True)
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
     sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
     sms_iso_country_code = db.Column(db.String(), nullable=True)
     sms_carrier_name = db.Column(db.String(), nullable=True)

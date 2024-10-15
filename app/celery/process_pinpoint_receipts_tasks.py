@@ -96,7 +96,7 @@ def process_pinpoint_results(self, response):
             notification=notification,
             status=notification_status,
             provider_response=provider_response,
-            sms_total_message_fee=total_message_price,
+            sms_total_message_price=total_message_price,
             sms_total_carrier_fee=total_carrier_fee,
             sms_iso_country_code=iso_country_code,
             sms_carrier_name=carrier_name,
