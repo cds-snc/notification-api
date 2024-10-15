@@ -7,7 +7,6 @@ Create Date: 2024-10-15 18:24:22.926597
 """
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision = "0461_add_pinpoint_fields"
 down_revision = "0460_new_service_columns"
