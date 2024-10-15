@@ -1,4 +1,8 @@
-FROM datadog/agent:latest
+# Define a build argument for the base image version
+ARG DD_AGENT_VERSION
+
+# Use the build argument in the FROM instruction
+FROM datadog/agent:${DD_AGENT_VERSION}
 
 RUN \
   DEBIAN_FRONTEND=noninteractive apt-get update \
@@ -9,7 +13,7 @@ RUN \
 # Copy the host's build context directory (notification-api/) to the image's working directory (/app).
 COPY --chown=vanotify ./scripts/import-va-certs.sh /scripts/
 
-# Transfer VA certificates to the image.  These certificates are grabbed from a public VA HTTP server.
+# Transfer VA certificates to the image. These certificates are grabbed from a public VA HTTP server.
 RUN /scripts/import-va-certs.sh \
   && apt-get remove --auto-remove -y wget openssl \
   && apt-get clean

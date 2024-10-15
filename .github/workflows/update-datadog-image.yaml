@@ -1,4 +1,5 @@
 name: Datadog image update
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,16 +7,20 @@ on:
         required: true
         type: string
         default: main
-  workflow_call:
+      version_tag:
+        required: true
+        type: string
+        description: "The version tag to use for the base Datadog agent image"
 
 jobs:
   update-image:
     runs-on: ubuntu-latest
     env:
       IMAGE_REPOSITORY: "datadog/agent"
-      IMAGE_TAG: "latest"
+      IMAGE_TAG: ${{ github.event.inputs.version_tag }}  # Use the provided version tag for the image
     steps:
       - uses: actions/checkout@v4
+      
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4.0.2
         with:
@@ -36,6 +41,6 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr-vaec.outputs.registry }}
         run: |
-          docker build -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile.datadog .
+          docker build --build-arg DD_AGENT_VERSION=${{ github.event.inputs.version_tag }} -t $IMAGE_REPOSITORY:$IMAGE_TAG -f ci/Dockerfile.datadog .
           docker tag $IMAGE_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$IMAGE_REPOSITORY:$IMAGE_TAG
