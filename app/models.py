@@ -1734,12 +1734,12 @@ class Notification(BaseModel):
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     # SMS columns
-    sms_totalMessagePrice = db.Column(db.Numeric(), nullable=True)
-    sms_totalCarrierFee = db.Column(db.Numeric(), nullable=True)
-    sms_isoCountryCode = db.Column(db.String(), nullable=True)
-    sms_carrierName = db.Column(db.String(), nullable=True)
-    sms_messageEncoding = db.Column(db.String(), nullable=True)
-    sms_originationPhoneNumber = db.Column(db.String(), nullable=True)
+    sms_total_message_fee = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(), nullable=True)
+    sms_carrier_name = db.Column(db.String(), nullable=True)
+    sms_message_encoding = db.Column(db.String(), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(), nullable=True)
     
     CheckConstraint(
         """
@@ -2053,12 +2053,12 @@ class NotificationHistory(BaseModel, HistoryModel):
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
     # SMS columns
-    sms_totalMessagePrice = db.Column(db.Numeric(), nullable=True)
-    sms_totalCarrierFee = db.Column(db.Numeric(), nullable=True)
-    sms_isoCountryCode = db.Column(db.String(), nullable=True)
-    sms_carrierName = db.Column(db.String(), nullable=True)
-    sms_messageEncoding = db.Column(db.String(), nullable=True)
-    sms_originationPhoneNumber = db.Column(db.String(), nullable=True)
+    sms_total_message_fee = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(), nullable=True)
+    sms_carrier_name = db.Column(db.String(), nullable=True)
+    sms_message_encoding = db.Column(db.String(), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(), nullable=True)
 
 
     CheckConstraint(

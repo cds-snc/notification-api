@@ -53,6 +53,14 @@ def process_pinpoint_results(self, response):
         provider_response = receipt["messageStatusDescription"]
         isFinal = receipt["isFinal"]
 
+        # some of these fields might be missing in the receipt
+        total_message_price = receipt.get("totalMessagePrice")
+        total_carrier_fee = receipt.get("totalCarrierFee")
+        iso_country_code = receipt.get("isoCountryCode")
+        carrier_name = receipt.get("carrierName")
+        message_encoding = receipt.get("messageEncoding")
+        origination_phone_number = receipt.get("originationPhoneNumber")
+
         notification_status = determine_pinpoint_status(status, provider_response, isFinal)
 
         if notification_status == NOTIFICATION_SENT:
@@ -88,6 +96,12 @@ def process_pinpoint_results(self, response):
             notification=notification,
             status=notification_status,
             provider_response=provider_response,
+            sms_total_message_fee=total_message_price,
+            sms_total_carrier_fee=total_carrier_fee,
+            sms_iso_country_code=iso_country_code,
+            sms_carrier_name=carrier_name,
+            sms_message_encoding=message_encoding,
+            sms_origination_phone_number=origination_phone_number,            
         )
 
         if notification_status != NOTIFICATION_DELIVERED:
