@@ -2,6 +2,7 @@ import base64
 import pytest
 import requests_mock
 from app import twilio_sms_client
+from app.clients.sms import SmsStatusRecord
 from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient
 from app.exceptions import InvalidProviderException
 from app.models import (
@@ -305,13 +306,55 @@ def twilio_sms_client_mock(mocker):
         MESSAAGE_BODY_WITH_CANCELED_STATUS,
     ],
 )
-def test_notification_mapping(event, twilio_sms_client_mock):
-    translation = twilio_sms_client_mock.translate_delivery_status(event['message'])
+def test_notification_price_mapping(event, twilio_sms_client_mock):
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
 
-    assert 'payload' in translation
-    assert 'reference' in translation
-    assert 'record_status' in translation
-    assert translation['record_status'] == event['twilio_status']
+    assert translation.price_millicents == 0.0
+
+
+@pytest.mark.parametrize(
+    'event',
+    [
+        MESSAAGE_BODY_WITH_ACCEPTED_STATUS,
+        MESSAAGE_BODY_WITH_SCHEDULED_STATUS,
+        MESSAAGE_BODY_WITH_QUEUED_STATUS,
+        MESSAAGE_BODY_WITH_SENDING_STATUS,
+        MESSAAGE_BODY_WITH_SENT_STATUS,
+        MESSAAGE_BODY_WITH_DELIVERED_STATUS,
+        MESSAAGE_BODY_WITH_UNDELIVERED_STATUS,
+        MESSAAGE_BODY_WITH_FAILED_STATUS,
+        MESSAAGE_BODY_WITH_CANCELED_STATUS,
+    ],
+)
+def test_notification_parts_mapping(event, twilio_sms_client_mock):
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
+
+    assert translation.message_parts == 1
+
+
+@pytest.mark.parametrize(
+    'event',
+    [
+        MESSAAGE_BODY_WITH_ACCEPTED_STATUS,
+        MESSAAGE_BODY_WITH_SCHEDULED_STATUS,
+        MESSAAGE_BODY_WITH_QUEUED_STATUS,
+        MESSAAGE_BODY_WITH_SENDING_STATUS,
+        MESSAAGE_BODY_WITH_SENT_STATUS,
+        MESSAAGE_BODY_WITH_DELIVERED_STATUS,
+        MESSAAGE_BODY_WITH_UNDELIVERED_STATUS,
+        MESSAAGE_BODY_WITH_FAILED_STATUS,
+        MESSAAGE_BODY_WITH_CANCELED_STATUS,
+    ],
+)
+def test_notification_mapping(event, twilio_sms_client_mock):
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
+
+    assert translation.status == event['twilio_status']
+
+    if translation.status not in (NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
+        assert translation.status_reason is None
+    else:
+        assert translation.status_reason is not None
 
 
 @pytest.mark.parametrize(
@@ -332,12 +375,10 @@ def test_notification_mapping(event, twilio_sms_client_mock):
     ],
 )
 def test_error_code_mapping(event, twilio_sms_client_mock):
-    translation = twilio_sms_client_mock.translate_delivery_status(event['message'])
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
 
-    assert 'payload' in translation
-    assert 'reference' in translation
-    assert 'record_status' in translation
-    assert translation['record_status'] == event['twilio_status']
+    assert translation.status == event['twilio_status']
+    assert translation.status_reason is not None
 
 
 @pytest.mark.parametrize(
@@ -345,10 +386,9 @@ def test_error_code_mapping(event, twilio_sms_client_mock):
     [MESSAAGE_BODY_WITH_ACCEPTED_STATUS, MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30010],
 )
 def test_returned_payload_is_decoded(event, twilio_sms_client_mock):
-    translation = twilio_sms_client_mock.translate_delivery_status(event['message'])
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
 
-    assert 'payload' in translation
-    assert translation['payload'] == base64.b64decode(event['message']).decode()
+    assert translation.payload == base64.b64decode(event['message']).decode()
 
 
 def test_exception_on_empty_twilio_status_message(twilio_sms_client_mock):

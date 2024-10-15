@@ -159,7 +159,7 @@ def _get_notification_status_update_statement(
     elif incoming_status == NOTIFICATION_TEMPORARY_FAILURE:
         kwargs['status'] = NOTIFICATION_TEMPORARY_FAILURE
 
-    if incoming_status_reason is not None:
+    if incoming_status_reason is not None or incoming_status == NOTIFICATION_DELIVERED:
         kwargs['status_reason'] = incoming_status_reason
 
     kwargs['updated_at'] = datetime.utcnow()

@@ -6,11 +6,10 @@ import pytest
 from app.celery.exceptions import AutoRetryException
 from app.celery.process_delivery_status_result_tasks import (
     _get_provider_info,
-    _get_notification_parameters,
     attempt_to_get_notification,
     process_delivery_status,
 )
-from app.models import Notification, NOTIFICATION_DELIVERED, NOTIFICATION_SENT, SMS_TYPE
+from app.models import Notification, NOTIFICATION_DELIVERED, NOTIFICATION_SENT
 
 
 @pytest.fixture
@@ -273,24 +272,6 @@ def test_process_delivery_status_with_valid_message_with_payload(
     callback_mock.assert_called_once()
 
 
-def test_get_notification_parameters(notify_api, sample_notification_platform_status):
-    (
-        payload,
-        reference,
-        notification_status,
-        number_of_message_parts,
-        price_in_millicents_usd,
-    ) = _get_notification_parameters(sample_notification_platform_status)
-
-    """Test our ability to get parameters such as payload or reference from notification_platform_status"""
-
-    assert notification_status == NOTIFICATION_DELIVERED
-    assert reference == 'SMhardcodedKWM'
-    assert number_of_message_parts == 1
-    assert price_in_millicents_usd >= 0
-    assert isinstance(payload, str)
-
-
 @pytest.mark.serial
 def test_wt_delivery_status_callback_should_log_total_time(
     mocker,
@@ -327,7 +308,6 @@ def test_process_delivery_status_no_status_reason_for_delivered(
     sample_template,
     sample_notification,
     sample_delivery_status_result_message,
-    sample_notification_platform_status,
 ):
     """
     When a notification is updated to "delivered" status, its "status_reason" should be set to
@@ -338,26 +318,22 @@ def test_process_delivery_status_no_status_reason_for_delivered(
     # value causes the test to fail.
     notification = sample_notification(
         template=sample_template(),
-        reference='SMhardcodedKWM',
+        reference='SMyyy',
         sent_at=datetime.datetime.utcnow(),
         status=NOTIFICATION_SENT,
         status_reason='This is not the empty string.',
     )
-    assert notification.reference == 'SMhardcodedKWM'
+    assert notification.reference == 'SMyyy'
     assert notification.status == NOTIFICATION_SENT
     assert notification.status_reason
 
     mocker.patch('app.celery.process_delivery_status_result_tasks._get_include_payload_status', returns=True)
-    mocker.patch(
-        'app.celery.process_delivery_status_result_tasks._get_notification_parameters',
-        return_value=tuple(sample_notification_platform_status.values()) + (1, 1),
-    )
     callback_mock = mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
     assert process_delivery_status(event=sample_delivery_status_result_message)
     callback_mock.assert_called_once()
 
     notify_db_session.session.refresh(notification)
-    assert notification.reference == 'SMhardcodedKWM'
+    assert notification.reference == 'SMyyy'
     assert notification.status == NOTIFICATION_DELIVERED
     assert notification.status_reason is None

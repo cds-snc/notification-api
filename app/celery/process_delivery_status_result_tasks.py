@@ -2,7 +2,7 @@ from app.models import DELIVERY_STATUS_CALLBACK_TYPE, NOTIFICATION_DELIVERED
 from app.celery.common import log_notification_total_time
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent
-
+from app.clients.sms import SmsStatusRecord
 from app.dao.notifications_dao import (
     dao_get_notification_by_reference,
     dao_update_notification_by_id,
@@ -58,27 +58,27 @@ def process_delivery_status(
     current_app.logger.info('retrieved delivery status body: %s', body)
 
     # get notification_platform_status
-    notification_platform_status: dict = _get_notification_platform_status(self, provider, body, sqs_message)
-
-    # get parameters from notification platform status
-    current_app.logger.info('Get Notification Parameters')
-    (
-        payload,
-        reference,
-        notification_status,
-        number_of_message_parts,
-        price_in_millicents_usd,
-    ) = _get_notification_parameters(notification_platform_status)
+    notification_platform_status: SmsStatusRecord = _get_notification_platform_status(self, provider, body, sqs_message)
+    current_app.logger.info(
+        'Processing Notification Delivery Status. | reference=%s | notification_status=%s | '
+        'number_of_message_parts=%s | price_in_millicents_usd=%s',
+        notification_platform_status.reference,
+        notification_platform_status.status,
+        notification_platform_status.message_parts,
+        notification_platform_status.price_millicents,
+    )
 
     # Retrieve the inbound message for this provider.  We are updating the status of the outbound message.
     notification, should_exit = attempt_to_get_notification(
-        reference, notification_status, self.request.retries * self.default_retry_delay
+        notification_platform_status.reference,
+        notification_platform_status.status,
+        self.request.retries * self.default_retry_delay,
     )
 
     if should_exit:
         current_app.logger.warning(
             'Updating notification: %s resulted in should_exit - event: %s',
-            notification.id if notification is not None else f'{reference} (aws ref)',
+            notification.id if notification is not None else f'{notification_platform_status.reference} (aws ref)',
             event,
         )
         return False
@@ -88,33 +88,37 @@ def process_delivery_status(
         current_app.logger.info(
             'Calculate Pricing: %s and update notification_status: %s with number_of_message_parts: %s for notification: %s',
             provider_name,
-            notification_status,
-            number_of_message_parts,
+            notification_platform_status.status,
+            notification_platform_status.message_parts,
             getattr(notification, 'id', 'unknown'),
         )
 
         _calculate_pricing_and_update_notification(
-            price_in_millicents_usd, notification, notification_status, number_of_message_parts
+            notification_platform_status.price_millicents,
+            notification,
+            notification_platform_status.status,
+            notification_platform_status.message_parts,
+            notification_platform_status.status_reason,
         )
 
         current_app.logger.info(
             '%s callback return status of %s for notification: %s',
             provider_name,
-            notification_status,
+            notification_platform_status.status,
             notification.id,
         )
 
         log_notification_total_time(
             notification.id,
             notification.created_at,
-            notification_status,
+            notification_platform_status.status,
             provider_name,
         )
 
         # check if payload is to be include in cardinal set in the service callback is (service_id, callback_type)
         if not _get_include_payload_status(self, notification):
-            payload = {}
-        check_and_queue_callback_task(notification, payload)
+            notification_platform_status.payload = {}
+        check_and_queue_callback_task(notification, notification_platform_status.payload)
         return True
     except Exception as e:
         # why are we here logging.warning indicate the step that was being performed
@@ -181,26 +185,12 @@ def check_notification_status(
     return False
 
 
-def _get_notification_parameters(notification_platform_status: dict) -> Tuple[str, str, str, int, float]:
-    """Get the payload, notification reference, notification status, etc from the notification_platform_status"""
-    payload = notification_platform_status.get('payload')
-    reference = notification_platform_status.get('reference')
-    notification_status = notification_platform_status.get('record_status')
-    number_of_message_parts = notification_platform_status.get('number_of_message_parts', 1)
-    price_in_millicents_usd = notification_platform_status.get('price_in_millicents_usd', 0.0)
-    current_app.logger.info(
-        'Processing Notification Delivery Status. | reference=%s | notification_status=%s | '
-        'number_of_message_parts=%s | price_in_millicents_usd=%s',
-        reference,
-        notification_status,
-        number_of_message_parts,
-        price_in_millicents_usd,
-    )
-    return payload, reference, notification_status, number_of_message_parts, price_in_millicents_usd
-
-
 def _calculate_pricing_and_update_notification(
-    price_in_millicents_usd: float, notification: Notification, notification_status: str, number_of_message_parts: int
+    price_in_millicents_usd: float,
+    notification: Notification,
+    notification_status: str,
+    number_of_message_parts: int,
+    incoming_status_reason: str = None,
 ):
     """
     Calculate pricing, and update the notification.
@@ -209,7 +199,11 @@ def _calculate_pricing_and_update_notification(
     current_app.logger.debug('Calculate pricing and update notification %s', notification.id)
 
     # Delivered messages should not have an associated reason.
-    status_reason = None if (notification_status == NOTIFICATION_DELIVERED) else notification.status_reason
+    status_reason = (
+        None
+        if (notification_status == NOTIFICATION_DELIVERED)
+        else incoming_status_reason or notification.status_reason
+    )
 
     if price_in_millicents_usd > 0.0:
         dao_update_notification_by_id(
@@ -236,7 +230,7 @@ def _get_notification_platform_status(
     current_app.logger.info('Get Notification Platform Status')
     notification_platform_status = None
     try:
-        notification_platform_status = provider.translate_delivery_status(body)
+        notification_platform_status: SmsStatusRecord = provider.translate_delivery_status(body)
     except (ValueError, KeyError) as e:
         current_app.logger.error('The event stream body could not be translated.')
         current_app.logger.exception(e)

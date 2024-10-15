@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from app.clients import Client, ClientException
 
 
@@ -16,6 +18,16 @@ class SmsClientResponseException(ClientException):
         return 'Message {}'.format(self.message)
 
 
+@dataclass
+class SmsStatusRecord:
+    payload: str
+    reference: str
+    status: str
+    status_reason: str | None
+    message_parts: int = 1
+    price_millicents: float = 0.0
+
+
 class SmsClient(Client):
     """
     Base Sms client for sending smss.
@@ -32,5 +44,5 @@ class SmsClient(Client):
     def get_name(self):
         raise NotImplementedError('TODO Need to implement.')
 
-    def translate_delivery_status(self) -> dict:
+    def translate_delivery_status(self) -> SmsStatusRecord:
         raise NotImplementedError('TODO Need to implement.')
