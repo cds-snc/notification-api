@@ -5,12 +5,12 @@ Revises: 0460_new_service_columns
 Create Date: 2024-10-15 18:24:22.926597
 
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = '0461_add_pinpoint_fields'
-down_revision = '0460_new_service_columns'
+revision = "0461_add_pinpoint_fields"
+down_revision = "0460_new_service_columns"
 
 
 def upgrade():
@@ -26,7 +26,7 @@ def upgrade():
     op.add_column("notification_history", sa.Column("sms_carrier_name", sa.VARCHAR(), nullable=True))
     op.add_column("notification_history", sa.Column("sms_message_encoding", sa.VARCHAR(), nullable=True))
     op.add_column("notification_history", sa.Column("sms_origination_phone_number", sa.VARCHAR(), nullable=True))
-    
+
 
 def downgrade():
     op.drop_column("notifications", "sms_total_message_price")
@@ -41,5 +41,3 @@ def downgrade():
     op.drop_column("notification_history", "sms_carrier_name")
     op.drop_column("notification_history", "sms_message_encoding")
     op.drop_column("notification_history", "sms_origination_phone_number")
-    
-    

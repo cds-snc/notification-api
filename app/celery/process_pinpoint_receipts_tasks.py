@@ -101,7 +101,7 @@ def process_pinpoint_results(self, response):
             sms_iso_country_code=iso_country_code,
             sms_carrier_name=carrier_name,
             sms_message_encoding=message_encoding,
-            sms_origination_phone_number=origination_phone_number,            
+            sms_origination_phone_number=origination_phone_number,
         )
 
         if notification_status != NOTIFICATION_DELIVERED:

@@ -1740,7 +1740,7 @@ class Notification(BaseModel):
     sms_carrier_name = db.Column(db.String(), nullable=True)
     sms_message_encoding = db.Column(db.String(), nullable=True)
     sms_origination_phone_number = db.Column(db.String(), nullable=True)
-    
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -2059,7 +2059,6 @@ class NotificationHistory(BaseModel, HistoryModel):
     sms_carrier_name = db.Column(db.String(), nullable=True)
     sms_message_encoding = db.Column(db.String(), nullable=True)
     sms_origination_phone_number = db.Column(db.String(), nullable=True)
-
 
     CheckConstraint(
         """
