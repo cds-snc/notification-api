@@ -1,5 +1,7 @@
 import uuid
+
 import pytest
+
 
 def test_find_ids_user(admin_request, sample_user):
     json_resp = admin_request.get("support.find_ids", ids=sample_user.id)[0]
@@ -75,6 +77,7 @@ def test_find_ids_id_not_uuid(admin_request):
     id = "hello"
     json_resp = admin_request.get("support.find_ids", ids=id)[0]
     assert json_resp["type"] == "not a uuid"
+
 
 @pytest.mark.parametrize("delimiter", [",", " ", "  ,\n\n, "])
 def test_find_ids_two_ids(admin_request, sample_user, sample_service, delimiter):
