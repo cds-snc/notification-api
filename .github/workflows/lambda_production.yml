@@ -50,7 +50,9 @@ jobs:
           docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
 
       - name: Generate docker SBOM
-        uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
+        env:
+          TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
         with:
           docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}"
           dockerfile_path: "ci/Dockerfile.lambda"
