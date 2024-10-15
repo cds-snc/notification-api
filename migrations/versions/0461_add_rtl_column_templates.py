@@ -12,16 +12,15 @@ down_revision = "0460_new_service_columns"
 
 def upgrade():
     # Add the new column to the templates table
-    op.add_column('templates', sa.Column('text_direction_rtl', sa.Boolean(), nullable=False, server_default=sa.false()))
+    op.add_column("templates", sa.Column("text_direction_rtl", sa.Boolean(), nullable=False, server_default=sa.false()))
 
     # Add the new column to the templates_history table
-    op.add_column('templates_history', sa.Column('text_direction_rtl', sa.Boolean(), nullable=False, server_default=sa.false()))
+    op.add_column("templates_history", sa.Column("text_direction_rtl", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade():
     # Remove the column from the templates table
-    op.drop_column('templates', 'text_direction_rtl')
+    op.drop_column("templates", "text_direction_rtl")
 
     # Remove the column from the templates_history table
-    op.drop_column('templates_history', 'text_direction_rtl')
-    
+    op.drop_column("templates_history", "text_direction_rtl")
