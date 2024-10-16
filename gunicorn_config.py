@@ -1,11 +1,27 @@
+# flake8: noqa
 import os
 import sys
+import time
 import traceback
+
+import cProfile
+import pstats
+from pstats import SortKey
 
 import gunicorn  # type: ignore
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 
+# Check if profiling should be enabled
+enable_profiling = os.getenv("NOTIFY_PROFILE") is not None
+if enable_profiling:
+    profiler = cProfile.Profile()
+
+print("Initializing New Relic agent")
+start_time = time.time()
 newrelic.agent.initialize()  # noqa: E402
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Elapsed time: {elapsed_time:.2f}s")
 
 workers = 1
 worker_class = "gevent"
@@ -38,6 +54,10 @@ if on_aws:
 
 def on_starting(server):
     server.log.info("Starting Notifications API")
+    if enable_profiling:
+        print("Profiling enabled")
+        global profiler
+        profiler.enable()
 
 
 def worker_abort(worker):
@@ -48,6 +68,17 @@ def worker_abort(worker):
 
 def on_exit(server):
     server.log.info("Stopping Notifications API")
+    if enable_profiling:
+        # Stop profiling
+        global profiler
+        profiler.disable()
+        # Dump profiling results to a file
+        profiler.dump_stats("profile_results.prof")
+        # Analyze profiling results
+        with open("profile_report.txt", "w") as f:
+            stats = pstats.Stats("profile_results.prof", stream=f)
+            stats.sort_stats(SortKey.CUMULATIVE)
+            stats.print_stats()
 
 
 def worker_int(worker):

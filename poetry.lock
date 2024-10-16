@@ -1606,6 +1606,17 @@ dev = ["dpkt", "pytest", "requests"]
 examples = ["oauth2"]
 
 [[package]]
+name = "gprof2dot"
+version = "2024.6.6"
+description = "Generate a dot graph from the output of several profilers."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "gprof2dot-2024.6.6-py2.py3-none-any.whl", hash = "sha256:45b14ad7ce64e299c8f526881007b9eb2c6b75505d5613e96e66ee4d5ab33696"},
+    {file = "gprof2dot-2024.6.6.tar.gz", hash = "sha256:fa1420c60025a9eb7734f65225b4da02a10fc6dd741b37fa129bc6b41951e5ab"},
+]
+
+[[package]]
 name = "greenlet"
 version = "2.0.2"
 description = "Lightweight in-process concurrent programming"
@@ -4581,4 +4592,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.10.9"
-content-hash = "caea27c85fc7d2332370c9708b2b0531324946b0e5018c802e7f8398ed8176d1"
+content-hash = "5a2a8c266be9de4817a7c55eca66f530e727dd3bd716975bd1585d28d01aff4c"

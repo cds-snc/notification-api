@@ -1,26 +1,7 @@
 #!/usr/bin/env python
-# flake8: noqa
 from __future__ import print_function
 
 import os
-import time
-
-# Check if profiling should be enabled
-enable_profiling = os.getenv('NOTIFY_PROFILE') is not None
-
-if enable_profiling:
-    print("Profiling enabled")
-    import cProfile
-    import pstats
-    from pstats import SortKey
-
-    # Create a cProfile.Profile object
-    profiler = cProfile.Profile()
-    # Start profiling
-    profiler.enable()
-
-# Timer start for initialization.
-start_time = time.time()
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 from apig_wsgi import make_lambda_handler
@@ -44,8 +25,8 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-xray_recorder.configure(service='Notify-API', context=NotifyContext())
-XRayMiddleware(app, xray_recorder)
+#xray_recorder.configure(service="Notify-API", context=NotifyContext())
+#XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
@@ -59,24 +40,8 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("========================================================")
     print("")
 
-# Timer end for initialization.
-end_time = time.time()
-elapsed_time = end_time - start_time
-print(f"Elapsed time: {elapsed_time:.2f}s")
-
-if enable_profiling:
-    # Stop profiling
-    profiler.disable()
-    # Dump profiling results to a file
-    profiler.dump_stats('profile_results.prof')
-    # Analyze profiling results
-    with open('profile_report.txt', 'w') as f:
-        stats = pstats.Stats('profile_results.prof', stream=f)
-        stats.sort_stats(SortKey.CUMULATIVE)
-        stats.print_stats()
-
 
 def handler(event, context):
-    newrelic.agent.initialize()  # noqa: E402
+    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
     return apig_wsgi_handler(event, context)
