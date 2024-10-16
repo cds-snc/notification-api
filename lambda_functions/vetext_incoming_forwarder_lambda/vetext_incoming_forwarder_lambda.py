@@ -179,7 +179,7 @@ def vetext_incoming_forwarder_lambda_handler(
 
         for event_body in event_bodies:
             logger.debug('Processing event_body: %s', event_body)
-
+            logger.info('Processing MessageSid: %s', event_body.get('MessageSid'))
             response = make_vetext_request(event_body)
 
             if response is None:
