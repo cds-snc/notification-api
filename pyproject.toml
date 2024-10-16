@@ -80,6 +80,7 @@ aws-xray-sdk = "2.14.0"
 
 [tool.poetry.group.test.dependencies]
 flake8 = "6.1.0"
+gprof2dot = "2024.6.6"
 isort = "5.13.2"
 moto = "4.2.14"
 idna = "2.10"

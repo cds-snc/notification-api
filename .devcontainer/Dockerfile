@@ -17,6 +17,7 @@ RUN apt-get update \
     exa \
     fd-find \
     git \
+    graphviz \
     iproute2 \
     less \
     libsodium-dev \
