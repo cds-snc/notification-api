@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Optional
 import iso8601
 import requests
 
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import (
     NoContactInfoException,
@@ -115,97 +114,6 @@ class VAProfileClient:
         response_json: dict = response.json()
         return response_json.get('profile', {})
 
-    def get_telephone(self, va_profile_id: RecipientIdentifier) -> str:
-        """
-        Retrieve the telephone number from the profile information for a given VA profile ID.
-
-        Args:
-            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the telephone number for.
-
-        Returns:
-            str: The telephone number retrieved from the VA Profile service.
-        """
-        contact_info: ContactInformation = self.get_profile(va_profile_id).get('contactInformation', {})
-        self.logger.debug('V3 Profile - Retrieved ContactInformation: %s', contact_info)
-
-        telephones: list[Telephone] = contact_info.get(self.PHONE_BIO_TYPE, [])
-        sorted_telephones = sorted(
-            [phone for phone in telephones if phone['phoneType'] == PhoneNumberType.MOBILE.value],
-            key=lambda phone: iso8601.parse_date(phone['createDate']),
-            reverse=True,
-        )
-        if sorted_telephones:
-            if (
-                sorted_telephones[0].get('countryCode')
-                and sorted_telephones[0].get('areaCode')
-                and sorted_telephones[0].get('phoneNumber')
-            ):
-                self.statsd_client.incr('clients.va-profile.get-telephone.success')
-                # https://en.wikipedia.org/wiki/E.164 format
-                return f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
-
-        self.statsd_client.incr('clients.va-profile.get-telephone.failure')
-        self._raise_no_contact_info_exception(self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
-
-    def get_email(self, va_profile_id: RecipientIdentifier) -> str:
-        """
-        Retrieve the email address from the profile information for a given VA profile ID.
-
-        Args:
-            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the email address for.
-
-        Returns:
-            str: The email address retrieved from the VA Profile service.
-        """
-        contact_info: ContactInformation = self.get_profile(va_profile_id).get('contactInformation', {})
-        sorted_emails = sorted(
-            contact_info.get(self.EMAIL_BIO_TYPE, []),
-            key=lambda email: iso8601.parse_date(email['createDate']),
-            reverse=True,
-        )
-        if sorted_emails:
-            self.statsd_client.incr('clients.va-profile.get-email.success')
-            return sorted_emails[0].get('emailAddressText')
-
-        self.statsd_client.incr('clients.va-profile.get-email.failure')
-        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
-
-    def has_valid_mobile_telephone_classification(self, telephone: Telephone, contact_info: ContactInformation) -> bool:
-        """
-        Args:
-          telephone (Telephone): telephone entry from ContactInformation object retrieved from Vet360 API endpoint
-
-        Returns:
-          bool - if AWS-classified telephone is a valid sms recipient (if nonexistent, return True)
-
-        Raises:
-          InvalidPhoneNumberException - if AWS-classified telephone is not a valid sms recipient
-        """
-        classification = telephone.get('classification', {})
-        classification_code = classification.get('classificationCode', None)
-        if classification_code is None:
-            # fall back, if no phone number classification is present
-            self.logger.debug(
-                'V3 Profile -- No telephone classification present, assuming the number is a valid SMS recipient (VA Profile ID: %s)',
-                telephone['vaProfileId'],
-            )
-            return True
-
-        if classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
-            self.logger.debug(
-                'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
-                classification_code,
-                telephone['vaProfileId'],
-            )
-            self._raise_invalid_phone_number_exception(contact_info)
-
-        self.logger.debug(
-            'V3 Profile -- Phone classification code of %s is a valid SMS recipient (VA Profile ID: %s)',
-            classification_code,
-            telephone['vaProfileId'],
-        )
-        return True
-
     def get_mobile_telephone_from_contact_info(self, contact_info: ContactInformation) -> Optional[str]:
         """
         Find the most recently created mobile phone number from a veteran's Vet360 contact information
@@ -219,32 +127,38 @@ class VAProfileClient:
         telephones: list[Telephone] = contact_info.get(self.PHONE_BIO_TYPE, [])
 
         sorted_telephones = sorted(
-            [phone for phone in telephones if phone['phoneType'] == PhoneNumberType.MOBILE.value],
+            [phone for phone in telephones if phone['phoneType'].lower() == PhoneNumberType.MOBILE.value.lower()],
             key=lambda phone: iso8601.parse_date(phone['createDate']),
             reverse=True,
         )
+        if not sorted_telephones:
+            self.statsd_client.incr('clients.va-profile.get-telephone.failure')
+            self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
+            raise NoContactInfoException(
+                f'No {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")}'
+                f'with AuditId {contact_info.get(self.TX_AUDIT_ID)}'
+            )
 
-        if sorted_telephones:
-            is_mobile = True
-            if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS):
-                self.logger.debug(
-                    'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS enabled.  Checking telephone classification info.'
-                )
-                is_mobile = self.has_valid_mobile_telephone_classification(sorted_telephones[0], contact_info)
-            else:
-                self.logger.debug(
-                    'V3 Profile -- VA_PROFILE_V3_IDENTIFY_MOBILE_TELEPHONE_NUMBERS is not enabled.  Will not check classification info.'
-                )
-            if (
-                is_mobile
-                and sorted_telephones[0].get('countryCode')
-                and sorted_telephones[0].get('areaCode')
-                and sorted_telephones[0].get('phoneNumber')
-            ):
-                self.statsd_client.incr('clients.va-profile.get-telephone.success')
-                return f"+{sorted_telephones[0]['countryCode']}{sorted_telephones[0]['areaCode']}{sorted_telephones[0]['phoneNumber']}"
+        telephone = sorted_telephones[0]
+        classification = telephone.get('classification', {})
+        classification_code = classification.get('classificationCode', None)
+        if classification_code is not None and classification_code not in VALID_PHONE_TYPES_FOR_SMS_DELIVERY:
+            self.logger.debug(
+                'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
+                classification_code,
+                telephone['vaProfileId'],
+            )
+            self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
+            raise InvalidPhoneNumberException(
+                f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
+                f'with AuditId {contact_info.get("txAuditId")}'
+            )
 
-    def get_telephone_with_permission(
+        if telephone.get('countryCode') and telephone.get('areaCode') and telephone.get('phoneNumber'):
+            self.statsd_client.incr('clients.va-profile.get-telephone.success')
+            return f"+{telephone['countryCode']}{telephone['areaCode']}{telephone['phoneNumber']}"
+
+    def get_telephone(
         self,
         va_profile_id: RecipientIdentifier,
         notification: Notification,
@@ -276,15 +190,9 @@ class VAProfileClient:
         contact_info: ContactInformation = profile.get('contactInformation', {})
 
         telephone = self.get_mobile_telephone_from_contact_info(contact_info)
-        if not telephone:
-            self.statsd_client.incr('clients.va-profile.get-telephone.failure')
-            self._raise_no_contact_info_exception(
-                self.PHONE_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID)
-            )
-
         return VAProfileResult(telephone, communication_allowed, permission_message)
 
-    def get_email_with_permission(
+    def get_email(
         self,
         va_profile_id: RecipientIdentifier,
         notification: Notification,
@@ -320,68 +228,16 @@ class VAProfileClient:
             key=lambda email: iso8601.parse_date(email['createDate']),
             reverse=True,
         )
-        if sorted_emails:
-            self.statsd_client.incr('clients.va-profile.get-email.success')
-            email_result = sorted_emails[0].get('emailAddressText')
-            return VAProfileResult(email_result, communication_allowed, permission_message)
+        if not sorted_emails:
+            self.statsd_client.incr('clients.va-profile.get-email.failure')
+            self.statsd_client.incr(f'clients.va-profile.get-{self.EMAIL_BIO_TYPE}.no-{self.EMAIL_BIO_TYPE}')
+            raise NoContactInfoException(
+                f'No {self.EMAIL_BIO_TYPE} in response for VA Profile ID {va_profile_id} '
+                f'with AuditId {contact_info.get(self.TX_AUDIT_ID)}'
+            )
 
-        self.statsd_client.incr('clients.va-profile.get-email.failure')
-        self._raise_no_contact_info_exception(self.EMAIL_BIO_TYPE, va_profile_id, contact_info.get(self.TX_AUDIT_ID))
-
-    def get_is_communication_allowed(
-        self,
-        recipient_id: RecipientIdentifier,
-        communication_item_id: str,
-        notification_id: str,
-        notification_type: str,
-        default_send: bool,
-    ) -> bool:
-        """
-        Determine if communication is allowed for a given recipient, communication item, and notification type.
-
-        Args:
-            recipient_id (RecipientIdentifier): The recipient's VA profile ID.
-            communication_item_id (str): The ID of the communication item.
-            notification_id (str): The ID of the notification.
-            notification_type (str): The type of the notification.
-
-        Returns:
-            bool: True if communication is allowed, False otherwise.
-
-        Raises:
-            CommunicationItemNotFoundException: If no communication permissions are found for the given parameters.
-        """
-
-        communication_permissions: CommunicationPermissions = self.get_profile(recipient_id).get(
-            'communicationPermissions', {}
-        )
-        communication_channel = CommunicationChannel(VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES[notification_type])
-        for perm in communication_permissions:
-            if (
-                perm['communicationChannelId'] == communication_channel.id
-                and perm['communicationItemId'] == communication_item_id
-            ):
-                self.statsd_client.incr('clients.va-profile.get-communication-item-permission.success')
-                # if default send is true and allowed is false, return false
-                # if default send is true and allowed is true, return true
-                # if default send is false, default to what it finds
-                permission: bool | None = perm['allowed']
-                if permission is not None:
-                    return perm['allowed']
-                else:
-                    return default_send
-
-        self.logger.debug(
-            'V3 Profile -- Recipient %s did not have permission for communication item %s and channel %s for notification %s',
-            recipient_id,
-            communication_item_id,
-            notification_type,
-            notification_id,
-        )
-
-        # TODO 893 - use default communication item settings when that has been implemented
-        self.statsd_client.incr('clients.va-profile.get-communication-item-permission.no-permissions')
-        raise CommunicationItemNotFoundException
+        self.statsd_client.incr('clients.va-profile.get-email.success')
+        return VAProfileResult(sorted_emails[0].get('emailAddressText'), communication_allowed, permission_message)
 
     def get_is_communication_allowed_from_profile(
         self,
@@ -482,24 +338,6 @@ class VAProfileClient:
 
             raise exception from error
 
-    def _raise_no_contact_info_exception(
-        self,
-        bio_type: str,
-        va_profile_id: str,
-        tx_audit_id: str,
-    ):
-        self.statsd_client.incr(f'clients.va-profile.get-{bio_type}.no-{bio_type}')
-        raise NoContactInfoException(
-            f'No {bio_type} in response for VA Profile ID {va_profile_id} ' f'with AuditId {tx_audit_id}'
-        )
-
-    def _raise_invalid_phone_number_exception(self, contact_info: ContactInformation):
-        self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
-        raise InvalidPhoneNumberException(
-            f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
-            f'with AuditId {contact_info.get("txAuditId")}'
-        )
-
     def send_va_profile_email_status(self, notification_data: dict) -> None:
         """
         This method sends notification status data to VA Profile. This is part of our integration to help VA Profile
@@ -511,7 +349,6 @@ class VAProfileClient:
             requests.Timeout: if the request to VA Profile times out
             RequestException: if something unexpected happens when sending the request
         """
-
         headers = {'Authorization': f'Bearer {self.va_profile_token}'}
         url = f'{self.va_profile_url}/contact-information-vanotify/notify/status'
 

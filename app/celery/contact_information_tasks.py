@@ -14,7 +14,6 @@ from app.dao.notifications_dao import (
     update_notification_status_by_id,
 )
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_PREFERENCES_DECLINED,
@@ -49,8 +48,7 @@ def lookup_contact_info(
 ):
     """
     Celery task to look up contact information (email/phone number) for a given notification.
-    If the feature flag, VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP, is enabled,
-    also check for related communication permissions.
+    Also check for related communication permissions.
 
     Args:
         self (Task): The Celery task instance.
@@ -71,48 +69,14 @@ def lookup_contact_info(
     recipient_identifier = notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value]
 
     try:
-        if is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP):
-            result = get_profile_result(notification, recipient_identifier)
-            notification.to = result.recipient
-            if not result.communication_allowed:
-                handle_communication_not_allowed(notification, recipient_identifier, result.permission_message)
-            # Otherwise, this communication is allowed. We will update the notification below and continue the chain.
-        else:
-            notification.to = get_recipient(
-                notification.notification_type,
-                notification_id,
-                recipient_identifier,
-            )
+        result = get_profile_result(notification, recipient_identifier)
+        notification.to = result.recipient
+        if not result.communication_allowed:
+            handle_communication_not_allowed(notification, recipient_identifier, result.permission_message)
+        # Otherwise, this communication is allowed. We will update the notification below and continue the chain.
         dao_update_notification(notification)
     except Exception as e:
         handle_lookup_contact_info_exception(self, notification, recipient_identifier, e)
-
-
-def get_recipient(
-    notification_type: str,
-    notification_id: str,
-    recipient_identifier: RecipientIdentifier,
-) -> str:
-    """
-    Retrieve the recipient email or phone number.
-
-    Args:
-        notification_type (str): The type of recipient info requested.
-        notification_id (str): The notification ID associated with this request.
-        recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
-
-    Returns:
-        str: The recipient email or phone number.
-    """
-    if notification_type == EMAIL_TYPE:
-        return va_profile_client.get_email(recipient_identifier)
-    elif notification_type == SMS_TYPE:
-        return va_profile_client.get_telephone(recipient_identifier)
-    else:
-        raise NotImplementedError(
-            f'The task lookup_contact_info failed for notification {notification_id}. '
-            f'{notification_type} is not supported'
-        )
 
 
 def get_profile_result(
@@ -130,9 +94,9 @@ def get_profile_result(
         VAProfileResult: The contact info result from VA Profile.
     """
     if notification.notification_type == EMAIL_TYPE:
-        return va_profile_client.get_email_with_permission(recipient_identifier, notification)
+        return va_profile_client.get_email(recipient_identifier, notification)
     elif notification.notification_type == SMS_TYPE:
-        return va_profile_client.get_telephone_with_permission(recipient_identifier, notification)
+        return va_profile_client.get_telephone(recipient_identifier, notification)
     else:
         raise NotImplementedError(
             f'The task lookup_contact_info failed for notification {notification.id}. '
@@ -208,6 +172,8 @@ def handle_lookup_contact_info_exception(
         else:
             # Means the default_send is True and this does not require an explicit opt-in
             return None
+    elif isinstance(e, NotificationPermanentFailureException):
+        raise e
     else:
         current_app.logger.exception(f'Unhandled exception for notification {notification.id}: {e}')
         raise e

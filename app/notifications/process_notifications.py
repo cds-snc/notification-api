@@ -14,7 +14,6 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
-from app.celery.lookup_recipient_communication_permissions_task import lookup_recipient_communication_permissions
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
@@ -174,12 +173,6 @@ def send_notification_to_queue(
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
                 tasks.append(lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
 
-            tasks.append(
-                lookup_recipient_communication_permissions.si(str(notification.id)).set(
-                    queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-                )
-            )
-
     # Including sms_sender_id is necessary so the correct sender can be chosen.
     # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue, sms_sender_id)
@@ -276,17 +269,6 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         ]
 
     tasks.append(lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
-
-    if (
-        not is_feature_enabled(FeatureFlag.VA_PROFILE_V3_COMBINE_CONTACT_INFO_AND_PERMISSIONS_LOOKUP)
-        and communication_item_id
-    ):
-        tasks.append(
-            lookup_recipient_communication_permissions.si(notification.id).set(
-                queue=QueueNames.COMMUNICATION_ITEM_PERMISSIONS
-            ),
-        )
-
     deliver_task, deliver_queue = _get_delivery_task(notification)
     tasks.append(deliver_task.si(notification.id).set(queue=deliver_queue))
 
