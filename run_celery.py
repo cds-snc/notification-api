@@ -17,7 +17,7 @@ load_dotenv()
 application = Flask("celery")
 create_app(application)
 
-xray_recorder.configure(service='Notify', context=NotifyContext())
+xray_recorder.configure(service="Notify", context=NotifyContext())
 XRayMiddleware(application, xray_recorder)
 
 application.app_context().push()
