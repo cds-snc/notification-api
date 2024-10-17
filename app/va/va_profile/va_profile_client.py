@@ -31,6 +31,8 @@ VA_NOTIFY_TO_VA_PROFILE_NOTIFICATION_TYPES = {
     'sms': 'Text',
 }
 
+# source for valid phone types for SMS delivery:
+# https://docs.aws.amazon.com/pinpoint/latest/developerguide/validate-phone-numbers.html#validate-phone-numbers-example-responses
 VALID_PHONE_TYPES_FOR_SMS_DELIVERY = [
     0,  # "MOBILE"
     2,  # "VOIP"

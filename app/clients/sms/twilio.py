@@ -240,15 +240,14 @@ class TwilioSMSClient(SmsClient):
         parsed_dict = parse_qs(decoded_msg)
         message_sid = parsed_dict['MessageSid'][0]
         twilio_delivery_status = parsed_dict['MessageStatus'][0]
+        error_code_data = parsed_dict.get('ErrorCode', None)
 
         if twilio_delivery_status not in self.twilio_notify_status_map:
             value_error = f'Invalid Twilio delivery status:  {twilio_delivery_status}'
             raise ValueError(value_error)
 
-        if 'ErrorCode' in parsed_dict and (
-            twilio_delivery_status == 'failed' or twilio_delivery_status == 'undelivered'
-        ):
-            error_code = parsed_dict['ErrorCode'][0]
+        if error_code_data and (twilio_delivery_status == 'failed' or twilio_delivery_status == 'undelivered'):
+            error_code = error_code_data[0]
 
             if error_code in self.twilio_error_code_map:
                 notify_delivery_status: TwilioStatus = self.twilio_error_code_map[error_code]
@@ -259,10 +258,10 @@ class TwilioSMSClient(SmsClient):
                 notify_delivery_status: TwilioStatus = self.twilio_notify_status_map[twilio_delivery_status]
         else:
             # Logic not being changed, just want to log this for now
-            if 'ErrorCode' in parsed_dict:
+            if error_code_data:
                 self.logger.warning(
                     'Error code: %s existed but status for message: %s was not failed nor undelivered',
-                    error_code,
+                    error_code_data[0],
                     message_sid,
                 )
             notify_delivery_status: TwilioStatus = self.twilio_notify_status_map[twilio_delivery_status]
