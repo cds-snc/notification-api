@@ -65,35 +65,8 @@ jobs:
       - name: Pause for manual approval
         run: echo "Deployment paused for manual approval."
 
-  merge-to-release:
-    needs: approval-deploy-staging
-    # These permissions are needed to write to the release branch
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout release branch
-        uses: actions/checkout@v4
-        with:
-          ref: release
-          fetch-depth: 0
-          # Fine-grained PAT with contents:write and workflows:write
-          # scopes
-          token: ${{ secrets.CD_PAT }}
-
-      - name: Setup git user
-        # The following is taken from https://github.com/actions/checkout/issues/13 as a common work-around
-        run: |
-            git config --global user.name "$(git --no-pager log --format=format:'%an' -n 1)"
-            git config --global user.email "$(git --no-pager log --format=format:'%ae' -n 1)"
-          
-      - name: Merge commit SHA to release
-        run: |
-          git merge ${{ github.sha }} --no-squash -X theirs
-          git push
-
   create-and-post-tag:
-    needs: merge-to-release
+    needs: approval-deploy-staging
     uses: ./.github/workflows/create-and-post-tag.yml
     secrets: inherit
 
@@ -137,4 +110,3 @@ jobs:
       environment: prod
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
-

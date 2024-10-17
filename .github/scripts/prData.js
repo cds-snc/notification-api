@@ -18,21 +18,21 @@ async function fetchPullRequests(github, owner, repo, sha) {
 }
 
 /**
- * Retrieves the SHA of the release branch's latest commit.
+ * Retrieves the SHA of the main branch's latest commit.
  * @param {Object} github - The GitHub client instance.
  * @param {string} owner - The owner of the GitHub repository.
  * @param {string} repo - The repository name.
- * @returns {Promise<string>} - A promise resolving to the SHA of the latest commit on the release branch.
+ * @returns {Promise<string>} - A promise resolving to the SHA of the latest commit on the main branch.
  */
-async function fetchReleaseBranchSha(github, owner, repo) {
+async function fetchMainBranchSha(github, owner, repo) {
   const { data } = await github.rest.repos.getCommit({
     owner,
     repo,
-    ref: 'heads/release',
+    ref: 'heads/main',
   });
 
   if (data && data.sha) {
-    console.log('The release branch head SHA is: ' + data.sha);
+    console.log('The main branch head SHA is: ' + data.sha);
     return data.sha;
   } else {
     throw new Error('No SHA found in the response');
@@ -94,7 +94,7 @@ async function prData(params) {
   try {
     const pullRequestData = await fetchPullRequests(github, owner, repo, sha);
     const currentVersion = await getReleaseVersionValue(github, owner, repo);
-    const releaseBranchSha = await fetchReleaseBranchSha(github, owner, repo);
+    const mainBranchSha = await fetchMainBranchSha(github, owner, repo);
 
     const labels = pullRequestData.data[0].labels;
     const prNumber = pullRequestData.data[0].number;
@@ -106,7 +106,7 @@ async function prData(params) {
     );
 
     return {
-      releaseBranchSha,
+      mainBranchSha,
       currentVersion,
       newVersion,
       label,

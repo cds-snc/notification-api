@@ -59,14 +59,14 @@ async function createAndPostTag(params) {
     const previousVersion = await getReleaseVersionValue(github, owner, repo);
 
     // Retrieve PR data to decide the new version tag
-    const { releaseBranchSha, newVersion } = await prData({
+    const { mainBranchSha, newVersion } = await prData({
       github,
       context,
       core,
     });
 
-    // Create and push the tag using the SHA from releaseBranchSha
-    await createTag(github, owner, repo, newVersion, releaseBranchSha);
+    // Create and push the tag using the SHA from mainBranchSha
+    await createTag(github, owner, repo, newVersion, mainBranchSha);
 
     // Update the RELEASE_VERSION repo variable
     await github.rest.actions.updateRepoVariable({
@@ -86,10 +86,10 @@ async function createAndPostTag(params) {
     // Construct the summary content
     const summaryContent = `
 ### Successful Tag Creation!
-- After merge to the release branch, a tag was created.
+- After merge to the main branch, a tag was created.
 - Previous version was ${previousVersion}
 - New version is ${newVersion}
-- Tag created for version ${newVersion} using the new release branch SHA: ${releaseBranchSha}
+- Tag created for version ${newVersion} using the new main branch SHA: ${mainBranchSha}
 `;
 
     // Append the summary to the GitHub step summary file or log it
