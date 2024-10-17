@@ -1824,3 +1824,85 @@ class TestTemplateCategory:
         assert response["data"]["process_type_column"] == process_type
         assert response["data"]["process_type"] == calculated_process_type
         assert response["data"]["template_category_id"] == str(tc.id)
+
+
+@pytest.mark.parametrize(
+    "original_text_direction, updated_text_direction, expected_original, expected_after_update",
+    [
+        (None, True, False, True),
+        (True, False, True, False),
+    ],
+)
+def test_template_updated_when_rtl_changes(
+    admin_request,
+    sample_user,
+    notify_api,
+    sample_template_category,
+    original_text_direction,
+    updated_text_direction,
+    expected_original,
+    expected_after_update,
+):
+    service = create_service(service_name="service_1")
+    template_data = {
+        "service": service,
+        "template_type": "email",
+        "template_name": "testing template",
+        "subject": "Template subject",
+        "content": "Dear Sir/Madam, Hello. Yours Truly, The Government.",
+        "template_category": sample_template_category,
+        "process_type": "normal",
+        "text_direction_rtl": original_text_direction,
+    }
+    template = create_template(**template_data)
+
+    assert template.text_direction_rtl is expected_original
+
+    # change the RTL property
+    updated_template_data = {
+        "service": str(service.id),
+        "template_category": str(sample_template_category.id),
+        "template_type": template_data["template_type"],
+        "template_name": template_data["template_name"],
+        "subject": template_data["subject"],
+        "content": template_data["content"],
+        "process_type": template_data["process_type"],
+    }
+
+    if updated_text_direction is not None:
+        updated_template_data["text_direction_rtl"] = updated_text_direction
+
+    response = admin_request.post(
+        "template.update_template",
+        service_id=service.id,
+        template_id=template.id,
+        _data=updated_template_data,
+        _expected_status=200,
+    )
+
+    assert response["data"]["text_direction_rtl"] == expected_after_update
+
+
+@pytest.mark.parametrize("text_direction, expected_text_direction", [(True, True), (False, False), (None, False)])
+def test_template_can_be_created_with_text_direction(
+    admin_request, sample_user, sample_template_category, text_direction, expected_text_direction
+):
+    service = create_service(service_name="service_1")
+
+    template_data = {
+        "name": "new name",
+        "template_type": "email",
+        "content": "some content here :)",
+        "subject": "yo",
+        "service": str(service.id),
+        "created_by": str(sample_user.id),
+        "template_category_id": str(sample_template_category.id),
+        "process_type": "normal",
+    }
+
+    if text_direction is not None:
+        template_data["text_direction_rtl"] = text_direction
+
+    response = admin_request.post("template.create_template", service_id=service.id, _data=template_data, _expected_status=201)
+
+    assert response["data"]["text_direction_rtl"] == expected_text_direction

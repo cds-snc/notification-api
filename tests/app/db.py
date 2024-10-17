@@ -195,6 +195,7 @@ def create_template(
     template_category=None,
     postage=None,
     process_type="normal",
+    text_direction_rtl=False,
 ):
     if not template_category:
         data = {
@@ -220,6 +221,7 @@ def create_template(
         "folder": folder,
         "template_category": template_category,
         "process_type": process_type,
+        "text_direction_rtl": text_direction_rtl,
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"
