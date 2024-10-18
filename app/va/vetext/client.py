@@ -53,7 +53,7 @@ class VETextClient:
             'templateSid': template_id,
             'personalization': formatted_personalization,
         }
-        self.logger.info('VEText Payload information: %s', payload)
+        self.logger.debug('VEText Payload information: %s', payload)
 
         try:
             start_time = monotonic()

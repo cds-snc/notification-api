@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from http.client import responses
+from logging import Logger
 from typing import TYPE_CHECKING, Optional
 
 
@@ -85,7 +86,7 @@ class VAProfileClient:
         va_profile_token,
         statsd_client,
     ):
-        self.logger = logger
+        self.logger: Logger = logger
         self.va_profile_url = va_profile_url
         self.ssl_cert_path = ssl_cert_path
         self.ssl_key_path = ssl_key_path
@@ -159,6 +160,14 @@ class VAProfileClient:
         if telephone.get('countryCode') and telephone.get('areaCode') and telephone.get('phoneNumber'):
             self.statsd_client.incr('clients.va-profile.get-telephone.success')
             return f"+{telephone['countryCode']}{telephone['areaCode']}{telephone['phoneNumber']}"
+        else:
+            self.statsd_client.incr('clients.va-profile.get-telephone.failure')
+            self.logger.warning(
+                'Expected country code: %s | area code: %s | phone number (str length): %s',
+                telephone.get('countryCode'),
+                telephone.get('areaCode'),
+                len(str(telephone.get('phoneNumber', ''))),  # Do not log phone numbers. Cast to str to prevent errors.
+            )
 
     def get_telephone(
         self,

@@ -62,7 +62,7 @@ def test_registry_initilizes_only_apps_with_sids_in_env(
     assert registry.get_registered_apps() == expected_list
 
 
-def test_should_log_error_for_uninitilized_apps(
+def test_should_log_warning_for_uninitialized_apps_with_correct_count(
     client,
     mock_logger,
     mocker,
@@ -71,3 +71,18 @@ def test_should_log_error_for_uninitilized_apps(
         mocker.patch.dict(os.environ, {f'{app}_SID': ''})
     MobileAppRegistry()
     assert mock_logger.warning.call_count == len(MobileAppType.values())
+
+
+@pytest.mark.parametrize('app_type_str', [*MobileAppType.values()])
+def test_should_correctly_log_warning_for_uninitialized_apps(
+    client,
+    mock_logger,
+    mocker,
+    app_type_str,
+):
+    mocker.patch.dict(os.environ, {f'{app_type_str}_SID': ''})
+    MobileAppRegistry()
+    app_type = MobileAppType(app_type_str)
+    mock_logger.warning.assert_called_once_with(
+        'Missing environment sid for type: %s and value: %s_SID', app_type, app_type.value
+    )

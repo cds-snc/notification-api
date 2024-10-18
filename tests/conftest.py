@@ -1,18 +1,18 @@
-from contextlib import contextmanager
 import os
-from time import sleep
 import warnings
+from contextlib import contextmanager
 
-
+import pytest
 import sqlalchemy
-from sqlalchemy.sql import delete, select, text as sa_text
+import xdist
 from alembic.command import upgrade
 from alembic.config import Config
-from app import create_app, db, schemas
 from flask import Flask
-import pytest
 from sqlalchemy.exc import SAWarning
+from sqlalchemy.sql import delete, select
+from sqlalchemy.sql import text as sa_text
 
+from app import create_app, db, schemas
 
 application = None
 
@@ -41,7 +41,7 @@ def pytest_sessionstart(session):
             error_handlers[None] = {
                 exc_class: error_handler
                 for exc_class, error_handler in error_handlers[None].items()
-                if exc_class != Exception
+                if exc_class is not Exception
             }
             if error_handlers[None] == []:
                 error_handlers.pop(None)
@@ -249,12 +249,13 @@ def pytest_sessionfinish(session, exitstatus):
     A pytest hook that runs after all tests. Reports database is clear of extra entries after all tests have ran.
     Exit code is set to 1 if anything is left in any table.
     """
+    # Guard to prevent this from running early
+    if xdist.is_xdist_worker(session):
+        return
 
     color = '\033[91m'
     reset = '\033[0m'
-    SLEEP_DURATION = 5  # Adjustable - Allow fixtures to finish their work, multi-worker fails otherwise
     TRUNCATE_ARTIFACTS = os.environ['TRUNCATE_ARTIFACTS'] == 'True'
-    sleep(SLEEP_DURATION)
 
     with application.app_context():
         with warnings.catch_warnings():
@@ -316,9 +317,6 @@ def pytest_sessionfinish(session, exitstatus):
                 session.exitstatus = 1
 
         if tables_with_artifacts and TRUNCATE_ARTIFACTS:
-            # Give the tests time to finish self-cleanup - extra time to reduce deadlocks
-            sleep(SLEEP_DURATION)
-
             print('\n')
             for i, table in enumerate(tables_with_artifacts):
                 # Skip tables that may have necessary information

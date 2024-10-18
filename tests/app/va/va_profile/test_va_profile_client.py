@@ -222,6 +222,44 @@ class TestVAProfileClient:
             with pytest.raises(InvalidPhoneNumberException):
                 mock_va_profile_client.get_mobile_telephone_from_contact_info(mock_contact_info)
 
+    @pytest.mark.parametrize(
+        'country_code, area_code, phone_number',
+        [
+            (None, '123', '4567890'),
+            (1, None, '4567890'),
+            (1, '123', None),
+            (None, None, None),
+        ],
+    )
+    def test_log_unexpected_telephone_build_result(self, mock_va_profile_client, country_code, area_code, phone_number):
+        telephone_instance: Telephone = {
+            'createDate': '2023-10-01',
+            'updateDate': '2023-10-02',
+            'txAuditId': 'TX123456',
+            'sourceSystem': 'SystemA',
+            'sourceDate': '2023-10-01',
+            'originatingSourceSystem': 'SystemB',
+            'sourceSystemUser': 'User123',
+            'effectiveStartDate': '2023-10-01',
+            'vaProfileId': 12345,
+            'telephoneId': 67890,
+            'internationalIndicator': False,
+            'phoneType': 'MOBILE',
+            'countryCode': country_code,
+            'areaCode': area_code,
+            'phoneNumber': phone_number,
+            'classification': {'classificationCode': 0, 'classificationName': 'SOME NAME'},
+        }
+
+        mock_contact_info = {'vaProfileId': 'test', 'txAuditId': '1234', 'telephones': [telephone_instance]}
+        mock_va_profile_client.get_mobile_telephone_from_contact_info(mock_contact_info)
+        mock_va_profile_client.logger.warning.assert_called_once_with(
+            'Expected country code: %s | area code: %s | phone number (str length): %s',
+            country_code,
+            area_code,
+            len(str(phone_number)),
+        )
+
 
 class TestVAProfileClientExceptionHandling:
     def test_get_telephone_raises_NoContactInfoException_if_no_telephones_exist(
