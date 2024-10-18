@@ -16,182 +16,20 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
+      "environmentFiles": [
+        {
+          "type": "s3",
+          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-dev/dev.env"
+        }
+      ],
       "environment": [
-        {
-          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_HOST_NAME",
-          "value": "https://dev.api.notifications.va.gov"
-        },
-        {
-          "name": "API_MESSAGE_LIMIT_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_RATE_LIMIT_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "ATTACHMENTS_BUCKET",
-          "value": "dev-notifications-va-gov-attachments"
-        },
-        {
-          "name": "AWS_PINPOINT_APP_ID",
-          "value": "df55c01206b742d2946ef226410af94f"
-        },
-        {
-          "name": "AWS_SES_EMAIL_FROM_USER",
-          "value": "dev-do-not-reply"
-        },
-        {
-          "name": "CHECK_GITHUB_SCOPE_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "DD_ENV",
-          "value": "dev"
-        },
-        {
-          "name": "DD_SITE",
-          "value": "ddog-gov.com"
-        },
         {
           "name": "DD_SERVICE",
           "value": "celery-beat"
         },
         {
-          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
-          "value": "True"
-        },
-        {
-          "name": "DD_PROFILING_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "EMAIL_ATTACHMENTS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "EMAIL_PASSWORD_LOGIN_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
-          "value": "LOAD_BALANCING"
-        },
-        {
           "name": "FLASK_APP",
           "value": "run_celery_beat.py"
-        },
-        {
-          "name": "GITHUB_LOGIN_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "GOOGLE_ANALYTICS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "GRANICUS_URL",
-          "value": "https://stage-tms.govdelivery.com"
-        },
-        {
-          "name": "MPI_URL",
-          "value": "https://int.services.eauth.va.gov:9303/int"
-        },
-        {
-          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "NOTIFICATION_QUEUE_PREFIX",
-          "value": "dev-notification-"
-        },
-        {
-          "name": "NOTIFY_EMAIL_FROM_USER",
-          "value": "stage-notifications"
-        },
-        {
-          "name": "NOTIFY_ENVIRONMENT",
-          "value": "development"
-        },
-        {
-          "name": "PINPOINT_RECEIPTS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "PINPOINT_INBOUND_SMS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "PROVIDER_STRATEGIES_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "REDIS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "SESSION_COOKIE_SECURE",
-          "value": "True"
-        },
-        {
-          "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
-          "value": "HIGHEST_PRIORITY"
-        },
-        {
-          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "STATSD_HOST",
-          "value": "localhost"
-        },
-        {
-          "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "UI_HOST_NAME",
-          "value": "https://dev.notifications.va.gov"
-        },
-        {
-          "name": "VA_ONSITE_URL",
-          "value": "https://staging-api.va.gov"
-        },
-        {
-          "name": "VA_PROFILE_URL",
-          "value": "https://int.vaprofile.va.gov"
-        },
-        {
-          "name": "VANOTIFY_SSL_CERT_PATH",
-          "value": "/app/certs/vanotify_ssl_cert.pem"
-        },
-        {
-          "name": "VANOTIFY_SSL_KEY_PATH",
-          "value": "/app/certs/vanotify_ssl_key.pem"
-        },
-        {
-          "name": "PLATFORM_STATS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "COMP_AND_PEN_MESSAGES_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "COMP_AND_PEN_DYNAMODB_NAME",
-          "value": "dev-bip-payment-notification-table"
         }
       ],
       "secrets": [

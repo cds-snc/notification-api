@@ -16,162 +16,20 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
-      "environment": [
+      "environmentFiles": [
         {
-          "name": "NOTIFY_ENVIRONMENT",
-          "value": "production"
-        },
+          "type": "s3",
+          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-prod/prod.env"
+        }
+      ],
+      "environment": [
         {
           "name": "FLASK_APP",
           "value": "run_celery_beat.py"
         },
         {
-          "name": "SMS_SENDER_RATE_LIMIT_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "NIGHTLY_NOTIF_CSV_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "API_HOST_NAME",
-          "value": "https://api.notifications.va.gov"
-        },
-        {
-          "name": "DD_ENV",
-          "value": "prod"
-        },
-        {
-          "name": "DD_SITE",
-          "value": "ddog-gov.com"
-        },
-        {
           "name": "DD_SERVICE",
           "value": "celery-beat"
-        },
-        {
-          "name": "DD_PROFILING_ENABLE_CODE_PROVENANCE",
-          "value": "True"
-        },
-        {
-          "name": "DD_PROFILING_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "NOTIFICATION_QUEUE_PREFIX",
-          "value": "prod-notification-"
-        },
-        {
-          "name": "STATSD_HOST",
-          "value": "localhost"
-        },
-        {
-          "name": "ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "GOOGLE_ANALYTICS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "NOTIFICATION_FAILURE_REASON_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "GOOGLE_ANALYTICS_TID",
-          "value": "UA-50123418-16"
-        },
-        {
-          "name": "VA_ONSITE_URL",
-          "value": "https://api.va.gov"
-        },
-        {
-          "name": "VA_PROFILE_URL",
-          "value": "https://www.vaprofile.va.gov"
-        },
-        {
-          "name": "VANOTIFY_SSL_CERT_PATH",
-          "value": "/app/certs/vanotify_ssl_cert.pem"
-        },
-        {
-          "name": "VANOTIFY_SSL_KEY_PATH",
-          "value": "/app/certs/vanotify_ssl_key.pem"
-        },
-        {
-          "name": "MPI_URL",
-          "value": "https://services.eauth.va.gov:9303/prod"
-        },
-        {
-          "name": "AWS_PINPOINT_APP_ID",
-          "value": "9535150638b04a49b49755af2b2d316b"
-        },
-        {
-          "name": "AWS_SES_EMAIL_FROM_USER",
-          "value": "do-not-reply"
-        },
-        {
-          "name": "TEMPLATE_SERVICE_PROVIDERS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "PROVIDER_STRATEGIES_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL",
-          "value": "LOAD_BALANCING"
-        },
-        {
-          "name": "SMS_PROVIDER_SELECTION_STRATEGY_LABEL",
-          "value": "HIGHEST_PRIORITY"
-        },
-        {
-          "name": "PINPOINT_RECEIPTS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "CHECK_GITHUB_SCOPE_ENABLED",
-          "value": "False"
-        },
-        {
-          "name": "GITHUB_LOGIN_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "PINPOINT_INBOUND_SMS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "REDIS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "CHECK_TEMPLATE_NAME_EXISTS_ENABLED",
-          "value": "False"
-        },
-        {
-          "name": "EMAIL_ATTACHMENTS_ENABLED",
-          "value": "True"
-        },
-        {
-          "name": "UI_HOST_NAME",
-          "value": "https://notifications.va.gov"
-        },
-        {
-          "name": "ATTACHMENTS_BUCKET",
-          "value": "prod-notifications-va-gov-attachments"
-        },
-        {
-          "name": "PLATFORM_STATS_ENABLED",
-          "value": "False"
-        },
-        {
-          "name": "COMP_AND_PEN_MESSAGES_ENABLED",
-          "value": "False"
-        },
-        {
-          "name": "COMP_AND_PEN_DYNAMODB_NAME",
-          "value": "prod-bip-payment-notification-table"
         }
       ],
       "secrets": [

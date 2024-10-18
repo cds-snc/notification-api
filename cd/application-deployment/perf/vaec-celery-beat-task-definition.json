@@ -16,6 +16,12 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
+      "environmentFiles": [
+        {
+          "type": "s3",
+          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-perf/perf.env"
+        }
+      ],
       "environment": [
         {
           "name": "NOTIFY_ENVIRONMENT",

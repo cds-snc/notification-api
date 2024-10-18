@@ -15,8 +15,16 @@ fileignoreconfig:
   checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
 - filename: app/template/rest.py
   checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
+- filename: cd/application-deployment/dev/dev.env
+  checksum: da33c215ecd18a2b3d44aa0d35c70a77b94cd5b2015d958a8103e96e7c707e23
 - filename: cd/application-deployment/dev/vaec-api-task-definition.json
   checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
+- filename: cd/application-deployment/perf/perf.env
+  checksum: ea3f1cf6feea351e2ad414e7edd55ea98b5c31d93383d890b6ec6dfeb08023c0
+- filename: cd/application-deployment/prod/prod.env
+  checksum: a5bc436f5567767174804947dace7b58063e863dc9a2a047362ee797ffe7226b
+- filename: cd/application-deployment/staging/staging.env
+  checksum: 786d9297860520e4ac71e491623ac12b98430d6b73e4c33cede67a6afdeaec07
 - filename: ci/docker-compose-test.yml
   checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
 - filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py

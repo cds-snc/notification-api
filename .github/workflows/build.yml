@@ -29,6 +29,10 @@ jobs:
           role-skip-session-tagging: true
           role-duration-seconds: 900
 
+      - name: Upload Env File to S3
+        run: |
+          aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/
+
       - name: Login to VAEC ECR
         id: login-ecr-vaec
         uses: aws-actions/amazon-ecr-login@v2
