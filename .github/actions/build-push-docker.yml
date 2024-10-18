@@ -1,0 +1,48 @@
+name: 'Builds and Push Docker Image'
+description: 'Builds and pushes a Docker image for the API and dispatches a Twistlock workflow'
+inputs:
+  ref:
+    description: 'Git reference (commit SHA, branch, or tag) to build'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.ref }}
+
+    - name: Configure VAEC AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4.0.2
+      with:
+        aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-gov-west-1
+        role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+        role-skip-session-tagging: true
+        role-duration-seconds: 900
+
+    - name: Upload Env File to S3
+        run: |
+          aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/
+
+    - name: Login to VAEC ECR
+      id: login-ecr-vaec
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        mask-password: 'true'
+
+    - name: Docker Build
+      uses: docker/build-push-action@v6
+      with:
+        file: ci/Dockerfile
+        context: .
+        push: true
+        tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}
+
+    - name: Dispatch Twistlock Workflow
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh workflow run -r main -F image-tag=${{ inputs.ref }} twistlock.yml
