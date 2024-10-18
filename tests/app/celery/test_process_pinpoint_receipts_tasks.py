@@ -6,6 +6,7 @@ from freezegun import freeze_time
 from app import statsd_client
 from app.aws.mocks import (
     pinpoint_delivered_callback,
+    pinpoint_delivered_callback_missing_sms_data,
     pinpoint_failed_callback,
     pinpoint_shortcode_delivered_callback,
     pinpoint_successful_callback,
@@ -30,13 +31,15 @@ from tests.app.db import (
 
 
 @pytest.mark.parametrize(
-    "callback, expected_response",
+    "callback, expected_response, origination_phone_number",
     [
-        (pinpoint_delivered_callback, "Message has been accepted by phone"),
-        (pinpoint_shortcode_delivered_callback, "Message has been accepted by phone carrier"),
+        (pinpoint_delivered_callback, "Message has been accepted by phone", "+13655550100"),
+        (pinpoint_shortcode_delivered_callback, "Message has been accepted by phone carrier", "555555"),
     ],
 )
-def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_db_session, callback, expected_response, mocker):
+def test_process_pinpoint_results_delivered(
+    sample_template, notify_db, notify_db_session, callback, expected_response, origination_phone_number, mocker
+):
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
 
@@ -56,6 +59,12 @@ def test_process_pinpoint_results_delivered(sample_template, notify_db, notify_d
     assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == expected_response
+    assert float(get_notification_by_id(notification.id).sms_total_message_price) == 0.00581
+    assert float(get_notification_by_id(notification.id).sms_total_carrier_fee) == 0.006
+    assert get_notification_by_id(notification.id).sms_iso_country_code == "CA"
+    assert get_notification_by_id(notification.id).sms_carrier_name == "Bell"
+    assert get_notification_by_id(notification.id).sms_message_encoding == "GSM"
+    assert get_notification_by_id(notification.id).sms_origination_phone_number == origination_phone_number
 
     mock_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
@@ -79,6 +88,30 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
     assert mock_callback_task.not_called()
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
     assert get_notification_by_id(notification.id).provider_response is None
+
+
+def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, notify_db_session, mocker):
+    mock_callback_task = mocker.patch("app.notifications.callbacks._check_and_queue_callback_task")
+
+    notification = create_sample_notification(
+        notify_db,
+        notify_db_session,
+        template=sample_template,
+        reference="ref",
+        status=NOTIFICATION_SENT,
+        sent_by="pinpoint",
+        sent_at=datetime.utcnow(),
+    )
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
+
+    process_pinpoint_results(pinpoint_delivered_callback_missing_sms_data(reference="ref"))
+
+    assert mock_callback_task.called_once_with(get_notification_by_id(notification.id))
+    assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
+    assert float(get_notification_by_id(notification.id).sms_total_message_price) == 0.00581
+    assert float(get_notification_by_id(notification.id).sms_total_carrier_fee) == 0.006
+    assert get_notification_by_id(notification.id).sms_iso_country_code is None
+    assert get_notification_by_id(notification.id).sms_carrier_name is None
 
 
 @pytest.mark.parametrize(
