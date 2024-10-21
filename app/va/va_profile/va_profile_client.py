@@ -86,6 +86,9 @@ class VAProfileClient:
         va_profile_token,
         statsd_client,
     ):
+        from app import HTTP_TIMEOUT  # Circular import
+
+        self.timeout = HTTP_TIMEOUT
         self.logger: Logger = logger
         self.va_profile_url = va_profile_url
         self.ssl_cert_path = ssl_cert_path
@@ -109,7 +112,7 @@ class VAProfileClient:
         data = {'bios': [{'bioPath': 'contactInformation'}, {'bioPath': 'communicationPermissions'}]}
 
         try:
-            response = requests.post(url, json=data, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=(3.05, 1))
+            response = requests.post(url, json=data, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=self.timeout)
             response.raise_for_status()
         except (requests.HTTPError, requests.RequestException, requests.Timeout) as e:
             self._handle_exceptions(va_profile_id.id_value, e)
@@ -339,10 +342,13 @@ class VAProfileClient:
 
         elif isinstance(error, requests.RequestException):
             self.statsd_client.incr('clients.va-profile.error.request_exception')
-            failure_message = 'VA Profile returned RequestException while querying for VA Profile ID'
+            failure_message = f'VA Profile returned {error.__class__.__name__} while querying for VA Profile ID'
 
             if isinstance(error, requests.Timeout):
-                failure_message = f'VA Profile request timed out for VA Profile ID {va_profile_id_value}.'
+                failure_message = (
+                    f'VA Profile request timed out with {error.__class__.__name__} '
+                    f'for VA Profile ID {va_profile_id_value}.'
+                )
 
             exception = VAProfileRetryableException(failure_message)
             exception.failure_reason = failure_message
@@ -370,7 +376,7 @@ class VAProfileClient:
         # make POST request to VA Profile endpoint for notification statuses
         # raise errors if they occur, they will be handled by the calling function
         try:
-            response = requests.post(url, json=notification_data, headers=headers, timeout=(3.05, 1))
+            response = requests.post(url, json=notification_data, headers=headers, timeout=self.timeout)
         except requests.Timeout:
             self.logger.exception(
                 'Request timeout attempting to send email status to VA Profile for notification %s | retrying...',

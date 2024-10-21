@@ -1,7 +1,7 @@
 import base64
 import binascii
 
-from sqlalchemy.orm.exc import NoResultFound
+from cachetools import TTLCache, cached
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
     get_international_phone_info,
 )
 from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
+from sqlalchemy.orm.exc import NoResultFound
 
 from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
@@ -228,6 +229,7 @@ def check_service_email_reply_to_id(
             raise BadRequestError(message=message)
 
 
+@cached(cache=TTLCache(maxsize=1024, ttl=600))
 def check_service_sms_sender_id(
     service_id,
     sms_sender_id,

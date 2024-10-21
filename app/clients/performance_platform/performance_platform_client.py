@@ -14,6 +14,9 @@ class PerformancePlatformClient:
         self,
         app,
     ):
+        from app import HTTP_TIMEOUT  # Circular import
+
+        self.timeout = HTTP_TIMEOUT
         self._active = app.config.get('PERFORMANCE_PLATFORM_ENABLED')
         if self.active:
             self.performance_platform_url = app.config.get('PERFORMANCE_PLATFORM_URL')
@@ -27,7 +30,7 @@ class PerformancePlatformClient:
             bearer_token = self.performance_platform_endpoints[payload['dataType']]
             headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(bearer_token)}
             resp = requests.post(
-                self.performance_platform_url + payload['dataType'], json=payload, headers=headers, timeout=(3.05, 1)
+                self.performance_platform_url + payload['dataType'], json=payload, headers=headers, timeout=self.timeout
             )
 
             if resp.status_code == 200:

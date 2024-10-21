@@ -96,8 +96,9 @@ To support running locally, the repository includes a default `app/version.py` f
 Running `flask db migrate` on the container ci_app_1 errors because the files in the migrations folder are read-only.  Follow this procedure to create a database migration using Flask:
 
 1. Ensure all containers are stopped and that the notification_api image has been built
-2. Run `docker compose -f ci/docker-compose-local-migrate.yml up`.  This creates the container ci_app_migrate with your local notification-api directory mounted in read-write mode.  The container runs `flask db migrate` and exits.
-3. Press Ctrl-C to stop the containers, and identify the new file in `migrations/versions/`.
+2. Run migrations at least once e.g. `docker compose -f ci/docker-compose-local.yml up` and stop any running containers.
+3. Run `docker compose -f ci/docker-compose-local-migrate.yml up`.  This creates the container ci_app_migrate with your local notification-api directory mounted in read-write mode.  The container runs `flask db migrate` and exits.
+4. Press Ctrl-C to stop the containers, and identify the new file in `migrations/versions/`.
 
 ### Unit testing
 See the [tests README.md](tests/README.md) for information.

@@ -4,6 +4,8 @@ from functools import wraps
 
 
 def cronitor(task_name):
+    from app import HTTP_TIMEOUT  # Circular import
+
     # check if task_name is in config
     def decorator(func):
         def ping_cronitor(command):
@@ -25,7 +27,7 @@ def cronitor(task_name):
                     params={
                         'host': current_app.config['API_HOST_NAME'],
                     },
-                    timeout=(3.05, 1),
+                    timeout=HTTP_TIMEOUT,
                 )
                 resp.raise_for_status()
             except requests.RequestException:

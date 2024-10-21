@@ -6,7 +6,7 @@ from requests import post
 from requests.exceptions import Timeout, RequestException
 from notifications_utils.statsd_decorators import statsd
 
-from app import notify_celery, encryption, statsd_client, DATETIME_FORMAT
+from app import notify_celery, encryption, statsd_client, DATETIME_FORMAT, HTTP_TIMEOUT
 from app.callback.webhook_callback_strategy import generate_callback_signature
 from app.celery.exceptions import AutoRetryException, NonRetryableException, RetryableException
 from app.config import QueueNames
@@ -394,7 +394,7 @@ def send_delivery_status_from_notification(
                 'Content-Type': 'application/json',
                 'x-enp-signature': callback_signature,
             },
-            timeout=(3.05, 1),
+            timeout=HTTP_TIMEOUT,
         )
         response.raise_for_status()
     except Timeout as e:

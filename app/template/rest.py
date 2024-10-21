@@ -18,6 +18,7 @@ from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.template import HTMLEmailTemplate
 
+from app import HTTP_TIMEOUT
 from app.authentication.auth import requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
 from app.communication_item import validate_communication_items
 from app.dao.fact_notification_status_dao import fetch_template_usage_for_service_with_given_template
@@ -453,14 +454,14 @@ def _get_png_preview_or_overlaid_pdf(
             url,
             json=data,
             headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
-            timeout=(3.05, 1),
+            timeout=HTTP_TIMEOUT,
         )
     else:
         resp = requests_post(
             url,
             data=data,
             headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
-            timeout=(3.05, 1),
+            timeout=HTTP_TIMEOUT,
         )
 
     if resp.status_code != 200:

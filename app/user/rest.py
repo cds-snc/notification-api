@@ -11,7 +11,7 @@ from flask import jsonify, request, Blueprint, current_app, abort
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlencode
 
-from app import db
+from app import db, HTTP_TIMEOUT
 from app.config import QueueNames, Config
 from app.dao.fido2_key_dao import (
     save_fido2_key,
@@ -438,7 +438,10 @@ def send_support_email(user_id):
     }
 
     response = requests.post(
-        '{}/api/v2/tickets'.format(API_URL), json=ticket, auth=requests.HTTPBasicAuth(API_KEY, 'x'), timeout=(3.05, 1)
+        '{}/api/v2/tickets'.format(API_URL),
+        json=ticket,
+        auth=requests.HTTPBasicAuth(API_KEY, 'x'),
+        timeout=HTTP_TIMEOUT,
     )
 
     if response.status_code != 201:

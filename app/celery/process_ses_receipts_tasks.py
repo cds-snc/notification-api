@@ -14,7 +14,8 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 import enum
 import requests
-from app import DATETIME_FORMAT, notify_celery, statsd_client, va_profile_client
+
+from app import DATETIME_FORMAT, HTTP_TIMEOUT, notify_celery, statsd_client, va_profile_client
 from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import publish_complaint
 from app.config import QueueNames
@@ -74,7 +75,7 @@ def get_certificate(url):
     res = certificate_cache.get(url)
     if res is not None:
         return res
-    res = requests.get(url, timeout=(3.05, 1)).content
+    res = requests.get(url, timeout=HTTP_TIMEOUT).content
     certificate_cache.set(url, res, timeout=60 * 60)  # 60 minutes
     return res
 
@@ -106,7 +107,7 @@ def sns_callback_handler():
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
         try:
-            response = requests.get(url, timeout=(3.05, 1))
+            response = requests.get(url, timeout=HTTP_TIMEOUT)
             response.raise_for_status()
         except requests.RequestException as e:
             current_app.logger.warning('Response: %s', response.text)
@@ -140,7 +141,7 @@ def sns_smtp_callback_handler():
     if message.get('Type') == 'SubscriptionConfirmation':
         url = message.get('SubscribeURL')
         try:
-            response = requests.get(url, timeout=(3.05, 1))
+            response = requests.get(url, timeout=HTTP_TIMEOUT)
             response.raise_for_status()
         except requests.RequestException as e:
             current_app.logger.warning('Response: %s', response.text)

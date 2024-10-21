@@ -4,8 +4,9 @@ import requests
 
 from flask import current_app
 
-from app import db, notify_celery
+from app import notify_celery
 from app.celery.exceptions import AutoRetryException
+from app.dao.dao_utils import get_reader_session
 from app.models import Notification, NotificationHistory, TemplateHistory
 
 
@@ -54,24 +55,25 @@ def post_to_ga4(notification_id: str, event_name, event_source, event_medium) ->
         current_app.logger.error('GA4_MEASUREMENT_ID is not set')
         return False
 
-    # Retrieve the notification from the database.  It might have moved to history.
-    notification = db.session.get(Notification, notification_id)
-    if notification is None:
-        notification = db.session.get(NotificationHistory, notification_id)
+    with get_reader_session() as session:
+        # Retrieve the notification from the database.  It might have moved to history.
+        notification = session.get(Notification, notification_id)
         if notification is None:
-            current_app.logger.warning('GA4: Notification %s not found', notification_id)
-            return False
+            notification = session.get(NotificationHistory, notification_id)
+            if notification is None:
+                current_app.logger.warning('GA4: Notification %s not found', notification_id)
+                return False
+            else:
+                # The notification is a NotificationHistory instance.
+                template_id = notification.template_id
+                template_name = session.get(TemplateHistory, (template_id, notification.template_version)).name
         else:
-            # The notification is a NotificationHistory instance.
-            template_id = notification.template_id
-            template_name = db.session.get(TemplateHistory, (template_id, notification.template_version)).name
-    else:
-        # The notification is a Notification instance.
-        template_id = notification.template.id
-        template_name = notification.template.name
+            # The notification is a Notification instance.
+            template_id = notification.template.id
+            template_name = notification.template.name
 
-    service_id = notification.service_id
-    service_name = notification.service.name
+        service_id = notification.service_id
+        service_name = notification.service.name
 
     url_str = current_app.config.get('GA4_URL', '')
     url_params_dict = {

@@ -5,6 +5,7 @@ from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 from time import monotonic
 from http.client import responses
 from functools import reduce
+
 from app.va.identifier import (
     IdentifierType,
     transform_to_fhir_format,
@@ -82,6 +83,9 @@ class MpiClient:
         ssl_key_path,
         statsd_client,
     ):
+        from app import HTTP_TIMEOUT  # Circular import
+
+        self.timeout = HTTP_TIMEOUT
         self.logger = logger
         self.base_url = url
         self.ssl_cert_path = ssl_cert_path
@@ -132,7 +136,7 @@ class MpiClient:
                     f'{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}',
                     params={'-sender': self.SYSTEM_IDENTIFIER},
                     cert=(self.ssl_cert_path, self.ssl_key_path),
-                    timeout=(3.05, 5),
+                    timeout=self.timeout,
                 )
 
                 response.raise_for_status()
