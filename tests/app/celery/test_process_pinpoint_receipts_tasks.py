@@ -239,4 +239,6 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         statsd_client.incr.assert_any_call("callback.pinpoint.delivered")
         updated_notification = get_notification_by_id(notification.id)
         signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        mock_send_status.assert_called_once_with([str(notification.id), signed_data], queue="service-callbacks")
+        mock_send_status.assert_called_once_with(
+            [str(notification.id), signed_data, notification.service_id], queue="service-callbacks"
+        )

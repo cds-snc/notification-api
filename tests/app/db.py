@@ -26,6 +26,7 @@ from app.dao.service_sms_sender_dao import (
     update_existing_sms_sender_with_inbound_number,
 )
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
 from app.models import (
@@ -62,6 +63,7 @@ from app.models import (
     ServicePermission,
     ServiceSmsSender,
     Template,
+    TemplateCategory,
     TemplateFolder,
     User,
 )
@@ -116,6 +118,7 @@ def create_service(
     go_live_at=None,
     crown=True,
     organisation=None,
+    sensitive_service=None,
 ):
     if check_if_service_exists:
         service = Service.query.filter_by(name=service_name).first()
@@ -132,6 +135,7 @@ def create_service(
             go_live_user=go_live_user,
             go_live_at=go_live_at,
             crown=crown,
+            sensitive_service=sensitive_service,
         )
         dao_create_service(
             service,
@@ -191,7 +195,21 @@ def create_template(
     template_category=None,
     postage=None,
     process_type="normal",
+    text_direction_rtl=False,
 ):
+    if not template_category:
+        data = {
+            "name_en": str(uuid.uuid4()),
+            "name_fr": str(uuid.uuid4()),
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": False,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "sms_sending_vehicle": "long_code",
+        }
+        template_category = TemplateCategory(**data)
+        template_category = dao_create_template_category(template_category)
     data = {
         "name": template_name or "{} Template Name".format(template_type),
         "template_type": template_type,
@@ -203,6 +221,7 @@ def create_template(
         "folder": folder,
         "template_category": template_category,
         "process_type": process_type,
+        "text_direction_rtl": text_direction_rtl,
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"
@@ -490,12 +509,14 @@ def create_service_inbound_api(
 def create_service_callback_api(
     service,
     url="https://something.com",
+    is_suspended=False,
     bearer_token="some_super_secret",
     callback_type="delivery_status",
 ):
     service_callback_api = ServiceCallbackApi(
         service_id=service.id,
         url=url,
+        is_suspended=is_suspended,
         bearer_token=bearer_token,
         updated_by_id=service.users[0].id,
         callback_type=callback_type,

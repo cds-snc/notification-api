@@ -11,11 +11,21 @@ def _check_and_queue_callback_task(notification):
     if notification is None:
         current_app.logger.warning("No notification provided, cannot queue callback task")
         return
-    # queue callback task only if the service_callback_api exists
+
     service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
+
+    # queue callback task only if the service_callback_api exists and it is not in a suspended state
     if service_callback_api:
+        if service_callback_api.is_suspended:
+            current_app.logger.warning(
+                f"Service callback API: {service_callback_api.id} for service: {notification.service_id} is suspended. Cannot queue callback task for notification: {notification.id}"
+            )
+            return
+
         notification_data = create_delivery_status_callback_data(notification, service_callback_api)
-        send_delivery_status_to_service.apply_async([str(notification.id), notification_data], queue=QueueNames.CALLBACKS)
+        send_delivery_status_to_service.apply_async(
+            [str(notification.id), notification_data, notification.service_id], queue=QueueNames.CALLBACKS
+        )
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):

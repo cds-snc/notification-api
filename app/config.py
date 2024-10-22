@@ -240,6 +240,9 @@ class Config(object):
     DEBUG = False
     NOTIFY_LOG_PATH = os.getenv("NOTIFY_LOG_PATH")
 
+    # Xray SDK
+    AWS_XRAY_ENABLED = env.bool("AWS_XRAY_SDK_ENABLED", False)  # X-Ray switch leveraged by the SDK
+
     # Cronitor
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
@@ -488,6 +491,7 @@ class Config(object):
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
+    AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
 
@@ -562,11 +566,13 @@ class Config(object):
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-    FF_TEMPLATE_CATEGORY = env.bool("FF_TEMPLATE_CATEGORY", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
+    # cache clear auth keys
+    CACHE_CLEAR_USER_NAME = "CACHE_CLEAR_USER"
+    CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -617,6 +623,7 @@ class Development(Config):
     SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
+    CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")

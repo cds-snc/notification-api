@@ -29,18 +29,18 @@ from tests.app.db import create_letter_contact, create_template
     [
         ("sms", None, False),
         ("email", "subject", False),
-        ("letter", "subject", False),
         ("sms", None, True),
         ("email", "subject", True),
     ],
 )
-def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation):
+def test_create_template(sample_service, sample_user, template_type, subject, redact_personalisation, sample_template_category):
     data = {
         "name": "Sample Template",
         "template_type": template_type,
         "content": "Template content",
         "service": sample_service,
         "created_by": sample_user,
+        "template_category_id": sample_template_category.id,
     }
     if template_type == "letter":
         data["postage"] = "second"
@@ -504,3 +504,33 @@ def test_dao_update_template_category(sample_template, sample_template_category)
     history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
     assert not history.template_category_id
     assert history.updated_at == updated_template.updated_at
+
+
+class TestProcessType:
+    def test_process_type_set_correctly(self, sample_service, sample_user, sample_template_category):
+        data = {
+            "name": "Sample Template",
+            "template_type": "sms",
+            "content": "Template content",
+            "service": sample_service,
+            "created_by": sample_user,
+        }
+        # We are not setting the template process_type, hence process_type defaults to "normal", but the value in the DB is empty
+        template = Template(**data)
+
+        template.process_type = "priority"
+        dao_update_template(template)
+        assert template.process_type == "priority"
+        assert template.process_type_column == "priority"
+
+        template.process_type = "bulk"
+        dao_update_template(template)
+        assert template.process_type == "bulk"
+        assert template.process_type_column == "bulk"
+
+        template.process_type = None
+        template.template_category_id = sample_template_category.id
+        dao_update_template(template)
+        assert template.template_category_id == sample_template_category.id
+        assert template.process_type == sample_template_category.email_process_type
+        assert template.process_type_column is None

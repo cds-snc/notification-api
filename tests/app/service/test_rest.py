@@ -1721,13 +1721,13 @@ def test_get_notifications_for_service_gets_data_from_correct_timeframe(
     for i in range(retention_period):
         for j in range(24):
             save_notification(
-                create_notification(email_template, created_at=datetime(2018, 11, 13 + i, j, 0, 0), status="delivered")
+                create_notification(email_template, created_at=datetime(2018, 11, 14 + i, j, 0, 0), status="delivered")
             )
 
     resp = admin_request.get(
         "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
     )
-    assert resp["total"] == expected_count_of_notifications
+    assert resp["total"] == expected_count_of_notifications  #
 
 
 @pytest.mark.parametrize(
@@ -3223,3 +3223,27 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
 
     dao_mock.assert_called_once_with(start_date, end_date)
     assert response == []
+
+
+class TestGetSensitiveServiceids:
+    def test_get_sensitive_service_id(self, client, notify_db, notify_db_session):
+        service = create_service(service_name="service1", sensitive_service=True)
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == [str(service.id)]
+
+    def test_no_sensitive_services(self, client, notify_db, notify_db_session):
+        assert Service.query.count() == 0
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == []
