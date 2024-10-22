@@ -79,7 +79,7 @@ jobs:
       - name: Build and Push Artifacts
         uses: ./.github/actions/build-push-artifacts
         with:
-          ref: {{ needs.setup-environment.outputs.tag }}
+          ref: ${{ needs.setup-environment.outputs.tag }}
           environment: ${{ needs.setup-environment.outputs.environment }}
           aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
