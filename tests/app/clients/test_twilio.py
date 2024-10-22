@@ -687,3 +687,72 @@ def test_send_sms_raises_invalid_provider_error_with_invalid_twilio_number(
             )
 
             twilio_sms_client.send_sms(to, content, reference)
+
+
+def test_get_twilio_message(
+    notify_api,
+    mocker,
+):
+    twilio_sid = 'test_sid'
+    response_dict = make_twilio_message_response_dict()
+    response_dict['sid'] = twilio_sid
+
+    with requests_mock.Mocker() as r_mock:
+        r_mock.get(
+            f'https://api.twilio.com/2010-04-01/Accounts/{twilio_sms_client._account_sid}/Messages/{twilio_sid}.json',
+            json=response_dict,
+            status_code=200,
+        )
+
+        response = twilio_sms_client.get_twilio_message(twilio_sid)
+
+    assert response.sid == twilio_sid
+    assert response.status == 'sent'
+
+
+def test_update_notification_status_override(
+    notify_api,
+    mocker,
+    sample_notification,
+    notify_db_session,
+):
+    response_dict = make_twilio_message_response_dict()
+    response_dict['sid'] = 'test_sid'
+    response_dict['status'] = 'delivered'
+    twilio_sid = response_dict['sid']
+
+    notification = sample_notification(status='sending', reference=twilio_sid)
+
+    with requests_mock.Mocker() as r_mock:
+        r_mock.get(
+            f'https://api.twilio.com/2010-04-01/Accounts/{twilio_sms_client._account_sid}/Messages/{twilio_sid}.json',
+            json=response_dict,
+            status_code=200,
+        )
+
+        twilio_sms_client.update_notification_status_override(twilio_sid)
+
+    # Retrieve the updated notification
+    notify_db_session.session.refresh(notification)
+    assert notification.status == 'delivered'
+
+
+def test_update_notification_with_unknown_sid(
+    notify_api,
+    mocker,
+    sample_notification,
+    notify_db_session,
+):
+    twilio_sid = 'test_sid'
+
+    notification = sample_notification(status='sending', reference=twilio_sid)
+
+    # Mock the call to get_twilio_message
+    mocker.patch('app.clients')
+    mocker.patch('app.clients.sms.twilio.TwilioSMSClient.get_twilio_message', side_effect=TwilioRestException)
+
+    twilio_sms_client.update_notification_status_override(twilio_sid)
+
+    # Retrieve the updated notification
+    notify_db_session.session.refresh(notification)
+    assert notification.status == 'sending'
