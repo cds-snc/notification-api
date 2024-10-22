@@ -112,6 +112,8 @@ def create_service(
     prefix_sms=True,
     message_limit=1000,
     sms_daily_limit=1000,
+    annual_email_limit=10000000,
+    annual_sms_limit=25000,
     organisation_type="central",
     check_if_service_exists=False,
     go_live_user=None,
