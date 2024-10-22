@@ -59,13 +59,22 @@ jobs:
           echo "The branch/tag is ${{ inputs.ref }}"
           echo "The commit hash is ${{ steps.set-hash.outputs.commit-hash }}"
 
-  run-build:
+  build-push-artifacts:
     needs: [setup-environment]
-    uses: ./.github/workflows/build.yml
-    with:
-      environment: "${{ inputs.environment }}"
-      ref: "${{ needs.setup-environment.outputs.git-hash }}"
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build and Push Artifacts
+        uses: ./.github/actions/build-push-artifacts
+        with:
+          ref: "${{ needs.setup-environment.outputs.git-hash }}"
+          environment: "${{ inputs.environment }}"
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
 
   run-lambda-deploy:
     if: ${{ inputs.lambdaDeploy }}
@@ -78,7 +87,7 @@ jobs:
     secrets: inherit
 
   run-deployment:
-    needs: [setup-environment, run-build]
+    needs: [setup-environment, build-push-artifacts]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: "${{ inputs.environment }}"

@@ -68,13 +68,22 @@ jobs:
       tag: ${{ steps.set-outputs.outputs.tag }}
       environment: ${{ steps.set-outputs.outputs.environment }}
 
-  run-build:
+  build-push-artifacts:
     needs: [setup-environment]
-    uses: ./.github/workflows/build.yml
-    with:
-      environment: ${{ needs.setup-environment.outputs.environment }}
-      ref: ${{ needs.setup-environment.outputs.tag }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.set-outputs.outputs.tag }}
+      - name: Build and Push Artifacts
+        uses: ./.github/actions/build-push-artifacts
+        with:
+          ref: {{ needs.setup-environment.outputs.tag }}
+          environment: ${{ needs.setup-environment.outputs.environment }}
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
 
   run-lambda-deploy:
     if: ${{ inputs.lambdaDeploy }}
@@ -87,7 +96,7 @@ jobs:
     secrets: inherit
 
   run-deployment:
-    needs: [setup-environment, run-build]
+    needs: [setup-environment, build-push-artifacts]
     uses: ./.github/workflows/deployment.yml
     with:
       environment: ${{ needs.setup-environment.outputs.environment }}
