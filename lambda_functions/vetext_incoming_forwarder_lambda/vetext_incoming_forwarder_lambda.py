@@ -1,6 +1,7 @@
 """This module is used to transfer incoming twilio requests to a Vetext endpoint."""
 
 import base64
+from copy import deepcopy
 from cryptography.fernet import Fernet, MultiFernet
 import json
 import logging
@@ -180,6 +181,12 @@ def vetext_incoming_forwarder_lambda_handler(
         for event_body in event_bodies:
             logger.debug('Processing event_body: %s', event_body)
             logger.info('Processing MessageSid: %s', event_body.get('MessageSid'))
+            # We cannot currently handle audio, images, etc. Only forward if it has a Body field
+            if not event_body.get('Body'):
+                redacted_event = deepcopy(event_body)
+                redacted_event['From'] = 'redacted'
+                logger.warning('Event was missing a body: %s', redacted_event)
+                continue
             response = make_vetext_request(event_body)
 
             if response is None:

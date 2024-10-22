@@ -7,7 +7,6 @@ from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder
 """
 
 from copy import deepcopy
-from botocore.config import Config
 import pytest
 import json
 import base64
@@ -70,6 +69,33 @@ albInvokedWithoutAddOn = {
         'x-use-static-proxy': 'true',
     },
     'body': 'QWNjb3VudFNpZD1BQ2M5OTZkM2I1YzIzODQ0NmRhMzFhZGMyZDIwNWY3YTE5JkFkZE9ucz0lN0IlMjJzdGF0dXMlMjIlM0ElMjJzdWNjZXNzZnVsJTIyJTJDJTIybWVzc2FnZSUyMiUzQW51bGwlMkMlMjJjb2RlJTIyJTNBbnVsbCUyQyUyMnJlc3VsdHMlMjIlM0ElN0IlN0QlN0QmQXBpVmVyc2lvbj0yMDEwLTA0LTAxJkJvZHk9dGVzdCtib2R5KzZhNTQ2M2NhLWM1OWEtNDVjMy05ZmMwLWRmMWFkMTk4ZjBkOCZGcm9tPSUyQjE4ODg4ODg4ODg4JkZyb21DaXR5PUxPUytBTkdFTEVTJkZyb21Db3VudHJ5PVVTJkZyb21TdGF0ZT1DQSZGcm9tWmlwPTEyMzQ1Jk1lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZNZXNzYWdpbmdTZXJ2aWNlU2lkPU1HMWRkMmQyYjM1YjU5NDZmMDg2ZmM1NTZkZTYwZDRlODcmTnVtTWVkaWE9MCZOdW1TZWdtZW50cz0xJlNtc01lc3NhZ2VTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTaWQ9U00zYWEwZGEzOWFjZTI0NGY5OTkzZGUwNTIyMTY1YTY1NSZTbXNTdGF0dXM9cmVjZWl2ZWQmVG89JTJCMTIzNDU2Nzg5MDEmVG9DaXR5PVBST1ZJREVOQ0UmVG9Db3VudHJ5PVVTJlRvU3RhdGU9UkkmVG9aaXA9MDI5MDE=',
+}
+
+alb_invoke_without_message_body = {
+    'requestContext': {'elb': {'targetGroupArn': ''}},
+    'httpMethod': 'POST',
+    'path': '/twoway/vettext',
+    'queryStringParameters': {},
+    'headers': {
+        'accept': '*/*',
+        'connection': 'close',
+        'content-length': '552',
+        'content-type': 'application/x-www-form-urlencoded',
+        'host': 'staging-api.va.gov',
+        'i-twilio-idempotency-token': '09f6d617-b893-4864-8f42-24a36ec48691',
+        'user-agent': 'TwilioProxy/1.1',
+        'x-amzn-trace-id': '',
+        'x-forwarded-for': '',
+        'x-forwarded-host': 'api.va.gov:443',
+        'x-forwarded-port': '443',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-scheme': 'https',
+        'x-home-region': 'us1',
+        'x-real-ip': '',
+        'x-twilio-signature': 'BdVa7Am7J6kWWRglWhynjK0L9hk=',
+        'x-use-static-proxy': 'true',
+    },
+    'body': 'QWNjb3VudFNpZD1BQ2M0MmI5MjA1NjQzMTRlOTRhMDNmOTQzY2Y4ZjZhYjc0JkFkZE9ucz0lN0IlMjJzdGF0dXMlMjIlM0ElMjJzdWNjZXNzZnVsJTIyJTJDJTIybWVzc2FnZSUyMiUzQW51bGwlMkMlMjJjb2RlJTIyJTNBbnVsbCUyQyUyMnJlc3VsdHMlMjIlM0ElN0IlN0QlN0QmQXBpVmVyc2lvbj0yMDEwLTA0LTAxJkJvZHk9JkZyb209JTJCMTg4ODg4ODg4ODgmRnJvbUNpdHk9TE9TK0FOR0VMRVMmRnJvbUNvdW50cnk9VVMmRnJvbVN0YXRlPUNBJkZyb21aaXA9MTIzNDUmTWVzc2FnZVNpZD1TTTU1MTIxNDMxMTgyNjQ2ODc4ZTM0N2YzODFkYWJlNTE3Jk1lc3NhZ2luZ1NlcnZpY2VTaWQ9TUc2YTg1YmFlYjkwMDI0MTQzYTlmZDk5ZjE5ZDVhZWZmZCZOdW1NZWRpYT0wJk51bVNlZ21lbnRzPTEmU21zTWVzc2FnZVNpZD1TTTU1MTIxNDMxMTgyNjQ2ODc4ZTM0N2YzODFkYWJlNTE3JlNtc1NpZD1TTTU1MTIxNDMxMTgyNjQ2ODc4ZTM0N2YzODFkYWJlNTE3JlNtc1N0YXR1cz1yZWNlaXZlZCZUbz0lMkIxMjM0NTY3ODkwMSZUb0NpdHk9UFJPVklERU5DRSZUb0NvdW50cnk9VVMmVG9TdGF0ZT1SSSZUb1ppcD0wMjkwMQ==',
 }
 
 sqsInvokedWithAddOn = {
@@ -512,6 +538,35 @@ def test_ut_validate_twilio_event_returns_false(all_path_env_param_set, event):
     new_event = deepcopy(event)
     new_event['headers']['x-twilio-signature'] = 'invalid'
     assert not validate_twilio_event(new_event)
+
+
+def test_missing_message_body(all_path_env_param_set, mocker):
+    """Test that messaages coming from Twilio without a message body are not sent anywhere
+
+    Args:
+        all_path_env_param_set (_type_): Set environmental variables
+    """
+    from lambda_functions.vetext_incoming_forwarder_lambda.vetext_incoming_forwarder_lambda import (
+        vetext_incoming_forwarder_lambda_handler,
+        process_body_from_alb_invocation,
+    )
+
+    # Mocks
+    mocker.patch(f'{LAMBDA_MODULE}.validate_twilio_event', return_value=True)
+    mock_make_vetext_request = mocker.patch(f'{LAMBDA_MODULE}.make_vetext_request')
+    mock_logger = mocker.patch(f'{LAMBDA_MODULE}.logger')
+
+    # Expected behavior
+    event = deepcopy(alb_invoke_without_message_body)
+    event_body = process_body_from_alb_invocation(event)[0]  # First and only item in the list
+    redacted_body = event_body.copy()
+    redacted_body['From'] = 'redacted'
+    response = vetext_incoming_forwarder_lambda_handler(event, True)
+
+    # Validation
+    mock_make_vetext_request.assert_not_called()
+    mock_logger.warning.assert_called_once_with('Event was missing a body: %s', redacted_body)
+    assert response['statusCode'] == 200
 
 
 @pytest.mark.parametrize(
