@@ -75,7 +75,7 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.set-outputs.outputs.tag }}
+          ref: ${{ needs.setup-environment.outputs.tag }}
       - name: Build and Push Artifacts
         uses: ./.github/actions/build-push-artifacts
         with:
