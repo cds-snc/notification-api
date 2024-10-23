@@ -69,9 +69,6 @@ target/
 .idea/
 .vscode/settings.json
 
-# MonkeyType
-monkeytype.sqlite3
-
 # Mac
 *.DS_Store
 environment.sh
