@@ -22,6 +22,7 @@ echo -e "alias k-staging='aws eks --region ca-central-1 update-kubeconfig --name
 echo -e "alias k-prod='aws eks --region ca-central-1 update-kubeconfig --name notification-canada-ca-production-eks-cluster'" >> ~/.zshrc
 echo -e "source <(kubectl completion zsh)" >> ~/.zshrc
 echo -e "complete -F __start_kubectl k" >> ~/.zshrc
+echo -e "alias poe='poetry run poe'" >> ~/.zshrc
 
 # Smoke test
 # requires adding files .env_staging and .env_prod to the root of the project
@@ -49,6 +50,10 @@ make generate-version-file
 
 # Install dependencies
 poetry install
+
+# Poe the Poet plugin tab completions
+touch ~/.zfunc/_poe
+poetry run poe _zsh_completion > ~/.zfunc/_poe
 
 # Upgrade schema of the notification_api database.
 poetry run flask db upgrade
