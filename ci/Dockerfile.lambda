@@ -1,4 +1,4 @@
-FROM python:3.10-alpine3.16@sha256:afe68972cc00883d70b3760ee0ffbb7375cf09706c122dda7063ffe64c5be21b
+FROM python:3.10-alpine3.18@sha256:d5ee9613c89c9bd4c4112465d2136512ea8629bce6ff15fa27144f3cc16b5c6b
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.10/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -9,7 +9,10 @@ ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
-RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libc6-compat libexecinfo-dev make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libc6-compat make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+
+# libexecinfo-dev is required for the newrelic-lambda package but was removed in Alpine 3.17, so we add it via the 3.16 repo
+RUN apk add --no-cache --update --repository=https://dl-cdn.alpinelinux.org/alpine/v3.16/main/ libexecinfo-dev
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
