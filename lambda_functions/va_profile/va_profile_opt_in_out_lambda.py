@@ -20,18 +20,22 @@ envronment, it is the Lambda execution environment, which should make certain fi
 via lambda layers.
 """
 
-import boto3
+import calendar
 import json
-import jwt
 import logging
 import os
-import psycopg2
 import ssl
 import sys
+from datetime import datetime, timezone
+from http.client import HTTPSConnection, HTTPResponse
+from tempfile import NamedTemporaryFile
+from typing import Optional
+
+import boto3
+import jwt
+import psycopg2
 from botocore.exceptions import ClientError, ValidationError
 from cryptography.x509 import Certificate, load_pem_x509_certificate
-from http.client import HTTPSConnection
-from tempfile import NamedTemporaryFile
 
 
 logger = logging.getLogger('VAProfileOptInOut')
@@ -40,10 +44,25 @@ logger.setLevel(getattr(logging, os.getenv('LOG_LEVEL', 'DEBUG')))
 ALB_CERTIFICATE_ARN = os.getenv('ALB_CERTIFICATE_ARN')
 ALB_PRIVATE_KEY_PATH = os.getenv('ALB_PRIVATE_KEY_PATH')
 CA_PATH = '/opt/VA_CAs/'
+COMP_AND_PEN_OPT_IN_CUTOFF_TIME_UTC = 11, 10, 0, 0
+COMP_AND_PEN_OPT_IN_API_KEY_PARAM_PATH = os.getenv('COMP_AND_PEN_OPT_IN_API_KEY')
+COMP_AND_PEN_OPT_IN_TEMPLATE_ID = os.getenv('COMP_AND_PEN_OPT_IN_TEMPLATE_ID')
+COMP_AND_PEN_SERVICE_ID = os.getenv('COMP_AND_PEN_SERVICE_ID')
+COMP_AND_PEN_SMS_SENDER_ID = os.getenv('COMP_AND_PEN_SMS_SENDER_ID')
 NOTIFY_ENVIRONMENT = os.getenv('NOTIFY_ENVIRONMENT')
 OPT_IN_OUT_QUERY = """SELECT va_profile_opt_in_out(%s, %s, %s, %s, %s);"""
+OPT_IN_OUT_ADD_NOTIFICATION_ID_QUERY = (
+    """ UPDATE va_profile_local_cache SET notification_id = %s WHERE va_profile_id = %s AND source_datetime = %s; """
+)
 VA_PROFILE_DOMAIN = os.getenv('VA_PROFILE_DOMAIN')
 VA_PROFILE_PATH_BASE = '/communication-hub/communication/v1/status/changelog/'
+VA_NOTIFY_SEND_SMS_PATH = '/v2/notifications/sms'
+
+# Build domain based on environment
+if NOTIFY_ENVIRONMENT == 'prod':
+    VA_NOTIFY_DOMAIN = 'api.notifications.va.gov'
+else:
+    VA_NOTIFY_DOMAIN = f'{NOTIFY_ENVIRONMENT}.api.notifications.va.gov'
 
 
 if NOTIFY_ENVIRONMENT is None:
@@ -97,6 +116,10 @@ if sqlalchemy_database_uri is None:
 # The certificates are not necessary for testing, wherein the PUT request is mocked.
 ssl_context = None
 
+# Use mock API Key in env variables for testing, else set to None
+# Outside of testing, COMP_AND_PEN_OPT_IN_API_KEY is defined by its paramater store value
+COMP_AND_PEN_OPT_IN_API_KEY = os.getenv('COMP_AND_PEN_OPT_IN_API_KEY', None)
+
 if ALB_CERTIFICATE_ARN is None:
     logger.error('ALB_CERTIFICATE_ARN is not set.')
 elif ALB_PRIVATE_KEY_PATH is None:
@@ -128,6 +151,12 @@ elif NOTIFY_ENVIRONMENT != 'test':
             f.seek(0)
 
             ssl_context.load_cert_chain(f.name)
+
+        # Get Comp and Pen API Key from Parameter Store
+        ssm_response_api_key = ssm_client.get_parameter(
+            Name=COMP_AND_PEN_OPT_IN_API_KEY_PARAM_PATH, WithDecryption=True
+        )
+        COMP_AND_PEN_OPT_IN_API_KEY = ssm_response_api_key['Parameter']['Value']
     except (OSError, ClientError, ssl.SSLError, ValidationError, KeyError) as e:
         logger.exception(e)
         if isinstance(e, ssl.SSLError):
@@ -325,6 +354,7 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
             c.execute(OPT_IN_OUT_QUERY, params)
             put_body['status'] = 'COMPLETED_SUCCESS' if c.fetchone()[0] else 'COMPLETED_NOOP'
             db_connection.commit()
+
         logger.debug('Executed the stored function.')
     except KeyError as e:
         # Bad Request.  Required attributes are missing.
@@ -364,6 +394,50 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
                         'put_body': put_body,
                     }
                 )
+
+        va_profile_id = bio['vaProfileId']
+
+    try:
+        # Send Comp and Pen Opt-In confirmation if anticipated status code still 200
+        # And if Opt-In confirmation (bio['allowed'] == True)
+        if post_response['statusCode'] == 200 and bio['allowed']:
+            response = send_comp_and_pen_opt_in_confirmation(va_profile_id)
+
+            # Save notification_id from POST sms response if method returned
+            # a value AND the response status code is 201.
+            if response is None:
+                logger.critical(
+                    'Could not send Comp and Pen opt-in confirmation to VAProfileId: %s. No response status or response body to record.',
+                    va_profile_id,
+                )
+            elif response.status != 201:
+                response_data = response.read().decode()
+                response_json = json.loads(response_data)
+                logger.critical(
+                    'Could not send Comp and Pen opt-in confirmation to VAProfileId: %s. Response status: %s, Response: %s',
+                    va_profile_id,
+                    response.status,
+                    response_data,
+                )
+            else:
+                response_data = response.read().decode()
+                response_json = json.loads(response_data)
+                notification_id = response_json['id']
+
+                logger.info(
+                    'Sent Comp and Pen opt-in confirmation to VAProfileId: %s with notification_id: %s. Response status: %s',
+                    va_profile_id,
+                    notification_id,
+                    response.status,
+                )
+                save_notification_id_to_cache(va_profile_id, notification_id, bio['sourceDate'])
+
+    except Exception as e:
+        logger.critical(
+            'Critical error during the process of sending a Comp and Pen Opt-in confirmation notification to VaProfileId: %s. Error: %s',
+            va_profile_id,
+            e,
+        )
 
     logger.info('POST response: %s', post_response)
     return post_response
@@ -446,6 +520,132 @@ def make_PUT_request(
         logger.exception(e)
     finally:
         https_connection.close()
+
+
+def send_comp_and_pen_opt_in_confirmation(va_profile_id: int) -> Optional[HTTPResponse]:
+    """
+    Send an opt-in confirmation SMS notification based on user's VAProfile ID.
+
+    Args:
+        va_profile_id (int): The VA profile ID of the user the notification should be sent to.
+    """
+
+    try:
+        # Personalization for opt-in confirmation notification SMS based on cutoff date
+        # to enroll in monthly Comp and Pen notification
+        now = datetime.now(timezone.utc)
+        cutoff_datetime = datetime(now.year, now.month, *COMP_AND_PEN_OPT_IN_CUTOFF_TIME_UTC, tzinfo=timezone.utc)
+
+        if now < cutoff_datetime:
+            month_personalisation = calendar.month_name[now.month]
+        else:
+            next_month = (now.month % 12) + 1
+            month_personalisation = calendar.month_name[next_month]
+
+        sms_data = json.dumps(
+            {
+                'template_id': COMP_AND_PEN_OPT_IN_TEMPLATE_ID,
+                'recipient_identifier': {'id_type': 'VAPROFILEID', 'id_value': str(va_profile_id)},
+                'sms_sender_id': COMP_AND_PEN_SMS_SENDER_ID,
+                'personalisation': {'month-name': month_personalisation},
+            }
+        )
+
+        logger.debug('Sending Comp and Pen opt-in confirmation SMS notification vaProfileId %s', va_profile_id)
+
+        conn = HTTPSConnection(VA_NOTIFY_DOMAIN, context=ssl_context)
+        encoded_header = generate_jwt()
+
+        conn.request(
+            'POST',
+            VA_NOTIFY_SEND_SMS_PATH,
+            body=sms_data,
+            headers={'Content-Type': 'application/json', 'Authorization': f'Bearer {encoded_header}'},
+        )
+
+        response = conn.getresponse()
+
+        if response.status != 201:
+            logger.error(
+                'Failed to send Comp and Pen opt-in confirmation SMS notification. Response status: %s',
+                {response.status},
+            )
+        else:
+            return response
+
+    except ValueError as ve:
+        logger.exception(
+            'Configuration error while attempting to send Comp and Pen opt-in confirmation SMS notification: %s', {ve}
+        )
+
+    except Exception as e:
+        logger.exception(
+            'An error occurred while attempting to send Comp and Pen opt-in confirmation SMS notification to vaProfileId %s: %s',
+            va_profile_id,
+            e,
+        )
+    return None
+
+
+def save_notification_id_to_cache(va_profile_id: int, notification_id: str, source_date: str):
+    """
+    Update the VAProfileLocalCache table by inserting the notification_id for the given va_profile_id.
+
+    Args:
+        va_profile_id (int): The VA profile ID of the user the notification was sent to.
+        notification_id (str): The notification UUID.
+    """
+    try:
+        with db_connection.cursor() as cursor:
+            # Execute the SQL query with the provided parameters.
+            cursor.execute(OPT_IN_OUT_ADD_NOTIFICATION_ID_QUERY, (notification_id, va_profile_id, source_date))
+
+            db_connection.commit()
+            logger.info(
+                'Successfully updated VAProfileLocalCache with notification_id %s for va_profile_id %s.',
+                notification_id,
+                va_profile_id,
+            )
+
+    except psycopg2.IntegrityError as e:
+        db_connection.rollback()
+        logger.error(
+            'Failed to insert notification_id %s for va_profile_id %s. IntegrityError: %s',
+            notification_id,
+            va_profile_id,
+            str(e),
+        )
+    except Exception as e:
+        db_connection.rollback()
+        logger.error(
+            'An error occurred while attempting to update notification_id: %s for va_profile_id %s: %s',
+            notification_id,
+            va_profile_id,
+            str(e),
+        )
+    finally:
+        cursor.close()
+
+
+def generate_jwt() -> str:
+    """
+    Generate a JWT token for authentication purposes.
+
+    Args:
+        service_api_key (str): The API key used to sign the JWT.
+        service_id (str): The service identifier.
+
+    Returns:
+        str: The generated JWT token.
+    """
+
+    headers = {'typ': 'JWT', 'alg': 'HS256'}
+
+    current_timestamp = int(datetime.now().timestamp())
+    payload = {'iss': COMP_AND_PEN_SERVICE_ID, 'iat': current_timestamp}
+
+    # Generate and return the signed JWT token using the pyJWT library
+    return jwt.encode(payload, COMP_AND_PEN_OPT_IN_API_KEY, algorithm='HS256', headers=headers)
 
 
 def get_integration_testing_public_cert() -> Certificate:
