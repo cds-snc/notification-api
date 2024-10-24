@@ -1096,6 +1096,7 @@ class TemplateBase(BaseModel):
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
+    text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
