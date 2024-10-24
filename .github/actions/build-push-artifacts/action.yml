@@ -1,10 +1,6 @@
 name: 'Builds and Push Artifacts'
 description: 'Builds and pushes a Docker image, S3 env vars file, and dispatches a Twistlock workflow'
 inputs:
-  environment:
-    required: true
-    default: "dev"
-    type: string
   ref:
     description: 'Git reference (commit SHA, branch, or tag) to build'
     required: true
@@ -36,11 +32,6 @@ runs:
         role-skip-session-tagging: true
         role-duration-seconds: 900
 
-    - name: Upload Env File to S3
-      shell: bash
-      run: |
-        aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/
-
     - name: Login to VAEC ECR
       id: login-ecr-vaec
       uses: aws-actions/amazon-ecr-login@v2
@@ -53,11 +44,11 @@ runs:
         file: ci/Dockerfile
         context: .
         push: true
-        tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}_${{ inputs.environment }}
+        tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}
 
     - name: Dispatch Twistlock Workflow
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        gh workflow run -r main -F image-tag=${{ inputs.ref }}_${{ inputs.environment }} twistlock.yml
+        gh workflow run -r main -F image-tag=${{ inputs.ref }} twistlock.yml

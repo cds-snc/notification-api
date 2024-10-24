@@ -32,7 +32,7 @@ async function fetchMainBranchSha(github, owner, repo, ref) {
   });
 
   if (data && data.sha) {
-    console.log('The main branch head SHA is: ' + data.sha);
+    console.log('The SHA of the merge commit is: ' + data.sha);
     return data.sha;
   } else {
     throw new Error('No SHA found in the response');
