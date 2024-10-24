@@ -2056,10 +2056,10 @@ class NotificationHistory(BaseModel, HistoryModel):
     # SMS columns
     sms_total_message_price = db.Column(db.Numeric(), nullable=True)
     sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
-    sms_iso_country_code = db.Column(db.String(), nullable=True)
-    sms_carrier_name = db.Column(db.String(), nullable=True)
-    sms_message_encoding = db.Column(db.String(), nullable=True)
-    sms_origination_phone_number = db.Column(db.String(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(16), nullable=True)
 
     CheckConstraint(
         """

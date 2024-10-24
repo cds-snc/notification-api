@@ -219,18 +219,13 @@ def _update_notification_status(
         notification.feedback_subtype = bounce_response.get("feedback_subtype")
         notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
         notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
-    if sms_total_message_price:
-        notification.sms_total_message_price = sms_total_message_price
-    if sms_total_carrier_fee:
-        notification.sms_total_carrier_fee = sms_total_carrier_fee
-    if sms_iso_country_code:
-        notification.sms_iso_country_code = sms_iso_country_code
-    if sms_carrier_name:
-        notification.sms_carrier_name = sms_carrier_name
-    if sms_message_encoding:
-        notification.sms_message_encoding = sms_message_encoding
-    if sms_origination_phone_number:
-        notification.sms_origination_phone_number = sms_origination_phone_number
+
+    notification.sms_total_message_price = sms_total_message_price
+    notification.sms_total_carrier_fee = sms_total_carrier_fee
+    notification.sms_iso_country_code = sms_iso_country_code
+    notification.sms_carrier_name = sms_carrier_name
+    notification.sms_message_encoding = sms_message_encoding
+    notification.sms_origination_phone_number = sms_origination_phone_number
 
     dao_update_notification(notification)
     return notification
