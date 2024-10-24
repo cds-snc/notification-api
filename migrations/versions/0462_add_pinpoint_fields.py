@@ -1,15 +1,15 @@
 """
 
-Revision ID: 0461_add_pinpoint_fields
-Revises: 0460_new_service_columns
+Revision ID: 0462_add_pinpoint_fields
+Revises: 0461_add_rtl_column_templates
 Create Date: 2024-10-15 18:24:22.926597
 
 """
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0461_add_pinpoint_fields"
-down_revision = "0460_new_service_columns"
+revision = "0462_add_pinpoint_fields"
+down_revision = "0461_add_rtl_column_templates"
 
 
 def upgrade():
