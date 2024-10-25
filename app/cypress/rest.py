@@ -202,4 +202,4 @@ def cleanup_stale_users():
         return jsonify(message="Error cleaning up"), 500
 
     current_app.logger.info("[cleanup_stale_users]: Cleaned up stale test users")
-    return jsonify(message="Clean up ccomplete"), 201
+    return jsonify(message="Clean up complete"), 201

@@ -124,6 +124,14 @@ def notify_user(notify_db_session):
     )
 
 
+@pytest.fixture(scope="function")
+def cypress_user(notify_db_session):
+    return create_user(
+        email="cypress-service-user@digital.cabinet-office.gov.uk",
+        id_=current_app.config["CYPRESS_TEST_USER_ID"],
+    )
+
+
 def create_code(notify_db, notify_db_session, code_type, usr=None, code=None):
     if code is None:
         code = create_secret_code()
@@ -206,6 +214,54 @@ def sample_service(
         notify_db,
         notify_db_session,
         service_name="Sample service",
+        user=None,
+        restricted=False,
+        limit=1000,
+        email_from=None,
+        permissions=None,
+        research_mode=None,
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_service_cypress(
+    notify_db,
+    notify_db_session,
+):
+    user = create_user()
+    service = Service.query.get(current_app.config["CYPRESS_SERVICE_ID"])
+    if not service:
+        service = Service(
+            name="Cypress Service",
+            message_limit=1000,
+            sms_daily_limit=1000,
+            restricted=False,
+            email_from="notify.service",
+            created_by=user,
+            prefix_sms=False,
+        )
+        dao_create_service(
+            service=service,
+            service_id=current_app.config["CYPRESS_SERVICE_ID"],
+            user=user,
+        )
+
+        data = {
+            "service": service,
+            "email_address": "notify@gov.uk",
+            "is_default": True,
+        }
+        reply_to = ServiceEmailReplyTo(**data)
+
+        db.session.add(reply_to)
+        db.session.commit()
+
+    return service, user
+
+    return create_sample_service(
+        notify_db,
+        notify_db_session,
+        service_name="CypressSample service",
         user=None,
         restricted=False,
         limit=1000,

@@ -50,6 +50,14 @@ def create_cache_clear_authorization_header():
     return "Authorization", "Bearer {}".format(token)
 
 
+def create_cypres_authorization_header():
+    client_id = current_app.config["CYPRESS_AUTH_USER_NAME"]
+    secret = current_app.config["CYPRESS_AUTH_CLIENT_SECRET"]
+
+    token = create_jwt_token(secret=secret, client_id=client_id)
+    return "Authorization", "Bearer {}".format(token)
+
+
 def unwrap_function(fn):
     """
     Given a function, returns its undecorated original.
