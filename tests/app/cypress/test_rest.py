@@ -1,29 +1,29 @@
 import json
 from datetime import datetime, timedelta
 
-from freezegun import freeze_time
-from app.models import User, Service
+from app.models import User
 from tests import create_cypres_authorization_header
-from tests.conftest import notify_api, set_config_values
+from tests.conftest import set_config_values
 
 EMAIL_PREFIX = "notify-ui-tests+ag_"
 
+
 def test_create_test_user(client, sample_service_cypress):
     auth_header = create_cypres_authorization_header()
-    
+
     resp = client.post(
         "/cypress/create_user/{}".format("emailsuffix"),
         headers=[auth_header],
         content_type="application/json",
     )
-    
+
     data = json.loads(resp.data)
 
     assert resp.status_code == 201
-    assert 'regular' in data
-    assert 'admin' in data
-    assert data['regular']['email_address'] == f"{EMAIL_PREFIX}emailsuffix@cds-snc.ca"
-    assert data['admin']['email_address'] == f"{EMAIL_PREFIX}emailsuffix_admin@cds-snc.ca"
+    assert "regular" in data
+    assert "admin" in data
+    assert data["regular"]["email_address"] == f"{EMAIL_PREFIX}emailsuffix@cds-snc.ca"
+    assert data["admin"]["email_address"] == f"{EMAIL_PREFIX}emailsuffix_admin@cds-snc.ca"
 
     # verify users were created in the DB
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix@cds-snc.ca").first()
@@ -35,21 +35,20 @@ def test_create_test_user(client, sample_service_cypress):
 
 def test_create_test_user_fails_bad_chars(client, sample_service_cypress):
     auth_header = create_cypres_authorization_header()
-    
+
     resp = client.post(
         "/cypress/create_user/{}".format("email-suffix"),
         headers=[auth_header],
         content_type="application/json",
     )
-    
-    data = json.loads(resp.data)
+
     assert resp.status_code == 400
 
 
 def test_create_test_user_fails_in_prod(client, notify_api, sample_service_cypress):
     with set_config_values(notify_api, {"NOTIFY_ENVIRONMENT": "production"}):
         auth_header = create_cypres_authorization_header()
-    
+
         resp = client.post(
             "/cypress/create_user/{}".format("email-suffix"),
             headers=[auth_header],
@@ -58,9 +57,8 @@ def test_create_test_user_fails_in_prod(client, notify_api, sample_service_cypre
 
         assert resp.status_code == 403
 
+
 def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notify_db):
-    
-    
     auth_header = create_cypres_authorization_header()
     resp = client.post(
         "/cypress/create_user/{}".format("emailsuffix"),
@@ -78,7 +76,7 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
     user.created_at = datetime.utcnow() - timedelta(days=30)
     user2.created_at = datetime.utcnow() - timedelta(days=30)
     notify_db.session.add(user)
-    notify_db.session.add(user2)    
+    notify_db.session.add(user2)
     notify_db.session.commit()
 
     # clean up users
@@ -91,7 +89,7 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
     data = json.loads(resp.data)
 
     assert resp.status_code == 201
-    assert data['message'] == "Clean up complete"
+    assert data["message"] == "Clean up complete"
 
     # Verify the stale user has been deleted
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix@cds-snc.ca").first()
@@ -99,6 +97,7 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
 
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix_admin@cds-snc.ca").first()
     assert user is None
+
 
 # def test_cleanup_stale_users_no_stale_users(test_client):
 #     response = test_client.get('/cleanup')

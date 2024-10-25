@@ -45,7 +45,7 @@ AUTH_TYPES = [
         "Cypress-v1",
         CYPRESS_V1_AUTH_TYPE,
         "This is used by the Cypress tests to create users on the fly in staging.",
-    )
+    ),
 ]
 
 
