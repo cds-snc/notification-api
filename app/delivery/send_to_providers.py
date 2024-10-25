@@ -67,6 +67,10 @@ def send_sms_to_provider(notification):
         inactive_service_failure(notification=notification)
         return
 
+    formatted_recipient = validate_and_format_phone_number(notification.to, international=notification.international)
+    sending_to_internal_test_number = formatted_recipient == current_app.config["INTERNAL_TEST_NUMBER"]
+    sending_to_dryrun_number = formatted_recipient == current_app.config["DRYRUN_TEST_NUMBER"]
+    
     # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(
@@ -93,7 +97,7 @@ def send_sms_to_provider(notification):
             empty_message_failure(notification=notification)
             return
 
-        if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+        if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
             notification.reference = send_sms_response(provider.get_name(), notification.to)
             update_notification_to_sending(notification, provider)
         else:
@@ -106,7 +110,7 @@ def send_sms_to_provider(notification):
                 else:
                     sending_vehicle = None
                 reference = provider.send_sms(
-                    to=validate_and_format_phone_number(notification.to, international=notification.international),
+                    to=formatted_recipient,
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
@@ -125,10 +129,7 @@ def send_sms_to_provider(notification):
                 if reference == "opted_out":
                     update_notification_to_opted_out(notification, provider)
                 else:
-                    if (
-                        validate_and_format_phone_number(notification.to, international=notification.international)
-                        == current_app.config["INTERNAL_TEST_NUMBER"]
-                    ):
+                    if sending_to_dryrun_number:
                         send_sms_response(provider.get_name(), notification.to, reference)
                     update_notification_to_sending(notification, provider)
 
