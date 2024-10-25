@@ -98,6 +98,7 @@ def send_sms_to_provider(notification):
             return
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
+            current_app.logger.info(f"notification {notification.id} is an internal test. Not sending to AWS")
             notification.reference = send_sms_response(provider.get_name(), notification.to)
             update_notification_to_sending(notification, provider)
         else:
