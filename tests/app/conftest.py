@@ -258,18 +258,6 @@ def sample_service_cypress(
 
     return service, user
 
-    return create_sample_service(
-        notify_db,
-        notify_db_session,
-        service_name="CypressSample service",
-        user=None,
-        restricted=False,
-        limit=1000,
-        email_from=None,
-        permissions=None,
-        research_mode=None,
-    )
-
 
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):

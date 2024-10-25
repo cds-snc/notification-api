@@ -65,7 +65,7 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
         headers=[auth_header],
         content_type="application/json",
     )
-    data = json.loads(resp.data)
+
     assert resp.status_code == 201
     # verify users were created in the DB
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix@cds-snc.ca").first()
