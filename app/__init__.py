@@ -183,6 +183,7 @@ def register_blueprint(application):
         requires_admin_auth,
         requires_auth,
         requires_cache_clear_auth,
+        requires_cypress_auth,
         requires_no_auth,
         requires_sre_auth,
     )
@@ -271,7 +272,7 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
 
-    register_notify_blueprint(application, cypress_blueprint, requires_admin_auth, "/cypress")
+    register_notify_blueprint(application, cypress_blueprint, requires_cypress_auth, "/cypress")
 
     register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
 
