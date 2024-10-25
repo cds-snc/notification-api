@@ -97,29 +97,3 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
 
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix_admin@cds-snc.ca").first()
     assert user is None
-
-
-# def test_cleanup_stale_users_no_stale_users(test_client):
-#     response = test_client.get('/cleanup')
-#     data = json.loads(response.data)
-
-#     assert response.status_code == 201
-#     assert data['message'] == "Clean up complete"
-
-# def test_destroy_test_user(test_client):
-#     # Create a test user
-#     test_user = User(
-#         email_address=f"{EMAIL_PREFIX}testuser@cds-snc.ca",
-#         password='password',
-#         mobile_number='1234567890',
-#         state='active',
-#         blocked=False
-#     )
-#     db.session.add(test_user)
-#     db.session.commit()
-
-#     _destroy_test_user('testuser')
-
-#     # Verify the test user has been deleted
-#     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}testuser@cds-snc.ca").first()
-#     assert user is None

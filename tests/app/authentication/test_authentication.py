@@ -44,7 +44,6 @@ def test_should_not_allow_request_with_incorrect_header(client, auth_fn):
         + "GC Notify supports the following authentication methods. "
         + f"{AUTH_TYPES[0][0]}: {AUTH_TYPES[0][2]}"
         + f", {AUTH_TYPES[1][0]}: {AUTH_TYPES[1][2]}"
-        + f", {AUTH_TYPES[2][0]}: {AUTH_TYPES[2][2]}"
     )
 
 
