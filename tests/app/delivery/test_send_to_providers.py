@@ -426,8 +426,8 @@ def test_should_not_send_sms_message_to_internal_test_number(sample_service, moc
 
     send_mock.assert_not_called()
     assert Notification.query.get(notification.id).status == "sent"
-    
-    
+
+
 def test_send_sms_should_use_template_version_from_notification_not_latest(sample_template, mocker):
     db_notification = save_notification(
         create_notification(
