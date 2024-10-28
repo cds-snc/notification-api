@@ -206,4 +206,4 @@ def _check_and_queue_complaint_callback_task(complaint, notification, recipient)
     service_callback_api = get_service_complaint_callback_api_for_service(service_id=notification.service_id)
     if service_callback_api:
         complaint_data = create_complaint_callback_data(complaint, notification, service_callback_api, recipient)
-        send_complaint_to_service.apply_async([complaint_data], queue=QueueNames.CALLBACKS)
+        send_complaint_to_service.apply_async([complaint_data, notification.service_id], queue=QueueNames.CALLBACKS)

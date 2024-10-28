@@ -23,7 +23,9 @@ def _check_and_queue_callback_task(notification):
             return
 
         notification_data = create_delivery_status_callback_data(notification, service_callback_api)
-        send_delivery_status_to_service.apply_async([str(notification.id), notification_data], queue=QueueNames.CALLBACKS)
+        send_delivery_status_to_service.apply_async(
+            [str(notification.id), notification_data, notification.service_id], queue=QueueNames.CALLBACKS
+        )
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):

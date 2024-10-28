@@ -1096,6 +1096,7 @@ class TemplateBase(BaseModel):
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
+    text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
@@ -1146,13 +1147,10 @@ class TemplateBase(BaseModel):
 
     @hybrid_property
     def process_type(self):
-        # The if statement is required as a way to check if FF_TEMPLATE_CATEGORY is enabled
-        if self.template_category_id:
-            if self.template_type == SMS_TYPE:
-                return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
-            elif self.template_type == EMAIL_TYPE:
-                return self.process_type_column if self.process_type_column else self.template_category.email_process_type
-        return self.process_type_column if self.process_type_column else NORMAL
+        if self.template_type == SMS_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.email_process_type
 
     @process_type.setter  # type: ignore
     def process_type(self, value):
@@ -1736,6 +1734,14 @@ class Notification(BaseModel):
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
+    # SMS columns
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -2046,6 +2052,14 @@ class NotificationHistory(BaseModel, HistoryModel):
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
+
+    # SMS columns
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
 
     CheckConstraint(
         """
