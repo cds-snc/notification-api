@@ -1,6 +1,6 @@
 """
-Revision ID: 0462_add_annual_limit_column
-Revises: 0461_add_rtl_column_templates
+Revision ID: 0463_add_annual_limit_column
+Revises: 0462_add_pinpoint_fields
 Create Date: 2024-06-27 13:32:00
 """
 import os
@@ -10,8 +10,8 @@ from alembic import op
 
 from app import config
 
-revision = "0462_add_annual_limit_column"
-down_revision = "0461_add_rtl_column_templates"
+revision = "0463_add_annual_limit_column"
+down_revision = "0462_add_pinpoint_fields"
 
 cfg = config.configs[os.environ["NOTIFY_ENVIRONMENT"]]  # type: ignore
 default_email_annual_limit = str(cfg.SERVICE_ANNUAL_EMAIL_LIMIT)
