@@ -142,7 +142,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
         {
             "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
             "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-            "AWS_PINPOINT_CON_for_testsFIGURATION_SET_NAME": "config_set_name",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
         },
     ):
