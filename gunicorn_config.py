@@ -73,10 +73,10 @@ def on_exit(server):
         global profiler
         profiler.disable()
         # Dump profiling results to a file
-        profiler.dump_stats("profile_results.prof")
+        profiler.dump_stats("profile_results-gcrn-nr8xx.prof")
         # Analyze profiling results
-        with open("profile_report.txt", "w") as f:
-            stats = pstats.Stats("profile_results.prof", stream=f)
+        with open("profile_report-gcrn-nr8xx.txt", "w") as f:
+            stats = pstats.Stats("profile_results-gcrn-nr8xx.prof", stream=f)
             stats.sort_stats(SortKey.CUMULATIVE)
             stats.print_stats()
 

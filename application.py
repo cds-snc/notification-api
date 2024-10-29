@@ -2,6 +2,44 @@
 from __future__ import print_function
 
 import os
+import time
+
+# Check if profiling should be enabled
+enable_profiling = os.getenv("NOTIFY_PROFILE") is not None
+
+if enable_profiling:
+    print("Profiling enabled")
+    import atexit
+    import cProfile
+    import pstats
+    from pstats import SortKey
+
+    # Create a cProfile.Profile object
+    profiler = cProfile.Profile()
+    # Start profiling
+    profiler.enable()
+
+    def close_profiling():
+        # Timer end for initialization.
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"Elapsed time: {elapsed_time:.2f}s")
+
+        # Stop profiling
+        profiler.disable()
+        # Dump profiling results to a file
+        profiler.dump_stats("profile_results-app-nr8xx.prof")
+        # Analyze profiling results
+        with open("profile_report-app-nr8xx.txt", "w") as f:
+            stats = pstats.Stats("profile_results-app-nr8xx.prof", stream=f)
+            stats.sort_stats(SortKey.CUMULATIVE)
+            stats.print_stats()
+
+    atexit.register(close_profiling)
+
+
+# Timer start for initialization.
+start_time = time.time()
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 from apig_wsgi import make_lambda_handler
@@ -25,8 +63,8 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-#xray_recorder.configure(service="Notify-API", context=NotifyContext())
-#XRayMiddleware(app, xray_recorder)
+# xray_recorder.configure(service="Notify-API", context=NotifyContext())
+# XRayMiddleware(app, xray_recorder)
 
 apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
