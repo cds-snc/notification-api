@@ -11,6 +11,7 @@ if enable_profiling:
     print("Profiling enabled")
     import atexit
     import cProfile
+    from datetime import datetime
     import pstats
     from pstats import SortKey
 
@@ -27,11 +28,14 @@ if enable_profiling:
 
         # Stop profiling
         profiler.disable()
+
+        filestamp = datetime.now().strftime("%Y%m%d-%H%M")
+
         # Dump profiling results to a file
-        profiler.dump_stats("profile_results-app-nr8xx.prof")
+        profiler.dump_stats(f"profile_results-app-nr8xx-{filestamp}.prof")
         # Analyze profiling results
-        with open("profile_report-app-nr8xx.txt", "w") as f:
-            stats = pstats.Stats("profile_results-app-nr8xx.prof", stream=f)
+        with open(f"profile_report-app-nr8xx-{filestamp}.txt", "w") as f:
+            stats = pstats.Stats(f"profile_results-app-nr8xx-{filestamp}.prof", stream=f)
             stats.sort_stats(SortKey.CUMULATIVE)
             stats.print_stats()
 
