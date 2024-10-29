@@ -23,6 +23,7 @@
 				"bungcip.better-toml",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
+				"fill-labs.dependi",
 				"GitHub.copilot",
 				"github.copilot-chat",
 				"github.vscode-pull-request-github",
@@ -48,11 +49,11 @@
 	},
 	"features": {
 		"docker-from-docker": {
-			"version": "latest",
+			"version": "1.6.0",
 			"moby": true
 		},
 		"kubectl-helm-minikube": {
-			"version": "latest",
+			"version": "1.2.0",
 			"helm": "latest",
 			"minikube": "none"
 		},
@@ -61,6 +62,6 @@
 		}
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-	"remoteUser": "vscode",
+	"remoteUser": "vscode"
 	
 }
