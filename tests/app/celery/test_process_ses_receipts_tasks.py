@@ -447,12 +447,14 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.annual_limit_client.increment_email_failed")
 
+        # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
             assert process_ses_results(ses_notification_callback(reference="ref"))
             annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
             annual_limit_client.increment_email_failed.assert_not_called()
+
 
     @pytest.mark.parametrize(
         "callback, bounce_type",
@@ -468,6 +470,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.annual_limit_client.increment_email_delivered")
 
+        # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 

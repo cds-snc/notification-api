@@ -207,7 +207,7 @@ def test_sns_callback_should_increment_sms_delivered_when_delivery_receipt_is_de
             sent_by="sns",
         )
     )
-
+    # TODO FF_ANNUAL_LIMIT removal
     with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
         assert process_sns_results(sns_success_callback(reference="ref"))
 
@@ -247,7 +247,7 @@ def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failu
             sent_by="sns",
         )
     )
-
+    # TODO FF_ANNUAL_LIMIT removal
     with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
         assert process_sns_results(sns_failed_callback(reference="ref", provider_response=provider_response))
         annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
