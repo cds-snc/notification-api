@@ -280,6 +280,7 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
             [str(notification.id), signed_data, notification.service_id], queue="service-callbacks"
         )
 
+
 @pytest.mark.parametrize(
     "provider_response",
     [
@@ -349,6 +350,6 @@ def test_process_pinpoint_results_should_increment_sms_delivered_when_delivery_r
     )
     # TODO FF_ANNUAL_LIMIT removal
     with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-        process_pinpoint_results(callback(reference="ref", provider_response=provider_response))
-        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-        annual_limit_client.increment_sms_delivered.assert_not_called()
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()

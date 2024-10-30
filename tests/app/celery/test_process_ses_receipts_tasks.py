@@ -455,14 +455,13 @@ class TestAnnualLimits:
             annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
             annual_limit_client.increment_email_failed.assert_not_called()
 
-
     @pytest.mark.parametrize(
         "callback, bounce_type",
         [
             (ses_hard_bounce_callback, NOTIFICATION_HARD_BOUNCE),
             (ses_soft_bounce_callback, NOTIFICATION_SOFT_BOUNCE),
             (ses_unknown_bounce_callback, NOTIFICATION_UNKNOWN_BOUNCE),
-        ]
+        ],
     )
     def test_ses_callback_should_increment_email_failed_when_delivery_receipt_is_failure(
         self, notify_api, sample_email_template, mocker, callback, bounce_type

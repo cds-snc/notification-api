@@ -43,6 +43,8 @@ from celery.exceptions import Retry
 #     }
 
 
+# TODO FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
+# flake8: noqa: C901
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_pinpoint_results(self, response):
