@@ -7,6 +7,7 @@ import traceback
 import cProfile
 import pstats
 from pstats import SortKey
+from datetime import datetime
 
 import gunicorn  # type: ignore
 import newrelic.agent  # See https://bit.ly/2xBVKBH
@@ -55,7 +56,7 @@ if on_aws:
 def on_starting(server):
     server.log.info("Starting Notifications API")
     if enable_profiling:
-        print("Profiling enabled")
+        print("Gunicorn profiling enabled")
         global profiler
         profiler.enable()
 
@@ -72,11 +73,14 @@ def on_exit(server):
         # Stop profiling
         global profiler
         profiler.disable()
+
+        filestamp = datetime.now().strftime("%Y%m%d-%H%M")
+
         # Dump profiling results to a file
-        profiler.dump_stats("profile_results-gcrn-nr8xx.prof")
+        profiler.dump_stats(f"profile_results-gcrn-nr810-{filestamp}.prof")
         # Analyze profiling results
-        with open("profile_report-gcrn-nr8xx.txt", "w") as f:
-            stats = pstats.Stats("profile_results-gcrn-nr8xx.prof", stream=f)
+        with open(f"profile_report-gcrn-nr810-{filestamp}.txt", "w") as f:
+            stats = pstats.Stats(f"profile_results-gcrn-nr810-{filestamp}.prof", stream=f)
             stats.sort_stats(SortKey.CUMULATIVE)
             stats.print_stats()
 
