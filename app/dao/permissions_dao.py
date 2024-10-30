@@ -1,33 +1,14 @@
+from typing import List
+
+from sqlalchemy import delete, select
+
 from app import db
+from app.constants import DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS
 from app.dao import DAOClass
 from app.models import (
     Permission,
-    MANAGE_API_KEYS,
-    MANAGE_SETTINGS,
-    MANAGE_TEMPLATES,
-    MANAGE_USERS,
-    SEND_TEXTS,
-    SEND_EMAILS,
-    SEND_LETTERS,
     Service,
-    VIEW_ACTIVITY,
 )
-from sqlalchemy import delete, select
-from typing import List
-
-
-# Default permissions for a service
-# Do not confuse this with DEFAULT_SERVICE_PERMISSIONS in app/dao/services_dao.py.
-default_service_permissions = [
-    MANAGE_USERS,
-    MANAGE_TEMPLATES,
-    MANAGE_SETTINGS,
-    SEND_TEXTS,
-    SEND_EMAILS,
-    SEND_LETTERS,
-    MANAGE_API_KEYS,
-    VIEW_ACTIVITY,
-]
 
 
 class PermissionDAO(DAOClass):
@@ -39,7 +20,7 @@ class PermissionDAO(DAOClass):
         user,
         service,
     ):
-        for name in default_service_permissions:
+        for name in DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS:
             permission = Permission(permission=name, user=user, service=service)
             self.create_instance(permission, _commit=False)
 

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
-from app.models import NOTIFICATION_STATUS_TYPES, TEMPLATE_TYPES
+from app.constants import NOTIFICATION_STATUS_TYPES, TEMPLATE_TYPES
 from app.dao.date_util import get_months_for_financial_year
 
 

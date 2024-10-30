@@ -1,21 +1,25 @@
-import pytest
 import json
-from sqlalchemy import select
 from uuid import uuid4
+
+import pytest
 from flask import url_for
 from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
-from app import create_uuid
+from sqlalchemy import select
+
+from app.utils import create_uuid
+from app.constants import (
+    COMPLAINT_CALLBACK_TYPE,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    INBOUND_SMS_CALLBACK_TYPE,
+    MANAGE_SETTINGS,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    QUEUE_CHANNEL_TYPE,
+    WEBHOOK_CHANNEL_TYPE,
+)
 from app.dao.service_callback_api_dao import get_service_callback
 from app.dao.services_dao import dao_add_user_to_service
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, Permission
-from app.models import (
-    ServiceCallback,
-    NOTIFICATION_STATUS_TYPES_COMPLETED,
-    WEBHOOK_CHANNEL_TYPE,
-    MANAGE_SETTINGS,
-    QUEUE_CHANNEL_TYPE,
-)
+from app.models import Permission, ServiceCallback
 from app.schemas import service_callback_api_schema
 from tests.app.conftest import json_compare
 
@@ -234,7 +238,8 @@ class TestCreateServiceCallback:
 
         resp_json = response.json['data']
         created_service_callback_api = get_service_callback(resp_json['id'])
-        assert created_service_callback_api.notification_statuses == NOTIFICATION_STATUS_TYPES_COMPLETED
+        # Database returns it as a list, but it is declared in code as a tuple
+        assert created_service_callback_api.notification_statuses == list(NOTIFICATION_STATUS_TYPES_COMPLETED)
 
     @pytest.mark.parametrize('callback_type', [INBOUND_SMS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE])
     def test_create_service_callback_returns_400_if_statuses_passed_with_incompatible_callback_type(

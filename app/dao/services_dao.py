@@ -11,6 +11,7 @@ from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql.expression import and_, asc, case
 
 from app import db
+from app.constants import DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS, KEY_TYPE_TEST
 from app.dao.dao_utils import VersionOptions, get_reader_session, transactional, version_class
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
@@ -18,10 +19,6 @@ from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
 from app.model import User
 from app.models import (
-    EMAIL_TYPE,
-    INTERNATIONAL_SMS_TYPE,
-    KEY_TYPE_TEST,
-    SMS_TYPE,
     AnnualBilling,
     ApiKey,
     FactBilling,
@@ -42,13 +39,6 @@ from app.models import (
 )
 from app.service.service_data import ServiceData, ServiceDataException
 from app.utils import escape_special_characters, get_local_timezone_midnight_in_utc, midnight_n_days_ago
-
-# Do not confuse this with "default_service_permissions" in app/dao/permissions_dao.py.
-DEFAULT_SERVICE_PERMISSIONS = [
-    SMS_TYPE,
-    EMAIL_TYPE,
-    INTERNATIONAL_SMS_TYPE,
-]
 
 
 def dao_fetch_all_services(only_active=False):
@@ -279,7 +269,7 @@ def dao_create_service(
         raise ValueError("Can't create a service without a user")
 
     if service_permissions is None:
-        service_permissions = DEFAULT_SERVICE_PERMISSIONS
+        service_permissions = DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS
 
     organisation = dao_get_organisation_by_email_address(user.email_address)
 

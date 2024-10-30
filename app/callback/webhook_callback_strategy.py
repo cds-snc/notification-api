@@ -8,9 +8,10 @@ from flask import current_app
 from requests.api import request
 from requests.exceptions import HTTPError, RequestException
 
-from app import statsd_client, HTTP_TIMEOUT
+from app import statsd_client
 from app.callback.service_callback_strategy_interface import ServiceCallbackStrategyInterface
 from app.celery.exceptions import NonRetryableException, RetryableException
+from app.constants import HTTP_TIMEOUT
 from app.dao.api_key_dao import get_unsigned_secret
 from app.models import ServiceCallback
 

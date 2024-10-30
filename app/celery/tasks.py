@@ -12,7 +12,6 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import (
-    create_uuid,
     create_random_identifier,
     encryption,
     notify_celery,
@@ -20,6 +19,23 @@ from app import (
 from app.aws import s3
 from app.celery import provider_tasks, research_mode_tasks
 from app.config import QueueNames
+from app.constants import (
+    DVLA_RESPONSE_STATUS_SENT,
+    EMAIL_TYPE,
+    JOB_STATUS_CANCELLED,
+    JOB_STATUS_FINISHED,
+    JOB_STATUS_IN_PROGRESS,
+    JOB_STATUS_PENDING,
+    KEY_TYPE_NORMAL,
+    LETTER_TYPE,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_RETURNED_LETTER,
+    SMS_TYPE,
+)
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
 from app.dao.jobs_dao import (
     dao_update_job,
@@ -42,26 +58,10 @@ from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_mes
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException, NotificationTechnicalFailureException
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.models import (
-    DVLA_RESPONSE_STATUS_SENT,
-    EMAIL_TYPE,
-    JOB_STATUS_CANCELLED,
-    JOB_STATUS_FINISHED,
-    JOB_STATUS_IN_PROGRESS,
-    JOB_STATUS_PENDING,
-    KEY_TYPE_NORMAL,
-    LETTER_TYPE,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_SENDING,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_RETURNED_LETTER,
-    SMS_TYPE,
-    DailySortedLetter,
-)
+from app.models import DailySortedLetter
 from app.notifications.process_notifications import persist_notification
 from app.service.utils import service_allowed_to_send_to
+from app.utils import create_uuid
 
 
 @notify_celery.task(name='process-job')

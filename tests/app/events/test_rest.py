@@ -1,7 +1,9 @@
-from app.models import Event
-from flask import json
-from tests import create_admin_authorization_header
 from uuid import uuid4
+
+from flask import json
+
+from app.models import Event
+from tests import create_admin_authorization_header
 
 
 def test_create_event(

@@ -8,15 +8,14 @@ from app import api_user, authenticated_service, attachment_store
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.attachments.types import UploadedAttachmentMetadata
-
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
-from app.models import (
+from app.constants import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,
     UPLOAD_DOCUMENT,
 )
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,

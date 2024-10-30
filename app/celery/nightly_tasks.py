@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app import db, notify_celery, performance_platform_client, zendesk_client
 from app.aws import s3
 from app.celery.service_callback_tasks import check_and_queue_callback_task
+from app.constants import EMAIL_TYPE, KEY_TYPE_NORMAL, LETTER_TYPE, NOTIFICATION_SENDING, SMS_TYPE
 from app.dao.inbound_sms_dao import delete_inbound_sms_older_than_retention
 from app.dao.jobs_dao import dao_get_jobs_older_than_data_retention, dao_archive_job
 from app.dao.notifications_dao import (
@@ -16,7 +17,7 @@ from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
 )
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import Notification, NOTIFICATION_SENDING, EMAIL_TYPE, SMS_TYPE, LETTER_TYPE, KEY_TYPE_NORMAL
+from app.models import Notification
 from app.performance_platform import total_sent_notifications, processing_time
 from app.cronitor import cronitor
 from app.utils import get_local_timezone_midnight_in_utc

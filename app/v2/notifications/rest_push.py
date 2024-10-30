@@ -1,7 +1,7 @@
 from app import authenticated_service, vetext_client
+from app.constants import PUSH_TYPE
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.mobile_app import MobileAppRegistry, MobileAppType, DEAFULT_MOBILE_APP_TYPE
-from app.models import PUSH_TYPE
 from app.schema_validation import validate
 from app.utils import get_public_notify_type_text
 from app.v2.errors import BadRequestError

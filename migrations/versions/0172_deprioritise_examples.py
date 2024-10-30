@@ -6,8 +6,8 @@ Create Date: 2018-02-28 17:09:56.619803
 
 """
 from alembic import op
-from app.models import NORMAL
-import sqlalchemy as sa
+
+from app.constants import TEMPLATE_PROCESS_NORMAL
 
 
 revision = '0172_deprioritise_examples'
@@ -24,7 +24,7 @@ def upgrade():
             join templates_history on templates.id=templates_history.id
             where templates_history.name = 'Example text message template'
         )
-    """.format(NORMAL))
+    """.format(TEMPLATE_PROCESS_NORMAL))  # nosec
 
 
 def downgrade():

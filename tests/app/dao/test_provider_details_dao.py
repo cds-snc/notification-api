@@ -7,6 +7,7 @@ from freezegun import freeze_time
 from sqlalchemy import delete, desc, select
 
 from app import clients
+from app.constants import EMAIL_TYPE, PINPOINT_PROVIDER, SES_PROVIDER, SMS_TYPE, SNS_PROVIDER
 from app.dao.provider_details_dao import (
     dao_get_provider_stats,
     dao_get_provider_versions,
@@ -22,11 +23,6 @@ from app.dao.provider_details_dao import (
     get_provider_details_by_notification_type,
 )
 from app.models import (
-    EMAIL_TYPE,
-    PINPOINT_PROVIDER,
-    SES_PROVIDER,
-    SMS_TYPE,
-    SNS_PROVIDER,
     ProviderDetails,
     ProviderDetailsHistory,
     ProviderRates,

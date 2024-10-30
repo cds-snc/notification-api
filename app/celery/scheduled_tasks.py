@@ -9,6 +9,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from app import db, notify_celery, zendesk_client
 from app.celery.tasks import process_job
 from app.config import QueueNames, TaskNames
+from app.constants import (
+    JOB_STATUS_IN_PROGRESS,
+    JOB_STATUS_ERROR,
+    SMS_TYPE,
+    EMAIL_TYPE,
+)
 from app.dao.invited_org_user_dao import delete_org_invitations_created_more_than_two_days_ago
 from app.dao.invited_user_dao import delete_invitations_created_more_than_two_days_ago
 from app.dao.jobs_dao import dao_set_scheduled_jobs_to_pending
@@ -23,13 +29,7 @@ from app.dao.notifications_dao import (
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.integrations.comp_and_pen.scheduled_message_helpers import CompPenMsgHelper
-from app.models import (
-    Job,
-    JOB_STATUS_IN_PROGRESS,
-    JOB_STATUS_ERROR,
-    SMS_TYPE,
-    EMAIL_TYPE,
-)
+from app.models import Job
 from app.notifications.process_notifications import send_notification_to_queue
 from app.notifications.send_notifications import lookup_notification_sms_setup_data
 from app.v2.errors import JobIncompleteError

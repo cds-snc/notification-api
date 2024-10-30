@@ -9,8 +9,9 @@ from flask_jwt_extended import create_access_token
 import pytest
 
 from app.celery.process_pinpoint_inbound_sms import CeleryEvent, process_pinpoint_inbound_sms
+from app.constants import INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, QUEUE_CHANNEL_TYPE, SERVICE_PERMISSION_TYPES
 from app.dao.permissions_dao import permission_dao
-from app.models import QUEUE_CHANNEL_TYPE, INBOUND_SMS_CALLBACK_TYPE, PLATFORM_ADMIN, Permission
+from app.models import Permission
 
 
 class AnySms(object):

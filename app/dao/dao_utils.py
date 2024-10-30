@@ -1,4 +1,7 @@
 import itertools
+
+from flask import current_app
+
 from app import db
 from app.history_meta import create_history
 from functools import wraps
@@ -16,14 +19,12 @@ def transactional(func):
         *args,
         **kwargs,
     ):
-        from flask import current_app
-
         try:
             res = func(*args, **kwargs)
             db.session.commit()
             return res
         except Exception as e:
-            current_app.logger.exception(e)
+            current_app.logger.exception('Encountered transaction error: %s', type(e).__name__)
             db.session.rollback()
             raise
 

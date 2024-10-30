@@ -2,10 +2,10 @@ import requests
 from flask import current_app
 from functools import wraps
 
+from app.constants import HTTP_TIMEOUT
+
 
 def cronitor(task_name):
-    from app import HTTP_TIMEOUT  # Circular import
-
     # check if task_name is in config
     def decorator(func):
         def ping_cronitor(command):

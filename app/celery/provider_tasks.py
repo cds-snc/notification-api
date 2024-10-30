@@ -9,6 +9,7 @@ from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
+from app.constants import NOTIFICATION_TECHNICAL_FAILURE
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_service_id_and_number
@@ -19,7 +20,6 @@ from app.exceptions import (
     NotificationTechnicalFailureException,
     InvalidProviderException,
 )
-from app.models import NOTIFICATION_TECHNICAL_FAILURE
 from app.v2.errors import RateLimitError
 from flask import current_app
 from notifications_utils.field import NullValueForNonConditionalPlaceholderException

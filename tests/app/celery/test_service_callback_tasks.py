@@ -9,7 +9,7 @@ from freezegun import freeze_time
 from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import DATETIME_FORMAT, encryption
+from app import encryption
 from app.celery.exceptions import AutoRetryException, NonRetryableException
 from app.celery.service_callback_tasks import (
     check_and_queue_notification_callback_task,
@@ -22,21 +22,17 @@ from app.celery.service_callback_tasks import (
     create_delivery_status_callback_data,
     create_delivery_status_callback_data_v3,
 )
-
 from app.config import QueueNames
-from app.exceptions import NotificationTechnicalFailureException
-from app.models import (
-    Complaint,
+from app.constants import (
+    DATETIME_FORMAT,
     EMAIL_TYPE,
     INBOUND_SMS_CALLBACK_TYPE,
     LETTER_TYPE,
-    Notification,
     NOTIFICATION_STATUS_TYPES,
-    ServiceCallback,
-    Service,
     SMS_TYPE,
-    Template,
 )
+from app.exceptions import NotificationTechnicalFailureException
+from app.models import Complaint, Notification, ServiceCallback, Service, Template
 from app.model import User
 from tests.app.db import (
     create_complaint,

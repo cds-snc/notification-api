@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.config import QueueNames
+from app.constants import KEY_TYPE_NORMAL
 from app.dao.organisation_dao import (
     dao_create_organisation,
     dao_get_organisations,
@@ -18,7 +19,7 @@ from app.dao.organisation_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import register_errors, InvalidRequest
-from app.models import Organisation, KEY_TYPE_NORMAL
+from app.models import Organisation
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.organisation.organisation_schema import (
     post_create_organisation_schema,

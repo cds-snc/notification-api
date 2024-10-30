@@ -6,22 +6,7 @@ import random
 import requests_mock
 import string
 import uuid
-from app.dao.permissions_dao import permission_dao
-from app.dao.service_permissions_dao import dao_add_service_permission
-from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
-from app.feature_flags import FeatureFlag
-from app.models import (
-    EMAIL_TYPE,
-    LETTER_TYPE,
-    SMS_TYPE,
-    Template,
-    TemplateHistory,
-    TemplateRedacted,
-    ProviderDetails,
-    Permission,
-    EDIT_TEMPLATES,
-    SERVICE_PERMISSION_TYPES,
-)
+
 from datetime import datetime, timedelta, date
 from flask import url_for
 from flask_jwt_extended import create_access_token
@@ -30,6 +15,19 @@ from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.template import HTMLEmailTemplate
 from pypdf.errors import PdfReadError
 from sqlalchemy import select
+
+from app.constants import EDIT_TEMPLATES, EMAIL_TYPE, LETTER_TYPE, SERVICE_PERMISSION_TYPES, SMS_TYPE
+from app.dao.permissions_dao import permission_dao
+from app.dao.service_permissions_dao import dao_add_service_permission
+from app.dao.templates_dao import dao_get_template_by_id, dao_redact_template
+from app.feature_flags import FeatureFlag
+from app.models import (
+    Template,
+    TemplateHistory,
+    TemplateRedacted,
+    ProviderDetails,
+    Permission,
+)
 from tests import create_admin_authorization_header
 from tests.app.db import (
     create_letter_contact,

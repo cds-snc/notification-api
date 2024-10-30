@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from random import randint, randrange
@@ -15,27 +15,41 @@ from app import db
 from app.clients.email import EmailClient
 from app.clients.sms import SmsClient
 from app.clients.sms.firetext import FiretextClient
+from app.constants import (
+    DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS,
+    DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    EMAIL_TYPE,
+    JOB_STATUS_SCHEDULED,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEST,
+    KEY_TYPE_TEAM,
+    LETTER_TYPE,
+    MMG_PROVIDER,
+    MOBILE_TYPE,
+    NOTIFICATION_STATUS_TYPES,
+    PINPOINT_PROVIDER,
+    SMS_TYPE,
+    TEMPLATE_PROCESS_NORMAL,
+    WEBHOOK_CHANNEL_TYPE,
+)
 from app.dao.invited_user_dao import save_invited_user
 from app.dao.organisation_dao import dao_create_organisation, dao_add_service_to_organisation
-from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_data_retention_dao import insert_service_data_retention
-from app.dao.services_dao import DEFAULT_SERVICE_PERMISSIONS
 from app.dao.service_sms_sender_dao import (
     dao_update_service_sms_sender,
 )
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.dao.login_event_dao import save_login_event
 from app.dao.templates_dao import dao_create_template
-from app.model import User, IdentityProviderIdentifier
+from app.model import IdentityProviderIdentifier, User
 from app.models import (
     ApiKey,
     AnnualBilling,
     Complaint,
     CommunicationItem,
-    DELIVERY_STATUS_CALLBACK_TYPE,
     Domain,
     EmailBranding,
-    EMAIL_TYPE,
     FactBilling,
     FactNotificationStatus,
     InboundNumber,
@@ -43,28 +57,17 @@ from app.models import (
     InvitedOrganisationUser,
     InvitedUser,
     Job,
-    JOB_STATUS_SCHEDULED,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEST,
-    KEY_TYPE_TEAM,
     LetterRate,
-    LETTER_TYPE,
     LoginEvent,
-    MMG_PROVIDER,
-    MOBILE_TYPE,
-    NORMAL,
-    NOTIFICATION_STATUS_TYPES,
     Notification,
     NotificationHistory,
     Organisation,
     Permission,
-    PINPOINT_PROVIDER,
     ProviderDetails,
     ProviderDetailsHistory,
     ProviderRates,
     Rate,
     RecipientIdentifier,
-    SMS_TYPE,
     ScheduledNotification,
     ServiceCallback,
     ServiceDataRetention,
@@ -83,7 +86,6 @@ from app.models import (
     user_folder_permissions,
     user_to_organisation,
     UserServiceRoles,
-    WEBHOOK_CHANNEL_TYPE,
 )
 from app.va.va_profile import VAProfileClient
 
@@ -104,7 +106,7 @@ from tests.app.db import (
 
 
 # Tests only run against email/sms. API also considers letters
-TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE]
+RESTRICTED_TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE]
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov'
 
 
@@ -514,7 +516,7 @@ def sample_service(
         restricted=False,
         service_id=None,
         service_name=None,
-        service_permissions=DEFAULT_SERVICE_PERMISSIONS,
+        service_permissions=DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS,
         sms_sender=None,
         smtp_user=None,
         user=None,
@@ -685,7 +687,7 @@ def service_cleanup(  # noqa: C901
 def sample_service_permissions(notify_db_session):
     service_permissions = []
 
-    def _wrapper(service: Service, permissions: list = DEFAULT_SERVICE_PERMISSIONS):
+    def _wrapper(service: Service, permissions: list = DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS):
         for perm in permissions:
             service_permission = ServicePermission(service_id=service.id, permission=perm)
             notify_db_session.session.add(service_permission)
@@ -713,7 +715,7 @@ def sample_service_permissions(notify_db_session):
 def sample_permissions(notify_db_session):
     perm_ids = []
 
-    def _wrapper(user, service, permissions=default_service_permissions):
+    def _wrapper(user, service, permissions=DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS):
         for name in permissions:
             permission = Permission(permission=name, user=user, service=service)
             notify_db_session.session.add(permission)
@@ -741,7 +743,7 @@ def sample_template_helper(
     subject_line=None,
     reply_to=None,
     reply_to_email=None,
-    process_type=NORMAL,
+    process_type=TEMPLATE_PROCESS_NORMAL,
     version=0,
     id=None,
     communication_item_id=None,
@@ -792,7 +794,7 @@ def sample_template(
         hidden=False,
         id=None,
         postage=None,
-        process_type=NORMAL,
+        process_type=TEMPLATE_PROCESS_NORMAL,
         reply_to=None,
         reply_to_email=None,
         service=None,
@@ -1475,6 +1477,9 @@ def sample_notification(notify_db_session, sample_api_key, sample_template):  # 
         # This intentionally excludes the case where created_by_id=None.
         if 'created_by_id' not in kwargs:
             kwargs['created_by_id'] = kwargs['template'].created_by_id
+
+        # xdist has issues with parameterize and allowing the DB to set the notification id
+        kwargs['reference'] = kwargs.get('reference', str(uuid4()))
 
         # commits the notification
         notification = create_notification(*args, **kwargs)
@@ -2460,6 +2465,23 @@ def mock_va_profile_client(mocker, notify_api):
 def mock_va_profile_response():
     with open('tests/app/va/va_profile/mock_response.json', 'r') as f:
         return json.load(f)
+
+
+@pytest.fixture
+def x_minutes_ago():
+    """Generate a timestamp in the past.
+
+    Helper to make sure timestamps are sufficiently different
+
+    Returns:
+        datetime: 5 minutes ago, no timezone
+    """
+
+    # Database does not store tzinfo, so this has to be stripped for comparison purposes
+    def _wrapper(x: int = 5):
+        return (datetime.now(timezone.utc) - timedelta(minutes=x)).replace(tzinfo=None)
+
+    yield _wrapper
 
 
 #######################################################################################################################

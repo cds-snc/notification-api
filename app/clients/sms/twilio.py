@@ -1,5 +1,6 @@
 import base64
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from logging import Logger
 from monotonic import monotonic
 from urllib.parse import parse_qs
@@ -8,25 +9,31 @@ from twilio.rest import Client
 from twilio.rest.api.v2010.account.message import MessageInstance
 from twilio.base.exceptions import TwilioRestException
 
-from app.clients.sms import SmsClient, SmsStatusRecord
-
+from app.celery.exceptions import NonRetryableException
+from app.clients.sms import SmsClient, SmsStatusRecord, UNABLE_TO_TRANSLATE
+from app.constants import (
+    NOTIFICATION_CREATED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    TWILIO_PROVIDER,
+)
 from app.exceptions import InvalidProviderException
 
 
+# https://www.twilio.com/docs/messaging/api/message-resource#message-status-values
 TWILIO_RESPONSE_MAP = {
-    'accepted': 'created',
-    'queued': 'sending',
-    'sending': 'sending',
-    'sent': 'sent',
-    'delivered': 'delivered',
-    'undelivered': 'permanent-failure',
-    'failed': 'technical-failure',
-    'received': 'received',
+    'accepted': NOTIFICATION_CREATED,
+    'queued': NOTIFICATION_SENDING,
+    'sending': NOTIFICATION_SENDING,
+    'sent': NOTIFICATION_SENT,
+    'delivered': NOTIFICATION_DELIVERED,
+    'undelivered': NOTIFICATION_PERMANENT_FAILURE,
+    'failed': NOTIFICATION_TECHNICAL_FAILURE,
+    'received': NOTIFICATION_SENDING,
 }
-
-
-def get_twilio_responses(status):
-    return TWILIO_RESPONSE_MAP[status]
 
 
 @dataclass
@@ -36,7 +43,13 @@ class TwilioStatus:
     status_reason: str | None
 
 
+def get_twilio_responses(status):
+    return TWILIO_RESPONSE_MAP[status]
+
+
 class TwilioSMSClient(SmsClient):
+    RAW_DLR_DONE_DATE_FMT = '%y%m%d%H%M'
+
     def __init__(
         self,
         account_sid=None,
@@ -57,16 +70,6 @@ class TwilioSMSClient(SmsClient):
         self._account_sid = account_sid
         self._auth_token = auth_token
         self._client = Client(account_sid, auth_token)
-
-        # Importing inline to resolve a circular import error when importing
-        # at the top of the file
-        from app.models import (
-            NOTIFICATION_DELIVERED,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            NOTIFICATION_SENDING,
-            NOTIFICATION_PERMANENT_FAILURE,
-            NOTIFICATION_SENT,
-        )
 
         self.twilio_error_code_map = {
             '30001': TwilioStatus(30001, NOTIFICATION_TECHNICAL_FAILURE, 'Queue overflow'),
@@ -123,7 +126,7 @@ class TwilioSMSClient(SmsClient):
 
     @property
     def name(self):
-        return 'twilio'
+        return TWILIO_PROVIDER
 
     def get_name(self):
         return self.name
@@ -142,7 +145,7 @@ class TwilioSMSClient(SmsClient):
         try:
             message = self._client.messages(message_sid).fetch()
         except TwilioRestException:
-            self.logger.warning('Twilio message not found: %s', message_sid)
+            self.logger.exception('Twilio message not found: %s', message_sid)
         return message
 
     def send_sms(
@@ -160,15 +163,12 @@ class TwilioSMSClient(SmsClient):
         """
 
         start_time = monotonic()
+        from app.dao.service_sms_sender_dao import (
+            dao_get_service_sms_sender_by_service_id_and_number,
+            dao_get_service_sms_sender_by_id,
+        )
 
         try:
-            # Importing inline to resolve a circular import error when
-            # importing at the top of the file
-            from app.dao.service_sms_sender_dao import (
-                dao_get_service_sms_sender_by_service_id_and_number,
-                dao_get_service_sms_sender_by_id,
-            )
-
             from_number = None
             messaging_service_sid = None
             sms_sender_id = kwargs.get('sms_sender_id')
@@ -239,7 +239,7 @@ class TwilioSMSClient(SmsClient):
 
     def translate_delivery_status(
         self,
-        twilio_delivery_status_message: str,
+        delivery_status_message: str | dict[str, str],
     ) -> SmsStatusRecord:
         """
         Parses the base64 encoded delivery status message from Twilio and returns a dictionary.
@@ -249,27 +249,43 @@ class TwilioSMSClient(SmsClient):
         - payload: the original payload from twilio
         https://github.com/department-of-veterans-affairs/vanotify-team/blob/main/Engineering/SPIKES/SMS-Delivery-Status.md#twilio-implementation-of-delivery-statuses
         """
-        self.logger.info('Translating Twilio delivery status')
-        self.logger.debug(twilio_delivery_status_message)
+        if not isinstance(delivery_status_message, str):
+            self.logger.error('Did not receive twilio delivery status as a string')
+            raise NonRetryableException(f'Incorrect datatype sent to twilio, {UNABLE_TO_TRANSLATE}')
 
-        decoded_msg, parsed_dict = self._parse_twilio_message(twilio_delivery_status_message)
-
+        decoded_msg, parsed_dict = self._parse_twilio_message(delivery_status_message)
         message_sid = parsed_dict['MessageSid'][0]
         twilio_delivery_status = parsed_dict['MessageStatus'][0]
         error_code = parsed_dict.get('ErrorCode', [])
-
         status, status_reason = self._evaluate_status(message_sid, twilio_delivery_status, error_code)
-
-        status = SmsStatusRecord(
+        raw_dlr_done_date_list = parsed_dict.get('RawDlrDoneDate', [])
+        provider_updated_at = (
+            self._translate_raw_dlr_done_date(raw_dlr_done_date_list[0]) if raw_dlr_done_date_list else None
+        )
+        return SmsStatusRecord(
             decoded_msg,
             message_sid,
             status,
             status_reason,
+            TWILIO_PROVIDER,
+            provider_updated_at=provider_updated_at,
         )
 
-        self.logger.debug('Twilio delivery status translation: %s', status)
+    def _translate_raw_dlr_done_date(self, done_date: str) -> datetime:
+        """Translate RawDlrDoneDate into a timezone unaware datetime object.
 
-        return status
+        Args:
+            done_date (str): The incoming RawDlrDoneDate
+
+        Returns:
+            datetime: Time that Twilio received this update from the carrier
+        """
+        try:
+            done_datetime = datetime.strptime(done_date, TwilioSMSClient.RAW_DLR_DONE_DATE_FMT)
+        except ValueError:
+            self.logger.exception('RawDlrDoneDate from twilio came in an unexpected format')
+            done_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
+        return done_datetime
 
     def update_notification_status_override(self, message_sid: str) -> None:
         """

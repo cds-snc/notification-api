@@ -1,5 +1,7 @@
-import pytest
 import uuid
+
+import pytest
+
 from app.models import InboundNumber
 
 

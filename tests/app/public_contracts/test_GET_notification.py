@@ -1,5 +1,6 @@
-from . import validate
-from app.models import EMAIL_TYPE
+from tests.app.public_contracts import validate
+
+from app.constants import EMAIL_TYPE
 from app.v2.notifications.notification_schemas import get_notification_response, get_notifications_response
 from tests import create_authorization_header
 

@@ -1,9 +1,10 @@
-from app.models import Template, TemplateHistory
 import uuid
 from unittest.mock import Mock
 
 import pytest
 from freezegun import freeze_time
+
+from app.models import Template, TemplateHistory
 
 
 def set_up_get_all_from_hash(mock_redis, side_effect):

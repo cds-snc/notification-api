@@ -6,7 +6,7 @@ The ValidationError handler should reference the schemas' "anyOfValidationMessag
 of the JSON schema specification, to customize the error message.
 """
 
-from app.models import EMAIL_TYPE, SMS_TYPE
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.schema_validation.definitions import personalisation
 from app.va.identifier import IdentifierType
 

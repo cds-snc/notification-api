@@ -2,8 +2,9 @@ from decimal import Decimal
 
 import pytest
 
+from app.constants import SMS_TYPE
 from app.integrations.comp_and_pen.scheduled_message_helpers import CompPenMsgHelper
-from app.models import SMS_TYPE, Service
+from app.models import Service
 from app.va.identifier import IdentifierType
 
 

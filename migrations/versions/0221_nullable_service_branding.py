@@ -4,7 +4,7 @@ Revises: 0220_email_brand_type_non_null
 Create Date: 2018-08-24 13:36:49.346156
  """
 from alembic import op
-from app.models import BRANDING_ORG, BRANDING_GOVUK
+from app.constants import BRANDING_ORG, BRANDING_GOVUK
 
 
 revision = '0221_nullable_service_branding'
@@ -28,14 +28,14 @@ def upgrade():
             brand_type = '{}'
         where
             brand_type = '{}'
-    """.format(BRANDING_ORG, BRANDING_GOVUK))
+    """.format(BRANDING_ORG, BRANDING_GOVUK))  # nosec
 
     op.execute("""
         delete from
             branding_type
         where
             name = '{}'
-    """.format(BRANDING_GOVUK))
+    """.format(BRANDING_GOVUK))  # nosec
 
 
 def downgrade():
@@ -54,4 +54,4 @@ def downgrade():
                 (name)
             values
                 ('{}')
-    """.format(BRANDING_GOVUK))
+    """.format(BRANDING_GOVUK))  # nosec

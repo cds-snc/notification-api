@@ -5,15 +5,7 @@ from sqlalchemy import select, Table
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import encryption
-from app.dao.service_callback_api_dao import (
-    save_service_callback_api,
-    reset_service_callback_api,
-    get_service_callback,
-    get_service_delivery_status_callback_api_for_service,
-)
-from app.db import db
-from app.models import (
-    ServiceCallback,
+from app.constants import (
     NOTIFICATION_FAILED,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -22,6 +14,14 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     WEBHOOK_CHANNEL_TYPE,
 )
+from app.dao.service_callback_api_dao import (
+    save_service_callback_api,
+    reset_service_callback_api,
+    get_service_callback,
+    get_service_delivery_status_callback_api_for_service,
+)
+from app.db import db
+from app.models import ServiceCallback
 from app.schemas import service_callback_api_schema
 from tests.app.db import create_service_callback_api
 

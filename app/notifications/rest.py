@@ -2,15 +2,13 @@ from flask import Blueprint, jsonify, request, current_app
 from marshmallow import ValidationError
 
 from app import api_user, authenticated_service
-from app.config import QueueNames
 from app.dao import templates_dao, notifications_dao
 from app.errors import register_errors, InvalidRequest
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
     LETTER_TYPE,
-    PRIORITY,
     SMS_TYPE,
 )
 from app.notifications.process_notifications import (

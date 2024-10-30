@@ -1,4 +1,4 @@
-from app import DATETIME_FORMAT
+from app.constants import DATETIME_FORMAT
 from app.models import EMAIL_TYPE
 from datetime import datetime
 

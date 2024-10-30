@@ -5,7 +5,8 @@ from uuid import uuid4
 import pytest
 from freezegun import freeze_time
 
-from app.models import INBOUND_SMS_TYPE, SMS_TYPE, Permission, Service
+from app.constants import INBOUND_SMS_TYPE, SMS_TYPE
+from app.models import Permission, Service
 from app.notifications.receive_notifications import (
     NoSuitableServiceForInboundSms,
     create_inbound_sms_object,

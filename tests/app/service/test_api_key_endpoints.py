@@ -6,7 +6,8 @@ from uuid import uuid4
 
 
 from app import db
-from app.models import ApiKey, KEY_TYPE_NORMAL
+from app.constants import KEY_TYPE_NORMAL
+from app.models import ApiKey
 from app.dao.api_key_dao import expire_api_key
 from tests import create_admin_authorization_header
 

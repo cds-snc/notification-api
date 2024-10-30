@@ -2,10 +2,7 @@ import uuid
 
 from sqlalchemy import select
 
-from app.models import (
-    ServiceWhitelist,
-)
-
+from app.models import ServiceWhitelist
 from app.dao.service_whitelist_dao import (
     dao_fetch_service_whitelist,
     dao_add_and_commit_whitelisted_contacts,

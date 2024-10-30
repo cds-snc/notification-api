@@ -12,11 +12,7 @@ from notifications_utils.recipients import (
 from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.dao import services_dao, templates_dao
-from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
-from app.dao.templates_dao import dao_get_number_of_templates_by_service_id_and_name
-from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.models import (
+from app.constants import (
     INTERNATIONAL_SMS_TYPE,
     SMS_TYPE,
     EMAIL_TYPE,
@@ -25,6 +21,10 @@ from app.models import (
     KEY_TYPE_TEAM,
     SCHEDULE_NOTIFICATIONS,
 )
+from app.dao import services_dao, templates_dao
+from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
+from app.dao.templates_dao import dao_get_number_of_templates_by_service_id_and_name
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
 from app import redis_store

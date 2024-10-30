@@ -1,22 +1,26 @@
+from uuid import uuid4
+
 import pytest
+from sqlalchemy import delete, select
+
 from app.celery.v3.notification_tasks import (
     v3_create_notification_instance,
     v3_process_notification,
     v3_send_email_notification,
     v3_send_sms_notification,
 )
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
-    Notification,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
-    NotificationFailures,
     SMS_TYPE,
+)
+from app.models import (
+    Notification,
+    NotificationFailures,
     TemplateHistory,
 )
-from sqlalchemy import delete, select
-from uuid import uuid4
 
 
 ############################################################################################

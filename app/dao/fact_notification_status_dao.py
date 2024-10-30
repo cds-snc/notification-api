@@ -8,15 +8,11 @@ from sqlalchemy.sql.expression import literal, extract
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.models import (
-    ApiKey,
+from app.constants import (
     EMAIL_TYPE,
-    FactNotificationStatus,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    Notification,
-    NotificationHistory,
     NOTIFICATION_CANCELLED,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
@@ -26,8 +22,14 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    Service,
     SMS_TYPE,
+)
+from app.models import (
+    ApiKey,
+    FactNotificationStatus,
+    Notification,
+    NotificationHistory,
+    Service,
     Template,
 )
 from app.utils import (

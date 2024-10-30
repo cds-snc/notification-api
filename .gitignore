@@ -102,3 +102,6 @@ user_flows_exit_code.txt
 
 # Ignore newly generated migrations that retain the default name.
 migrations/versions/*_.py
+
+# Ignore test modifications. Update file with git add --force scripts/run_tests.sh
+scripts/run_tests.sh

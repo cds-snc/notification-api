@@ -1,9 +1,11 @@
-import uuid
-from app.models import ServiceSmsSender, Service
 from datetime import datetime
+import uuid
+
 from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
+
+from app.models import ServiceSmsSender, Service
 
 
 def test_add_service_sms_sender_calls_dao_method(admin_request, mocker):

@@ -1,7 +1,7 @@
 import json
 from sqlalchemy.sql.expression import select
 from types import SimpleNamespace
-from typing import List, Union
+from typing import Union
 
 from app.models import Service, User
 from app.dao.dao_utils import get_reader_session
@@ -213,20 +213,19 @@ class ServiceData:
 
     def has_permissions(
         self,
-        permissions_to_check_for: Union[str, List[str]],
+        permissions_to_check_for: Union[str, list[str], tuple[str]],
     ) -> bool:
         """
         Checks if the object has the specified permissions.
 
         Args:
-            permissions_to_check_for (list): A list or a single permission to check for.
+            permissions_to_check_for (Union[str, list[str], tuple[str]]): A permission(s) to check for.
 
         Returns:
             bool: True if all specified permissions are present, False otherwise.
         """
-        if not isinstance(permissions_to_check_for, list):
-            tmp = permissions_to_check_for
-            permissions_to_check_for = [tmp]
+        if not isinstance(permissions_to_check_for, list) and not isinstance(permissions_to_check_for, tuple):
+            permissions_to_check_for = (permissions_to_check_for,)
         return frozenset(permissions_to_check_for).issubset(frozenset(self.permissions))
 
     @classmethod

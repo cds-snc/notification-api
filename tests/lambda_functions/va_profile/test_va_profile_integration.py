@@ -396,9 +396,6 @@ def test_va_profile_opt_in_out_lambda_handler_valid_dict(
     get_integration_testing_public_cert_mock.assert_not_called()
 
     # Verify one row was created using a delete statement that doubles as teardown.
-    print(event_dict['body']['bios'][0]['vaProfileId'])
-    print(event_dict['body']['bios'][0]['communicationItemId'])
-    print(event_dict['body']['bios'][0]['communicationChannelId'])
     stmt = delete(VAProfileLocalCache).where(
         VAProfileLocalCache.va_profile_id == event_dict['body']['bios'][0]['vaProfileId'],
         VAProfileLocalCache.communication_item_id == event_dict['body']['bios'][0]['communicationItemId'],

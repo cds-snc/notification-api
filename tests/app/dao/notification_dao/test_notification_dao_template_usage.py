@@ -1,13 +1,15 @@
+from datetime import datetime, timedelta
+
 import pytest
-from app.dao.notifications_dao import dao_get_last_template_usage
-from app.models import (
+
+from app.constants import (
     EMAIL_TYPE,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
 )
-from datetime import datetime, timedelta
+from app.dao.notifications_dao import dao_get_last_template_usage
 
 
 def test_last_template_usage_should_get_right_data(sample_template, sample_notification):

@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.models import NOTIFICATION_STATUS_TYPES_COMPLETED
+from app.constants import NOTIFICATION_STATUS_TYPES_COMPLETED
 
 revision = '0329_notification_status'
 down_revision = '0328_identity_provider_user_id'

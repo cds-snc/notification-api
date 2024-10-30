@@ -4,15 +4,11 @@ Revises: 0330a_grant_edit_templates
 Create Date: 2021-07-01
 """
 
-import json
-
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import text
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 
-from app.models import NOTIFICATION_STATUS_TYPES_COMPLETED
 
 revision = '0331_merge_service_apis'
 down_revision = '0330a_grant_edit_templates'

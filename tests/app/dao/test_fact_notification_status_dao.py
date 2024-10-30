@@ -7,6 +7,22 @@ from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import delete, select
 
+from app.constants import (
+    EMAIL_TYPE,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_FAILED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    SMS_TYPE,
+)
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
@@ -26,23 +42,7 @@ from app.dao.fact_notification_status_dao import (
     get_total_sent_notifications_for_day_and_type,
     update_fact_notification_status,
 )
-from app.models import (
-    EMAIL_TYPE,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
-    LETTER_TYPE,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_SENDING,
-    NOTIFICATION_SENT,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    SMS_TYPE,
-    FactNotificationStatus,
-)
+from app.models import FactNotificationStatus
 
 
 @pytest.mark.serial

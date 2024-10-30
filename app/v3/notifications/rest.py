@@ -4,7 +4,7 @@ import phonenumbers
 from app import authenticated_service
 from app.authentication.auth import AuthError
 from app.celery.v3.notification_tasks import v3_process_notification
-from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, SMS_TYPE
+from app.constants import EMAIL_TYPE, KEY_TYPE_NORMAL, SMS_TYPE
 from app.service.service_data import ServiceData
 from app.v3.notifications.notification_schemas import (
     notification_v3_post_email_request_schema,

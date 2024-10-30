@@ -1,11 +1,8 @@
+from datetime import datetime, timedelta
 import functools
 import string
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
-from datetime import (
-    datetime,
-    timedelta,
-)
 
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -27,16 +24,9 @@ from sqlalchemy.sql.expression import case
 from sqlalchemy.dialects.postgresql import insert
 from werkzeug.datastructures import MultiDict
 
-from app import db, create_uuid
+from app import db
 from app.aws.s3 import remove_s3_object, get_s3_bucket_objects
-from app.dao.dao_utils import transactional
-from app.errors import InvalidRequest
-from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
-from app.models import (
-    Notification,
-    NotificationHistory,
-    ScheduledNotification,
+from app.constants import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
@@ -51,12 +41,28 @@ from app.models import (
     NOTIFICATION_PREFERENCES_DECLINED,
     SMS_TYPE,
     EMAIL_TYPE,
+)
+from app.dao.dao_utils import transactional
+from app.errors import InvalidRequest
+from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
+from app.models import (
+    Notification,
+    NotificationHistory,
+    ScheduledNotification,
     ServiceDataRetention,
     Service,
 )
-from app.utils import get_local_timezone_midnight_in_utc
+from app.utils import create_uuid, get_local_timezone_midnight_in_utc
 from app.utils import midnight_n_days_ago, escape_special_characters
 
+# No response from the provider yet, or the response is that they have not done anything (pending)
+UNSENT_STATUSES = (
+    NOTIFICATION_CREATED,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_PENDING,
+)
+
+# Non-final state
 TRANSIENT_STATUSES = (
     NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
@@ -66,11 +72,81 @@ TRANSIENT_STATUSES = (
     NOTIFICATION_TEMPORARY_FAILURE,
 )
 
+# Final state - Can sometimes move between final states
 FINAL_STATUS_STATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_PREFERENCES_DECLINED,
+)
+
+_CREATED_UPDATES = (
+    NOTIFICATION_SENDING,
+    NOTIFICATION_PENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_SENDING_UPDATES = (
+    NOTIFICATION_PENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_PENDING_UPDATES = (
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+
+_SENT_UPDATES = (
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_DELIVERED_UPDATES = (
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_TEMPORARY_FAILURE_UPDATES = (
+    NOTIFICATION_SENT,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_PERMANENT_FAILURE_UPDATES = (
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+)
+
+_TECHNICAL_FAILURE_UPDATES = (
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_PREFERENCES_DECLINED,
+)
+
+_PREFERENCES_DECLINED_UPDATES = (
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
 
@@ -109,20 +185,33 @@ def dao_create_notification(notification):
     db.session.add(notification)
 
 
-def _decide_permanent_temporary_failure(
-    current_status,
-    status,
-):
-    # Firetext will send pending, then send either success or fail.
-    # If we go from pending to delivered we need to set failure type as temporary-failure
-    if current_status == NOTIFICATION_PENDING and status == NOTIFICATION_PERMANENT_FAILURE:
-        status = NOTIFICATION_TEMPORARY_FAILURE
-    return status
-
-
 def country_records_delivery(phone_prefix):
     dlr = INTERNATIONAL_BILLING_RATES[phone_prefix]['attributes']['dlr']
     return dlr and dlr.lower() == 'yes'
+
+
+def sms_conditions(incoming_status: str) -> Any:
+    """Build conditions in which to update an sms notification.
+
+    Args:
+        incoming_status (str): The incoming notification status
+
+    Returns:
+        Any: Conditions for a where clause
+    """
+    return or_(
+        and_(Notification.status == NOTIFICATION_CREATED, incoming_status in _CREATED_UPDATES),
+        and_(Notification.status == NOTIFICATION_SENDING, incoming_status in _SENDING_UPDATES),
+        and_(Notification.status == NOTIFICATION_PENDING, incoming_status in _PENDING_UPDATES),
+        and_(Notification.status == NOTIFICATION_SENT, incoming_status in _SENT_UPDATES),
+        and_(Notification.status == NOTIFICATION_DELIVERED, incoming_status in _DELIVERED_UPDATES),
+        and_(Notification.status == NOTIFICATION_TEMPORARY_FAILURE, incoming_status in _TEMPORARY_FAILURE_UPDATES),
+        and_(Notification.status == NOTIFICATION_PERMANENT_FAILURE, incoming_status in _PERMANENT_FAILURE_UPDATES),
+        and_(Notification.status == NOTIFICATION_TECHNICAL_FAILURE, incoming_status in _TECHNICAL_FAILURE_UPDATES),
+        and_(
+            Notification.status == NOTIFICATION_PREFERENCES_DECLINED, incoming_status in _PREFERENCES_DECLINED_UPDATES
+        ),
+    )
 
 
 def _get_notification_status_update_statement(
@@ -256,7 +345,7 @@ def update_notification_status_by_id(
     if current_status:
         stmt = stmt.where(Notification.status == current_status)
 
-    notification = db.session.scalar(stmt)
+    notification: Notification = db.session.scalar(stmt)
     if notification is None:
         current_app.logger.info('notification not found for id %s (update to status %s)', notification_id, status)
         return None
@@ -267,47 +356,65 @@ def update_notification_status_by_id(
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
 
-    if is_feature_enabled(FeatureFlag.NOTIFICATION_FAILURE_REASON_ENABLED) and status_reason:
-        notification.status_reason = status_reason
-
     return dao_update_notification_by_id(
         notification_id=notification.id,
         status=status,
-        status_reason=notification.status_reason,
-        sent_by=notification.sent_by,
+        status_reason=status_reason,
+        sent_by=sent_by,
     )
 
 
 @statsd(namespace='dao')
-def update_notification_delivery_status(
+def dao_update_sms_notification_delivery_status(
     notification_id: UUID,
+    notification_type: str,
     new_status: str,
-    new_status_reason: str = None,
-) -> None:
-    """
-    Update a notification's delivery status.
+    new_status_reason: str | None,
+    segments_count: int,
+    cost_in_millicents: float,
+) -> Notification:
+    """Update an SMS notification delivery status.
 
     Based on the desired update status, a query is constructed that cannot put the notification in an incorrect state.
 
-    Arguments:
-        notification_id (UUID): Notification id,
-        new_status (str): Status to update the notification to,
+    Args:
+        provider (str): The provider being used
+        notification_id (UUID): The id to update
+        new_status (str): The new status being set
+        new_status_reason (str, optional): The new status reason beign set. Defaults to None.
+
+    Returns:
+        Notification: A Notification object
     """
 
-    current_app.logger.info('Update notification: %s to status: %s', notification_id, new_status)
-    stmt = _get_notification_status_update_statement(
-        notification_id=notification_id,
-        incoming_status=new_status,
-        incoming_status_reason=new_status_reason,
-    )
+    if notification_type == SMS_TYPE:
+        stmt = (
+            update(Notification)
+            .where(Notification.id == notification_id)
+            .where(sms_conditions(new_status))
+            .values(
+                status=new_status,
+                status_reason=new_status_reason,
+                segments_count=segments_count,
+                cost_in_millicents=cost_in_millicents,
+            )
+            .execution_options(synchronize_session='fetch')
+        )
+        current_app.logger.debug('sms delivery status statement: %s', stmt)
+    else:
+        raise NotImplementedError(
+            f'dao_update_sms_notification_delivery_status not configured for {notification_type} yet'
+        )
 
     try:
         db.session.execute(stmt)
         db.session.commit()
-    except Exception as e:
-        current_app.logger.critical('Updating notification %s to status "%s" failed.', notification_id, new_status)
-        current_app.logger.exception(e)
+    except Exception:
+        current_app.logger.exception('Updating notification %s to status "%s" failed.', notification_id, new_status)
         db.session.rollback()
+        raise
+
+    return db.session.get(Notification, notification_id)
 
 
 @statsd(namespace='dao')
@@ -888,7 +995,7 @@ def dao_get_notifications_by_to_field(
 
 
 @statsd(namespace='dao')
-def dao_get_notification_by_reference(reference):
+def dao_get_notification_by_reference(reference) -> Notification:
     stmt = select(Notification).where(Notification.reference == reference)
     return db.session.scalars(stmt).one()
 

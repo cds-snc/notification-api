@@ -1,23 +1,17 @@
-import os
 import pytest
-from app.celery import provider_tasks
+
 from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
+from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
 from app.exceptions import (
     NotificationPermanentFailureException,
     NotificationTechnicalFailureException,
     InvalidProviderException,
 )
-from app.models import (
-    EMAIL_TYPE,
-    Notification,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    SMS_TYPE,
-)
+from app.models import Notification
 from app.v2.errors import RateLimitError
 from collections import namedtuple
 from notifications_utils.field import NullValueForNonConditionalPlaceholderException

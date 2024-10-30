@@ -1,38 +1,40 @@
 import json
-import pytest
 import uuid
-from app.dao.services_dao import (
-    dao_remove_user_from_service,
-    DEFAULT_SERVICE_PERMISSIONS,
+from datetime import datetime, timedelta, date
+from unittest.mock import ANY
+from uuid import uuid4
+
+import pytest
+from flask import url_for, current_app
+from freezegun import freeze_time
+from sqlalchemy import select
+
+from app.constants import (
+    DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS,
+    DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS,
+    EMAIL_TYPE,
+    INBOUND_SMS_TYPE,
+    INTERNATIONAL_SMS_TYPE,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    SMS_TYPE,
 )
+from app.dao.services_dao import dao_remove_user_from_service
 from app.dao.templates_dao import dao_redact_template
 from app.models import (
-    EmailBranding,
     Notification,
     Service,
     ServicePermission,
     ServiceSmsSender,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
-    EMAIL_TYPE,
-    SMS_TYPE,
-    LETTER_TYPE,
-    INTERNATIONAL_SMS_TYPE,
-    INBOUND_SMS_TYPE,
     ProviderDetails,
 )
-from datetime import datetime, timedelta, date
-from flask import url_for, current_app
-from freezegun import freeze_time
-from sqlalchemy import select
 from tests import create_admin_authorization_header
 from tests.app.db import (
     create_ft_notification_status,
     create_notification,
 )
-from unittest.mock import ANY
-from uuid import uuid4
 
 
 def test_get_service_list(client, sample_service, sample_user):
@@ -191,12 +193,14 @@ def test_get_service_list_has_default_permissions(admin_request, sample_service,
     resp_data = [x for x in json_resp['data'] if x['created_by'] == str(user.id)]
     assert len(resp_data) == 4
 
-    assert all((frozenset(json['permissions']) == frozenset(DEFAULT_SERVICE_PERMISSIONS)) for json in resp_data)
+    assert all(
+        (frozenset(json['permissions']) == frozenset(DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS)) for json in resp_data
+    )
 
 
 def test_get_service_by_id_has_default_service_permissions(admin_request, sample_service):
     json_resp = admin_request.get('service.get_service_by_id', service_id=sample_service().id)
-    assert frozenset(json_resp['data']['permissions']) == frozenset(DEFAULT_SERVICE_PERMISSIONS)
+    assert frozenset(json_resp['data']['permissions']) == frozenset(DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS)
 
 
 def test_get_service_by_id_should_404_if_no_service(admin_request):
@@ -1008,9 +1012,8 @@ def test_default_permissions_are_added_for_user_service(notify_api, sample_user)
             assert response.status_code == 200
             json_resp = response.get_json()
             service_permissions = json_resp['data']['permissions'][service_0_id]
-            from app.dao.permissions_dao import default_service_permissions
 
-            assert sorted(default_service_permissions) == sorted(service_permissions)
+            assert sorted(DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS) == sorted(service_permissions)
 
 
 # This test is just here verify get_service_and_api_key_history that is a temp solution
@@ -1240,7 +1243,6 @@ def test_get_detailed_service(notify_api, notify_db_session, sample_service, sam
     assert service_resp['id'] == str(service.id)
     assert 'statistics' in service_resp
     assert set(service_resp['statistics'].keys()) == {SMS_TYPE, EMAIL_TYPE, LETTER_TYPE}
-    print('STATS:\n ', service_resp['statistics'])
     assert service_resp['statistics'][SMS_TYPE] == stats
 
     # Teardown

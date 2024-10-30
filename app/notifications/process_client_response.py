@@ -11,9 +11,9 @@ from app.dao import notifications_dao
 from app.clients.sms.firetext import get_firetext_responses
 from app.clients.sms.mmg import get_mmg_responses
 from app.celery.service_callback_tasks import check_and_queue_callback_task
+from app.constants import NOTIFICATION_PENDING
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_get_template_by_id
-from app.models import NOTIFICATION_PENDING
 
 sms_response_mapper = {'MMG': get_mmg_responses, 'Firetext': get_firetext_responses, 'Twilio': get_twilio_responses}
 

@@ -1,6 +1,7 @@
-from app.models import ApiKey
 from flask import current_app
 from notifications_python_client.authentication import create_jwt_token
+
+from app.models import ApiKey
 
 
 def create_admin_authorization_header() -> str:

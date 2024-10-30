@@ -1,20 +1,38 @@
 import base64
+from datetime import datetime
+from uuid import uuid4
+
 import pytest
 import requests_mock
+from twilio.base.exceptions import TwilioRestException
+from urllib.parse import parse_qsl
+
 from app import twilio_sms_client
+from app.celery.exceptions import NonRetryableException
 from app.clients.sms import SmsStatusRecord
 from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient
-from app.exceptions import InvalidProviderException
-from app.models import (
+from app.constants import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
 )
+from app.exceptions import InvalidProviderException
 from tests.app.db import create_service_sms_sender
-from twilio.base.exceptions import TwilioRestException
-from urllib.parse import parse_qsl
+
+
+class FakeClient:
+    def __init__(self, **kwargs):
+        self.messages = self.MessageFactory()
+
+    class MessageFactory:
+        def __call__(self, *args, **kwds):
+            return self
+
+        @staticmethod
+        def fetch(**kwargs):
+            raise TwilioRestException(status=kwargs.get('status', 0), uri=kwargs.get('uri', 'https://www.va.gov'))
 
 
 class MockSmsSenderObject:
@@ -392,7 +410,7 @@ def test_returned_payload_is_decoded(event, twilio_sms_client_mock):
 
 
 def test_exception_on_empty_twilio_status_message(twilio_sms_client_mock):
-    with pytest.raises(ValueError):
+    with pytest.raises(NonRetryableException):
         twilio_sms_client_mock.translate_delivery_status(None)
 
 
@@ -740,19 +758,22 @@ def test_update_notification_status_override(
 def test_update_notification_with_unknown_sid(
     notify_api,
     mocker,
-    sample_notification,
-    notify_db_session,
 ):
-    twilio_sid = 'test_sid'
+    twilio_sid = f'{str(uuid4())}-twilio-sid'
+    twilio_sms_client._client = FakeClient()
 
-    notification = sample_notification(status='sending', reference=twilio_sid)
-
-    # Mock the call to get_twilio_message
-    mocker.patch('app.clients')
-    mocker.patch('app.clients.sms.twilio.TwilioSMSClient.get_twilio_message', side_effect=TwilioRestException)
-
+    mock_logger = mocker.spy(twilio_sms_client.logger, 'exception')
     twilio_sms_client.update_notification_status_override(twilio_sid)
+    mock_logger.assert_called_once_with('Twilio message not found: %s', twilio_sid)
 
-    # Retrieve the updated notification
-    notify_db_session.session.refresh(notification)
-    assert notification.status == 'sending'
+
+def test_translate_raw_dlr_done_date():
+    raw_dlr_done_date = '2410281326'
+    print(datetime.strptime(raw_dlr_done_date, TwilioSMSClient.RAW_DLR_DONE_DATE_FMT))
+    assert twilio_sms_client._translate_raw_dlr_done_date(raw_dlr_done_date) == datetime(2024, 10, 28, 13, 26)
+
+
+def test_translate_raw_dlr_done_date_to_long(mocker):
+    # Extra 2 at the end
+    raw_dlr_done_date = '24102813222'
+    assert twilio_sms_client._translate_raw_dlr_done_date(raw_dlr_done_date) != datetime(2024, 10, 28, 13, 22)

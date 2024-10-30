@@ -8,6 +8,12 @@ from app import notify_celery, va_profile_client
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
+from app.constants import (
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    EMAIL_TYPE,
+    SMS_TYPE,
+)
 from app.dao.notifications_dao import (
     get_notification_by_id,
     dao_update_notification,
@@ -15,10 +21,6 @@ from app.dao.notifications_dao import (
 )
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
 from app.models import (
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    EMAIL_TYPE,
-    SMS_TYPE,
     Notification,
     RecipientIdentifier,
 )

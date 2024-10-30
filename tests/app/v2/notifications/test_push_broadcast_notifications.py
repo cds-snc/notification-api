@@ -1,8 +1,11 @@
-import pytest
 import os
+
 import requests
 import requests_mock
+import pytest
+
 from . import post_send_push_broadcast_notification
+from app.constants import PUSH_TYPE
 from app.va.vetext import (
     VETextClient,
     VETextBadRequestException,
@@ -11,7 +14,6 @@ from app.va.vetext import (
 )
 from app.feature_flags import FeatureFlag
 from app.mobile_app import MobileAppType, DEAFULT_MOBILE_APP_TYPE
-from app.models import PUSH_TYPE
 from tests.app.factories.feature_flag import mock_feature_flag
 
 

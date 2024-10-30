@@ -1,3 +1,10 @@
+from datetime import datetime
+from itertools import product
+from uuid import uuid4
+
+from freezegun import freeze_time
+
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.dao.inbound_sms_dao import (
     dao_get_inbound_sms_for_service,
     dao_count_inbound_sms_for_service,
@@ -6,12 +13,6 @@ from app.dao.inbound_sms_dao import (
     dao_get_paginated_inbound_sms_for_service_for_public_api,
     dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service,
 )
-from app.models import EMAIL_TYPE, SMS_TYPE
-from datetime import datetime
-from freezegun import freeze_time
-from itertools import product
-from uuid import uuid4
-
 from tests.conftest import set_config
 
 

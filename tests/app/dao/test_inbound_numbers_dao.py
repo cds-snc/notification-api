@@ -1,4 +1,5 @@
 import pytest
+
 from app.dao.inbound_numbers_dao import (
     dao_create_inbound_number,
     dao_get_available_inbound_numbers,

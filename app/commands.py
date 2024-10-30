@@ -15,13 +15,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.statsd_decorators import statsd
 
-from app import db, DATETIME_FORMAT, encryption
+from app import db, encryption
+from app.constants import DATETIME_FORMAT
 from app.aws import s3
 from app.celery.tasks import record_daily_sorted_counts
 from app.celery.nightly_tasks import send_total_sent_notifications_to_performance_platform
 from app.celery.service_callback_tasks import send_delivery_status_to_service
-
 from app.config import QueueNames
+from app.constants import NOTIFICATION_CREATED, KEY_TYPE_TEST, SMS_TYPE
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
@@ -47,9 +48,6 @@ from app.models import (
     Organisation,
     Domain,
     Service,
-    SMS_TYPE,
-    NOTIFICATION_CREATED,
-    KEY_TYPE_TEST,
     EmailBranding,
 )
 from app.model import User

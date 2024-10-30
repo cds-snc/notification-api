@@ -3,9 +3,9 @@ from boto3.dynamodb.conditions import Attr
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.constants import SMS_TYPE
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.models import (
-    SMS_TYPE,
     Service,
     Template,
 )

@@ -14,16 +14,10 @@ from app.celery.tasks import (
     update_letter_notifications_statuses,
     update_letter_notifications_to_sent_to_dvla,
 )
+from app.constants import LETTER_TYPE, NOTIFICATION_CREATED, NOTIFICATION_DELIVERED, NOTIFICATION_SENDING
 from app.dao.daily_sorted_letter_dao import dao_get_daily_sorted_letter_by_billing_day
 from app.exceptions import DVLAException
-from app.models import (
-    LETTER_TYPE,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_SENDING,
-    DailySortedLetter,
-    NotificationHistory,
-)
+from app.models import DailySortedLetter, NotificationHistory
 from tests.app.db import create_notification_history
 from tests.conftest import set_config
 

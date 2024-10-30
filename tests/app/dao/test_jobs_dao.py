@@ -1,5 +1,11 @@
-import pytest
+from datetime import datetime, timedelta
+from functools import partial
 import uuid
+
+from freezegun import freeze_time
+import pytest
+
+from app.constants import EMAIL_TYPE, JOB_STATUS_SCHEDULED, LETTER_TYPE, SMS_TYPE
 from app.dao.jobs_dao import (
     can_letter_job_be_cancelled,
     dao_cancel_letter_job,
@@ -12,16 +18,7 @@ from app.dao.jobs_dao import (
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
-from app.models import (
-    EMAIL_TYPE,
-    Job,
-    JOB_STATUS_SCHEDULED,
-    LETTER_TYPE,
-    SMS_TYPE,
-)
-from datetime import datetime, timedelta
-from freezegun import freeze_time
-from functools import partial
+from app.models import Job
 
 
 def test_should_have_decorated_notifications_dao_functions():

@@ -1,9 +1,33 @@
+from datetime import datetime
+from logging import Logger
+from time import monotonic
+from typing import Tuple
+
 import boto3
 import botocore
-from time import monotonic
 
 from app.celery.exceptions import NonRetryableException
-from app.clients.sms import SmsClient, SmsClientResponseException
+from app.clients.sms import (
+    SmsClient,
+    SmsClientResponseException,
+    SmsStatusRecord,
+    BLOCKED_MESSAGE,
+    OPT_OUT_MESSAGE,
+    PRICE_THRESHOLD_EXCEEDED,
+    REPORTED_AS_SPAM,
+    RETRYABLE_AWS_RESPONSE,
+    UNABLE_TO_TRANSLATE,
+    UNEXPECTED_PROVIDER_RESULT,
+)
+from app.constants import (
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PREFERENCES_DECLINED,
+    PINPOINT_PROVIDER,
+)
 from app.exceptions import InvalidProviderException
 
 
@@ -15,6 +39,25 @@ class AwsPinpointClient(SmsClient):
     """
     AwsSns pinpoint client
     """
+
+    # https://docs.aws.amazon.com/pinpoint/latest/developerguide/event-streams-data-sms.html
+    # Maps record_status to (status, status_reason)
+    _sms_record_status_mapping = {
+        'SUCCESSFUL': (NOTIFICATION_DELIVERED, None),
+        'DELIVERED': (NOTIFICATION_DELIVERED, None),
+        'PENDING': (NOTIFICATION_SENDING, None),
+        'INVALID': (NOTIFICATION_TECHNICAL_FAILURE, UNEXPECTED_PROVIDER_RESULT),
+        'UNREACHABLE': (NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_AWS_RESPONSE),
+        'UNKNOWN': (NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_AWS_RESPONSE),
+        'BLOCKED': (NOTIFICATION_PERMANENT_FAILURE, BLOCKED_MESSAGE),
+        'CARRIER_UNREACHABLE': (NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_AWS_RESPONSE),
+        'SPAM': (NOTIFICATION_PERMANENT_FAILURE, REPORTED_AS_SPAM),
+        'INVALID_MESSAGE': (NOTIFICATION_TECHNICAL_FAILURE, UNEXPECTED_PROVIDER_RESULT),
+        'CARRIER_BLOCKED': (NOTIFICATION_PERMANENT_FAILURE, BLOCKED_MESSAGE),
+        'TTL_EXPIRED': (NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_AWS_RESPONSE),
+        'MAX_PRICE_EXCEEDED': (NOTIFICATION_TECHNICAL_FAILURE, PRICE_THRESHOLD_EXCEEDED),
+        'OPTED_OUT': (NOTIFICATION_PREFERENCES_DECLINED, OPT_OUT_MESSAGE),
+    }
 
     def __init__(self):
         self.name = 'pinpoint'
@@ -32,7 +75,7 @@ class AwsPinpointClient(SmsClient):
         self.aws_region = aws_region
         self.origination_number = origination_number
         self.statsd_client = statsd_client
-        self.logger = logger
+        self.logger: Logger = logger
 
     def get_name(self):
         return self.name
@@ -108,3 +151,71 @@ class AwsPinpointClient(SmsClient):
                 raise NonRetryableException(error_message)
 
             raise AwsPinpointException(error_message)
+
+    def _get_status_mapping(self, record_status) -> Tuple[str, str]:
+        if record_status not in self._sms_record_status_mapping:
+            # This is a programming error, or Pinpoint's response format has changed.
+            self.logger.critical('Unanticipated Pinpoint record status: %s', record_status)
+
+        return self._sms_record_status_mapping.get(
+            record_status, (NOTIFICATION_TECHNICAL_FAILURE, UNEXPECTED_PROVIDER_RESULT)
+        )
+
+    def _get_aws_status(
+        self,
+        event_type,
+        record_status,
+    ) -> Tuple[str, str]:
+        """Get the status.
+
+        Checks for opt out and then maps status and status reason.
+
+        Args:
+            event_type (str): AWS event type
+            record_status (str): Mapping of record status to notification status
+
+        Returns:
+            Tuple[str, str]: status and status_reason
+        """
+        if event_type == '_SMS.OPTOUT':
+            status = NOTIFICATION_PREFERENCES_DECLINED
+            status_reason = OPT_OUT_MESSAGE
+        else:
+            status, status_reason = self._get_status_mapping(record_status)
+        return status, status_reason
+
+    def translate_delivery_status(
+        self,
+        delivery_status_message: str | dict[str, str],
+    ) -> SmsStatusRecord:
+        """Translate AWS Pinpoint delivery status
+
+        Extracts relevant fields from the incoming message and translates the message into a standard format.
+
+        Args:
+            delivery_status_message (str | dict[str, str]): The incoming message
+
+        Raises:
+            NonRetryableException: The wrong message was passed to this method
+
+        Returns:
+            SmsStatusRecord: Object representing an sms status
+        """
+        if not isinstance(delivery_status_message, dict):
+            self.logger.error('Did not receive pinpoint delivery status as a string')
+            raise NonRetryableException(f'Incorrect datatype sent to pinpoint, {UNABLE_TO_TRANSLATE}')
+
+        pinpoint_attributes = delivery_status_message['attributes']
+        event_type = delivery_status_message['event_type']
+        record_status = pinpoint_attributes['record_status']
+        status, status_reason = self._get_aws_status(event_type, record_status)
+        return SmsStatusRecord(
+            None,
+            pinpoint_attributes['message_id'],
+            status,
+            status_reason,
+            PINPOINT_PROVIDER,
+            pinpoint_attributes['number_of_message_parts'],
+            delivery_status_message['metrics']['price_in_millicents_usd'],
+            datetime.fromtimestamp(delivery_status_message['event_timestamp'] / 1000),
+        )

@@ -17,20 +17,20 @@ from app.celery import provider_tasks
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
-
 from app.config import QueueNames
-from app.dao.service_sms_sender_dao import (
-    dao_get_service_sms_sender_by_id,
-    dao_get_service_sms_sender_by_service_id_and_number,
-)
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
-
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     SMS_TYPE,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
+)
+from app.dao.service_sms_sender_dao import (
+    dao_get_service_sms_sender_by_id,
+    dao_get_service_sms_sender_by_service_id_and_number,
+)
+from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
+from app.models import (
     Notification,
     ScheduledNotification,
     RecipientIdentifier,
@@ -40,7 +40,6 @@ from app.dao.notifications_dao import (
     dao_delete_notification_by_id,
     dao_created_scheduled_notification,
 )
-
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
 from app.va.identifier import IdentifierType

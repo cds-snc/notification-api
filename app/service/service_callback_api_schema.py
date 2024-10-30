@@ -1,4 +1,4 @@
-from app.models import NOTIFICATION_STATUS_TYPES_COMPLETED, CALLBACK_CHANNEL_TYPES, SERVICE_CALLBACK_TYPES
+from app.constants import NOTIFICATION_STATUS_TYPES_COMPLETED, CALLBACK_CHANNEL_TYPES, SERVICE_CALLBACK_TYPES
 from app.schema_validation.definitions import uuid, https_url
 
 update_service_inbound_api_schema = {

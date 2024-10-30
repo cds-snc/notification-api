@@ -1,4 +1,4 @@
-from app.models import TEMPLATE_PROCESS_TYPE, TEMPLATE_TYPES
+from app.constants import TEMPLATE_PROCESS_TYPE, TEMPLATE_TYPES
 from app.schema_validation.definitions import uuid
 
 

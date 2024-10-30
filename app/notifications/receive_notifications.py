@@ -2,10 +2,11 @@ import iso8601
 from app import statsd_client
 from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
+from app.constants import INBOUND_SMS_TYPE, SMS_TYPE
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
 from app.dao.services_dao import dao_fetch_service_by_inbound_number
 from app.errors import register_errors
-from app.models import InboundSms, INBOUND_SMS_TYPE, SMS_TYPE, Service
+from app.models import InboundSms, Service
 from datetime import datetime
 from flask import jsonify, Blueprint, current_app, request, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number

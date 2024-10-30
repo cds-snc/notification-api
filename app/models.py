@@ -30,38 +30,61 @@ from notifications_utils.template import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 
-from app import DATETIME_FORMAT, encryption
+from app import encryption
+from app.constants import (
+    BRANDING_ORG,
+    DATETIME_FORMAT,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    EMAIL_TYPE,
+    EMAIL_AUTH_TYPE,
+    FIRETEXT_PROVIDER,
+    INVITE_PENDING,
+    INVITED_USER_STATUS_TYPES,
+    KEY_TYPE_NORMAL,
+    LETTER_TYPE,
+    MMG_PROVIDER,
+    MOBILE_TYPE,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_FAILED,
+    NOTIFICATION_RETURNED_LETTER,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_STATUS_LETTER_ACCEPTED,
+    NOTIFICATION_STATUS_LETTER_RECEIVED,
+    NOTIFICATION_STATUS_TYPES,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    NOTIFICATION_STATUS_TYPES_FAILED,
+    NOTIFICATION_TYPE,
+    PERMISSION_LIST,
+    PINPOINT_PROVIDER,
+    QUEUE_CHANNEL_TYPE,
+    SES_PROVIDER,
+    SMS_TYPE,
+    SNS_PROVIDER,
+    TEMPLATE_PROCESS_NORMAL,
+    TEMPLATE_TYPES,
+    WEBHOOK_CHANNEL_TYPE,
+    WHITELIST_RECIPIENT_TYPE,
+)
 from app.db import db
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
-from app.model import EMAIL_AUTH_TYPE, User
+from app.model import User
 from app.va.identifier import IdentifierType
 
-
-EMAIL_TYPE = 'email'
-LETTER_TYPE = 'letter'
-MOBILE_TYPE = 'mobile'
-PUSH_TYPE = 'push'
-SMS_TYPE = 'sms'
-
-TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
-
-template_types = db.Enum(*TEMPLATE_TYPES, name='template_type')
-
-NORMAL = 'normal'
-PRIORITY = 'priority'
-TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY]
-
-DELIVERY_STATUS_CALLBACK_TYPE = 'delivery_status'
-COMPLAINT_CALLBACK_TYPE = 'complaint'
-INBOUND_SMS_CALLBACK_TYPE = 'inbound_sms'
-SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE]
-
+# models.py only constants
 UNKNOWN_COMPLAINT_TYPE = 'unknown complaint type'
+VERIFY_CODE_TYPES = (EMAIL_TYPE, SMS_TYPE)
+# models.py only but order dependent
+SMS_PROVIDERS = (MMG_PROVIDER, FIRETEXT_PROVIDER, PINPOINT_PROVIDER, SNS_PROVIDER)
+EMAIL_PROVIDERS = (SES_PROVIDER,)
+PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
-WEBHOOK_CHANNEL_TYPE = 'webhook'
-QUEUE_CHANNEL_TYPE = 'queue'
-CALLBACK_CHANNEL_TYPES = [WEBHOOK_CHANNEL_TYPE, QUEUE_CHANNEL_TYPE]
+# Model enums
+_notification_types = db.Enum(*NOTIFICATION_TYPE, name='notification_type')
+_notification_status_types_enum = db.Enum(*NOTIFICATION_STATUS_TYPES, name='notify_status_type')  # Not necessary?
+_template_types = db.Enum(*TEMPLATE_TYPES, name='template_type')
+_whitelist_recipient_types = db.Enum(*WHITELIST_RECIPIENT_TYPE, name='recipient_type')
 
 
 def filter_null_value_fields(obj):
@@ -117,13 +140,6 @@ user_folder_permissions = db.Table(
     db.ForeignKeyConstraint(['template_folder_id', 'service_id'], ['template_folder.id', 'template_folder.service_id']),
 )
 
-BRANDING_GOVUK = 'govuk'  # Deprecated outside migrations
-BRANDING_ORG = 'org'
-BRANDING_BOTH = 'both'
-BRANDING_ORG_BANNER = 'org_banner'
-BRANDING_NO_BRANDING = 'no_branding'
-BRANDING_TYPES = [BRANDING_ORG, BRANDING_BOTH, BRANDING_ORG_BANNER, BRANDING_NO_BRANDING]
-
 
 class BrandingTypes(db.Model):
     __tablename__ = 'branding_type'
@@ -163,32 +179,6 @@ service_email_branding = db.Table(
 )
 
 
-INTERNATIONAL_SMS_TYPE = 'international_sms'
-INBOUND_SMS_TYPE = 'inbound_sms'
-SCHEDULE_NOTIFICATIONS = 'schedule_notifications'
-EMAIL_AUTH = 'email_auth'
-LETTERS_AS_PDF = 'letters_as_pdf'
-PRECOMPILED_LETTER = 'precompiled_letter'
-UPLOAD_DOCUMENT = 'upload_document'
-EDIT_FOLDER_PERMISSIONS = 'edit_folder_permissions'
-UPLOAD_LETTERS = 'upload_letters'
-
-SERVICE_PERMISSION_TYPES = [
-    EMAIL_TYPE,
-    SMS_TYPE,
-    LETTER_TYPE,
-    PUSH_TYPE,
-    INTERNATIONAL_SMS_TYPE,
-    INBOUND_SMS_TYPE,
-    SCHEDULE_NOTIFICATIONS,
-    EMAIL_AUTH,
-    LETTERS_AS_PDF,
-    UPLOAD_DOCUMENT,
-    EDIT_FOLDER_PERMISSIONS,
-    UPLOAD_LETTERS,
-]
-
-
 class ServicePermissionTypes(db.Model):
     __tablename__ = 'service_permission_types'
 
@@ -199,11 +189,6 @@ class Domain(db.Model):
     __tablename__ = 'domain'
     domain = db.Column(db.String(255), primary_key=True)
     organisation_id = db.Column('organisation_id', UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-
-
-ORGANISATION_TYPES = [
-    'other',
-]
 
 
 class OrganisationTypes(db.Model):
@@ -420,8 +405,8 @@ class Service(db.Model, Versioned):
     ):
         if isinstance(permissions_to_check_for, InstrumentedList):
             _permissions_to_check_for = [p.permission for p in permissions_to_check_for]
-        elif not isinstance(permissions_to_check_for, list):
-            _permissions_to_check_for = [permissions_to_check_for]
+        elif not isinstance(permissions_to_check_for, list) and not isinstance(permissions_to_check_for, tuple):
+            _permissions_to_check_for = (permissions_to_check_for,)
         else:
             _permissions_to_check_for = permissions_to_check_for
 
@@ -599,17 +584,13 @@ class ServicePermission(db.Model):
         return '<{} has service permission: {}>'.format(self.service_id, self.permission)
 
 
-WHITELIST_RECIPIENT_TYPE = [MOBILE_TYPE, EMAIL_TYPE]
-whitelist_recipient_types = db.Enum(*WHITELIST_RECIPIENT_TYPE, name='recipient_type')
-
-
 class ServiceWhitelist(db.Model):
     __tablename__ = 'service_whitelist'
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), index=True, nullable=False)
     service = db.relationship('Service', backref='whitelist')
-    recipient_type = db.Column(whitelist_recipient_types, nullable=False)
+    recipient_type = db.Column(_whitelist_recipient_types, nullable=False)
     recipient = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
@@ -747,11 +728,6 @@ class ApiKey(db.Model, Versioned):
             self._secret = encryption.encrypt(str(secret))
 
 
-KEY_TYPE_NORMAL = 'normal'
-KEY_TYPE_TEAM = 'team'
-KEY_TYPE_TEST = 'test'
-
-
 class KeyTypes(db.Model):
     __tablename__ = 'key_types'
 
@@ -834,7 +810,7 @@ class TemplateBase(db.Model):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), nullable=False)
-    template_type = db.Column(template_types, nullable=False)
+    template_type = db.Column(_template_types, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
     content = db.Column(db.Text, nullable=False)
@@ -878,7 +854,11 @@ class TemplateBase(db.Model):
     @declared_attr
     def process_type(cls):
         return db.Column(
-            db.String(255), db.ForeignKey('template_process_type.name'), index=True, nullable=False, default=NORMAL
+            db.String(255),
+            db.ForeignKey('template_process_type.name'),
+            index=True,
+            nullable=False,
+            default=TEMPLATE_PROCESS_NORMAL,
         )
 
     redact_personalisation = association_proxy('template_redacted', 'redact_personalisation')
@@ -1051,19 +1031,6 @@ class TemplateHistory(TemplateBase):
         return url_for('v2_template.get_template_by_id', template_id=self.id, version=self.version, _external=True)
 
 
-MMG_PROVIDER = 'mmg'
-FIRETEXT_PROVIDER = 'firetext'
-PINPOINT_PROVIDER = 'pinpoint'
-SNS_PROVIDER = 'sns'
-SES_PROVIDER = 'ses'
-
-SMS_PROVIDERS = [MMG_PROVIDER, FIRETEXT_PROVIDER, PINPOINT_PROVIDER, SNS_PROVIDER]
-EMAIL_PROVIDERS = [SES_PROVIDER]
-PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
-
-NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
-
-
 class PromotedTemplate(db.Model):
     __tablename__ = 'promoted_templates'
 
@@ -1110,28 +1077,6 @@ class ProviderDetailsHistory(db.Model, HistoryModel):
     supports_international = db.Column(db.Boolean, nullable=False, default=False)
 
 
-JOB_STATUS_PENDING = 'pending'
-JOB_STATUS_IN_PROGRESS = 'in progress'
-JOB_STATUS_FINISHED = 'finished'
-JOB_STATUS_SENDING_LIMITS_EXCEEDED = 'sending limits exceeded'
-JOB_STATUS_SCHEDULED = 'scheduled'
-JOB_STATUS_CANCELLED = 'cancelled'
-JOB_STATUS_READY_TO_SEND = 'ready to send'
-JOB_STATUS_SENT_TO_DVLA = 'sent to dvla'
-JOB_STATUS_ERROR = 'error'
-JOB_STATUS_TYPES = [
-    JOB_STATUS_PENDING,
-    JOB_STATUS_IN_PROGRESS,
-    JOB_STATUS_FINISHED,
-    JOB_STATUS_SENDING_LIMITS_EXCEEDED,
-    JOB_STATUS_SCHEDULED,
-    JOB_STATUS_CANCELLED,
-    JOB_STATUS_READY_TO_SEND,
-    JOB_STATUS_SENT_TO_DVLA,
-    JOB_STATUS_ERROR,
-]
-
-
 class JobStatus(db.Model):
     __tablename__ = 'job_status'
 
@@ -1166,9 +1111,6 @@ class Job(db.Model):
     archived = db.Column(db.Boolean, nullable=False, default=False)
 
 
-VERIFY_CODE_TYPES = [EMAIL_TYPE, SMS_TYPE]
-
-
 class VerifyCode(db.Model):
     __tablename__ = 'verify_codes'
 
@@ -1201,101 +1143,6 @@ class VerifyCode(db.Model):
         return check_hash(cde, self._code)
 
 
-NOTIFICATION_CANCELLED = 'cancelled'
-NOTIFICATION_CREATED = 'created'
-NOTIFICATION_SENDING = 'sending'
-NOTIFICATION_SENT = 'sent'
-NOTIFICATION_DELIVERED = 'delivered'
-NOTIFICATION_PENDING = 'pending'
-NOTIFICATION_FAILED = 'failed'
-NOTIFICATION_TECHNICAL_FAILURE = 'technical-failure'
-NOTIFICATION_TEMPORARY_FAILURE = 'temporary-failure'
-NOTIFICATION_PERMANENT_FAILURE = 'permanent-failure'
-NOTIFICATION_PENDING_VIRUS_CHECK = 'pending-virus-check'
-NOTIFICATION_VALIDATION_FAILED = 'validation-failed'
-NOTIFICATION_VIRUS_SCAN_FAILED = 'virus-scan-failed'
-NOTIFICATION_RETURNED_LETTER = 'returned-letter'
-NOTIFICATION_CONTAINS_PII = 'pii-check-failed'
-NOTIFICATION_PREFERENCES_DECLINED = 'preferences-declined'
-
-
-NOTIFICATION_STATUS_TYPES_FAILED = [
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_VALIDATION_FAILED,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_CONTAINS_PII,
-    NOTIFICATION_PREFERENCES_DECLINED,
-]
-
-NOTIFICATION_STATUS_TYPES_COMPLETED = [
-    NOTIFICATION_SENT,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_CANCELLED,
-    NOTIFICATION_PREFERENCES_DECLINED,
-]
-
-NOTIFICATION_STATUS_SUCCESS = [NOTIFICATION_SENT, NOTIFICATION_DELIVERED]
-
-NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS = [
-    NOTIFICATION_SENDING,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_RETURNED_LETTER,
-]
-
-NOTIFICATION_STATUS_TYPES_BILLABLE = [
-    NOTIFICATION_SENDING,
-    NOTIFICATION_SENT,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_RETURNED_LETTER,
-]
-
-NOTIFICATION_STATUS_TYPES = [
-    NOTIFICATION_CANCELLED,
-    NOTIFICATION_CREATED,
-    NOTIFICATION_SENDING,
-    NOTIFICATION_SENT,
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING,
-    NOTIFICATION_FAILED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
-    NOTIFICATION_VALIDATION_FAILED,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_RETURNED_LETTER,
-    NOTIFICATION_CONTAINS_PII,
-    NOTIFICATION_PREFERENCES_DECLINED,
-]
-
-NOTIFICATION_STATUS_TYPES_NON_BILLABLE = list(set(NOTIFICATION_STATUS_TYPES) - set(NOTIFICATION_STATUS_TYPES_BILLABLE))
-
-NOTIFICATION_STATUS_TYPES_ENUM = db.Enum(*NOTIFICATION_STATUS_TYPES, name='notify_status_type')
-
-NOTIFICATION_STATUS_LETTER_ACCEPTED = 'accepted'
-NOTIFICATION_STATUS_LETTER_RECEIVED = 'received'
-
-DVLA_RESPONSE_STATUS_SENT = 'Sent'
-
-FIRST_CLASS = 'first'
-SECOND_CLASS = 'second'
-POSTAGE_TYPES = [FIRST_CLASS, SECOND_CLASS]
-RESOLVE_POSTAGE_FOR_FILE_NAME = {FIRST_CLASS: 1, SECOND_CLASS: 2}
-
-notification_types = db.Enum(*NOTIFICATION_TYPE, name='notification_type')
-
-
 class NotificationStatusTypes(db.Model):
     __tablename__ = 'notification_status_types'
 
@@ -1320,7 +1167,7 @@ class Notification(db.Model):
     api_key = db.relationship('ApiKey')
     key_type = db.Column(db.String, db.ForeignKey('key_types.name'), index=True, unique=False, nullable=False)
     billable_units = db.Column(db.Integer, nullable=False, default=0)
-    notification_type = db.Column(notification_types, index=True, nullable=False)
+    notification_type = db.Column(_notification_types, index=True, nullable=False)
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     sent_by = db.Column(db.String, nullable=True)
@@ -1665,7 +1512,7 @@ class NotificationHistory(db.Model, HistoryModel):
     api_key = db.relationship('ApiKey')
     key_type = db.Column(db.String, db.ForeignKey('key_types.name'), index=True, unique=False, nullable=False)
     billable_units = db.Column(db.Integer, nullable=False, default=0)
-    notification_type = db.Column(notification_types, index=True, nullable=False)
+    notification_type = db.Column(_notification_types, index=True, nullable=False)
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     sent_by = db.Column(db.String, nullable=True)
@@ -1756,12 +1603,6 @@ class RecipientIdentifier(db.Model):
     id_value = db.Column(db.String, primary_key=True, nullable=False)
 
 
-INVITE_PENDING = 'pending'
-INVITE_ACCEPTED = 'accepted'
-INVITE_CANCELLED = 'cancelled'
-INVITED_USER_STATUS_TYPES = [INVITE_PENDING, INVITE_ACCEPTED, INVITE_CANCELLED]
-
-
 class InviteStatusType(db.Model):
     __tablename__ = 'invite_status_type'
 
@@ -1817,33 +1658,6 @@ class InvitedOrganisationUser(db.Model):
         }
 
 
-# Service Permissions
-MANAGE_USERS = 'manage_users'
-MANAGE_TEMPLATES = 'manage_templates'
-EDIT_TEMPLATES = 'edit_templates'
-MANAGE_SETTINGS = 'manage_settings'
-SEND_TEXTS = 'send_texts'
-SEND_EMAILS = 'send_emails'
-SEND_LETTERS = 'send_letters'
-MANAGE_API_KEYS = 'manage_api_keys'
-PLATFORM_ADMIN = 'platform_admin'
-VIEW_ACTIVITY = 'view_activity'
-
-# List of permissions
-PERMISSION_LIST = [
-    MANAGE_USERS,
-    MANAGE_TEMPLATES,
-    EDIT_TEMPLATES,
-    MANAGE_SETTINGS,
-    SEND_TEXTS,
-    SEND_EMAILS,
-    SEND_LETTERS,
-    MANAGE_API_KEYS,
-    PLATFORM_ADMIN,
-    VIEW_ACTIVITY,
-]
-
-
 class Permission(db.Model):
     __tablename__ = 'permissions'
 
@@ -1876,7 +1690,7 @@ class Rate(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     valid_from = db.Column(db.DateTime, nullable=False)
     rate = db.Column(db.Float(asdecimal=False), nullable=False)
-    notification_type = db.Column(notification_types, index=True, nullable=False)
+    notification_type = db.Column(_notification_types, index=True, nullable=False)
 
     def __str__(self):
         the_string = '{}'.format(self.rate)
@@ -2106,7 +1920,7 @@ class ServiceDataRetention(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=False, index=True, nullable=False)
     service = db.relationship(Service, backref=db.backref('service_data_retention'))
-    notification_type = db.Column(notification_types, nullable=False)
+    notification_type = db.Column(_notification_types, nullable=False)
     days_of_retention = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)

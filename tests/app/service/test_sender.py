@@ -1,10 +1,10 @@
 import pytest
-
 from flask import current_app
 from sqlalchemy import select
 
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.dao.services_dao import dao_add_user_to_service
-from app.models import Notification, EMAIL_TYPE, SMS_TYPE, User
+from app.models import Notification, User
 from app.service.sender import send_notification_to_service_users
 
 
@@ -28,10 +28,8 @@ def test_send_notification_to_service_users_persists_notifications_correctly(
     to = user.email_address if notification_type == EMAIL_TYPE else user.mobile_number
 
     stmt = select(Notification).where(Notification.service_id == notify_service.id).where(Notification.to == to)
-    notifications = notify_db_session.session.scalars(stmt).all()
-    notification = notifications[0]
+    notification = notify_db_session.session.scalars(stmt).one()
 
-    assert len(notifications) == 1
     assert notification.to == to
     assert str(notification.service_id) == current_app.config['NOTIFY_SERVICE_ID']
     assert notification.template.id == template.id

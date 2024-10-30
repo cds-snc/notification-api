@@ -9,6 +9,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
+from app.constants import (
+    EMAIL_TYPE,
+    FIRETEXT_PROVIDER,
+    INTERNATIONAL_SMS_TYPE,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    SES_PROVIDER,
+    SMS_TYPE,
+)
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
 from app.dao.services_dao import (
     dao_create_service,
@@ -34,23 +45,14 @@ from app.dao.service_user_dao import dao_get_service_user, dao_update_service_us
 from app.dao.users_dao import save_model_user, create_user_code
 from app.models import (
     ApiKey,
-    EMAIL_TYPE,
-    FIRETEXT_PROVIDER,
-    INTERNATIONAL_SMS_TYPE,
     InvitedUser,
     Job,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
-    LETTER_TYPE,
     Notification,
     NotificationHistory,
     Permission,
     Service,
     ServicePermission,
     ServiceUser,
-    SES_PROVIDER,
-    SMS_TYPE,
     Template,
     TemplateHistory,
     user_folder_permissions,

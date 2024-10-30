@@ -6,14 +6,9 @@ from requests import Timeout
 from app.celery.common import RETRIES_EXCEEDED
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.exceptions import AutoRetryException
+from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.models import (
-    EMAIL_TYPE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_PERMANENT_FAILURE,
-    RecipientIdentifier,
-    SMS_TYPE,
-)
+from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType
 from app.va.va_profile import (
     NoContactInfoException,

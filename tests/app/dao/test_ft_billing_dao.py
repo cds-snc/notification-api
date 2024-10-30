@@ -1,5 +1,23 @@
+from calendar import monthrange
+from datetime import datetime, timedelta, date
+from decimal import Decimal
+
+from freezegun import freeze_time
+from notifications_utils.timezones import convert_utc_to_local_timezone
 import pytest
+from sqlalchemy import func, select
+from sqlalchemy.engine.row import Row
+
 from app import db
+from app.constants import (
+    EMAIL_TYPE,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    NOTIFICATION_STATUS_TYPES,
+    SMS_TYPE,
+)
 from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
@@ -14,23 +32,7 @@ from app.dao.fact_billing_dao import (
     get_rates_for_billing,
 )
 from app.dao.organisation_dao import dao_add_service_to_organisation
-from app.models import (
-    EMAIL_TYPE,
-    FactBilling,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
-    LETTER_TYPE,
-    NOTIFICATION_STATUS_TYPES,
-    SMS_TYPE,
-)
-from calendar import monthrange
-from datetime import datetime, timedelta, date
-from decimal import Decimal
-from freezegun import freeze_time
-from notifications_utils.timezones import convert_utc_to_local_timezone
-from sqlalchemy import func, select
-from sqlalchemy.engine.row import Row
+from app.models import FactBilling
 
 
 ORG_NAME = 'Org for {}'

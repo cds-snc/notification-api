@@ -15,9 +15,10 @@ from app.authentication.auth import (
     requires_admin_auth_or_user_in_service,
     requires_user_in_service_or_admin,
 )
+from app.constants import PERMISSION_LIST, SERVICE_PERMISSION_TYPES
 from app.dao.api_key_dao import get_unsigned_secrets
 from app.dao.permissions_dao import permission_dao
-from app.models import PERMISSION_LIST, SERVICE_PERMISSION_TYPES, Permission
+from app.models import Permission
 from app.service.service_data import ServiceDataApiKey
 from flask import json, current_app, request
 from flask_jwt_extended import create_access_token

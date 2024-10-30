@@ -1,11 +1,11 @@
-from app.clients.email import EmailClient
 import itertools
 
 from flask import current_app
-
 from notifications_utils.recipients import allowed_to_send_to
 
-from app.models import KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL, Service
+from app.clients.email import EmailClient
+from app.constants import KEY_TYPE_TEST, KEY_TYPE_TEAM, KEY_TYPE_NORMAL
+from app.models import Service
 
 
 def service_allowed_to_send_to(

@@ -2,6 +2,7 @@ import itertools
 from app import db
 from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
 from app.config import QueueNames
+from app.constants import KEY_TYPE_NORMAL, LETTER_TYPE, NOTIFICATION_CANCELLED
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
     save_model_api_key,
@@ -53,9 +54,6 @@ from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import letter_print_day
 from app.models import (
-    KEY_TYPE_NORMAL,
-    LETTER_TYPE,
-    NOTIFICATION_CANCELLED,
     Permission,
     Service,
     EmailBranding,

@@ -1,7 +1,10 @@
 import json
-import pytest
 import uuid
-from app.models import DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
+
+import pytest
+from jsonschema import ValidationError
+
+from app.constants import DELIVERY_STATUS_CALLBACK_TYPE, WEBHOOK_CHANNEL_TYPE
 from app.schema_validation import validate
 from app.service.service_callback_api_schema import (
     create_service_callback_api_request_schema,
@@ -9,7 +12,6 @@ from app.service.service_callback_api_schema import (
     update_service_inbound_api_schema,
 )
 from app.service.service_senders_schema import update_service_sms_sender_request
-from jsonschema import ValidationError
 
 
 def test_service_inbound_api_schema_validates(client):

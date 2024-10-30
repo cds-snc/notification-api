@@ -10,9 +10,7 @@ from sqlalchemy import delete, func, select
 from app.attachments.exceptions import UnsupportedMimeTypeException
 from app.attachments.store import AttachmentStoreError
 from app.config import QueueNames
-from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.feature_flags import FeatureFlag
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
@@ -20,6 +18,10 @@ from app.models import (
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
+)
+from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
+from app.feature_flags import FeatureFlag
+from app.models import (
     Notification,
     RecipientIdentifier,
     ScheduledNotification,

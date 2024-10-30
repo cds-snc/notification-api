@@ -5,17 +5,19 @@ Tasks declared in this module must be configured in the CELERY_SETTINGS dictiona
 from app import clients, db, notify_celery
 from app.clients.email.aws_ses import AwsSesClientException
 from app.clients.sms.aws_pinpoint import AwsPinpointException
-from app.dao.dao_utils import get_reader_session
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
-    Notification,
     NOTIFICATION_CREATED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
+    SMS_TYPE,
+)
+from app.dao.dao_utils import get_reader_session
+from app.models import (
+    Notification,
     NotificationFailures,
     ServiceSmsSender,
-    SMS_TYPE,
     Template,
 )
 from app.service.utils import compute_source_email_address

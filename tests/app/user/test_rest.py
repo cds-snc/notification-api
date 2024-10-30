@@ -4,8 +4,7 @@ import pytest
 
 from flask import url_for
 
-from app.dao.permissions_dao import default_service_permissions
-from app.model import EMAIL_AUTH_TYPE
+from app.constants import DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS, EMAIL_AUTH_TYPE
 from tests import create_admin_authorization_header
 
 
@@ -19,7 +18,7 @@ def test_get_user_list(admin_request, sample_service):
     # it may have the notify user in the DB still :weary:
     assert len(json_resp['data']) >= 1
     sample_user = service.users[0]
-    expected_permissions = default_service_permissions
+    expected_permissions = DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS
     fetched = next(x for x in json_resp['data'] if x['id'] == str(sample_user.id))
 
     assert sample_user.name == fetched['name']
@@ -43,7 +42,7 @@ def test_get_user(
     user.organisations = [org]
     json_resp = admin_request.get('user.get_user', user_id=user.id)
 
-    expected_permissions = default_service_permissions
+    expected_permissions = DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS
     fetched = json_resp['data']
 
     assert fetched['id'] == str(user.id)
@@ -84,7 +83,7 @@ def test_get_user_doesnt_return_inactive_services_and_orgs(
     assert fetched['permissions'] == {}
 
 
-@pytest.mark.parametrize('user_perm', default_service_permissions)
+@pytest.mark.parametrize('user_perm', DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS)
 def test_get_user_with_permissions(
     client,
     sample_service,

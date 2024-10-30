@@ -1,16 +1,18 @@
 """Test endpoints for the v3 notifications."""
 
+from datetime import datetime, timedelta, timezone
+from json import dumps
+from uuid import UUID
+
 import pytest
+from flask import Response, url_for
+from jsonschema import ValidationError
+
 from app.authentication.auth import AuthError
-from app.models import EMAIL_TYPE, KEY_TYPE_TEAM, SMS_TYPE
+from app.constants import EMAIL_TYPE, KEY_TYPE_TEAM, SMS_TYPE
 from app.service.service_data import ServiceData
 from app.v3.notifications.rest import v3_send_notification
-from datetime import datetime, timedelta, timezone
-from flask import Response, url_for
-from json import dumps
-from jsonschema import ValidationError
 from tests import create_authorization_header
-from uuid import UUID
 
 
 def bad_request_helper(response: Response):

@@ -10,7 +10,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-from app.models import EMAIL_TYPE, NORMAL
+from app.constants import EMAIL_TYPE, TEMPLATE_PROCESS_NORMAL
+
 
 revision = '0319_create_complaint_template'
 down_revision = '0318_remove_custom_email_from'
@@ -43,15 +44,15 @@ def upgrade():
                                                                 subject, created_by_id, process_type, version)
                                  VALUES ('{complaint_template_id}', '{complaint_template_name}', '{EMAIL_TYPE}', '{datetime.utcnow()}',
                                         '{content}', False, '{service_id}', '{False}',
-                                        '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
-                              """
+                                        '{complaint_template_subject}', '{user_id}', '{TEMPLATE_PROCESS_NORMAL}', 1)
+                              """  # nosec
     template_insert = f"""INSERT INTO templates (id, name, template_type, created_at,
                                                                 content, archived, service_id, hidden,
                                                                 subject, created_by_id, process_type, version)
                                  VALUES ('{complaint_template_id}', '{complaint_template_name}', '{EMAIL_TYPE}', '{datetime.utcnow()}',
                                         '{content}', False, '{service_id}', '{False}',
-                                        '{complaint_template_subject}', '{user_id}', '{NORMAL}', 1)
-                              """
+                                        '{complaint_template_subject}', '{user_id}', '{TEMPLATE_PROCESS_NORMAL}', 1)
+                              """  # nosec
 
     op.get_bind()
     op.execute(template_history_insert)
@@ -64,13 +65,13 @@ def upgrade():
             INSERT INTO template_redacted (template_id, redact_personalisation, updated_at, updated_by_id)
             VALUES ('{complaint_template_id}', '{False}', '{datetime.utcnow()}', '{user_id}')
             ;
-        """
+        """  # nosec
     )
 
 
 def downgrade():
-    op.execute(f"delete from notifications where template_id = '{complaint_template_id}'")
-    op.execute(f"delete from jobs where template_id = '{complaint_template_id}'")
-    op.execute(f"delete from template_redacted where template_id = '{complaint_template_id}'")
-    op.execute(f"delete from templates_history where id = '{complaint_template_id}'")
-    op.execute(f"delete from templates where id = '{complaint_template_id}'")
+    op.execute(f"delete from notifications where template_id = '{complaint_template_id}'")  # nosec
+    op.execute(f"delete from jobs where template_id = '{complaint_template_id}'")  # nosec
+    op.execute(f"delete from template_redacted where template_id = '{complaint_template_id}'")  # nosec
+    op.execute(f"delete from templates_history where id = '{complaint_template_id}'")  # nosec
+    op.execute(f"delete from templates where id = '{complaint_template_id}'")  # nosec

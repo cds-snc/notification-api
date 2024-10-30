@@ -1,7 +1,9 @@
 import pytest
+
+from app.constants import DELIVERY_STATUS_CALLBACK_TYPE, NOTIFICATION_SENT, WEBHOOK_CHANNEL_TYPE
 from app.dao.service_callback_api_dao import save_service_callback_api
 from app.dao.service_callback_dao import dao_get_callback_include_payload_status
-from app.models import ServiceCallback, WEBHOOK_CHANNEL_TYPE, NOTIFICATION_SENT, DELIVERY_STATUS_CALLBACK_TYPE
+from app.models import ServiceCallback
 
 
 @pytest.mark.parametrize('include_provider_payload', [True, False])

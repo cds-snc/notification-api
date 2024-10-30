@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 from uuid import uuid4
 
 from freezegun import freeze_time
@@ -8,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.constants import EMAIL_TYPE, LETTER_TYPE, PINPOINT_PROVIDER, SES_PROVIDER, SMS_TYPE
 from app.dao.templates_dao import (
     dao_create_template,
     dao_get_template_by_id_and_service_id,
@@ -19,12 +19,7 @@ from app.dao.templates_dao import (
     dao_get_number_of_templates_by_service_id_and_name,
 )
 from app.models import (
-    EMAIL_TYPE,
-    LETTER_TYPE,
-    PINPOINT_PROVIDER,
-    SES_PROVIDER,
     ServiceLetterContact,
-    SMS_TYPE,
     Template,
     TemplateFolder,
     TemplateHistory,

@@ -1,6 +1,7 @@
 import pytest
 
-from app.models import ProviderDetails, EMAIL_TYPE, SMS_TYPE
+from app.constants import EMAIL_TYPE, SMS_TYPE
+from app.models import ProviderDetails
 from app.provider_details.validate_providers import is_provider_valid
 
 PROVIDER_DETAILS_BY_ID_PATH = 'app.provider_details.validate_providers.get_provider_details_by_id'

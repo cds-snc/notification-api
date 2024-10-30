@@ -15,16 +15,14 @@ from sqlalchemy.orm.exc import NoResultFound
 import enum
 import requests
 
-from app import DATETIME_FORMAT, HTTP_TIMEOUT, notify_celery, statsd_client, va_profile_client
+from app import notify_celery, statsd_client, va_profile_client
 from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import publish_complaint
 from app.config import QueueNames
-from app.clients.email.aws_ses import get_aws_responses
-from app.dao import notifications_dao, services_dao, templates_dao
-from app.feature_flags import FeatureFlag, is_feature_enabled
-from app.models import (
-    Notification,
+from app.constants import (
+    DATETIME_FORMAT,
     EMAIL_TYPE,
+    HTTP_TIMEOUT,
     KEY_TYPE_NORMAL,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
@@ -32,6 +30,10 @@ from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
 )
+from app.clients.email.aws_ses import get_aws_responses
+from app.dao import notifications_dao, services_dao, templates_dao
+from app.feature_flags import FeatureFlag, is_feature_enabled
+from app.models import Notification
 from json import decoder
 from app.notifications import process_notifications
 from app.notifications.notifications_ses_callback import (

@@ -3,8 +3,8 @@ from datetime import date, datetime
 import pytest
 from freezegun import freeze_time
 
+from app.constants import SMS_TYPE, EMAIL_TYPE, NOTIFICATION_DELIVERED
 from app.errors import InvalidRequest
-from app.models import SMS_TYPE, EMAIL_TYPE, NOTIFICATION_DELIVERED
 from tests.app.factories.feature_flag import mock_feature_flag
 from app.feature_flags import FeatureFlag
 from app.platform_stats.rest import get_monthly_platform_stats, validate_date_range_is_within_a_financial_year

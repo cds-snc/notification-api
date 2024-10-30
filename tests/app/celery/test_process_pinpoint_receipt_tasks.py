@@ -1,37 +1,24 @@
 import base64
-import datetime
 import json
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
 
-from app.celery import process_pinpoint_receipt_tasks
-from app.dao import notifications_dao
-from app.feature_flags import FeatureFlag
-from app.models import (
+from app.celery.exceptions import NonRetryableException
+from app.celery.process_pinpoint_receipt_tasks import process_pinpoint_results
+from app.clients.sms import OPT_OUT_MESSAGE, UNABLE_TO_TRANSLATE
+from app.constants import (
+    NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_PREFERENCES_DECLINED,
+    PINPOINT_PROVIDER,
 )
-
-
-def test_passes_if_toggle_disabled(mocker):
-    mock_toggle = mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=False)
-    mock_update_notification_status_by_id = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
-    )
-    mock_dao_get_notification_by_reference = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks.dao_get_notification_by_reference'
-    )
-
-    process_pinpoint_receipt_tasks.process_pinpoint_results(response={})
-
-    mock_toggle.assert_called_with(FeatureFlag.PINPOINT_RECEIPTS_ENABLED)
-    mock_dao_get_notification_by_reference.assert_not_called()
-    mock_update_notification_status_by_id.assert_not_called()
+from app.dao import notifications_dao
 
 
 @pytest.mark.parametrize(
@@ -71,19 +58,18 @@ def test_process_pinpoint_results_notification_final_status(
     should never receive input trying to send a message to the opted-out veteran.
     """
 
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
+    mock_callback = mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
     test_reference = str(uuid4())
     template = sample_template()
     sample_notification(
         template=template,
         reference=test_reference,
-        sent_at=datetime.datetime.utcnow(),
+        sent_at=datetime.now(timezone.utc),
         status=NOTIFICATION_SENDING,
         status_reason='just because',
     )
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference, event_type=event_type, record_status=record_status
         )
@@ -92,11 +78,7 @@ def test_process_pinpoint_results_notification_final_status(
     assert notification.status == expected_notification_status
 
     if expected_notification_status == NOTIFICATION_PREFERENCES_DECLINED:
-        assert notification.status_reason == (
-            'The veteran is opted-out at the Pinpoint level.'
-            if (record_status == 'OPTED_OUT')
-            else 'The veteran responded with STOP.'
-        )
+        assert notification.status_reason == OPT_OUT_MESSAGE
     elif expected_notification_status == NOTIFICATION_DELIVERED:
         assert notification.status_reason is None
 
@@ -107,27 +89,25 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
     mocker,
     sample_template,
     sample_notification,
+    x_minutes_ago,
 ):
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
-    update_notification_status = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
-    )
+    mock_callback = mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
-    test_reference = f'{uuid4()}-sms-reference-1'
+    test_reference = f'{uuid4()}-test_process_pinpoint_results_should_not_update_notification_status_if_unchanged'
     template = sample_template()
+    last_updated_at = x_minutes_ago(5)
+
     sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
+        template=template, reference=test_reference, updated_at=last_updated_at, status=NOTIFICATION_SENDING
     )
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference, event_type='_SMS.BUFFERED', record_status='PENDING'
         )
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == NOTIFICATION_SENDING
-
-    update_notification_status.assert_not_called()
+    assert notification.updated_at == last_updated_at
     mock_callback.assert_not_called()
 
 
@@ -139,72 +119,69 @@ def test_process_pinpoint_results_should_not_update_notification_status_to_sendi
     sample_template,
     status,
     sample_notification,
+    x_minutes_ago,
 ):
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
-    update_notification_status = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
-    )
+    mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
-    test_reference = f'{uuid4()}=sms-reference-1'
-    template = sample_template()
-    sample_notification(template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=status)
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    test_reference = f'{uuid4()}-notification_status_to_sending_if_status_already_final'
+    last_updated_at = x_minutes_ago(5)
+    sample_notification(template=sample_template(), reference=test_reference, updated_at=last_updated_at, status=status)
+
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
-            reference=test_reference, event_type='_SMS.BUFFERED', record_status='PENDING'
+            reference=test_reference,
+            event_type='_SMS.BUFFERED',
+            record_status='PENDING',  # AWS equivalent of sending
         )
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == status
-
-    update_notification_status.assert_not_called()
-    mock_callback.assert_not_called()
+    assert notification.updated_at == last_updated_at
 
 
 @pytest.mark.parametrize(
-    'status', [NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE]
+    'status',
+    [
+        NOTIFICATION_CREATED,
+        NOTIFICATION_SENDING,
+        NOTIFICATION_TECHNICAL_FAILURE,
+        NOTIFICATION_TEMPORARY_FAILURE,
+        NOTIFICATION_PERMANENT_FAILURE,
+        NOTIFICATION_PREFERENCES_DECLINED,
+    ],
 )
-def test_process_pinpoint_results_should_update_notification_status_with_delivered(
+def test_process_pinpoint_results_delivered_clears_status_reason(
     mocker,
+    notify_db_session,
     sample_template,
     status,
     sample_notification,
+    x_minutes_ago,
 ):
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
-    mock_callback = mocker.patch('app.celery.process_pinpoint_receipt_tasks.check_and_queue_callback_task')
-    update_notification_status = mocker.patch(
-        'app.celery.process_pinpoint_receipt_tasks.update_notification_status_by_id'
-    )
+    mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
-    update_notification_spy = mocker.spy(process_pinpoint_receipt_tasks, 'dao_update_notification_by_id')
-
-    test_reference = f'{uuid4()}=sms-reference-1'
+    test_reference = f'{uuid4()}-update_notification_status_with_delivered'
+    last_updated_at = x_minutes_ago(5)
     template = sample_template()
     sample_notification(
         template=template,
         reference=test_reference,
-        sent_at=datetime.datetime.utcnow(),
+        sent_at=last_updated_at,
+        updated_at=last_updated_at,
         status=status,
-        status_reason=None if (status == NOTIFICATION_DELIVERED) else 'just because',
+        status_reason='any status reason',
     )
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference,
             event_type='_SMS.SUCCESS',
-            record_status='DELIVERED',
+            record_status='DELIVERED',  # Pinpoint-specific
         )
     )
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == NOTIFICATION_DELIVERED
     assert notification.status_reason is None
-
-    update_notification_status.assert_not_called()
-
-    if status == NOTIFICATION_DELIVERED:
-        mock_callback.assert_not_called()
-    else:
-        update_notification_spy.assert_called_once()
-        mock_callback.assert_called_once()
+    assert notification.updated_at != last_updated_at
 
 
 def test_process_pinpoint_results_segments_and_price_buffered_first(
@@ -218,17 +195,16 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
     result in one event that contains the aggregate cost.
     """
 
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
     test_reference = f'{uuid4()}=sms-reference-1'
     template = sample_template()
     notification = sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
+        template=template, reference=test_reference, sent_at=datetime.now(timezone.utc), status=NOTIFICATION_SENDING
     )
     assert notification.segments_count == 0, 'This is the default.'
     assert notification.cost_in_millicents == 0.0, 'This is the default.'
 
     # Receiving a _SMS.BUFFERED+SUCCESSFUL event first should update the notification.
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference,
             event_type='_SMS.BUFFERED',
@@ -245,7 +221,7 @@ def test_process_pinpoint_results_segments_and_price_buffered_first(
     assert notification.status_reason is None
 
     # A subsequent _SMS.SUCCESS+DELIVERED event should not alter the segments and price columns.
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference,
             event_type='_SMS.SUCCESS',
@@ -273,14 +249,13 @@ def test_process_pinpoint_results_segments_and_price_success_first(
     notification.
     """
 
-    mocker.patch('app.celery.process_pinpoint_receipt_tasks.is_feature_enabled', return_value=True)
     test_reference = f'{uuid4()}-sms-reference-1'
     template = sample_template()
     notification = sample_notification(
-        template=template, reference=test_reference, sent_at=datetime.datetime.utcnow(), status=NOTIFICATION_SENDING
+        template=template, reference=test_reference, sent_at=datetime.now(timezone.utc), status=NOTIFICATION_SENDING
     )
 
-    process_pinpoint_receipt_tasks.process_pinpoint_results(
+    process_pinpoint_results(
         response=pinpoint_notification_callback_record(
             reference=test_reference,
             event_type='_SMS.SUCCESS',
@@ -342,21 +317,36 @@ def test_wt_process_pinpoint_callback_should_log_total_time(
     sample_notification,
 ):
     mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
-    mocker.patch('app.celery.service_callback_tasks.check_and_queue_callback_task')
+    mocker.patch('app.celery.process_delivery_status_result_tasks.check_and_queue_callback_task')
 
+    ref = str(uuid4())
     # Reference is used by many tests, can lead to trouble
-    notification = sample_notification(template=sample_template(), status=NOTIFICATION_SENDING, reference='SMyyy')
+    notification = sample_notification(template=sample_template(), status=NOTIFICATION_SENDING, reference=ref)
     # Mock db call
     mocker.patch(
         'app.dao.notifications_dao.dao_get_notification_by_reference',
         return_value=notification,
     )
 
-    process_pinpoint_receipt_tasks.process_pinpoint_results(pinpoint_notification_callback_record())
+    process_pinpoint_results(pinpoint_notification_callback_record(reference=ref))
 
     assert mock_log_total_time.called_once_with(
         notification.id,
         notification.created_at,
         NOTIFICATION_DELIVERED,
-        'pinpoint',
+        PINPOINT_PROVIDER,
     )
+
+
+@pytest.mark.parametrize('exception', [json.decoder.JSONDecodeError, ValueError, TypeError, KeyError])
+def test_process_pinpoint_callback_message_parse_exception(
+    notify_api,
+    mocker,
+    exception,
+):
+    # Mock b64 decode so we can raise exceptions in the try block
+    mocker.patch('app.celery.process_pinpoint_receipt_tasks.json.loads', side_effect=exception)
+
+    with pytest.raises(NonRetryableException) as exc_info:
+        process_pinpoint_results(pinpoint_notification_callback_record(reference=str(uuid4())))
+    assert UNABLE_TO_TRANSLATE in str(exc_info)

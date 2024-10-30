@@ -1,7 +1,9 @@
 """Test the schemas for /v3/notifications."""
 
 import pytest
-from app.models import EMAIL_TYPE, SMS_TYPE
+from jsonschema import ValidationError
+
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.v3.notifications.notification_schemas import (
     notification_v3_post_email_request_schema,
     notification_v3_post_sms_request_schema,
@@ -10,7 +12,6 @@ from app.v3.notifications.rest import (
     v3_notifications_post_email_request_validator,
     v3_notifications_post_sms_request_validator,
 )
-from jsonschema import ValidationError
 
 
 def test_notification_v3_post_request_schemas():

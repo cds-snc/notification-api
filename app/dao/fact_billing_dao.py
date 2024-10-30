@@ -1,21 +1,23 @@
 from app import db
+from app.constants import (
+    EMAIL_TYPE,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    NOTIFICATION_STATUS_TYPES_BILLABLE,
+    NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
+    SMS_TYPE,
+)
 from app.dao.date_util import get_financial_year, get_financial_year_for_datetime
 from app.models import (
     AnnualBilling,
-    EMAIL_TYPE,
     FactBilling,
-    KEY_TYPE_TEST,
-    LETTER_TYPE,
     LetterRate,
     Notification,
-    NOTIFICATION_STATUS_TYPES_BILLABLE,
-    NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     NotificationHistory,
     Organisation,
     Rate,
     Service,
     ServiceSmsSender,
-    SMS_TYPE,
     Template,
 )
 from app.utils import get_local_timezone_midnight_in_utc
@@ -254,7 +256,6 @@ def fetch_billing_totals_for_year(
     year,
 ):
     year_start_date, year_end_date = get_financial_year(year)
-    print(year_start_date, year_end_date)
 
     """
       Billing for email: only record the total number of emails.

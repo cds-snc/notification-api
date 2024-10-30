@@ -4,14 +4,12 @@ import uuid
 from sqlalchemy import CheckConstraint, select
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from app import DATETIME_FORMAT
+from app.constants import DATETIME_FORMAT, EMAIL_AUTH_TYPE, SMS_AUTH_TYPE
 from app.db import db
 from app.encryption import hashpw, check_hash
 from .identity_provider_identifier import IdentityProviderIdentifier
 
 
-SMS_AUTH_TYPE = 'sms_auth'
-EMAIL_AUTH_TYPE = 'email_auth'
 USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 
 

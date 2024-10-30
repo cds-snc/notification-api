@@ -1,29 +1,27 @@
-import json
-import pytest
 from datetime import datetime
+import json
+import uuid
+from uuid import uuid4
+
+import pytest
 from freezegun import freeze_time
 from requests import ConnectTimeout, ReadTimeout
 from sqlalchemy import select
-import uuid
-from uuid import uuid4
 
 from app.celery import process_ses_receipts_tasks
 from app.celery.exceptions import AutoRetryException
 from app.celery.research_mode_tasks import ses_hard_bounce_callback, ses_soft_bounce_callback, ses_notification_callback
 from app.celery.service_callback_tasks import create_delivery_status_callback_data
-from app.dao.notifications_dao import get_notification_by_id
-from app.models import (
-    Complaint,
+from app.constants import (
     EMAIL_TYPE,
-    Notification,
-    Service,
-    Template,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENT,
     NOTIFICATION_SENDING,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
 )
+from app.dao.notifications_dao import get_notification_by_id
+from app.models import Complaint, Notification, Service, Template
 from app.model import User
 from app.notifications.notifications_ses_callback import remove_emails_from_complaint, remove_emails_from_bounce
 

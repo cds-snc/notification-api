@@ -1,10 +1,8 @@
-from app.mobile_app import MobileAppType
-from app.models import (
+from app.constants import (
     NOTIFICATION_STATUS_TYPES,
-    NOTIFICATION_STATUS_LETTER_ACCEPTED,
-    NOTIFICATION_STATUS_LETTER_RECEIVED,
     TEMPLATE_TYPES,
 )
+from app.mobile_app import MobileAppType
 from app.schema_validation.definitions import (
     nullable_uuid,
     uuid,
@@ -94,10 +92,7 @@ get_notifications_request = {
         'reference': {'type': 'string'},
         'status': {
             'type': 'array',
-            'items': {
-                'enum': NOTIFICATION_STATUS_TYPES
-                + [NOTIFICATION_STATUS_LETTER_ACCEPTED + ', ' + NOTIFICATION_STATUS_LETTER_RECEIVED]
-            },
+            'items': {'enum': NOTIFICATION_STATUS_TYPES},
         },
         'template_type': {'type': 'array', 'items': {'enum': TEMPLATE_TYPES}},
         'include_jobs': {'enum': ['true', 'True']},

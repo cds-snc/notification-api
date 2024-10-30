@@ -1,10 +1,10 @@
 import requests
 from flask import current_app
 
+from app.constants import HTTP_TIMEOUT
+
 
 def confirm_subscription(confirmation_request):
-    from app import HTTP_TIMEOUT  # Circular import
-
     url = confirmation_request.get('SubscribeURL')
     if not url:
         current_app.logger.warning('SubscribeURL does not exist or empty.')

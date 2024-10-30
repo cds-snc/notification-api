@@ -6,10 +6,11 @@ from requests import post
 from requests.exceptions import Timeout, RequestException
 from notifications_utils.statsd_decorators import statsd
 
-from app import notify_celery, encryption, statsd_client, DATETIME_FORMAT, HTTP_TIMEOUT
+from app import notify_celery, encryption, statsd_client
 from app.callback.webhook_callback_strategy import generate_callback_signature
 from app.celery.exceptions import AutoRetryException, NonRetryableException, RetryableException
 from app.config import QueueNames
+from app.constants import DATETIME_FORMAT, HTTP_TIMEOUT
 from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
@@ -258,8 +259,6 @@ def create_delivery_status_callback_data(
 ):
     """Encrypt and return the delivery status message."""
 
-    from app import DATETIME_FORMAT, encryption
-
     data = {
         'notification_id': str(notification.id),
         'notification_client_reference': notification.client_reference,
@@ -293,9 +292,6 @@ def create_delivery_status_callback_data_v3(notification: Notification) -> dict[
     Returns:
         dict[str, str]: Data for callbacks
     """
-
-    from app import DATETIME_FORMAT  # Circular import
-
     data = {
         'id': str(notification.id),
         'reference': notification.client_reference,
@@ -320,8 +316,6 @@ def create_complaint_callback_data(
     service_callback_api,
     recipient,
 ):
-    from app import DATETIME_FORMAT, encryption
-
     data = {
         'complaint_id': str(complaint.id),
         'notification_id': str(notification.id),

@@ -1,4 +1,5 @@
 import pytest
+
 from app.models import VAProfileLocalCache
 from datetime import datetime, timedelta
 from lambda_functions.va_profile_remove_old_opt_outs.va_profile_remove_old_opt_outs_lambda import (

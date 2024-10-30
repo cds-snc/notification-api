@@ -1,4 +1,4 @@
-from app.models import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
+from app.constants import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
 from app.authentication.auth import AuthError, create_validator_for_user_in_service_or_admin
 from flask import (
     Blueprint,

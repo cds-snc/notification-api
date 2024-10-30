@@ -2,6 +2,9 @@ import dateutil
 from flask import Blueprint, jsonify, request, current_app
 
 from app.aws.s3 import get_job_metadata_from_s3
+from app.celery.tasks import process_job
+from app.config import QueueNames
+from app.constants import JOB_STATUS_SCHEDULED, JOB_STATUS_PENDING, JOB_STATUS_CANCELLED, LETTER_TYPE
 from app.dao.jobs_dao import (
     dao_create_job,
     dao_update_job,
@@ -22,10 +25,7 @@ from app.schemas import (
     notifications_filter_schema,
     notification_with_template_schema,
 )
-from app.celery.tasks import process_job
-from app.models import JOB_STATUS_SCHEDULED, JOB_STATUS_PENDING, JOB_STATUS_CANCELLED, LETTER_TYPE
 from app.utils import pagination_links, midnight_n_days_ago
-from app.config import QueueNames
 from app.errors import register_errors, InvalidRequest
 
 

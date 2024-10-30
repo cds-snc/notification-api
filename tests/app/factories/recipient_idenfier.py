@@ -1,8 +1,9 @@
-from uuid import uuid4
-from app.models import RecipientIdentifier
-from app.va.identifier import IdentifierType
 import random
 import string
+from uuid import uuid4
+
+from app.models import RecipientIdentifier
+from app.va.identifier import IdentifierType
 
 
 def get_random_alphanumeric_string(length=10):

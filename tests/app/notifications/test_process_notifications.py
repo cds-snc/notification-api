@@ -12,17 +12,19 @@ from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
 from app.celery.provider_tasks import deliver_email, deliver_sms
+from app.constants import (
+    EMAIL_TYPE,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
+    NOTIFICATION_CREATED,
+    SMS_TYPE,
+)
 from app.feature_flags import FeatureFlag
 from app.models import (
     Notification,
     ScheduledNotification,
     Template,
-    LETTER_TYPE,
-    NOTIFICATION_CREATED,
-    EMAIL_TYPE,
-    SMS_TYPE,
     RecipientIdentifier,
-    KEY_TYPE_TEST,
 )
 from app.notifications.process_notifications import (
     create_content_for_notification,

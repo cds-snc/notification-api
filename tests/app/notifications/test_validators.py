@@ -7,8 +7,8 @@ from freezegun import freeze_time
 from flask import current_app
 
 import app
+from app.constants import EMAIL_TYPE, LETTER_TYPE, SERVICE_PERMISSION_TYPES, SMS_TYPE
 from app.feature_flags import FeatureFlag
-from app.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE, SERVICE_PERMISSION_TYPES
 from app.notifications.validators import (
     check_service_over_daily_message_limit,
     check_template_is_for_notification_type,

@@ -18,9 +18,7 @@ from app.celery.scheduled_tasks import (
     check_precompiled_letter_state,
 )
 from app.config import QueueNames, TaskNames
-from app.dao.jobs_dao import dao_get_job_by_id
-from app.dao.notifications_dao import dao_get_scheduled_notifications
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
     JOB_STATUS_FINISHED,
@@ -32,6 +30,9 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
     SMS_TYPE,
 )
+from app.dao.jobs_dao import dao_get_job_by_id
+from app.dao.notifications_dao import dao_get_scheduled_notifications
+
 from app.v2.errors import JobIncompleteError
 
 

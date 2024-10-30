@@ -10,7 +10,8 @@ from app.dao.complaint_dao import (
     save_complaint,
     fetch_complaint_by_id,
 )
-from app.models import Complaint, EMAIL_TYPE
+from app.constants import EMAIL_TYPE
+from app.models import Complaint
 
 
 @pytest.mark.serial

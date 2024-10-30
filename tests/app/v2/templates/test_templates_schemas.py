@@ -3,11 +3,11 @@ import uuid
 import pytest
 from flask import json
 
-from app.models import EMAIL_TYPE, SMS_TYPE
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.v2.templates.templates_schemas import get_all_template_request, get_all_template_response
 from app.schema_validation import validate
 from jsonschema.exceptions import ValidationError
-from tests.app.conftest import TEMPLATE_TYPES
+from tests.app.conftest import RESTRICTED_TEMPLATE_TYPES
 
 
 valid_json_get_all_response = [
@@ -252,19 +252,19 @@ invalid_json_get_all_response = [
 ]
 
 
-@pytest.mark.parametrize('template_type', TEMPLATE_TYPES)
+@pytest.mark.parametrize('template_type', RESTRICTED_TEMPLATE_TYPES)
 def test_get_all_template_request_schema_against_no_args_is_valid(template_type):
     data = {}
     assert validate(data, get_all_template_request) == data
 
 
-@pytest.mark.parametrize('template_type', TEMPLATE_TYPES)
+@pytest.mark.parametrize('template_type', RESTRICTED_TEMPLATE_TYPES)
 def test_get_all_template_request_schema_against_valid_args_is_valid(template_type):
     data = {'type': template_type}
     assert validate(data, get_all_template_request) == data
 
 
-@pytest.mark.parametrize('template_type', TEMPLATE_TYPES)
+@pytest.mark.parametrize('template_type', RESTRICTED_TEMPLATE_TYPES)
 def test_get_all_template_request_schema_against_invalid_args_is_invalid(client, template_type):
     data = {'type': 'unknown'}
 
@@ -274,7 +274,7 @@ def test_get_all_template_request_schema_against_invalid_args_is_invalid(client,
 
     assert errors['status_code'] == 400
     assert len(errors['errors']) == 1
-    assert errors['errors'][0]['message'] == 'type unknown is not one of [sms, email, letter]'
+    assert errors['errors'][0]['message'] == 'type unknown is not one of (sms, email, letter)'
 
 
 @pytest.mark.parametrize('response', valid_json_get_all_response)

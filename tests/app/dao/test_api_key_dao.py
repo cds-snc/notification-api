@@ -1,4 +1,11 @@
+from datetime import datetime, timedelta
+
 import pytest
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
+
+from app.constants import KEY_TYPE_NORMAL
 from app.dao.api_key_dao import (
     save_model_api_key,
     get_model_api_keys,
@@ -6,11 +13,7 @@ from app.dao.api_key_dao import (
     get_unsigned_secret,
     expire_api_key,
 )
-from app.models import ApiKey, KEY_TYPE_NORMAL, Service
-from datetime import datetime, timedelta
-from sqlalchemy import delete, func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import NoResultFound
+from app.models import ApiKey, Service
 
 
 def test_save_api_key_should_create_new_api_key_and_history(notify_db_session, sample_service):

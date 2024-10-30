@@ -8,8 +8,9 @@ import requests
 import requests_mock
 
 from app.celery.contact_information_tasks import lookup_contact_info
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.exceptions import NotificationPermanentFailureException
-from app.models import EMAIL_TYPE, SMS_TYPE, RecipientIdentifier
+from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
 from app.va.va_profile.exceptions import (
     NoContactInfoException,

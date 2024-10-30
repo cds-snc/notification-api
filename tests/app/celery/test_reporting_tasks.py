@@ -2,6 +2,12 @@ from datetime import datetime, timedelta, date
 from decimal import Decimal
 import uuid
 
+from flask import current_app
+from freezegun import freeze_time
+from notifications_utils.timezones import convert_utc_to_local_timezone
+import pytest
+from sqlalchemy import delete, func, select
+
 from app.celery.reporting_tasks import (
     create_nightly_billing,
     create_nightly_notification_status,
@@ -10,22 +16,10 @@ from app.celery.reporting_tasks import (
     generate_daily_notification_status_csv_report,
     generate_nightly_billing_csv_report,
 )
+from app.constants import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 from app.dao.fact_billing_dao import get_rate
 from app.feature_flags import FeatureFlag
-from app.models import (
-    FactBilling,
-    LETTER_TYPE,
-    EMAIL_TYPE,
-    SMS_TYPE,
-    FactNotificationStatus,
-)
-
-from flask import current_app
-from freezegun import freeze_time
-import pytest
-from sqlalchemy import delete, func, select
-
-from notifications_utils.timezones import convert_utc_to_local_timezone
+from app.models import FactBilling, FactNotificationStatus
 from tests.app.factories.feature_flag import mock_feature_flag
 
 

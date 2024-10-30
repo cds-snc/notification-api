@@ -3,13 +3,23 @@ from typing import Dict, Union
 
 from flask import current_app
 
-import app.googleanalytics.pixels as gapixels
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
-from app import attachment_store
-from app import clients, statsd_client, create_uuid, provider_service
+
+
+from app import attachment_store, clients, statsd_client, provider_service
 from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
+from app.constants import (
+    BRANDING_BOTH,
+    BRANDING_ORG_BANNER,
+    EMAIL_TYPE,
+    KEY_TYPE_TEST,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_VIRUS_SCAN_FAILED,
+    NOTIFICATION_SENDING,
+    SMS_TYPE,
+)
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (  # noqa F401
     # This function isn't used in this module, but importing it here is still necessary because
@@ -21,19 +31,13 @@ from app.dao.provider_details_dao import (  # noqa F401
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
 from app.feature_flags import is_gapixel_enabled, is_feature_enabled, FeatureFlag
+from app.googleanalytics.pixels import build_dynamic_ga4_pixel_tracking_url
 from app.models import (
-    SMS_TYPE,
-    KEY_TYPE_TEST,
-    BRANDING_BOTH,
-    BRANDING_ORG_BANNER,
-    EMAIL_TYPE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_VIRUS_SCAN_FAILED,
-    NOTIFICATION_SENDING,
     Notification,
     ProviderDetails,
 )
 from app.service.utils import compute_source_email_address
+from app.utils import create_uuid
 
 
 def send_sms_to_provider(
@@ -140,7 +144,7 @@ def send_email_to_provider(notification: Notification):
     plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
 
     if service.research_mode or notification.key_type == KEY_TYPE_TEST:
-        notification.reference = str(create_uuid())
+        notification.reference = create_uuid()
         update_notification_to_sending(notification, client)
         send_email_response(notification.reference, notification.to)
     else:
@@ -254,7 +258,7 @@ def get_logo_url(
 def get_html_email_options(notification: Notification) -> Dict[str, Union[str, bool]]:
     options_dict = {}
     if is_gapixel_enabled(current_app):
-        options_dict['ga4_open_email_event_url'] = gapixels.build_dynamic_ga4_pixel_tracking_url(notification)
+        options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification)
 
     service = notification.service
     if service.email_branding is None:

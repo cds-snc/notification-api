@@ -1,6 +1,15 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from app.clients import Client, ClientException
+
+BLOCKED_MESSAGE = 'The message has been blocked'
+OPT_OUT_MESSAGE = 'The individual has opted out'
+PRICE_THRESHOLD_EXCEEDED = 'Price threshold exceeded'
+REPORTED_AS_SPAM = 'The message has been reported as spam'
+RETRYABLE_AWS_RESPONSE = 'Encountered a temporary failure. Send the request to VA Notify again'
+UNABLE_TO_TRANSLATE = 'unable to translate delivery status'
+UNEXPECTED_PROVIDER_RESULT = 'Unexpected result'
 
 
 class SmsClientResponseException(ClientException):
@@ -20,12 +29,14 @@ class SmsClientResponseException(ClientException):
 
 @dataclass
 class SmsStatusRecord:
-    payload: str
+    payload: str | dict[str, str] | None
     reference: str
     status: str
     status_reason: str | None
+    provider: str
     message_parts: int = 1
     price_millicents: float = 0.0
+    provider_updated_at: datetime | None = None
 
 
 class SmsClient(Client):
@@ -44,5 +55,5 @@ class SmsClient(Client):
     def get_name(self):
         raise NotImplementedError('TODO Need to implement.')
 
-    def translate_delivery_status(self) -> SmsStatusRecord:
+    def translate_delivery_status(self, delivery_status_message: str | dict[str, str]) -> SmsStatusRecord:
         raise NotImplementedError('TODO Need to implement.')

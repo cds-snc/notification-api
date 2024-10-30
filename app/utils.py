@@ -1,11 +1,14 @@
-# TODO - This file contains multiple functions that contain import statements.  Is this to avoid a circular
-# dependency?  If not, import only at the beginning of the file.  See issue #1044.
 import os
-import pytz
 from datetime import datetime, timedelta
+from uuid import uuid4
+
 from flask import url_for
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
+from notifications_utils.url_safe_token import generate_token
+import pytz
 from sqlalchemy import func
+
+from app.constants import EMAIL_TYPE, LETTER_TYPE, PRECOMPILED_LETTER, PUSH_TYPE, SMS_TYPE, UPLOAD_DOCUMENT
 
 local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/Toronto'))
 
@@ -32,8 +35,6 @@ def url_with_token(
     config,
     base_url=None,
 ):
-    from notifications_utils.url_safe_token import generate_token
-
     token = generate_token(data, config['SECRET_KEY'], config['DANGEROUS_SALT'])
     base_url = (base_url or config['ADMIN_BASE_URL']) + url
     return base_url + token
@@ -43,16 +44,12 @@ def get_template_instance(
     template,
     values,
 ):
-    from app.models import SMS_TYPE, EMAIL_TYPE, LETTER_TYPE
-
     return {SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate}[
         template['template_type']
     ](template, values)
 
 
 def get_html_email_body_from_template(template_instance):
-    from app.models import EMAIL_TYPE
-
     if template_instance.template_type != EMAIL_TYPE:
         return None
 
@@ -111,8 +108,6 @@ def get_public_notify_type_text(
     notify_type,
     plural=False,
 ):
-    from app.models import SMS_TYPE, UPLOAD_DOCUMENT, PRECOMPILED_LETTER, PUSH_TYPE
-
     notify_type_text = notify_type
     if notify_type == SMS_TYPE:
         notify_type_text = 'text message'
@@ -145,3 +140,7 @@ def update_dct_to_str(update_dct):
         str += '- {}'.format(key.replace('_', ' '))
         str += '\n'
     return str
+
+
+def create_uuid() -> str:
+    return str(uuid4())

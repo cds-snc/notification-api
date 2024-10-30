@@ -1,9 +1,9 @@
 import pytest
 from flask import json
 
-from app.models import EMAIL_TYPE, SMS_TYPE
+from app.constants import EMAIL_TYPE, SMS_TYPE
 from tests import create_authorization_header
-from tests.app.conftest import TEMPLATE_TYPES
+from tests.app.conftest import RESTRICTED_TEMPLATE_TYPES
 
 valid_personalisation = {'personalisation': {'Name': 'Jo'}}
 
@@ -39,7 +39,7 @@ valid_post = [
 ]
 
 
-@pytest.mark.parametrize('tmp_type', TEMPLATE_TYPES)
+@pytest.mark.parametrize('tmp_type', RESTRICTED_TEMPLATE_TYPES)
 @pytest.mark.parametrize('subject,content,post_data,expected_subject,expected_content', valid_post)
 def test_valid_post_template_returns_200(
     client,
@@ -80,7 +80,7 @@ def test_valid_post_template_returns_200(
     assert expected_content in resp_json['body']
 
 
-@pytest.mark.parametrize('tmp_type', TEMPLATE_TYPES)
+@pytest.mark.parametrize('tmp_type', RESTRICTED_TEMPLATE_TYPES)
 def test_invalid_post_template_returns_400(
     client,
     sample_api_key,

@@ -6,6 +6,7 @@ from time import monotonic
 from http.client import responses
 from functools import reduce
 
+from app.constants import HTTP_TIMEOUT
 from app.va.identifier import (
     IdentifierType,
     transform_to_fhir_format,
@@ -83,8 +84,6 @@ class MpiClient:
         ssl_key_path,
         statsd_client,
     ):
-        from app import HTTP_TIMEOUT  # Circular import
-
         self.timeout = HTTP_TIMEOUT
         self.logger = logger
         self.base_url = url

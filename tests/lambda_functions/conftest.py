@@ -1,8 +1,10 @@
-import pytest
-from app.models import VAProfileLocalCache
 from random import randint
-from sqlalchemy import delete
 from typing import Optional
+
+import pytest
+from sqlalchemy import delete
+
+from app.models import VAProfileLocalCache
 
 
 @pytest.fixture

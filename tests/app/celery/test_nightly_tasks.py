@@ -30,12 +30,11 @@ from app.celery.service_callback_tasks import create_delivery_status_callback_da
 from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.config import QueueNames
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import (
+from app.constants import (
     LETTER_TYPE,
     SMS_TYPE,
     EMAIL_TYPE,
     NOTIFICATION_STATUS_TYPES_FAILED,
-    FactNotificationStatus,
 )
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.db import (
@@ -43,6 +42,7 @@ from tests.app.db import (
     create_service_data_retention,
     create_ft_notification_status,
 )
+from app.models import FactNotificationStatus
 
 from tests.app.conftest import datetime_in_past
 

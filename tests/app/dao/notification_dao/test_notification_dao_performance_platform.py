@@ -3,14 +3,15 @@ from datetime import date, datetime, timedelta
 from freezegun import freeze_time
 import pytest
 
-from app.dao.notifications_dao import dao_get_total_notifications_sent_per_day_for_performance_platform
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
 )
+from app.dao.notifications_dao import dao_get_total_notifications_sent_per_day_for_performance_platform
+
 
 BEGINNING_OF_DAY = date(2016, 10, 18)
 END_OF_DAY = date(2016, 10, 19)

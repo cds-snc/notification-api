@@ -1,5 +1,8 @@
-import pytest
 import uuid
+
+import pytest
+
+from app.constants import EMAIL_AUTH_TYPE, SMS_TYPE
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
     save_model_user,
@@ -20,8 +23,8 @@ from app.dao.users_dao import (
     retrieve_match_or_create_user,
 )
 from app.errors import InvalidRequest
-from app.model import User, EMAIL_AUTH_TYPE
-from app.models import SMS_TYPE, VerifyCode
+from app.model import User
+from app.models import VerifyCode
 from app.oauth.exceptions import IdpAssignmentException, IncorrectGithubIdException
 from datetime import datetime, timedelta
 from freezegun import freeze_time

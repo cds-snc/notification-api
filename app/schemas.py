@@ -5,17 +5,21 @@ https://marshmallow-sqlalchemy.readthedocs.io/en/latest/index.html#generate-mars
 """
 
 from app import ma, models
+from app.constants import (
+    CALLBACK_CHANNEL_TYPES,
+    DELIVERY_STATUS_CALLBACK_TYPE,
+    EMAIL_AUTH_TYPE,
+    EMAIL_TYPE,
+    LETTER_TYPE,
+    NOTIFICATION_STATUS_TYPES_COMPLETED,
+    SERVICE_PERMISSION_TYPES,
+    SMS_TYPE,
+)
 from app.dao.communication_item_dao import get_communication_item
 from app.dao.permissions_dao import permission_dao
 from app.model import User
 from app.models import (
     ServicePermission,
-    EMAIL_TYPE,
-    SMS_TYPE,
-    NOTIFICATION_STATUS_TYPES_COMPLETED,
-    DELIVERY_STATUS_CALLBACK_TYPE,
-    CALLBACK_CHANNEL_TYPES,
-    EMAIL_AUTH_TYPE,
 )
 from app.provider_details import validate_providers
 from app.utils import get_template_instance
@@ -352,7 +356,7 @@ class ServiceSchema(BaseSchema):
     ):
         permissions = [v.permission for v in value]
         for p in permissions:
-            if p not in models.SERVICE_PERMISSION_TYPES:
+            if p not in SERVICE_PERMISSION_TYPES:
                 raise ValidationError("Invalid Service Permission: '{}'".format(p))
 
         if len(set(permissions)) != len(permissions):
@@ -578,7 +582,7 @@ class TemplateSchema(BaseTemplateSchema):
         data,
         **kwargs,
     ):
-        if data.get('template_type') in [models.EMAIL_TYPE, models.LETTER_TYPE]:
+        if data.get('template_type') in [EMAIL_TYPE, LETTER_TYPE]:
             subject = data.get('subject')
             if not subject or subject.strip() == '':
                 raise ValidationError('Invalid template subject', 'subject')
@@ -815,7 +819,7 @@ class NotificationWithPersonalisationSchema(NotificationWithTemplateSchema):
         in_data['template'] = in_data.pop('template_history')
         template = get_template_instance(in_data['template'], in_data['personalisation'])
         in_data['body'] = str(template)
-        if in_data['template']['template_type'] != models.SMS_TYPE:
+        if in_data['template']['template_type'] != SMS_TYPE:
             in_data['subject'] = template.subject
             in_data['content_char_count'] = None
         else:

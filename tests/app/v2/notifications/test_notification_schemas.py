@@ -5,7 +5,7 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.models import NOTIFICATION_CREATED, EMAIL_TYPE, SMS_TYPE
+from app.constants import NOTIFICATION_CREATED, EMAIL_TYPE, SMS_TYPE
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -44,10 +44,9 @@ def test_get_notifications_valid_json(data):
 def test_get_notifications_request_invalid_statuses(client, invalid_statuses, valid_statuses):
     partial_error_status = (
         'is not one of '
-        '[cancelled, created, sending, sent, delivered, pending, failed, '
+        '(cancelled, created, sending, sent, delivered, pending, failed, '
         'technical-failure, temporary-failure, permanent-failure, pending-virus-check, '
-        'validation-failed, virus-scan-failed, returned-letter, pii-check-failed, preferences-declined, '
-        'accepted, received]'
+        'validation-failed, virus-scan-failed, returned-letter, pii-check-failed, preferences-declined)'
     )
 
     with pytest.raises(ValidationError) as e:
@@ -71,7 +70,7 @@ def test_get_notifications_request_invalid_statuses(client, invalid_statuses, va
     ],
 )
 def test_get_notifications_request_invalid_template_types(client, invalid_template_types, valid_template_types):
-    partial_error_template_type = 'is not one of [sms, email, letter]'
+    partial_error_template_type = 'is not one of (sms, email, letter)'
 
     with pytest.raises(ValidationError) as e:
         validate({'template_type': invalid_template_types + valid_template_types}, get_notifications_request)
@@ -96,15 +95,15 @@ def test_get_notifications_request_invalid_statuses_and_template_types(client):
     error_messages = [error['message'] for error in errors]
     for invalid_status in ['elephant', 'giraffe']:
         assert (
-            'status {} is not one of [cancelled, created, sending, sent, delivered, '
+            'status {} is not one of (cancelled, created, sending, sent, delivered, '
             'pending, failed, technical-failure, temporary-failure, permanent-failure, '
             'pending-virus-check, validation-failed, virus-scan-failed, returned-letter, '
-            'pii-check-failed, preferences-declined, accepted, received]'.format(invalid_status)
+            'pii-check-failed, preferences-declined)'.format(invalid_status)
             in error_messages
         )
 
     for invalid_template_type in ['orange', 'avocado']:
-        assert 'template_type {} is not one of [sms, email, letter]'.format(invalid_template_type) in error_messages
+        assert 'template_type {} is not one of (sms, email, letter)'.format(invalid_template_type) in error_messages
 
 
 valid_phone_number_json = {'phone_number': '6502532222', 'template_id': str(uuid.uuid4())}

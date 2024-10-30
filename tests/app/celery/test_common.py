@@ -4,14 +4,14 @@ from uuid import uuid4
 from freezegun import freeze_time
 import pytest
 
-from app.models import (
+from app.celery.common import log_notification_total_time
+from app.constants import (
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
 )
-from app.celery.common import log_notification_total_time
 
 
 @pytest.mark.parametrize('provider', ['pinpoint', 'ses', 'twilio'])
@@ -27,7 +27,7 @@ def test_ut_log_notification_total_time(
 
         log_notification_total_time(
             notification_id=notification_id,
-            created_at=created_at,
+            start_time=created_at,
             status=NOTIFICATION_DELIVERED,
             provider=provider,
         )
@@ -60,7 +60,7 @@ def test_ut_skip_log_notification_total_time(
     mock_logger = mocker.patch('app.celery.common.current_app.logger.info')
     log_notification_total_time(
         notification_id=uuid4(),
-        created_at=datetime.datetime.now(),
+        start_time=datetime.datetime.now(),
         status=status,
         provider=provider,
     )

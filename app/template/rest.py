@@ -18,9 +18,9 @@ from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.template import HTMLEmailTemplate
 
-from app import HTTP_TIMEOUT
 from app.authentication.auth import requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
 from app.communication_item import validate_communication_items
+from app.constants import HTTP_TIMEOUT, LETTER_TYPE, SECOND_CLASS, SMS_TYPE
 from app.dao.fact_notification_status_dao import fetch_template_usage_for_service_with_given_template
 from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
@@ -39,7 +39,7 @@ from app.dao.templates_dao import (
 from app.errors import InvalidRequest, register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.letters.utils import get_letter_pdf
-from app.models import SMS_TYPE, Template, SECOND_CLASS, LETTER_TYPE
+from app.models import Template
 from app.notifications.validators import service_has_permission, check_reply_to, template_name_already_exists_on_service
 from app.provider_details import validate_providers
 from app.schema_validation import validate

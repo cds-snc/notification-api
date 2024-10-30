@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request
 
 from app.authentication.auth import create_validator_for_user_in_service_or_admin
+from app.constants import EMAIL_TYPE, MANAGE_SETTINGS, MOBILE_TYPE
 from app.dao.dao_utils import dao_rollback
 from app.dao.service_whitelist_dao import (
     dao_add_and_commit_whitelisted_contacts,
@@ -9,7 +10,7 @@ from app.dao.service_whitelist_dao import (
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors, invalid_data_v2
-from app.models import EMAIL_TYPE, MANAGE_SETTINGS, MOBILE_TYPE, ServiceWhitelist
+from app.models import ServiceWhitelist
 from app.schema_validation import validate
 
 from .service_whitelist_schema import update_service_whitelist_request

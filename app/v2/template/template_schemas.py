@@ -1,4 +1,4 @@
-from app.models import SMS_TYPE, TEMPLATE_TYPES
+from app.constants import SMS_TYPE, TEMPLATE_TYPES
 from app.schema_validation.definitions import uuid, personalisation
 from app.utils import get_html_email_body_from_template
 

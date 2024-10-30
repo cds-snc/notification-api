@@ -11,8 +11,6 @@ fileignoreconfig:
   checksum: ab93313f306c8a3f6576141e8f32d9fc99b0de7da8d44a1ddbe6ea55d167dcdb
 - filename: app/notifications/process_notifications.py
   checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
-- filename: app/service/rest.py
-  checksum: b42aefd1ae0e6ea76e75db4cf14d425facd0941943b17f7ba2e41f850ad1ec23
 - filename: app/template/rest.py
   checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
 - filename: cd/application-deployment/dev/dev.env
@@ -42,7 +40,7 @@ fileignoreconfig:
 - filename: tests/app/celery/test_service_callback_tasks.py
   checksum: 70575434f7a4fedd43d4c9164bc899a606768526d432c364db372524eec26542
 - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
-  checksum: ab4099f87cacd5ebd5b7fdbffd77d062ab6b3880bdc033b0fd65358d392dde97
+  checksum: a05165537ffbfac90000c5d04d8628251d771f6d1334c91c3aed28bf6c32368c
 - filename: tests/app/conftest.py
   checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
 - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
@@ -50,8 +48,35 @@ fileignoreconfig:
 - filename: tests/app/v2/notifications/test_post_notifications.py
   checksum: 3181930a13e3679bb2f17eaa3f383512eb9caf4ed5d5e14496ca4193c6083965
 - filename: tests/lambda_functions/va_profile/test_va_profile_integration.py
-  checksum: 94f3e59c05ed2024a08495e15dab266cdc27d33eb6bc56d8256bd53b38668f9a
+  checksum: 4f0f4d7a4113762219e45a51f7b26a7c0cb83f1d8f10c5598533f6cdcf0e0ada
 - filename: app/va/va_profile/va_profile_client.py
   checksum: fe634f26f7dc3874f4afcfd1ba3f03bae380b53befe973a752c7347097a88701
 - filename: tests/lambda_functions/vetext_incoming_forwarder_lambda/test_vetext_incoming_forwarder_lambda.py
   checksum: 7494eb4321fd2fbc3ff3915d8753d8fec7a936a69dc6ab78f0b532a701f032eb
+- filename: app/celery/nightly_tasks.py
+  checksum: b5b4999f778361603fdc7d710772968461e79a016f66badfbafd590bf70c5a11
+- filename: tests/app/dao/test_api_key_dao.py
+  checksum: ef306fcc1dc512b74abeb5dde5f20977cf95e67a2fa049df6289a7b5500339a9
+- filename: tests/app/notifications/test_send_notifications.py
+  checksum: 69304e1edd6993acd9a842a87dba8ee16854befc643863e1589b15c303a71464
+- filename: tests/app/v3/notifications/test_rest.py
+  checksum: 25aeb31ce5974f0a414ff43a9a75f787a6cf41c783f7eacf2415ce1fedf54c1d
+- filename: app/commands.py
+  checksum: 79d914948e4e28dabc9c074956a11a9ceec27e7ae57b8eb8fb483f4a6217f07d
+- filename: app/constants.py
+  checksum: 9262bddf98c91c1eb0bbad4aae89b436f898ae664050920a5755b6475d2821a9
+- filename: app/letters/utils.py
+  checksum: 5e6071b9cab380f9f3ee172f8c731061241200f53453a9863f22bb5eaa05e6af
+- filename: app/service/utils.py
+  checksum: c1e34f85b5b0fc32eb6a3afcc16c7099b74294e578487004dc6ba3bc46832010
+- filename: app/v3/notifications/rest.py
+  checksum: aea8f32b796f324e4b57e1be6703b31c0550447011550d944cdb461489203f7d
+- filename: app/user/rest.py
+  checksum: e867ef2c802c8a3fd187fd0df76533e62cccb1721582c4fc4d2a920eb11c1e3b
+- filename: app/notifications/send_notifications.py
+  checksum: 12ed8e1334772c0d65cc13be03b6d5197ebbf4d35460aee2fac1fc2a9644e9e1
+- filename: app/service/rest.py
+  checksum: 7f8a30dd84b3ceb0d08bae949b5b127fd408ee2fd8097eb7d4b291ede61f8d0f
+- filename: tests/app/celery/test_process_delivery_status_result_tasks.py
+  checksum: c1c596d40f5bc8c8621204c6cfdd1c8adda0092a396fcd73b1d9f843f4951d7f
+version: "1.0"

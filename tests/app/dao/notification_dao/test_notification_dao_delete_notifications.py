@@ -1,6 +1,12 @@
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
+from flask import current_app
+from freezegun import freeze_time
+import pytest
+from sqlalchemy import select, update
+
+from app.constants import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
     insert_update_notification_history,
@@ -9,15 +15,8 @@ from app.models import (
     Notification,
     NotificationHistory,
     RecipientIdentifier,
-    EMAIL_TYPE,
-    LETTER_TYPE,
-    SMS_TYPE,
 )
 from app.va.identifier import IdentifierType
-from flask import current_app
-from freezegun import freeze_time
-import pytest
-from sqlalchemy import select, update
 
 
 def create_test_data(

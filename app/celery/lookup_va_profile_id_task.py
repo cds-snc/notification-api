@@ -1,7 +1,9 @@
-from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.models import RecipientIdentifier, NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
+
+from app.constants import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.models import RecipientIdentifier
 from app import notify_celery
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException

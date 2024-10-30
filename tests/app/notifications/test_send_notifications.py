@@ -1,8 +1,9 @@
 import pytest
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.constants import EMAIL_TYPE, KEY_TYPE_NORMAL, SMS_TYPE
 from app.exceptions import NotificationTechnicalFailureException
-from app.models import SMS_TYPE, EMAIL_TYPE, KEY_TYPE_NORMAL, Service, Template
+from app.models import Service, Template
 from app.notifications.send_notifications import lookup_notification_sms_setup_data, send_notification_bypass_route
 from app.va.identifier import IdentifierType
 

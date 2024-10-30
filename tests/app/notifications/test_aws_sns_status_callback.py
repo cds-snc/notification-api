@@ -1,8 +1,11 @@
-from app import create_uuid
-import pytest
 from datetime import datetime
 from freezegun import freeze_time
-from app.models import NOTIFICATION_FAILED, NOTIFICATION_SENT, Notification
+
+import pytest
+
+from app.utils import create_uuid
+from app.constants import NOTIFICATION_FAILED, NOTIFICATION_SENT
+from app.models import Notification
 from app.notifications.aws_sns_status_callback import send_callback_metrics
 
 

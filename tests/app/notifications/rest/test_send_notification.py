@@ -9,22 +9,22 @@ from notifications_python_client.authentication import create_jwt_token
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 
 import app
-from app.dao import notifications_dao
-from app.dao.services_dao import dao_update_service
-from app.dao.templates_dao import dao_get_all_templates_for_service, dao_update_template
-from app.errors import InvalidRequest
-from app.models import (
+from app.constants import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     SMS_TYPE,
+)
+from app.dao.services_dao import dao_update_service
+from app.dao.templates_dao import dao_get_all_templates_for_service, dao_update_template
+from app.errors import InvalidRequest
+from app.models import (
     Notification,
-    NotificationHistory,
     Template,
 )
-from app.v2.errors import RateLimitError, TooManyRequestsError
+from app.v2.errors import TooManyRequestsError
 from tests import create_authorization_header
 
 

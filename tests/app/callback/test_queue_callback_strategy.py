@@ -1,14 +1,10 @@
-import pytest
 from botocore.exceptions import ClientError
+import pytest
 
 from app.callback.queue_callback_strategy import QueueCallbackStrategy
 from app.celery.exceptions import NonRetryableException
-from app.models import (
-    ServiceCallback,
-    DELIVERY_STATUS_CALLBACK_TYPE,
-    COMPLAINT_CALLBACK_TYPE,
-    INBOUND_SMS_CALLBACK_TYPE,
-)
+from app.constants import COMPLAINT_CALLBACK_TYPE, DELIVERY_STATUS_CALLBACK_TYPE, INBOUND_SMS_CALLBACK_TYPE
+from app.models import ServiceCallback
 
 
 @pytest.fixture(scope='function')

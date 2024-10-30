@@ -1,5 +1,4 @@
 from app import create_random_identifier
-from app.config import QueueNames
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
@@ -12,9 +11,8 @@ from app.notifications.validators import (
     validate_and_format_recipient,
     validate_template,
 )
-from app.models import (
+from app.constants import (
     KEY_TYPE_NORMAL,
-    PRIORITY,
     SMS_TYPE,
     EMAIL_TYPE,
     LETTER_TYPE,

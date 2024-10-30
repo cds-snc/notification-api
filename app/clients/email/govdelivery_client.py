@@ -1,16 +1,18 @@
+from time import monotonic
+
+from flask import current_app
+from notifications_utils.recipients import InvalidEmailError
 import requests
 
 from app.clients.email import EmailClient, EmailClientException
-from app.models import (
+from app.constants import (
+    HTTP_TIMEOUT,
     NOTIFICATION_CANCELLED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
 )
-from flask import current_app
-from notifications_utils.recipients import InvalidEmailError
-from time import monotonic
 
 govdelivery_status_map = {
     'sending': NOTIFICATION_SENDING,
@@ -37,8 +39,6 @@ class GovdeliveryClient(EmailClient):
         *args,
         **kwargs,
     ):
-        from app import HTTP_TIMEOUT  # Circular import
-
         self.timeout = HTTP_TIMEOUT
         self.name = 'govdelivery'
         self.token = token

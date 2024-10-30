@@ -1,9 +1,8 @@
 import os
 import random
 import string
-import uuid
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from flask import request, g, jsonify, make_response
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
@@ -28,9 +27,7 @@ from app.clients.sms.mmg import MMGClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.clients.sms.twilio import TwilioSMSClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
-from app.clients.performance_platform.performance_platform_client import (
-    PerformancePlatformClient,
-)
+from app.clients.performance_platform.performance_platform_client import PerformancePlatformClient
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.oauth.registry import oauth_registry
 from app.va.va_onsite import VAOnsiteClient
@@ -41,11 +38,8 @@ from app.encryption import Encryption
 from app.attachments.store import AttachmentStore
 from app.db import db
 
-DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
-DATE_FORMAT = '%Y-%m-%d'
-HTTP_TIMEOUT = (3.05, 1) if os.getenv('NOTIFY_ENVIRONMENT') in ('production', 'staging') else (30, 30)
-
 load_dotenv()
+
 
 migrate = Migrate()
 ma = Marshmallow()
@@ -432,10 +426,6 @@ def init_app(app):
     def exception(error):
         app.logger.exception(error)
         return jsonify(result='error', message='Internal server error'), 500
-
-
-def create_uuid():
-    return str(uuid.uuid4())
 
 
 def create_random_identifier():
