@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import statsd_client
+from app import annual_limit_client, statsd_client
 from app.aws.mocks import sns_failed_callback, sns_success_callback
 from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.dao.notifications_dao import get_notification_by_id
@@ -22,6 +22,7 @@ from tests.app.db import (
     create_service_callback_api,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_process_sns_results_delivered(sample_template, notify_db, notify_db_session, mocker):
@@ -189,3 +190,65 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
         updated_notification = get_notification_by_id(notification.id)
         signed_data = create_delivery_status_callback_data(updated_notification, callback_api)
         send_mock.assert_called_once_with([str(notification.id), signed_data, notification.service_id], queue="service-callbacks")
+
+
+def test_sns_callback_should_increment_sms_delivered_when_delivery_receipt_is_delivered(
+    sample_sms_template_with_html, notify_api, mocker
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
+
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="sns",
+        )
+    )
+
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        assert process_sns_results(sns_success_callback(reference="ref"))
+
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "provider_response",
+    [
+        "Blocked as spam by phone carrier",
+        "Destination is on a blocked list",
+        "Invalid phone number",
+        "Message body is invalid",
+        "Phone carrier has blocked this message",
+        "Phone carrier is currently unreachable/unavailable",
+        "Phone has blocked SMS",
+        "Phone is on a blocked list",
+        "Phone is currently unreachable/unavailable",
+        "Phone number is opted out",
+        "This delivery would exceed max price",
+        "Unknown error attempting to reach phone",
+    ],
+)
+def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failure(
+    sample_sms_template_with_html, notify_api, mocker, provider_response
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
+
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="sns",
+        )
+    )
+
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        assert process_sns_results(sns_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
