@@ -77,10 +77,10 @@ def on_exit(server):
         filestamp = datetime.now().strftime("%Y%m%d-%H%M")
 
         # Dump profiling results to a file
-        profiler.dump_stats(f"profile_results-gcrn-nr810-{filestamp}.prof")
+        profiler.dump_stats(f"profile_results-gcrn-nr811-{filestamp}.prof")
         # Analyze profiling results
-        with open(f"profile_report-gcrn-nr810-{filestamp}.txt", "w") as f:
-            stats = pstats.Stats(f"profile_results-gcrn-nr810-{filestamp}.prof", stream=f)
+        with open(f"profile_report-gcrn-nr811-{filestamp}.txt", "w") as f:
+            stats = pstats.Stats(f"profile_results-gcrn-nr811-{filestamp}.prof", stream=f)
             stats.sort_stats(SortKey.CUMULATIVE)
             stats.print_stats()
 
