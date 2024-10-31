@@ -885,3 +885,28 @@ def fetch_monthly_notification_statuses_per_service(start_date, end_date):
         )
         .all()
     )
+
+
+def fetch_quarter_data(start_date, end_date, service_ids):
+    """
+    Get data for each quarter for the given year and service_ids
+
+    Args:
+        start_date (datetime obj)
+        end_date (datetime obj)
+        service_ids (list): list of service_ids
+    """
+    query = (
+        db.session.query(
+            FactNotificationStatus.service_id,
+            FactNotificationStatus.notification_type,
+            func.sum(FactNotificationStatus.notification_count).label("notification_count"),
+        )
+        .filter(
+            FactNotificationStatus.service_id.in_(service_ids),
+            FactNotificationStatus.bst_date >= start_date,
+            FactNotificationStatus.bst_date <= end_date,
+        )
+        .group_by(FactNotificationStatus.service_id, FactNotificationStatus.notification_type)
+    )
+    return query.all()
