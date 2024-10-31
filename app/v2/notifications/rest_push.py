@@ -1,14 +1,15 @@
-from app import authenticated_service, vetext_client
+from flask import jsonify, request
+
+from app import authenticated_service, vetext_client, mobile_app_registry
 from app.constants import PUSH_TYPE
-from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.mobile_app import MobileAppRegistry, MobileAppType, DEAFULT_MOBILE_APP_TYPE
+from app.feature_flags import FeatureFlag, is_feature_enabled
+from app.mobile_app import DEAFULT_MOBILE_APP_TYPE, MobileAppType
 from app.schema_validation import validate
 from app.utils import get_public_notify_type_text
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
-from app.v2.notifications.notification_schemas import push_notification_request, push_notification_broadcast_request
-from app.va.vetext import VETextRetryableException, VETextNonRetryableException, VETextBadRequestException
-from flask import request, jsonify
+from app.v2.notifications.notification_schemas import push_notification_broadcast_request, push_notification_request
+from app.va.vetext import VETextBadRequestException, VETextNonRetryableException, VETextRetryableException
 
 
 @v2_notification_blueprint.route('/push', methods=['POST'])
@@ -36,15 +37,12 @@ def push_notification_helper(schema: dict, is_broadcast: bool):
         )
 
     req_json = validate(request.get_json(), schema)
-    registry = MobileAppRegistry()
 
-    if req_json.get('mobile_app'):
-        app_instance = registry.get_app(MobileAppType[req_json['mobile_app']])
+    if 'mobile_app' in req_json:
+        app_instance = mobile_app_registry.get_app(MobileAppType[req_json['mobile_app']])
     else:
-        app_instance = registry.get_app(DEAFULT_MOBILE_APP_TYPE)
+        app_instance = mobile_app_registry.get_app(DEAFULT_MOBILE_APP_TYPE)
 
-    if not app_instance:
-        return jsonify(result='error', message='Mobile app is not initialized'), 503
     try:
         vetext_client.send_push_notification(
             app_instance.sid,

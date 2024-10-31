@@ -25,6 +25,8 @@ fileignoreconfig:
   checksum: 9e5161e8a0a13974d9b67d8a7e61d1b3fed9657a7e2dfeb6d82fd8ace64e2715
 - filename: ci/docker-compose-test.yml
   checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
+- filename: ci/.local.env
+  checksum: 8caee8cf67974ad5195c835d3d266d81dbc4c635c547b7cc49704c0593e7833b
 - filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
   checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
 - filename: lambda_functions/ses_callback/ses_callback_lambda.py
@@ -64,7 +66,7 @@ fileignoreconfig:
 - filename: app/commands.py
   checksum: 79d914948e4e28dabc9c074956a11a9ceec27e7ae57b8eb8fb483f4a6217f07d
 - filename: app/constants.py
-  checksum: 9262bddf98c91c1eb0bbad4aae89b436f898ae664050920a5755b6475d2821a9
+  checksum: 44390d0a1258b184cf84dc9b6e97bd0768af84a9aa346ba963aa7735fc8bcb36
 - filename: app/letters/utils.py
   checksum: 5e6071b9cab380f9f3ee172f8c731061241200f53453a9863f22bb5eaa05e6af
 - filename: app/service/utils.py
@@ -78,5 +80,5 @@ fileignoreconfig:
 - filename: app/service/rest.py
   checksum: 7f8a30dd84b3ceb0d08bae949b5b127fd408ee2fd8097eb7d4b291ede61f8d0f
 - filename: tests/app/celery/test_process_delivery_status_result_tasks.py
-  checksum: c1c596d40f5bc8c8621204c6cfdd1c8adda0092a396fcd73b1d9f843f4951d7f
+  checksum: 62fa6216b62971d62c2e53f6b31aeeb659d7a1e404665362ee89cb3ec04793a6
 version: "1.0"

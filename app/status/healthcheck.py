@@ -1,10 +1,9 @@
-from flask import jsonify, Blueprint, request
+from flask import Blueprint, jsonify, request
 
-from app import db, version, provider_service
+from app import db, mobile_app_registry, version, provider_service
 from app.dao.services_dao import dao_count_live_services
 from app.dao.organisation_dao import dao_count_organsations_with_live_services
 from app.notifications.notification_type import NotificationType
-from app.mobile_app import MobileAppRegistry
 from .redis_check import redis_check
 
 status = Blueprint('status', __name__)
@@ -16,7 +15,6 @@ def show_status():
     if request.args.get('simple', None):
         return jsonify(status='ok'), 200
     else:
-        mobile_app_registry = MobileAppRegistry()
         return jsonify(
             status='ok',  # This should be considered part of the public API
             git_commit=version.__git_commit__,

@@ -185,11 +185,15 @@ class TestPushSending:
         personalisation,
         app,
     ):
+        """
+        App SIDs should be loaded from the environment.  For testing, the is .local.env.
+        """
+
         service = sample_service(service_permissions=[PUSH_TYPE])
 
         post_send_push_broadcast_notification(client, sample_api_key(service), payload)
         vetext_client.send_push_notification.assert_called_once_with(
-            f'some_sid_for_{app}', payload['template_id'], payload['topic_sid'], True, personalisation
+            f'{app}_sid', payload['template_id'], payload['topic_sid'], True, personalisation
         )
 
     @pytest.mark.parametrize('exception', [VETextRetryableException, VETextNonRetryableException])
@@ -234,18 +238,3 @@ class TestPushSending:
         assert response.status_code == 400
         resp_json = response.get_json()
         assert {'error': 'BadRequestError', 'message': exception.message} in resp_json['errors']
-
-    @pytest.mark.disable_autouse
-    def test_returns_503_if_mobile_app_not_initiliazed(
-        self,
-        client,
-        sample_api_key,
-        sample_service,
-    ):
-        service = sample_service(service_permissions=[PUSH_TYPE])
-
-        response = post_send_push_broadcast_notification(client, sample_api_key(service), PUSH_BROADCAST_REQUEST)
-
-        assert response.status_code == 503
-        resp_json = response.get_json()
-        assert resp_json == {'result': 'error', 'message': 'Mobile app is not initialized'}

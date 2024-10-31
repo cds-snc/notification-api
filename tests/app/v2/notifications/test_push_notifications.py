@@ -218,7 +218,7 @@ class TestPushSending:
 
         post_send_notification(client, sample_api_key(service), PUSH_TYPE, payload)
         vetext_client.send_push_notification.assert_called_once_with(
-            f'some_sid_for_{app}',
+            f'{app}_sid',
             payload['template_id'],
             payload['recipient_identifier']['id_value'],
             False,
@@ -267,18 +267,3 @@ class TestPushSending:
         assert response.status_code == 400
         resp_json = response.get_json()
         assert {'error': 'BadRequestError', 'message': exception.message} in resp_json['errors']
-
-    @pytest.mark.disable_autouse
-    def test_returns_503_if_mobile_app_not_initiliazed(
-        self,
-        client,
-        sample_api_key,
-        sample_service,
-    ):
-        service = sample_service(service_permissions=[PUSH_TYPE])
-
-        response = post_send_notification(client, sample_api_key(service), PUSH_TYPE, PUSH_REQUEST)
-
-        assert response.status_code == 503
-        resp_json = response.get_json()
-        assert resp_json == {'result': 'error', 'message': 'Mobile app is not initialized'}
