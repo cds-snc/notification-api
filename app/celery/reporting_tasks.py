@@ -8,9 +8,11 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from app import notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
+from app.dao.annual_limits_data_dao import get_previous_quarter, insert_quarter_data
 from app.dao.fact_billing_dao import fetch_billing_data_for_day, update_fact_billing
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_day,
+    fetch_quarter_data,
     update_fact_notification_status,
 )
 from app.models import Service
@@ -115,5 +117,63 @@ def create_nightly_notification_status_for_day(process_day):
             current_app.logger.error(
                 "create-nightly-notification-status-for-day task failed for day: {}, for service_ids: {}. Error: {}".format(
                     process_day, chunk, e
+                )
+            )
+
+
+@notify_celery.task(name="insert-quarter-data-for-annual-limits")
+@statsd(namespace="tasks")
+def insert_quarter_data_for_annual_limits(process_day):
+    """
+    This function gets all the service ids and fetches all the notification_count
+    for the given quarter for the service_ids. It then inserts that data
+    into the annaual_limits_data_table.
+
+    The process_day determines which quarter to fetch data for.
+
+    Args:
+        process_day = datetime object
+    """
+
+    quarter, dates = get_previous_quarter(process_day)
+    start_date = dates[0]
+    end_date = dates[1]
+
+    service_info = {x.id: (x.email_annual_limit, x.sms_annual_limit) for x in Service.query.all()}
+    service_ids = [service_id for service_id in service_info]
+    chunk_size = 20
+    iter_service_ids = iter(service_ids)
+
+    while True:
+        chunk = list(islice(iter_service_ids, chunk_size))
+
+        if not chunk:
+            current_app.logger.info(
+                "insert_quarter_data_for_annual_limits completed for quarter {} on {}".format(
+                    quarter, datetime.now(timezone.utc).date()
+                )
+            )
+            break
+
+        try:
+            start = datetime.now(timezone.utc)
+            transit_data = fetch_quarter_data(start_date, end_date, service_ids=chunk)
+            end = datetime.now(timezone.utc)
+            current_app.logger.info(
+                "fetch_quarter_data_for_annual_limits for time period {} to {} fetched in {} seconds".format(
+                    start_date, end_date, (end - start).seconds
+                )
+            )
+            insert_quarter_data(transit_data, quarter, service_info, service_ids=chunk)
+
+            current_app.logger.info(
+                "insert_quarter_data task complete: {} rows updated for time period {} to {} for service_ids {}".format(
+                    len(transit_data), start_date, end_date, chunk
+                )
+            )
+        except Exception as e:
+            current_app.logger.error(
+                "insert_quarter_data_for_annual_limits task failed for for time period {} to {} for service_ids {}. Error: {}".format(
+                    start_date, end_date, chunk, e
                 )
             )
