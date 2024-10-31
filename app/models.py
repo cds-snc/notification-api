@@ -65,6 +65,8 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+DEFAULT_SMS_ANNUAL_LIMIT = 25000
+DEFAULT_EMAIL_ANNUAL_LIMIT = 10000000
 
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
@@ -565,6 +567,8 @@ class Service(BaseModel, Versioned):
     sensitive_service = db.Column(db.Boolean, nullable=True)
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
+    email_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_EMAIL_ANNUAL_LIMIT)
+    sms_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_SMS_ANNUAL_LIMIT)
 
     email_branding = db.relationship(
         "EmailBranding",
@@ -608,6 +612,8 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
         fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        fields["email_annual_limit"] = fields.get("email_annual_limit", DEFAULT_EMAIL_ANNUAL_LIMIT)
+        fields["sms_annual_limit"] = fields.get("sms_annual_limit", DEFAULT_SMS_ANNUAL_LIMIT)
 
         return cls(**fields)
 
