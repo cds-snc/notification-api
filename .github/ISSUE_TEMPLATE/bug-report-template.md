@@ -2,7 +2,7 @@
 name: Notify Bug Template
 about: Create a report to help us improve
 title: 'BUG: '
-labels: Notify
+labels: Notify, bug
 assignees: ''
 
 ---
