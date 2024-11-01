@@ -4,7 +4,7 @@ from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery, statsd_client
+from app import annual_limit_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import (
@@ -19,6 +19,8 @@ from app.notifications.callbacks import _check_and_queue_callback_task
 from celery.exceptions import Retry
 
 
+# TODO: FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
+# flake8: noqa: C901
 @notify_celery.task(bind=True, name="process-sns-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_sns_results(self, response):
@@ -69,8 +71,20 @@ def process_sns_results(self, response):
                     f"Provider response: {sns_message['delivery']['providerResponse']}"
                 )
             )
+            # TODO FF_ANNUAL_LIMIT removal
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                annual_limit_client.increment_sms_failed(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented sms_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
         else:
             current_app.logger.info(f"SNS callback return status of {notification_status} for notification: {notification.id}")
+            # TODO FF_ANNUAL_LIMIT removal
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                annual_limit_client.increment_sms_delivered(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented sms_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
 
         statsd_client.incr(f"callback.sns.{notification_status}")
 

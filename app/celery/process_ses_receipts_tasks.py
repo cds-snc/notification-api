@@ -4,7 +4,7 @@ from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import bounce_rate_client, notify_celery, statsd_client
+from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE
@@ -89,10 +89,20 @@ def process_ses_results(self, response):  # noqa: C901
                     notification.id, reference, aws_response_dict["message"]
                 )
             )
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                annual_limit_client.increment_email_failed(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
         else:
             current_app.logger.info(
                 "SES callback return status of {} for notification: {}".format(notification_status, notification.id)
             )
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                annual_limit_client.increment_email_delivered(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
 
         statsd_client.incr("callback.ses.{}".format(notification_status))
 
