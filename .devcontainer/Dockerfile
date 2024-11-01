@@ -17,6 +17,7 @@ RUN apt-get update \
     fd-find \
     git \
     iproute2 \
+    iputils-ping \
     less \
     libsodium-dev \
     lsb-release \
