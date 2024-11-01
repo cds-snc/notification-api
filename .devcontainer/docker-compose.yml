@@ -16,8 +16,11 @@ services:
       - 8000:8000
       - 8001:8001
       - 6011:6011
-    links:
+    networks:
+      - notification-network
+    depends_on:
       - db
+      - redis
 
   db:
     image: postgres:11.22-bullseye@sha256:c886a3236b3d11abc302e64309186c90a69b49e53ccff23fd8c8b057b5b4bce9
@@ -32,8 +35,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: chummy
       POSTGRES_HOST_AUTH_METHOD: trust
-    expose:
-      - "5432"
+    networks:
+      - notification-network
     ports:
       - "5432:5432"
 
@@ -41,7 +44,12 @@ services:
     image: redis:6.2@sha256:7919fdd5300e7abf7ae95919e6f144b37c55df16553302dbbcc7495a5aa0c079
     restart: always
     command: redis-server --port 6380
+    networks:
+      - notification-network
     ports:
       - "6380:6380"
-    expose:
-      - "6380"
+
+networks:
+  notification-network:
+    name: notification-network
+    driver: bridge
