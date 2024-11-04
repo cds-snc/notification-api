@@ -144,8 +144,11 @@ class TwilioSMSClient(SmsClient):
         message = None
         try:
             message = self._client.messages(message_sid).fetch()
-        except TwilioRestException:
+        except TwilioRestException as e:
             self.logger.exception('Twilio message not found: %s', message_sid)
+            if e.status == 429:
+                self.logger.exception('Twilio rate limit exceeded')
+                raise NonRetryableException('Twilio rate limit exceeded') from e
         return message
 
     def send_sms(
@@ -303,7 +306,6 @@ class TwilioSMSClient(SmsClient):
         self.logger.info('Updating notification status for message: %s', message_sid)
 
         message = self.get_twilio_message(message_sid)
-        self.logger.debug('Twilio message: %s', message)
 
         if message:
             status, status_reason = self._evaluate_status(message_sid, message.status, [])
@@ -318,8 +320,9 @@ class TwilioSMSClient(SmsClient):
                 update_dict,
             )
             self.logger.info(
-                'Updated notification status for message: %s. Updated %s notifications and %s notification history',
+                'Updated notification status for message: %s to %s. Updated %s notifications and %s notification history',
                 message_sid,
+                status,
                 updated_count,
                 updated_history_count,
             )

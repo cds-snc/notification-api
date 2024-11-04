@@ -235,6 +235,7 @@ class Config(object):
             'app.celery.process_delivery_status_result_tasks',
             'app.celery.v3.notification_tasks',
             'app.celery.process_ses_receipts_tasks',
+            'app.celery.twilio_tasks',
         ),
         'beat_schedule': {
             # app/celery/scheduled_tasks.py
@@ -320,6 +321,11 @@ class Config(object):
                 'schedule': crontab(hour='13-21', day_of_month='24-31', minute='*/2'),
                 'options': {'queue': QueueNames.PERIODIC},
             },
+            'update-twilio-status': {
+                'task': 'update-twilio-status',
+                'schedule': crontab(hour='*', minute='*/5'),
+                'options': {'queue': QueueNames.PERIODIC},
+            },
         },
         'task_queues': [Queue(queue, Exchange('default'), routing_key=queue) for queue in QueueNames.all_queues()],
         'task_routes': {
@@ -362,6 +368,8 @@ class Config(object):
     TWILIO_CALLBACK_USERNAME = os.environ.get('TWILIO_CALLBACK_USERNAME', '')
     TWILIO_CALLBACK_PASSWORD = os.environ.get('TWILIO_CALLBACK_PASSWORD', '')
     TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+    TWILIO_STATUS_PAGE_SIZE = 500
+
     FIRETEXT_INBOUND_SMS_AUTH = json.loads(os.getenv('FIRETEXT_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_AUTH = json.loads(os.getenv('MMG_INBOUND_SMS_AUTH', '[]'))
     MMG_INBOUND_SMS_USERNAME = json.loads(os.getenv('MMG_INBOUND_SMS_USERNAME', '[]'))
