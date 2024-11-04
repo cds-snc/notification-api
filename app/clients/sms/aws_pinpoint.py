@@ -63,7 +63,7 @@ class AwsPinpointClient(SmsClient):
                     )
                     if dryrun:
                         self.current_app.logger.info(
-                            f"Dry run enabled for SMS to {self.current_app.config['DRYRUN_TEST_NUMBER']} with message id {response.get('MessageId')}. SMS not sent by AWS."
+                            f"SMS with message id {response.get('MessageId')} is sending to DRYRUN_TEST_NUMBER. Boto call made to AWS, but not send on."
                         )
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
