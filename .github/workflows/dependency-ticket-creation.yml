@@ -1,0 +1,20 @@
+name: Biweekly Dependency Ticket Creation
+
+# on:
+#   schedule:
+#     - cron: "0 9 */14 * 1" # Runs every two weeks on Monday at 09:00 UTC
+
+on:
+    workflow_dispatch: # Allows manual dispatch for testing
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create GitHub Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue create --template notify-dependency-update-template.md --label "dependency update"
