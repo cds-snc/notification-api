@@ -105,7 +105,7 @@ def user_query(id: str) -> dict | None:
 
 
 @support_blueprint.route("/find-ids", methods=["GET"])
-def find_ids() -> Response:
+def find_ids() -> tuple[Response, int]:
     ids = request.args.get("ids")
     if not ids:
         return jsonify({"error": "no ids provided"}), 400
@@ -126,4 +126,4 @@ def find_ids() -> Response:
                 break
         if not results:
             info.append({"id": id, "type": "no result found"})
-    return jsonify(info)
+    return jsonify(info), 200
