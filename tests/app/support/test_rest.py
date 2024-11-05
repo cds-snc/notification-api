@@ -58,24 +58,24 @@ def test_find_ids_notification(admin_request, sample_notification_with_job):
 
 
 def test_find_ids_unknown_uuid(admin_request, sample_user):
-    id = str(uuid.uuid4())
-    json_resp = admin_request.get("support.find_ids", ids=id)[0]
+    search_uuid = str(uuid.uuid4())
+    json_resp = admin_request.get("support.find_ids", ids=search_uuid)[0]
     assert json_resp["type"] == "no result found"
 
 
 def test_find_ids_no_ids(admin_request):
-    json_resp = admin_request.get("support.find_ids", ids=None)
+    json_resp = admin_request.get("support.find_ids", _expected_status=400, ids=None)
     assert json_resp == {"error": "no ids provided"}
 
 
 def test_find_ids_empty_ids(admin_request):
-    json_resp = admin_request.get("support.find_ids", ids=[])
+    json_resp = admin_request.get("support.find_ids", _expected_status=400, ids=[])
     assert json_resp == {"error": "no ids provided"}
 
 
 def test_find_ids_id_not_uuid(admin_request):
-    id = "hello"
-    json_resp = admin_request.get("support.find_ids", ids=id)[0]
+    search_uuid = "hello"
+    json_resp = admin_request.get("support.find_ids", ids=search_uuid)[0]
     assert json_resp["type"] == "not a uuid"
 
 

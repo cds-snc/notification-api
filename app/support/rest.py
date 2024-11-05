@@ -108,7 +108,7 @@ def user_query(id: str) -> dict | None:
 def find_ids() -> Response:
     ids = request.args.get("ids")
     if not ids:
-        return jsonify({"error": "no ids provided"})
+        return jsonify({"error": "no ids provided"}), 400
 
     info = []
     for id in ids.replace(",", " ").split():
@@ -117,7 +117,9 @@ def find_ids() -> Response:
         except ValueError:
             info.append({"id": id, "type": "not a uuid"})
             continue
-        for query_func in [user_query, service_query, template_query, job_query, notification_query]:
+        query_funcs = [user_query, service_query, template_query, job_query, notification_query]
+        results = None
+        for query_func in query_funcs:
             results = query_func(id)
             if results:
                 info.append(results)
