@@ -1,11 +1,3 @@
----
-name: Notify Dependency Update Template
-about: Regular dependency updates
-title: Regular Update for Dependencies
-labels: Notify, QA, Tech Debt
-assignees: ''
----
-
 ## User Story - Business Need
 
 We wish to keep dependencies up to date so that we do not need such massive overhauls of our system. This is a recurring task to update all dependencies we are able to update. Any conflicts shall get a dedicated ticket. This task should be a day of work at most because it only updates non-breaking changes.

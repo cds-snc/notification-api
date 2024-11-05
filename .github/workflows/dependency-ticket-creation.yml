@@ -1,0 +1,41 @@
+name: Biweekly Dependency Ticket Creation
+
+on:
+  schedule:
+    - cron: "0 13 */14 * 1"  # Runs every two weeks on Monday at 09:00 ET (which is 13:00 UTC)
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check for Existing Issue
+        id: check_issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh issue list --state open --json title -q '.[] | select(.title == "Regular Update for Dependencies")' | grep -q "Regular Update for Dependencies"; then
+            echo "issue_exists=true" >> $GITHUB_ENV
+          else
+            echo "issue_exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Create GitHub Issue
+        if: env.issue_exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_URL=$(gh issue create \
+            --body-file "./.github/ISSUE_TEMPLATE/notify-dependency-update-template.md" \
+            --label "Notify" \
+            --label "QA" \
+            --label "Tech Debt" \
+            --title "Regular Update for Dependencies")
+
+          echo "issue_url=${ISSUE_URL}" >> $GITHUB_ENV
+
+      - name: Print Message if Issue Exists
+        if: env.issue_exists == 'true'
+        run: echo "Ticket already exists"
