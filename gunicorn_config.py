@@ -19,7 +19,8 @@ if enable_profiling:
 
 print("Initializing New Relic agent")
 start_time = time.time()
-newrelic.agent.initialize()  # noqa: E402
+# newrelic.agent.initialize()  # noqa: E402
+newrelic.agent.initialize(environment=os.getenv("NOTIFY_ENVIRONMENT"))  # noqa: E402
 end_time = time.time()
 elapsed_time = end_time - start_time
 print(f"Elapsed time: {elapsed_time:.2f}s")
@@ -77,10 +78,10 @@ def on_exit(server):
         filestamp = datetime.now().strftime("%Y%m%d-%H%M")
 
         # Dump profiling results to a file
-        profiler.dump_stats(f"profile_results-gcrn-nr811-{filestamp}.prof")
+        profiler.dump_stats(f"profresults/profile_results-gcrn-nr811-{filestamp}.prof")
         # Analyze profiling results
-        with open(f"profile_report-gcrn-nr811-{filestamp}.txt", "w") as f:
-            stats = pstats.Stats(f"profile_results-gcrn-nr811-{filestamp}.prof", stream=f)
+        with open(f"profresults/profile_report-gcrn-nr811-{filestamp}.txt", "w") as f:
+            stats = pstats.Stats(f"profresults/profile_results-gcrn-nr811-{filestamp}.prof", stream=f)
             stats.sort_stats(SortKey.CUMULATIVE)
             stats.print_stats()
 
