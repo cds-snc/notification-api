@@ -268,6 +268,8 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
     sensitive_service = field_for(models.Service, "sensitive_service")
+    email_annual_limit = field_for(models.Service, "email_annual_limit")
+    sms_annual_limit = field_for(models.Service, "sms_annual_limit")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename

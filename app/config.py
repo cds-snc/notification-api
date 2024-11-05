@@ -519,6 +519,8 @@ class Config(object):
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
         "notification": "{}-dvla-letter-api-files".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
     }
+    SERVICE_ANNUAL_EMAIL_LIMIT = env.int("SERVICE_ANNUAL_EMAIL_LIMIT", 10_000_000)
+    SERVICE_ANNUAL_SMS_LIMIT = env.int("SERVICE_ANNUAL_SMS_LIMIT", 25_000)
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
@@ -566,6 +568,7 @@ class Config(object):
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
