@@ -33,10 +33,10 @@ if enable_profiling:
 
         # Dump profiling results to a file
         profile_by = SortKey.TIME
-        profiler.dump_stats(f"profresults/profile_results-app-nr811-{profile_by}-{filestamp}.prof")
+        profiler.dump_stats(f"profresults/profile_results-app-nr810-{profile_by}-{filestamp}.prof")
         # Analyze profiling results
-        with open(f"profresults/profile_report-app-nr811-{profile_by}-{filestamp}.txt", "w") as f:
-            stats = pstats.Stats(f"profresults/profile_results-app-nr811-{profile_by}-{filestamp}.prof", stream=f)
+        with open(f"profresults/profile_report-app-nr810-{profile_by}-{filestamp}.txt", "w") as f:
+            stats = pstats.Stats(f"profresults/profile_results-app-nr810-{profile_by}-{filestamp}.prof", stream=f)
             #stats.sort_stats(SortKey.CUMULATIVE)
             stats.sort_stats(profile_by)
             stats.print_stats()
