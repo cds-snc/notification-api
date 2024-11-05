@@ -171,7 +171,7 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
             "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
-            "DRYRUN_TEST_NUMBER": to,
+            "EXTERNAL_TEST_NUMBER": to,
         },
     ):
         aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=template_id)

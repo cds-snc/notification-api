@@ -69,7 +69,7 @@ def send_sms_to_provider(notification):
 
     formatted_recipient = validate_and_format_phone_number(notification.to, international=notification.international)
     sending_to_internal_test_number = formatted_recipient == current_app.config["INTERNAL_TEST_NUMBER"]
-    sending_to_dryrun_number = formatted_recipient == current_app.config["DRYRUN_TEST_NUMBER"]
+    sending_to_dryrun_number = formatted_recipient == current_app.config["EXTERNAL_TEST_NUMBER"]
 
     # If the notification was not sent already, the status should be created.
     if notification.status == "created":

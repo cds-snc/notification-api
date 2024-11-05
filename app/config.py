@@ -513,7 +513,7 @@ class Config(object):
 
     # Match with scripts/internal_stress_test/internal_stress_test.py
     INTERNAL_TEST_NUMBER = "+16135550123"
-    DRYRUN_TEST_NUMBER = "+16135550124"
+    EXTERNAL_TEST_NUMBER = "+16135550124"
     INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
     DVLA_BUCKETS = {
