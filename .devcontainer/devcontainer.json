@@ -49,19 +49,14 @@
 	},
 	"features": {
 		"docker-from-docker": {
-			"version": "1.6.0",
 			"moby": true
 		},
 		"kubectl-helm-minikube": {
-			"version": "1.2.0",
 			"helm": "latest",
 			"minikube": "none"
 		},
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "14.17.4"
-		}
+		"ghcr.io/devcontainers/features/node:1": {}
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
 	"remoteUser": "vscode"
-	
 }
