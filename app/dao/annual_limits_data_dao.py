@@ -67,3 +67,18 @@ def insert_quarter_data(data, quarter, service_info):
         )
         db.session.connection().execute(stmt)
         db.session.commit()
+
+
+def fetch_quarter_data(service_ids):
+    """
+    Fetch notification_count for the given quarter for the service_ids.
+
+    Args:
+        service_ids: list of service_ids
+    Returns:
+        list of namedtuples with the following fields:
+        - service_id,
+        - notification_type,
+        - notification_count
+    """
+    db.query(AnnualLimitsData).filter(AnnualLimitsData.service_id.in_(service_ids)).all()
