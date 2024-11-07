@@ -10,17 +10,20 @@ from app.celery.reporting_tasks import (
     create_nightly_billing_for_day,
     create_nightly_notification_status,
     create_nightly_notification_status_for_day,
+    insert_quarter_data_for_annual_limits,
 )
 from app.dao.fact_billing_dao import get_rate
 from app.models import (
     EMAIL_TYPE,
     LETTER_TYPE,
     SMS_TYPE,
+    AnnualLimitsData,
     FactBilling,
     FactNotificationStatus,
     Notification,
 )
 from tests.app.db import (
+    create_ft_notification_status,
     create_letter_rate,
     create_notification,
     create_notification_history,
@@ -579,3 +582,26 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(
 
     assert noti_status[0].bst_date == date(2019, 4, 1)
     assert noti_status[0].notification_status == "created"
+
+
+class TestInsertQuarterData:
+    def test_insert_quarter_data(self, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 5, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
+        create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
+
+        # Data for Q4 2017
+        insert_quarter_data_for_annual_limits(datetime(2018, 4, 1))
+
+        assert AnnualLimitsData.query.count() == 2
+        assert AnnualLimitsData.query.filter_by(service_id=service_1.id).first().notification_count == 4
+        assert AnnualLimitsData.query.filter_by(service_id=service_2.id).first().notification_count == 1100
+        assert AnnualLimitsData.query.filter_by(service_id=service_1.id).first().time_period == "Q4-2017"
+
+        # Data for Q1 2018
+        insert_quarter_data_for_annual_limits(datetime(2018, 7, 1))
+        assert AnnualLimitsData.query.filter_by(service_id=service_1.id, time_period="Q1-2018").first().notification_count == 10
