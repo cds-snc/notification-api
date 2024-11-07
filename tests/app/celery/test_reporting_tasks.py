@@ -11,6 +11,7 @@ from app.celery.reporting_tasks import (
     create_nightly_notification_status,
     create_nightly_notification_status_for_day,
     insert_quarter_data_for_annual_limits,
+    send_quarter_email,
 )
 from app.dao.fact_billing_dao import get_rate
 from app.models import (
@@ -605,3 +606,31 @@ class TestInsertQuarterData:
         # Data for Q1 2018
         insert_quarter_data_for_annual_limits(datetime(2018, 7, 1))
         assert AnnualLimitsData.query.filter_by(service_id=service_1.id, time_period="Q1-2018").first().notification_count == 10
+
+
+class TestSendQuarterEmail:
+    def test_send_quarter_email(self, sample_user, mocker, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 5, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
+        create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
+
+        # Data for Q4 2017
+        insert_quarter_data_for_annual_limits(datetime(2018, 4, 1))
+
+        service_1.users = [sample_user]
+        service_2.users = [sample_user]
+        send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
+
+        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25000 (0.0%)\n\n## service_2 \nText messages: you've sent 1100 out of 25000 (4.0%)\n\n"
+        markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
+        send_quarter_email(datetime(2018, 4, 1))
+        assert send_mock.call_args(
+            sample_user.id,
+            sample_user.email_address,
+            markdown_list_en,
+            markdown_list_fr,
+        )

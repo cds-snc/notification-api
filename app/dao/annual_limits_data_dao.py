@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import func
 from sqlalchemy.dialects.postgresql import insert
 
 from app import db
@@ -36,6 +37,20 @@ def get_previous_quarter(date_to_check):
     return quarter_name, (start_date, end_date)
 
 
+def get_all_quarters(process_day):
+    previous_quarter, _ = get_previous_quarter(process_day)
+    quarter, year = previous_quarter.split("-")
+
+    quarter_mapping = {
+        "Q1": [f"Q1-{year}"],
+        "Q2": [f"Q1-{year}", f"Q2-{year}"],
+        "Q3": [f"Q1-{year}", f"Q2-{year}", f"Q3-{year}"],
+        "Q4": [f"Q1-{year}", f"Q2-{year}", f"Q3-{year}", f"Q4-{year}"],
+    }
+
+    return quarter_mapping[quarter]
+
+
 def insert_quarter_data(data, quarter, service_info):
     """
     Insert data for each quarter into the database.
@@ -70,3 +85,33 @@ def insert_quarter_data(data, quarter, service_info):
         )
         db.session.connection().execute(stmt)
         db.session.commit()
+
+
+def fetch_quarter_cummulative_stats(quarters, service_ids):
+    """
+    Fetch notification status data for a list of quarters and service_ids.
+
+    This function returns a list of namedtuples with the following fields:
+    - service_id,
+    - notification_type,
+    - notification_count
+    """
+    subquery = (
+        db.session.query(
+            AnnualLimitsData.service_id,
+            AnnualLimitsData.notification_type,
+            func.sum(AnnualLimitsData.notification_count).label("notification_count"),
+        )
+        .filter(AnnualLimitsData.service_id.in_(service_ids), AnnualLimitsData.time_period.in_(quarters))
+        .group_by(AnnualLimitsData.service_id, AnnualLimitsData.notification_type)
+        .subquery()
+    )
+
+    return (
+        db.session.query(
+            subquery.c.service_id,
+            func.json_object_agg(subquery.c.notification_type, subquery.c.notification_count).label("notification_counts"),
+        )
+        .group_by(subquery.c.service_id)
+        .all()
+    )
