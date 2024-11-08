@@ -37,7 +37,9 @@ def test_send_delivery_status_to_service_post_https_request_to_service_with_sign
     signed_status_update = _set_up_data_for_status_update(callback_api, notification)
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=200)
-        send_delivery_status_to_service(notification.id, signed_status_update=signed_status_update)
+        send_delivery_status_to_service(
+            notification.id, signed_status_update=signed_status_update, service_id=notification.service_id
+        )
 
     mock_data = {
         "id": str(notification.id),
@@ -71,7 +73,7 @@ def test_send_complaint_to_service_posts_https_request_to_service_with_signed_da
         complaint_data = _set_up_data_for_complaint(callback_api, complaint, notification)
         with requests_mock.Mocker() as request_mock:
             request_mock.post(callback_api.url, json={}, status_code=200)
-            send_complaint_to_service(complaint_data)
+            send_complaint_to_service(complaint_data, notification.service_id)
 
         mock_data = {
             "notification_id": str(notification.id),
@@ -109,7 +111,7 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=status_code)
-        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
 
     assert mocked.call_count == 1
     assert mocked.call_args[1]["queue"] == "service-callbacks-retry"
@@ -134,7 +136,7 @@ def test__send_data_to_service_callback_api_does_not_retry_if_request_returns_40
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=404)
-        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
 
     assert mocked.call_count == 0
 
@@ -155,7 +157,7 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(notify_db_s
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=404)
-        send_delivery_status_to_service(notification.id, signed_status_update=signed_data)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
 
     assert mocked.call_count == 0
 

@@ -602,7 +602,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
     mocker.patch("app.aws_ses_client.send_email")
     mocker.patch("app.delivery.send_to_providers.send_email_response")
 
-    send_to_providers.send_sms_to_provider(notification)
+    send_to_providers.send_email_to_provider(notification)
     app.aws_ses_client.send_email.assert_not_called()
     app.delivery.send_to_providers.send_email_response.assert_not_called()
 

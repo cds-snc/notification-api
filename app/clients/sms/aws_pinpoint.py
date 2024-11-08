@@ -27,16 +27,9 @@ class AwsPinpointClient(SmsClient):
         opted_out = False
         response = {}
 
-        if self.current_app.config["FF_TEMPLATE_CATEGORY"]:
-            use_shortcode_pool = (
-                sending_vehicle == SmsSendingVehicles.SHORT_CODE
-                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
-            )
-        else:
-            use_shortcode_pool = (
-                str(template_id) in self.current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
-                or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
-            )
+        use_shortcode_pool = (
+            sending_vehicle == SmsSendingVehicles.SHORT_CODE or str(service_id) == self.current_app.config["NOTIFY_SERVICE_ID"]
+        )
         if use_shortcode_pool:
             pool_id = self.current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         else:
@@ -59,13 +52,19 @@ class AwsPinpointClient(SmsClient):
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                     )
                 else:
+                    dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
                     response = self._client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=pool_id,
                         MessageBody=content,
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        DryRun=dryrun,
                     )
+                    if dryrun:
+                        self.current_app.logger.info(
+                            f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER. Boto call made to AWS, but not send on."
+                        )
             except self._client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True

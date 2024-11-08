@@ -73,6 +73,10 @@ def ses_soft_bounce_callback(reference, bounce_subtype=None):
     return _ses_bounce_callback(reference, "Transient", bounce_subtype)
 
 
+def ses_unknown_bounce_callback(reference, bounce_subtype=None):
+    return _ses_bounce_callback(reference, "unknown-bounce", bounce_subtype)
+
+
 def ses_complaint_callback_malformed_message_id():
     return {
         "Signature": "bb",
@@ -230,7 +234,7 @@ def pinpoint_delivered_callback(reference=None, timestamp=1467074434, destinatio
         "isoCountryCode": "CA",
         "mcc": "302",
         "mnc": "610",
-        "carrierName": "Bell Cellular Inc. / Aliant Telecom",
+        "carrierName": "Bell",
         "messageId": reference,
         "messageRequestTimestamp": timestamp,
         "messageEncoding": "GSM",
@@ -254,6 +258,7 @@ def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, 
         "originationPhoneNumber": "555555",
         "destinationPhoneNumber": destination,
         "isoCountryCode": "CA",
+        "carrierName": "Bell",
         "messageId": reference,
         "messageRequestTimestamp": timestamp,
         "messageEncoding": "GSM",
@@ -261,8 +266,30 @@ def pinpoint_shortcode_delivered_callback(reference=None, timestamp=1467074434, 
         "messageStatus": "SUCCESSFUL",
         "messageStatusDescription": "Message has been accepted by phone carrier",
         "totalMessageParts": 1,
-        "totalMessagePrice": 0.02183,
-        "totalCarrierFee": 0.005,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
+    }
+
+    return _pinpoint_callback(body)
+
+
+def pinpoint_delivered_callback_missing_sms_data(reference=None, timestamp=1467074434, destination="+1XXX5550100"):
+    body = {
+        "eventType": "TEXT_DELIVERED",
+        "eventVersion": "1.0",
+        "eventTimestamp": timestamp,
+        "isFinal": True,
+        "originationPhoneNumber": "+13655550100",
+        "destinationPhoneNumber": destination,
+        "messageId": reference,
+        "messageRequestTimestamp": timestamp,
+        "messageEncoding": "GSM",
+        "messageType": "TRANSACTIONAL",
+        "messageStatus": "DELIVERED",
+        "messageStatusDescription": "Message has been accepted by phone",
+        "totalMessageParts": 1,
+        "totalMessagePrice": 0.00581,
+        "totalCarrierFee": 0.006,
     }
 
     return _pinpoint_callback(body)

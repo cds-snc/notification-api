@@ -1016,6 +1016,27 @@ def test_update_service_should_404_if_id_is_invalid(notify_api):
             assert resp.status_code == 404
 
 
+@pytest.mark.parametrize(
+    "limit_field, limit_value, expected_status", [("sms_annual_limit", 1000, 200), ("email_annual_limit", 10000, 200)]
+)
+def test_update_service_annual_limits(
+    admin_request,
+    sample_service,
+    limit_field,
+    limit_value,
+    expected_status,
+):
+    admin_request.post(
+        "service.update_service",
+        service_id=sample_service.id,
+        _data={
+            limit_field: limit_value,
+        },
+        _expected_status=expected_status,
+    )
+    assert getattr(sample_service, limit_field) == limit_value
+
+
 def test_get_users_by_service(notify_api, sample_service):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:

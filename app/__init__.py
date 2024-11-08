@@ -12,6 +12,7 @@ from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
+from notifications_utils.clients.redis.annual_limit import RedisAnnualLimit
 from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
@@ -60,6 +61,7 @@ flask_redis = FlaskRedis()
 flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
 bounce_rate_client = RedisBounceRate(redis_store)
+annual_limit_client = RedisAnnualLimit(redis_store)
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
@@ -183,12 +185,14 @@ def register_blueprint(application):
         requires_admin_auth,
         requires_auth,
         requires_cache_clear_auth,
+        requires_cypress_auth,
         requires_no_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
     from app.cache.rest import cache_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
+    from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
@@ -208,6 +212,7 @@ def register_blueprint(application):
     from app.service.callback_rest import service_callback_blueprint
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
+    from app.support.rest import support_blueprint
     from app.template.rest import template_blueprint
     from app.template.template_category_rest import template_category_blueprint
     from app.template_folder.rest import template_folder_blueprint
@@ -269,6 +274,10 @@ def register_blueprint(application):
     register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, cypress_blueprint, requires_cypress_auth, "/cypress")
+
+    register_notify_blueprint(application, support_blueprint, requires_admin_auth, "/support")
 
     register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
 

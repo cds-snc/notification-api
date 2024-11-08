@@ -2,7 +2,6 @@ import base64
 import os
 import re
 from datetime import datetime
-from time import sleep
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -68,6 +67,10 @@ def send_sms_to_provider(notification):
         inactive_service_failure(notification=notification)
         return
 
+    formatted_recipient = validate_and_format_phone_number(notification.to, international=notification.international)
+    sending_to_internal_test_number = formatted_recipient == current_app.config["INTERNAL_TEST_NUMBER"]
+    sending_to_dryrun_number = formatted_recipient == current_app.config["EXTERNAL_TEST_NUMBER"]
+
     # If the notification was not sent already, the status should be created.
     if notification.status == "created":
         provider = provider_to_use(
@@ -94,33 +97,21 @@ def send_sms_to_provider(notification):
             empty_message_failure(notification=notification)
             return
 
-        if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+        if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
+            current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
             notification.reference = send_sms_response(provider.get_name(), notification.to)
             update_notification_to_sending(notification, provider)
-
-        elif (
-            validate_and_format_phone_number(notification.to, international=notification.international)
-            == current_app.config["INTERNAL_TEST_NUMBER"]
-        ):
-            current_app.logger.info(f"notification {notification.id} sending to internal test number. Not sending to AWS.")
-            notification.reference = send_sms_response(provider.get_name(), notification.to)
-            notification.billable_units = template.fragment_count
-            update_notification_to_sending(notification, provider)
-            current_app.logger.info(
-                f"Sleeping {current_app.config['AWS_SEND_SMS_BOTO_CALL_LATENCY']} seconds to simulate AWS boto call latency."
-            )
-            sleep(current_app.config["AWS_SEND_SMS_BOTO_CALL_LATENCY"])  # simulate boto3 client send_sms() delay
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
-                if current_app.config["FF_TEMPLATE_CATEGORY"] and template_category_id is not None:
+                if template_category_id is not None:
                     sending_vehicle = SmsSendingVehicles(
                         dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
                     )
                 else:
                     sending_vehicle = None
                 reference = provider.send_sms(
-                    to=validate_and_format_phone_number(notification.to, international=notification.international),
+                    to=formatted_recipient,
                     content=str(template),
                     reference=str(notification.id),
                     sender=notification.reply_to_text,
@@ -139,6 +130,8 @@ def send_sms_to_provider(notification):
                 if reference == "opted_out":
                     update_notification_to_opted_out(notification, provider)
                 else:
+                    if sending_to_dryrun_number:
+                        send_sms_response(provider.get_name(), notification.to, reference)
                     update_notification_to_sending(notification, provider)
 
         # Record StatsD stats to compute SLOs
