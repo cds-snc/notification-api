@@ -622,7 +622,7 @@ def get_monthly_notification_stats(service_id):
         year = int(request.args.get("year", "NaN"))
     except ValueError:
         raise InvalidRequest("Year must be a number", status_code=400)
-    
+
     try:
         exclude_today = request.args.get("exclude_today", "false").lower() in ("true", "1", "yes")
     except ValueError:
@@ -636,10 +636,12 @@ def get_monthly_notification_stats(service_id):
     statistics.add_monthly_notification_status_stats(data, stats)
 
     now = datetime.utcnow()
-    
+
     if not exclude_today:
         if end_date > now:
-            todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
+            todays_deltas = fetch_notification_status_for_service_for_day(
+                convert_utc_to_local_timezone(now), service_id=service_id
+            )
             statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)
