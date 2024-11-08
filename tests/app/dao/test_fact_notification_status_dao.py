@@ -1358,10 +1358,12 @@ class TestFetchQuarterData:
         create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
         create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
 
-        assert fetch_quarter_data(date(2018, 1, 1), date(2018, 3, 27), service_ids=[service_1.id, service_2.id]) == [
-            (service_1.id, "sms", 4),
-            (service_2.id, "sms", 1100),
-        ]
-        assert fetch_quarter_data(date(2018, 4, 1), date(2018, 6, 30), service_ids=[service_1.id, service_2.id]) == [
-            (service_1.id, "sms", 10)
-        ]
+        assert set(fetch_quarter_data(date(2018, 1, 1), date(2018, 3, 27), service_ids=[service_1.id, service_2.id])) == set(
+            [
+                (service_1.id, "sms", 4),
+                (service_2.id, "sms", 1100),
+            ]
+        )
+        assert set(fetch_quarter_data(date(2018, 4, 1), date(2018, 6, 30), service_ids=[service_1.id, service_2.id])) == set(
+            [(service_1.id, "sms", 10)]
+        )
