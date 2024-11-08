@@ -2,14 +2,14 @@ import json
 from datetime import datetime, timedelta
 
 from app.models import User
-from tests import create_cypres_authorization_header
+from tests import create_cypress_authorization_header
 from tests.conftest import set_config_values
 
 EMAIL_PREFIX = "notify-ui-tests+ag_"
 
 
 def test_create_test_user(client, sample_service_cypress):
-    auth_header = create_cypres_authorization_header()
+    auth_header = create_cypress_authorization_header()
 
     resp = client.post(
         "/cypress/create_user/{}".format("emailsuffix"),
@@ -34,7 +34,7 @@ def test_create_test_user(client, sample_service_cypress):
 
 
 def test_create_test_user_fails_bad_chars(client, sample_service_cypress):
-    auth_header = create_cypres_authorization_header()
+    auth_header = create_cypress_authorization_header()
 
     resp = client.post(
         "/cypress/create_user/{}".format("email-suffix"),
@@ -47,7 +47,7 @@ def test_create_test_user_fails_bad_chars(client, sample_service_cypress):
 
 def test_create_test_user_fails_in_prod(client, notify_api, sample_service_cypress):
     with set_config_values(notify_api, {"NOTIFY_ENVIRONMENT": "production"}):
-        auth_header = create_cypres_authorization_header()
+        auth_header = create_cypress_authorization_header()
 
         resp = client.post(
             "/cypress/create_user/{}".format("email-suffix"),
@@ -59,7 +59,7 @@ def test_create_test_user_fails_in_prod(client, notify_api, sample_service_cypre
 
 
 def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notify_db):
-    auth_header = create_cypres_authorization_header()
+    auth_header = create_cypress_authorization_header()
     resp = client.post(
         "/cypress/create_user/{}".format("emailsuffix"),
         headers=[auth_header],
@@ -80,7 +80,7 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
     notify_db.session.commit()
 
     # clean up users
-    auth_header = create_cypres_authorization_header()
+    auth_header = create_cypress_authorization_header()
     resp = client.get(
         "/cypress/cleanup",
         headers=[auth_header],

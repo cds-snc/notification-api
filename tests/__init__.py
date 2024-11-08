@@ -50,7 +50,7 @@ def create_cache_clear_authorization_header():
     return "Authorization", "Bearer {}".format(token)
 
 
-def create_cypres_authorization_header():
+def create_cypress_authorization_header():
     client_id = current_app.config["CYPRESS_AUTH_USER_NAME"]
     secret = current_app.config["CYPRESS_AUTH_CLIENT_SECRET"]
 
