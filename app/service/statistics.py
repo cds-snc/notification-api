@@ -112,3 +112,11 @@ def add_monthly_notification_status_stats(data, stats):
         data[month][row.notification_type][row.notification_status] += row.count
 
     return data
+
+
+def add_monthly_notification_status_stats_for_current_day_from_cache(data, stats):
+    current_month = datetime.now().strftime("%Y-%m")
+    data[current_month]["email"]["delivered"] += stats.get("email_delivered", 0)
+    data[current_month]["sms"]["delivered"] += stats.get("sms_delivered", 0)
+    data[current_month]["email"]["failed"] += stats.get("email_failed", 0)
+    data[current_month]["sms"]["failed"] += stats.get("sms_failed", 0)

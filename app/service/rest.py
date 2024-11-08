@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store, salesforce_client
+from app import annual_limit_client, redis_store, salesforce_client
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -124,7 +124,7 @@ from app.service.utils import (
     get_safelist_objects,
 )
 from app.user.users_schema import post_set_permissions_schema
-from app.utils import pagination_links
+from app.utils import pagination_links, prepare_notification_counts_for_seeding
 
 service_blueprint = Blueprint("service", __name__)
 
@@ -632,8 +632,8 @@ def get_monthly_notification_stats(service_id):
 
     now = datetime.utcnow()
     if end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
-        statistics.add_monthly_notification_status_stats(data, todays_deltas)
+        todays_deltas = annual_limit_client.get_all_notification_counts(service_id)
+        statistics.add_monthly_notification_status_stats_for_current_day_from_cache(data, todays_deltas)
 
     return jsonify(data=data)
 

@@ -1,8 +1,8 @@
+import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-import uuid
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
@@ -586,18 +586,12 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(
 
 @freeze_time("2019-04-01T5:30")
 def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
-    sample_template,
-    notify_api,
-    mocker
+    sample_template, notify_api, mocker
 ):
     mock_reset_counts = mocker.patch("app.annual_limit_client.reset_all_notification_counts")
     for i in range(39):
         user = create_user(email=f"test{i}@test.ca", mobile_number=f"{i}234567890")
-        service = create_service(
-            service_id=uuid.uuid4(),
-            service_name=f"service{i}",
-            user=user,
-            email_from=f"best.email{i}")
+        service = create_service(service_id=uuid.uuid4(), service_name=f"service{i}", user=user, email_from=f"best.email{i}")
         template_sms = create_template(service=service)
         template_email = create_template(service=service, template_type="email")
         save_notification(create_notification(template_sms, status="sent", created_at=datetime(2019, 4, 1, 5, 0)))
@@ -608,4 +602,3 @@ def test_create_nightly_notification_status_for_day_clears_failed_delivered_noti
     with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
         create_nightly_notification_status_for_day("2019-04-01")
         assert mock_reset_counts.call_count == 2
-
