@@ -185,12 +185,14 @@ def register_blueprint(application):
         requires_admin_auth,
         requires_auth,
         requires_cache_clear_auth,
+        requires_cypress_auth,
         requires_no_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
     from app.cache.rest import cache_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
+    from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
@@ -272,6 +274,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, cypress_blueprint, requires_cypress_auth, "/cypress")
 
     register_notify_blueprint(application, support_blueprint, requires_admin_auth, "/support")
 
