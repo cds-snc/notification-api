@@ -127,7 +127,7 @@ def notify_user(notify_db_session):
 @pytest.fixture(scope="function")
 def cypress_user(notify_db_session):
     return create_user(
-        email="cypress-service-user@digital.cabinet-office.gov.uk",
+        email="cypress-service-user@cds-snc.ca",
         id_=current_app.config["CYPRESS_TEST_USER_ID"],
     )
 
