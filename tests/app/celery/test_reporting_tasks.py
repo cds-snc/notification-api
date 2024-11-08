@@ -5,6 +5,7 @@ import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from tests.app.db import (
+    create_ft_notification_status,
     create_letter_rate,
     create_notification,
     create_notification_history,
@@ -30,16 +31,6 @@ from app.models import (
     FactBilling,
     FactNotificationStatus,
     Notification,
-)
-from tests.app.db import (
-    create_ft_notification_status,
-    create_letter_rate,
-    create_notification,
-    create_notification_history,
-    create_rate,
-    create_service,
-    create_template,
-    save_notification,
 )
 
 

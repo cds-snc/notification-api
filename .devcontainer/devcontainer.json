@@ -10,14 +10,18 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
-				"[python]": {
-					"editor.formatOnSave": true
-				},
-				"python.pythonPath": "/usr/local/bin/python"
+				"ruff.lint.run": "onSave",
+				"ruff.configurationPreference": "filesystemFirst",
+				"editor.defaultFormatter": "charliermarsh.ruff",
+				"editor.formatOnSave": true,
+				"editor.codeActionsOnSave": {
+					"source.fixAll": "explicit"
+				}
 			},
 			"extensions": [
 				"tamasfe.even-better-toml",
 				"donjayamanne.python-extension-pack",
+				"-ms-python.autopep8",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
 				"GitHub.copilot",

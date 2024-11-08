@@ -40,7 +40,7 @@ format:
 	ruff check --select I --fix .
 	ruff check
 	ruff format .
-	poetry run mypy .
+	mypy ./
 
 .PHONY: smoke-test
 smoke-test:
