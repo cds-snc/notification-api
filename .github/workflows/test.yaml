@@ -13,20 +13,11 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_notification_api
-          CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
         ports:
         - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-    - name: Debug Environment Variables
-      run: |
-        echo "CYPRESS_USER_PW_SECRET is set: ${{ env.CYPRESS_USER_PW_SECRET != '' }}"
-        echo "DANGEROUS_SALT is set: ${{ env.DANGEROUS_SALT != '' }}"
-      run: |
-        echo "CYPRESS_USER_PW_SECRET exists: ${{ secrets.CYPRESS_USER_PW_SECRET != '' }}"
-        echo "Using direct env var reference:"
-        if [ -n "${{ secrets.CYPRESS_USER_PW_SECRET }}" ]; then echo "Secret exists"; else echo "Secret missing"; fi
     - name: Install libcurl
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
