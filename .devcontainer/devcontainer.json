@@ -1,7 +1,7 @@
 {
 	"name": "notification-api",
 	"dockerComposeFile": "docker-compose.yml",
-	"service": "dev",
+	"service": "notify-api",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 	"remoteEnv": {
@@ -23,6 +23,7 @@
 				"bungcip.better-toml",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
+				"fill-labs.dependi",
 				"GitHub.copilot",
 				"GitHub.copilot-labs",
 				"googlecloudtools.cloudcode",
@@ -47,19 +48,14 @@
 	},
 	"features": {
 		"docker-from-docker": {
-			"version": "latest",
 			"moby": true
 		},
 		"kubectl-helm-minikube": {
-			"version": "latest",
 			"helm": "latest",
 			"minikube": "none"
 		},
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "14.17.4"
-		}
+		"ghcr.io/devcontainers/features/node:1": {}
 	},
 	"postCreateCommand": "notify-dev-entrypoint.sh",
-	"remoteUser": "vscode",
-	
+	"remoteUser": "vscode"
 }

@@ -73,6 +73,10 @@ def ses_soft_bounce_callback(reference, bounce_subtype=None):
     return _ses_bounce_callback(reference, "Transient", bounce_subtype)
 
 
+def ses_unknown_bounce_callback(reference, bounce_subtype=None):
+    return _ses_bounce_callback(reference, "unknown-bounce", bounce_subtype)
+
+
 def ses_complaint_callback_malformed_message_id():
     return {
         "Signature": "bb",

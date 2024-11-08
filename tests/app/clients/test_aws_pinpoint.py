@@ -158,12 +158,12 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
 
 @pytest.mark.serial
 @pytest.mark.parametrize("template_id", [None, "uuid"])
-def test_send_sms_uses_dryrun_for_tests(notify_api, mocker, sample_template, template_id):
+def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
     boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
     content = "foo"
     reference = "ref"
-    to = "+16135550123"
+    to = "+16135550111"
     with set_config_values(
         notify_api,
         {
@@ -171,7 +171,7 @@ def test_send_sms_uses_dryrun_for_tests(notify_api, mocker, sample_template, tem
             "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
             "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
-            "INTERNAL_TEST_NUMBER": to,
+            "EXTERNAL_TEST_NUMBER": to,
         },
     ):
         aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=template_id)

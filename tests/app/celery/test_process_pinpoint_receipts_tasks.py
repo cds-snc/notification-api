@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import statsd_client
+from app import annual_limit_client, statsd_client
 from app.aws.mocks import (
     pinpoint_delivered_callback,
     pinpoint_delivered_callback_missing_sms_data,
@@ -28,6 +28,7 @@ from tests.app.db import (
     create_service_callback_api,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 @pytest.mark.parametrize(
@@ -278,3 +279,77 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         mock_send_status.assert_called_once_with(
             [str(notification.id), signed_data, notification.service_id], queue="service-callbacks"
         )
+
+
+@pytest.mark.parametrize(
+    "provider_response",
+    [
+        "Blocked as spam by phone carrier",
+        "Destination is on a blocked list",
+        "Invalid phone number",
+        "Message body is invalid",
+        "Phone carrier has blocked this message",
+        "Phone carrier is currently unreachable/unavailable",
+        "Phone has blocked SMS",
+        "Phone is on a blocked list",
+        "Phone is currently unreachable/unavailable",
+        "Phone number is opted out",
+        "This delivery would exceed max price",
+        "Unknown error attempting to reach phone",
+    ],
+)
+def test_process_pinpoint_results_should_increment_sms_failed_when_delivery_receipt_is_failure(
+    sample_sms_template_with_html,
+    notify_api,
+    mocker,
+    provider_response,
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
+
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="pinpoint",
+        )
+    )
+    # TODO FF_ANNUAL_LIMIT removal
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "callback",
+    [
+        (pinpoint_delivered_callback),
+        (pinpoint_shortcode_delivered_callback),
+    ],
+)
+def test_process_pinpoint_results_should_increment_sms_delivered_when_delivery_receipt_is_success(
+    sample_sms_template_with_html,
+    notify_api,
+    mocker,
+    callback,
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
+
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="pinpoint",
+        )
+    )
+    # TODO FF_ANNUAL_LIMIT removal
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()

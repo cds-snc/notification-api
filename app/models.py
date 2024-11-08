@@ -65,6 +65,8 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+DEFAULT_SMS_ANNUAL_LIMIT = 25000
+DEFAULT_EMAIL_ANNUAL_LIMIT = 10000000
 
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
@@ -565,6 +567,8 @@ class Service(BaseModel, Versioned):
     sensitive_service = db.Column(db.Boolean, nullable=True)
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
+    email_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_EMAIL_ANNUAL_LIMIT)
+    sms_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_SMS_ANNUAL_LIMIT)
 
     email_branding = db.relationship(
         "EmailBranding",
@@ -608,6 +612,8 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
         fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        fields["email_annual_limit"] = fields.get("email_annual_limit", DEFAULT_EMAIL_ANNUAL_LIMIT)
+        fields["sms_annual_limit"] = fields.get("sms_annual_limit", DEFAULT_SMS_ANNUAL_LIMIT)
 
         return cls(**fields)
 
@@ -1737,10 +1743,10 @@ class Notification(BaseModel):
     # SMS columns
     sms_total_message_price = db.Column(db.Numeric(), nullable=True)
     sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
-    sms_iso_country_code = db.Column(db.String(), nullable=True)
-    sms_carrier_name = db.Column(db.String(), nullable=True)
-    sms_message_encoding = db.Column(db.String(), nullable=True)
-    sms_origination_phone_number = db.Column(db.String(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
 
     CheckConstraint(
         """
@@ -2059,7 +2065,7 @@ class NotificationHistory(BaseModel, HistoryModel):
     sms_iso_country_code = db.Column(db.String(2), nullable=True)
     sms_carrier_name = db.Column(db.String(255), nullable=True)
     sms_message_encoding = db.Column(db.String(7), nullable=True)
-    sms_origination_phone_number = db.Column(db.String(16), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
 
     CheckConstraint(
         """
@@ -2614,3 +2620,22 @@ class BounceRateStatus(Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
+
+
+class AnnualLimitsData(BaseModel):
+    __tablename__ = "annual_limits_data"
+
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), primary_key=True)
+    time_period = db.Column(db.String, primary_key=True)
+    annual_email_limit = db.Column(db.BigInteger, nullable=False)
+    annual_sms_limit = db.Column(db.BigInteger, nullable=False)
+    notification_type = db.Column(notification_types, nullable=False, primary_key=True)
+    notification_count = db.Column(db.BigInteger, nullable=False)
+
+    __table_args__ = (
+        # Add the composite unique constraint on service_id, time_period, and notification_type
+        UniqueConstraint("service_id", "time_period", "notification_type", name="uix_service_time_notification"),
+        # Define the indexes within __table_args__
+        db.Index("ix_service_id_notification_type", "service_id", "notification_type"),
+        db.Index("ix_service_id_notification_type_time", "time_period", "service_id", "notification_type"),
+    )
