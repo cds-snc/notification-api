@@ -1,7 +1,7 @@
 """empty message
 
-Revision ID: 0463_add_cypress_data
-Revises: 0462_add_pinpoint_fields
+Revision ID: 0466_add_cypress_data
+Revises: 0465_add_constraints
 Create Date: 2016-06-01 14:17:01.963181
 
 """
@@ -19,8 +19,8 @@ from app.dao.date_util import get_current_financial_year_start_year
 from app.encryption import hashpw
 from app.models import PERMISSION_LIST
 
-revision = "0463_add_cypress_data"
-down_revision = "0462_add_pinpoint_fields"
+revision = "0466_add_cypress_data"
+down_revision = "0465_add_constraints"
 
 user_id = current_app.config["CYPRESS_TEST_USER_ID"]
 admin_user_id = current_app.config["CYPRESS_TEST_USER_ADMIN_ID"]
