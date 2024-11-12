@@ -3,6 +3,8 @@ on:
 name: Python tests
 jobs:
   test:
+    env:
+      CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
     runs-on: ubuntu-latest
     services:
       postgres:

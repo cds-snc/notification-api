@@ -21,6 +21,7 @@ from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 JWT_AUTH_TYPE = "jwt"
 API_KEY_V1_AUTH_TYPE = "api_key_v1"
 CACHE_CLEAR_V1_AUTH_TYPE = "cache_clear_v1"
+CYPRESS_V1_AUTH_TYPE = "cypress_v1"
 AUTH_TYPES = [
     (
         "Bearer",
@@ -39,6 +40,11 @@ AUTH_TYPES = [
         "CacheClear-v1",
         CACHE_CLEAR_V1_AUTH_TYPE,
         "This is used internally by GC Notify to clear the redis cache after a deployment.",
+    ),
+    (
+        "Cypress-v1",
+        CYPRESS_V1_AUTH_TYPE,
+        "This is used by the Cypress tests to create users on the fly in staging.",
     ),
 ]
 
@@ -75,7 +81,7 @@ def get_auth_token(req):
     raise AuthError(
         "Unauthorized, Authorization header is invalid. "
         "GC Notify supports the following authentication methods. "
-        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES]),
+        + ", ".join([f"{auth_type[0]}: {auth_type[2]}" for auth_type in AUTH_TYPES[:2]]),
         401,
     )
 
@@ -127,6 +133,21 @@ def requires_cache_clear_auth():
         return handle_admin_key(auth_token, current_app.config.get("CACHE_CLEAR_CLIENT_SECRET"))
     else:
         raise AuthError("Unauthorized, cache clear authentication token required", 401)
+
+
+def requires_cypress_auth():
+    request_helper.check_proxy_header_before_request()
+
+    auth_type, auth_token = get_auth_token(request)
+    if auth_type != JWT_AUTH_TYPE:
+        raise AuthError("Invalid scheme: can only use JWT for cypress authentication", 401)
+    client = __get_token_issuer(auth_token)
+
+    if client == current_app.config.get("CYPRESS_AUTH_USER_NAME"):
+        g.service_id = current_app.config.get("CYPRESS_AUTH_USER_NAME")
+        return handle_admin_key(auth_token, current_app.config.get("CYPRESS_AUTH_CLIENT_SECRET"))
+    else:
+        raise AuthError("Unauthorized, cypress authentication token required", 401)
 
 
 def requires_auth():

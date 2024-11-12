@@ -18,6 +18,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
     fetch_notification_statuses_for_job,
+    fetch_quarter_data,
     fetch_stats_for_all_services_by_date_range,
     get_api_key_ranked_by_notifications_created,
     get_last_send_for_api_key,
@@ -1345,3 +1346,24 @@ def test_fetch_monthly_notification_statuses_per_service_for_rows_that_should_be
 
     results = fetch_monthly_notification_statuses_per_service(date(2019, 3, 1), date(2019, 3, 31))
     assert len(results) == 0
+
+
+class TestFetchQuarterData:
+    def test_fetch_quarter_data(self, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 5, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
+        create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
+
+        assert set(fetch_quarter_data(date(2018, 1, 1), date(2018, 3, 27), service_ids=[service_1.id, service_2.id])) == set(
+            [
+                (service_1.id, "sms", 4),
+                (service_2.id, "sms", 1100),
+            ]
+        )
+        assert set(fetch_quarter_data(date(2018, 4, 1), date(2018, 6, 30), service_ids=[service_1.id, service_2.id])) == set(
+            [(service_1.id, "sms", 10)]
+        )

@@ -2620,3 +2620,22 @@ class BounceRateStatus(Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
+
+
+class AnnualLimitsData(BaseModel):
+    __tablename__ = "annual_limits_data"
+
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), primary_key=True)
+    time_period = db.Column(db.String, primary_key=True)
+    annual_email_limit = db.Column(db.BigInteger, nullable=False)
+    annual_sms_limit = db.Column(db.BigInteger, nullable=False)
+    notification_type = db.Column(notification_types, nullable=False, primary_key=True)
+    notification_count = db.Column(db.BigInteger, nullable=False)
+
+    __table_args__ = (
+        # Add the composite unique constraint on service_id, time_period, and notification_type
+        UniqueConstraint("service_id", "time_period", "notification_type", name="uix_service_time_notification"),
+        # Define the indexes within __table_args__
+        db.Index("ix_service_id_notification_type", "service_id", "notification_type"),
+        db.Index("ix_service_id_notification_type_time", "time_period", "service_id", "notification_type"),
+    )
