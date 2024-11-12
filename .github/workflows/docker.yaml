@@ -73,9 +73,9 @@ jobs:
         curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
         sudo dpkg -i 1pass.deb
 
-    - name: One Password Fetch
+    - name: Fetch VPN
       run: |
-        op read op://4eyyuwddp6w4vxlabrr2i2duxm/"Staging Github Actions VPN"/notesPlain > /var/tmp/staging.ovpn
+        curl https://raw.githubusercontent.com/cds-snc/notification-manifests/refs/heads/main/scripts/createVPNConfig.sh | bash -s staging
 
     - name: Connect to VPN
       uses: "kota65535/github-openvpn-connect-action@cd2ed8a90cc7b060dc4e001143e811b5f7ea0af5"
