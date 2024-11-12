@@ -112,6 +112,8 @@ def create_service(
     prefix_sms=True,
     message_limit=1000,
     sms_daily_limit=1000,
+    annual_email_limit=10000000,
+    annual_sms_limit=25000,
     organisation_type="central",
     check_if_service_exists=False,
     go_live_user=None,
@@ -195,6 +197,7 @@ def create_template(
     template_category=None,
     postage=None,
     process_type="normal",
+    text_direction_rtl=False,
 ):
     if not template_category:
         data = {
@@ -220,6 +223,7 @@ def create_template(
         "folder": folder,
         "template_category": template_category,
         "process_type": process_type,
+        "text_direction_rtl": text_direction_rtl,
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"

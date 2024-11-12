@@ -31,6 +31,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template, tem
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        DryRun=False,
     )
 
 
@@ -59,6 +60,7 @@ def test_send_sms_sends_notify_sms_to_shortcode_pool(notify_api, mocker, sample_
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        DryRun=False,
     )
 
 
@@ -123,6 +125,7 @@ def test_respects_sending_vehicle_if_FF_enabled(notify_api, mocker, sample_templ
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        DryRun=False,
     )
 
 
@@ -150,4 +153,34 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+    )
+
+
+@pytest.mark.serial
+@pytest.mark.parametrize("template_id", [None, "uuid"])
+def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
+    boto_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+    content = "foo"
+    reference = "ref"
+    to = "+16135550111"
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+            "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
+            "EXTERNAL_TEST_NUMBER": to,
+        },
+    ):
+        aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=template_id)
+
+    boto_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber=to,
+        OriginationIdentity="default_pool_id",
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+        DryRun=True,
     )

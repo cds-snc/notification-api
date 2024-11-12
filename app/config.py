@@ -347,6 +347,14 @@ class Config(object):
     DEFAULT_TEMPLATE_CATEGORY_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
     DEFAULT_TEMPLATE_CATEGORY_HIGH = "c4f87d7c-a55b-4c0f-91fe-e56c65bb1871"
 
+    # UUIDs for Cypress tests
+    CYPRESS_SERVICE_ID = "d4e8a7f4-2b8a-4c9a-8b3f-9c2d4e8a7f4b"
+    CYPRESS_TEST_USER_ID = "e5f9d8c7-3a9b-4d8c-9b4f-8d3e5f9d8c7a"
+    CYPRESS_TEST_USER_ADMIN_ID = "4f8b8b1e-9c4f-4d8b-8b1e-4f8b8b1e9c4f"
+    CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID = "e4b8f8d0-6a3b-4b9e-8c2b-1f2d3e4a5b6c"
+    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET")
+
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
 
@@ -513,12 +521,15 @@ class Config(object):
 
     # Match with scripts/internal_stress_test/internal_stress_test.py
     INTERNAL_TEST_NUMBER = "+16135550123"
+    EXTERNAL_TEST_NUMBER = "+16135550124"
     INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
         "notification": "{}-dvla-letter-api-files".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
     }
+    SERVICE_ANNUAL_EMAIL_LIMIT = env.int("SERVICE_ANNUAL_EMAIL_LIMIT", 10_000_000)
+    SERVICE_ANNUAL_SMS_LIMIT = env.int("SERVICE_ANNUAL_SMS_LIMIT", 25_000)
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
@@ -566,6 +577,7 @@ class Config(object):
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
@@ -573,6 +585,8 @@ class Config(object):
     # cache clear auth keys
     CACHE_CLEAR_USER_NAME = "CACHE_CLEAR_USER"
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
+    CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
+    CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -624,6 +638,7 @@ class Development(Config):
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
+    CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")

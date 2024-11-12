@@ -267,6 +267,8 @@ def create_service():
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
+# TODO: FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
+# flake8: noqa: C901
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
 def update_service(service_id):
     req_json = request.get_json()
@@ -276,6 +278,12 @@ def update_service(service_id):
     service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
+    email_annual_limit_changed = fetched_service.email_annual_limit != req_json.get(
+        "email_annual_limit", fetched_service.email_annual_limit
+    )
+    sms_annual_limit_changed = fetched_service.sms_annual_limit != req_json.get(
+        "sms_annual_limit", fetched_service.sms_annual_limit
+    )
     current_data = dict(service_schema.dump(fetched_service).items())
 
     current_data.update(request.get_json())
@@ -305,6 +313,15 @@ def update_service(service_id):
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
 
+    # TODO: FF_ANNUAL_LIMIT removal
+    if current_app.config["FF_ANNUAL_LIMIT"]:
+        if sms_annual_limit_changed:
+            # TODO: Delete cache for sms annual limit (if used)
+            _warn_service_users_about_annual_sms_limit_changed(service_id, current_data)
+        if email_annual_limit_changed:
+            # TODO: Delete cache for email annual limit (if used)
+            _warn_service_users_about_annual_email_limit_changed(service_id, current_data)
+
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
 
@@ -327,6 +344,14 @@ def update_service(service_id):
             current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service)), 200
+
+
+def _warn_service_users_about_annual_email_limit_changed(service_id, data):
+    pass
+
+
+def _warn_service_users_about_annual_sms_limit_changed(service_id, data):
+    pass
 
 
 def _warn_service_users_about_message_limit_changed(service_id, data):

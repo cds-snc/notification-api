@@ -1,0 +1,129 @@
+/* Run the function using the following stored PROCEDURE
+BEGIN;
+Delete from ft_notification_status where bst_date = {bst_date}
+call process_notifications_for_day({bst_date}, {chunk_size})
+ROLLBACK/ COMMIT
+ */
+
+
+CREATE OR REPLACE PROCEDURE process_notifications_for_day(
+    process_day DATE,
+    chunk_size INT DEFAULT 20
+) LANGUAGE plpgsql AS $$
+DECLARE
+    start_date TIMESTAMP;
+    end_date TIMESTAMP;
+    service_ids UUID[];
+    chunk UUID[];
+    s_id UUID;
+    n_type TEXT;
+    notification_types TEXT[] := ARRAY['email', 'sms', 'letter'];
+    notification_status RECORD;
+BEGIN
+    -- Set the start and end dates for the query
+    start_date := process_day;
+    end_date := process_day + INTERVAL '1 day';
+
+    -- Fetch all service IDs
+    SELECT ARRAY(SELECT id FROM services) INTO service_ids;
+
+    -- Loop over service IDs in chunks
+    FOR i IN 1..array_length(service_ids, 1) BY chunk_size LOOP
+        chunk := service_ids[i:i + chunk_size - 1];
+
+        -- Iterate over each service ID in the chunk
+        FOR s_id IN (SELECT unnest(chunk)) LOOP
+            -- Iterate over the notification types array
+            FOREACH n_type IN ARRAY notification_types LOOP
+                -- Fetch from notifications
+                FOR notification_status IN
+                    SELECT
+                        n.template_id, n.service_id, 
+                        COALESCE(n.job_id, '00000000-0000-0000-0000-000000000000') AS job_id,
+                        n.notification_type, n.key_type,
+                        n.notification_status, 
+                        COUNT(*) AS notification_count, 
+                        SUM(n.billable_units) AS billable_units
+                    FROM notifications n
+                    WHERE n.service_id = s_id
+                      AND n.notification_type = n_type::notification_type  -- Cast n_type to notification_type
+                      AND n.created_at >= start_date
+                      AND n.created_at < end_date
+                      AND n.key_type != 'test'  -- Exclude test key type
+                    GROUP BY n.template_id, n.service_id, 
+                             job_id, n.notification_type, 
+                             n.key_type, n.notification_status
+                LOOP
+                    -- Insert into ft_notification_status
+                    INSERT INTO ft_notification_status (
+                        bst_date, template_id, service_id, 
+                        job_id, notification_type, key_type, 
+                        notification_status, notification_count, 
+                        billable_units, created_at
+                    )
+                    VALUES (
+                        process_day, notification_status.template_id, 
+                        notification_status.service_id, 
+                        notification_status.job_id, 
+                        notification_status.notification_type, 
+                        notification_status.key_type, 
+                        notification_status.notification_status, 
+                        notification_status.notification_count, 
+                        notification_status.billable_units,
+                        NOW()  -- Use current timestamp for created_at
+                    );
+                    RAISE NOTICE 'Inserted: Process Day: %, Template: %, Service: %, Job: %, Type: %, Key: %, Status: %, Count: %, Billable Units: %',
+                        process_day, notification_status.template_id, notification_status.service_id,
+                        notification_status.job_id, notification_status.notification_type,
+                        notification_status.key_type, notification_status.notification_status,
+                        notification_status.notification_count, notification_status.billable_units;
+                END LOOP;
+
+                -- Fetch from notification_history if no results in notifications
+                FOR notification_status IN
+                    SELECT
+                        nh.template_id, nh.service_id, 
+                        COALESCE(nh.job_id, '00000000-0000-0000-0000-000000000000') AS job_id,
+                        nh.notification_type, nh.key_type,
+                        nh.notification_status, 
+                        COUNT(*) AS notification_count, 
+                        SUM(nh.billable_units) AS billable_units
+                    FROM notification_history nh
+                    WHERE nh.service_id = s_id
+                      AND nh.notification_type = n_type::notification_type  -- Cast n_type to notification_type
+                      AND nh.created_at >= start_date
+                      AND nh.created_at < end_date
+                      AND nh.key_type != 'test'  -- Exclude test key type
+                    GROUP BY nh.template_id, nh.service_id, 
+                             job_id, nh.notification_type, 
+                             nh.key_type, nh.notification_status
+                LOOP
+                    -- Insert into ft_notification_status
+                    INSERT INTO ft_notification_status (
+                        bst_date, template_id, service_id, 
+                        job_id, notification_type, key_type, 
+                        notification_status, notification_count, 
+                        billable_units, created_at
+                    )
+                    VALUES (
+                        process_day, notification_status.template_id, 
+                        notification_status.service_id, 
+                        notification_status.job_id, 
+                        notification_status.notification_type, 
+                        notification_status.key_type, 
+                        notification_status.notification_status, 
+                        notification_status.notification_count, 
+                        notification_status.billable_units,
+                        NOW()  -- Use current timestamp for created_at
+                    );
+                    RAISE NOTICE 'Inserted from history: Process Day: %, Template: %, Service: %, Job: %, Type: %, Key: %, Status: %, Count: %, Billable Units: %',
+                        process_day, notification_status.template_id, notification_status.service_id,
+                        notification_status.job_id, notification_status.notification_type,
+                        notification_status.key_type, notification_status.notification_status,
+                        notification_status.notification_count, notification_status.billable_units;
+                END LOOP;
+            END LOOP;
+        END LOOP;
+    END LOOP;
+END;
+$$;
