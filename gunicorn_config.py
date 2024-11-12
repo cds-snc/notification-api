@@ -29,6 +29,7 @@ workers = 1
 worker_class = "gevent"
 worker_connections = 256
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
+timeout = 1200  # in seconds, i.e. 20 minutes
 accesslog = "-"
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
 gunicorn.SERVER = "Undisclosed"

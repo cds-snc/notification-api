@@ -705,6 +705,7 @@ class Scratch(Production):
 
 class Dev(Production):
     NOTIFY_ENVIRONMENT = "dev"
+    DEBUG = True
 
 
 configs = {

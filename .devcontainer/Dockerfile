@@ -30,6 +30,7 @@ RUN apt-get update \
     npm \
     openssh-client \
     procps \
+    ripgrep \
     sudo \
     tldr \
     unzip \
