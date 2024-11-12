@@ -3,7 +3,7 @@ import pytest
 from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import AutoRetryException
 from app.constants import NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE
-from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.exceptions import NotificationTechnicalFailureException
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
@@ -55,7 +55,6 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, sampl
             IncorrectNumberOfIdentifiersException.failure_reason,
             NOTIFICATION_PERMANENT_FAILURE,
         ),
-        (Exception('some error'), 'Unknown error from MPI', NOTIFICATION_TECHNICAL_FAILURE),
     ],
 )
 def test_should_not_retry_on_other_exception_and_should_update_to_appropriate_failure(
@@ -78,8 +77,7 @@ def test_should_not_retry_on_other_exception_and_should_update_to_appropriate_fa
 
     mocked_retry = mocker.patch('app.celery.lookup_va_profile_id_task.lookup_va_profile_id.retry')
 
-    with pytest.raises(Exception):
-        lookup_va_profile_id(notification.id)
+    lookup_va_profile_id(notification.id)
 
     mocked_get_notification_by_id.assert_called()
     mocked_lookup_contact_info.assert_not_called()
@@ -167,8 +165,7 @@ def test_should_permanently_fail_when_permanent_failure_exception(
         'app.celery.lookup_va_profile_id_task.check_and_queue_callback_task',
     )
 
-    with pytest.raises(NotificationPermanentFailureException):
-        lookup_va_profile_id(notification.id)
+    lookup_va_profile_id(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_with(
         notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=reason
@@ -229,7 +226,11 @@ def test_caught_exceptions_should_set_status_reason_on_notification(
     else:
         dao_path = 'app.celery.lookup_va_profile_id_task.notifications_dao.update_notification_status_by_id'
         mocker_mocker_update_notification_status_by_id = mocker.patch(dao_path)
-        with pytest.raises(Exception):
+        # Means it fell into the catch-all and we should see a technical exception
+        if exception is MpiNonRetryableException:
+            with pytest.raises(NotificationTechnicalFailureException):
+                lookup_va_profile_id(notification.id)
+        else:
             lookup_va_profile_id(notification.id)
         mocker_mocker_update_notification_status_by_id.assert_called_with(
             notification.id, notification_status, status_reason=failure_reason
@@ -265,8 +266,7 @@ def test_should_call_callback_on_permanent_failure_exception(client, mocker, sam
         'app.celery.lookup_va_profile_id_task.notifications_dao.update_notification_status_by_id'
     )
 
-    with pytest.raises(NotificationPermanentFailureException):
-        lookup_va_profile_id(notification.id)
+    lookup_va_profile_id(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_with(
         notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=reason

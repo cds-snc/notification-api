@@ -7,7 +7,7 @@ from app.celery.common import RETRIES_EXCEEDED
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.exceptions import AutoRetryException
 from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
-from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType
 from app.va.va_profile import (
@@ -130,8 +130,7 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, sample_temp
         'app.celery.contact_information_tasks.update_notification_status_by_id'
     )
 
-    with pytest.raises(NotificationPermanentFailureException):
-        lookup_contact_info(notification.id)
+    lookup_contact_info(notification.id)
 
     mocked_va_profile_client.get_email.assert_called_with(mocker.ANY, notification)
     recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
@@ -257,8 +256,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
         'app.celery.contact_information_tasks.update_notification_status_by_id'
     )
 
-    with pytest.raises(NotificationPermanentFailureException):
-        lookup_contact_info(notification.id)
+    lookup_contact_info(notification.id)
 
     mocked_va_profile_client.get_email.assert_called_with(mocker.ANY, notification)
     recipient_identifier = mocked_va_profile_client.get_email.call_args[0][0]
@@ -283,13 +281,13 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
         ),
         (
             NoContactInfoException,
-            NotificationPermanentFailureException,
+            None,
             NOTIFICATION_PERMANENT_FAILURE,
             NoContactInfoException.failure_reason,
         ),
         (
             VAProfileNonRetryableException,
-            NotificationPermanentFailureException,
+            None,
             NOTIFICATION_PERMANENT_FAILURE,
             VAProfileNonRetryableException.failure_reason,
         ),
@@ -387,6 +385,7 @@ def test_get_email_or_sms_with_permission_utilizes_default_send(
     profile['communicationPermissions'][0]['communicationChannelId'] = notification_type.id
 
     mocker.patch('app.va.va_profile.va_profile_client.VAProfileClient.get_profile', return_value=profile)
+    mock_handle_exception = mocker.patch('app.celery.contact_information_tasks.handle_lookup_contact_info_exception')
 
     if default_send:
         # Leaving this logic so it's easier to understand
@@ -395,13 +394,13 @@ def test_get_email_or_sms_with_permission_utilizes_default_send(
             lookup_contact_info(notification.id)
         else:
             # Implicit + user has opted out
-            with pytest.raises(NotificationPermanentFailureException):
-                lookup_contact_info(notification.id)
+            lookup_contact_info(notification.id)
+            mock_handle_exception.assert_called_once()
     else:
         if user_set:
             # Explicit + User has opted in - this command will execute and not raise an exception
             lookup_contact_info(notification.id)
         else:
             # Explicit + User has not defined opted in
-            with pytest.raises(NotificationPermanentFailureException):
-                lookup_contact_info(notification.id)
+            lookup_contact_info(notification.id)
+            mock_handle_exception.assert_called_once()

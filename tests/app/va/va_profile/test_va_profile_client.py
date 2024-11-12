@@ -9,7 +9,6 @@ import requests_mock
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.constants import EMAIL_TYPE, SMS_TYPE
-from app.exceptions import NotificationPermanentFailureException
 from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType, OIDS, transform_to_fhir_format
 from app.va.va_profile.exceptions import (
@@ -574,6 +573,7 @@ def test_get_email_and_get_telephone_utilizes_default_send(
     profile['communicationPermissions'][0]['communicationChannelId'] = notification_type.id
 
     mocker.patch('app.va.va_profile.va_profile_client.VAProfileClient.get_profile', return_value=profile)
+    mock_handle_exception = mocker.patch('app.celery.contact_information_tasks.handle_lookup_contact_info_exception')
 
     if default_send:
         if user_set or user_set is None:
@@ -581,13 +581,13 @@ def test_get_email_and_get_telephone_utilizes_default_send(
             assert lookup_contact_info(notification.id) is None
         else:
             # Implicit + user has opted out
-            with pytest.raises(NotificationPermanentFailureException):
-                lookup_contact_info(notification.id)
+            lookup_contact_info(notification.id)
+            mock_handle_exception.assert_called_once()
     else:
         if user_set:
             # Explicit + User has opted in
             assert lookup_contact_info(notification.id) is None
         else:
             # Explicit + User has not defined opted in
-            with pytest.raises(NotificationPermanentFailureException):
-                lookup_contact_info(notification.id)
+            lookup_contact_info(notification.id)
+            mock_handle_exception.assert_called_once()

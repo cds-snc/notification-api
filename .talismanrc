@@ -13,20 +13,10 @@ fileignoreconfig:
   checksum: ae4e31c6eb56d91ec80ae09d13baf4558cf461c65f08893b93fee43f036a17a7
 - filename: app/template/rest.py
   checksum: 1e5bdac8bc694d50f8f656dec127dd036b7b1b5b6156e3282d3411956c71ba0b
-- filename: cd/application-deployment/dev/dev.env
-  checksum: a6bed7de359c7cec67940c1f0113826365400684c5a3bd182e8237d48ad5c1f1
 - filename: cd/application-deployment/dev/vaec-api-task-definition.json
   checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
-- filename: cd/application-deployment/perf/perf.env
-  checksum: 1b3b7539dd80b0661594082956e61fd86451692946d845cfe676798aac75618d
-- filename: cd/application-deployment/prod/prod.env
-  checksum: 55252b1cb0e16b02301ae8bffb1015f7da5286d4bce0b415a95842cdb368c275
-- filename: cd/application-deployment/staging/staging.env
-  checksum: 9e5161e8a0a13974d9b67d8a7e61d1b3fed9657a7e2dfeb6d82fd8ace64e2715
 - filename: ci/docker-compose-test.yml
   checksum: e3efec2749e8c19e60f5bfc68eafabe24eba647530a482ceccfc4e0e62cff424
-- filename: ci/.local.env
-  checksum: 8caee8cf67974ad5195c835d3d266d81dbc4c635c547b7cc49704c0593e7833b
 - filename: lambda_functions/pinpoint_callback/pinpoint_callback_lambda.py
   checksum: 7bd4900e14b1fa789bbb2568b8a8d7a400e3c8350ba32fb44cc0b5b66a2df037
 - filename: lambda_functions/ses_callback/ses_callback_lambda.py
@@ -81,4 +71,14 @@ fileignoreconfig:
   checksum: 7f8a30dd84b3ceb0d08bae949b5b127fd408ee2fd8097eb7d4b291ede61f8d0f
 - filename: tests/app/celery/test_process_delivery_status_result_tasks.py
   checksum: 62fa6216b62971d62c2e53f6b31aeeb659d7a1e404665362ee89cb3ec04793a6
+- filename: cd/application-deployment/dev/dev.env
+  checksum: 2ecdf2787dd15a7971471b5b6b799adf478a8021552e690de76b682f5e7344a3
+- filename: cd/application-deployment/perf/perf.env
+  checksum: 06912f9617483c19b076d92f0036c125f0a2f80e10a1665e5ddc5ce31a354a5c
+- filename: cd/application-deployment/prod/prod.env
+  checksum: 64f46f118e9f652c663bc53225ddf39f1ef85040ea3e24fceb71ea752984d46c
+- filename: cd/application-deployment/staging/staging.env
+  checksum: ce893a6a8405ad66d7b8efa8e1b1991c9ae6bebb245d500e93d148e1142b714d
+- filename: ci/.local.env
+  checksum: 806fc75f59d611f5fd02af9653eaee61db0c920cc49ff70c1aebb92d2aa7a9db
 version: "1.0"

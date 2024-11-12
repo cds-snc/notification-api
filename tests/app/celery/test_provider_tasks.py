@@ -7,7 +7,6 @@ from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
 from app.exceptions import (
-    NotificationPermanentFailureException,
     NotificationTechnicalFailureException,
     InvalidProviderException,
 )
@@ -130,7 +129,7 @@ def test_should_technical_error_and_not_retry_if_invalid_email(
 @pytest.mark.parametrize(
     'exception,expected_to_raise',
     (
-        (NonRetryableException, NotificationPermanentFailureException),
+        (NonRetryableException, None),
         (InvalidPhoneError, NotificationTechnicalFailureException),
     ),
 )
@@ -151,7 +150,10 @@ def test_should_queue_callback_task_if_permanent_failure_exception_is_thrown(
     assert template.template_type == SMS_TYPE
     notification = sample_notification(template=template)
 
-    with pytest.raises(expected_to_raise):
+    if expected_to_raise:
+        with pytest.raises(expected_to_raise):
+            deliver_sms(notification.id)
+    else:
         deliver_sms(notification.id)
 
     mock_callback.assert_called_once()
@@ -198,12 +200,11 @@ def test_should_mark_permanent_failure_when_celery_retries_exceeded(
     template = sample_template()
     notification = sample_notification(template=template)
 
-    with pytest.raises(NotificationPermanentFailureException):
-        deliver_sms(notification.id)
+    deliver_sms(notification.id)
 
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_PERMANENT_FAILURE
-    assert callback_mocker.called_once
+    callback_mocker.assert_called_once()
 
 
 def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task(

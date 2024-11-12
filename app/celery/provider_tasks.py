@@ -20,7 +20,10 @@ from app.exceptions import (
     NotificationTechnicalFailureException,
     InvalidProviderException,
 )
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.v2.errors import RateLimitError
+
+from celery import Task
 from flask import current_app
 from notifications_utils.field import NullValueForNonConditionalPlaceholderException
 from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
@@ -39,7 +42,7 @@ from notifications_utils.statsd_decorators import statsd
 )
 @statsd(namespace='tasks')
 def deliver_sms(
-    self,
+    self: Task,
     notification_id,
     sms_sender_id=None,
 ):
@@ -74,14 +77,18 @@ def deliver_sms(
         )
         raise NotificationTechnicalFailureException from e
     except NonRetryableException as e:
-        # Max retries exceeded, celery raised exception
+        # Likely an opted out from pinpoint
         log_and_update_permanent_failure(
             notification.id,
             'deliver_sms',
             e,
             'ERROR: NonRetryableException - permanent failure, not retrying',
         )
-        raise NotificationPermanentFailureException from e
+        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
+            # Expected chain termination
+            self.request.chain = None
+        else:
+            raise NotificationPermanentFailureException from e
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
         log_and_update_technical_failure(notification_id, 'deliver_sms', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
@@ -107,7 +114,7 @@ def deliver_sms(
     retry_backoff_max=60,
 )
 @statsd(namespace='tasks')
-def deliver_sms_with_rate_limiting(
+def deliver_sms_with_rate_limiting(  # noqa: C901
     self,
     notification_id,
     sms_sender_id=None,
@@ -148,14 +155,18 @@ def deliver_sms_with_rate_limiting(
         )
         raise NotificationPermanentFailureException from e
     except NonRetryableException as e:
-        # Max retries exceeded, celery raised exception
+        # Likely an opted out from pinpoint
         log_and_update_permanent_failure(
             notification.id,
             'deliver_sms_with_rate_limiting',
             e,
             'ERROR: NonRetryableException - permanent failure, not retrying',
         )
-        raise NotificationTechnicalFailureException from e
+        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
+            # Expected chain termination
+            self.request.chain = None
+        else:
+            raise NotificationTechnicalFailureException from e
     except RateLimitError:
         retry_time = sms_sender.rate_limit_interval / sms_sender.rate_limit
         current_app.logger.info(
@@ -194,7 +205,7 @@ def deliver_sms_with_rate_limiting(
 )
 @statsd(namespace='tasks')
 def deliver_email(
-    self,
+    self: Task,
     notification_id: str,
     sms_sender_id=None,
 ):

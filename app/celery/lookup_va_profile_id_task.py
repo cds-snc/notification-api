@@ -1,3 +1,4 @@
+from celery import Task
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
@@ -9,6 +10,7 @@ from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
 from app.dao import notifications_dao
 from app import mpi_client
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
     MpiRetryableException,
@@ -32,7 +34,7 @@ from app.celery.service_callback_tasks import check_and_queue_callback_task
 )
 @statsd(namespace='tasks')
 def lookup_va_profile_id(
-    self,
+    self: Task,
     notification_id,
 ):
     current_app.logger.info(f'Retrieving VA Profile ID from MPI for notification {notification_id}')
@@ -62,7 +64,6 @@ def lookup_va_profile_id(
             msg = handle_max_retries_exceeded(notification_id, 'lookup_va_profile_id')
             check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(msg)
-
     except (
         BeneficiaryDeceasedException,
         IdentifierNotFound,
@@ -81,8 +82,11 @@ def lookup_va_profile_id(
             notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
         check_and_queue_callback_task(notification)
-        raise NotificationPermanentFailureException(message) from e
-
+        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
+            # Expected chain termination
+            self.request.chain = None
+        else:
+            raise NotificationPermanentFailureException(message) from e
     except Exception as e:
         message = (
             f'Failed to retrieve VA Profile ID from MPI for notification: {notification_id} '
