@@ -73,6 +73,14 @@ jobs:
         curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
         sudo dpkg -i 1pass.deb
 
+    - name: Setup Terraform tools
+      uses: cds-snc/terraform-tools-setup@v1
+      env: # In case you want to override default versions
+        CONFTEST_VERSION: 0.30.0 
+        TERRAFORM_VERSION: 1.9.5
+        TERRAGRUNT_VERSION: 0.66.9
+        TF_SUMMARIZE_VERSION: 0.2.3                           
+
     - name: Fetch VPN
       run: |
         curl https://raw.githubusercontent.com/cds-snc/notification-manifests/refs/heads/main/scripts/createVPNConfig.sh | bash -s staging
