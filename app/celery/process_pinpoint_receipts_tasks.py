@@ -112,6 +112,17 @@ def process_pinpoint_results(self, response):
         )
 
         service_id = notification.service_id
+        # Check if we have already seeded the annual limit counts for today
+        if current_app.config["FF_ANNUAL_LIMIT"]:
+            if not annual_limit_client.was_seeded_today(service_id):
+                annual_limit_client.set_seeded_at(service_id)
+                todays_deltas = fetch_notification_status_for_service_for_day(
+                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    service_id=service_id,
+                )
+                annual_limit_client.seed_annual_limit_notifications(
+                    service_id, prepare_notification_counts_for_seeding(todays_deltas)
+                )
 
         if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info(
@@ -122,11 +133,6 @@ def process_pinpoint_results(self, response):
             )
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                if not annual_limit_client.was_seeded_today(service_id):
-                    notifications_dao.get_notifications_for_service(
-                        service_id,
-                        limit_days=1,
-                    )
                 annual_limit_client.increment_sms_failed(service_id)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
@@ -137,15 +143,6 @@ def process_pinpoint_results(self, response):
             )
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                if not annual_limit_client.was_seeded_today(service_id):
-                    annual_limit_client.set_seeded_at(service_id)
-                    todays_deltas = fetch_notification_status_for_service_for_day(
-                        convert_utc_to_local_timezone(datetime.utcnow()), service_id=service_id
-                    )
-                    annual_limit_client.seed_annual_limit_notifications(
-                        service_id, prepare_notification_counts_for_seeding(todays_deltas)
-                    )
-
                 annual_limit_client.increment_sms_delivered(service_id)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
@@ -154,7 +151,11 @@ def process_pinpoint_results(self, response):
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
 
         if notification.sent_at:
-            statsd_client.timing_with_dates("callback.pinpoint.elapsed-time", datetime.utcnow(), notification.sent_at)
+            statsd_client.timing_with_dates(
+                "callback.pinpoint.elapsed-time",
+                datetime.utcnow(),
+                notification.sent_at,
+            )
 
         _check_and_queue_callback_task(notification)
 

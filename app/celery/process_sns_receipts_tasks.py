@@ -70,6 +70,17 @@ def process_sns_results(self, response):
         )
 
         service_id = notification.service_id
+        # Check if we have already seeded the annual limit counts for today
+        if current_app.config["FF_ANNUAL_LIMIT"]:
+            if not annual_limit_client.was_seeded_today(service_id):
+                annual_limit_client.set_seeded_at(service_id)
+                todays_deltas = fetch_notification_status_for_service_for_day(
+                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    service_id=service_id,
+                )
+                annual_limit_client.seed_annual_limit_notifications(
+                    service_id, prepare_notification_counts_for_seeding(todays_deltas)
+                )
 
         if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info(
@@ -80,15 +91,6 @@ def process_sns_results(self, response):
             )
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                if not annual_limit_client.was_seeded_today(service_id):
-                    annual_limit_client.set_seeded_at(service_id)
-                    todays_deltas = fetch_notification_status_for_service_for_day(
-                        convert_utc_to_local_timezone(datetime.utcnow()), service_id=service_id
-                    )
-                    annual_limit_client.seed_annual_limit_notifications(
-                        service_id, prepare_notification_counts_for_seeding(todays_deltas)
-                    )
-
                 annual_limit_client.increment_sms_failed(notification.service_id)
                 current_app.logger.info(
                     f"Incremented sms_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
