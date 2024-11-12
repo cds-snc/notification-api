@@ -76,17 +76,17 @@ jobs:
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
 
-  approval-deploy-staging:
+  approval-deploy:
     needs: deploy-to-perf
     environment: 
       name: staging-deploy
     runs-on: ubuntu-latest
     steps:
       - name: Pause for manual approval
-        run: echo "Deployment paused for manual approval."
+        run: echo "Deployment paused for manual approval to staging and production."
 
   create-release-notes:
-    needs: [create-and-post-tag, approval-deploy-staging]
+    needs: [create-and-post-tag, approval-deploy]
     uses: ./.github/workflows/create-release-notes.yml
     secrets: inherit
     with:
@@ -101,17 +101,8 @@ jobs:
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
 
-  approval-deploy-prod:
-    needs: deploy-to-staging
-    environment: 
-      name: prod-deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Pause for manual approval
-        run: echo "Pipeline paused for pending approval of staging by QA"
-
   publish-release-notes:
-    needs: [create-release-notes, approval-deploy-prod]
+    needs: [create-release-notes, deploy-to-staging]
     uses: ./.github/workflows/publish-release-notes.yml
     secrets: inherit
     with:
