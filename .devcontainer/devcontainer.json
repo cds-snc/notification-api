@@ -5,7 +5,8 @@
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 	"remoteEnv": {
-		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
+		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}", // give our installed Python modules precedence
+		"POETRY_VENV_PATH": "$(poetry env info -p)"
 	},
 	"customizations": {
 		"vscode": {
@@ -25,7 +26,8 @@
 				"eamodio.gitlens",
 				"fill-labs.dependi",
 				"GitHub.copilot",
-				"GitHub.copilot-labs",
+				"github.copilot-chat",
+				"github.vscode-pull-request-github",
 				"googlecloudtools.cloudcode",
 				"kaiwood.center-editor-window",
 				"matangover.mypy",

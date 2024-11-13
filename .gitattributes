@@ -1,0 +1,14 @@
+# We'll let Git's auto-detection algorithm infer if a file is text. If it is,
+# enforce LF line endings regardless of OS or git configurations.
+* text=auto eol=crlf
+
+# Explicitly mark following files with lf end lines. These files
+# are meant to be executed on Linux, so we want to enforce.
+.devcontainer/initdb/notify-db-entrypoint.sh eol=lf
+.devcontainer/scripts/notify-dev-entrypoint.sh eol=lf
+
+scripts/*.sh eof=lf
+
+# Isolate binary files in case the auto-detection algorithm fails and
+# marks them as text files (which could brick them).
+*.{png,jpg,jpeg,gif,webp,woff,woff2} binary
