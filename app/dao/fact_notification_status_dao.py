@@ -135,7 +135,6 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
         FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
         # This works only for timezones to the west of GMT
         FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
-        FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"),  # Exclude current day
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     ]
 

@@ -13,7 +13,6 @@ from app.models import (
     PRECOMPILED_TEMPLATE_NAME,
     SMS_TYPE,
 )
-from tests.conftest import set_config
 from tests.app.db import (
     create_ft_notification_status,
     create_notification,
@@ -21,6 +20,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 @freeze_time("2017-11-11 06:00")

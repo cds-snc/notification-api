@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import annual_limit_client, redis_store, salesforce_client
+from app import redis_store, salesforce_client
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
