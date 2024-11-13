@@ -12,12 +12,12 @@
             "name": "Python: Gunicorn",
             "type": "debugpy",
             "request": "launch",
-            "program": "${env:POETRY_VENV_PATH}/bin/gunicorn",
+            "program": "gunicorn",
             "gevent": true,
             "args": ["--config", "gunicorn_config.py", "application"],
             "env": {
                 "FLASK_APP": "application.py",
-                "FLASK_ENV": "dev"
+                "FLASK_ENV": "development"
             },
             "justMyCode": false,
             "console": "integratedTerminal"

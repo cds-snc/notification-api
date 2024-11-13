@@ -58,8 +58,5 @@ poetry install
 # Upgrade schema of the notification_api database.
 poetry run flask db upgrade
 
-# Make the Poetry venv available to the shell (useful for vscode launchers)
-export POETRY_VENV_PATH=$(poetry env info -p)
-
 # install npm deps (i.e. cypress)
 cd tests_cypress && npm install && npx cypress install && cd ..
