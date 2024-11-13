@@ -446,6 +446,7 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
@@ -468,6 +469,7 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
@@ -476,3 +478,39 @@ class TestAnnualLimits:
             assert process_ses_results(callback(reference="ref"))
             annual_limit_client.increment_email_failed.assert_called_once_with(sample_email_template.service_id)
             annual_limit_client.increment_email_delivered.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "callback",
+        [
+            ses_notification_callback,
+            ses_hard_bounce_callback,
+            ses_soft_bounce_callback,
+        ],
+    )
+    def test_process_ses_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
+        self,
+        callback,
+        sample_email_template,
+        notify_api,
+        mocker,
+    ):
+        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
+        mocker.patch("app.annual_limit_client.set_seeded_at")
+
+        notification = save_notification(
+            create_notification(
+                sample_email_template,
+                reference="ref",
+                sent_at=datetime.utcnow(),
+                status="sending",
+                sent_by="ses",
+            )
+        )
+        # TODO FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            process_ses_results(callback(reference="ref"))
+            annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
+            annual_limit_client.increment_email_delivered.assert_not_called()
+            annual_limit_client.increment_email_failed.assert_not_called()

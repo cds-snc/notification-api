@@ -11,7 +11,6 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
-from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -32,7 +31,6 @@ from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
     fetch_notification_status_for_service_by_month,
-    fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
 )
@@ -124,7 +122,7 @@ from app.service.utils import (
     get_safelist_objects,
 )
 from app.user.users_schema import post_set_permissions_schema
-from app.utils import pagination_links, prepare_notification_counts_for_seeding
+from app.utils import pagination_links
 
 service_blueprint = Blueprint("service", __name__)
 
@@ -404,7 +402,10 @@ def create_api_key(service_id=None):
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
 
     # prefix the API key so they keys can be easily identified for security scanning
-    keydata = {"key": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
+    keydata = {
+        "key": unsigned_api_key,
+        "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name,
+    }
 
     return jsonify(data=keydata), 201
 
@@ -633,7 +634,6 @@ def get_monthly_notification_stats(service_id):
     now = datetime.utcnow()
     if end_date > now:
         todays_deltas = annual_limit_client.get_all_notification_counts(service_id)
-        statistics.add_monthly_notification_status_stats_for_current_day_from_cache(data, todays_deltas)
 
     return jsonify(data=data)
 

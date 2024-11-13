@@ -112,16 +112,19 @@ def process_pinpoint_results(self, response):
         )
 
         service_id = notification.service_id
-        # Check if we have already seeded the annual limit counts for today
+        # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
+        # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
+        notifications_to_seed = None
+
         if current_app.config["FF_ANNUAL_LIMIT"]:
             if not annual_limit_client.was_seeded_today(service_id):
                 annual_limit_client.set_seeded_at(service_id)
-                todays_deltas = fetch_notification_status_for_service_for_day(
+                notifications_to_seed = fetch_notification_status_for_service_for_day(
                     convert_utc_to_local_timezone(datetime.utcnow()),
                     service_id=service_id,
                 )
                 annual_limit_client.seed_annual_limit_notifications(
-                    service_id, prepare_notification_counts_for_seeding(todays_deltas)
+                    service_id, prepare_notification_counts_for_seeding(notifications_to_seed)
                 )
 
         if notification_status != NOTIFICATION_DELIVERED:
@@ -133,7 +136,9 @@ def process_pinpoint_results(self, response):
             )
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                annual_limit_client.increment_sms_failed(service_id)
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_sms_failed(service_id)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
                 )
@@ -141,9 +146,12 @@ def process_pinpoint_results(self, response):
             current_app.logger.info(
                 f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
             )
+
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                annual_limit_client.increment_sms_delivered(service_id)
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_sms_delivered(service_id)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
                 )

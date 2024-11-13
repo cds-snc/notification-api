@@ -252,8 +252,7 @@ def test_get_monthly_notification_stats_combines_todays_data_and_historic_stats(
     assert response["data"]["2016-06"] == {
         "sms": {
             # combines the stats from the historic ft_notification_status and the current notifications
-            "created": 3,
-            "delivered": 1,
+            "created": 2,
         },
         "email": {},
         "letter": {},
