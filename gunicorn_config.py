@@ -19,7 +19,6 @@ if enable_profiling:
 
 print("Initializing New Relic agent")
 start_time = time.time()
-# newrelic.agent.initialize()  # noqa: E402
 newrelic.agent.initialize(environment=os.getenv("NOTIFY_ENVIRONMENT"))  # noqa: E402
 end_time = time.time()
 elapsed_time = end_time - start_time
@@ -52,7 +51,8 @@ if on_aws:
     #
     # Kubernetes config:
     # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
-    graceful_timeout = 20
+    graceful_timeout = 25
+    timeout = 30
 
 
 def on_starting(server):
