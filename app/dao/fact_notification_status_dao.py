@@ -130,6 +130,19 @@ def update_fact_notification_status(data, process_day, service_ids=None):
 
 
 def fetch_notification_status_for_service_by_month(start_date, end_date, service_id):
+    filters = [
+        FactNotificationStatus.service_id == service_id,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"),  # Exclude current day
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+    ]
+
+    # TODO FF_ANNUAL_LIMIT removal
+    if current_app.config["FF_ANNUAL_LIMIT"]:
+        filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
+
     return (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).label("month"),
@@ -137,14 +150,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
             FactNotificationStatus.notification_status,
             func.sum(FactNotificationStatus.notification_count).label("count"),
         )
-        .filter(
-            FactNotificationStatus.service_id == service_id,
-            FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
-            # This works only for timezones to the west of GMT
-            FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
-            FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"),  # Exclude current day
-            FactNotificationStatus.key_type != KEY_TYPE_TEST,
-        )
+        .filter(*filters)
         .group_by(
             func.date_trunc("month", FactNotificationStatus.bst_date).label("month"),
             FactNotificationStatus.notification_type,

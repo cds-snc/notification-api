@@ -11,6 +11,7 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -31,6 +32,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
     fetch_notification_status_for_service_by_month,
+    fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
 )
@@ -632,8 +634,10 @@ def get_monthly_notification_stats(service_id):
     statistics.add_monthly_notification_status_stats(data, stats)
 
     now = datetime.utcnow()
-    if end_date > now:
-        todays_deltas = annual_limit_client.get_all_notification_counts(service_id)
+    # TODO FF_ANNUAL_LIMIT removal
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
+        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
+        statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)
 
