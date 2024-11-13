@@ -5,7 +5,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
-from app import notify_celery
+from app import annual_limit_client, notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.annual_limits_data_dao import (
@@ -120,6 +120,10 @@ def create_nightly_notification_status_for_day(process_day):
                     len(transit_data), process_day, chunk
                 )
             )
+            # TODO: FF_ANNUAL_LIMIT removal
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                annual_limit_client.reset_all_notification_counts(chunk)
+
         except Exception as e:
             current_app.logger.error(
                 "create-nightly-notification-status-for-day task failed for day: {}, for service_ids: {}. Error: {}".format(

@@ -404,7 +404,10 @@ def create_api_key(service_id=None):
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
 
     # prefix the API key so they keys can be easily identified for security scanning
-    keydata = {"key": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
+    keydata = {
+        "key": unsigned_api_key,
+        "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name,
+    }
 
     return jsonify(data=keydata), 201
 
@@ -631,7 +634,8 @@ def get_monthly_notification_stats(service_id):
     statistics.add_monthly_notification_status_stats(data, stats)
 
     now = datetime.utcnow()
-    if end_date > now:
+    # TODO FF_ANNUAL_LIMIT removal
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
         todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
