@@ -5,8 +5,7 @@
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 	"remoteEnv": {
-		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}", // give our installed Python modules precedence
-		"POETRY_VENV_PATH": "$(poetry env info -p)"
+		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
 	"customizations": {
 		"vscode": {
