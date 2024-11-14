@@ -43,8 +43,8 @@ if on_aws:
     #
     # Kubernetes config:
     # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
-    graceful_timeout = 25
-    timeout = 30
+    graceful_timeout = 35
+    timeout = 40
 
 
 def on_starting(server):
