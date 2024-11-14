@@ -281,120 +281,75 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         )
 
 
-class TestAnnualLimits:
-    @pytest.mark.parametrize(
-        "provider_response",
-        [
-            "Blocked as spam by phone carrier",
-            "Destination is on a blocked list",
-            "Invalid phone number",
-            "Message body is invalid",
-            "Phone carrier has blocked this message",
-            "Phone carrier is currently unreachable/unavailable",
-            "Phone has blocked SMS",
-            "Phone is on a blocked list",
-            "Phone is currently unreachable/unavailable",
-            "Phone number is opted out",
-            "This delivery would exceed max price",
-            "Unknown error attempting to reach phone",
-        ],
-    )
-    def test_process_pinpoint_results_should_increment_sms_failed_when_delivery_receipt_is_failure(
-        self,
-        sample_sms_template_with_html,
-        notify_api,
-        mocker,
-        provider_response,
-    ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+@pytest.mark.parametrize(
+    "provider_response",
+    [
+        "Blocked as spam by phone carrier",
+        "Destination is on a blocked list",
+        "Invalid phone number",
+        "Message body is invalid",
+        "Phone carrier has blocked this message",
+        "Phone carrier is currently unreachable/unavailable",
+        "Phone has blocked SMS",
+        "Phone is on a blocked list",
+        "Phone is currently unreachable/unavailable",
+        "Phone number is opted out",
+        "This delivery would exceed max price",
+        "Unknown error attempting to reach phone",
+    ],
+)
+def test_process_pinpoint_results_should_increment_sms_failed_when_delivery_receipt_is_failure(
+    sample_sms_template_with_html,
+    notify_api,
+    mocker,
+    provider_response,
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
 
-        notification = save_notification(
-            create_notification(
-                sample_sms_template_with_html,
-                reference="ref",
-                sent_at=datetime.utcnow(),
-                status=NOTIFICATION_SENT,
-                sent_by="pinpoint",
-            )
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="pinpoint",
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "callback",
-        [
-            (pinpoint_delivered_callback),
-            (pinpoint_shortcode_delivered_callback),
-        ],
     )
-    def test_process_pinpoint_results_should_increment_sms_delivered_when_delivery_receipt_is_success(
-        self,
-        sample_sms_template_with_html,
-        notify_api,
-        mocker,
-        callback,
-    ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+    # TODO FF_ANNUAL_LIMIT removal
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
-        notification = save_notification(
-            create_notification(
-                sample_sms_template_with_html,
-                reference="ref",
-                sent_at=datetime.utcnow(),
-                status=NOTIFICATION_SENT,
-                sent_by="pinpoint",
-            )
+
+@pytest.mark.parametrize(
+    "callback",
+    [
+        (pinpoint_delivered_callback),
+        (pinpoint_shortcode_delivered_callback),
+    ],
+)
+def test_process_pinpoint_results_should_increment_sms_delivered_when_delivery_receipt_is_success(
+    sample_sms_template_with_html,
+    notify_api,
+    mocker,
+    callback,
+):
+    mocker.patch("app.annual_limit_client.increment_sms_delivered")
+    mocker.patch("app.annual_limit_client.increment_sms_failed")
+
+    notification = save_notification(
+        create_notification(
+            sample_sms_template_with_html,
+            reference="ref",
+            sent_at=datetime.utcnow(),
+            status=NOTIFICATION_SENT,
+            sent_by="pinpoint",
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(callback(reference="ref"))
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "callback, provider_response",
-        [
-            (pinpoint_delivered_callback, None),
-            (pinpoint_failed_callback, "Blocked as spam by phone carrier"),
-            (pinpoint_failed_callback, "Phone carrier is currently unreachable/unavailable"),
-            (pinpoint_failed_callback, "Phone is currently unreachable/unavailable"),
-            (pinpoint_failed_callback, "This is not a real response"),
-        ],
     )
-    def test_process_pinpoint_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
-        self,
-        callback,
-        provider_response,
-        sample_sms_template_with_html,
-        notify_api,
-        mocker,
-    ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
-        mocker.patch("app.annual_limit_client.set_seeded_at")
-
-        notification = save_notification(
-            create_notification(
-                sample_sms_template_with_html,
-                reference="ref",
-                sent_at=datetime.utcnow(),
-                status=NOTIFICATION_SENT,
-                sent_by="pinpoint",
-            )
-        )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(
-                callback(provider_response, reference="ref") if provider_response else callback(reference="ref")
-            )
-            annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
-            annual_limit_client.increment_sms_failed.assert_not_called()
+    # TODO FF_ANNUAL_LIMIT removal
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()

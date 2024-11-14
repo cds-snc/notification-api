@@ -15,16 +15,6 @@ from app.config import Priorities, QueueNames
 
 local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
 
-DELIVERED_STATUSES = ["delivered", "sent", "returned-letter"]
-FAILURE_STATUSES = [
-    "failed",
-    "temporary-failure",
-    "permanent-failure",
-    "technical-failure",
-    "virus-scan-failed",
-    "validation-failed",
-]
-
 
 def pagination_links(pagination, endpoint, **kwargs):
     if "page" in kwargs:
@@ -231,28 +221,3 @@ def get_limit_reset_time_et() -> dict[str, str]:
 
     limit_reset_time_et = {"12hr": next_midnight_utc_in_et.strftime("%-I%p"), "24hr": next_midnight_utc_in_et.strftime("%H")}
     return limit_reset_time_et
-
-
-def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
-    """Utility method that transforms a list of notification counts into a dictionary, mapping notification counts by type and success/failure.
-    Used to seed notification counts in Redis for annual limits.
-    e.g.
-    ```
-    [(datetime, 'email', 'sent', 1),
-    (datetime, 'sms', 'sent', 2)]
-    ```
-    Becomes:
-    ```
-    {'email_sent': 1, 'sms_sent': 2}
-    ```
-    Args:
-        notification_counts (list): A list of tuples containing (date, notification_type, status, count)
-
-    Returns:
-        dict: That acts as a mapping to build the notification counts in Redis
-    """
-    return {
-        f"{notification_type}_{'delivered' if status in DELIVERED_STATUSES else 'failed'}": count
-        for _, notification_type, status, count in notification_counts
-        if status in DELIVERED_STATUSES or status in FAILURE_STATUSES
-    }
