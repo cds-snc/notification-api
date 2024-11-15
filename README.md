@@ -43,7 +43,7 @@ Run `make run-celery-local` or `make run-celery-local-filtered`. Note that the "
 
 ### Python version
 
-This codebase is Python 3 only. At the moment we run 3.10.8 in production. You will run into problems if you try to use Python 3.4 or older.
+This codebase is Python 3 only. At the moment we run 3.12.6 in production. You will run into problems if you try to use Python 3.4 or older.
 
 ### To run Performance tests
 
@@ -121,7 +121,7 @@ createuser -l -s postgres
 
 __Problem__ : `E999 SyntaxError: invalid syntax` when running `flake8`
 
-__Solution__ : Check that you are in your correct virtualenv, with python 3.10
+__Solution__ : Check that you are in your correct virtualenv, with python 3.12
 
 ---
 
