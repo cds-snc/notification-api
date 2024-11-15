@@ -28,12 +28,14 @@ service_id = current_app.config["CYPRESS_SERVICE_ID"]
 email_template_id = current_app.config["CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID"]
 sms_template_id = current_app.config["CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID"]
 default_category_id = current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"]
-cypress_user_pw = current_app.config.get(
-    "CYPRESS_USER_PW_SECRET", uuid.uuid4().hex[:32]  # if env var isn't present, use a random password
-)
 
 
 def upgrade():
+    cypress_user_pw = current_app.config.get("CYPRESS_USER_PW_SECRET")
+    if not cypress_user_pw:
+        cypress_user_pw = uuid.uuid4().hex[:32]
+        current_app.logger.warning(f"CYPRESS_USER_PW_SECRET not set, using random password")
+
     password = hashpw(hashlib.sha256((cypress_user_pw + current_app.config["DANGEROUS_SALT"]).encode("utf-8")).hexdigest())
     current_year = get_current_financial_year_start_year()
     default_limit = 250000
