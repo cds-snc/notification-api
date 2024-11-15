@@ -3,14 +3,28 @@
     "configurations": [
         {
             "name": "Python: current file",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: Gunicorn",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "gunicorn",
+            "gevent": true,
+            "args": ["--config", "gunicorn_config.py", "application"],
+            "env": {
+                "FLASK_APP": "application.py",
+                "FLASK_ENV": "development"
+            },
+            "justMyCode": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: Flask",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "flask",
             "env": {
@@ -28,7 +42,7 @@
         },
         {
             "name": "Python: Celery",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "celery",
             "console": "integratedTerminal",
@@ -48,7 +62,7 @@
         },
         {
             "name": "Locust",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "locust",
             "args": [
@@ -64,6 +78,28 @@
             ],
             "gevent": true,
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Current File with profiler",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "cProfile",
+            "env": {
+                "FLASK_APP": "application.py",
+                "FLASK_ENV": "development"
+            },
+            "args": [
+                "-o",
+                "/tmp/tmp.prof",
+                "${file}",
+                "flask",
+                "run",
+                "--no-debugger",
+                "-p 6011",
+                "--host=0.0.0.0"
+            ],
+            "jinja": true,
+            "justMyCode": false
         }
     ]
 }
