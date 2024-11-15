@@ -1045,6 +1045,7 @@ class PromotedTemplate(db.Model):
     promoted_template_content_digest = db.Column(db.Text(), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    expected_cadence = db.Column(db.Text(), nullable=True)
 
 
 class ProviderRates(db.Model):
