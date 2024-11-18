@@ -66,7 +66,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**contact_request)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -117,7 +117,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_branding_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -179,7 +179,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_other_category(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -227,7 +227,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_other(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -258,7 +258,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_user_profile(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -294,7 +294,7 @@ class TestSendTicket:
                     )
                 ).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_freshdesk_integration_disabled(self, mocker, email_freshdesk_ticket_mock, notify_api: Flask):
         mocked_post = mocker.patch("requests.post")
