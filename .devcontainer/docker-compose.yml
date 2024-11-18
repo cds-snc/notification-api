@@ -12,10 +12,6 @@ services:
     volumes:
       - ..:/workspace:cached
     command: sleep infinity
-    ports:
-      - 8000:8000
-      - 8001:8001
-      - 6011:6011
     links:
       - db
     expose:

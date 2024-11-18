@@ -11,13 +11,17 @@ RUN apt-get update \
     2>&1 \
     && apt-get -y install \
     curl \
+    dbus-x11 \
     dnsutils \
     emacs \
     exa \
     fd-find \
+    fzf \
     git \
+    graphviz \
     iproute2 \
     iputils-ping \
+    kcachegrind \
     less \
     libsodium-dev \
     lsb-release \
@@ -28,6 +32,8 @@ RUN apt-get update \
     npm \
     openssh-client \
     procps \
+    pyprof2calltree \
+    ripgrep \
     sudo \
     tldr \
     unzip \
