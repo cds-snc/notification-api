@@ -105,7 +105,7 @@ class TestAcknowledgeReceipt:
         acknowledge_sms_priority_mock = mocker.patch("app.sms_bulk.acknowledge", return_value=False)
         acknowledge_receipt(SMS_TYPE, NORMAL, receipt)
         acknowledge_sms_normal_mock.assert_called_once_with(receipt)
-        assert acknowledge_sms_priority_mock.not_called()
+        acknowledge_sms_priority_mock.assert_not_called()
 
     def test_acknowledge_wrong_queue(self, mocker, notify_api):
         receipt = uuid.uuid4()
