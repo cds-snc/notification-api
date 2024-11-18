@@ -161,7 +161,7 @@ def test_process_sns_results_does_not_process_other_providers(sample_template, m
     )
 
     process_sns_results(response=sns_success_callback(reference="ref1")) is None
-    assert mock_logger.called_once_with("")
+    assert mock_logger.call_count == 1        
     assert not mock_dao.called
 
 
