@@ -1,7 +1,7 @@
 import os
 import sys
-import traceback
 import time
+import traceback
 
 import gunicorn  # type: ignore
 import newrelic.agent  # See https://bit.ly/2xBVKBH
