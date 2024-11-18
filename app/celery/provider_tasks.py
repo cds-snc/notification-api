@@ -20,7 +20,6 @@ from app.exceptions import (
     NotificationTechnicalFailureException,
     InvalidProviderException,
 )
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.v2.errors import RateLimitError
 
 from celery import Task
@@ -84,11 +83,8 @@ def deliver_sms(
             e,
             'ERROR: NonRetryableException - permanent failure, not retrying',
         )
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            self.request.chain = None
-        else:
-            raise NotificationPermanentFailureException from e
+        # Expected chain termination
+        self.request.chain = None
     except (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError) as e:
         log_and_update_technical_failure(notification_id, 'deliver_sms', e)
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
@@ -114,7 +110,7 @@ def deliver_sms(
     retry_backoff_max=60,
 )
 @statsd(namespace='tasks')
-def deliver_sms_with_rate_limiting(  # noqa: C901
+def deliver_sms_with_rate_limiting(
     self,
     notification_id,
     sms_sender_id=None,
@@ -162,11 +158,8 @@ def deliver_sms_with_rate_limiting(  # noqa: C901
             e,
             'ERROR: NonRetryableException - permanent failure, not retrying',
         )
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            self.request.chain = None
-        else:
-            raise NotificationTechnicalFailureException from e
+        # Expected chain termination
+        self.request.chain = None
     except RateLimitError:
         retry_time = sms_sender.rate_limit_interval / sms_sender.rate_limit
         current_app.logger.info(

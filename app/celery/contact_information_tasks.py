@@ -20,7 +20,6 @@ from app.dao.notifications_dao import (
     update_notification_status_by_id,
 )
 from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     Notification,
     RecipientIdentifier,
@@ -107,7 +106,7 @@ def get_profile_result(
         )
 
 
-def handle_lookup_contact_info_exception(  # noqa: C901
+def handle_lookup_contact_info_exception(
     lookup_task: Task, notification: Notification, recipient_identifier: RecipientIdentifier, e: Exception
 ):
     """
@@ -147,11 +146,8 @@ def handle_lookup_contact_info_exception(  # noqa: C901
             notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
         check_and_queue_callback_task(notification)
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            lookup_task.request.chain = None
-        else:
-            raise NotificationPermanentFailureException(message) from e
+        # Expected chain termination
+        lookup_task.request.chain = None
     elif isinstance(e, (VAProfileIDNotFoundException, VAProfileNonRetryableException)):
         current_app.logger.exception(e)
         message = (
@@ -162,11 +158,8 @@ def handle_lookup_contact_info_exception(  # noqa: C901
             notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
         check_and_queue_callback_task(notification)
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            lookup_task.request.chain = None
-        else:
-            raise NotificationPermanentFailureException(message) from e
+        # Expected chain termination
+        lookup_task.request.chain = None
     elif isinstance(e, CommunicationItemNotFoundException):
         current_app.logger.info(
             'Communication item for recipient %s not found on notification %s',
@@ -180,21 +173,15 @@ def handle_lookup_contact_info_exception(  # noqa: C901
                 status_reason='No recipient opt-in found for explicit preference',
             )
             check_and_queue_callback_task(notification)
-            if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-                # Expected chain termination
-                lookup_task.request.chain = None
-            else:
-                raise e
+            # Expected chain termination
+            lookup_task.request.chain = None
         else:
             # Means the default_send is True and this does not require an explicit opt-in
             return None
     elif isinstance(e, NotificationPermanentFailureException):
         # check_and_queue_callback_task is called upstream
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            lookup_task.request.chain = None
-        else:
-            raise e
+        # Expected chain termination
+        lookup_task.request.chain = None
     else:
         current_app.logger.exception(f'Unhandled exception for notification {notification.id}: {e}')
         raise e

@@ -3,14 +3,13 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
 from app.constants import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
-from app.exceptions import NotificationTechnicalFailureException, NotificationPermanentFailureException
+from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier
 from app import notify_celery
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
 from app.dao import notifications_dao
 from app import mpi_client
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
     MpiRetryableException,
@@ -82,11 +81,8 @@ def lookup_va_profile_id(
             notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
         )
         check_and_queue_callback_task(notification)
-        if is_feature_enabled(FeatureFlag.CLEAR_CELERY_CHAIN):
-            # Expected chain termination
-            self.request.chain = None
-        else:
-            raise NotificationPermanentFailureException(message) from e
+        # Expected chain termination
+        self.request.chain = None
     except Exception as e:
         message = (
             f'Failed to retrieve VA Profile ID from MPI for notification: {notification_id} '
