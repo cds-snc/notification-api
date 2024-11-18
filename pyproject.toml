@@ -1,6 +1,5 @@
 [tool.poetry]
 name = "notification-api"
-version = "1.8.3"
 description = "VA Enterprise Notification Platform"
 authors = [
     "VA Notify <vanotify@va.gov>",
@@ -9,7 +8,7 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.10.13"
+python = "~3.10"
 alembic-utils = "*"
 Authlib = "*"
 boto3 = "*"
@@ -39,7 +38,7 @@ notifications-python-client = "*"
 phonenumbers = "*"
 psycopg2-binary = "*"
 pwnedpasswords = "*"
-PyJWT = "*"
+PyJWT = "~2.9.0"
 pypdf = "*"
 python-dotenv = "*"
 python-magic = "*"

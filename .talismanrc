@@ -22,7 +22,7 @@ fileignoreconfig:
 - filename: lambda_functions/ses_callback/ses_callback_lambda.py
   checksum: b20c36921290a9609f158784e2a3278c36190887e6054ea548004a67675fd79b
 - filename: poetry.lock
-  checksum: 29057b41776a4bda33e4cb80fdba023e4a1a2327f9e9ec5eddbabfe26a13dcf3
+  checksum: 43385fa41efb2fe8e3ed2ea07d70a5cfcce4597a2aa8357d3b9282e577c47c3e
 - filename: scripts/trigger_task.py
   checksum: 0e9d244dbe285de23fc84bb643407963dacf7d25a3358373f01f6272fb217778
 - filename: tests/app/callback/test_webhook_callback_strategy.py
