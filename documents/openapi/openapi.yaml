@@ -1125,7 +1125,7 @@ paths:
                     full_name: John Smith
                     claim_id: '123456'
                   billing_code: string
-                  callback_url: https://www.example.com/callback
+                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   reference: string
                   scheduled_for: string
@@ -1139,7 +1139,7 @@ paths:
                     full_name: John Smith
                     claim_id: '123456'
                   billing_code: string
-                  callback_url: https://www.example.com/callback
+                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
                   email_reply_to_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
                   reference: string
                   scheduled_for: string
@@ -1213,7 +1213,7 @@ paths:
                     full_name: John Smith
                     claim_id: '123456'
                   billing_code: string
-                  callback_url: https://www.example.com/callback
+                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
                   reference: string
                   scheduled_for: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
@@ -1227,7 +1227,7 @@ paths:
                     full_name: John Smith
                     claim_id: '123456'
                   billing_code: string
-                  callback_url: https://www.example.com/callback
+                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
                   reference: string
                   scheduled_for: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
