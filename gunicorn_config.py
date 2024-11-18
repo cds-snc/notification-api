@@ -16,7 +16,12 @@ accesslog = "-"
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
 gunicorn.SERVER = "Undisclosed"
 
-on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in ["production", "staging", "scratch", "dev"]
+on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in [
+    "production",
+    "staging",
+    "scratch",
+    "dev",
+]
 if on_aws:
     # To avoid load balancers reporting errors on shutdown instances, see AWS doc
     # > We also recommend that you configure the idle timeout of your application
@@ -50,6 +55,7 @@ if on_aws:
 # Start timer for total running time
 start_time = time.time()
 
+
 def on_starting(server):
     server.log.info("Starting Notifications API")
 
@@ -64,6 +70,7 @@ def on_exit(server):
     elapsed_time = time.time() - start_time
     server.log.info("Stopping Notifications API")
     server.log.info("Total gunicorn running time: {:.2f} seconds".format(elapsed_time))
+
 
 def worker_int(worker):
     worker.log.info("worker: received SIGINT {}".format(worker.pid))
