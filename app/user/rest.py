@@ -905,8 +905,8 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
         service=service,
         personalisation={
             "name": user.name,
-            "start_year": "2020",
-            "end_year": "2021",
+            "start_year": start_year,
+            "end_year": end_year,
             "data_for_each_service_en": markdown_en,
             "data_for_each_service_fr": markdown_fr,
         },
