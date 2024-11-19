@@ -86,7 +86,7 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
     process_pinpoint_results(pinpoint_successful_callback(reference="ref"))
 
     updated_notification = get_notification_by_id(notification.id)
-    assert mock_callback_task.not_called()
+    mock_callback_task.assert_not_called()
     assert updated_notification.status == NOTIFICATION_SENT
     assert updated_notification.provider_response is None
 
