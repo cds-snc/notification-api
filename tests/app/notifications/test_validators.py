@@ -526,7 +526,7 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit_and_update_rate(service, api_key)
 
-        assert app.redis_store.exceeded_rate_limit.called_with(
+        app.redis_store.exceeded_rate_limit.assert_called_with(
             "{}-{}".format(str(service.id), api_key.key_type), service.rate_limit, 60
         )
         assert e.value.status_code == 429
@@ -545,7 +545,7 @@ def test_that_when_not_exceeded_rate_limit_request_succeeds(notify_db, notify_db
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
 
         check_service_over_api_rate_limit_and_update_rate(service, api_key)
-        assert app.redis_store.exceeded_rate_limit.called_with("{}-{}".format(str(service.id), api_key.key_type), 3000, 60)
+        app.redis_store.exceeded_rate_limit.assert_called_with("{}-{}".format(str(service.id), api_key.key_type), 1000, 60)
 
 
 def test_should_not_rate_limit_if_limiting_is_disabled(notify_db, notify_db_session, mocker):
