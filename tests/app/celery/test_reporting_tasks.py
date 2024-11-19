@@ -630,7 +630,8 @@ class TestSendQuarterEmail:
         send_quarter_email(datetime(2018, 4, 1))
         assert send_mock.call_args(
             sample_user.id,
-            sample_user.email_address,
+            2018,
+            2019,
             markdown_list_en,
             markdown_list_fr,
         )

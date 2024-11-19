@@ -226,6 +226,8 @@ def send_quarter_email(process_date):
     quarters_list = get_all_quarters(process_date)
     chunk_size = 50
     iter_user_service_array = iter(user_service_array)
+    start_year = int(quarters_list[0].split("-")[-1])
+    end_year = start_year + 1
 
     while True:
         chunk = list(islice(iter_user_service_array, chunk_size))
@@ -241,11 +243,11 @@ def send_quarter_email(process_date):
             all_service_ids = list(all_service_ids)
             cummulative_data = fetch_quarter_cummulative_stats(quarters_list, all_service_ids)
             cummulative_data_dict = {str(c_data_id): c_data for c_data_id, c_data in cummulative_data}
-            for user_id, email_address, service_ids in chunk:
+            for user_id, _, service_ids in chunk:
                 markdown_list_en, markdown_list_fr = _create_quarterly_email_markdown_list(
                     service_info, service_ids, cummulative_data_dict
                 )
-                send_annual_usage_data(user_id, email_address, markdown_list_en, markdown_list_fr)
+                send_annual_usage_data(user_id, start_year, end_year, markdown_list_en, markdown_list_fr)
         except Exception as e:
             current_app.logger.error("send_quarter_email task failed for for user {} . Error: {}".format(user_id, e))
             continue
