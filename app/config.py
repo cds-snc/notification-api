@@ -525,6 +525,13 @@ class Config(object):
             ),  # Running this at the end of the day on 1st Jan
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "insert-quarter-data-for-annual-limits-q4": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st April
+            "options": {"queue": QueueNames.PERIODIC},
+        },
         "send-quarterly-email-q1": {
             "task": "send-quarterly-email",
             "schedule": crontab(
