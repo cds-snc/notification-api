@@ -886,3 +886,36 @@ def _update_alert(user_to_update, changes=None):
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
+def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_fr):
+    """
+    We are sending a notification to the user to inform them that their annual usage
+    per service.
+
+    """
+    user = get_user_by_id(user_id=user_id)
+    template = dao_get_template_by_id(current_app.config["ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=user.email_address,
+        service=service,
+        personalisation={
+            "name": user.name,
+            "start_year": start_year,
+            "end_year": end_year,
+            "data_for_each_service_en": markdown_en,
+            "data_for_each_service_fr": markdown_fr,
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
