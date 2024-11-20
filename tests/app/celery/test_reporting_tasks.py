@@ -625,7 +625,7 @@ class TestSendQuarterEmail:
         service_2.users = [sample_user]
         send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
 
-        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25000 (0.0%)\n\n## service_2 \nText messages: you've sent 1100 out of 25000 (4.0%)\n\n"
+        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25,000 (0.0%)\n\n## service_2 \nText messages: you've sent 1 100 out of 25 000 (4.0%)\n\n"
         markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
         send_quarter_email(datetime(2018, 4, 1))
         assert send_mock.call_args(
