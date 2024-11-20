@@ -205,15 +205,14 @@ def _create_quarterly_email_markdown_list(service_info, service_ids, cummulative
 
         markdown_list_en += f"## {service_name} \n"
         markdown_list_fr += f"## {service_name} \n"
-        if email_count:
-            email_percentage = round(float(email_count / email_annual_limit), 4) * 100
-            markdown_list_en += f"Emails: you've sent {email_count} out of {email_annual_limit} ({email_percentage}%)\n"
-            markdown_list_fr += f"Courriels: {email_count} envoyés sur {email_annual_limit} ({email_percentage}%)\n"
 
-        if sms_count:
-            sms_percentage = round(float(sms_count / sms_annual_limit), 4) * 100
-            markdown_list_en += f"Text messages: you've sent {sms_count} out of {sms_annual_limit} ({sms_percentage}%)\n"
-            markdown_list_fr += f"Messages texte : {sms_count} envoyés sur {sms_annual_limit} ({sms_percentage}%)\n"
+        email_percentage = round(float(email_count / email_annual_limit), 4) * 100 if email_count else 0
+        markdown_list_en += f"Emails: you've sent {email_count} out of {email_annual_limit} ({email_percentage}%)\n"
+        markdown_list_fr += f"Courriels: {email_count} envoyés sur {email_annual_limit} ({email_percentage}%)\n"
+
+        sms_percentage = round(float(sms_count / sms_annual_limit), 4) * 100 if sms_count else 0
+        markdown_list_en += f"Text messages: you've sent {sms_count} out of {sms_annual_limit} ({sms_percentage}%)\n"
+        markdown_list_fr += f"Messages texte : {sms_count} envoyés sur {sms_annual_limit} ({sms_percentage}%)\n"
 
         markdown_list_en += "\n"
         markdown_list_fr += "\n"
