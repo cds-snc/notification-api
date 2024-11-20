@@ -6,7 +6,8 @@ import traceback
 import gunicorn  # type: ignore
 import newrelic.agent  # See https://bit.ly/2xBVKBH
 
-newrelic.agent.initialize(environment=os.getenv("NOTIFY_ENVIRONMENT"))  # noqa: E402
+environment = os.environ.get("NOTIFY_ENVIRONMENT")
+newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 workers = 4
 worker_class = "gevent"
@@ -16,7 +17,7 @@ accesslog = "-"
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
 gunicorn.SERVER = "Undisclosed"
 
-on_aws = os.environ.get("NOTIFY_ENVIRONMENT", "") in [
+on_aws = environment in [
     "production",
     "staging",
     "scratch",
