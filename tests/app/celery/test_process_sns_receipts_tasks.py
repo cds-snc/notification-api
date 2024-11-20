@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 import pytest
@@ -6,6 +7,7 @@ from freezegun import freeze_time
 from app import annual_limit_client, statsd_client
 from app.aws.mocks import sns_failed_callback, sns_success_callback
 from app.celery.process_sns_receipts_tasks import process_sns_results
+from app.celery.reporting_tasks import create_nightly_notification_status_for_day
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import (
     NOTIFICATION_DELIVERED,
@@ -297,3 +299,30 @@ class TestAnnualLimit:
             annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
             annual_limit_client.increment_sms_delivered.assert_not_called()
             annual_limit_client.increment_sms_failed.assert_not_called()
+
+
+@freeze_time("2019-04-01T5:30")
+def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
+    sample_template, create_user, create_service, create_template, notify_api, mocker
+):
+    service_ids = []
+    for i in range(39):
+        user = create_user(email=f"test{i}@test.ca", mobile_number=f"{i}234567890")
+        service = create_service(service_id=uuid.uuid4(), service_name=f"service{i}", user=user, email_from=f"best.email{i}")
+        template_sms = create_template(service=service)
+        template_email = create_template(service=service, template_type="email")
+
+        save_notification(create_notification(template_sms, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_sms, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+
+        mapping = {"sms_failed": 1, "sms_delivered": 1, "email_failed": 1, "email_delivered": 1}
+        annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
+        service_ids.append(service.id)
+
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        create_nightly_notification_status_for_day("2019-04-01")
+
+    for service_id in service_ids:
+        assert annual_limit_client.get_all_notification_counts(service_id) is None
