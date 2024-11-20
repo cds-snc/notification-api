@@ -185,10 +185,12 @@ def insert_quarter_data_for_annual_limits(process_day):
                 )
             )
 
+
 def _format_number(number, use_space=False):
     if use_space:
         return "{:,}".format(number).replace(",", " ")
     return "{:,}".format(number)
+
 
 def _create_quarterly_email_markdown_list(service_info, service_ids, cummulative_data_dict):
     """
