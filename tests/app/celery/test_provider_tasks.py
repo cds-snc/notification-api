@@ -4,8 +4,15 @@ from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
+from app.clients.sms import OPT_OUT_MESSAGE
 from app.config import QueueNames
-from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
+from app.constants import (
+    EMAIL_TYPE,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    SMS_TYPE,
+)
 from app.exceptions import (
     NotificationTechnicalFailureException,
     InvalidProviderException,
@@ -440,3 +447,41 @@ def test_deliver_sms_with_rate_limiting_max_retries_exceeded(
     assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
     assert notification.status_reason == RETRIES_EXCEEDED
     mocked_check_and_queue_callback_task.assert_called_once()
+
+
+def test_deliver_sms_opt_out(
+    notify_db_session,
+    mocker,
+    sample_service,
+    sample_sms_sender,
+    sample_template,
+    sample_notification,
+):
+    """
+    An SMS notification sent to a recipient who has opted out of receiving notifications
+    from the given SMS sender should result in permanent failure with a relevant status reason.
+    """
+
+    service = sample_service()
+    sms_sender = sample_sms_sender(service_id=service.id, sms_sender='17045555555')
+    template = sample_template(service=service)
+    notification = sample_notification(
+        template=template,
+        status=NOTIFICATION_CREATED,
+        sms_sender_id=sms_sender.id,
+    )
+    assert notification.notification_type == SMS_TYPE
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.sms_sender_id == sms_sender.id
+    assert notification.status_reason is None
+
+    mock_send_sms_to_provider = mocker.patch(
+        'app.delivery.send_to_providers.send_sms_to_provider',
+        side_effect=NonRetryableException('Destination phone number opted out'),
+    )
+    deliver_sms(notification.id, sms_sender_id=notification.sms_sender_id)
+    mock_send_sms_to_provider.assert_called_once()
+
+    notify_db_session.session.refresh(notification)
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == OPT_OUT_MESSAGE

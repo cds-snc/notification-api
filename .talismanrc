@@ -1,6 +1,8 @@
 fileignoreconfig:
 - filename: README.md
   checksum: b2cbbb8508af49abccae8b35b317f7ce09215f3508430ed31440add78f450e5a
+- filename: tests/README.md
+  checksum: 4de2edc5ca36f266118231611036c7ccc6d9328bcceefafd8ca5ca92021f8aed
 - filename: app/callback/webhook_callback_strategy.py
   checksum: 47846ab651c27512d3ac7864c08cb25d647f63bb84321953f907551fd9d2e85f
 - filename: app/celery/contact_information_tasks.py

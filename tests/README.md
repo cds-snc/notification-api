@@ -1,27 +1,39 @@
-# Running a Subset of Tests Using Containers
+# Running Unit Tests With Containers
 
-You can run specific test directories, files, or individual tests rather than the entire suite as follows.  These instructions assume that you have previously run the docker-compose command to start the local ecosystem and, therefore, that all migrations have been applied to the database and the default container network, ci_default, exists.
+These instructions assume that you have previously run the docker-compose command to start the local ecosystem and, therefore, that all migrations have been applied to the database.  This also ensures that the default container network, ci_default, exists.
 
 ## Setting Environment Variables
 
-The docker-compose command used to run the full test suite sets environment variables.  Step 3 below references the file env_vars for the same purpose.
+The docker-compose command used to run the full test suite sets environment variables.  When running a subset of tests, you must ensure that you set the variables.
 
-## Setup
-There are two options for running ad hoc tests.
+## Running all checks and unit tests
+
+Build and test the "ci_test" Docker image by running this command:
+
+```bash
+docker compose -f ci/docker-compose-test.yml up
+```
+
+**Rebuild ci_test whenever Dockerfile or poetry.lock changes.**
+
+## Running a subset of tests
+
+There are two options for running ad hoc tests.  Step 0 for either option is to stop all running containers other than the database.
+
 ### Option 1
-1. Stop all running containers associated with Notification-api.
-2. Start the Postgres (ci_db_1) container, and any other containers required by the functionality under test: `docker start ci-db-1`.  All migrations should already be applied.
-3. Start a test container shell by running `docker run --rm -it -v "$(pwd):/app" --env-file ci/.local.env --name ci-test --network ci_default test-notification-api bash`.
-4. In the test container shell, run `pytest -h` to see the syntax for running tests.  Without flags, you can run `pytest [file or directory]...`.
+
+1. Start the Postgres (ci_db_1) container, if necessary: `docker start ci-db-1`.  All migrations should already be applied.
+2. Start a test container shell: `docker run --rm -it -v "$(pwd):/app" --env-file ci/.local.env --name ci-test --network ci_default test-notification-api bash`.  Note the use of the environment file.
+3. In the test container shell, run `pytest -h` to see the syntax for running tests.  Without flags, you can run `pytest [file or directory]...`.
 
 ### Option 2
-1. Stop all running containers
+
 2. Edit `scripts/run_tests.sh` by commenting any `pytest` execution and adding `tail -f` to the end of the file
 3. Run `docker compose -f ci/docker-compose-test.yml up`
 4. In a separate window run `docker exec -it ci-test-1 bash`
 5. Execute any command, such as `pytest --durations 10 tests/app/celery`
 
-## Running Individual Tests
+### Example
 
 This is an example of running a specific test in a test file from *within a test container shell*:
 
@@ -33,15 +45,7 @@ $ pytest tests/lambda_functions/va_profile/test_va_profile_integration.py::test_
 
 Running Bash commands on a container with read-write access, such as ci_test, will result in the creation of .bash_history in your notification_api/ directory.  That file is in .gitignore.
 
-## Additional Options
-
-Build and test the "ci_test" Docker image by running this command:
-
-```bash
-docker compose -f ci/docker-compose-test.yml up
-```
-
-**Rebuild ci_test whenever Dockerfile or poetry.lock changes.**
+## Additional examples and information
 
 For a more interactive testing experience, edit `scripts/run_tests.sh` so that it does not execute any pytest command, and place `tail -f` on the final line e.g.
 ```bash

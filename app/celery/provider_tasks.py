@@ -8,6 +8,7 @@ from app.celery.common import (
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
+from app.clients.sms import OPT_OUT_MESSAGE
 from app.config import QueueNames
 from app.constants import NOTIFICATION_TECHNICAL_FAILURE
 from app.dao import notifications_dao
@@ -77,11 +78,17 @@ def deliver_sms(
         raise NotificationTechnicalFailureException from e
     except NonRetryableException as e:
         # Likely an opted out from pinpoint
+
+        if 'opted out' in str(e).lower():
+            status_reason = OPT_OUT_MESSAGE
+        else:
+            status_reason = 'ERROR: NonRetryableException - permanent failure, not retrying'
+
         log_and_update_permanent_failure(
             notification.id,
             'deliver_sms',
             e,
-            'ERROR: NonRetryableException - permanent failure, not retrying',
+            status_reason,
         )
         # Expected chain termination
         self.request.chain = None
