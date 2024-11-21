@@ -248,7 +248,7 @@ class TestAnnualLimit:
             create_nightly_notification_status_for_day("2019-04-01")
 
         for service_id in service_ids:
-            assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
+            assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
 
     @pytest.mark.parametrize(
         "provider_response",
