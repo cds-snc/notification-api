@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -32,8 +33,10 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def mocker_get_rate(

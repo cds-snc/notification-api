@@ -17,9 +17,7 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 
-def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(
-    sample_template, notify_api, mocker
-):
+def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_template, notify_api, mocker):
     """This integration-style test verifies the annual limit seeding and notification counting flows across multiple days, testing the flow between the process_sns_receipts task, which is responsible for seeded and incrementing notification counts in Redis, and the create_nightly_notification_status_for_day task, which is responsible for clearing the counts for the current day in Redis
 
     1. Seed the Redis annual limit keys with notification counts and set the seeded_at key for 25 services

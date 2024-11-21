@@ -239,6 +239,7 @@ def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failu
 ):
     mocker.patch("app.annual_limit_client.increment_sms_delivered")
     mocker.patch("app.annual_limit_client.increment_sms_failed")
+    mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
     notification = save_notification(
         create_notification(
@@ -248,12 +249,12 @@ def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failu
             status=NOTIFICATION_SENT,
             sent_by="sns",
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_sns_results(callback(provider_response, reference="ref") if provider_response else callback(reference="ref"))
-            annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
-            annual_limit_client.increment_sms_failed.assert_not_called()
+    )
+    # TODO FF_ANNUAL_LIMIT removal
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        assert process_sns_results(sns_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
 
 @freeze_time("2019-04-01T5:30")
