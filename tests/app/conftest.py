@@ -2133,9 +2133,11 @@ def sample_sms_sender(notify_db_session):
         rate_limit_interval=None,
         sms_sender_specifics=None,
         archived=None,
+        provider_id=None,
     ):
         data = {
             'service_id': service_id,
+            'provider_id': provider_id,
             'sms_sender': sms_sender or current_app.config['FROM_NUMBER'],
             'is_default': is_default,
             'inbound_number_id': inbound_number_id,

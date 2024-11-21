@@ -12,6 +12,7 @@ from app.schema_validation import validate
 from app.service.exceptions import (
     SmsSenderDefaultValidationException,
     SmsSenderInboundNumberIntegrityException,
+    SmsSenderProviderValidationException,
     SmsSenderRateLimitIntegrityException,
 )
 from app.service.service_senders_schema import (
@@ -35,6 +36,7 @@ service_sms_sender_blueprint.before_request(_validate_service_exists)
 @service_sms_sender_blueprint.errorhandler(SmsSenderRateLimitIntegrityException)
 @service_sms_sender_blueprint.errorhandler(SmsSenderDefaultValidationException)
 @service_sms_sender_blueprint.errorhandler(SmsSenderInboundNumberIntegrityException)
+@service_sms_sender_blueprint.errorhandler(SmsSenderProviderValidationException)
 def handle_errors(error):
     current_app.logger.info(error)
     return jsonify(result='error', message=str(error)), 400

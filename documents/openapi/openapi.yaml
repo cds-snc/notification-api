@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: VA Notify API Documentation
-  version: 1.0.8
+  version: 1.0.9
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -252,7 +252,7 @@ paths:
                   type: string
                 mobile_number:
                   type: string
-                  example: "+19876543210"
+                  example: '+12025551212'
                 auth_type:
                   type: string
                   enum:
@@ -421,11 +421,15 @@ paths:
             schema:
               type: object
               properties:
+                description:
+                  type: string
                 inbound_number_id:
                   $ref: '#/components/schemas/Id'
                 is_default:
                   type: boolean
                   example: false
+                provider_id:
+                  $ref: '#/components/schemas/Id'
                 rate_limit:
                   type: integer
                   minimum: 1
@@ -434,13 +438,16 @@ paths:
                   minimum: 1
                 sms_sender:
                   type: string
+                  example: '+12025551212'
                 sms_sender_specifics:
                   description: Arbitrary JSON relevant to a specific messaging service provider
                   type: object
                   example: '{"messaging_service_sid": "MG0000000000000000000000"}'
               required:
-                - sms_sender
+                - description
                 - is_default
+                - provider_id
+                - sms_sender
       responses:
         '201':
           description: OK
@@ -491,11 +498,15 @@ paths:
             schema:
               type: object
               properties:
+                description:
+                  type: string
                 inbound_number_id:
                   $ref: '#/components/schemas/Id'
                 is_default:
                   type: boolean
                   example: false
+                provider_id:
+                  $ref: '#/components/schemas/Id'
                 rate_limit:
                   type: integer
                   minimum: 1
@@ -1248,7 +1259,7 @@ paths:
                             type: string
                           from_number:
                             type: string
-                            example: "+19876543210"
+                            example: '+12025551212'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1496,7 +1507,7 @@ paths:
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  phone_number: "+19876543210"
+                  phone_number: '+12025551212'
               recipient_identifier:
                 value:
                   reference: string
@@ -1522,7 +1533,7 @@ paths:
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
                   sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6                  
-                  phone_number: "+19876543210"
+                  phone_number: '+12025551212'
                   recipient_identifier:
                     id_type: ICN
                     id_value: 1000000000V000000
@@ -1578,7 +1589,7 @@ paths:
                 value:
                   active: true
                   auth_parameter: "auth-param-name"
-                  number: "+19876543210"
+                  number: '+12025551212'
                   provider: "ExampleProvider"
                   self_managed: true
                   url_endpoint: "http://example.com/api"
@@ -2053,7 +2064,7 @@ components:
         mobile_number:
           type: string
           description: Required if auth_type is sms_auth
-          example: "+19876543210"
+          example: '+12025551212'
         state:
           type: string
         user_permissions:
@@ -2197,7 +2208,7 @@ components:
           type: string
         mobile_number:
           type: string
-          example: "+19876543210"
+          example: '+12025551212'
         name:
           type: string
         organisations:
@@ -2569,7 +2580,7 @@ components:
             - properties:
                 phone_number:
                   type: string
-                  example: "+19876543210"
+                  example: '+12025551212'
               required: [phone_number]
             - properties:
                 recipient_identifier:
@@ -2993,6 +3004,8 @@ components:
           type: boolean
         provider_id:
           $ref: '#/components/schemas/Id'
+        provider_name:
+          type: string
         rate_limit:
           type: integer
         rate_limit_interval:

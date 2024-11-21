@@ -19,36 +19,31 @@ add_service_letter_contact_block_request = {
     'required': ['contact_block', 'is_default'],
 }
 
+service_sms_sender_request_properties = {
+    'description': {'type': 'string'},
+    'inbound_number_id': uuid,
+    'is_default': {'type': 'boolean'},
+    'provider_id': uuid,
+    'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
+    'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
+    'sms_sender': {'type': 'string'},
+    'sms_sender_specifics': {'type': ['object', 'null']},
+}
 
 add_service_sms_sender_request = {
     '$schema': 'http://json-schema.org/draft-04/schema#',
     'description': 'POST add service SMS sender',
     'type': 'object',
     'title': 'Add new SMS sender for service',
-    'properties': {
-        'inbound_number_id': uuid,
-        'is_default': {'type': 'boolean'},
-        'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
-        'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
-        'sms_sender': {'type': 'string'},
-        'sms_sender_specifics': {'type': ['object', 'null']},
-    },
-    'required': ['is_default', 'sms_sender'],
+    'properties': service_sms_sender_request_properties,
+    'required': ['description', 'is_default', 'provider_id', 'sms_sender'],
 }
-
 
 update_service_sms_sender_request = {
     '$schema': 'http://json-schema.org/draft-04/schema#',
     'description': 'POST update service SMS sender',
     'type': 'object',
     'title': 'Update SMS sender for service',
-    'properties': {
-        'inbound_number_id': uuid,
-        'is_default': {'type': 'boolean'},
-        'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
-        'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
-        'sms_sender': {'type': 'string'},
-        'sms_sender_specifics': {'type': ['object', 'null']},
-    },
+    'properties': service_sms_sender_request_properties,
     'minProperties': 1,
 }
