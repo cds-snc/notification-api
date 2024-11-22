@@ -208,7 +208,7 @@
   ],
   "cpu": "2048",
   "pidMode": "task",
-  "memory": "4096",
+  "memory": "8192",
   "tags": [
     {
       "key": "Stack",
