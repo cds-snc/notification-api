@@ -1,28 +1,17 @@
-#!/bin/sh
+#! /bin/sh
 
 set -e
 
-function get_celery_pids {
-  # get the PIDs of the process whose parent is the main celery process, saved in celery.pid
-  # print only pid and their command, get the ones with "celery" in their name
-  # and keep only these PIDs
+grep_string="run_celery.notify_celery\ worker"
+celery_pid_count=$(ps aux | grep -E run_celery.notify_celery\ worker | grep -v grep | wc -l)
 
-  set +o pipefail # so grep returning no matches does not premature fail pipe
-  APP_PIDS=$(pstree -p `cat /tmp/celery.pid` | sed 's/\(.*\)-celery(\(\d*\))/\2/')
-  set -o pipefail # pipefail should be set everywhere else
-}
+CELERY_CONCURRENCY_INT=$(echo "$CELERY_CONCURRENCY" | tr -d '[[:space:]]')
 
-function ensure_celery_is_running {
-  if [ "${APP_PIDS}" = "" ]; then
-    echo "There are no celery processes running, this container is bad"
-    exit 1
-  fi
+TOTAL_CELERY_PIDS=$((CELERY_CONCURRENCY_INT + 1))
 
-  for APP_PID in ${APP_PIDS}; do
-      kill -0 ${APP_PID} 2&>/dev/null || return 1
-  done
-}
-
-get_celery_pids
-
-ensure_celery_is_running
+if [ $celery_pid_count -ne $TOTAL_CELERY_PIDS ]; then
+  echo -e "There are an incorrect number of Celery PIDs: $celery_pid_count"
+  exit 1
+else
+  echo "Celery health check okay"
+fi

@@ -23,6 +23,9 @@
         }
       ],
       "environment": [
+        { "name": "CELERY_CONCURRENCY", 
+          "value": "16"
+        },
         {
           "name": "FLASK_APP",
           "value": "run_celery.py"
@@ -195,7 +198,7 @@
   "requiresCompatibilities": [
     "FARGATE"
   ],
-  "cpu": "1024",
+  "cpu": "2048",
   "pidMode": "task",
   "memory": "4096",
   "tags": [

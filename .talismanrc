@@ -82,5 +82,5 @@ fileignoreconfig:
 - filename: cd/application-deployment/staging/staging.env
   checksum: ce893a6a8405ad66d7b8efa8e1b1991c9ae6bebb245d500e93d148e1142b714d
 - filename: ci/.local.env
-  checksum: 806fc75f59d611f5fd02af9653eaee61db0c920cc49ff70c1aebb92d2aa7a9db
+  checksum: 2c4024d4e94ffa39ff73e6039d65f0b1d19557067ddf6d97ef14aea86cfb58ad
 version: "1.0"
