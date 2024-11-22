@@ -192,6 +192,13 @@ def validate_template(
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
     template_with_content = create_content_for_notification(template, personalisation)
+
+    if template.template_type == SMS_TYPE:
+        # We are trying both metric types to see which one works best for us
+        current_app.statsd_client.gauge('sms.content_length', template_with_content.content_count)
+        # Histogram is a DataDog specific method, which sends a histogram value to statsd.
+        current_app.statsd_client.histogram('sms.content_length.histogram', template_with_content.content_count)
+
     if template.template_type == SMS_TYPE and template_with_content.content_count > SMS_CHAR_COUNT_LIMIT:
         current_app.logger.warning(
             'The personalized message length is %s, which exceeds the 4 segments length of %s.',
