@@ -49,7 +49,7 @@ PyYAML = "6.0.1"
 
 cachelib = "0.12.0"
 SQLAlchemy = "1.4.52"
-newrelic = "9.1.1"
+newrelic = "10.3.0"
 notifications-python-client = "6.4.1"
 python-dotenv = "1.0.1"
 pwnedpasswords = "2.0.0"
@@ -65,7 +65,7 @@ Werkzeug = "3.0.4"
 MarkupSafe = "2.1.5"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.3.6" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.4.0" }
 
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.12.2"

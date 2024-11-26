@@ -10,7 +10,7 @@ from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.errors import InvalidRequest
-from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
+from app.models import EMAIL_AUTH_TYPE, Service, ServiceUser, User, VerifyCode
 from app.utils import escape_special_characters
 
 
@@ -200,3 +200,25 @@ def user_can_be_archived(user):
 def get_archived_email_address(email_address):
     date = datetime.utcnow().strftime("%Y-%m-%d")
     return "_archived_{}_{}".format(date, email_address)
+
+
+def get_services_for_all_users():
+    """
+    Return (user_id, email_address, [service_id1, service_id2]...] for all users
+    where both the user and the service are active.
+
+    """
+    result = (
+        db.session.query(
+            User.id.label("user_id"),
+            User.email_address.label("email_address"),
+            func.array_agg(Service.id).label("service_ids"),
+        )
+        .join(ServiceUser, User.id == ServiceUser.user_id)
+        .join(Service, Service.id == ServiceUser.service_id)
+        .filter(User.state == "active", Service.active.is_(True), Service.restricted.is_(False), Service.research_mode.is_(False))
+        .group_by(User.id, User.email_address)
+        .all()
+    )
+
+    return result
