@@ -254,3 +254,8 @@ JOB_STATUS_TYPES = (
     JOB_STATUS_SENT_TO_DVLA,
     JOB_STATUS_ERROR,
 )
+
+# Status reasons
+RETRYABLE_STATUS_REASON = (
+    'Retryable - Notification is unable to be processed at this time. Replay the request to VA Notify.'
+)

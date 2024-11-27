@@ -47,7 +47,7 @@ def validate_signature_and_body(token, uri, body, signature):
     encoded = urlencode(params).encode()
 
     # Turn byte string into a base64 encoded message
-    msg = base64.b64encode(encoded).decode('utf-8')
+    msg = base64.b64encode(encoded).decode('utf-8')  # noqa: F841 - Util helper. Keeping for understanding
 
     assert signature == new_signature
 
@@ -60,18 +60,19 @@ def generate_twilio_signature_and_body(
     addons: str = '',
     api_version: str = '2010-04-01',
     body: str = '',
+    error_code: str = '',
     from_number: str = '+18888888888',
     from_city: str = 'LOS ANGELES',
     from_country: str = 'US',
     from_state: str = 'CA',
     from_zip: str = '12345',
     message_sid: str = '',
+    message_status: str = 'received',
     message_service_sid: str = '',
     num_media: str = '0',
     num_segments: str = '1',
     sms_message_sid: str = '',
     sms_sid: str = '',
-    sms_status: str = 'received',
     to_number: str = '+12345678901',
     to_city: str = 'PROVIDENCE',
     to_country: str = 'US',
@@ -89,18 +90,20 @@ def generate_twilio_signature_and_body(
             'AddOns': addons or '{"status":"successful","message":null,"code":null,"results":{}}',
             'ApiVersion': api_version,
             'Body': body or f'test body {uuid4()}',
+            'ErrorCode': error_code,
             'From': from_number,
             'FromCity': from_city,
             'FromCountry': from_country,
             'FromState': from_state,
             'FromZip': from_zip,
             'MessageSid': message_sid or msg_sid,
+            'MessageStatus': message_status,
             'MessagingServiceSid': message_service_sid or f'MG{uuid4()}'.replace('-', ''),
             'NumMedia': num_media,
             'NumSegments': num_segments,
             'SmsMessageSid': sms_message_sid or msg_sid,
             'SmsSid': sms_sid or msg_sid,
-            'SmsStatus': sms_status,
+            'SmsStatus': message_status,  # Appears deprecated, used in incoming forwarder though
             'To': to_number,
             'ToCity': to_city,
             'ToCountry': to_country,
@@ -122,12 +125,12 @@ def generate_twilio_signature_and_body(
 if __name__ == '__main__':
     # How to generate a test body and signature
     # To test real events use VEText's token. Ask the Tech Lead or QA. Tokens are not shared with the team.
-    token = '12345678'
-    rv = RequestValidator(token)
+    fake_token = '12345678'  # nosec
+    rv = RequestValidator(fake_token)
 
     uri = 'https://staging-api.va.gov/vanotify/twoway/vettext'
 
-    signature, body = generate_twilio_signature_and_body(token, uri)
+    signature, body = generate_twilio_signature_and_body(fake_token, uri)
     print(f'Body: {body}\n, Signature: {signature}')
 
     ###################################### For Understanding Each Part of the Process ######################################
@@ -148,4 +151,4 @@ if __name__ == '__main__':
     new_signature = rv.compute_signature(uri, params)
     print(new_signature)
 
-    validate_signature_and_body(token, uri, body, signature)
+    validate_signature_and_body(fake_token, uri, body, signature)

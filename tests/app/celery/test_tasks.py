@@ -743,6 +743,7 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     )
 
 
+@pytest.mark.serial
 def test_should_save_sms_template_to_and_persist_with_job_id(
     notify_db_session,
     sample_template,
@@ -758,6 +759,7 @@ def test_should_save_sms_template_to_and_persist_with_job_id(
 
     notification_id = uuid4()
     now = datetime.utcnow()
+    # serial - Fails intermittently
     save_sms(
         job.service.id,
         notification_id,

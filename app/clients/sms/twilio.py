@@ -10,7 +10,7 @@ from twilio.rest.api.v2010.account.message import MessageInstance
 from twilio.base.exceptions import TwilioRestException
 
 from app.celery.exceptions import NonRetryableException
-from app.clients.sms import SmsClient, SmsStatusRecord, UNABLE_TO_TRANSLATE
+from app.clients.sms import SmsClient, SmsStatusRecord, OPT_OUT_MESSAGE, UNABLE_TO_TRANSLATE
 from app.constants import (
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
@@ -18,6 +18,8 @@ from app.constants import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    RETRYABLE_STATUS_REASON,
     TWILIO_PROVIDER,
 )
 from app.exceptions import InvalidProviderException
@@ -50,6 +52,29 @@ def get_twilio_responses(status):
 class TwilioSMSClient(SmsClient):
     RAW_DLR_DONE_DATE_FMT = '%y%m%d%H%M'
 
+    twilio_error_code_map = {
+        '21268': TwilioStatus(21268, NOTIFICATION_PERMANENT_FAILURE, 'Premium numbers are not permitted'),
+        '21408': TwilioStatus(21408, NOTIFICATION_PERMANENT_FAILURE, 'Invalid region specified'),
+        '21610': TwilioStatus(21610, NOTIFICATION_PERMANENT_FAILURE, OPT_OUT_MESSAGE),
+        '21612': TwilioStatus(21612, NOTIFICATION_PERMANENT_FAILURE, 'Invalid to/from combo'),
+        '21614': TwilioStatus(21614, NOTIFICATION_PERMANENT_FAILURE, 'Non-mobile number'),
+        '21635': TwilioStatus(21635, NOTIFICATION_PERMANENT_FAILURE, 'Non-mobile number'),
+        '30001': TwilioStatus(30001, NOTIFICATION_TEMPORARY_FAILURE, 'Queue overflow'),
+        '30002': TwilioStatus(30002, NOTIFICATION_PERMANENT_FAILURE, 'Account suspended'),
+        '30003': TwilioStatus(30003, NOTIFICATION_PERMANENT_FAILURE, 'Unreachable destination handset'),
+        '30004': TwilioStatus(30004, NOTIFICATION_PERMANENT_FAILURE, 'Message blocked'),
+        '30005': TwilioStatus(30005, NOTIFICATION_PERMANENT_FAILURE, 'Unknown destination handset'),
+        '30006': TwilioStatus(30006, NOTIFICATION_PERMANENT_FAILURE, 'Landline or unreachable carrier'),
+        '30007': TwilioStatus(30007, NOTIFICATION_PERMANENT_FAILURE, 'Message filtered'),
+        '30008': TwilioStatus(30008, NOTIFICATION_TECHNICAL_FAILURE, 'Unknown error'),
+        '30009': TwilioStatus(30009, NOTIFICATION_TECHNICAL_FAILURE, 'Missing inbound segment'),
+        '30010': TwilioStatus(30010, NOTIFICATION_TECHNICAL_FAILURE, 'Message price exceeds max price'),
+        '30024': TwilioStatus(30024, NOTIFICATION_TECHNICAL_FAILURE, 'Sender not provisioned by carrier'),
+        '30034': TwilioStatus(30034, NOTIFICATION_PERMANENT_FAILURE, 'Used an unregistered 10DLC Number'),
+        '30500': TwilioStatus(30500, NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_STATUS_REASON),
+        '60005': TwilioStatus(60005, NOTIFICATION_TEMPORARY_FAILURE, 'Carrier error'),
+    }
+
     def __init__(
         self,
         account_sid=None,
@@ -70,20 +95,6 @@ class TwilioSMSClient(SmsClient):
         self._account_sid = account_sid
         self._auth_token = auth_token
         self._client = Client(account_sid, auth_token)
-
-        self.twilio_error_code_map = {
-            '30001': TwilioStatus(30001, NOTIFICATION_TECHNICAL_FAILURE, 'Queue overflow'),
-            '30002': TwilioStatus(30002, NOTIFICATION_PERMANENT_FAILURE, 'Account suspended'),
-            '30003': TwilioStatus(30003, NOTIFICATION_PERMANENT_FAILURE, 'Unreachable destination handset'),
-            '30004': TwilioStatus(30004, NOTIFICATION_PERMANENT_FAILURE, 'Message blocked'),
-            '30005': TwilioStatus(30005, NOTIFICATION_PERMANENT_FAILURE, 'Unknown destination handset'),
-            '30006': TwilioStatus(30006, NOTIFICATION_PERMANENT_FAILURE, 'Landline or unreachable carrier'),
-            '30007': TwilioStatus(30007, NOTIFICATION_PERMANENT_FAILURE, 'Message filtered'),
-            '30008': TwilioStatus(30008, NOTIFICATION_TECHNICAL_FAILURE, 'Unknown error'),
-            '30009': TwilioStatus(30009, NOTIFICATION_TECHNICAL_FAILURE, 'Missing inbound segment'),
-            '30010': TwilioStatus(30010, NOTIFICATION_TECHNICAL_FAILURE, 'Message price exceeds max price'),
-            '30034': TwilioStatus(30034, NOTIFICATION_PERMANENT_FAILURE, 'Used an unregistered 10DLC Number'),
-        }
 
         self.twilio_notify_status_map = {
             'accepted': TwilioStatus(None, NOTIFICATION_SENDING, None),
@@ -378,12 +389,13 @@ class TwilioSMSClient(SmsClient):
                 )
                 notify_delivery_status: TwilioStatus = self.twilio_notify_status_map[twilio_delivery_status]
         else:
-            # Logic not being changed, just want to log this for now
+            # Error codes may be retained for new messages, meaning a "sending" could retain a 30005
             if error_codes:
-                self.logger.warning(
-                    'Error code: %s existed but status for message: %s was not failed nor undelivered',
+                self.logger.info(
+                    'Error code: %s existed but status for message: %s with status: %s',
                     error_codes[0],
                     message_sid,
+                    twilio_delivery_status,
                 )
             notify_delivery_status: TwilioStatus = self.twilio_notify_status_map[twilio_delivery_status]
 

@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl
 from app import twilio_sms_client
 from app.celery.exceptions import NonRetryableException
 from app.clients.sms import SmsStatusRecord
-from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient
+from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient, TwilioStatus
 from app.constants import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -19,7 +19,12 @@ from app.constants import (
     NOTIFICATION_SENT,
 )
 from app.exceptions import InvalidProviderException
+from lambda_functions.vetext_incoming_forwarder_lambda.twilio_signature_utils import generate_twilio_signature_and_body
 from tests.app.db import create_service_sms_sender
+
+
+FAKE_DELIVERY_STATUS_URI = 'https://api.va.gov/sms/deliverystatus'
+FAKE_DELIVERY_STATUS_TOKEN = 'unit_test'
 
 
 class FakeClient:
@@ -173,111 +178,12 @@ MESSAAGE_BODY_WITH_CANCELED_STATUS = {
 }
 
 
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30001 = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJkVycm'
-    '9yQ29kZT0zMDAwMSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZUbz0lMk'
-    'IxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjIyMjIyMiZBcGl'
-    'WZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30002 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJkV'
-    'ycm9yQ29kZT0zMDAwMiZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZU'
-    'bz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjIyM'
-    'jIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30003 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJ'
-    'kVycm9yQ29kZT0zMDAwMyZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZ'
-    'CZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyM'
-    'jIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30004 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJkV'
-    'ycm9yQ29kZT0zMDAwNCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZU'
-    'bz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjIyMj'
-    'IyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30005 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJ'
-    'kVycm9yQ29kZT0zMDAwNSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZC'
-    'ZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjI'
-    'yMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30006 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIx'
-    'JkVycm9yQ29kZT0zMDAwNiZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWx'
-    'lZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMj'
-    'IyMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30007 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJk'
-    'Vycm9yQ29kZT0zMDAwNyZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZ'
-    'Ubz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMj'
-    'IyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30008 = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJk'
-    'Vycm9yQ29kZT0zMDAwOCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZ'
-    'CZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyM'
-    'jIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30009 = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJk'
-    'Vycm9yQ29kZT0zMDAwOSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZ'
-    'Ubz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjI'
-    'yMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
 MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30010 = {
     'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
     'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIx'
     'JkVycm9yQ29kZT0zMDAxMCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWx'
     'lZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjI'
     'yMjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30034 = {
-    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJk'
-    'Vycm9yQ29kZT0zMDAzNCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZCZ'
-    'Ubz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIyMjIy'
-    'MjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
-}
-
-
-MESSAAGE_BODY_WITH_FAILED_STATUS_AND_INVALID_ERROR_CODE = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
-    'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIxJ'
-    'kVycm9yQ29kZT0zMDAxMSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWxlZ'
-    'CZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjIy'
-    'MjIyMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDEiLCAicHJvdmlkZXIiOiAidHdpbGlvIn19XX0=',
 }
 
 
@@ -297,6 +203,21 @@ MESSAGE_BODY_WITH_INVALID_MESSAGE_STATUS = {
     'mFsaWQmVG89JTJCMTExMTExMTExMTEmTWVzc2FnZVNpZD1TTXl5eSZBY2NvdW50U2lkPUFDenp6JkZyb209JT'
     'JCMTIyMjIyMjIyMjImQXBpVmVyc2lvbj0yMDEwLTA0LTAxIiwgInByb3ZpZGVyIjogInR3aWxpbyJ9fV19',
 }
+
+
+@pytest.fixture
+def sample_twilio_delivery_status():
+    """Take a TwilioStatus mapping and generate a body and signature to match."""
+
+    def _wrapper(twilio_status: TwilioStatus):
+        return generate_twilio_signature_and_body(
+            token=FAKE_DELIVERY_STATUS_TOKEN,
+            uri=FAKE_DELIVERY_STATUS_URI,
+            error_code=str(twilio_status.code),
+            message_status='failed',
+        )
+
+    yield _wrapper
 
 
 @pytest.fixture
@@ -376,26 +297,20 @@ def test_notification_mapping(event, twilio_sms_client_mock):
 
 
 @pytest.mark.parametrize(
-    'event',
+    'twilio_status',
     [
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30001,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30002,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30003,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30004,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30005,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30006,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30007,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30008,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30009,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30010,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30034,
-        MESSAAGE_BODY_WITH_FAILED_STATUS_AND_INVALID_ERROR_CODE,
+        *TwilioSMSClient.twilio_error_code_map.values(),
+        TwilioStatus(-1, NOTIFICATION_TECHNICAL_FAILURE, 'Technical error'),
     ],
+    ids=[*TwilioSMSClient.twilio_error_code_map.keys(), 'invalid-error-code'],
 )
-def test_error_code_mapping(event, twilio_sms_client_mock):
-    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(event['message'])
+def test_delivery_status_error_code_mapping(
+    twilio_status: TwilioStatus, twilio_sms_client_mock, sample_twilio_delivery_status
+):
+    _, msg = sample_twilio_delivery_status(twilio_status)
+    translation: SmsStatusRecord = twilio_sms_client_mock.translate_delivery_status(msg)
 
-    assert translation.status == event['twilio_status']
+    assert translation.status == twilio_status.status
     assert translation.status_reason is not None
 
 

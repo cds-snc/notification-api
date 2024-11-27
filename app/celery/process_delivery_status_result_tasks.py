@@ -208,7 +208,7 @@ def sms_status_update(
     last_updated_at = notification.updated_at
 
     current_app.logger.info(
-        'Iniital %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s',
+        'Initial %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s',
         sms_status.provider,
         sms_status.reference,
         notification.id,
