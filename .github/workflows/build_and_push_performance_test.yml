@@ -11,7 +11,7 @@ on:
 
 env:
   GITHUB_SHA: ${{ github.sha }}
-  REGISTRY: ${{ secrets.STAGING_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  REGISTRY: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
   changes:

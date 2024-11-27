@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: ${{ secrets.STAGING_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  REGISTRY: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
   build-push-and-deploy:
