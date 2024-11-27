@@ -503,6 +503,56 @@ class Config(object):
             "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
+        # quarterly queue
+        "insert-quarter-data-for-annual-limits-q1": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=7
+            ),  # Running this at the end of the day on 1st July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q2": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=10
+            ),  # Running this at the end of the day on 1st Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q3": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st Jan
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q4": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st April
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q1": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=7
+            ),  # Running this at the end of the day on 2nd July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q2": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=10
+            ),  # Running this at the end of the day on 2nd Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q3": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=3, month_of_year=1
+            ),  # Running this at the end of the day on 2nd Jan
+            "options": {"queue": QueueNames.PERIODIC},
+        },
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
