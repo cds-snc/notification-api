@@ -256,3 +256,58 @@ def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
         for _, notification_type, status, count in notification_counts
         if status in DELIVERED_STATUSES or status in FAILURE_STATUSES
     }
+
+
+def get_fiscal_year(current_date=None):
+    """
+    Determine the fiscal year for a given date.
+
+    Args:
+        current_date (datetime.date, optional): The date to determine the fiscal year for.
+                                                Defaults to today's date.
+
+    Returns:
+        int: The fiscal year (starting year).
+    """
+    if current_date is None:
+        current_date = datetime.today()
+
+    # Fiscal year starts on April 1st
+    fiscal_year_start_month = 4
+    if current_date.month >= fiscal_year_start_month:
+        return current_date.year
+    else:
+        return current_date.year - 1
+
+
+def get_fiscal_dates(current_date=None, year=None):
+    """
+    Determine the start and end dates of the fiscal year for a given date or year.
+
+    Args:
+        current_date (datetime.date, optional): The date to determine the fiscal year for.
+        year (int, optional): The year to determine the fiscal year for.
+
+    Returns:
+        tuple: A tuple containing the start and end dates of the fiscal year (datetime.date).
+    """
+    if current_date and year:
+        raise ValueError("Only one of current_date or year should be provided.")
+
+    # Fiscal year starts on April 1st
+    fiscal_year_start_month = 4
+    fiscal_year_start_day = 1
+
+    if current_date:
+        if current_date.month >= fiscal_year_start_month:
+            fiscal_year_start = datetime(current_date.year, fiscal_year_start_month, fiscal_year_start_day)
+            fiscal_year_end = datetime(current_date.year + 1, fiscal_year_start_month - 1, 31)  # March 31 of the next year
+        else:
+            fiscal_year_start = datetime(current_date.year - 1, fiscal_year_start_month, fiscal_year_start_day)
+            fiscal_year_end = datetime(current_date.year, fiscal_year_start_month - 1, 31)  # March 31 of the current year
+
+    if year:
+        fiscal_year_start = datetime(year, fiscal_year_start_month, fiscal_year_start_day)
+        fiscal_year_end = datetime(year + 1, fiscal_year_start_month - 1, 31)
+
+    return fiscal_year_start, fiscal_year_end
