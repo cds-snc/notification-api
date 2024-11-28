@@ -54,9 +54,7 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
 
         # Verify that all counts were cleared for all services and the seeded_at fields are set
         for service in services:
-            counts = annual_limit_client.get_all_notification_counts(service.id)
-            assert counts is None or all(value == 0 for value in counts)
-            # assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
+            assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
             assert annual_limit_client.get_annual_limit_status(service.id, "seeded_at") == "2019-04-01"
 
         # Moving onto day 2 - Testing the seeding process

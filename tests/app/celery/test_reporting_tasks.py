@@ -612,8 +612,7 @@ def test_create_nightly_notification_status_for_day_clears_failed_delivered_noti
         create_nightly_notification_status_for_day("2019-04-01")
 
     for service_id in service_ids:
-        counts = annual_limit_client.get_all_notification_counts(service_id)
-        assert counts is None or all(value == 0 for value in counts)
+        assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
 
 
 class TestInsertQuarterData:
