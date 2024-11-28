@@ -45,25 +45,25 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
-      # - name: Push containers to ECR
-      #   run: |
-      #     docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
+      - name: Push containers to ECR
+        run: |
+          docker push $REGISTRY/${{ matrix.image }}:$IMAGE_TAG
 
-      # - name: Generate docker SBOM
-      #   uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
-      #   env:
-      #     TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
-      #   with:
-      #     docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}"
-      #     dockerfile_path: "ci/Dockerfile.lambda"
-      #     sbom_name: "notification-api-lambda"
-      #     token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Generate docker SBOM
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
+        env:
+          TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
+        with:
+          docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}"
+          dockerfile_path: "ci/Dockerfile.lambda"
+          sbom_name: "notification-api-lambda"
+          token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # - name: Logout of Amazon ECR
-      #   run: docker logout ${{ steps.login-ecr.outputs.registry }}
+      - name: Logout of Amazon ECR
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
 
-      # - name: Notify Slack channel if this job failed
-      #   if: ${{ failure() }}
-      #   run: |
-      #     json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
-      #     curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+      - name: Notify Slack channel if this job failed
+        if: ${{ failure() }}
+        run: |
+          json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
+          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
