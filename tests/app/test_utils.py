@@ -172,6 +172,7 @@ def test_get_delivery_queue_for_template(sample_service, template_type, process_
 def test_get_fiscal_year(current_date, expected_fiscal_year):
     assert get_fiscal_year(current_date) == expected_fiscal_year
 
+
 @freeze_time("2024-11-28")
 @pytest.mark.parametrize(
     "current_date, year, expected_start, expected_end",
