@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  REGISTRY: ${{ secrets.PRODUCTION_API_LAMBDA_ECR_ACCOUNT }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  REGISTRY: ${{ secrets.PRODUCTION_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
 
 jobs:
   build-and-push:
@@ -25,8 +25,8 @@ jobs:
         id: aws-creds
         uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
         with:
-          aws-access-key-id: ${{ secrets.PRODUCTION_ECR_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.PRODUCTION_ECR_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ secrets.PRODUCTION_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.PRODUCTION_AWS_SECRET_ACCESS_KEY }}
           aws-region: ca-central-1
 
       - name: Set Docker image tag
