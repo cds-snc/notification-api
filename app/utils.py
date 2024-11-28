@@ -283,6 +283,7 @@ def get_fiscal_year(current_date=None):
 def get_fiscal_dates(current_date=None, year=None):
     """
     Determine the start and end dates of the fiscal year for a given date or year.
+    If no parameters are passed into the method, the fiscal year for the current date will be determined.
 
     Args:
         current_date (datetime.date, optional): The date to determine the fiscal year for.
@@ -293,6 +294,9 @@ def get_fiscal_dates(current_date=None, year=None):
     """
     if current_date and year:
         raise ValueError("Only one of current_date or year should be provided.")
+
+    if not current_date and not year:
+        current_date = datetime.today()
 
     # Fiscal year starts on April 1st
     fiscal_year_start_month = 4
