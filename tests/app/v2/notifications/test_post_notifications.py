@@ -482,6 +482,57 @@ class TestPostNotificationsErrors:
 
         assert not save_mock.called
 
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to, expected_error_message",
+        [
+            ("sms", "phone_number", "6502532222", "Exceeded annual SMS sending limit of 1 messages"),
+            ("email", "email_address", "sample@email.com", "Exceeded annual email sending limit of 1 messages"),
+        ],
+    )
+    def test_post_notification_returns_429_when_annual_limit_exceeded(
+        self,
+        notify_db,
+        notify_db_session,
+        notify_api,
+        client,
+        sample_service,
+        mocker,
+        notification_type,
+        key_send_to,
+        send_to,
+        expected_error_message,
+    ):
+        sample_service.sms_annual_limit = 1
+        sample_service.email_annual_limit = 1
+        template = create_template(service=sample_service, template_type=notification_type)
+        save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
+        mocker.patch("app.v2.notifications.post_notifications.check_rate_limiting")
+
+        data = {key_send_to: send_to, "template_id": str(template.id)}
+
+        auth_header = create_authorization_header(service_id=template.service_id)
+
+        # Success
+        create_sample_notification(
+            notify_db,
+            notify_db_session,
+            template=template,
+            service=sample_service,
+            created_at=datetime.utcnow(),
+        )
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            response = client.post(
+                path="/v2/notifications/{}".format(notification_type),
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+        message = json.loads(response.data)["errors"][0]["message"]
+        status_code = json.loads(response.data)["status_code"]
+        assert status_code == 429
+        assert message == expected_error_message
+
+        assert not save_mock.called
+
     def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
         self,
         client,
@@ -2641,6 +2692,46 @@ class TestBatchPriorityLanes:
             assert mock_redisQueue_EMAIL_NORMAL.called
         elif process_type == "priority":
             assert mock_redisQueue_EMAIL_PRIORITY.called
+
+
+@pytest.mark.parametrize(
+    "template_type, expected_msg",
+    [
+        ("email", "You only have 1 remaining messages before you reach your annual limit. You've tried to send 4 messages."),
+        (
+            "sms",
+            "You only have 1 remaining sms messages before you reach your annual limit. You've tried to send 4 sms messages.",
+        ),
+    ],
+)
+@pytest.mark.parametrize("data_type", ["rows", "csv"])
+def test_post_bulk_validates_annual_limit(
+    notify_api, notify_db, notify_db_session, client, template_type, data_type, expected_msg, mocker
+):
+    service = create_service(email_annual_limit=1, sms_annual_limit=1)
+    template = create_template(service=service, template_type=template_type)
+    data = {
+        "name": "job_name",
+        "template_id": template.id,
+    }
+    to_heading = "email address" if template_type == "email" else "phone number"
+    to = service.created_by.email_address if template_type == "email" else "6502532222"
+    rows = [[to_heading], *[to for _ in range(4)]]
+    if data_type == "csv":
+        data["csv"] = rows_to_csv(rows)
+    else:
+        data["rows"] = rows
+
+    auth_header = create_authorization_header(service_id=template.service.id)
+
+    response = client.post(
+        path="/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert response.status_code == 400
+    assert resp_json["errors"][0]["message"] == expected_msg
 
 
 class TestSeedingBounceRateData:

@@ -45,6 +45,7 @@ from tests.app.conftest import (
     create_sample_template_without_sms_permission,
 )
 from tests.app.db import create_reply_to_email, create_service
+from tests.conftest import set_config
 
 
 @pytest.mark.parametrize("template_type", [SMS_TYPE, EMAIL_TYPE])
@@ -382,6 +383,74 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
             assert response_data["subject"] == "Email Subject"
             assert response_data["body"] == sample_email_template.content
             assert response_data["template_version"] == sample_email_template.version
+
+
+@pytest.mark.parametrize(
+    "create_template_func, payload, expected_error_message, annual_limit",
+    [
+        (
+            create_sample_email_template,
+            {"to": "ok@ok.com", "template": ""},
+            "Exceeded annual email sending limit of 1 messages",
+            1,
+        ),
+        (
+            create_sample_template,
+            {"to": "+16502532222", "template": "", "valid": "True"},
+            "Exceeded annual SMS sending limit of 1 messages",
+            1,
+        ),
+        (create_sample_email_template, {"to": "ok@ok.com", "template": ""}, None, 2),
+        (create_sample_template, {"to": "+16502532222", "template": "", "valid": "True"}, None, 2),
+    ],
+)
+@pytest.mark.parametrize("is_trial", [True, False])
+def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
+    notify_db,
+    notify_db_session,
+    notify_api,
+    mocker,
+    is_trial,
+    create_template_func,
+    payload,
+    expected_error_message,
+    annual_limit,
+):
+    with notify_api.test_request_context(), set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with notify_api.test_client() as client:
+            service = create_sample_service(
+                notify_db, notify_db_session, sms_annual_limit=annual_limit, email_annual_limit=annual_limit, restricted=is_trial
+            )
+            template = create_template_func(notify_db, notify_db_session, service=service)
+            payload["template"] = str(template.id)
+            payload["to"] = (
+                template.service.created_by.email_address if is_trial and template.template_type == EMAIL_TYPE else payload["to"]
+            )
+
+            mocker.patch("app.notifications.validators.check_service_over_api_rate_limit_and_update_rate")
+            mocker.patch(f"app.celery.provider_tasks.deliver_{template.template_type}.apply_async")
+
+            create_sample_notification(
+                notify_db,
+                notify_db_session,
+                template=template,
+                service=service,
+                created_at=datetime.utcnow(),
+            )
+
+            auth_header = create_authorization_header(service_id=service.id)
+            response = client.post(
+                path=f"/notifications/{template.template_type}",
+                data=json.dumps(payload),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            message = json.loads(response.get_data(as_text=True))
+
+            if expected_error_message:  # Allowed to send
+                assert response.status_code == 429
+                assert message["message"] == expected_error_message
+            else:  # Not allowed to send
+                assert response.status_code == 201
 
 
 @freeze_time("2016-01-01 12:00:00.061258")
