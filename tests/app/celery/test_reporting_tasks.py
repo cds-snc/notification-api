@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -12,15 +13,19 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
+from app import annual_limit_client
 from app.celery.reporting_tasks import (
     create_nightly_billing,
     create_nightly_billing_for_day,
     create_nightly_notification_status,
     create_nightly_notification_status_for_day,
     insert_quarter_data_for_annual_limits,
+    send_quarter_email,
 )
 from app.dao.fact_billing_dao import get_rate
 from app.models import (
@@ -584,6 +589,33 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(
     assert noti_status[0].notification_status == "created"
 
 
+@freeze_time("2019-04-01T5:30")
+def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
+    sample_template, notify_api, mocker
+):
+    service_ids = []
+    for i in range(39):
+        user = create_user(email=f"test{i}@test.ca", mobile_number=f"{i}234567890")
+        service = create_service(service_id=uuid.uuid4(), service_name=f"service{i}", user=user, email_from=f"best.email{i}")
+        template_sms = create_template(service=service)
+        template_email = create_template(service=service, template_type="email")
+
+        save_notification(create_notification(template_sms, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_sms, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+
+        mapping = {"sms_failed": 1, "sms_delivered": 1, "email_failed": 1, "email_delivered": 1}
+        annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
+        service_ids.append(service.id)
+
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        create_nightly_notification_status_for_day("2019-04-01")
+
+    for service_id in service_ids:
+        assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
+
+
 class TestInsertQuarterData:
     def test_insert_quarter_data(self, notify_db_session):
         service_1 = create_service(service_name="service_1")
@@ -605,3 +637,32 @@ class TestInsertQuarterData:
         # Data for Q1 2018
         insert_quarter_data_for_annual_limits(datetime(2018, 7, 1))
         assert AnnualLimitsData.query.filter_by(service_id=service_1.id, time_period="Q1-2018").first().notification_count == 10
+
+
+class TestSendQuarterEmail:
+    def test_send_quarter_email(self, sample_user, mocker, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 5, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
+        create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
+
+        # Data for Q4 2017
+        insert_quarter_data_for_annual_limits(datetime(2018, 4, 1))
+
+        service_1.users = [sample_user]
+        service_2.users = [sample_user]
+        send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
+
+        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25,000 (0.0%)\n\n## service_2 \nText messages: you've sent 1 100 out of 25 000 (4.0%)\n\n"
+        markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
+        send_quarter_email(datetime(2018, 4, 1))
+        assert send_mock.call_args(
+            sample_user.id,
+            2018,
+            2019,
+            markdown_list_en,
+            markdown_list_fr,
+        )

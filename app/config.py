@@ -336,6 +336,13 @@ class Config(object):
     NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
+
+    # Templates for annual limits
+    REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
+    ANNUAL_LIMIT_UPDATED_TEMPLATE_ID = "8381fdc3-95ad-4219-b07c-93aa808b67fa"
+    NEAR_ANNUAL_LIMIT_TEMPLATE_ID = "1a7a1f01-7fd0-43e5-93a4-982e25a78816"
+    ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID = "f66a1025-17f5-471c-a7ab-37d6b9e9d304"
+
     APIKEY_REVOKE_TEMPLATE_ID = "a0a4e7b8-8a6a-4eaa-9f4e-9c3a5b2dbcf3"
     HEARTBEAT_TEMPLATE_EMAIL_LOW = "73079cb9-c169-44ea-8cf4-8d397711cc9d"
     HEARTBEAT_TEMPLATE_EMAIL_MEDIUM = "c75c4539-3014-4c4c-96b5-94d326758a74"
@@ -494,6 +501,56 @@ class Config(object):
         "remove_sms_email_jobs": {
             "task": "remove_sms_email_jobs",
             "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        # quarterly queue
+        "insert-quarter-data-for-annual-limits-q1": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=7
+            ),  # Running this at the end of the day on 1st July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q2": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=10
+            ),  # Running this at the end of the day on 1st Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q3": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st Jan
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q4": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st April
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q1": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=7
+            ),  # Running this at the end of the day on 2nd July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q2": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=10
+            ),  # Running this at the end of the day on 2nd Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q3": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=3, month_of_year=1
+            ),  # Running this at the end of the day on 2nd Jan
             "options": {"queue": QueueNames.PERIODIC},
         },
     }

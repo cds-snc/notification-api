@@ -14,6 +14,7 @@ from app.dao.users_dao import (
     dao_archive_user,
     delete_codes_older_created_more_than_a_day_ago,
     delete_model_user,
+    get_services_for_all_users,
     get_user_by_email,
     get_user_by_id,
     increment_failed_login_count,
@@ -324,3 +325,29 @@ def test_check_password_for_blocked_user(notify_api, notify_db, notify_db_sessio
 def test_check_password_for_allowed_user(notify_api, notify_db, notify_db_session, sample_user):
     allowed_user = create_user(email="allowed@test.com", blocked=False)
     assert allowed_user.check_password("password")
+
+
+class TestGetServicesAllUsers:
+    def test_get_services_for_all_users(self, sample_user, fake_uuid, notify_db_session):
+        sample_user.current_session_id = fake_uuid
+
+        service_1 = create_service(service_name="Service 1")
+        service_1_user = create_user(email="1@test.com")
+        service_1.users = [sample_user, service_1_user]
+
+        service_2 = create_service(service_name="Service 2")
+        service_2_user = create_user(email="2@test.com")
+        service_2.users = [sample_user, service_2_user]
+
+        results = get_services_for_all_users()
+        assert len(results) == 3
+        for user_id, email_address, services in results:
+            if user_id == sample_user.id:
+                assert email_address == sample_user.email_address
+                assert set(services) == set([service_1.id, service_2.id])
+            if user_id == service_1_user.id:
+                assert email_address == service_1_user.email_address
+                assert services == [service_1.id]
+            if user_id == service_2_user.id:
+                assert email_address == service_2_user.email_address
+                assert services == [service_2.id]
