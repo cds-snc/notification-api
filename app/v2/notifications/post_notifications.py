@@ -230,8 +230,8 @@ def post_bulk():
             raise BadRequestError(message=message)
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        check_email_daily_limit(authenticated_service, notification_count_requested)
         check_email_annual_limit(authenticated_service, notification_count_requested)
+        check_email_daily_limit(authenticated_service, notification_count_requested)
         scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
 
         if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
@@ -257,8 +257,8 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or notification_count_requested == numberOfSimulated
 
         if not is_test_notification:
-            check_sms_daily_limit(authenticated_service, len(recipient_csv))
             check_sms_annual_limit(authenticated_service, len(recipient_csv))
+            check_sms_daily_limit(authenticated_service, len(recipient_csv))
             increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
@@ -311,8 +311,8 @@ def post_notification(notification_type: NotificationType):
     )
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
-        check_email_daily_limit(authenticated_service, 1)  # 1 email
         check_email_annual_limit(authenticated_service, 1)
+        check_email_daily_limit(authenticated_service, 1)  # 1 email
 
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
