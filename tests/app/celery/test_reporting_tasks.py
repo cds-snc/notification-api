@@ -1,3 +1,4 @@
+import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -5,6 +6,7 @@ import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
+from app import annual_limit_client
 from app.celery.reporting_tasks import (
     create_nightly_billing,
     create_nightly_billing_for_day,
@@ -31,8 +33,10 @@ from tests.app.db import (
     create_rate,
     create_service,
     create_template,
+    create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def mocker_get_rate(
@@ -583,6 +587,33 @@ def test_create_nightly_notification_status_for_day_respects_local_timezone(
 
     assert noti_status[0].bst_date == date(2019, 4, 1)
     assert noti_status[0].notification_status == "created"
+
+
+@freeze_time("2019-04-01T5:30")
+def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
+    sample_template, notify_api, mocker
+):
+    service_ids = []
+    for i in range(39):
+        user = create_user(email=f"test{i}@test.ca", mobile_number=f"{i}234567890")
+        service = create_service(service_id=uuid.uuid4(), service_name=f"service{i}", user=user, email_from=f"best.email{i}")
+        template_sms = create_template(service=service)
+        template_email = create_template(service=service, template_type="email")
+
+        save_notification(create_notification(template_sms, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="delivered", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_sms, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+        save_notification(create_notification(template_email, status="failed", created_at=datetime(2019, 4, 1, 5, 0)))
+
+        mapping = {"sms_failed": 1, "sms_delivered": 1, "email_failed": 1, "email_delivered": 1}
+        annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
+        service_ids.append(service.id)
+
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        create_nightly_notification_status_for_day("2019-04-01")
+
+    for service_id in service_ids:
+        assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
 
 
 class TestInsertQuarterData:
