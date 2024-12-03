@@ -5,8 +5,7 @@
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
 	"remoteEnv": {
-		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}", // give our installed Python modules precedence
-		"NODE_OPTIONS": "--max_old_space_size=8192"
+		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
 	"customizations": {
 		"vscode": {
@@ -18,9 +17,7 @@
 				"python.linting.enabled": true,
 				"python.linting.pylintEnabled": true,
 				"python.linting.pylintPath": "/usr/local/bin/pylint",
-				"python.pythonPath": "/usr/local/bin/python",
-				"ruff.configurationPreference": "filesystemFirst",
-				"python.analysis.nodeExecutable": "/usr/local/share/nvm/versions/node/v22.11.0/bin/node"
+				"python.pythonPath": "/usr/local/bin/python"
 			},
 			"extensions": [
 				"bungcip.better-toml",
