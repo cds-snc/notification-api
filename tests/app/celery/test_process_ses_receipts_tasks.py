@@ -111,7 +111,13 @@ def test_ses_callback_should_call_send_delivery_status_to_service(
 
     encrypted_data = create_delivery_status_callback_data(updated_notification, service_callback)
     send_mock.assert_called_once_with(
-        [service_callback.id, str(notification.id), encrypted_data], queue='service-callbacks'
+        args=(),
+        kwargs={
+            'service_callback_id': service_callback.id,
+            'notification_id': str(notification.id),
+            'encrypted_status_update': encrypted_data,
+        },
+        queue='service-callbacks',
     )
 
 

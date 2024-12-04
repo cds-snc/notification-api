@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
@@ -141,6 +142,8 @@ def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipie
     recipient_item = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '123'}
 
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
+    notification_id = uuid4()
+    mocker.patch('app.integrations.comp_and_pen.scheduled_message_helpers.uuid4', return_value=notification_id)
 
     service: Service = sample_service()
     template = sample_template()
@@ -169,6 +172,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_calls_send_notification_with_recipie
         sms_sender_id=sms_sender_id,
         recipient=None,
         recipient_item=recipient_item,
+        notification_id=notification_id,
     )
 
 
@@ -198,6 +202,8 @@ def test_ut_send_scheduled_comp_and_pen_sms_formatted_amount_correctly(
     ]
 
     recipient_item = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '123'}
+    notification_id = uuid4()
+    mocker.patch('app.integrations.comp_and_pen.scheduled_message_helpers.uuid4', return_value=notification_id)
 
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
 
@@ -226,6 +232,7 @@ def test_ut_send_scheduled_comp_and_pen_sms_formatted_amount_correctly(
         sms_sender_id=sms_sender_id,
         recipient=None,
         recipient_item=recipient_item,
+        notification_id=notification_id,
     )
 
 
@@ -248,6 +255,8 @@ def test_ut_send_scheduled_comp_and_pen_sms_payment_amount_key_does_not_exist(
     recipient_item = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': '123'}
 
     mocker.patch('app.celery.scheduled_tasks.is_feature_enabled', return_value=True)
+    notification_id = uuid4()
+    mocker.patch('app.integrations.comp_and_pen.scheduled_message_helpers.uuid4', return_value=notification_id)
 
     service = sample_service()
     template = sample_template()
@@ -274,4 +283,5 @@ def test_ut_send_scheduled_comp_and_pen_sms_payment_amount_key_does_not_exist(
         sms_sender_id=sms_sender_id,
         recipient=None,
         recipient_item=recipient_item,
+        notification_id=notification_id,
     )

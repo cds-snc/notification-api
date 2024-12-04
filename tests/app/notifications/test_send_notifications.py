@@ -129,6 +129,7 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
         recipient_identifier=None,
         sms_sender_id=default_sms_sender,
         reply_to_text=sender_number,
+        notification_id=None,
     )
 
     # Assert that the notification was queued correctly
@@ -182,6 +183,7 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
         recipient_identifier=recipient_item,
         sms_sender_id='test_sms_sender',
         reply_to_text=sender_number,
+        notification_id=None,
     )
 
     # Assert that the notification was queued correctly, with expected params
@@ -233,6 +235,7 @@ def test_send_notification_bypass_route_email_with_recipient(
         recipient_identifier=None,
         sms_sender_id=None,
         reply_to_text=send_number,
+        notification_id=None,
     )
 
     # Assert the notification was queued correctly, with expected params
@@ -284,6 +287,7 @@ def test_send_notification_bypass_route_email_with_recipient_item(
         recipient_identifier=recipient_item,
         sms_sender_id=None,
         reply_to_text=reply_to,
+        notification_id=None,
     )
 
     # Assert that the notification was queued correctly, with the expected params

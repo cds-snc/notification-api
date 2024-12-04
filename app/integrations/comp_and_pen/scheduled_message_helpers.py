@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import boto3
 from boto3.dynamodb.conditions import Attr
 from flask import current_app
@@ -179,6 +181,7 @@ class CompPenMsgHelper:
                     sms_sender_id=sms_sender_id,
                     recipient=recipient,
                     recipient_item=recipient_item,
+                    notification_id=uuid4(),
                 )
             except Exception as e:
                 current_app.logger.critical(

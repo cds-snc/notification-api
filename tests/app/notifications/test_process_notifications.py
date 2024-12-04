@@ -380,8 +380,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):
         assert called_task.name == expected_task.name
-        called_task_notification_arg = args[0].args[0]
-        assert called_task_notification_arg == str(notification.id)
+        assert args[0].kwargs.get('notification_id') == str(notification.id)
 
 
 @pytest.mark.parametrize(
@@ -588,7 +587,7 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
 
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
-        assert called_task.args[0] == str(notification.id)
+        assert called_task.kwargs.get('notification_id') == str(notification.id)
         assert called_task.options['queue'] == expected_task
 
 

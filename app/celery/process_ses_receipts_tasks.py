@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 import iso8601
 from app.celery.common import log_notification_total_time
@@ -333,6 +334,7 @@ def process_ses_smtp_results(
                     created_at=headers['date'],
                     status=notification_status,
                     reference=ses_message['mail']['messageId'],
+                    notification_id=uuid4(),
                 )
 
                 if notification_type == 'Complaint':

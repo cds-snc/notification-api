@@ -146,8 +146,8 @@ def test_post_sms_notification_uses_inbound_number_as_sender(
         select(Notification).where(Notification.service_id == template.service_id)
     ).all()
     assert len(notifications) == 1
-    notification_id = notifications[0].id
-    assert resp_json['id'] == str(notification_id)
+    notification_id = str(notifications[0].id)
+    assert resp_json['id'] == notification_id
     # These two should be the same
     assert resp_json['content']['from_number'] == sms_sender.sms_sender  # Our number
     assert notifications[0].reply_to_text == sms_sender.sms_sender  # Our number
@@ -156,7 +156,7 @@ def test_post_sms_notification_uses_inbound_number_as_sender(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == str(notification_id)
+        assert args[0].kwargs.get('notification_id') == notification_id
 
 
 def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
@@ -180,8 +180,8 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
     assert validate(resp_json, post_sms_response) == resp_json
     stmt = select(Notification).where(Notification.service_id == template.service_id)
     notification = notify_db_session.session.scalars(stmt).one()
-    notification_id = notification.id
-    assert resp_json['id'] == str(notification_id)
+    notification_id = str(notification.id)
+    assert resp_json['id'] == notification_id
     assert resp_json['content']['from_number'] == service_number
     assert notification.reply_to_text == service_number
 
@@ -189,7 +189,7 @@ def test_post_sms_notification_uses_inbound_number_reply_to_as_sender(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == str(notification_id)
+        assert called_task.kwargs.get('notification_id') == notification_id
 
 
 @pytest.mark.parametrize('sms_sender_id', [None, 'user provided'])
@@ -253,7 +253,7 @@ def test_post_sms_notification_returns_201_with_sms_sender_id(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == resp_json['id']
+        assert called_task.kwargs.get('notification_id') == resp_json['id']
 
 
 def test_post_sms_notification_uses_sms_sender_id_reply_to(
@@ -289,7 +289,7 @@ def test_post_sms_notification_uses_sms_sender_id_reply_to(
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == resp_json['id']
+        assert called_task.kwargs.get('notification_id') == resp_json['id']
 
 
 def test_notification_reply_to_text_is_original_value_if_sender_is_changed_after_post_notification(
@@ -634,7 +634,7 @@ def test_send_notification_uses_email_or_sms_queue_when_template_is_marked_as_pr
 
     response = post_send_notification(client, sample_api_key(service=template.service), notification_type, data)
 
-    notification_id = json.loads(response.data)['id']
+    notification_id = str(json.loads(response.data)['id'])
 
     assert response.status_code == 201
 
@@ -643,7 +643,7 @@ def test_send_notification_uses_email_or_sms_queue_when_template_is_marked_as_pr
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, [f'send-{notification_type}-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == str(notification_id)
+        assert called_task.kwargs.get('notification_id') == notification_id
 
 
 @pytest.mark.parametrize(

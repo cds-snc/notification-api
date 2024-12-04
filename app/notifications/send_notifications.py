@@ -60,6 +60,7 @@ def send_notification_bypass_route(
     sms_sender_id: str = None,
     recipient_item: dict = None,
     api_key_type: str = KEY_TYPE_NORMAL,
+    notification_id: UUID | None = None,
 ):
     """
     This will create a notification and add it to the proper celery queue using the given parameters.
@@ -118,6 +119,7 @@ def send_notification_bypass_route(
         recipient_identifier=recipient_item,
         sms_sender_id=sms_sender_id,
         reply_to_text=reply_to_text,
+        notification_id=notification_id,
     )
 
     if recipient_item is not None:

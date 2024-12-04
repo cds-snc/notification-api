@@ -102,13 +102,20 @@ def test_send_notification_to_service_users_sends_to_active_users_only(
     mocker.patch('app.service.sender.send_notification_to_queue')
 
     # User and service setup
-    first_active_user = sample_user()
-    second_active_user = sample_user()
+    total_users = 12
+    first_active_user: User = sample_user()
+    second_active_user: User = sample_user()
     pending_user = sample_user(state='pending')
     service = sample_service(user=first_active_user)
     dao_add_user_to_service(service, second_active_user)
+    # add more users
+    extra_user_emails = []
+    for _ in range(total_users - 2):
+        extra_user: User = sample_user()
+        extra_user_emails.append(extra_user.email_address)
+        dao_add_user_to_service(service, extra_user)
     dao_add_user_to_service(service, pending_user)
-    email_addresses = [first_active_user.email_address, second_active_user.email_address]
+    email_addresses = [first_active_user.email_address, second_active_user.email_address, *extra_user_emails]
 
     # Sending the notifications
     template = sample_template(service=service, template_type=EMAIL_TYPE)
@@ -125,7 +132,7 @@ def test_send_notification_to_service_users_sends_to_active_users_only(
     notifications = notify_db_session.session.scalars(stmt).all()
     notifications_recipients = [notification.to for notification in notifications]
 
-    assert len(notifications) == 2
+    assert len(notifications) == total_users
     assert pending_user.email_address not in notifications_recipients
-    assert first_active_user.email_address in notifications_recipients
-    assert second_active_user.email_address in notifications_recipients
+    for user_email in email_addresses:
+        assert user_email in notifications_recipients

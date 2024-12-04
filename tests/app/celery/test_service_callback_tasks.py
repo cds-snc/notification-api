@@ -334,7 +334,13 @@ def test_check_and_queue_callback_task_queues_task_if_service_callback_api_exist
 
     mock_create_callback_data.assert_called_once_with(mock_notification, mock_service_callback_api, {})
     mock_send_delivery_status.assert_called_once_with(
-        [mock_service_callback_api.id, str(mock_notification.id), mock_notification_data], queue=QueueNames.CALLBACKS
+        args=(),
+        kwargs={
+            'service_callback_id': mock_service_callback_api.id,
+            'notification_id': str(mock_notification.id),
+            'encrypted_status_update': mock_notification_data,
+        },
+        queue=QueueNames.CALLBACKS,
     )
 
 
@@ -602,7 +608,13 @@ def test_check_and_queue_notification_callback_task_queues_task_with_proper_data
     check_and_queue_notification_callback_task(notification)
 
     mock_delivery_status_from_notification.assert_called_once_with(
-        [callback_signature_value, test_url, notification_data],
+        args=(),
+        kwargs={
+            'callback_signature': callback_signature_value,
+            'callback_url': test_url,
+            'notification_data': notification_data,
+            'notification_id': str(notification.id),
+        },
         queue=QueueNames.CALLBACKS,
     )
 
@@ -610,10 +622,11 @@ def test_check_and_queue_notification_callback_task_queues_task_with_proper_data
 def test_send_delivery_status_from_notification_posts_https_request_to_service(rmock):
     callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
     callback_url = 'https://test_url.com/'
+    notification_id = str(uuid.uuid4())
     notification_data = {'callback_url': callback_url}
 
     rmock.post(callback_url, json=notification_data, status_code=200)
-    send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
+    send_delivery_status_from_notification(callback_signature, callback_url, notification_data, notification_id)
 
     assert rmock.call_count == 1
     assert rmock.request_history[0].url == callback_url
@@ -626,19 +639,21 @@ def test_send_delivery_status_from_notification_posts_https_request_to_service(r
 def test_send_delivery_status_from_notification_raises_auto_retry_exception(rmock, status_code):
     callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
     callback_url = 'https://test_url.com/'
+    notification_id = str(uuid.uuid4())
     notification_data = {'callback_url': callback_url}
 
     rmock.post(callback_url, json=notification_data, status_code=status_code)
     with pytest.raises(AutoRetryException):
-        send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
+        send_delivery_status_from_notification(callback_signature, callback_url, notification_data, notification_id)
 
 
 @pytest.mark.parametrize('status_code', [400, 403, 404])
 def test_send_delivery_status_from_notification_raises_non_retryable_exception(rmock, status_code):
     callback_signature = '6842b32e800372de4079e20d6e7e753bad182e44f7f3e19a46fd8509889a0014'
     callback_url = 'https://test_url.com/'
+    notification_id = str(uuid.uuid4())
     notification_data = {'callback_url': callback_url}
 
     rmock.post(callback_url, json=notification_data, status_code=status_code)
     with pytest.raises(NonRetryableException):
-        send_delivery_status_from_notification(callback_signature, callback_url, notification_data)
+        send_delivery_status_from_notification(callback_signature, callback_url, notification_data, notification_id)

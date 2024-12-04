@@ -405,8 +405,6 @@ def test_should_send_email_to_anyone_with_test_key(
     limit,
 ):
     mocked = mocker.patch('app.celery.provider_tasks.deliver_email.apply_async')
-    mocked_uuid = str(uuid4())
-    mocker.patch('app.notifications.process_notifications.uuid.uuid4', return_value=mocked_uuid)
 
     template = sample_template(template_type=EMAIL_TYPE)
     api_key = sample_api_key(service=template.service, key_type=KEY_TYPE_TEST)
@@ -427,8 +425,7 @@ def test_should_send_email_to_anyone_with_test_key(
     mocked.assert_called_once()
 
     result_notification_id, result_queue = mocked.call_args
-    result_id, *rest = result_notification_id[0]
-    assert result_id == mocked_uuid
+    assert result_notification_id[1].get('notification_id') is not None
     assert result_queue['queue'] == 'notify-internal-tasks'
 
     # Teardown

@@ -140,7 +140,7 @@ class VAProfileClient:
             self.statsd_client.incr('clients.va-profile.get-telephone.failure')
             self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
             raise NoContactInfoException(
-                f'No {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")}'
+                f'No {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
                 f'with AuditId {contact_info.get(self.TX_AUDIT_ID)}'
             )
 

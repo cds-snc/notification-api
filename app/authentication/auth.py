@@ -1,5 +1,6 @@
 import functools
 from typing import Callable
+from uuid import uuid4
 
 from flask import request, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, current_user
@@ -165,6 +166,8 @@ def requires_admin_auth():
 
 
 def validate_service_api_key_auth():  # noqa: C901
+    # Set the id here for tracking purposes - becomes notification id
+    g.request_id = str(uuid4())
     request_helper.check_proxy_header_before_request()
 
     auth_token = get_auth_token(request)

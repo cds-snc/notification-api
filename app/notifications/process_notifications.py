@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from flask import current_app
+from flask import current_app, g
 from celery import chain
 
 from notifications_utils.clients import redis
@@ -92,7 +92,9 @@ def persist_notification(
     notification_created_at = created_at or datetime.utcnow()
 
     if notification_id is None:
-        notification_id = uuid.uuid4()
+        # utils sets this so we can unify logging
+        # Any internal code that calls this method in a loop cannot use g (Example: send_notification_to_service_users)
+        notification_id = g.request_id if getattr(g, 'request_id', '') else uuid.uuid4()
 
     notification = Notification(
         id=notification_id,
@@ -170,12 +172,14 @@ def send_notification_to_queue(
 
         if communication_item_id is not None:
             if recipient_id_type != IdentifierType.VA_PROFILE_ID.value:
-                tasks.append(lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID))
+                tasks.append(
+                    lookup_va_profile_id.si(notification_id=notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID)
+                )
 
     # Including sms_sender_id is necessary so the correct sender can be chosen.
     # https://docs.celeryq.dev/en/v4.4.7/userguide/canvas.html#immutability
     deliver_task, queue = _get_delivery_task(notification, research_mode, queue, sms_sender_id)
-    tasks.append(deliver_task.si(str(notification.id), sms_sender_id).set(queue=queue))
+    tasks.append(deliver_task.si(notification_id=str(notification.id), sms_sender_id=sms_sender_id).set(queue=queue))
 
     try:
         # This executes the task list.  Each task calls a function that makes a request to
@@ -261,15 +265,15 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
 
     else:
         tasks = [
-            lookup_va_profile_id.si(notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
+            lookup_va_profile_id.si(notification_id=notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
             send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled).set(
                 queue=QueueNames.NOTIFY
             ),
         ]
 
-    tasks.append(lookup_contact_info.si(notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
+    tasks.append(lookup_contact_info.si(notification_id=notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
     deliver_task, deliver_queue = _get_delivery_task(notification)
-    tasks.append(deliver_task.si(notification.id).set(queue=deliver_queue))
+    tasks.append(deliver_task.si(notification_id=notification.id).set(queue=deliver_queue))
 
     try:
         # This executes the task list.  Each task calls a function that makes a request to

@@ -290,7 +290,15 @@ def test_timeout_notifications_sends_status_update_to_service(
     notify_db_session.session.refresh(notification)
     encrypted_data = create_delivery_status_callback_data(notification, callback_api)
 
-    mocked.assert_called_with([callback_id, str(notification.id), encrypted_data], queue=QueueNames.CALLBACKS)
+    mocked.assert_called_with(
+        args=(),
+        kwargs={
+            'service_callback_id': callback_id,
+            'notification_id': str(notification.id),
+            'encrypted_status_update': encrypted_data,
+        },
+        queue=QueueNames.CALLBACKS,
+    )
 
 
 def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mocker):

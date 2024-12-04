@@ -132,7 +132,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(mocker, sample
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, ['send-sms-tasks']):
         assert called_task.options['queue'] == expected_task
-        assert called_task.args[0] == str(message_to_deliver.id)
+        assert called_task.kwargs.get('notification_id') == str(message_to_deliver.id)
 
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
@@ -321,11 +321,11 @@ def test_replay_created_notifications(
     )
 
     replay_created_notifications()
-    (result_notification_id, _), result_queue = mocked.call_args.args
-    assert result_notification_id == str(old_notification.id)
 
-    assert mocked.call_args.kwargs['queue'] == f'send-{notification_type}-tasks'
     mocked.assert_called_once()
+    args, kwargs = mocked.call_args
+    assert args[1] == {'notification_id': str(old_notification.id), 'sms_sender_id': None}
+    assert kwargs['queue'] == f'send-{notification_type}-tasks'
 
 
 @pytest.mark.serial

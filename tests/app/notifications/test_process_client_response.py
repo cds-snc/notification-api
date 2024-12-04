@@ -65,7 +65,15 @@ def test_outcome_statistics_called_for_successful_callback(
     assert success == 'MMG callback succeeded. reference {} updated'.format(str(reference))
     assert error is None
     encrypted_data = create_delivery_status_callback_data(notification, callback_api)
-    send_mock.assert_called_once_with([callback_id, str(notification.id), encrypted_data], queue='service-callbacks')
+    send_mock.assert_called_once_with(
+        args=(),
+        kwargs={
+            'service_callback_id': callback_id,
+            'notification_id': str(notification.id),
+            'encrypted_status_update': encrypted_data,
+        },
+        queue='service-callbacks',
+    )
 
 
 def test_sms_resonse_does_not_call_send_callback_if_no_db_entry(

@@ -495,7 +495,11 @@ def test_should_send_template_to_correct_sms_task_and_persist(
     assert persisted_notification.personalisation == {'name': 'Jo'}
     assert persisted_notification._personalisation == encryption.encrypt({'name': 'Jo'})
     assert persisted_notification.notification_type == SMS_TYPE
-    mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue='send-sms-tasks')
+    mocked_deliver_sms.assert_called_once_with(
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='send-sms-tasks',
+    )
 
 
 def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_service(
@@ -520,7 +524,9 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='notify-internal-tasks'
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='notify-internal-tasks',
     )
     assert mocked_deliver_sms.called
 
@@ -565,7 +571,9 @@ def test_should_save_sms_if_restricted_service_and_valid_number(
     assert not persisted_notification.personalisation
     assert persisted_notification.notification_type == SMS_TYPE
     provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='send-sms-tasks'
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='send-sms-tasks',
     )
 
 
@@ -600,7 +608,11 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
     notification2 = notify_db_session.session.get(Notification, notification_id)
     assert notification2 is not None
 
-    deliver_sms.assert_called_once_with([str(notification_id)], queue='send-sms-tasks')
+    deliver_sms.assert_called_once_with(
+        args=(),
+        kwargs={'notification_id': str(notification_id)},
+        queue='send-sms-tasks',
+    )
 
 
 def test_save_email_should_save_default_email_reply_to_text_on_notification(
@@ -739,7 +751,11 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='notify-internal-tasks'
+        args=(),
+        kwargs={
+            'notification_id': str(persisted_notification.id),
+        },
+        queue='notify-internal-tasks',
     )
 
 
@@ -778,9 +794,10 @@ def test_should_save_sms_template_to_and_persist_with_job_id(
     assert persisted_notification.api_key_id is None
     assert persisted_notification.key_type == KEY_TYPE_NORMAL
     assert persisted_notification.notification_type == SMS_TYPE
-
     provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='send-sms-tasks'
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='send-sms-tasks',
     )
 
 
@@ -857,10 +874,11 @@ def test_should_use_email_template_and_persist(
     assert persisted_notification.notification_type == EMAIL_TYPE
 
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='send-email-tasks'
+        args=(), kwargs={'notification_id': str(persisted_notification.id)}, queue='send-email-tasks'
     )
 
 
+@pytest.mark.serial
 def test_save_email_should_use_template_version_from_job_not_latest(
     notify_db_session,
     sample_template,
@@ -884,6 +902,7 @@ def test_save_email_should_use_template_version_from_job_not_latest(
 
     notification_id = uuid4()
 
+    # Intermittently makes the status 'technical-failure'
     save_email(
         template.service_id,
         notification_id,
@@ -901,7 +920,9 @@ def test_save_email_should_use_template_version_from_job_not_latest(
     assert not persisted_notification.sent_by
     assert persisted_notification.notification_type == EMAIL_TYPE
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='send-email-tasks'
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='send-email-tasks',
     )
 
 
@@ -939,7 +960,11 @@ def test_should_use_email_template_subject_placeholders(
     assert persisted_notification.personalisation == {'name': 'Jo'}
     assert not persisted_notification.reference
     assert persisted_notification.notification_type == EMAIL_TYPE
-    provider_tasks.deliver_email.apply_async.assert_called_once_with([str(notification_id)], queue='send-email-tasks')
+    provider_tasks.deliver_email.apply_async.assert_called_once_with(
+        args=(),
+        kwargs={'notification_id': str(notification_id)},
+        queue='send-email-tasks',
+    )
 
 
 def test_save_email_uses_the_reply_to_text_when_provided(
@@ -1033,7 +1058,9 @@ def test_should_use_email_template_and_persist_without_personalisation(
     assert not persisted_notification.reference
     assert persisted_notification.notification_type == EMAIL_TYPE
     provider_tasks.deliver_email.apply_async.assert_called_once_with(
-        [str(persisted_notification.id)], queue='send-email-tasks'
+        args=(),
+        kwargs={'notification_id': str(persisted_notification.id)},
+        queue='send-email-tasks',
     )
 
 
