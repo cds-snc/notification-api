@@ -446,10 +446,10 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
             )
             message = json.loads(response.get_data(as_text=True))
 
-            if expected_error_message:  # Allowed to send
+            if expected_error_message:
                 assert response.status_code == 429
                 assert message["message"] == expected_error_message
-            else:  # Not allowed to send
+            else:
                 assert response.status_code == 201
 
 

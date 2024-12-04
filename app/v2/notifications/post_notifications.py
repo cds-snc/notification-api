@@ -204,16 +204,28 @@ def post_bulk():
         else:
             file_data = form["csv"]
 
-        recipient_csv = RecipientCSV(
-            file_data,
-            template_type=template.template_type,
-            placeholders=template._as_utils_template().placeholders,
-            max_rows=max_rows,
-            safelist=safelisted_members(authenticated_service, api_user.key_type),
-            remaining_daily_messages=remaining_daily_messages,
-            remaining_annual_messages=remaining_annual_messages,
-            template=Template(template.__dict__),
-        )
+        if current_app.config["FF_ANNUAL_LIMIT"]:
+            recipient_csv = RecipientCSV(
+                file_data,
+                template_type=template.template_type,
+                placeholders=template._as_utils_template().placeholders,
+                max_rows=max_rows,
+                safelist=safelisted_members(authenticated_service, api_user.key_type),
+                remaining_messages=remaining_daily_messages,
+                remaining_daily_messages=remaining_daily_messages,
+                remaining_annual_messages=remaining_annual_messages,
+                template=Template(template.__dict__),
+            )
+        else:  # TODO FF_ANNUAL_LIMIT REMOVAL - Remove this block
+            recipient_csv = RecipientCSV(
+                file_data,
+                template_type=template.template_type,
+                placeholders=template._as_utils_template().placeholders,
+                max_rows=max_rows,
+                safelist=safelisted_members(authenticated_service, api_user.key_type),
+                remaining_messages=remaining_daily_messages,
+                template=Template(template.__dict__),
+            )
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 

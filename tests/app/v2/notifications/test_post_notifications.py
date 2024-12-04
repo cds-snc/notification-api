@@ -512,26 +512,27 @@ class TestPostNotificationsErrors:
 
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        # Success
-        create_sample_notification(
-            notify_db,
-            notify_db_session,
-            template=template,
-            service=sample_service,
-            created_at=datetime.utcnow(),
-        )
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            response = client.post(
-                path="/v2/notifications/{}".format(notification_type),
-                data=json.dumps(data),
-                headers=[("Content-Type", "application/json"), auth_header],
+            # Success
+            create_sample_notification(
+                notify_db,
+                notify_db_session,
+                template=template,
+                service=sample_service,
+                created_at=datetime.utcnow(),
             )
-        message = json.loads(response.data)["errors"][0]["message"]
-        status_code = json.loads(response.data)["status_code"]
-        assert status_code == 429
-        assert message == expected_error_message
+            with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+                response = client.post(
+                    path="/v2/notifications/{}".format(notification_type),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                )
+            message = json.loads(response.data)["errors"][0]["message"]
+            status_code = json.loads(response.data)["status_code"]
+            assert status_code == 429
+            assert message == expected_error_message
 
-        assert not save_mock.called
+            assert not save_mock.called
 
     def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
         self,
@@ -2355,7 +2356,7 @@ class TestBulkSend:
             }
         ]
 
-    def test_post_bulk_flags_not_enough_remaining_messages(self, client, notify_db, notify_db_session, mocker):
+    def test_post_bulk_flags_not_enough_remaining_messages(self, client, notify_api, notify_db, notify_db_session, mocker):
         service = create_service(message_limit=10)
         template = create_sample_template(notify_db, notify_db_session, service=service, template_type="email")
         messages_count_mock = mocker.patch(
@@ -2367,21 +2368,23 @@ class TestBulkSend:
             "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
         }
 
-        response = client.post(
-            "/v2/notifications/bulk",
-            data=json.dumps(data),
-            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-        )
+        # TODO: FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            response = client.post(
+                "/v2/notifications/bulk",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+            )
 
-        assert response.status_code == 400
-        error_json = json.loads(response.get_data(as_text=True))
-        assert error_json["errors"] == [
-            {
-                "error": "BadRequestError",
-                "message": "You only have 1 remaining messages before you reach your daily limit. You've tried to send 2 messages.",
-            }
-        ]
-        messages_count_mock.assert_called_once()
+            assert response.status_code == 400
+            error_json = json.loads(response.get_data(as_text=True))
+            assert error_json["errors"] == [
+                {
+                    "error": "BadRequestError",
+                    "message": "You only have 1 remaining messages before you reach your daily limit. You've tried to send 2 messages.",
+                }
+            ]
+            messages_count_mock.assert_called_once()
 
     def test_post_bulk_flags_not_enough_remaining_sms_messages(self, notify_api, client, notify_db, notify_db_session, mocker):
         service = create_service(sms_daily_limit=10, message_limit=100)
@@ -2396,21 +2399,23 @@ class TestBulkSend:
             "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"]]),
         }
 
-        response = client.post(
-            "/v2/notifications/bulk",
-            data=json.dumps(data),
-            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
-        )
+        # TODO: FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            response = client.post(
+                "/v2/notifications/bulk",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=template.service_id)],
+            )
 
-        assert response.status_code == 400
-        error_json = json.loads(response.get_data(as_text=True))
-        assert error_json["errors"] == [
-            {
-                "error": "BadRequestError",
-                "message": "You only have 1 remaining sms messages before you reach your daily limit. You've tried to send 2 sms messages.",
-            }
-        ]
-        messages_count_mock.assert_called_once()
+            assert response.status_code == 400
+            error_json = json.loads(response.get_data(as_text=True))
+            assert error_json["errors"] == [
+                {
+                    "error": "BadRequestError",
+                    "message": "You only have 1 remaining sms messages before you reach your daily limit. You've tried to send 2 sms messages.",
+                }
+            ]
+            messages_count_mock.assert_called_once()
 
     @pytest.mark.parametrize("data_type", ["rows", "csv"])
     def test_post_bulk_flags_rows_with_errors(self, client, notify_db, notify_db_session, data_type):
@@ -2695,6 +2700,67 @@ class TestBatchPriorityLanes:
 
 
 @pytest.mark.parametrize(
+    "template_type, payload, expected_error_message, annual_limit",
+    [
+        (
+            "email",
+            {"to": "ok@ok.com", "valid": "True"},
+            "Exceeded annual email sending limit of 2 messages",
+            2,
+        ),
+        (
+            "sms",
+            {"to": "+16502532222", "valid": "True"},
+            "Exceeded annual SMS sending limit of 2 messages",
+            2,
+        ),
+    ],
+)
+@pytest.mark.parametrize("restricted", [True, False])
+def test_API_one_off_sends_blocks_sends_when_over_annual_limit_allows_if_under_limit(
+    notify_api,
+    client,
+    notify_db,
+    notify_db_session,
+    mocker,
+    template_type,
+    payload,
+    restricted,
+    expected_error_message,
+    annual_limit,
+):
+    # test setup
+    mocker.patch("app.sms_normal_publish.publish")
+    mocker.patch("app.service.send_notification.send_notification_to_queue")
+    mocker.patch("app.notifications.validators.service_can_send_to_recipient")
+
+    def __send_notification():
+        with set_config_values(notify_api, {"REDIS_ENABLED": True, "FF_ANNUAL_LIMIT": True}):
+            token = create_jwt_token(
+                current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
+            )
+            response = client.post(
+                f"/service/{template.service_id}/send-notification",
+                json=payload,
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        return response
+
+    service = create_service(sms_annual_limit=annual_limit, restricted=restricted, email_annual_limit=annual_limit)
+    template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type=template_type)
+    payload["template_id"] = template.id
+    payload["created_by"] = service.users[0].id
+
+    for x in range(annual_limit - 1):
+        create_sample_notification(notify_db, notify_db_session, to_field=payload["to"], template=template, service=service)
+
+    assert __send_notification().status_code == 201  # Ensure send is allowed while under the limit
+    response = __send_notification()  # Attempt to go over
+    assert response.status_code == 429  # Ensure send is blocked
+    assert json.loads(response.get_data(as_text=True))["message"] == expected_error_message
+
+
+@pytest.mark.parametrize(
     "template_type, expected_msg",
     [
         ("email", "You only have 1 remaining messages before you reach your annual limit. You've tried to send 4 messages."),
@@ -2724,14 +2790,15 @@ def test_post_bulk_validates_annual_limit(
 
     auth_header = create_authorization_header(service_id=template.service.id)
 
-    response = client.post(
-        path="/v2/notifications/bulk",
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    resp_json = json.loads(response.get_data(as_text=True))
-    assert response.status_code == 400
-    assert resp_json["errors"][0]["message"] == expected_msg
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        response = client.post(
+            path="/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert response.status_code == 400
+        assert resp_json["errors"][0]["message"] == expected_msg
 
 
 class TestSeedingBounceRateData:
