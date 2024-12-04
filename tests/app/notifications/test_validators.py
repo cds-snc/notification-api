@@ -756,7 +756,7 @@ class TestAnnualLimitValidators:
         mocker.patch(
             "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
         )  # Email sent flag checks
-
+        mocker.patch("app.notifications.validators.send_notification_to_service_users")
         is_near = (counts_from_redis + ft_count + notifications_requested) >= (annual_limit * 0.8)
         is_reached = (counts_from_redis + ft_count + notifications_requested) == annual_limit
 
@@ -851,7 +851,7 @@ class TestAnnualLimitValidators:
         mocker.patch(
             "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
         )  # Email sent flag checks
-
+        mocker.patch("app.notifications.validators.send_notification_to_service_users")
         is_near = (counts_from_redis + ft_count + notifications_requested) >= (annual_limit * 0.8)
         is_reached = (counts_from_redis + ft_count + notifications_requested) == annual_limit
 
