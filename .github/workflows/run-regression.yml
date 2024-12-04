@@ -22,7 +22,7 @@ on:
 jobs:
   trigger-regression-tests:
     name: "Run regression for ${{ inputs.environment }}"
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     environment: ${{ inputs.environment }}
     steps:
     - uses: actions/checkout@v4

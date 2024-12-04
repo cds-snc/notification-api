@@ -12,7 +12,7 @@ on:
         default: container_tag
 jobs:
   run-downgrade:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     steps:
       - uses: actions/checkout@v4
 

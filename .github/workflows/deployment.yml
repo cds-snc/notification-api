@@ -14,7 +14,7 @@ on:
 
 jobs:
   run-migrations:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,7 +58,7 @@ jobs:
           bash ./scripts/run_ci_migrations.sh -c ${{ inputs.environment }}-notification-cluster -e ${{ inputs.environment }} -t ${{ steps.register.outputs.arn }}
 
   deploy-api:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     needs: [run-migrations]
     steps:
       - uses: actions/checkout@v4
@@ -102,7 +102,7 @@ jobs:
           wait-for-service-stability: true
 
   deploy-celery:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     needs: [run-migrations]
     steps:
       - uses: actions/checkout@v4
@@ -146,7 +146,7 @@ jobs:
           wait-for-service-stability: true
 
   deploy-celery-beat:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     needs: [run-migrations]
     steps:
       - uses: actions/checkout@v4

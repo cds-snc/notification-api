@@ -29,7 +29,7 @@ env:
 jobs:
   # All of the lambda functions use layers for dependencies, if any.  Bundling dependencies should not be necessary.
   build-and-deploy-lambda-functions:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     defaults:
       run:
         working-directory: "./lambda_functions"

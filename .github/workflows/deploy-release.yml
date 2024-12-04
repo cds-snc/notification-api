@@ -48,7 +48,7 @@ env:
 jobs:
   setup-environment:
     name: 'setup-env'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -70,7 +70,7 @@ jobs:
 
   upload-env-file:
     needs: [setup-environment]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4

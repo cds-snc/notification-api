@@ -39,7 +39,7 @@ on:
 jobs:
   setup-environment:
     name: "setup-env-${{ inputs.environment }}"
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     outputs:
       git-hash: ${{ steps.set-hash.outputs.commit-hash }}
     steps:
@@ -61,7 +61,7 @@ jobs:
 
   build-push-artifacts:
     needs: [setup-environment]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
