@@ -599,19 +599,43 @@ def test_send_sms_twilio_callback(
         assert response_dict['sid'] == twilio_sid
 
 
-def test_send_sms_raises_invalid_provider_error_with_invalid_twilio_number(
+@pytest.mark.parametrize(
+    (
+        'response_dict',
+        'exception',
+    ),
+    (
+        (
+            {
+                'code': 21606,
+                'message': "The 'From' phone number provided (+61412345678) is not a valid message-capable Twilio phone number for this destination",
+            },
+            InvalidProviderException,
+        ),
+        (
+            {
+                'code': 21617,
+                'message': 'Unable to create record: The concatenated message body exceeds the 1600 character limit',
+            },
+            NonRetryableException,
+        ),
+    ),
+    ids=(
+        'invalid-from-number',
+        'message-too-long',
+    ),
+)
+def test_send_sms_raises_non_retryable_exception_with_invalid_request(
     notify_api,
     mocker,
+    response_dict,
+    exception,
 ):
     to = '+61412345678'
     content = 'my message'
     reference = 'my reference'
-    response_dict = {
-        'code': 21606,
-        'message': "The 'From' phone number provided (+61412345678) is not a valid message-capable Twilio phone number for this destination",
-    }
 
-    with pytest.raises(InvalidProviderException):
+    with pytest.raises(exception):
         with requests_mock.Mocker() as r_mock:
             r_mock.post(
                 f'https://api.twilio.com/2010-04-01/Accounts/{twilio_sms_client._account_sid}/Messages.json',
