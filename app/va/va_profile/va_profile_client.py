@@ -367,9 +367,10 @@ class VAProfileClient:
         url = f'{self.va_profile_url}/contact-information-vanotify/notify/status'
 
         self.logger.debug(
-            'Sending notification status to VA Profile with url: %s | notification: %s',
+            'Sending notification status to VA Profile with url: %s | notification_id: %s | notification_status: %s',
             url,
             notification_data.get('id'),
+            notification_data.get('status'),
         )
 
         # make POST request to VA Profile endpoint for notification statuses
@@ -390,8 +391,9 @@ class VAProfileClient:
             raise
 
         self.logger.info(
-            'VA Profile response when receiving status of notification %s | status code: %s | json: %s',
+            'VA Profile response when receiving status of notification_id: %s | notification_status: %s | status code: %s | json: %s',
             notification_data.get('id'),
+            notification_data.get('status'),
             response.status_code,
             response.json(),
         )
