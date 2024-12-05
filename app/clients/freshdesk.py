@@ -49,6 +49,8 @@ class Freshdesk(object):
                     f"- Purpose: {self.contact.main_use_case}",
                     f"- Notification types: {self.contact.notification_types}",
                     f"- Expected monthly volume: {self.contact.expected_volume}",
+                    f"- Expected email volumes: Daily {self.contact.daily_email_volume} {f'({self.contact.how_many_more_email})' if self.contact.how_many_more_email else ''} / Yearly {self.contact.annual_email_volume}",
+                    f"- Expected SMS volumes: Daily {self.contact.daily_sms_volume} {f'({self.contact.how_many_more_sms})' if self.contact.how_many_more_sms else ''} / Yearly {self.contact.annual_sms_volume}",
                     "---",
                     self.contact.service_url,
                 ]

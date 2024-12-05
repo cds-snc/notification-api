@@ -79,6 +79,8 @@ class TestSendTicket:
                 "- Purpose: main_use_case<br>"
                 "- Notification types: email, sms<br>"
                 "- Expected monthly volume: 100k+<br>"
+                "- Expected email volumes: Daily more_email (100001) / Yearly within_limit"
+                "- Expected SMS volumes: Daily 0 / Yearly 0"
                 "---<br>"
                 "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "email": "test@email.com",
@@ -89,6 +91,7 @@ class TestSendTicket:
 
             encoded_auth = base64.b64encode(b"freshdesk-api-key:x").decode("ascii")
             json_matches = request.json() == expected
+            print(expected, request.json())
             basic_auth_header = request.headers.get("Authorization") == f"Basic {encoded_auth}"
 
             return json_matches and basic_auth_header
@@ -113,6 +116,12 @@ class TestSendTicket:
                 "service_url": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "notification_types": "email, sms",
                 "expected_volume": "100k+",
+                "daily_email_volume": "more_email",
+                "annual_email_volume": "within-limit",
+                "daily_sms_volume": "0",
+                "annual_sms_volume": "0",
+                "how_many_more_email": 100001,
+                "how_many_more_sms": None,
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
