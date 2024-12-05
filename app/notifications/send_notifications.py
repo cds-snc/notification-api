@@ -1,3 +1,4 @@
+from time import monotonic
 from uuid import UUID
 
 from flask import current_app
@@ -107,6 +108,7 @@ def send_notification_bypass_route(
     if notification_type == SMS_TYPE and sms_sender_id is None:
         sms_sender_id = service.get_default_sms_sender_id()
 
+    start_time = monotonic()
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -121,6 +123,7 @@ def send_notification_bypass_route(
         reply_to_text=reply_to_text,
         notification_id=notification_id,
     )
+    current_app.logger.info('persist_notification took: %s seconds', monotonic() - start_time)
 
     if recipient_item is not None:
         current_app.logger.info(
@@ -130,6 +133,7 @@ def send_notification_bypass_route(
             notification.id,
         )
 
+        start_time = monotonic()
         send_to_queue_for_recipient_info_based_on_recipient_identifier(
             notification=notification,
             id_type=recipient_item['id_type'],
@@ -137,7 +141,7 @@ def send_notification_bypass_route(
             communication_item_id=template.communication_item_id,
             onsite_enabled=False,
         )
-
+        current_app.logger.info('send_to_queue_for_recipient took: %s seconds', monotonic() - start_time)
     else:
         current_app.logger.info(
             'sending %s notification with send_notification_bypass_route via send_notification_to_queue, '
@@ -149,7 +153,5 @@ def send_notification_bypass_route(
         send_notification_to_queue(
             notification=notification,
             research_mode=False,
-            queue=None,
-            recipient_id_type=recipient_item.get('id_type') if recipient_item else None,
             sms_sender_id=sms_sender_id,
         )

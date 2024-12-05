@@ -1,3 +1,4 @@
+from time import monotonic
 from uuid import uuid4
 
 import boto3
@@ -34,12 +35,14 @@ class CompPenMsgHelper:
         Raises:
             ClientError: if it has trouble connectingto the dynamodb
         """
+        start_time = monotonic()
         if dynamodb_table_name is None:
             dynamodb_table_name = self.dynamodb_table_name
 
         # connect to dynamodb table
         dynamodb_resource = boto3.resource('dynamodb')
         self.dynamodb_table = dynamodb_resource.Table(dynamodb_table_name)
+        current_app.logger.info('dynamodb connection took: %s seconds', monotonic() - start_time)
 
     def get_dynamodb_comp_pen_messages(
         self,
@@ -58,6 +61,7 @@ class CompPenMsgHelper:
         https://boto3.amazonaws.com/v1/documentation/api/latest/guide/dynamodb.html#querying-and-scanning
         """
 
+        start_time = monotonic()
         if self.dynamodb_table is None:
             self._connect_to_dynamodb()
 
@@ -86,7 +90,7 @@ class CompPenMsgHelper:
             )
 
             items.extend(results['Items'])
-
+        current_app.logger.info('get_dynamodb_comp_pen_messages took: %s seconds', monotonic() - start_time)
         return items[:message_limit]
 
     def remove_dynamo_item_is_processed(self, comp_and_pen_messages: list) -> None:
@@ -101,6 +105,7 @@ class CompPenMsgHelper:
             Exception: If an error occurs during the update of any item in the DynamoDB table, the exception is logged
                     with critical severity, and then re-raised.
         """
+        start_time = monotonic()
         if self.dynamodb_table is None:
             self._connect_to_dynamodb()
 
@@ -117,11 +122,13 @@ class CompPenMsgHelper:
                     current_app.logger.debug(
                         'updated record from dynamodb ("is_processed" should no longer exist): %s', item
                     )
-                except Exception as e:
-                    current_app.logger.critical('Failed to update the record from dynamodb: %s', participant_id)
-                    current_app.logger.exception(e)
+                except Exception:
+                    current_app.logger.exception('Failed to update the record from dynamodb: %s', participant_id)
 
-        current_app.logger.info('Comp and Pen - Successfully updated dynamodb entries - removed "is_processed" field')
+        current_app.logger.info(
+            'Comp and Pen - Successfully updated dynamodb entries - removed "is_processed" field in %s seconds',
+            monotonic() - start_time,
+        )
 
     def send_comp_and_pen_sms(
         self,
@@ -183,13 +190,12 @@ class CompPenMsgHelper:
                     recipient_item=recipient_item,
                     notification_id=uuid4(),
                 )
-            except Exception as e:
-                current_app.logger.critical(
+            except Exception:
+                current_app.logger.exception(
                     'Error attempting to send Comp and Pen notification with '
                     'send_comp_and_pen_sms | record from dynamodb: %s',
                     participant_id,
                 )
-                current_app.logger.exception(e)
             else:
                 if perf_to_number is not None:
                     current_app.logger.info(

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from time import monotonic
 
 from botocore.exceptions import ClientError
 from flask import current_app
@@ -200,8 +201,9 @@ def check_templated_letter_state():
 @notify_celery.task(name='send-scheduled-comp-and-pen-sms')
 @statsd(namespace='tasks')
 def send_scheduled_comp_and_pen_sms() -> None:
-    # this is the agreed upon message per 2 minute limit
-    messages_per_min = 3000
+    start_time = monotonic()
+    # this is the agreed upon message per 1 minute limit
+    messages_per_min = 90
 
     # get config info
     dynamodb_table_name = current_app.config['COMP_AND_PEN_DYNAMODB_TABLE_NAME']
@@ -223,6 +225,7 @@ def send_scheduled_comp_and_pen_sms() -> None:
         raise
 
     current_app.logger.debug('... connected to dynamodb in send_scheduled_comp_and_pen_sms')
+    current_app.logger.info('dynamo connection took: %s seconds', monotonic() - start_time)
 
     # get messages to send
     try:

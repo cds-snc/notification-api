@@ -136,8 +136,6 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
     send_notification_to_queue_mock.assert_called_with(
         notification=notification,
         research_mode=False,
-        queue=None,
-        recipient_id_type=None,
         sms_sender_id=default_sms_sender,
     )
 
@@ -242,8 +240,6 @@ def test_send_notification_bypass_route_email_with_recipient(
     send_notification_to_queue_mock.assert_called_with(
         notification=notification,
         research_mode=False,
-        queue=None,
-        recipient_id_type=None,
         sms_sender_id=None,
     )
 
