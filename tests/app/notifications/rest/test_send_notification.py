@@ -390,7 +390,7 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
     [
         (
             create_sample_email_template,
-            {"to": "ok@ok.com", "template": ""},
+            {"to": "ok@ok.com", "template": "", "valid": "True"},
             "Exceeded annual email sending limit of 1 messages",
             1,
         ),
@@ -400,7 +400,7 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
             "Exceeded annual SMS sending limit of 1 messages",
             1,
         ),
-        (create_sample_email_template, {"to": "ok@ok.com", "template": ""}, None, 2),
+        (create_sample_email_template, {"to": "ok@ok.com", "template": "", "valid": "True"}, None, 2),
         (create_sample_template, {"to": "+16502532222", "template": "", "valid": "True"}, None, 2),
     ],
 )
@@ -429,6 +429,7 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
 
             mocker.patch("app.notifications.validators.check_service_over_api_rate_limit_and_update_rate")
             mocker.patch(f"app.celery.provider_tasks.deliver_{template.template_type}.apply_async")
+            mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
             create_sample_notification(
                 notify_db,

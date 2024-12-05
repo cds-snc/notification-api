@@ -2733,6 +2733,7 @@ def test_API_one_off_sends_blocks_sends_when_over_annual_limit_allows_if_under_l
     mocker.patch("app.sms_normal_publish.publish")
     mocker.patch("app.service.send_notification.send_notification_to_queue")
     mocker.patch("app.notifications.validators.service_can_send_to_recipient")
+    mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
     def __send_notification():
         with set_config_values(notify_api, {"REDIS_ENABLED": True, "FF_ANNUAL_LIMIT": True}):
