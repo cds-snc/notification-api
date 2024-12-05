@@ -484,9 +484,9 @@ class TestCommunicationPermissions:
         assert result.communication_allowed == expected
 
 
-class TestSendEmailStatus:
+class TestSendVAProfileNotificationStatus:
     mock_response = {}
-    mock_notification_data = {
+    mock_email_notification_data = {
         'id': '2e9e6920-4f6f-4cd5-9e16-fc306fe23867',  # this is the notification id
         'reference': None,
         'to': 'test@email.com',  # this is the recipient's contact info (email)
@@ -499,32 +499,54 @@ class TestSendEmailStatus:
         'provider': 'ses',  # email provider
     }
 
-    def test_send_va_profile_email_status_sent_successfully(self, rmock, mock_va_profile_client, mocker):
+    mock_sms_notification_data = {
+        'id': '3e9e6920-4f6f-4cd5-9e16-fc306fe23869',  # this is the notification id
+        'reference': None,
+        'to': '(732)846-6666',  # this is the recipient's contact info (sms)
+        'status': 'delivered',  # this will specify the delivery status of the notification
+        'status_reason': '',  # populated if there's additional context on the delivery status
+        'created_at': '2024-07-25T10:00:00.0',
+        'completed_at': '2024-07-25T11:00:00.0',
+        'sent_at': '2024-07-25T11:00:00.0',
+        'notification_type': SMS_TYPE,  # this is the channel/type of notification (sms)
+        'provider': 'twilio',  # sms provider
+    }
+
+    @pytest.mark.parametrize('notification_data', [mock_email_notification_data, mock_sms_notification_data])
+    def test_send_va_profile_notification_status_sent_successfully(
+        self, rmock, mock_va_profile_client, mocker, notification_data
+    ):
         rmock.post(requests_mock.ANY, json=self.mock_response, status_code=200)
 
-        mock_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+        mock_va_profile_client.send_va_profile_notification_status(notification_data)
 
         assert rmock.called
 
         expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
         assert rmock.request_history[0].url == expected_url
 
-    def test_send_va_profile_email_status_timeout(self, rmock, mock_va_profile_client, mocker):
+    @pytest.mark.parametrize('notification_data', [mock_email_notification_data, mock_sms_notification_data])
+    def test_send_va_profile_notification_status_timeout(
+        self, rmock, mock_va_profile_client, mocker, notification_data
+    ):
         rmock.post(requests_mock.ANY, exc=requests.ReadTimeout)
 
         with pytest.raises(requests.Timeout):
-            mock_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+            mock_va_profile_client.send_va_profile_notification_status(notification_data)
 
         assert rmock.called
 
         expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
         assert rmock.request_history[0].url == expected_url
 
-    def test_send_va_profile_email_status_throws_exception(self, rmock, mock_va_profile_client, mocker):
+    @pytest.mark.parametrize('notification_data', [mock_email_notification_data, mock_sms_notification_data])
+    def test_send_va_profile_notification_status_throws_exception(
+        self, rmock, mock_va_profile_client, mocker, notification_data
+    ):
         rmock.post(requests_mock.ANY, exc=requests.RequestException)
 
         with pytest.raises(requests.RequestException):
-            mock_va_profile_client.send_va_profile_email_status(self.mock_notification_data)
+            mock_va_profile_client.send_va_profile_notification_status(notification_data)
 
         assert rmock.called
 

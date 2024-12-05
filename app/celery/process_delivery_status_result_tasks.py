@@ -1,6 +1,7 @@
 import datetime
 from typing import Tuple
 
+from app.celery.process_ses_receipts_tasks import check_and_queue_va_profile_notification_status_callback
 from celery import Task
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -259,6 +260,7 @@ def sms_status_update(
         # Only send if there was an update
         if last_updated_at != notification.updated_at:
             check_and_queue_callback_task(notification, sms_status.payload)
+            check_and_queue_va_profile_notification_status_callback(notification)
         statsd_client.incr(f'clients.sms.{sms_status.provider}.status_update.success')
     except Exception:
         current_app.logger.exception('Failed to check_and_queue_callback_task for notification: %s', notification.id)

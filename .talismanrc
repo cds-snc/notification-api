@@ -34,15 +34,15 @@ fileignoreconfig:
 - filename: app/va/va_profile/va_profile_client.py
   checksum: fe634f26f7dc3874f4afcfd1ba3f03bae380b53befe973a752c7347097a88701
 - filename: cd/application-deployment/dev/dev.env
-  checksum: 2ecdf2787dd15a7971471b5b6b799adf478a8021552e690de76b682f5e7344a3
+  checksum: d0897f1124e6725347d18a9ba8de56baf848151ecad688db189e0ec2d6282bcb
 - filename: cd/application-deployment/dev/vaec-api-task-definition.json
   checksum: f328ff821339b802eb1d82559e624d5b719857c813d427da5aaa39b240331ddd
 - filename: cd/application-deployment/perf/perf.env
-  checksum: 06912f9617483c19b076d92f0036c125f0a2f80e10a1665e5ddc5ce31a354a5c
+  checksum: d8f93f6bf746751e364d4cb81f26e656bd7ed0f146d98c03fd704d716acc5805
 - filename: cd/application-deployment/prod/prod.env
-  checksum: 64f46f118e9f652c663bc53225ddf39f1ef85040ea3e24fceb71ea752984d46c
+  checksum: 949dc3234b36d9fc8706a927b5c342372aa1ac5d6ba8f9458f7482e0ee31a180
 - filename: cd/application-deployment/staging/staging.env
-  checksum: ce893a6a8405ad66d7b8efa8e1b1991c9ae6bebb245d500e93d148e1142b714d
+  checksum: 15e41a76cd47e45be327188513e82763aa1a8d4d64ead457a8866f6f854e61d7
 - filename: ci/.local.env
   checksum: 2c4024d4e94ffa39ff73e6039d65f0b1d19557067ddf6d97ef14aea86cfb58ad
 - filename: ci/docker-compose-test.yml
