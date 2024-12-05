@@ -87,11 +87,14 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import (
+    EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NOTIFICATION_CANCELLED,
+    SMS_TYPE,
     EmailBranding,
     LetterBranding,
+    NotificationType,
     Permission,
     Service,
 )
@@ -267,8 +270,6 @@ def create_service():
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
-# TODO: FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
-# flake8: noqa: C901
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
 def update_service(service_id):
     req_json = request.get_json()
@@ -313,14 +314,10 @@ def update_service(service_id):
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
 
-    # TODO: FF_ANNUAL_LIMIT removal
-    if current_app.config["FF_ANNUAL_LIMIT"]:
-        if sms_annual_limit_changed:
-            # TODO: Delete cache for sms annual limit (if used)
-            _warn_service_users_about_annual_sms_limit_changed(service_id, current_data)
-        if email_annual_limit_changed:
-            # TODO: Delete cache for email annual limit (if used)
-            _warn_service_users_about_annual_email_limit_changed(service_id, current_data)
+    if sms_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
+    if email_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
@@ -346,14 +343,6 @@ def update_service(service_id):
     return jsonify(data=service_schema.dump(fetched_service)), 200
 
 
-def _warn_service_users_about_annual_email_limit_changed(service_id, data):
-    pass
-
-
-def _warn_service_users_about_annual_sms_limit_changed(service_id, data):
-    pass
-
-
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
@@ -375,6 +364,24 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
+
+
+def _warn_service_users_about_annual_limit_change(service: Service, notification_type: NotificationType):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
+        personalisation={
+            "message_type_en": notification_type,
+            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
+            "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,
+            "message_limit_fr": "{:,}".format(
+                service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
+            ).replace(",", " "),
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
         },
         include_user_fields=["name"],
     )
