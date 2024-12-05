@@ -270,6 +270,7 @@ def create_service():
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
+# flake8: noqa: C901
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
 def update_service(service_id):
     req_json = request.get_json()
