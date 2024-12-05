@@ -4,7 +4,7 @@ from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
-from app.clients.sms import OPT_OUT_MESSAGE
+from app.clients.sms import MESSAGE_TOO_LONG, OPT_OUT_MESSAGE
 from app.config import QueueNames
 from app.constants import (
     EMAIL_TYPE,
@@ -449,17 +449,26 @@ def test_deliver_sms_with_rate_limiting_max_retries_exceeded(
     mocked_check_and_queue_callback_task.assert_called_once()
 
 
-def test_deliver_sms_opt_out(
+@pytest.mark.parametrize(
+    'exception_message, status_reason',
+    (
+        ('Message too long', MESSAGE_TOO_LONG),
+        ('Destination phone number opted out', OPT_OUT_MESSAGE),
+    ),
+)
+def test_deliver_sms_non_retryables(
     notify_db_session,
     mocker,
     sample_service,
     sample_sms_sender,
     sample_template,
     sample_notification,
+    exception_message,
+    status_reason,
 ):
     """
-    An SMS notification sent to a recipient who has opted out of receiving notifications
-    from the given SMS sender should result in permanent failure with a relevant status reason.
+    An SMS notification sent to a non-retryable exception should be marked as permanent failure and have an
+    appropriate status reason.
     """
 
     service = sample_service()
@@ -477,11 +486,11 @@ def test_deliver_sms_opt_out(
 
     mock_send_sms_to_provider = mocker.patch(
         'app.delivery.send_to_providers.send_sms_to_provider',
-        side_effect=NonRetryableException('Destination phone number opted out'),
+        side_effect=NonRetryableException(exception_message),
     )
     deliver_sms(notification.id, sms_sender_id=notification.sms_sender_id)
     mock_send_sms_to_provider.assert_called_once()
 
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_PERMANENT_FAILURE
-    assert notification.status_reason == OPT_OUT_MESSAGE
+    assert notification.status_reason == status_reason

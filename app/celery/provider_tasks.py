@@ -8,7 +8,7 @@ from app.celery.common import (
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
-from app.clients.sms import OPT_OUT_MESSAGE
+from app.clients.sms import MESSAGE_TOO_LONG, OPT_OUT_MESSAGE
 from app.config import QueueNames
 from app.constants import NOTIFICATION_TECHNICAL_FAILURE
 from app.dao import notifications_dao
@@ -41,7 +41,7 @@ from notifications_utils.statsd_decorators import statsd
     retry_backoff_max=60,
 )
 @statsd(namespace='tasks')
-def deliver_sms(
+def deliver_sms(  # noqa: C901
     self: Task,
     notification_id,
     sms_sender_id=None,
@@ -77,10 +77,10 @@ def deliver_sms(
         )
         raise NotificationTechnicalFailureException from e
     except NonRetryableException as e:
-        # Likely an opted out from pinpoint
-
         if 'opted out' in str(e).lower():
             status_reason = OPT_OUT_MESSAGE
+        elif str(e) == MESSAGE_TOO_LONG:
+            status_reason = MESSAGE_TOO_LONG
         else:
             status_reason = 'ERROR: NonRetryableException - permanent failure, not retrying'
 
