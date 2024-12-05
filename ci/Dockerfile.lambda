@@ -10,7 +10,8 @@ ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libc6-compat make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
-
+# Install libexecinfo-dev ffrom a previous alpine version - check if this is still needed when we next upgrade the base image
+RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/v3.16/main/ libexecinfo-dev
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
 
