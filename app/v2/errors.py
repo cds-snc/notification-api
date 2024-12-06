@@ -46,6 +46,22 @@ class TooManyEmailRequestsError(InvalidRequest):
         self.message = self.messsage_template.format(sending_limit)
 
 
+class RequestExceedsEmailAnnualLimitError(InvalidRequest):
+    status_code = 429
+    message_template = "Exceeded annual email sending limit of {} messages"
+
+    def __init__(self, annual_limit):
+        self.message = self.message_template.format(annual_limit)
+
+
+class RequestExceedsSMSAnnualLimitError(InvalidRequest):
+    status_code = 429
+    message_template = "Exceeded annual SMS sending limit of {} messages"
+
+    def __init__(self, annual_limit):
+        self.message = self.message_template.format(annual_limit)
+
+
 class LiveServiceTooManyRequestsError(TooManyRequestsError):
     pass
 
@@ -55,6 +71,22 @@ class LiveServiceTooManySMSRequestsError(TooManySMSRequestsError):
 
 
 class LiveServiceTooManyEmailRequestsError(TooManyEmailRequestsError):
+    pass
+
+
+class LiveServiceRequestExceedsEmailAnnualLimitError(RequestExceedsEmailAnnualLimitError):
+    pass
+
+
+class LiveServiceRequestExceedsSMSAnnualLimitError(RequestExceedsSMSAnnualLimitError):
+    pass
+
+
+class TrialServiceRequestExceedsEmailAnnualLimitError(RequestExceedsEmailAnnualLimitError):
+    pass
+
+
+class TrialServiceRequestExceedsSMSAnnualLimitError(RequestExceedsSMSAnnualLimitError):
     pass
 
 
