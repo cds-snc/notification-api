@@ -1025,7 +1025,9 @@ def test_update_service_annual_limits(
     limit_field,
     limit_value,
     expected_status,
+    mocker,
 ):
+    mocker.patch("app.service.rest.send_notification_to_service_users")
     admin_request.post(
         "service.update_service",
         service_id=sample_service.id,
