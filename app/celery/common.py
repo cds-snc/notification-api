@@ -102,10 +102,19 @@ def log_notification_total_time(
     """Logs how long it took a notification to go from created to delivered"""
     if status == NOTIFICATION_DELIVERED:
         end_time = event_timestamp or datetime.now(timezone.utc).replace(tzinfo=None)
+        total_time = (end_time - start_time).total_seconds()
+
+        # Twilio RawDlrDoneDate can make this negative
+        # https://www.twilio.com/en-us/changelog/addition-of-rawdlrdonedate-to-delivered-and-undelivered-status-webhooks
+        corrected_total_time = (
+            total_time
+            if total_time > 0.0
+            else (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+        )
         current_app.logger.info(
             'notification %s took %ss total time to reach %s status - %s',
             notification_id,
-            (end_time - start_time).total_seconds(),
+            corrected_total_time,
             status,
             provider,
         )
