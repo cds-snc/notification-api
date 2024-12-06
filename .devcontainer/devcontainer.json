@@ -10,15 +10,12 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
+				"ruff.lint.ignore": ["F401"],
+				"ruff.lint.run": "onSave",
+				"ruff.organizeImports": false,
 				"[python]": {
-					"ruff.lint.run": "onSave",
-					"editor.defaultFormatter": "charliermarsh.ruff",
-					"editor.formatOnSave": false,
-					"editor.codeActionsOnSave": {
-						"source.fixAll": "explicit"
-					}
-				},
-				"ruff.configurationPreference": "filesystemFirst"
+					"editor.defaultFormatter": "charliermarsh.ruff"
+				}
 			},
 			"extensions": [
 				"tamasfe.even-better-toml",
