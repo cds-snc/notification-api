@@ -26,7 +26,7 @@ if DELIVERY_STATUS_RESULT_TASK_QUEUE is None:
 if DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER is None:
     sys.exit('A required environment variable is not set. Please set DELIVERY_STATUS_RESULT_TASK_QUEUE_DEAD_LETTER')
 
-if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT':
+if TWILIO_AUTH_TOKEN_SSM_NAME is None or TWILIO_AUTH_TOKEN_SSM_NAME == 'DEFAULT':  # nosec
     sys.exit('A required environment variable is not set. Please set TWILIO_AUTH_TOKEN_SSM_NAME')
 
 sqs_client = boto3.client('sqs', region_name='us-gov-west-1')
@@ -47,15 +47,15 @@ def get_twilio_token() -> str:
     @return: Twilio Token from SSM
     """
     try:
-        if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test':
+        if TWILIO_AUTH_TOKEN_SSM_NAME == 'unit_test':  # nosec
             return 'bad_twilio_auth'
         ssm_client = boto3.client('ssm', 'us-gov-west-1')
 
         response = ssm_client.get_parameter(Name=TWILIO_AUTH_TOKEN_SSM_NAME, WithDecryption=True)
         return response.get('Parameter').get('Value')
-    except Exception as e:
-        logger.error('Failed to retrieve Twilio Auth with: %s', e)
-        return None
+    except Exception:
+        logger.exception('Failed to retrieve Twilio Auth token')
+        sys.exit('Delivery status lambda Execution Environment abort due to invalid response from SSM')
 
 
 auth_token = get_twilio_token()
