@@ -218,7 +218,7 @@ def check_email_annual_limit(service: Service, requested_emails=0):
         return
 
     current_app.logger.info(
-        f"Service {service.id} is exceeding their annual email limit [total sent this fiscal: {int(emails_sent_today + emails_sent_this_fiscal)} limit: {service.email_annual_limit}, attempted send: {requested_emails}"
+        f"{'Trial service' if service.restricted else 'Service'} {service.id} is exceeding their annual email limit [total sent this fiscal: {int(emails_sent_today + emails_sent_this_fiscal)} limit: {service.email_annual_limit}, attempted send: {requested_emails}"
     )
     if service.restricted:
         raise TrialServiceRequestExceedsEmailAnnualLimitError(service.email_annual_limit)
@@ -549,6 +549,7 @@ def send_annual_limit_updated_email(service: Service, notification_type: Notific
         service_id=service.id,
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
+            "service_name": service.name,
             "message_type_en": notification_type,
             "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
             "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,

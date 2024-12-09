@@ -9,6 +9,12 @@ from freezegun import freeze_time
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
 from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
+from app.notifications.validators import (
+    LiveServiceRequestExceedsEmailAnnualLimitError,
+    LiveServiceRequestExceedsSMSAnnualLimitError,
+    TrialServiceRequestExceedsEmailAnnualLimitError,
+    TrialServiceRequestExceedsSMSAnnualLimitError,
+)
 from tests import create_authorization_header
 from tests.app.db import (
     create_ft_notification_status,
@@ -622,6 +628,61 @@ def test_create_job_returns_400_if_archived_template(client, sample_template, mo
     app.celery.tasks.process_job.apply_async.assert_not_called()
     assert resp_json["result"] == "error"
     assert "Template has been deleted" in resp_json["message"]["template"]
+
+
+@pytest.mark.parametrize(
+    "template_type, exception",
+    [
+        ("sms", LiveServiceRequestExceedsSMSAnnualLimitError),
+        ("sms", TrialServiceRequestExceedsSMSAnnualLimitError),
+        ("email", LiveServiceRequestExceedsEmailAnnualLimitError),
+        ("email", TrialServiceRequestExceedsEmailAnnualLimitError),
+    ],
+)
+def test_create_job_should_429_when_over_annual_limit(
+    client,
+    mocker,
+    sample_template,
+    sample_email_template,
+    fake_uuid,
+    template_type,
+    exception,
+):
+    template = sample_template if template_type == "sms" else sample_email_template
+    email_to = template.service.created_by.email_address if template_type == "email" else None
+    limit = template.service.sms_annual_limit if template_type == "sms" else template.service.email_annual_limit
+    path = "/service/{}/job".format(template.service.id)
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": str(template.id),
+            "original_file_name": "thisisatest.csv",
+            "notification_count": "2",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="phone number\r\n6502532222\r\n6502532222"
+        if template_type == "sms"
+        else f"email address\r\n{email_to}\r\n{email_to}",
+    )
+
+    mocker.patch(f"app.job.rest.check_{template_type}_annual_limit", side_effect=exception(limit))
+    data = {
+        "id": fake_uuid,
+        "created_by": str(template.created_by.id),
+    }
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+    response = client.post(path, data=json.dumps(data), headers=headers)
+
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert response.status_code == 429
+    assert (
+        resp_json["message"]
+        == f"Exceeded annual {template_type if template_type == 'email' else template_type.upper()} sending limit of {limit} messages"
+    )
 
 
 def _setup_jobs(template, number_of_jobs=5):
