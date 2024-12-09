@@ -38,8 +38,8 @@ from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
-from app.dao.services_dao import fetch_todays_total_message_count
 from app.dao.templates_dao import get_precompiled_letter_template
+from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
 from app.models import (
@@ -189,7 +189,7 @@ def post_bulk():
 
     else:
         current_app.logger.info(f"[post_notifications.post_bulk()] Checking bounce rate for service: {authenticated_service.id}")
-        emails_sent = fetch_todays_total_message_count(authenticated_service.id)
+        emails_sent = fetch_todays_email_count(authenticated_service.id)
         remaining_daily_messages = authenticated_service.message_limit - emails_sent
         remaining_annual_messages = authenticated_service.email_annual_limit - emails_sent
 
