@@ -314,11 +314,16 @@ def update_service(service_id):
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
-
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete(f"annual-limit:{service_id}:status:near_sms_limit")
+        redis_store.delete(f"annual-limit:{service_id}:status:over_sms_limit")
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete(f"annual-limit:{service_id}:status:near_email_limit")
+        redis_store.delete(f"annual-limit:{service_id}:status:over_email_limit")
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
