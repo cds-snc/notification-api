@@ -149,5 +149,5 @@ def test_service_schema_returns_annual_limits(sample_service):
 
     data = service_schema.dump(sample_service)
 
-    assert data["sms_annual_limit"] == 25000
-    assert data["email_annual_limit"] == 10000000
+    assert data["sms_annual_limit"] == 100000
+    assert data["email_annual_limit"] == 20000000
