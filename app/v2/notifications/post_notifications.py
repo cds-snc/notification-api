@@ -701,6 +701,17 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
                 message=f"Duplicate column headers: {', '.join(sorted(recipient_csv.duplicate_recipient_column_headers))}",
                 status_code=400,
             )
+        if recipient_csv.more_rows_than_can_send_this_year:
+            if recipient_csv.template_type == SMS_TYPE:
+                raise BadRequestError(
+                    message=f"You only have {remaining_annual_messages} remaining sms messages before you reach your annual limit. You've tried to send {len(recipient_csv)} sms messages.",
+                    status_code=400,
+                )
+            else:
+                raise BadRequestError(
+                    message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
+                    status_code=400,
+                )
         ## TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
         if recipient_csv.more_rows_than_can_send:
             if recipient_csv.template_type == SMS_TYPE:
@@ -711,17 +722,6 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
             else:
                 raise BadRequestError(
                     message=f"You only have {remaining_daily_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
-                    status_code=400,
-                )
-        if recipient_csv.more_rows_than_can_send_this_year:
-            if recipient_csv.template_type == SMS_TYPE:
-                raise BadRequestError(
-                    message=f"You only have {remaining_annual_messages} remaining sms messages before you reach your annual limit. You've tried to send {len(recipient_csv)} sms messages.",
-                    status_code=400,
-                )
-            else:
-                raise BadRequestError(
-                    message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
                     status_code=400,
                 )
         if recipient_csv.more_rows_than_can_send_today:

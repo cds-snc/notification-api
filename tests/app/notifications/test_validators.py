@@ -893,3 +893,40 @@ class TestAnnualLimitValidators:
                     mock_redis_set.assert_called_with(service.id)
                     if log_msg:
                         assert log_msg in mock_logger.call_args[0][0]
+
+    def test_check_sms_annual_limit_only_sends_warning_email_once(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            check_sms_annual_limit(service, 2)
+            mock_send_email.assert_not_called()
+
+    def test_check_sms_annual_limit_only_sends_reached_limit_email_once(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=True)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            check_sms_annual_limit(service, 4)
+            mock_send_email.assert_not_called()
