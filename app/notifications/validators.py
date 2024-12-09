@@ -112,7 +112,7 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
         cache_key = daily_limit_cache_key(service.id)
         messages_sent = redis_store.get(cache_key)
         if not messages_sent:
-            messages_sent = services_dao.fetch_todays_total_message_count(service.id)
+            messages_sent = services_dao.fetch_todays_total_message_count(service.id)(service.id)
             redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
 
         warn_about_daily_message_limit(service, int(messages_sent))

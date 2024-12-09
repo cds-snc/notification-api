@@ -547,7 +547,7 @@ class TestProcessJob:
 
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_should_not_process_sms_job_if_would_exceed_send_limits(self, notify_db_session, mocker):
-        service = create_service(message_limit=9)
+        service = create_service(sms_daily_limit=9)
         template = create_template(service=service)
         job = create_job(template=template, notification_count=10, original_file_name="multiple_sms.csv")
         mocker.patch(
@@ -564,7 +564,7 @@ class TestProcessJob:
         assert tasks.process_rows.called is False
 
     def test_should_not_process_sms_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, mocker):
-        service = create_service(message_limit=1)
+        service = create_service(sms_daily_limit=1)
         template = create_template(service=service)
         job = create_job(template=template)
 
@@ -581,8 +581,26 @@ class TestProcessJob:
         assert tasks.process_rows.called is False
 
     @pytest.mark.parametrize("template_type", ["sms", "email"])
+    def test_should_not_process_job_if_would_exceed_annual_limit(self, notify_db_session, template_type, mocker):
+        service = create_service(email_annual_limit=1, sms_annual_limit=1)
+        template = create_template(service=service, template_type=template_type)
+        job = create_job(template=template)
+
+        save_notification(create_notification(template=template, job=job))
+
+        mocker.patch("app.celery.tasks.s3.get_job_from_s3")
+        mocker.patch("app.celery.tasks.process_rows")
+
+        process_job(job.id)
+
+        job = jobs_dao.dao_get_job_by_id(job.id)
+        assert job.job_status == "sending limits exceeded"
+        assert s3.get_job_from_s3.called is False
+        assert tasks.process_rows.called is False
+
+    @pytest.mark.parametrize("template_type", ["sms", "email"])
     def test_should_not_process_email_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, template_type, mocker):
-        service = create_service(message_limit=1)
+        service = create_service(message_limit=1, sms_daily_limit=1)
         template = create_template(service=service, template_type=template_type)
         job = create_job(template=template)
 
@@ -628,6 +646,45 @@ class TestProcessJob:
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "in progress"
         tasks.save_emails.apply_async.assert_called_with(
+            (
+                str(job.service_id),
+                [
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                ],
+                None,
+            ),
+            queue="-normal-database-tasks",
+        )
+
+    @pytest.mark.parametrize("template_type, save_task", [("sms", save_smss), ("email", save_emails)])
+    def test_should_process_job_if_exactly_on_send_limits(self, notify_db_session, template_type, save_task, mocker):
+        service = create_service(message_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        job = create_job(template=template, notification_count=10)
+
+        mocker.patch(
+            "app.celery.tasks.s3.get_job_from_s3",
+            return_value=load_example_csv("multiple_email"),
+        )
+        save_task_mock = mocker.patch(f"app.celery.tasks.{save_task.__name__}.apply_async")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
+
+        process_job(job.id)
+
+        s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
+        job = jobs_dao.dao_get_job_by_id(job.id)
+        assert job.job_status == "in progress"
+        save_task_mock.assert_called_with(
             (
                 str(job.service_id),
                 [

@@ -52,11 +52,9 @@ from app.dao.notifications_dao import (
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
-from app.dao.services_dao import (
-    dao_fetch_service_by_id,
-    fetch_todays_total_message_count,
-)
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
@@ -81,6 +79,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template
 from app.v2.errors import (
@@ -205,15 +204,36 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
 
 
 def __sending_limits_for_job_exceeded(service, job: Job, job_id):
-    total_sent = fetch_todays_total_message_count(service.id)
+    error_message = None
 
-    if total_sent + job.notification_count > service.message_limit:
+    if job.template.template_type == SMS_TYPE:
+        total_post_send = fetch_todays_requested_sms_count(service.id) + job.notification_count
+
+        if total_post_send > service.sms_annual_limit:
+            error_message = (
+                f"Job {job_id} size {job.notification_count} error. SMS annual limit {service.sms_annual_limit} exceeded."
+            )
+        elif total_post_send > service.sms_daily_limit:
+            error_message = (
+                f"Job {job_id} size {job.notification_count} error. SMS daily limit {service.sms_daily_limit} exceeded."
+            )
+    else:
+        total_post_send = fetch_todays_email_count(service.id) + job.notification_count
+
+        if total_post_send > service.email_annual_limit:
+            error_message = (
+                f"Job {job_id} size {job.notification_count} error. Email annual limit {service.sms_annual_limit} exceeded."
+            )
+        elif total_post_send > service.message_limit:
+            error_message = (
+                f"Job {job_id} size {job.notification_count} error. SMS daily limit {service.sms_daily_limit} exceeded."
+            )
+
+    if error_message:
         job.job_status = JOB_STATUS_SENDING_LIMITS_EXCEEDED
         job.processing_finished = datetime.utcnow()
         dao_update_job(job)
-        current_app.logger.info(
-            "Job {} size {} error. Sending limits {} exceeded".format(job_id, job.notification_count, service.message_limit)
-        )
+        current_app.logger.info(error_message)
         return True
     return False
 
