@@ -497,6 +497,7 @@ def send_annual_limit_reached_email(service: Service, notification_type: Notific
         service_id=service.id,
         template_id=current_app.config["REACHED_ANNUAL_LIMIT_TEMPLATE_ID"],
         personalisation={
+            "service_name": service.name,
             "message_type_en": notification_type,
             "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
             "fiscal_end": fiscal_end,
