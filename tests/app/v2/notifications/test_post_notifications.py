@@ -2773,6 +2773,7 @@ def test_API_one_off_sends_blocks_sends_when_over_annual_limit_allows_if_under_l
 def test_post_bulk_validates_annual_limit(
     notify_api, notify_db, notify_db_session, client, template_type, data_type, expected_msg, mocker
 ):
+    mock_check_daily_limit = mocker.patch(f"app.v2.notifications.post_notifications.check_{template_type}_daily_limit")
     service = create_service(email_annual_limit=1, sms_annual_limit=1)
     template = create_template(service=service, template_type=template_type)
     data = {
@@ -2798,6 +2799,8 @@ def test_post_bulk_validates_annual_limit(
         resp_json = json.loads(response.get_data(as_text=True))
         assert response.status_code == 400
         assert resp_json["errors"][0]["message"] == expected_msg
+
+        mock_check_daily_limit.assert_not_called()
 
 
 class TestSeedingBounceRateData:
