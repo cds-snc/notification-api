@@ -198,7 +198,7 @@ def check_email_annual_limit(service: Service, requested_emails=0):
 
     if not send_exceeds_annual_limit:
         # Will this send put the service right at their limit?
-        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, SMS_TYPE):
+        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, EMAIL_TYPE):
             annual_limit_client.set_over_email_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached their annual email limit of {service.email_annual_limit} when sending {requested_emails} messages. Sending reached annual limit email."
@@ -260,7 +260,7 @@ def check_sms_annual_limit(service: Service, requested_sms=0):
             send_annual_limit_reached_email(service, "sms", current_fiscal_year + 1)
 
         # Will this send put annual usage within 80% of the limit?
-        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, EMAIL_TYPE):
+        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, SMS_TYPE):
             annual_limit_client.set_nearing_sms_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached 80% of their annual SMS limit of {service.sms_annual_limit} messages. Sending annual limit usage warning email."
