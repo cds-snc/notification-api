@@ -2,7 +2,7 @@ name: Biweekly Dependency Ticket Creation
 
 on:
   schedule:
-    - cron: "0 13 */14 * 1"  # Runs every two weeks on Monday at 09:00 ET (which is 13:00 UTC)
+    - cron: "0 13 * * 1"  # Runs every week on Monday at 09:00 ET (which is 13:00 UTC)
 
 jobs:
   create_issue:
