@@ -209,7 +209,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
     if job.template.template_type == SMS_TYPE:
         total_post_send = fetch_todays_requested_sms_count(service.id) + job.notification_count
 
-        if total_post_send > service.sms_annual_limit:
+        if total_post_send > service.sms_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
             error_message = (
                 f"Job {job_id} size {job.notification_count} error. SMS annual limit {service.sms_annual_limit} exceeded."
             )
@@ -220,7 +220,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
     else:
         total_post_send = fetch_todays_email_count(service.id) + job.notification_count
 
-        if total_post_send > service.email_annual_limit:
+        if total_post_send > service.email_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
             error_message = (
                 f"Job {job_id} size {job.notification_count} error. Email annual limit {service.sms_annual_limit} exceeded."
             )
