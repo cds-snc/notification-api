@@ -133,6 +133,10 @@ service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
 
+# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
+
 
 @service_blueprint.errorhandler(IntegrityError)
 def handle_integrity_error(exc):
@@ -317,13 +321,11 @@ def update_service(service_id):
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
         # TODO: abstract this in the annual_limits_client
-        redis_store.delete(f"annual-limit:{service_id}:status:near_sms_limit")
-        redis_store.delete(f"annual-limit:{service_id}:status:over_sms_limit")
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
         # TODO: abstract this in the annual_limits_client
-        redis_store.delete(f"annual-limit:{service_id}:status:near_email_limit")
-        redis_store.delete(f"annual-limit:{service_id}:status:over_email_limit")
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
