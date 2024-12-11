@@ -88,7 +88,7 @@ jobs:
       - name: Upload Env File to S3
         shell: bash
         run: |
-          aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/
+          aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/notification-api/
 
   run-lambda-deploy:
     if: ${{ inputs.lambdaDeploy }}

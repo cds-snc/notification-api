@@ -25,7 +25,7 @@
       "environmentFiles": [
         {
           "type": "s3",
-          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-dev/dev.env"
+          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-dev/notification-api/dev.env"
         }
       ],
       "environment": [

@@ -19,7 +19,7 @@
       "environmentFiles": [
         {
           "type": "s3",
-          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-staging/staging.env"
+          "value": "arn:aws-us-gov:s3:::vanotify-environment-variables-staging/notification-api/staging.env"
         }
       ],
       "environment": [
