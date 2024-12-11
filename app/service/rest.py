@@ -383,9 +383,9 @@ def _warn_service_users_about_annual_limit_change(service: Service, notification
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": notification_type,
-            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
-            "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_limit_en": "{:,}".format(service.email_annual_limit) if notification_type == EMAIL_TYPE else "{:,}".format(service.sms_annual_limit),
             "message_limit_fr": "{:,}".format(
                 service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
             ).replace(",", " "),
