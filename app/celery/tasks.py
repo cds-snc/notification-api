@@ -119,9 +119,6 @@ def process_job(job_id):
         current_app.logger.warning("Job {} has been cancelled, service {} is inactive".format(job_id, service.id))
         return
 
-    if __sending_limits_for_job_exceeded(service, job, job_id):
-        return
-
     job.job_status = JOB_STATUS_IN_PROGRESS
     job.processing_started = start
     dao_update_job(job)
