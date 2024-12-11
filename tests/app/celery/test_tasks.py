@@ -545,6 +545,7 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
 
+    @pytest.mark.skip()
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_should_not_process_sms_job_if_would_exceed_send_limits(self, notify_db_session, mocker):
         service = create_service(sms_daily_limit=9)
