@@ -17,6 +17,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
+    fetch_notification_status_totals_for_service_by_fiscal_year,
     fetch_notification_statuses_for_job,
     fetch_quarter_data,
     fetch_stats_for_all_services_by_date_range,
@@ -1346,6 +1347,70 @@ def test_fetch_monthly_notification_statuses_per_service_for_rows_that_should_be
 
     results = fetch_monthly_notification_statuses_per_service(date(2019, 3, 1), date(2019, 3, 31))
     assert len(results) == 0
+
+
+@freeze_time("2024-11-28")
+@pytest.mark.parametrize(
+    "notification_type, expected_count",
+    [
+        ("sms", 50),
+        ("email", 50),
+        (None, 100),
+    ],
+)
+def test_fetch_notification_status_totals_for_service_by_fiscal_year_only_counts_notifications_of_type_in_specified_fiscal_year(
+    notify_db_session,
+    notification_type,
+    expected_count,
+):
+    service = create_service(service_name="service")
+    sms_template = create_template(service=service, template_type="sms")
+    email_template = create_template(service=service, template_type="email")
+
+    # Before current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2024, 3, 31),
+        service=service,
+        template=sms_template,
+        count=5,
+    )
+    create_ft_notification_status(
+        utc_date=datetime(2024, 3, 31),
+        service=service,
+        template=email_template,
+        count=5,
+    )
+
+    # Within current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2024, 4, 1),
+        service=service,
+        template=sms_template,
+        count=50,
+    )
+    create_ft_notification_status(
+        utc_date=datetime(2024, 4, 1),
+        service=service,
+        template=email_template,
+        count=50,
+    )
+
+    # After current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2025, 4, 1),
+        service=service,
+        template=sms_template,
+        count=50,
+    )
+    create_ft_notification_status(
+        utc_date=datetime(2025, 4, 1),
+        service=service,
+        template=email_template,
+        count=50,
+    )
+
+    results = fetch_notification_status_totals_for_service_by_fiscal_year(service.id, 2024, notification_type)
+    assert results == expected_count
 
 
 class TestFetchQuarterData:

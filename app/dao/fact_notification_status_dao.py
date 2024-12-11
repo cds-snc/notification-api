@@ -32,6 +32,7 @@ from app.models import (
     User,
 )
 from app.utils import (
+    get_fiscal_dates,
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
 )
@@ -916,3 +917,23 @@ def fetch_quarter_data(start_date, end_date, service_ids):
         .group_by(FactNotificationStatus.service_id, FactNotificationStatus.notification_type)
     )
     return query.all()
+
+
+def fetch_notification_status_totals_for_service_by_fiscal_year(service_id, fiscal_year, notification_type=None):
+    start_date, end_date = get_fiscal_dates(year=fiscal_year)
+
+    filters = [
+        FactNotificationStatus.service_id == (service_id),
+        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date <= end_date,
+    ]
+
+    if notification_type:
+        filters.append(FactNotificationStatus.notification_type == notification_type)
+
+    query = (
+        db.session.query(func.sum(FactNotificationStatus.notification_count).label("notification_count"))
+        .filter(*filters)
+        .scalar()
+    )
+    return query or 0
