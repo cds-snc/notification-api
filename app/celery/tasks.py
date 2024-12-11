@@ -219,8 +219,8 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         elif send_exceeds_daily_limit:
             error_message = f"SMS daily limit of {service.sms_daily_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent today + job size: {total_post_send} Over by: {total_post_send - service.sms_daily_limit}"
     else:
-        total_post_send = fetch_todays_email_count(service.id) + job.notification_count #1 + 20
-        total_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year( #17
+        total_post_send = fetch_todays_email_count(service.id) + job.notification_count  # 1 + 20
+        total_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(  # 17
             service.id, get_fiscal_year(datetime.utcnow()), notification_type=EMAIL_TYPE
         )
         send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.email_annual_limit
