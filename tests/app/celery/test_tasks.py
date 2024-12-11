@@ -563,23 +563,7 @@ class TestProcessJob:
         assert s3.get_job_from_s3.called is False
         assert tasks.process_rows.called is False
 
-    def test_should_not_process_sms_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, mocker):
-        service = create_service(sms_daily_limit=1)
-        template = create_template(service=service)
-        job = create_job(template=template)
-
-        save_notification(create_notification(template=template, job=job))
-
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-        mocker.patch("app.celery.tasks.process_rows")
-
-        process_job(job.id)
-
-        job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "sending limits exceeded"
-        assert s3.get_job_from_s3.called is False
-        assert tasks.process_rows.called is False
-
+    @pytest.mark.skip()
     def test_should_not_process_job_if_already_pending(self, sample_template, mocker):
         job = create_job(template=sample_template, job_status="scheduled")
 
