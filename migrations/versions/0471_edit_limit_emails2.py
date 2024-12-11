@@ -112,6 +112,7 @@ near_annual_limit = "\n".join(
     ]
 )
 
+
 def upgrade():
     conn = op.get_bind()
 

@@ -514,7 +514,7 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
         message_limit_fr = "{:,}".format(service.email_annual_limit).replace(",", " ")
         message_limit_en = service.email_annual_limit
         message_type_fr = "courriels"
-        message_type_en = "emails" 
+        message_type_en = "emails"
         remaining_en = "{:,}".format(service.email_annual_limit - count_en)
         remaining_fr = "{:,}".format(service.email_annual_limit - count_en).replace(",", " ")
     else:
