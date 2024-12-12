@@ -97,7 +97,7 @@ jobs:
     - name: Update images in staging
       run: |
         DOCKER_TAG=${GITHUB_SHA::7}
-        kubectl set image deployment.apps/notify-api api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/notify-api notify-api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/notify-celery-beat notify-celery-beat=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/notify-celery-sms notify-celery-sms=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/notify-celery-primary notify-celery-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
