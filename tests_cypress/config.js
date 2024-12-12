@@ -1,3 +1,33 @@
+let PRODUCTION = {
+    CONFIG_NAME: "PRODUCTION",
+    Hostnames: {
+        API: 'https://api.notification.canada.ca',
+        Admin: 'https://notification.canada.ca',
+        DDAPI: 'https://api.document.notification.canada.ca',
+    },
+    Services: {
+        Notify: 'd6aa2c68-a2d9-4437-ab19-3ae8eb202553',
+        Cypress: '5c8a0501-2aa8-433a-ba51-cefb8063ab93'
+    },
+    Templates: {
+        'FILE_ATTACH_TEMPLATE_ID': 'ee6e4f6e-df3c-49b5-82de-eca5122ce965',
+        'SIMPLE_EMAIL_TEMPLATE_ID': 'bcc5ff84-4f20-4714-ac8e-7c5bd91c49a6',
+        'VARIABLES_EMAIL_TEMPLATE_ID': '0f10fca7-a5e8-4c03-bc96-610072f236eb',
+        'SMOKE_TEST_EMAIL': 'be04f866-2302-4b76-8efd-2dec1e853c7d',
+        'SMOKE_TEST_EMAIL_BULK': '6978ecf0-8049-47ca-b5af-f010796e8805',
+        'SMOKE_TEST_EMAIL_ATTACH': 'ee6e4f6e-df3c-49b5-82de-eca5122ce965',
+        'SMOKE_TEST_EMAIL_LINK': '8bac2ff9-32e6-4e19-bf80-4218ce4789fd',
+        'SMOKE_TEST_SMS': 'f718f471-d940-44f6-9841-93f61da9b4f7'
+    },
+    Users: {
+        Team: ['andrew.leith+2@cds-snc.ca'],
+        NonTeam: ['person@example.com'],
+        Simulated: ['simulate-delivered-2@notification.canada.ca', 'simulate-delivered-3@notification.canada.ca', 'success@simulator.amazonses.com'],
+        SimulatedPhone: ['+16132532222', '+16132532223', '+16132532224']
+    },
+    
+}
+
 let STAGING = {
     CONFIG_NAME: "STAGING",
     Hostnames: {
@@ -69,9 +99,10 @@ let LOCAL = {
 const config = {
     STAGING,
     LOCAL,
+    PRODUCTION
 };
 
 // choose which config to use here
-const ConfigToUse = config.STAGING;
+const ConfigToUse = config.LOCAL;
 
 module.exports = ConfigToUse;

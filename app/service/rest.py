@@ -11,7 +11,6 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
-from notifications_utils.letter_timings import letter_can_be_cancelled
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -53,13 +52,6 @@ from app.dao.service_email_reply_to_dao import (
     dao_get_reply_to_by_service_id,
     update_reply_to_email_address,
 )
-from app.dao.service_letter_contact_dao import (
-    add_letter_contact_for_service,
-    archive_letter_contact,
-    dao_get_letter_contact_by_id,
-    dao_get_letter_contacts_by_service_id,
-    update_letter_contact,
-)
 from app.dao.service_safelist_dao import (
     dao_add_and_commit_safelisted_contacts,
     dao_fetch_service_safelist,
@@ -82,6 +74,7 @@ from app.dao.services_dao import (
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
     dao_fetch_service_creator,
+    dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
     dao_remove_user_from_service,
@@ -93,13 +86,15 @@ from app.dao.services_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
-from app.letters.utils import letter_print_day
 from app.models import (
+    EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NOTIFICATION_CANCELLED,
+    SMS_TYPE,
     EmailBranding,
     LetterBranding,
+    NotificationType,
     Permission,
     Service,
 )
@@ -117,10 +112,7 @@ from app.schemas import (
     service_schema,
 )
 from app.service import statistics
-from app.service.send_notification import (
-    send_one_off_notification,
-    send_pdf_letter_notification,
-)
+from app.service.send_notification import send_one_off_notification
 from app.service.sender import send_notification_to_service_users
 from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
@@ -128,7 +120,6 @@ from app.service.service_data_retention_schema import (
 )
 from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
-    add_service_letter_contact_block_request,
     add_service_sms_sender_request,
 )
 from app.service.utils import (
@@ -141,6 +132,10 @@ from app.utils import pagination_links
 service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
+
+# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
 
 
 @service_blueprint.errorhandler(IntegrityError)
@@ -209,13 +204,15 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    data = dao_fetch_live_services_data()
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
+    data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
     return jsonify(data=data)
 
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    return jsonify(data=fetch_delivered_notification_stats_by_month())
+    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
+    return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["GET"])
@@ -277,6 +274,7 @@ def create_service():
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
+# flake8: noqa: C901
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
 def update_service(service_id):
     req_json = request.get_json()
@@ -286,6 +284,12 @@ def update_service(service_id):
     service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
+    email_annual_limit_changed = fetched_service.email_annual_limit != req_json.get(
+        "email_annual_limit", fetched_service.email_annual_limit
+    )
+    sms_annual_limit_changed = fetched_service.sms_annual_limit != req_json.get(
+        "sms_annual_limit", fetched_service.sms_annual_limit
+    )
     current_data = dict(service_schema.dump(fetched_service).items())
 
     current_data.update(request.get_json())
@@ -314,6 +318,14 @@ def update_service(service_id):
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
+    if sms_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+    if email_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
@@ -342,9 +354,7 @@ def update_service(service_id):
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
-        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-        if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-        else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+        template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["message_limit"]),
@@ -362,6 +372,27 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
+
+
+def _warn_service_users_about_annual_limit_change(service: Service, notification_type: NotificationType):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_limit_en": "{:,}".format(service.email_annual_limit)
+            if notification_type == EMAIL_TYPE
+            else "{:,}".format(service.sms_annual_limit),
+            "message_limit_fr": "{:,}".format(
+                service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
+            ).replace(",", " "),
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
         },
         include_user_fields=["name"],
     )
@@ -391,7 +422,10 @@ def create_api_key(service_id=None):
     unsigned_api_key = get_unsigned_secret(valid_api_key.id)
 
     # prefix the API key so they keys can be easily identified for security scanning
-    keydata = {"key": unsigned_api_key, "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name}
+    keydata = {
+        "key": unsigned_api_key,
+        "key_name": current_app.config["API_KEY_PREFIX"] + valid_api_key.name,
+    }
 
     return jsonify(data=keydata), 201
 
@@ -575,13 +609,6 @@ def cancel_notification_for_service(service_id, notification_id):
             "Notification cannot be cancelled - only letters can be cancelled",
             status_code=400,
         )
-    elif not letter_can_be_cancelled(notification.status, notification.created_at):
-        print_day = letter_print_day(notification.created_at)
-
-        raise InvalidRequest(
-            "It’s too late to cancel this letter. Printing started {} at 5.30pm".format(print_day),
-            status_code=400,
-        )
 
     updated_notification = notifications_dao.update_notification_status_by_id(
         notification_id,
@@ -625,7 +652,8 @@ def get_monthly_notification_stats(service_id):
     statistics.add_monthly_notification_status_stats(data, stats)
 
     now = datetime.utcnow()
-    if end_date > now:
+    # TODO FF_ANNUAL_LIMIT removal
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
         todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
@@ -793,8 +821,7 @@ def create_one_off_notification(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/send-pdf-letter", methods=["POST"])
 def create_pdf_letter(service_id):
-    resp = send_pdf_letter_notification(service_id, request.get_json())
-    return jsonify(resp), 201
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/email-reply-to", methods=["GET"])
@@ -872,41 +899,22 @@ def delete_service_reply_to_email_address(service_id, reply_to_email_id):
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact", methods=["GET"])
 def get_letter_contacts(service_id):
-    result = dao_get_letter_contacts_by_service_id(service_id)
-    return jsonify([i.serialize() for i in result]), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>", methods=["GET"])
 def get_letter_contact_by_id(service_id, letter_contact_id):
-    result = dao_get_letter_contact_by_id(service_id=service_id, letter_contact_id=letter_contact_id)
-    return jsonify(result.serialize()), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact", methods=["POST"])
 def add_service_letter_contact(service_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_letter_contact = add_letter_contact_for_service(
-        service_id=service_id,
-        contact_block=form["contact_block"],
-        is_default=form.get("is_default", True),
-    )
-    return jsonify(data=new_letter_contact.serialize()), 201
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact/<uuid:letter_contact_id>", methods=["POST"])
 def update_service_letter_contact(service_id, letter_contact_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_letter_contact_block_request)
-    new_reply_to = update_letter_contact(
-        service_id=service_id,
-        letter_contact_id=letter_contact_id,
-        contact_block=form["contact_block"],
-        is_default=form.get("is_default", True),
-    )
-    return jsonify(data=new_reply_to.serialize()), 200
+    pass
 
 
 @service_blueprint.route(
@@ -914,9 +922,7 @@ def update_service_letter_contact(service_id, letter_contact_id):
     methods=["POST"],
 )
 def delete_service_letter_contact(service_id, letter_contact_id):
-    archived_letter_contact = archive_letter_contact(service_id, letter_contact_id)
-
-    return jsonify(data=archived_letter_contact.serialize()), 200
+    pass
 
 
 @service_blueprint.route("/<uuid:service_id>/sms-sender", methods=["POST"])
@@ -1089,6 +1095,12 @@ def modify_service_data_retention(service_id, data_retention_id):
         )
 
     return "", 204
+
+
+@service_blueprint.route("/sensitive-service-ids", methods=["GET"])
+def get_sensitive_service_ids():
+    data = dao_fetch_service_ids_of_sensitive_services()
+    return jsonify(data=data), 200
 
 
 @service_blueprint.route("/monthly-data-by-service")

@@ -3,10 +3,12 @@ on:
 name: Python tests
 jobs:
   test:
+    env:
+      CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:11.20-bullseye@sha256:4e4b23580ada59c9ec5a712bdff9f91b0e6a7898d9ea954306b953c426727cef
+        image: postgres:11.22-bullseye@sha256:c886a3236b3d11abc302e64309186c90a69b49e53ccff23fd8c8b057b5b4bce9
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -33,10 +35,10 @@ jobs:
           ${{ runner.os }}-pip-
     - name: Install poetry
       env:
-        POETRY_VERSION: "1.3.2"
+        POETRY_VERSION: "1.7.1"
       run: pip install poetry==${POETRY_VERSION} && poetry --version
     - name: Check poetry.lock aligns with pyproject.toml
-      run: poetry lock --check
+      run: poetry check --lock
     - name: Install requirements
       run: poetry install --with test
     - name: Run tests
@@ -67,7 +69,7 @@ jobs:
       run: |
         cp -f .env.example .env
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@69b6eee0c715fa4c3fe9ac48e4ccd6e3d4c1e239 # 52.0.18
+      uses: cds-snc/notification-utils/.github/actions/waffles@52.4.0
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'

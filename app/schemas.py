@@ -107,6 +107,31 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
         return super(BaseSchema, self).make_instance(data)
 
 
+class TemplateCategorySchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = models.TemplateCategory
+
+    @validates("name_en")
+    def validate_name_en(self, value):
+        if not value:
+            raise ValidationError("Invalid name")
+
+    @validates("name_fr")
+    def validate_name_fr(self, value):
+        if not value:
+            raise ValidationError("Invalid name")
+
+    @validates("sms_process_type")
+    def validate_sms_process_type(self, value):
+        if value not in models.TEMPLATE_PROCESS_TYPE:
+            raise ValidationError("Invalid SMS process type")
+
+    @validates("email_process_type")
+    def validate_email_process_type(self, value):
+        if value not in models.TEMPLATE_PROCESS_TYPE:
+            raise ValidationError("Invalid email process type")
+
+
 class UserSchema(BaseSchema):
     permissions = fields.Method("user_permissions", dump_only=True)
     password_changed_at = field_for(models.User, "password_changed_at", format="%Y-%m-%d %H:%M:%S.%f")
@@ -242,6 +267,9 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     letter_contact_block = fields.Method(serialize="get_letter_contact")
     go_live_at = field_for(models.Service, "go_live_at", format="%Y-%m-%d %H:%M:%S.%f")
     organisation_notes = field_for(models.Service, "organisation_notes")
+    sensitive_service = field_for(models.Service, "sensitive_service")
+    email_annual_limit = field_for(models.Service, "email_annual_limit")
+    sms_annual_limit = field_for(models.Service, "sms_annual_limit")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -292,14 +320,14 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
 
     @pre_load()
     def format_for_data_model(self, in_data, **kwargs):
-        if isinstance(in_data, dict) and "permissions" in in_data:
-            str_permissions = in_data["permissions"]
-            permissions = []
-            for p in str_permissions:
-                permission = ServicePermission(service_id=in_data["id"], permission=p)
-                permissions.append(permission)
-
-            in_data["permissions"] = permissions
+        if isinstance(in_data, dict):
+            if "permissions" in in_data:
+                str_permissions = in_data["permissions"]
+                permissions = []
+                for p in str_permissions:
+                    permission = ServicePermission(service_id=in_data["id"], permission=p)
+                    permissions.append(permission)
+                in_data["permissions"] = permissions
         return in_data
 
 
@@ -355,6 +383,10 @@ class NotificationModelSchema(BaseSchema):
 class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
+    process_type_column = fields.Method("get_hybrid_process_type")
+
+    def get_hybrid_process_type(self, template):
+        return template.process_type_column
 
     def get_reply_to(self, template):
         return template.reply_to
@@ -370,10 +402,13 @@ class BaseTemplateSchema(BaseSchema):
 class TemplateSchema(BaseTemplateSchema):
     created_by = field_for(models.Template, "created_by", required=True)
     is_precompiled_letter = fields.Method("get_is_precompiled_letter")
-    process_type = field_for(models.Template, "process_type")
+    process_type = field_for(models.Template, "process_type_column")
+    template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
+    template_category_id = fields.UUID(required=False, allow_none=True)
     redact_personalisation = fields.Method("redact")
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
+    text_direction_rtl = field_for(models.Template, "text_direction_rtl")
 
     def get_is_precompiled_letter(self, template):
         return template.is_precompiled_letter
@@ -389,10 +424,17 @@ class TemplateSchema(BaseTemplateSchema):
                 raise ValidationError("Invalid template subject", "subject")
 
 
+class ReducedTemplateSchema(TemplateSchema):
+    class Meta(BaseSchema.Meta):
+        model = models.Template
+        exclude = ["content", "jobs", "service_id", "service_letter_contact_id"]
+
+
 class TemplateHistorySchema(BaseSchema):
     reply_to = fields.Method("get_reply_to", allow_none=True)
     reply_to_text = fields.Method("get_reply_to_text", allow_none=True)
-    process_type = field_for(models.Template, "process_type")
+    process_type = field_for(models.Template, "process_type_column")
+    template_category = fields.Nested(TemplateCategorySchema, dump_only=True)
     created_by = fields.Nested(UserSchema, only=["id", "name", "email_address"], dump_only=True)
     created_at = field_for(models.Template, "created_at", format="%Y-%m-%d %H:%M:%S.%f")
     updated_at = FlexibleDateTime()
@@ -539,6 +581,7 @@ class NotificationWithTemplateSchema(BaseSchema):
             "subject",
             "redact_personalisation",
             "is_precompiled_letter",
+            "text_direction_rtl",
         ],
         dump_only=True,
     )
@@ -738,6 +781,7 @@ class ServiceHistorySchema(Schema):
     email_from = fields.String()
     created_by_id = fields.UUID()
     version = fields.Integer()
+    sensitive_service = fields.Boolean()
 
 
 class ApiKeyHistorySchema(Schema):
@@ -805,6 +849,8 @@ notifications_filter_schema = NotificationsFilterSchema()
 service_history_schema = ServiceHistorySchema()
 api_key_history_schema = ApiKeyHistorySchema()
 template_history_schema = TemplateHistorySchema()
+template_category_schema = TemplateCategorySchema()
+reduced_template_schema = ReducedTemplateSchema()
 event_schema = EventSchema()
 provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()

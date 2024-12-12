@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 
 import pytz
 from notifications_utils.strftime_codes import no_pad_month
@@ -104,3 +104,10 @@ def utc_midnight_n_days_ago(number_of_days):
     Returns utc midnight a number of days ago.
     """
     return get_midnight(datetime.utcnow() - timedelta(days=number_of_days))
+
+
+def get_query_date_based_on_retention_period(retention_period):
+    """
+    Computes a date to be used when querying for notifications based on retention period
+    """
+    return datetime.combine(datetime.now(timezone.utc) - timedelta(days=retention_period), time.max)

@@ -28,7 +28,11 @@ from app.models import (
     Template,
 )
 from app.utils import get_document_url
-from app.v2.errors import RateLimitError, TooManyRequestsError
+from app.v2.errors import (
+    RateLimitError,
+    TooManyRequestsError,
+    TrialServiceTooManyEmailRequestsError,
+)
 from tests import create_authorization_header
 from tests.app.conftest import (
     create_sample_api_key,
@@ -41,6 +45,7 @@ from tests.app.conftest import (
     create_sample_template_without_sms_permission,
 )
 from tests.app.db import create_reply_to_email, create_service
+from tests.conftest import set_config
 
 
 @pytest.mark.parametrize("template_type", [SMS_TYPE, EMAIL_TYPE])
@@ -380,12 +385,81 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
             assert response_data["template_version"] == sample_email_template.version
 
 
+@pytest.mark.parametrize(
+    "create_template_func, payload, expected_error_message, annual_limit",
+    [
+        (
+            create_sample_email_template,
+            {"to": "ok@ok.com", "template": "", "valid": "True"},
+            "Exceeded annual email sending limit of 1 messages",
+            1,
+        ),
+        (
+            create_sample_template,
+            {"to": "+16502532222", "template": "", "valid": "True"},
+            "Exceeded annual SMS sending limit of 1 messages",
+            1,
+        ),
+        (create_sample_email_template, {"to": "ok@ok.com", "template": "", "valid": "True"}, None, 2),
+        (create_sample_template, {"to": "+16502532222", "template": "", "valid": "True"}, None, 2),
+    ],
+)
+@pytest.mark.parametrize("is_trial", [True, False])
+def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
+    notify_db,
+    notify_db_session,
+    notify_api,
+    mocker,
+    is_trial,
+    create_template_func,
+    payload,
+    expected_error_message,
+    annual_limit,
+):
+    with notify_api.test_request_context(), set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with notify_api.test_client() as client:
+            service = create_sample_service(
+                notify_db, notify_db_session, sms_annual_limit=annual_limit, email_annual_limit=annual_limit, restricted=is_trial
+            )
+            template = create_template_func(notify_db, notify_db_session, service=service)
+            payload["template"] = str(template.id)
+            payload["to"] = (
+                template.service.created_by.email_address if is_trial and template.template_type == EMAIL_TYPE else payload["to"]
+            )
+
+            mocker.patch("app.notifications.validators.check_service_over_api_rate_limit_and_update_rate")
+            mocker.patch(f"app.celery.provider_tasks.deliver_{template.template_type}.apply_async")
+            mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+            create_sample_notification(
+                notify_db,
+                notify_db_session,
+                template=template,
+                service=service,
+                created_at=datetime.utcnow(),
+            )
+
+            auth_header = create_authorization_header(service_id=service.id)
+            response = client.post(
+                path=f"/notifications/{template.template_type}",
+                data=json.dumps(payload),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            message = json.loads(response.get_data(as_text=True))
+
+            if expected_error_message:
+                assert response.status_code == 429
+                assert message["message"] == expected_error_message
+            else:
+                assert response.status_code == 201
+
+
 @freeze_time("2016-01-01 12:00:00.061258")
 def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, notify_db_session, notify_api, mocker):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
+                "app.notifications.validators.check_service_over_api_rate_limit_and_update_rate",
                 side_effect=TooManyRequestsError(1),
             )
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -417,13 +491,14 @@ def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, not
 def test_should_block_api_call_if_over_day_limit_for_restricted_service(notify_db, notify_db_session, notify_api, mocker):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
-            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
             mocker.patch(
-                "app.notifications.validators.check_service_over_daily_message_limit",
-                side_effect=TooManyRequestsError(1),
+                "app.notifications.validators.check_email_daily_limit",
+                side_effect=TrialServiceTooManyEmailRequestsError(1),
             )
 
             service = create_sample_service(notify_db, notify_db_session, limit=1, restricted=True)
+            create_sample_service_safelist(notify_db, notify_db_session, service=service, email_address="ok@ok.com")
             email_template = create_sample_email_template(notify_db, notify_db_session, service=service)
             create_sample_notification(
                 notify_db,
@@ -461,7 +536,7 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
             sms_template = create_sample_template(notify_db, notify_db_session, service=service)
             create_sample_notification(notify_db, notify_db_session, template=email_template, service=service)
 
-            data = {"to": sample_user.mobile_number, "template": str(sms_template.id)}
+            data = {"to": sample_user.mobile_number, "template": str(sms_template.id), "valid": "True"}
 
             auth_header = create_authorization_header(service_id=service.id)
 

@@ -954,13 +954,18 @@ def test_send_contact_request_go_live_with_org_notes(organisation_notes, departm
     assert mock_contact_request.department_org_name == department_org_name
 
 
-def test_send_branding_request(client, sample_service, mocker):
+def test_send_branding_request(client, sample_service, sample_organisation, mocker):
     sample_user = sample_service.users[0]
+    sample_service.organisation = sample_organisation
     post_data = {
         "service_name": sample_service.name,
         "email_address": sample_user.email_address,
         "serviceID": str(sample_service.id),
+        "organisation_id": str(sample_service.organisation.id),
+        "organisation_name": sample_service.organisation.name,
         "filename": "branding_url",
+        "alt_text_en": "hello world",
+        "alt_text_fr": "bonjour",
     }
     mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
     mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
@@ -973,6 +978,31 @@ def test_send_branding_request(client, sample_service, mocker):
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
     mocked_salesforce_client.engagement_update.assert_not_called()
+
+
+class TestFreshDeskRequestTickets:
+    def test_send_request_for_new_category(self, client, sample_service, sample_organisation, mocker):
+        sample_user = sample_service.users[0]
+        sample_service.organisation = sample_organisation
+        post_data = {
+            "service_name": sample_service.name,
+            "email_address": sample_user.email_address,
+            "service_id": str(sample_service.id),
+            "template_category_name_en": "test",
+            "template_category_name_fr": "test",
+            "template_id": "1234",
+        }
+        mocked_freshdesk = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+        mocked_salesforce_client = mocker.patch("app.user.rest.salesforce_client")
+
+        resp = client.post(
+            url_for("user.send_new_template_category_request", user_id=str(sample_user.id)),
+            data=json.dumps(post_data),
+            headers=[("Content-Type", "application/json"), create_authorization_header()],
+        )
+        assert resp.status_code == 204
+        mocked_freshdesk.assert_called_once_with()
+        mocked_salesforce_client.engagement_update.assert_not_called()
 
 
 def test_send_user_confirm_new_email_returns_204(client, sample_user, change_email_confirmation_template, mocker):

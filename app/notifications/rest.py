@@ -10,6 +10,7 @@ from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
     NotificationType,
@@ -21,7 +22,10 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from app.notifications.validators import (
+    check_email_annual_limit,
+    check_email_daily_limit,
     check_rate_limiting,
+    check_sms_annual_limit,
     check_template_is_active,
     check_template_is_for_notification_type,
     service_has_permission,
@@ -102,11 +106,17 @@ def send_notification(notification_type: NotificationType):
         raise InvalidRequest(errors, status_code=400)
 
     current_app.logger.info(f"POST to V1 API: send_notification, service_id: {authenticated_service.id}")
+
     check_rate_limiting(authenticated_service, api_user)
 
     template = templates_dao.dao_get_template_by_id_and_service_id(
         template_id=notification_form["template"], service_id=authenticated_service.id
     )
+
+    simulated = simulated_recipient(notification_form["to"], notification_type)
+    if not simulated != api_user.key_type == KEY_TYPE_TEST and notification_type == EMAIL_TYPE:
+        check_email_annual_limit(authenticated_service, 1)
+        check_email_daily_limit(authenticated_service, 1)
 
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
@@ -122,9 +132,10 @@ def send_notification(notification_type: NotificationType):
 
     if notification_type == SMS_TYPE:
         _service_can_send_internationally(authenticated_service, notification_form["to"])
+        if not simulated and api_user.key_type != KEY_TYPE_TEST:
+            check_sms_annual_limit(authenticated_service, 1)
     # Do not persist or send notification to the queue if it is a simulated recipient
 
-    simulated = simulated_recipient(notification_form["to"], notification_type)
     notification_model = persist_notification(
         template_id=template.id,
         template_version=template.version,

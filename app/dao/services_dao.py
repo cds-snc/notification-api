@@ -23,6 +23,7 @@ from app.models import (
     CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEST,
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
@@ -83,7 +84,7 @@ def dao_count_live_services():
     ).count()
 
 
-def dao_fetch_live_services_data():
+def dao_fetch_live_services_data(filter_heartbeats=None):
     year_start_date, year_end_date = get_current_financial_year()
 
     most_recent_annual_billing = (
@@ -175,8 +176,11 @@ def dao_fetch_live_services_data():
             AnnualBilling.free_sms_fragment_limit,
         )
         .order_by(asc(Service.go_live_at))
-        .all()
     )
+
+    if filter_heartbeats:
+        data = data.filter(Service.id != current_app.config["NOTIFY_SERVICE_ID"])
+    data = data.all()
     results = []
     for row in data:
         existing_service = next((x for x in results if x["service_id"] == row.service_id), None)
@@ -309,8 +313,6 @@ def dao_create_service(
     if organisation:
         service.organisation_id = organisation.id
         service.organisation_type = organisation.organisation_type
-        if organisation.email_branding:
-            service.email_branding = organisation.email_branding
 
         if organisation.letter_branding and not service.letter_branding:
             service.letter_branding = organisation.letter_branding
@@ -424,20 +426,24 @@ def dao_fetch_todays_stats_for_service(service_id):
 
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("count")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for >= midnight,
+            Job.scheduled_for < midnight + timedelta(days=1),
+        )
+    ).first()
+
     result = (
-        db.session.query(func.count(Notification.id).label("count"))
-        .filter(
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("count")).filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            Notification.created_at > midnight,
+            Notification.created_at >= midnight,
         )
-        .group_by(
-            Notification.notification_type,
-            Notification.status,
-        )
-        .first()
-    )
-    return 0 if result is None else result.count
+    ).first()
+
+    return result.count + scheduled.count
 
 
 def fetch_todays_total_sms_count(service_id):
@@ -461,17 +467,25 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
+    scheduled = (
+        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("total_scheduled_notifications")).filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for > midnight,
+            Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
+        )
+    ).first()
+
     result = (
-        db.session.query(func.count(Notification.id).label("total_email_notifications"))
-        .filter(
+        db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
             Notification.created_at > midnight,
             Notification.notification_type == "email",
         )
-        .first()
-    )
-    return 0 if result is None else result.total_email_notifications
+    ).first()
+
+    return result.total_email_notifications + scheduled.total_scheduled_notifications
 
 
 def _stats_for_service_query(service_id):
@@ -580,3 +594,8 @@ def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
         .one()
     )
     return query
+
+
+def dao_fetch_service_ids_of_sensitive_services():
+    sensitive_service_ids = Service.query.filter(Service.sensitive_service.is_(True)).with_entities(Service.id).all()
+    return [str(service_id) for (service_id,) in sensitive_service_ids]

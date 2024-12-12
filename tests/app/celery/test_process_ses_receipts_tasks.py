@@ -4,8 +4,8 @@ from datetime import datetime
 import pytest
 from freezegun import freeze_time
 
-from app import bounce_rate_client, signer_complaint, statsd_client
-from app.aws.mocks import ses_complaint_callback
+from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
+from app.aws.mocks import ses_complaint_callback, ses_unknown_bounce_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
@@ -26,6 +26,7 @@ from app.models import (
     NOTIFICATION_SOFT_GENERAL,
     NOTIFICATION_SOFT_MAILBOXFULL,
     NOTIFICATION_SOFT_MESSAGETOOLARGE,
+    NOTIFICATION_UNKNOWN_BOUNCE,
     Complaint,
     Notification,
 )
@@ -41,6 +42,7 @@ from tests.app.db import (
     create_service_callback_api,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_process_ses_results(sample_email_template):
@@ -121,7 +123,9 @@ def test_ses_callback_should_update_notification_status(notify_db, notify_db_ses
         statsd_client.incr.assert_any_call("callback.ses.delivered")
         updated_notification = Notification.query.get(notification.id)
         encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with([str(notification.id), encrypted_data], queue="service-callbacks")
+        send_mock.assert_called_once_with(
+            [str(notification.id), encrypted_data, notification.service_id], queue="service-callbacks"
+        )
 
 
 def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
@@ -434,3 +438,79 @@ class TestBounceRates:
 
         bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
         bounce_rate_client.set_sliding_notifications.assert_not_called()
+
+
+class TestAnnualLimits:
+    def test_ses_callback_should_increment_email_delivered_when_delivery_receipt_is_delivered(
+        self, notify_api, sample_email_template, mocker
+    ):
+        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+
+        # TODO FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
+
+            assert process_ses_results(ses_notification_callback(reference="ref"))
+            annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
+            annual_limit_client.increment_email_failed.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "callback, bounce_type",
+        [
+            (ses_hard_bounce_callback, NOTIFICATION_HARD_BOUNCE),
+            (ses_soft_bounce_callback, NOTIFICATION_SOFT_BOUNCE),
+            (ses_unknown_bounce_callback, NOTIFICATION_UNKNOWN_BOUNCE),
+        ],
+    )
+    def test_ses_callback_should_increment_email_failed_when_delivery_receipt_is_failure(
+        self, notify_api, sample_email_template, mocker, callback, bounce_type
+    ):
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+
+        # TODO FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
+
+            assert process_ses_results(callback(reference="ref"))
+            annual_limit_client.increment_email_failed.assert_called_once_with(sample_email_template.service_id)
+            annual_limit_client.increment_email_delivered.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "callback",
+        [
+            ses_notification_callback,
+            ses_hard_bounce_callback,
+            ses_soft_bounce_callback,
+        ],
+    )
+    def test_process_ses_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
+        self,
+        callback,
+        sample_email_template,
+        notify_api,
+        mocker,
+    ):
+        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
+        mocker.patch("app.annual_limit_client.set_seeded_at")
+
+        notification = save_notification(
+            create_notification(
+                sample_email_template,
+                reference="ref",
+                sent_at=datetime.utcnow(),
+                status="sending",
+                sent_by="ses",
+            )
+        )
+        # TODO FF_ANNUAL_LIMIT removal
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            process_ses_results(callback(reference="ref"))
+            annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
+            annual_limit_client.increment_email_delivered.assert_not_called()
+            annual_limit_client.increment_email_failed.assert_not_called()

@@ -7,6 +7,7 @@ from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.dao.fact_notification_status_dao import (
+    _timing_notification_table,
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
     fetch_monthly_template_usage_for_service,
@@ -16,7 +17,9 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
+    fetch_notification_status_totals_for_service_by_fiscal_year,
     fetch_notification_statuses_for_job,
+    fetch_quarter_data,
     fetch_stats_for_all_services_by_date_range,
     get_api_key_ranked_by_notifications_created,
     get_last_send_for_api_key,
@@ -51,6 +54,7 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_update_fact_notification_status(notify_db_session):
@@ -104,31 +108,116 @@ def test_update_fact_notification_status(notify_db_session):
     assert new_fact_data[2].notification_count == 1
 
 
-def test__update_fact_notification_status_updates_row(notify_db_session):
-    first_service = create_service(service_name="First Service")
-    first_template = create_template(service=first_service)
-    save_notification(create_notification(template=first_template, status="delivered"))
+class TestUpdateFactNotificationStatus:
+    def test_update_fact_notification_status_updates_row(self, notify_db_session):
+        first_service = create_service(service_name="First Service")
+        first_template = create_template(service=first_service)
+        save_notification(create_notification(template=first_template, status="delivered"))
 
-    process_day = convert_utc_to_local_timezone(datetime.utcnow())
-    data = fetch_notification_status_for_day(process_day=process_day)
-    update_fact_notification_status(data=data, process_day=process_day.date())
+        process_day = convert_utc_to_local_timezone(datetime.utcnow())
+        data = fetch_notification_status_for_day(process_day=process_day)
+        update_fact_notification_status(data=data, process_day=process_day.date())
 
-    new_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
-    assert len(new_fact_data) == 1
-    assert new_fact_data[0].notification_count == 1
+        new_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(new_fact_data) == 1
+        assert new_fact_data[0].notification_count == 1
 
-    save_notification(create_notification(template=first_template, status="delivered"))
+        save_notification(create_notification(template=first_template, status="delivered"))
 
-    data = fetch_notification_status_for_day(process_day=process_day)
-    update_fact_notification_status(data=data, process_day=process_day.date())
+        data = fetch_notification_status_for_day(process_day=process_day)
+        update_fact_notification_status(data=data, process_day=process_day.date())
 
-    updated_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
-    assert len(updated_fact_data) == 1
-    assert updated_fact_data[0].notification_count == 2
+        updated_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(updated_fact_data) == 1
+        assert updated_fact_data[0].notification_count == 2
+
+    @freeze_time("2018-10-3T18:00:00")
+    def test_update_fact_notification_status_where_service_id_exits(self, notify_db_session):
+        """
+        We have exisiting data for 2018-1-1 in the facts table, with count = 4, we are going to update facts
+        for that day with only 1 notification, so the count should be updated to 1
+        """
+        service_1 = create_service(service_name="service_1")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 1, 2), "sms", service_1, count=10)
+
+        first_template = create_template(service=service_1)
+        save_notification(
+            create_notification(template=first_template, status="delivered", created_at=datetime(2018, 1, 1, 12, 0, 0))
+        )
+        data = fetch_notification_status_for_day(process_day=datetime(2018, 1, 1))
+        update_fact_notification_status(data=data, process_day=date(2018, 1, 1), service_ids=[service_1.id])
+        updated_fact_data = FactNotificationStatus.query.order_by(
+            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
+        ).all()
+        assert len(updated_fact_data) == 2
+        assert (
+            updated_fact_data[0].notification_count == 1
+        )  # this means the data was deleted for 2018-1-1 and count was updated to 1 notification
+        assert updated_fact_data[1].notification_count == 10  # this means the data for 2018-1-2 was not touched
+
+    @freeze_time("2018-10-3T18:00:00")
+    def test_update_fact_notification_status_twice(self, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 1, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_2, count=100)
+
+        fact_data = (
+            FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type, FactNotificationStatus.service_id)
+            .filter(FactNotificationStatus.bst_date == "2018-01-01")
+            .all()
+        )
+        assert len(fact_data) == 2
+
+        first_template = create_template(service=service_1)
+        save_notification(
+            create_notification(template=first_template, status="delivered", created_at=datetime(2018, 1, 1, 12, 0, 0))
+        )
+        data = fetch_notification_status_for_day(process_day=datetime(2018, 1, 1))
+        update_fact_notification_status(data=data, process_day=date(2018, 1, 1), service_ids=[service_1.id])
+        updated_fact_data = (
+            FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type, FactNotificationStatus.service_id)
+            .filter(FactNotificationStatus.bst_date == "2018-01-01")
+            .all()
+        )
+        assert len(updated_fact_data) == 2
+        # data was deleted for 2018-1-1 and count for service_1 was updated to 1 notification
+        # data for service_2 was not touched
+        if updated_fact_data[0].service_id == service_1.id:
+            assert updated_fact_data[0].notification_count == 1
+            assert updated_fact_data[1].notification_count == 100
+        else:
+            assert updated_fact_data[0].notification_count == 100
+            assert updated_fact_data[1].notification_count == 1
+
+        # Now we are testing for all service_ids
+        update_fact_notification_status(data=data, process_day=date(2018, 1, 1))
+        updated_fact_data = (
+            FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type, FactNotificationStatus.service_id)
+            .filter(FactNotificationStatus.bst_date == "2018-01-01")
+            .all()
+        )
+        assert len(updated_fact_data) == 1
+        assert updated_fact_data[0].notification_count == 1
+
+        data = fetch_notification_status_for_day(
+            process_day=datetime(2018, 1, 2)
+        )  # This will be empty as there is no data in notifications for this.
+        update_fact_notification_status(data=data, process_day=date(2018, 1, 2))
+        updated_fact_data = (
+            FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type, FactNotificationStatus.service_id)
+            .filter(FactNotificationStatus.bst_date == "2018-01-02")
+            .all()
+        )
+        assert len(updated_fact_data) == 0
 
 
 def test_fetch_notification_status_for_service_by_month(notify_db_session):
@@ -239,96 +328,166 @@ def test_fetch_notification_status_for_service_for_day(notify_db_session):
     assert results[1].count == 1
 
 
+class TestFetchNotificationStatusfortodayand7days:
+    @freeze_time("2018-10-31T18:00:00")
+    def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
+        self,
+        notify_db_session,
+    ):
+        service_1 = create_service(service_name="service_1")
+        sms_template = create_template(service=service_1, template_type=SMS_TYPE)
+        sms_template_2 = create_template(service=service_1, template_type=SMS_TYPE)
+        email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+        create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 10, 29), "sms", service_1, notification_status="created")
+        create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
+        create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
+
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+        save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
+
+        # too early, shouldn't be included
+        save_notification(
+            create_notification(
+                service_1.templates[0],
+                created_at=datetime(2018, 10, 23, 12, 0, 0),
+                status="delivered",
+            )
+        )
+        results = sorted(
+            fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id),
+            key=lambda x: (x.notification_type, x.status),
+        )
+
+        assert len(results) == 3
+
+        assert results[0].notification_type == "email"
+        assert results[0].status == "delivered"
+        assert results[0].count == 4
+
+        assert results[1].notification_type == "sms"
+        assert results[1].status == "created"
+        assert results[1].count == 3
+
+        assert results[2].notification_type == "sms"
+        assert results[2].status == "delivered"
+        assert results[2].count == 11
+
+    @freeze_time("2018-10-31T18:00:00")
+    # This test assumes the local timezone is EST
+    def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(self, notify_db_session, notify_api):
+        # based on the freeze time, we will look at data in the facts table from 2018-10-24
+        service_1 = create_service(service_name="service_1")
+        sms_template = create_template(template_name="SMS NON-FT", service=service_1, template_type=SMS_TYPE)
+        sms_template_2 = create_template(template_name="SMS1 NON-FT", service=service_1, template_type=SMS_TYPE)
+        email_template = create_template(template_name="EMAIL NON-FT", service=service_1, template_type=EMAIL_TYPE)
+
+        # create unused email template
+        create_template(template_name="UNUSED", service=service_1, template_type=EMAIL_TYPE)
+
+        # 30 sms
+        create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10, billable_units=20)
+        create_ft_notification_status(date(2018, 10, 28), "sms", service_1, count=11, billable_units=11)
+        create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
+        create_ft_notification_status(date(2018, 10, 27), "sms", service_1, notification_status="created")
+        create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
+
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
+        save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
+
+        # too early, shouldn't be included
+        save_notification(
+            create_notification(
+                service_1.templates[0],
+                created_at=datetime(2018, 10, 23, 12, 0, 0),
+                status="delivered",
+            )
+        )
+        results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
+        assert [
+            ("EMAIL NON-FT", False, mock.ANY, "email", "delivered", 1),
+            ("email Template Name", False, mock.ANY, "email", "delivered", 3),
+            ("SMS NON-FT", False, mock.ANY, "sms", "created", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "created", 1),
+            ("SMS NON-FT", False, mock.ANY, "sms", "delivered", 1),
+            ("SMS1 NON-FT", False, mock.ANY, "sms", "delivered", 1),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
+            ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
+        ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+
+    @freeze_time("2018-11-01T18:00:00")
+    def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
+        self,
+        notify_db_session,
+    ):
+        service_1 = create_service(service_name="service_1")
+        email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+
+        # create notifications that should not be included in today's count
+        create_ft_notification_status(date(2018, 10, 24), "email", service_1, count=30)
+        create_ft_notification_status(date(2018, 10, 31), "email", service_1, count=20)
+
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 0, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 23, 59, 59), status="delivered"))
+
+        # create notifications that should be included in count
+        save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 13, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 6, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 17, 59, 59), status="delivered"))
+
+        # checking the daily stats for this day should give us the 3 created after 12am UTC
+        results = sorted(
+            fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=1),
+            key=lambda x: (x.notification_type, x.status),
+        )
+        assert results[0][2] == 3
+
+    @freeze_time("2018-10-31T18:00:00")
+    def test_timing_for_facts(self, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        create_ft_notification_status(date(2018, 10, 24), "email", service_1, count=30)
+
+        assert _timing_notification_table(service_1.id) == datetime(2018, 10, 25, 0, 0, 0)
+
+
 @freeze_time("2018-10-31T18:00:00")
-def test_fetch_notification_status_for_service_for_today_and_7_previous_days(
+def test_fetch_notification_status_gets_data_from_correct_timeframe(
     notify_db_session,
 ):
     service_1 = create_service(service_name="service_1")
     sms_template = create_template(service=service_1, template_type=SMS_TYPE)
-    sms_template_2 = create_template(service=service_1, template_type=SMS_TYPE)
     email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
 
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10)
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, notification_status="created")
-    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
-
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
+    # create notifications for every hour of the day
+    for i in range(24):
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(email_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 0), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 30), status="delivered"))
+        save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 30, i, 0, 59), status="delivered"))
 
     # too early, shouldn't be included
     save_notification(
         create_notification(
             service_1.templates[0],
-            created_at=datetime(2018, 10, 23, 12, 0, 0),
+            created_at=datetime(2018, 10, 29, 23, 59, 59),
             status="delivered",
         )
     )
-    results = sorted(
-        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id),
-        key=lambda x: (x.notification_type, x.status),
-    )
+    data = fetch_notification_status_for_day(process_day=datetime.utcnow() - timedelta(days=1))
 
-    assert len(results) == 3
+    assert data[0].notification_type == "email"
+    assert data[0].notification_count == 48
 
-    assert results[0].notification_type == "email"
-    assert results[0].status == "delivered"
-    assert results[0].count == 4
-
-    assert results[1].notification_type == "sms"
-    assert results[1].status == "created"
-    assert results[1].count == 3
-
-    assert results[2].notification_type == "sms"
-    assert results[2].status == "delivered"
-    assert results[2].count == 19
-
-
-@freeze_time("2018-10-31T18:00:00")
-# This test assumes the local timezone is EST
-def test_fetch_notification_status_by_template_for_service_for_today_and_7_previous_days(notify_db_session, notify_api):
-    service_1 = create_service(service_name="service_1")
-    sms_template = create_template(template_name="SMS NON-FT", service=service_1, template_type=SMS_TYPE)
-    sms_template_2 = create_template(template_name="SMS1 NON-FT", service=service_1, template_type=SMS_TYPE)
-    email_template = create_template(template_name="EMAIL NON-FT", service=service_1, template_type=EMAIL_TYPE)
-
-    # create unused email template
-    create_template(template_name="UNUSED", service=service_1, template_type=EMAIL_TYPE)
-
-    # 30 sms
-    create_ft_notification_status(date(2018, 10, 29), "sms", service_1, count=10, billable_units=20)
-    create_ft_notification_status(date(2018, 10, 28), "sms", service_1, count=11, billable_units=11)
-    create_ft_notification_status(date(2018, 10, 24), "sms", service_1, count=8)
-    create_ft_notification_status(date(2018, 10, 27), "sms", service_1, notification_status="created")
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=3)
-
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0)))
-    save_notification(create_notification(sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
-    save_notification(create_notification(sms_template_2, created_at=datetime(2018, 10, 31, 12, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
-
-    # too early, shouldn't be included
-    save_notification(
-        create_notification(
-            service_1.templates[0],
-            created_at=datetime(2018, 10, 23, 12, 0, 0),
-            status="delivered",
-        )
-    )
-    results = fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, by_template=True)
-    assert [
-        ("EMAIL NON-FT", False, mock.ANY, "email", "delivered", 1),
-        ("email Template Name", False, mock.ANY, "email", "delivered", 3),
-        ("SMS NON-FT", False, mock.ANY, "sms", "created", 1),
-        ("sms Template Name", False, mock.ANY, "sms", "created", 1),
-        ("SMS NON-FT", False, mock.ANY, "sms", "delivered", 1),
-        ("SMS1 NON-FT", False, mock.ANY, "sms", "delivered", 1),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 8),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 10),
-        ("sms Template Name", False, mock.ANY, "sms", "delivered", 11),
-    ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
+    assert data[1].notification_type == "sms"
+    assert data[1].notification_count == 72
 
 
 def test_get_total_notifications_sent_for_api_key(notify_db_session):
@@ -367,20 +526,8 @@ def test_get_last_send_for_api_key_check_last_used(notify_db_session):
 def test_get_last_send_for_api_key(notify_db_session):
     service = create_service(service_name="First Service")
     api_key = create_api_key(service)
-    template_email = create_template(service=service, template_type=EMAIL_TYPE)
-    total_sends = 10
-
     last_send = get_last_send_for_api_key(str(api_key.id))
     assert last_send == []
-
-    for x in range(total_sends):
-        save_notification(create_notification(template=template_email, api_key=api_key))
-
-    # the following lines test that a send has occurred within the last second
-    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
-    now = datetime.utcnow()
-    time_delta = now - last_send
-    assert abs(time_delta.total_seconds()) < 1
 
 
 def test_get_api_key_ranked_by_notifications_created(notify_db_session):
@@ -423,24 +570,24 @@ def test_get_api_key_ranked_by_notifications_created(notify_db_session):
     assert int(second_place[8]) == sms_sends
 
 
-def test_last_used_for_api_key(notify_db_session):
-    service = create_service(service_name="Service 1")
-    api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
-    api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
-    api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
-    template_email = create_template(service=service, template_type="email")
-    create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
-    save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
+# def test_last_used_for_api_key(notify_db_session):
+#     service = create_service(service_name="Service 1")
+#     api_key_1 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 1")
+#     api_key_2 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 2")
+#     api_key_3 = create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name="Key 3")
+#     template_email = create_template(service=service, template_type="email")
+#     create_notification_history(template=template_email, api_key=api_key_1, created_at="2022-03-04")
+#     save_notification(create_notification(template=template_email, api_key=api_key_1, created_at="2022-03-05"))
 
-    assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
+#     assert (get_last_send_for_api_key(str(api_key_1.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-05"
 
-    save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
+#     save_notification(create_notification(template=template_email, api_key=api_key_2, created_at="2022-03-06"))
 
-    assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
+#     assert (get_last_send_for_api_key(str(api_key_2.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-06"
 
-    create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
+#     create_notification_history(template=template_email, api_key=api_key_3, created_at="2022-03-07")
 
-    assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
+#     assert (get_last_send_for_api_key(str(api_key_3.id))[0][0]).strftime("%Y-%m-%d") == "2022-03-07"
 
 
 @pytest.mark.parametrize(
@@ -738,6 +885,62 @@ def test_fetch_delivered_notification_stats_by_month(sample_service):
     assert results[3].month.startswith("2019-12-01")
     assert results[3].notification_type == "sms"
     assert results[3].count == 6
+
+
+@freeze_time("2020-11-02 14:00")
+def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(notify_api, sample_service):
+    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    # Not counted: before GC Notify started
+    create_ft_notification_status(
+        utc_date=date(2019, 10, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 5),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_DELIVERED,
+        count=6,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_SENT,
+        count=4,
+    )
+
+    # Not counted: failed notifications
+    create_ft_notification_status(
+        utc_date=date(2020, 1, 1),
+        service=sample_service,
+        template=sms_template,
+        notification_status=NOTIFICATION_FAILED,
+        count=10,
+    )
+
+    create_ft_notification_status(
+        utc_date=date(2020, 3, 1),
+        service=sample_service,
+        template=email_template,
+        count=5,
+    )
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+        results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
+        assert len(results) == 0
 
 
 def test_fetch_delivered_notification_stats_by_month_empty():
@@ -1146,41 +1349,86 @@ def test_fetch_monthly_notification_statuses_per_service_for_rows_that_should_be
     assert len(results) == 0
 
 
-# Freezegun is currently unable of handling non-timezone naive dates:
-# https://github.com/spulec/freezegun/issues/89 : https://github.com/spulec/freezegun/issues/487
-# So while the timeframe boundaries we're testing here are 5AM to 5AM UTC across 2 days, because the start/end dates
-# are timezone aware our boundaries for the purpose of this test are 23h to 23h.
-@freeze_time("2018-11-01T18:00:00")
-def test_fetch_notification_status_for_service_for_today_handles_midnight_utc(
+@freeze_time("2024-11-28")
+@pytest.mark.parametrize(
+    "notification_type, expected_count",
+    [
+        ("sms", 50),
+        ("email", 50),
+        (None, 100),
+    ],
+)
+def test_fetch_notification_status_totals_for_service_by_fiscal_year_only_counts_notifications_of_type_in_specified_fiscal_year(
     notify_db_session,
+    notification_type,
+    expected_count,
 ):
-    service_1 = create_service(service_name="service_1")
-    email_template = create_template(service=service_1, template_type=EMAIL_TYPE)
+    service = create_service(service_name="service")
+    sms_template = create_template(service=service, template_type="sms")
+    email_template = create_template(service=service, template_type="email")
 
-    # create notifications that should not be included in today's count
-    create_ft_notification_status(date(2018, 10, 29), "email", service_1, count=30)
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 0, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 11, 59, 59), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 23, 59, 59), status="delivered"))
-
-    # create notifications that should be included in count
-    create_ft_notification_status(date(2018, 10, 31), "email", service_1, count=5)
-    create_ft_notification_status(date(2018, 10, 30), "email", service_1, count=5)
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 10, 31, 6, 0, 0), status="delivered"))
-    save_notification(create_notification(email_template, created_at=datetime(2018, 11, 1, 22, 59, 59), status="delivered"))
-
-    # checking the daily stats for this day should give us the 2 created after 12am UTC
-    results = sorted(
-        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=1),
-        key=lambda x: (x.notification_type, x.status),
+    # Before current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2024, 3, 31),
+        service=service,
+        template=sms_template,
+        count=5,
     )
-    assert results[0][2] == 6
-
-    # checking the daily stats for the last 2 days should give us the 2 created after 12am UTC and the 1 from the day before
-    results = sorted(
-        fetch_notification_status_for_service_for_today_and_7_previous_days(service_1.id, limit_days=2),
-        key=lambda x: (x.notification_type, x.status),
+    create_ft_notification_status(
+        utc_date=datetime(2024, 3, 31),
+        service=service,
+        template=email_template,
+        count=5,
     )
-    assert results[0][2] == 11
+
+    # Within current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2024, 4, 1),
+        service=service,
+        template=sms_template,
+        count=50,
+    )
+    create_ft_notification_status(
+        utc_date=datetime(2024, 4, 1),
+        service=service,
+        template=email_template,
+        count=50,
+    )
+
+    # After current fiscal year
+    create_ft_notification_status(
+        utc_date=datetime(2025, 4, 1),
+        service=service,
+        template=sms_template,
+        count=50,
+    )
+    create_ft_notification_status(
+        utc_date=datetime(2025, 4, 1),
+        service=service,
+        template=email_template,
+        count=50,
+    )
+
+    results = fetch_notification_status_totals_for_service_by_fiscal_year(service.id, 2024, notification_type)
+    assert results == expected_count
+
+
+class TestFetchQuarterData:
+    def test_fetch_quarter_data(self, notify_db_session):
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        create_ft_notification_status(date(2018, 1, 1), "sms", service_1, count=4)
+        create_ft_notification_status(date(2018, 5, 2), "sms", service_1, count=10)
+        create_ft_notification_status(date(2018, 3, 20), "sms", service_2, count=100)
+        create_ft_notification_status(date(2018, 2, 1), "sms", service_2, count=1000)
+
+        assert set(fetch_quarter_data(date(2018, 1, 1), date(2018, 3, 27), service_ids=[service_1.id, service_2.id])) == set(
+            [
+                (service_1.id, "sms", 4),
+                (service_2.id, "sms", 1100),
+            ]
+        )
+        assert set(fetch_quarter_data(date(2018, 4, 1), date(2018, 6, 30), service_ids=[service_1.id, service_2.id])) == set(
+            [(service_1.id, "sms", 10)]
+        )

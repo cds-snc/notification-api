@@ -16,6 +16,16 @@ from app.config import Priorities, QueueNames
 
 local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
 
+DELIVERED_STATUSES = ["delivered", "sent", "returned-letter"]
+FAILURE_STATUSES = [
+    "failed",
+    "temporary-failure",
+    "permanent-failure",
+    "technical-failure",
+    "virus-scan-failed",
+    "validation-failed",
+]
+
 
 def pagination_links(pagination, endpoint, **kwargs):
     if "page" in kwargs:
@@ -246,3 +256,87 @@ def get_limit_reset_time_et() -> dict[str, str]:
 
     limit_reset_time_et = {"12hr": next_midnight_utc_in_et.strftime("%-I%p"), "24hr": next_midnight_utc_in_et.strftime("%H")}
     return limit_reset_time_et
+
+
+def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
+    """Utility method that transforms a list of notification counts into a dictionary, mapping notification counts by type and success/failure.
+    Used to seed notification counts in Redis for annual limits.
+    e.g.
+    ```
+    [(datetime, 'email', 'sent', 1),
+    (datetime, 'sms', 'sent', 2)]
+    ```
+    Becomes:
+    ```
+    {'email_sent': 1, 'sms_sent': 2}
+    ```
+    Args:
+        notification_counts (list): A list of tuples containing (date, notification_type, status, count)
+
+    Returns:
+        dict: That acts as a mapping to build the notification counts in Redis
+    """
+    return {
+        f"{notification_type}_{'delivered' if status in DELIVERED_STATUSES else 'failed'}": count
+        for _, notification_type, status, count in notification_counts
+        if status in DELIVERED_STATUSES or status in FAILURE_STATUSES
+    }
+
+
+def get_fiscal_year(current_date=None):
+    """
+    Determine the fiscal year for a given date.
+
+    Args:
+        current_date (datetime.date, optional): The date to determine the fiscal year for.
+                                                Defaults to today's date.
+
+    Returns:
+        int: The fiscal year (starting year).
+    """
+    if current_date is None:
+        current_date = datetime.today()
+
+    # Fiscal year starts on April 1st
+    fiscal_year_start_month = 4
+    if current_date.month >= fiscal_year_start_month:
+        return current_date.year
+    else:
+        return current_date.year - 1
+
+
+def get_fiscal_dates(current_date=None, year=None):
+    """
+    Determine the start and end dates of the fiscal year for a given date or year.
+    If no parameters are passed into the method, the fiscal year for the current date will be determined.
+
+    Args:
+        current_date (datetime.date, optional): The date to determine the fiscal year for.
+        year (int, optional): The year to determine the fiscal year for.
+
+    Returns:
+        tuple: A tuple containing the start and end dates of the fiscal year (datetime.date).
+    """
+    if current_date and year:
+        raise ValueError("Only one of current_date or year should be provided.")
+
+    if not current_date and not year:
+        current_date = datetime.today()
+
+    # Fiscal year starts on April 1st
+    fiscal_year_start_month = 4
+    fiscal_year_start_day = 1
+
+    if current_date:
+        if current_date.month >= fiscal_year_start_month:
+            fiscal_year_start = datetime(current_date.year, fiscal_year_start_month, fiscal_year_start_day)
+            fiscal_year_end = datetime(current_date.year + 1, fiscal_year_start_month - 1, 31)  # March 31 of the next year
+        else:
+            fiscal_year_start = datetime(current_date.year - 1, fiscal_year_start_month, fiscal_year_start_day)
+            fiscal_year_end = datetime(current_date.year, fiscal_year_start_month - 1, 31)  # March 31 of the current year
+
+    if year:
+        fiscal_year_start = datetime(year, fiscal_year_start_month, fiscal_year_start_day)
+        fiscal_year_end = datetime(year + 1, fiscal_year_start_month - 1, 31)
+
+    return fiscal_year_start, fiscal_year_end

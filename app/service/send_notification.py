@@ -33,9 +33,11 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from app.notifications.validators import (
+    check_email_annual_limit,
     check_email_daily_limit,
     check_service_has_permission,
     check_service_over_daily_message_limit,
+    check_sms_annual_limit,
     check_sms_daily_limit,
     increment_email_daily_count_send_warnings_if_needed,
     increment_sms_daily_count_send_warnings_if_needed,
@@ -67,13 +69,13 @@ def send_one_off_notification(service_id, post_data):
 
     _, template_with_content = validate_template(template.id, personalisation, service, template.template_type)
 
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        check_service_over_daily_message_limit(KEY_TYPE_NORMAL, service)
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
+            check_sms_annual_limit(service, 1)
             check_sms_daily_limit(service, 1)
-    elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+    elif template.template_type == EMAIL_TYPE:
+        check_email_annual_limit(service, 1)
         check_email_daily_limit(service, 1)  # 1 email
 
     validate_and_format_recipient(
@@ -86,13 +88,11 @@ def send_one_off_notification(service_id, post_data):
 
     validate_created_by(service, post_data["created_by"])
 
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        pass  # will remove this soon, don't bother refactoring
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
             increment_sms_daily_count_send_warnings_if_needed(service, 1)
-    elif template.template_type == EMAIL_TYPE and current_app.config["FF_EMAIL_DAILY_LIMIT"]:
+    elif template.template_type == EMAIL_TYPE:
         increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
     sender_id = post_data.get("sender_id", None)

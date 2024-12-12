@@ -12,6 +12,7 @@ from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
 from notifications_utils import logging, request_helper
+from notifications_utils.clients.redis.annual_limit import RedisAnnualLimit
 from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
 from notifications_utils.clients.redis.redis_client import RedisClient
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
@@ -28,6 +29,7 @@ from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
 from app.clients.salesforce.salesforce_client import SalesforceClient
+from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy
 from app.encryption import CryptoSigner
@@ -45,6 +47,7 @@ marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
+aws_pinpoint_client = AwsPinpointClient()
 signer_notification = CryptoSigner()
 signer_personalisation = CryptoSigner()
 signer_complaint = CryptoSigner()
@@ -58,6 +61,7 @@ flask_redis = FlaskRedis()
 flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
 redis_store = RedisClient()
 bounce_rate_client = RedisBounceRate(redis_store)
+annual_limit_client = RedisAnnualLimit(redis_store)
 metrics_logger = MetricsLogger()
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
@@ -107,6 +111,7 @@ def create_app(application, config=None):
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
+    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
 
@@ -120,7 +125,7 @@ def create_app(application, config=None):
 
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
-    clients.init_app(sms_clients=[aws_sns_client], email_clients=[aws_ses_client])
+    clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
 
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)
@@ -150,10 +155,16 @@ def create_app(application, config=None):
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
 
-    # avoid circular imports by importing this file later
-    from app.commands import setup_commands
+    # avoid circular imports by importing these files later
+    from app.commands.bulk_db import setup_bulk_db_commands
+    from app.commands.deprecated import setup_deprecated_commands
+    from app.commands.support import setup_support_commands
+    from app.commands.test_data import setup_test_data_commands
 
-    setup_commands(application)
+    setup_support_commands(application)
+    setup_bulk_db_commands(application)
+    setup_test_data_commands(application)
+    setup_deprecated_commands(application)
 
     return application
 
@@ -173,11 +184,15 @@ def register_blueprint(application):
     from app.authentication.auth import (
         requires_admin_auth,
         requires_auth,
+        requires_cache_clear_auth,
+        requires_cypress_auth,
         requires_no_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
+    from app.cache.rest import cache_blueprint
     from app.complaint.complaint_rest import complaint_blueprint
+    from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
@@ -197,7 +212,9 @@ def register_blueprint(application):
     from app.service.callback_rest import service_callback_blueprint
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
+    from app.support.rest import support_blueprint
     from app.template.rest import template_blueprint
+    from app.template.template_category_rest import template_category_blueprint
     from app.template_folder.rest import template_folder_blueprint
     from app.template_statistics.rest import (
         template_statistics as template_statistics_blueprint,
@@ -255,6 +272,14 @@ def register_blueprint(application):
     register_notify_blueprint(application, template_folder_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, letter_branding_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, template_category_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, cypress_blueprint, requires_cypress_auth, "/cypress")
+
+    register_notify_blueprint(application, support_blueprint, requires_admin_auth, "/support")
+
+    register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
 
 
 def register_v2_blueprints(application):

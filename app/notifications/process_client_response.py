@@ -53,7 +53,7 @@ def _process_for_status(notification_status, client_name, provider_reference):
         if service_callback_api:
             signed_notification = create_delivery_status_callback_data(notification, service_callback_api)
             send_delivery_status_to_service.apply_async(
-                [str(notification.id), signed_notification],
+                [str(notification.id), signed_notification, notification.service_id],
                 queue=QueueNames.CALLBACKS,
             )
 

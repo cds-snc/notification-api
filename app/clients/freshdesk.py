@@ -59,15 +59,38 @@ class Freshdesk(object):
                     f"A new logo has been uploaded by {self.contact.name} ({self.contact.email_address}) for the following service:",
                     f"- Service id: {self.contact.service_id}",
                     f"- Service name: {self.contact.service_name}",
+                    f"- Organisation id: {self.contact.organisation_id}",
+                    f"- Organisation name: {self.contact.department_org_name}",
                     f"- Logo filename: {self.contact.branding_url}",
+                    f"- Logo name: {self.contact.branding_logo_name}",
+                    f"- Alt text english: {self.contact.alt_text_en}",
+                    f"- Alt text french: {self.contact.alt_text_fr}",
                     "<hr>",
                     f"Un nouveau logo a été téléchargé par {self.contact.name} ({self.contact.email_address}) pour le service suivant :",
                     f"- Identifiant du service : {self.contact.service_id}",
                     f"- Nom du service : {self.contact.service_name}",
+                    f"- Identifiant de l'organisation: {self.contact.organisation_id}",
+                    f"- Nom de l'organisation: {self.contact.department_org_name}",
                     f"- Nom du fichier du logo : {self.contact.branding_url}",
+                    f"- Nom du logo : {self.contact.branding_logo_name}",
+                    f"- Texte alternatif anglais : {self.contact.alt_text_en}",
+                    f"- Texte alternatif français : {self.contact.alt_text_fr}",
                 ]
             )
-
+        elif self.contact.is_new_template_category_request():
+            message = "<br>".join(
+                [
+                    f"New template category request from {self.contact.name} ({self.contact.email_address}):",
+                    f"- Service id: {self.contact.service_id}",
+                    f"- New Template Category Request name: {self.contact.template_category_name_en}",
+                    f"- Template id request: {self.contact.template_id_link}",
+                    "<hr>",
+                    f"Demande de nouvelle catégorie de modèle de {self.contact.name} ({self.contact.email_address}):",
+                    f"- Identifiant du service: {self.contact.service_id}",
+                    f"- Nom de la nouvelle catégorie de modèle demandée: {self.contact.template_category_name_fr}",
+                    f"- Demande d'identifiant de modèle: {self.contact.template_id_link}",
+                ]
+            )
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
 

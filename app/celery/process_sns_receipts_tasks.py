@@ -2,11 +2,15 @@ from datetime import datetime
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import notify_celery, statsd_client
+from app import annual_limit_client, notify_celery, statsd_client
 from app.config import QueueNames
 from app.dao import notifications_dao
+from app.dao.fact_notification_status_dao import (
+    fetch_notification_status_for_service_for_day,
+)
 from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -16,9 +20,12 @@ from app.models import (
     SNS_PROVIDER,
 )
 from app.notifications.callbacks import _check_and_queue_callback_task
+from app.utils import prepare_notification_counts_for_seeding
 from celery.exceptions import Retry
 
 
+# TODO: FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
+# flake8: noqa: C901
 @notify_celery.task(bind=True, name="process-sns-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def process_sns_results(self, response):
@@ -62,6 +69,21 @@ def process_sns_results(self, response):
             provider_response=provider_response,
         )
 
+        service_id = notification.service_id
+        # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
+        # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
+        notifications_to_seed = None
+        if current_app.config["FF_ANNUAL_LIMIT"]:
+            if not annual_limit_client.was_seeded_today(service_id):
+                annual_limit_client.set_seeded_at(service_id)
+                notifications_to_seed = fetch_notification_status_for_service_for_day(
+                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    service_id=service_id,
+                )
+                annual_limit_client.seed_annual_limit_notifications(
+                    service_id, prepare_notification_counts_for_seeding(notifications_to_seed)
+                )
+
         if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info(
                 (
@@ -69,8 +91,24 @@ def process_sns_results(self, response):
                     f"Provider response: {sns_message['delivery']['providerResponse']}"
                 )
             )
+            # TODO FF_ANNUAL_LIMIT removal
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_sms_failed(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented sms_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
         else:
             current_app.logger.info(f"SNS callback return status of {notification_status} for notification: {notification.id}")
+            # TODO FF_ANNUAL_LIMIT removal
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_sms_delivered(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented sms_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
 
         statsd_client.incr(f"callback.sns.{notification_status}")
 

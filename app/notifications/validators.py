@@ -14,6 +14,7 @@ from notifications_utils.clients.redis import (
     over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
 )
+from notifications_utils.decorators import requires_feature
 from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_email_address,
@@ -22,8 +23,11 @@ from notifications_utils.recipients import (
 from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store
+from app import annual_limit_client, redis_store
 from app.dao import services_dao, templates_dao
+from app.dao.fact_notification_status_dao import (
+    fetch_notification_status_totals_for_service_by_fiscal_year,
+)
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -54,22 +58,28 @@ from app.sms_fragment_utils import (
 from app.utils import (
     flatten_dct,
     get_document_url,
+    get_fiscal_year,
     get_limit_reset_time_et,
     get_public_notify_type_text,
     is_blank,
 )
 from app.v2.errors import (
     BadRequestError,
+    LiveServiceRequestExceedsEmailAnnualLimitError,
+    LiveServiceRequestExceedsSMSAnnualLimitError,
     LiveServiceTooManyEmailRequestsError,
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
     RateLimitError,
+    TrialServiceRequestExceedsEmailAnnualLimitError,
+    TrialServiceRequestExceedsSMSAnnualLimitError,
     TrialServiceTooManyEmailRequestsError,
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
 
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
+NEAR_ANNUAL_LIMIT_PERCENTAGE = 80 / 100
 
 
 def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key: ApiKey):
@@ -163,6 +173,115 @@ def check_email_daily_limit(service: Service, requested_email=0):
         raise LiveServiceTooManyEmailRequestsError(service.message_limit)
 
 
+# TODO: FF_ANNUAL_LIMIT removal
+@requires_feature("FF_ANNUAL_LIMIT")
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.trial_service_annual_email",
+    exception=TrialServiceRequestExceedsEmailAnnualLimitError,
+)
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.live_service_annual_email",
+    exception=LiveServiceRequestExceedsEmailAnnualLimitError,
+)
+def check_email_annual_limit(service: Service, requested_emails=0):
+    current_fiscal_year = get_fiscal_year(datetime.utcnow())
+    emails_sent_today = fetch_todays_email_count(service.id)
+    emails_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
+        service.id, current_fiscal_year, notification_type=EMAIL_TYPE
+    )
+    send_exceeds_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) > service.email_annual_limit
+    send_reaches_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) == service.email_annual_limit
+    is_near_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) > (
+        service.email_annual_limit * NEAR_ANNUAL_LIMIT_PERCENTAGE
+    )
+
+    if not send_exceeds_annual_limit:
+        # Will this send put the service right at their limit?
+        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, EMAIL_TYPE):
+            annual_limit_client.set_over_email_limit(service.id)
+            current_app.logger.info(
+                f"Service {service.id} reached their annual email limit of {service.email_annual_limit} when sending {requested_emails} messages. Sending reached annual limit email."
+            )
+            send_annual_limit_reached_email(service, "email", current_fiscal_year + 1)
+
+        # Will this send put annual usage within 80% of the limit?
+        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, EMAIL_TYPE):
+            annual_limit_client.set_nearing_email_limit(service.id)
+            current_app.logger.info(
+                f"Service {service.id} reached 80% of their annual email limit of {service.email_annual_limit} messages. Sending annual limit usage warning email."
+            )
+            send_near_annual_limit_warning_email(
+                service, "email", int(emails_sent_today + emails_sent_this_fiscal), current_fiscal_year + 1
+            )
+
+        return
+
+    current_app.logger.info(
+        f"{'Trial service' if service.restricted else 'Service'} {service.id} is exceeding their annual email limit [total sent this fiscal: {int(emails_sent_today + emails_sent_this_fiscal)} limit: {service.email_annual_limit}, attempted send: {requested_emails}"
+    )
+    if service.restricted:
+        raise TrialServiceRequestExceedsEmailAnnualLimitError(service.email_annual_limit)
+    else:
+        raise LiveServiceRequestExceedsEmailAnnualLimitError(service.email_annual_limit)
+
+
+# TODO: FF_ANNUAL_LIMIT removal
+@requires_feature("FF_ANNUAL_LIMIT")
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.trial_service_annual_sms",
+    exception=TrialServiceRequestExceedsSMSAnnualLimitError,
+)
+@statsd_catch(
+    namespace="validators",
+    counter_name="rate_limit.live_service_annual_sms",
+    exception=LiveServiceRequestExceedsSMSAnnualLimitError,
+)
+def check_sms_annual_limit(service: Service, requested_sms=0):
+    current_fiscal_year = get_fiscal_year(datetime.utcnow())
+    sms_sent_today = fetch_todays_requested_sms_count(service.id)
+    sms_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
+        service.id, current_fiscal_year, notification_type=SMS_TYPE
+    )
+    send_exceeds_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) > service.sms_annual_limit
+    send_reaches_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) == service.sms_annual_limit
+    is_near_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) >= (
+        service.sms_annual_limit * NEAR_ANNUAL_LIMIT_PERCENTAGE
+    )
+
+    if not send_exceeds_annual_limit:
+        # Will this send put the service right at their limit?
+        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, SMS_TYPE):
+            annual_limit_client.set_over_sms_limit(service.id)
+            current_app.logger.info(
+                f"Service {service.id} reached their annual SMS limit of {service.sms_annual_limit} messages. Sending reached annual limit email."
+            )
+            send_annual_limit_reached_email(service, "sms", current_fiscal_year + 1)
+
+        # Will this send put annual usage within 80% of the limit?
+        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, SMS_TYPE):
+            annual_limit_client.set_nearing_sms_limit(service.id)
+            current_app.logger.info(
+                f"Service {service.id} reached 80% of their annual SMS limit of {service.sms_annual_limit} messages. Sending annual limit usage warning email."
+            )
+            send_near_annual_limit_warning_email(
+                service, "sms", int(sms_sent_today + sms_sent_this_fiscal), current_fiscal_year + 1
+            )
+
+        return
+
+    current_app.logger.info(
+        f"Service {service.id} is exceeding their annual SMS limit [total sent this fiscal: {int(sms_sent_today + sms_sent_this_fiscal)} limit: {service.sms_annual_limit}, attempted send: {requested_sms}"
+    )
+
+    if service.restricted:
+        raise TrialServiceRequestExceedsSMSAnnualLimitError(service.sms_annual_limit)
+    else:
+        raise LiveServiceRequestExceedsSMSAnnualLimitError(service.sms_annual_limit)
+
+
 def send_warning_email_limit_emails_if_needed(service: Service) -> None:
     """
     Function that decides if we should send email warnings about nearing or reaching the email daily limit.
@@ -228,17 +347,12 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
 
 
 def increment_email_daily_count_send_warnings_if_needed(service: Service, requested_email=0) -> None:
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        return
-
     increment_todays_email_count(service.id, requested_email)
     send_warning_email_limit_emails_if_needed(service)
 
 
 def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit_and_update_rate(service, api_key)
-    if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-        check_service_over_daily_message_limit(api_key.key_type, service)
 
 
 def warn_about_daily_message_limit(service: Service, messages_sent):
@@ -374,6 +488,61 @@ def send_email_limit_reached_email(service: Service):
             "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
+        },
+        include_user_fields=["name"],
+    )
+
+
+def send_annual_limit_reached_email(service: Service, notification_type: NotificationType, fiscal_end: int):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["REACHED_ANNUAL_LIMIT_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "fiscal_end": fiscal_end,
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
+        },
+        include_user_fields=["name"],
+    )
+
+
+def send_near_annual_limit_warning_email(service: Service, notification_type: NotificationType, count_en: int, fiscal_end: int):
+    count_fr = "{:,}".format(count_en).replace(",", " ")
+    if notification_type == EMAIL_TYPE:
+        message_limit_fr = "{:,}".format(service.email_annual_limit).replace(",", " ")
+        message_limit_en = service.email_annual_limit
+        message_type_fr = "courriels"
+        message_type_en = "emails"
+        remaining_en = "{:,}".format(service.email_annual_limit - count_en)
+        remaining_fr = "{:,}".format(service.email_annual_limit - count_en).replace(",", " ")
+    else:
+        message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
+        message_limit_en = service.sms_annual_limit
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+        remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
+        remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
+
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["NEAR_ANNUAL_LIMIT_TEMPLATE_ID"],
+        personalisation={
+            "message_type": notification_type,
+            "fiscal_end": fiscal_end,
+            "service_name": service.name,
+            "count_en": count_en,
+            "count_fr": count_fr,
+            "message_limit_en": message_limit_en,
+            "message_limit_fr": message_limit_fr,
+            "message_type_en": message_type_en,
+            "message_type_fr": message_type_fr,
+            "remaining_en": remaining_en,
+            "remaining_fr": remaining_fr,
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
         },
         include_user_fields=["name"],
     )

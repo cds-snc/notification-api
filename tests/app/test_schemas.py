@@ -142,3 +142,12 @@ def test_provider_details_history_schema_returns_user_details(
     data = provider_details_schema.dump(current_sms_provider_in_history)
 
     assert sorted(data["created_by"].keys()) == sorted(["id", "email_address", "name"])
+
+
+def test_service_schema_returns_annual_limits(sample_service):
+    from app.schemas import service_schema
+
+    data = service_schema.dump(sample_service)
+
+    assert data["sms_annual_limit"] == 100000
+    assert data["email_annual_limit"] == 20000000

@@ -8,7 +8,10 @@ from uuid import UUID, uuid4
 from flask import current_app
 from itsdangerous import BadSignature
 from more_itertools import chunked
-from notifications_utils.recipients import RecipientCSV
+from notifications_utils.recipients import (
+    RecipientCSV,
+    try_validate_and_format_phone_number,
+)
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from notifications_utils.timezones import convert_utc_to_local_timezone
@@ -36,6 +39,9 @@ from app.aws.metrics import (
     put_batch_saving_bulk_processed,
 )
 from app.config import Config, Priorities, QueueNames
+from app.dao.fact_notification_status_dao import (
+    fetch_notification_status_totals_for_service_by_fiscal_year,
+)
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -49,11 +55,9 @@ from app.dao.notifications_dao import (
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
-from app.dao.services_dao import (
-    dao_fetch_service_by_id,
-    fetch_todays_total_message_count,
-)
+from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
@@ -78,9 +82,9 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.notifications.validators import check_service_over_daily_message_limit
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows, get_delivery_queue_for_template
+from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -113,9 +117,6 @@ def process_job(job_id):
         job.job_status = JOB_STATUS_CANCELLED
         dao_update_job(job)
         current_app.logger.warning("Job {} has been cancelled, service {} is inactive".format(job_id, service.id))
-        return
-
-    if __sending_limits_for_job_exceeded(service, job, job_id):
         return
 
     job.job_status = JOB_STATUS_IN_PROGRESS
@@ -203,15 +204,38 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
 
 
 def __sending_limits_for_job_exceeded(service, job: Job, job_id):
-    total_sent = fetch_todays_total_message_count(service.id)
+    error_message = None
 
-    if total_sent + job.notification_count > service.message_limit:
+    if job.template.template_type == SMS_TYPE:
+        total_post_send = fetch_todays_requested_sms_count(service.id) + job.notification_count
+        total_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
+            service.id, get_fiscal_year(datetime.utcnow()), notification_type=SMS_TYPE
+        )
+        send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.sms_annual_limit
+        send_exceeds_daily_limit = total_post_send > service.sms_daily_limit
+
+        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+            error_message = f"SMS annual limit of {service.sms_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over by: {total_post_send + total_sent_this_fiscal - service.sms_annual_limit}"
+        elif send_exceeds_daily_limit:
+            error_message = f"SMS daily limit of {service.sms_daily_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent today + job size: {total_post_send} Over by: {total_post_send - service.sms_daily_limit}"
+    else:
+        total_post_send = fetch_todays_email_count(service.id) + job.notification_count
+        total_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
+            service.id, get_fiscal_year(datetime.utcnow()), notification_type=EMAIL_TYPE
+        )
+        send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.email_annual_limit
+        send_exceeds_daily_limit = total_post_send > service.message_limit
+
+        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+            error_message = f"Email annual limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
+        elif send_exceeds_daily_limit:
+            error_message = f"Email daily limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent today + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
+
+    if error_message:
         job.job_status = JOB_STATUS_SENDING_LIMITS_EXCEEDED
         job.processing_finished = datetime.utcnow()
         dao_update_job(job)
-        current_app.logger.info(
-            "Job {} size {} error. Sending limits {} exceeded".format(job_id, job.notification_count, service.message_limit)
-        )
+        current_app.logger.info(error_message)
         return True
     return False
 
@@ -244,13 +268,18 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
 
-        reply_to_text = ""  # type: ignore
-        if sender_id:
-            reply_to_text = dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-        elif template.service:
-            reply_to_text = template.get_reply_to_text()
+        if "reply_to_text" in _notification and _notification["reply_to_text"]:
+            reply_to_text = _notification["reply_to_text"]
         else:
-            reply_to_text = service.get_default_sms_sender()  # type: ignore
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = try_validate_and_format_phone_number(
+                    dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+                )
+            elif template.service:
+                reply_to_text = template.get_reply_to_text()
+            else:
+                reply_to_text = service.get_default_sms_sender()  # type: ignore
 
         notification: VerifiedNotification = {
             **_notification,  # type: ignore
@@ -300,8 +329,6 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     current_app.logger.debug(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,
@@ -331,6 +358,10 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     verified_notifications: List[VerifiedNotification] = []
     notification_id_queue: Dict = {}
     saved_notifications: List[Notification] = []
+
+    # temporarily cache services so we don't get them more than once each batch
+    service_id_map = {}
+
     for signed_notification in signed_notifications:
         try:
             _notification = signer_notification.verify(signed_notification)
@@ -338,7 +369,14 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
         service_id = _notification.get("service_id", _service_id)  # take it it out of the notification if it's there
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        # get service from local cache if possible
+        if service_id not in service_id_map:
+            service = dao_fetch_service_by_id(service_id)
+            service_id_map[service_id] = service
+        else:
+            service = service_id_map[service_id]
+
         template = dao_get_template_by_id(
             _notification.get("template"), version=_notification.get("template_version"), use_cache=True
         )
@@ -423,8 +461,6 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            if not current_app.config["FF_EMAIL_DAILY_LIMIT"]:
-                check_service_over_daily_message_limit(notification_obj.key_type, service)
             queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
             send_notification_to_queue(
                 notification_obj,

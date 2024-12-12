@@ -78,17 +78,10 @@ class QueueNames(object):
     # A queue for the tasks associated with the batch saving
     NOTIFY_CACHE = "notifiy-cache-tasks"
 
-    # For normal send of notifications. This is relatively normal volume and flushed
-    # pretty quickly.
-    SEND_NORMAL_QUEUE = "send-{}-tasks"  # notification type to be filled in the queue name
-
     # Queues for sending all SMS, except long dedicated numbers.
     SEND_SMS_HIGH = "send-sms-high"
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_SMS = "send-sms-tasks"
 
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
@@ -98,9 +91,6 @@ class QueueNames(object):
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
     SEND_EMAIL_LOW = "send-email-low"
-
-    # TODO: Delete this queue once we verify that it is not used anymore.
-    SEND_EMAIL = "send-email-tasks"
 
     # The research mode queue for notifications that are tested by users trying
     # out Notify.
@@ -117,6 +107,7 @@ class QueueNames(object):
     PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
+    CALLBACKS_RETRY = "service-callbacks-retry"
 
     # Queue for letters, unused by CDS at this time as we don't use these.
     LETTERS = "letter-tasks"
@@ -158,16 +149,15 @@ class QueueNames(object):
             QueueNames.SEND_SMS_HIGH,
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
-            QueueNames.SEND_SMS,
             QueueNames.SEND_THROTTLED_SMS,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
-            QueueNames.SEND_EMAIL,
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,
             QueueNames.RETRY,
+            QueueNames.CALLBACKS_RETRY,
             QueueNames.NOTIFY,
             # QueueNames.CREATE_LETTERS_PDF,
             QueueNames.CALLBACKS,
@@ -250,6 +240,9 @@ class Config(object):
     DEBUG = False
     NOTIFY_LOG_PATH = os.getenv("NOTIFY_LOG_PATH")
 
+    # Xray SDK
+    AWS_XRAY_ENABLED = env.bool("AWS_XRAY_SDK_ENABLED", False)  # X-Ray switch leveraged by the SDK
+
     # Cronitor
     CRONITOR_ENABLED = False
     CRONITOR_KEYS = json.loads(os.getenv("CRONITOR_KEYS", "{}"))
@@ -276,6 +269,10 @@ class Config(object):
     AWS_SES_ACCESS_KEY = os.getenv("AWS_SES_ACCESS_KEY")
     AWS_SES_SECRET_KEY = os.getenv("AWS_SES_SECRET_KEY")
     AWS_PINPOINT_REGION = os.getenv("AWS_PINPOINT_REGION", "us-west-2")
+    AWS_PINPOINT_SC_POOL_ID = os.getenv("AWS_PINPOINT_SC_POOL_ID", "")
+    AWS_PINPOINT_DEFAULT_POOL_ID = os.getenv("AWS_PINPOINT_DEFAULT_POOL_ID", "")
+    AWS_PINPOINT_CONFIGURATION_SET_NAME = os.getenv("AWS_PINPOINT_CONFIGURATION_SET_NAME", "pinpoint-configuration")
+    AWS_PINPOINT_SC_TEMPLATE_IDS = env.list("AWS_PINPOINT_SC_TEMPLATE_IDS", [])
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
@@ -312,6 +309,7 @@ class Config(object):
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"
     EMAIL_2FA_TEMPLATE_ID = "299726d2-dba6-42b8-8209-30e1d66ea164"
+    EMAIL_MAGIC_LINK_TEMPLATE_ID = "6e97fd09-6da0-4cc8-829d-33cf5b818103"
     NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID = "ece42649-22a8-4d06-b87f-d52d5d3f0a27"
     PASSWORD_RESET_TEMPLATE_ID = "474e9242-823b-4f99-813d-ed392e7f1201"
     FORCED_PASSWORD_RESET_TEMPLATE_ID = "e9a65a6b-497b-42f2-8f43-1736e43e13b3"
@@ -340,6 +338,13 @@ class Config(object):
     NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
+
+    # Templates for annual limits
+    REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
+    ANNUAL_LIMIT_UPDATED_TEMPLATE_ID = "8381fdc3-95ad-4219-b07c-93aa808b67fa"
+    NEAR_ANNUAL_LIMIT_TEMPLATE_ID = "1a7a1f01-7fd0-43e5-93a4-982e25a78816"
+    ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID = "f66a1025-17f5-471c-a7ab-37d6b9e9d304"
+
     APIKEY_REVOKE_TEMPLATE_ID = "a0a4e7b8-8a6a-4eaa-9f4e-9c3a5b2dbcf3"
     HEARTBEAT_TEMPLATE_EMAIL_LOW = "73079cb9-c169-44ea-8cf4-8d397711cc9d"
     HEARTBEAT_TEMPLATE_EMAIL_MEDIUM = "c75c4539-3014-4c4c-96b5-94d326758a74"
@@ -347,6 +352,17 @@ class Config(object):
     HEARTBEAT_TEMPLATE_SMS_LOW = "ab3a603b-d602-46ea-8c83-e05cb280b950"
     HEARTBEAT_TEMPLATE_SMS_MEDIUM = "a48b54ce-40f6-4e4a-abe8-1e2fa389455b"
     HEARTBEAT_TEMPLATE_SMS_HIGH = "4969a9e9-ddfd-476e-8b93-6231e6f1be4a"
+    DEFAULT_TEMPLATE_CATEGORY_LOW = "0dda24c2-982a-4f44-9749-0e38b2607e89"
+    DEFAULT_TEMPLATE_CATEGORY_MEDIUM = "f75d6706-21b7-437e-b93a-2c0ab771e28e"
+    DEFAULT_TEMPLATE_CATEGORY_HIGH = "c4f87d7c-a55b-4c0f-91fe-e56c65bb1871"
+
+    # UUIDs for Cypress tests
+    CYPRESS_SERVICE_ID = "d4e8a7f4-2b8a-4c9a-8b3f-9c2d4e8a7f4b"
+    CYPRESS_TEST_USER_ID = "e5f9d8c7-3a9b-4d8c-9b4f-8d3e5f9d8c7a"
+    CYPRESS_TEST_USER_ADMIN_ID = "4f8b8b1e-9c4f-4d8b-8b1e-4f8b8b1e9c4f"
+    CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID = "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID = "e4b8f8d0-6a3b-4b9e-8c2b-1f2d3e4a5b6c"
+    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET")
 
     # Allowed service IDs able to send HTML through their templates.
     ALLOW_HTML_SERVICE_IDS: List[str] = [id.strip() for id in os.getenv("ALLOW_HTML_SERVICE_IDS", "").split(",")]
@@ -369,6 +385,7 @@ class Config(object):
         "app.celery.scheduled_tasks",
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
+        "app.celery.process_pinpoint_receipts_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -440,90 +457,108 @@ class Config(object):
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
-            "schedule": crontab(hour=0, minute=5),
+            "schedule": crontab(hour=5, minute=5),  # 00:05 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "create-nightly-billing": {
             "task": "create-nightly-billing",
-            "schedule": crontab(hour=0, minute=15),
+            "schedule": crontab(hour=5, minute=15),  # 00:15 EST in UTC
             "options": {"queue": QueueNames.REPORTING},
         },
         "create-nightly-notification-status": {
             "task": "create-nightly-notification-status",
-            "schedule": crontab(hour=0, minute=30),  # after 'timeout-sending-notifications'
+            "schedule": crontab(hour=5, minute=30),  # 00:30 EST in UTC, after 'timeout-sending-notifications'
             "options": {"queue": QueueNames.REPORTING},
         },
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
-            "schedule": crontab(hour=4, minute=15),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
-            "schedule": crontab(hour=4, minute=30),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
-            "schedule": crontab(hour=4, minute=45),  # after 'create-nightly-notification-status'
+            "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
-            "schedule": crontab(hour=1, minute=40),
+            "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
-            "schedule": crontab(hour=2, minute=0),
+            "schedule": crontab(hour=7, minute=0),  # 2:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "remove_transformed_dvla_files": {
             "task": "remove_transformed_dvla_files",
-            "schedule": crontab(hour=3, minute=40),
+            "schedule": crontab(hour=8, minute=40),  # 3:40 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
         "remove_sms_email_jobs": {
             "task": "remove_sms_email_jobs",
-            "schedule": crontab(hour=4, minute=0),
+            "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
-        # 'remove_letter_jobs': {
-        # 'task': 'remove_letter_jobs',
-        # 'schedule': crontab(hour=4, minute=20),
-        #  since we mark jobs as archived
-        # 'options': {'queue': QueueNames.PERIODIC},
-        # },
-        # 'check-templated-letter-state': {
-        # 'task': 'check-templated-letter-state',
-        # 'schedule': crontab(day_of_week='mon-fri', hour=9, minute=0),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'check-precompiled-letter-state': {
-        # 'task': 'check-precompiled-letter-state',
-        # 'schedule': crontab(day_of_week='mon-fri', hour='9,15', minute=0),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'raise-alert-if-letter-notifications-still-sending': {
-        # 'task': 'raise-alert-if-letter-notifications-still-sending',
-        # 'schedule': crontab(hour=16, minute=30),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # The collate-letter-pdf does assume it is called in an hour that BST does not make a
-        # difference to the truncate date which translates to the filename to process
-        # 'collate-letter-pdfs-for-day': {
-        # 'task': 'collate-letter-pdfs-for-day',
-        # 'schedule': crontab(hour=17, minute=50),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
-        # 'raise-alert-if-no-letter-ack-file': {
-        # 'task': 'raise-alert-if-no-letter-ack-file',
-        # 'schedule': crontab(hour=23, minute=00),
-        # 'options': {'queue': QueueNames.PERIODIC}
-        # },
+        # quarterly queue
+        "insert-quarter-data-for-annual-limits-q1": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=7
+            ),  # Running this at the end of the day on 1st July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q2": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=10
+            ),  # Running this at the end of the day on 1st Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q3": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st Jan
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "insert-quarter-data-for-annual-limits-q4": {
+            "task": "insert-quarter-data-for-annual-limits",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=1, month_of_year=1
+            ),  # Running this at the end of the day on 1st April
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q1": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=7
+            ),  # Running this at the end of the day on 2nd July
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q2": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=2, month_of_year=10
+            ),  # Running this at the end of the day on 2nd Oct
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "send-quarterly-email-q3": {
+            "task": "send-quarterly-email",
+            "schedule": crontab(
+                minute=0, hour=23, day_of_month=3, month_of_year=1
+            ),  # Running this at the end of the day on 2nd Jan
+            "options": {"queue": QueueNames.PERIODIC},
+        },
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
+    AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
 
@@ -545,12 +580,15 @@ class Config(object):
 
     # Match with scripts/internal_stress_test/internal_stress_test.py
     INTERNAL_TEST_NUMBER = "+16135550123"
+    EXTERNAL_TEST_NUMBER = "+16135550124"
     INTERNAL_TEST_EMAIL_ADDRESS = "internal.test@cds-snc.ca"
 
     DVLA_BUCKETS = {
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
         "notification": "{}-dvla-letter-api-files".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
     }
+    SERVICE_ANNUAL_EMAIL_LIMIT = env.int("SERVICE_ANNUAL_EMAIL_LIMIT", 20_000_000)
+    SERVICE_ANNUAL_SMS_LIMIT = env.int("SERVICE_ANNUAL_SMS_LIMIT", 100_000)
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 
@@ -597,13 +635,17 @@ class Config(object):
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    # Feature flags for email_daily_limit
-    FF_EMAIL_DAILY_LIMIT = env.bool("FF_EMAIL_DAILY_LIMIT", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET")
+    # cache clear auth keys
+    CACHE_CLEAR_USER_NAME = "CACHE_CLEAR_USER"
+    CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
+    CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
+    CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -654,6 +696,8 @@ class Development(Config):
     SECRET_KEY = env.list("SECRET_KEY", ["dev-notify-secret-key"])
     DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "dev-notify-salt ")
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
+    CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
+    CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
@@ -705,8 +749,6 @@ class Test(Development):
     CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
     CRM_ORG_LIST_URL = "https://test-url.com"
     FAILED_LOGIN_LIMIT = 0
-
-    FF_EMAIL_DAILY_LIMIT = False
 
 
 class Production(Config):

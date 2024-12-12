@@ -26,6 +26,7 @@ from app.dao.service_sms_sender_dao import (
     update_existing_sms_sender_with_inbound_number,
 )
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
 from app.models import (
@@ -62,6 +63,7 @@ from app.models import (
     ServicePermission,
     ServiceSmsSender,
     Template,
+    TemplateCategory,
     TemplateFolder,
     User,
 )
@@ -110,12 +112,15 @@ def create_service(
     prefix_sms=True,
     message_limit=1000,
     sms_daily_limit=1000,
+    email_annual_limit=10000000,
+    sms_annual_limit=25000,
     organisation_type="central",
     check_if_service_exists=False,
     go_live_user=None,
     go_live_at=None,
     crown=True,
     organisation=None,
+    sensitive_service=None,
 ):
     if check_if_service_exists:
         service = Service.query.filter_by(name=service_name).first()
@@ -131,7 +136,10 @@ def create_service(
             organisation_type=organisation_type,
             go_live_user=go_live_user,
             go_live_at=go_live_at,
+            email_annual_limit=email_annual_limit,
+            sms_annual_limit=sms_annual_limit,
             crown=crown,
+            sensitive_service=sensitive_service,
         )
         dao_create_service(
             service,
@@ -188,9 +196,24 @@ def create_template(
     hidden=False,
     archived=False,
     folder=None,
+    template_category=None,
     postage=None,
     process_type="normal",
+    text_direction_rtl=False,
 ):
+    if not template_category:
+        data = {
+            "name_en": str(uuid.uuid4()),
+            "name_fr": str(uuid.uuid4()),
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": False,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "sms_sending_vehicle": "long_code",
+        }
+        template_category = TemplateCategory(**data)
+        template_category = dao_create_template_category(template_category)
     data = {
         "name": template_name or "{} Template Name".format(template_type),
         "template_type": template_type,
@@ -200,7 +223,9 @@ def create_template(
         "reply_to": reply_to,
         "hidden": hidden,
         "folder": folder,
+        "template_category": template_category,
         "process_type": process_type,
+        "text_direction_rtl": text_direction_rtl,
     }
     if template_type == LETTER_TYPE:
         data["postage"] = postage or "second"
@@ -488,12 +513,14 @@ def create_service_inbound_api(
 def create_service_callback_api(
     service,
     url="https://something.com",
+    is_suspended=False,
     bearer_token="some_super_secret",
     callback_type="delivery_status",
 ):
     service_callback_api = ServiceCallbackApi(
         service_id=service.id,
         url=url,
+        is_suspended=is_suspended,
         bearer_token=bearer_token,
         updated_by_id=service.users[0].id,
         callback_type=callback_type,
@@ -502,13 +529,15 @@ def create_service_callback_api(
     return service_callback_api
 
 
-def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName"):
+def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName", organisation_id=None):
     data = {
         "colour": colour,
         "logo": logo,
         "name": name,
         "text": text,
     }
+    if organisation_id:
+        data["organisation_id"] = organisation_id
     email_branding = EmailBranding(**data)
     dao_create_email_branding(email_branding)
 

@@ -1,9 +1,8 @@
 import uuid
 from collections import namedtuple
 from datetime import datetime
-from http.client import HTTPMessage
 from unittest import TestCase
-from unittest.mock import ANY, MagicMock, Mock, call
+from unittest.mock import ANY, MagicMock, call
 
 import pytest
 from flask import current_app
@@ -52,6 +51,112 @@ from tests.app.db import (
 from tests.conftest import set_config_values
 
 
+class TestProviderToUse:
+    def test_should_use_pinpoint_for_sms_by_default_if_configured(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234")
+        assert provider.name == "pinpoint"
+
+    def test_should_use_sns_for_sms_by_default_if_partially_configured(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "",
+                "AWS_PINPOINT_SC_TEMPLATE_IDS": [],
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", template_id=uuid.uuid4())
+        assert provider.name == "sns"
+
+    def test_should_use_pinpoint_for_sms_for_sc_template_if_sc_pool_configured(self, restore_provider_details, notify_api):
+        sc_template = uuid.uuid4()
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "",
+                "AWS_PINPOINT_SC_TEMPLATE_IDS": [str(sc_template)],
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", template_id=sc_template)
+        assert provider.name == "pinpoint"
+
+    def test_should_use_sns_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", False, "+12345678901")
+        assert provider.name == "sns"
+
+    def test_should_use_sns_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
+        assert provider.name == "sns"
+
+    @pytest.mark.serial
+    def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+447512501324", international=True)
+        assert provider.name == "pinpoint"
+
+    def test_should_use_sns_for_sms_if_sending_to_non_CA_zone_1(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16715550123")
+        assert provider.name == "sns"
+
+    def test_should_use_sns_for_sms_if_match_fails(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "8695550123")  # This number fails our matching code
+        assert provider.name == "sns"
+
+    @pytest.mark.parametrize("sc_pool_id, default_pool_id", [("", "default_pool_id"), ("sc_pool_id", "")])
+    def test_should_use_sns_if_pinpoint_not_configured(self, restore_provider_details, notify_api, sc_pool_id, default_pool_id):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": sc_pool_id,
+                "AWS_PINPOINT_DEFAULT_POOL_ID": default_pool_id,
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234")
+        assert provider.name == "sns"
+
+
 @pytest.mark.skip(reason="Currently using only 1 SMS provider")
 def test_should_return_highest_priority_active_provider(restore_provider_details):
     providers = provider_details_dao.get_provider_details_by_notification_type("sms")
@@ -85,19 +190,29 @@ def test_should_return_highest_priority_active_provider(restore_provider_details
     assert send_to_providers.provider_to_use("sms", "1234").name == first.identifier
 
 
-def test_provider_to_use(restore_provider_details):
-    providers = provider_details_dao.get_provider_details_by_notification_type("sms")
-    first = providers[0]
+def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sample_template, mocker):
+    mocker.patch("app.aws_pinpoint_client.send_sms", return_value="opted_out")
+    db_notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16135551234",
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
 
-    assert first.identifier == "sns"
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+        },
+    ):
+        send_to_providers.send_sms_to_provider(db_notification)
 
-    # provider is still SNS if SMS and sender is set
-    provider = send_to_providers.provider_to_use("sms", "1234", False, "+12345678901")
-    assert first.identifier == provider.name
-
-    # provider is highest priority sms provider if sender is not set
-    provider = send_to_providers.provider_to_use("sms", "1234", False)
-    assert first.identifier == provider.name
+        notification = Notification.query.filter_by(id=db_notification.id).one()
+        assert notification.status == "permanent-failure"
+        assert notification.provider_response == "Phone number is opted out"
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
@@ -121,6 +236,9 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(s
         content="Sample service: Hello Jo\nHere is <em>some HTML</em> & entities",
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
+        template_id=sample_sms_template_with_html.id,
+        service_id=sample_sms_template_with_html.service_id,
+        sending_vehicle=None,
     )
 
     notification = Notification.query.filter_by(id=db_notification.id).one()
@@ -339,6 +457,9 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
         content="Sample service: This is a template:\nwith a newline",
         reference=str(db_notification.id),
         sender=current_app.config["FROM_NUMBER"],
+        template_id=sample_template.id,
+        service_id=sample_template.service_id,
+        sending_vehicle=ANY,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
@@ -417,7 +538,9 @@ def test_should_send_sms_with_downgraded_content(notify_db_session, mocker):
 
     send_to_providers.send_sms_to_provider(db_notification)
 
-    aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=gsm_message, reference=ANY, sender=ANY)
+    aws_sns_client.send_sms.assert_called_once_with(
+        to=ANY, content=gsm_message, reference=ANY, sender=ANY, template_id=ANY, service_id=ANY, sending_vehicle=ANY
+    )
 
 
 def test_send_sms_should_use_service_sms_sender(sample_service, sample_template, mocker):
@@ -430,7 +553,15 @@ def test_send_sms_should_use_service_sms_sender(sample_service, sample_template,
         db_notification,
     )
 
-    app.aws_sns_client.send_sms.assert_called_once_with(to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender)
+    app.aws_sns_client.send_sms.assert_called_once_with(
+        to=ANY,
+        content=ANY,
+        reference=ANY,
+        sender=sms_sender.sms_sender,
+        template_id=ANY,
+        service_id=ANY,
+        sending_vehicle=ANY,
+    )
 
 
 @pytest.mark.parametrize("research_mode,key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
@@ -471,7 +602,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
     mocker.patch("app.aws_ses_client.send_email")
     mocker.patch("app.delivery.send_to_providers.send_email_response")
 
-    send_to_providers.send_sms_to_provider(notification)
+    send_to_providers.send_email_to_provider(notification)
     app.aws_ses_client.send_email.assert_not_called()
     app.delivery.send_to_providers.send_email_response.assert_not_called()
 
@@ -597,19 +728,20 @@ def test_get_html_email_renderer_with_branding_details_and_render_fip_banner_eng
     sample_service.email_branding = None
     notify_db.session.add_all([sample_service])
     notify_db.session.commit()
-
     options = send_to_providers.get_html_email_options(sample_service)
 
     assert options == {
         "fip_banner_english": True,
         "fip_banner_french": False,
         "logo_with_background_colour": False,
+        "alt_text_en": None,
+        "alt_text_fr": None,
     }
 
 
 def test_get_html_email_renderer_prepends_logo_path(notify_api):
     Service = namedtuple("Service", ["email_branding"])
-    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text"])
+    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text", "alt_text_en", "alt_text_fr"])
 
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_NEW,
@@ -617,6 +749,8 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
         logo="justice-league.png",
         name="Justice League",
         text="League of Justice",
+        alt_text_en="alt_text_en",
+        alt_text_fr="alt_text_fr",
     )
     service = Service(
         email_branding=email_branding,
@@ -629,7 +763,7 @@ def test_get_html_email_renderer_prepends_logo_path(notify_api):
 
 def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api):
     Service = namedtuple("Service", ["email_branding"])
-    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text"])
+    EmailBranding = namedtuple("EmailBranding", ["brand_type", "colour", "name", "logo", "text", "alt_text_en", "alt_text_fr"])
 
     email_branding = EmailBranding(
         brand_type=BRANDING_ORG_BANNER_NEW,
@@ -637,6 +771,8 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
         logo=None,
         name="Justice League",
         text="League of Justice",
+        alt_text_en="alt_text_en",
+        alt_text_fr="alt_text_fr",
     )
     service = Service(
         email_branding=email_branding,
@@ -650,6 +786,8 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(notify_api)
     assert renderer["brand_text"] == "League of Justice"
     assert renderer["brand_colour"] == "#000000"
     assert renderer["brand_name"] == "Justice League"
+    assert renderer["alt_text_en"] == "alt_text_en"
+    assert renderer["alt_text_fr"] == "alt_text_fr"
 
 
 def test_should_not_update_notification_if_research_mode_on_exception(sample_service, sample_notification, mocker):
@@ -794,6 +932,9 @@ def test_should_handle_sms_sender_and_prefix_message(
         sender=expected_sender,
         to=ANY,
         reference=ANY,
+        template_id=ANY,
+        service_id=ANY,
+        sending_vehicle=ANY,
     )
 
 
@@ -907,24 +1048,41 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
     }
     personalisation["file"]["document"]["sending_method"] = "attach"
     personalisation["file"]["document"]["filename"] = "file.txt"
+    personalisation["file"]["document"]["id"] = "1234"
 
     db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
 
     mocker.patch("app.delivery.send_to_providers.statsd_client")
     mocker.patch("app.aws_ses_client.send_email", return_value="reference")
 
-    getconn_mock = mocker.patch("urllib3.connectionpool.HTTPConnectionPool._new_conn")
-    getconn_mock.return_value.getresponse.side_effect = [
-        Mock(status=500, msg=HTTPMessage()),
-        Mock(status=429, msg=HTTPMessage()),
-        Mock(status=400, msg=HTTPMessage()),
-        Mock(status=404, msg=HTTPMessage()),
-        Mock(status=200, msg=HTTPMessage()),
+    # When a urllib3 request attempts retries and fails it will wrap the offending exception in a MaxRetryError
+    # thus we'll capture the logged exception and assert it's a MaxRetryError to verify that retries were attempted
+    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
+    logger_args = []
+
+    def mock_error(*args):
+        logger_args.append(args)
+
+    mock_logger.side_effect = mock_error
+
+    class MockHTTPResponse:
+        def __init__(self, status):
+            self.status = status
+            self.data = b"file content" if status == 200 else b""
+
+    mock_http = mocker.patch("urllib3.PoolManager")
+    mock_http.return_value.request.side_effect = [
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
+        MockHTTPResponse(500),
     ]
 
-    mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.error")
     send_to_providers.send_email_to_provider(db_notification)
-    assert mock_logger.call_count == 0
+    exception = logger_args[0][0].split("Exception: ")[1]
+    assert mock_logger.call_count == 1
+    assert "Max retries exceeded" in exception
 
 
 def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):

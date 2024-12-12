@@ -2,7 +2,6 @@ import functools
 import string
 from datetime import datetime, timedelta
 
-from boto.exception import BotoClientError
 from flask import current_app
 from itsdangerous import BadSignature
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
@@ -25,10 +24,9 @@ from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
-from app.aws.s3 import get_s3_bucket_objects, remove_s3_object
 from app.dao.dao_utils import transactional
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.errors import InvalidRequest
-from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
@@ -51,11 +49,7 @@ from app.models import (
     Service,
     ServiceDataRetention,
 )
-from app.utils import (
-    escape_special_characters,
-    get_local_timezone_midnight_in_utc,
-    midnight_n_days_ago,
-)
+from app.utils import escape_special_characters
 
 
 @transactional
@@ -204,7 +198,18 @@ def country_records_delivery(phone_prefix):
     return dlr and dlr.lower() == "yes"
 
 
-def _update_notification_status(notification, status, provider_response=None, bounce_response=None):
+def _update_notification_status(
+    notification,
+    status,
+    provider_response=None,
+    bounce_response=None,
+    sms_total_message_price=None,
+    sms_total_carrier_fee=None,
+    sms_iso_country_code=None,
+    sms_carrier_name=None,
+    sms_message_encoding=None,
+    sms_origination_phone_number=None,
+):
     status = _decide_permanent_temporary_failure(current_status=notification.status, status=status)
     notification.status = status
     if provider_response:
@@ -214,6 +219,14 @@ def _update_notification_status(notification, status, provider_response=None, bo
         notification.feedback_subtype = bounce_response.get("feedback_subtype")
         notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
         notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+
+    notification.sms_total_message_price = sms_total_message_price
+    notification.sms_total_carrier_fee = sms_total_carrier_fee
+    notification.sms_iso_country_code = sms_iso_country_code
+    notification.sms_carrier_name = sms_carrier_name
+    notification.sms_message_encoding = sms_message_encoding
+    notification.sms_origination_phone_number = sms_origination_phone_number
+
     dao_update_notification(notification)
     return notification
 
@@ -335,7 +348,7 @@ def get_notifications_for_service(
     filters = [Notification.service_id == service_id]
 
     if limit_days is not None:
-        filters.append(Notification.created_at >= midnight_n_days_ago(limit_days))
+        filters.append(Notification.created_at > get_query_date_based_on_retention_period(limit_days))
 
     if older_than is not None:
         older_than_created_at = db.session.query(Notification.created_at).filter(Notification.id == older_than).as_scalar()
@@ -390,31 +403,31 @@ def delete_notifications_older_than_retention_by_type(notification_type, qry_lim
     flexible_data_retention = ServiceDataRetention.query.filter(ServiceDataRetention.notification_type == notification_type).all()
     deleted = 0
     for f in flexible_data_retention:
-        days_of_retention = get_local_timezone_midnight_in_utc(
-            convert_utc_to_local_timezone(datetime.utcnow()).date()
-        ) - timedelta(days=f.days_of_retention)
-
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, f.service_id, days_of_retention, qry_limit)
+        days_of_retention = get_query_date_based_on_retention_period(f.days_of_retention)
 
         insert_update_notification_history(notification_type, days_of_retention, f.service_id)
 
-        current_app.logger.info("Deleting {} notifications for service id: {}".format(notification_type, f.service_id))
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} retention_days {}".format(
+                notification_type, f.service_id, days_of_retention, f.days_of_retention
+            )
+        )
         deleted += _delete_notifications(notification_type, days_of_retention, f.service_id, qry_limit)
 
     current_app.logger.info("Deleting {} notifications for services without flexible data retention".format(notification_type))
 
-    seven_days_ago = get_local_timezone_midnight_in_utc(convert_utc_to_local_timezone(datetime.utcnow()).date()) - timedelta(
-        days=7
-    )
+    seven_days_ago = get_query_date_based_on_retention_period(7)
     services_with_data_retention = [x.service_id for x in flexible_data_retention]
     service_ids_to_purge = db.session.query(Service.id).filter(Service.id.notin_(services_with_data_retention)).all()
 
     for row in service_ids_to_purge:
         service_id = row._mapping["id"]
-        if notification_type == LETTER_TYPE:
-            _delete_letters_from_s3(notification_type, service_id, seven_days_ago, qry_limit)
         insert_update_notification_history(notification_type, seven_days_ago, service_id)
+        current_app.logger.info(
+            "Deleting {} notifications for service id: {} uptil {} for 7days".format(
+                notification_type, service_id, seven_days_ago
+            )
+        )
         deleted += _delete_notifications(notification_type, seven_days_ago, service_id, qry_limit)
 
     current_app.logger.info("Finished deleting {} notifications".format(notification_type))
@@ -487,38 +500,6 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
     )
     db.session.connection().execute(stmt)
     db.session.commit()
-
-
-def _delete_letters_from_s3(notification_type, service_id, date_to_delete_from, query_limit):
-    letters_to_delete_from_s3 = (
-        db.session.query(Notification)
-        .filter(
-            Notification.notification_type == notification_type,
-            Notification.created_at < date_to_delete_from,
-            Notification.service_id == service_id,
-        )
-        .limit(query_limit)
-        .all()
-    )
-    for letter in letters_to_delete_from_s3:
-        bucket_name = current_app.config["LETTERS_PDF_BUCKET_NAME"]
-        if letter.sent_at:
-            sent_at = str(letter.sent_at.date())
-            prefix = LETTERS_PDF_FILE_LOCATION_STRUCTURE.format(
-                folder=sent_at + "/",
-                reference=letter.reference,
-                duplex="D",
-                letter_class="2",
-                colour="C",
-                crown="C" if letter.service.crown else "N",
-                date="",
-            ).upper()[:-5]
-            s3_objects = get_s3_bucket_objects(bucket_name=bucket_name, subfolder=prefix)
-            for s3_object in s3_objects:
-                try:
-                    remove_s3_object(bucket_name, s3_object["Key"])
-                except BotoClientError:
-                    current_app.logger.exception("Could not delete S3 object with filename: {}".format(s3_object["Key"]))
 
 
 @statsd(namespace="dao")

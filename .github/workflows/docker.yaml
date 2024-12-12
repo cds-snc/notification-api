@@ -9,6 +9,7 @@ env:
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
+  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_STAGING }}
 
 permissions:
   id-token: write   # This is required for requesting the OIDC JWT
@@ -26,13 +27,6 @@ jobs:
         unzip -q awscliv2.zip
         sudo ./aws/install --update
         aws --version
-    - name: Install kubectl
-      run: |
-        curl -LO https://storage.googleapis.com/kubernetes-release/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl
-        chmod +x ./kubectl
-        sudo mv ./kubectl /usr/local/bin/kubectl
-        kubectl version --client
-        mkdir -p $HOME/.kube
 
     - name: Configure credentials to CDS public ECR using OIDC
       uses: aws-actions/configure-aws-credentials@master
@@ -40,7 +34,7 @@ jobs:
         role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
         role-session-name: NotifyApiGitHubActions
         aws-region: "us-east-1"
-
+  
     - name: Login to ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
@@ -56,43 +50,63 @@ jobs:
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
+
     - name: Publish
       run: |
         docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
 
-    - name: Configure credentials to Notify account using OIDC
-      uses: aws-actions/configure-aws-credentials@master
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
       with:
-        role-to-assume: arn:aws:iam::239043911459:role/notification-api-apply
-        role-session-name: NotifyApiGitHubActions
-        aws-region: "ca-central-1"
+        aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
 
-    - name: Get Kubernetes configuration
+    - name: Install OpenVPN
       run: |
-        aws eks --region $AWS_REGION update-kubeconfig --name notification-canada-ca-staging-eks-cluster --kubeconfig $HOME/.kube/config
+        sudo apt update
+        sudo apt install -y openvpn openvpn-systemd-resolved
+
+    - name: Install 1Pass CLI
+      run: |
+        curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
+        sudo dpkg -i 1pass.deb
+
+    - name: Setup Terraform tools
+      uses: cds-snc/terraform-tools-setup@v1
+      env: # In case you want to override default versions
+        CONFTEST_VERSION: 0.30.0 
+        TERRAFORM_VERSION: 1.9.5
+        TERRAGRUNT_VERSION: 0.66.9
+        TF_SUMMARIZE_VERSION: 0.2.3                           
+
+    - name: Fetch VPN
+      run: |
+        curl https://raw.githubusercontent.com/cds-snc/notification-manifests/refs/heads/main/scripts/createVPNConfig.sh | bash -s staging
+
+    - name: Connect to VPN
+      uses: "kota65535/github-openvpn-connect-action@cd2ed8a90cc7b060dc4e001143e811b5f7ea0af5"
+      with:
+        config_file: /var/tmp/staging.ovpn
+        echo_config: false       
+        
+    - name: Configure kubeconfig
+      run: |
+        aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster     
+
     - name: Update images in staging
       run: |
-        kubectl set image deployment.apps/api api=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-primary celery-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-scalable celery-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms-send-primary celery-sms-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-sms-send-scalable celery-sms-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-email-send-primary celery-email-send-primary=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/celery-email-send-scalable celery-email-send-scalable=$DOCKER_SLUG:${GITHUB_SHA::7} -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        DOCKER_TAG=${GITHUB_SHA::7}
+        kubectl set image deployment.apps/api api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-beat celery-beat=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms celery-sms=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-primary celery-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-scalable celery-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-primary celery-sms-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-sms-send-scalable celery-sms-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-primary celery-email-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
+        kubectl set image deployment.apps/celery-email-send-scalable celery-email-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config        
 
-    - name: Restart deployments in staging
-      run: |
-        kubectl rollout restart deployment/api -n notification-canada-ca
-        kubectl rollout restart deployment/celery-beat -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms -n notification-canada-ca
-        kubectl rollout restart deployment/celery-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-scalable -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms-send-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-sms-send-scalable -n notification-canada-ca
-        kubectl rollout restart deployment/celery-email-send-primary -n notification-canada-ca
-        kubectl rollout restart deployment/celery-email-send-scalable -n notification-canada-ca
 
     - name: my-app-install token
       id: notify-pr-bot
@@ -106,7 +120,9 @@ jobs:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
     - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@eecd7a02a0294b379411c126b61e5c29e253676a # v2.1.4
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
+      env:
+        TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
       with:
         docker_image: "${{ env.DOCKER_SLUG }}:latest"
         dockerfile_path: "ci/Dockerfile"
@@ -118,3 +134,4 @@ jobs:
       run: |
         json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+

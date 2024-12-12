@@ -497,7 +497,42 @@ def send_branding_request(user_id):
             email_address=user.email_address,
             service_id=data["serviceID"],
             service_name=data["service_name"],
+            organisation_id=data["organisation_id"],
+            department_org_name=data["organisation_name"],
             branding_url=get_logo_url(data["filename"]),
+            branding_logo_name=data["branding_logo_name"] if "branding_logo_name" in data else "",
+            alt_text_en=data["alt_text_en"],
+            alt_text_fr=data["alt_text_fr"],
+        )
+        contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
+
+    except TypeError as e:
+        current_app.logger.error(e)
+        return jsonify({}), 400
+    except NoResultFound as e:
+        # This means that get_user_by_id couldn't find a user
+        current_app.logger.error(e)
+        return jsonify({}), 400
+
+    status_code = Freshdesk(contact).send_ticket()
+    return jsonify({"status_code": status_code}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/new-template-category-request", methods=["POST"])
+def send_new_template_category_request(user_id):
+    contact = None
+    data = request.json
+    try:
+        user = get_user_by_id(user_id=user_id)
+        contact = ContactRequest(
+            support_type="new_template_category_request",
+            friendly_support_type="New template category request",
+            name=user.name,
+            email_address=user.email_address,
+            service_id=data["service_id"],
+            template_category_name_en=data["template_category_name_en"],
+            template_category_name_fr=data["template_category_name_fr"],
+            template_id_link=f"{current_app.config['ADMIN_BASE_URL']}/services/{data['service_id']}/templates/{data['template_id']}",
         )
         contact.tags = ["z_skip_opsgenie", "z_skip_urgent_escalation"]
 
@@ -851,3 +886,36 @@ def _update_alert(user_to_update, changes=None):
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
+def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_fr):
+    """
+    We are sending a notification to the user to inform them that their annual usage
+    per service.
+
+    """
+    user = get_user_by_id(user_id=user_id)
+    template = dao_get_template_by_id(current_app.config["ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=user.email_address,
+        service=service,
+        personalisation={
+            "name": user.name,
+            "start_year": start_year,
+            "end_year": end_year,
+            "data_for_each_service_en": markdown_en,
+            "data_for_each_service_fr": markdown_fr,
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204

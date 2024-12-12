@@ -25,8 +25,14 @@ echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 
 # Smoke test
 # requires adding files .env_staging and .env_prod to the root of the project
+echo -e "alias smoke-local='cd /workspace && cp .env_smoke_local tests_smoke/.env && poetry run make smoke-test-local'" >> ~/.zshrc
 echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
 echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-dev='cd /workspace && cp .env_smoke_dev tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+
+echo -e "# fzf key bindings and completion" >> ~/.zshrc
+echo -e "source /usr/share/doc/fzf/examples/key-bindings.zsh" >> ~/.zshrc
+echo -e "source /usr/share/doc/fzf/examples/completion.zsh" >> ~/.zshrc
 
 cd /workspace
 
@@ -34,8 +40,10 @@ cd /workspace
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
 echo -e "autoload -Uz compinit && compinit"
 
-pip install poetry==${POETRY_VERSION} \
-  && poetry --version
+pip install poetry==${POETRY_VERSION}
+export PATH=$PATH:/home/vscode/.local/bin/
+which poetry
+poetry --version
 
 # Initialize poetry autocompletions
 mkdir ~/.zfunc

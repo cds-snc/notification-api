@@ -38,6 +38,7 @@ from app import (
     signer_inbound_sms,
     signer_personalisation,
 )
+from app.clients.sms import SmsSendingVehicles
 from app.encryption import check_hash, hashpw
 from app.history_meta import Versioned
 
@@ -64,6 +65,10 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+DEFAULT_SMS_ANNUAL_LIMIT = 100000
+DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
+
+sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
 def filter_null_value_fields(obj):
@@ -276,6 +281,12 @@ class EmailBranding(BaseModel):
         nullable=False,
         default=BRANDING_ORG_NEW,
     )
+    organisation_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("organisation.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
+    alt_text_en = db.Column(db.String(), nullable=True)
+    alt_text_fr = db.Column(db.String(), nullable=True)
 
     def serialize(self) -> dict:
         serialized = {
@@ -285,6 +296,9 @@ class EmailBranding(BaseModel):
             "name": self.name,
             "text": self.text,
             "brand_type": self.brand_type,
+            "organisation_id": str(self.organisation_id) if self.organisation_id else "",
+            "alt_text_en": self.alt_text_en,
+            "alt_text_fr": self.alt_text_fr,
         }
 
         return serialized
@@ -449,10 +463,9 @@ class Organisation(BaseModel):
         "Domain",
     )
 
-    email_branding = db.relationship("EmailBranding")
+    email_branding = db.relationship("EmailBranding", uselist=False)
     email_branding_id = db.Column(
         UUID(as_uuid=True),
-        db.ForeignKey("email_branding.id"),
         nullable=True,
     )
 
@@ -551,9 +564,11 @@ class Service(BaseModel, Versioned):
     go_live_at = db.Column(db.DateTime, nullable=True)
     sending_domain = db.Column(db.String(255), nullable=True, unique=False)
     organisation_notes = db.Column(db.String(255), nullable=True, unique=False)
-
+    sensitive_service = db.Column(db.Boolean, nullable=True)
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey("organisation.id"), index=True, nullable=True)
     organisation = db.relationship("Organisation", backref="services")
+    email_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_EMAIL_ANNUAL_LIMIT)
+    sms_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_SMS_ANNUAL_LIMIT)
 
     email_branding = db.relationship(
         "EmailBranding",
@@ -597,6 +612,8 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
         fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        fields["email_annual_limit"] = fields.get("email_annual_limit", DEFAULT_EMAIL_ANNUAL_LIMIT)
+        fields["sms_annual_limit"] = fields.get("sms_annual_limit", DEFAULT_SMS_ANNUAL_LIMIT)
 
         return cls(**fields)
 
@@ -860,6 +877,9 @@ class ServiceCallbackApi(BaseModel, Versioned):
     updated_at = db.Column(db.DateTime, nullable=True)
     updated_by = db.relationship("User")
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    is_suspended = db.Column(db.Boolean, nullable=True, default=False)
+    # If is_suspended is False and suspended_at is not None, then the callback was suspended and then unsuspended
+    suspended_at = db.Column(db.DateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("service_id", "callback_type", name="uix_service_callback_type"),)
 
@@ -882,6 +902,8 @@ class ServiceCallbackApi(BaseModel, Versioned):
             "updated_by_id": str(self.updated_by_id),
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            "is_suspended": self.is_suspended,
+            "suspended_at": self.suspended_at.strftime(DATETIME_FORMAT) if self.suspended_at else None,
         }
 
 
@@ -1025,6 +1047,42 @@ template_folder_map = db.Table(
 PRECOMPILED_TEMPLATE_NAME = "Pre-compiled PDF"
 
 
+class TemplateCategory(BaseModel):
+    __tablename__ = "template_categories"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name_en = db.Column(db.String(255), unique=True, nullable=False)
+    name_fr = db.Column(db.String(255), unique=True, nullable=False)
+    description_en = db.Column(db.String(200), nullable=True)
+    description_fr = db.Column(db.String(200), nullable=True)
+    sms_process_type = db.Column(db.String(200), nullable=False)
+    email_process_type = db.Column(db.String(200), nullable=False)
+    hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "name_en": self.name_en,
+            "name_fr": self.name_fr,
+            "description_en": self.description_en,
+            "description_fr": self.description_fr,
+            "sms_process_type": self.sms_process_type,
+            "email_process_type": self.email_process_type,
+            "hidden": self.hidden,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "sms_sending_vehicle": self.sms_sending_vehicle,
+        }
+
+    @classmethod
+    def from_json(cls, data):
+        fields = data.copy()
+        return cls(**fields)
+
+
 class TemplateBase(BaseModel):
     __abstract__ = True
 
@@ -1044,6 +1102,7 @@ class TemplateBase(BaseModel):
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
+    text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
@@ -1071,17 +1130,46 @@ class TemplateBase(BaseModel):
         return db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
 
     @declared_attr
+    def template_category_id(cls):
+        return db.Column(UUID(as_uuid=True), db.ForeignKey("template_categories.id"), index=True, nullable=True)
+
+    @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="Template.template_category_id == TemplateCategory.id")
+
+    @declared_attr
     def created_by(cls):
         return db.relationship("User")
 
     @declared_attr
-    def process_type(cls):
+    def process_type_column(cls):
         return db.Column(
             db.String(255),
             db.ForeignKey("template_process_type.name"),
+            name="process_type",
             index=True,
-            nullable=False,
-            default=NORMAL,
+            nullable=True,
+        )
+
+    @hybrid_property
+    def process_type(self):
+        if self.template_type == SMS_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
+        elif self.template_type == EMAIL_TYPE:
+            return self.process_type_column if self.process_type_column else self.template_category.email_process_type
+
+    @process_type.setter  # type: ignore
+    def process_type(self, value):
+        self.process_type_column = value
+
+    @process_type.expression
+    def _process_type(self):
+        return db.case(
+            [
+                (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+                (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
+            ],
+            else_=self.process_type_column,
         )
 
     redact_personalisation = association_proxy("template_redacted", "redact_personalisation")
@@ -1251,6 +1339,10 @@ class TemplateHistory(TemplateBase):
         return super(TemplateHistory, cls).from_json(fields)
 
     @declared_attr
+    def template_category(cls):
+        return db.relationship("TemplateCategory", primaryjoin="TemplateHistory.template_category_id == TemplateCategory.id")
+
+    @declared_attr
     def template_redacted(cls):
         return db.relationship(
             "TemplateRedacted",
@@ -1268,9 +1360,10 @@ class TemplateHistory(TemplateBase):
 
 
 SNS_PROVIDER = "sns"
+PINPOINT_PROVIDER = "pinpoint"
 SES_PROVIDER = "ses"
 
-SMS_PROVIDERS = [SNS_PROVIDER]
+SMS_PROVIDERS = [SNS_PROVIDER, PINPOINT_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
@@ -1647,6 +1740,14 @@ class Notification(BaseModel):
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
 
+    # SMS columns
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -1957,6 +2058,14 @@ class NotificationHistory(BaseModel, HistoryModel):
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
+
+    # SMS columns
+    sms_total_message_price = db.Column(db.Numeric(), nullable=True)
+    sms_total_carrier_fee = db.Column(db.Numeric(), nullable=True)
+    sms_iso_country_code = db.Column(db.String(2), nullable=True)
+    sms_carrier_name = db.Column(db.String(255), nullable=True)
+    sms_message_encoding = db.Column(db.String(7), nullable=True)
+    sms_origination_phone_number = db.Column(db.String(255), nullable=True)
 
     CheckConstraint(
         """
@@ -2511,3 +2620,22 @@ class BounceRateStatus(Enum):
     NORMAL = "normal"
     WARNING = "warning"
     CRITICAL = "critical"
+
+
+class AnnualLimitsData(BaseModel):
+    __tablename__ = "annual_limits_data"
+
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), primary_key=True)
+    time_period = db.Column(db.String, primary_key=True)
+    annual_email_limit = db.Column(db.BigInteger, nullable=False)
+    annual_sms_limit = db.Column(db.BigInteger, nullable=False)
+    notification_type = db.Column(notification_types, nullable=False, primary_key=True)
+    notification_count = db.Column(db.BigInteger, nullable=False)
+
+    __table_args__ = (
+        # Add the composite unique constraint on service_id, time_period, and notification_type
+        UniqueConstraint("service_id", "time_period", "notification_type", name="uix_service_time_notification"),
+        # Define the indexes within __table_args__
+        db.Index("ix_service_id_notification_type", "service_id", "notification_type"),
+        db.Index("ix_service_id_notification_type_time", "time_period", "service_id", "notification_type"),
+    )

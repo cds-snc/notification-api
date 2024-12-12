@@ -1,8 +1,7 @@
 FROM mcr.microsoft.com/vscode/devcontainers/python:0-3.10@sha256:ef9cc483a593c95e1e83f2cf00b6a0e1ec7df43344416a41ccb3a88aef27beac
 
 ARG KUBENS_VERSION="0.9.4"
-ARG OCTANT_VERSION="0.25.1"
-ENV POETRY_VERSION="1.3.2"
+ENV POETRY_VERSION="1.7.1"
 
 # Install packages
 RUN apt-get update \
@@ -12,12 +11,17 @@ RUN apt-get update \
     2>&1 \
     && apt-get -y install \
     curl \
+    dbus-x11 \
     dnsutils \
     emacs \
     exa \
     fd-find \
+    fzf \
     git \
+    graphviz \
     iproute2 \
+    iputils-ping \
+    kcachegrind \
     less \
     libsodium-dev \
     lsb-release \
@@ -28,6 +32,8 @@ RUN apt-get update \
     npm \
     openssh-client \
     procps \
+    pyprof2calltree \
+    ripgrep \
     sudo \
     tldr \
     unzip \
@@ -54,12 +60,6 @@ RUN pip install --upgrade pip
 RUN git clone -b v${KUBENS_VERSION} --single-branch https://github.com/ahmetb/kubectx /opt/kubectx \
     && ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx \
     && ln -s /opt/kubectx/kubens /usr/local/bin/kubens
-
-# Install Octant
-RUN curl -Lo octant.tar.gz https://github.com/vmware-tanzu/octant/releases/download/v${OCTANT_VERSION}/octant_${OCTANT_VERSION}_Linux-64bit.tar.gz \
-    && tar -xvf octant.tar.gz \
-    && mv octant_${OCTANT_VERSION}_Linux-64bit/octant /usr/local/bin/ \
-    && rm -rf octant_${OCTANT_VERSION}_Linux-64bit
 
 COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 

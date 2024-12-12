@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  dev:
+  notify-api:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
@@ -12,15 +12,15 @@ services:
     volumes:
       - ..:/workspace:cached
     command: sleep infinity
-    ports:
-      - 8000:8000
-      - 8001:8001
-      - 6011:6011
     links:
       - db
+    expose:
+      - "6011"
+    networks:
+      - notify-network
 
   db:
-    image: postgres:11.20-bullseye@sha256:98fac4e8dc6fb58a75f2be563e876842f53db5baadb0d98abdd3205a20f6e6eb
+    image: postgres:11.22-bullseye@sha256:c886a3236b3d11abc302e64309186c90a69b49e53ccff23fd8c8b057b5b4bce9
     volumes:
       - ./initdb:/docker-entrypoint-initdb.d
     restart: always
@@ -36,12 +36,21 @@ services:
       - "5432"
     ports:
       - "5432:5432"
+    networks:
+      - notify-network
 
   redis:
-    image: redis:6.2@sha256:9e75c88539241ad7f61bc9c39ea4913b354064b8a75ca5fc40e1cef41b645bc0
+    image: redis:6.2@sha256:7919fdd5300e7abf7ae95919e6f144b37c55df16553302dbbcc7495a5aa0c079
     restart: always
     command: redis-server --port 6380
     ports:
       - "6380:6380"
     expose:
       - "6380"
+    networks:
+      - notify-network
+
+networks:
+  notify-network:
+    name:   notify-network
+    driver: bridge

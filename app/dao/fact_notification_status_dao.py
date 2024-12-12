@@ -1,14 +1,13 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
-from notifications_utils.timezones import convert_local_timezone_to_utc
 from sqlalchemy import Date, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
 from app import db
-from app.dao.date_util import tz_aware_midnight_n_days_ago, utc_midnight_n_days_ago
+from app.dao.date_util import get_query_date_based_on_retention_period
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -33,20 +32,21 @@ from app.models import (
     User,
 )
 from app.utils import (
+    get_fiscal_dates,
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
 )
 
 
-def fetch_notification_status_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+def fetch_notification_status_for_day(process_day, service_ids=None):
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     current_app.logger.info("Fetch ft_notification_status for {} to {}".format(start_date, end_date))
 
     all_data_for_process_day = []
-    service_ids = [x.id for x in Service.query.all()]
+    service_ids = service_ids if service_ids else [x.id for x in Service.query.all()]
     # for each service
     # for each notification type
     # query notifications for day
@@ -105,9 +105,14 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
     return query.all()
 
 
-def update_fact_notification_status(data, process_day):
+def update_fact_notification_status(data, process_day, service_ids=None):
     table = FactNotificationStatus.__table__
-    FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
+    if service_ids:
+        FactNotificationStatus.query.filter(
+            FactNotificationStatus.bst_date == process_day, FactNotificationStatus.service_id.in_(service_ids)
+        ).delete()
+    else:
+        FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
 
     for row in data:
         stmt = insert(table).values(
@@ -126,6 +131,18 @@ def update_fact_notification_status(data, process_day):
 
 
 def fetch_notification_status_for_service_by_month(start_date, end_date, service_id):
+    filters = [
+        FactNotificationStatus.service_id == service_id,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        # This works only for timezones to the west of GMT
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+    ]
+
+    # TODO FF_ANNUAL_LIMIT removal
+    if current_app.config["FF_ANNUAL_LIMIT"]:
+        filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
+
     return (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).label("month"),
@@ -133,13 +150,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
             FactNotificationStatus.notification_status,
             func.sum(FactNotificationStatus.notification_count).label("count"),
         )
-        .filter(
-            FactNotificationStatus.service_id == service_id,
-            FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
-            # This works only for timezones to the west of GMT
-            FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
-            FactNotificationStatus.key_type != KEY_TYPE_TEST,
-        )
+        .filter(*filters)
         .group_by(
             func.date_trunc("month", FactNotificationStatus.bst_date).label("month"),
             FactNotificationStatus.notification_type,
@@ -149,8 +160,8 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
     )
 
 
-def fetch_delivered_notification_stats_by_month():
-    return (
+def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -169,8 +180,12 @@ def fetch_delivered_notification_stats_by_month():
             func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
             FactNotificationStatus.notification_type,
         )
-        .all()
     )
+    if filter_heartbeats:
+        query = query.filter(
+            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
+        )
+    return query.all()
 
 
 def fetch_notification_stats_for_trial_services():
@@ -238,26 +253,41 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
     )
 
 
-def fetch_notification_status_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
-    ft_start_date = utc_midnight_n_days_ago(limit_days)
+def _stats_for_days_facts(service_id, start_time, by_template=False, notification_type=None):
+    """
+    We want to take the data from the fact_notification_status table for bst_data>=start_date
 
-    # The nightly task that populates ft_notification_status counts collects notifications from
-    # 5AM the day before to 5AM of the current day. So we need to match that timeframe when
-    # we fetch notifications for the current day.
-    start = (tz_aware_midnight_n_days_ago(1) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-    end = (tz_aware_midnight_n_days_ago(0) + timedelta(hours=5)).replace(minute=0, second=0, microsecond=0)
-
-    stats_for_7_days = db.session.query(
+    Returns:
+        Aggregate data in a certain format for total notifications
+    """
+    stats_from_facts = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
         FactNotificationStatus.notification_status.label("status"),
         *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
         *([FactNotificationStatus.notification_count.label("count")]),
     ).filter(
         FactNotificationStatus.service_id == service_id,
-        FactNotificationStatus.bst_date >= ft_start_date,
+        FactNotificationStatus.bst_date >= start_time,
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     )
 
+    if notification_type:
+        stats_from_facts = stats_from_facts.filter(FactNotificationStatus.notification_type == notification_type)
+
+    return stats_from_facts
+
+
+def _timing_notification_table(service_id):
+    max_date_from_facts = (
+        FactNotificationStatus.query.with_entities(func.max(FactNotificationStatus.bst_date))
+        .filter(FactNotificationStatus.service_id == service_id)
+        .scalar()
+    )
+    date_to_use = max_date_from_facts + timedelta(days=1) if max_date_from_facts else datetime.now(timezone.utc)
+    return datetime.combine(date_to_use, time.min)
+
+
+def _stats_for_today(service_id, start_time, by_template=False, notification_type=None):
     stats_for_today = (
         db.session.query(
             Notification.notification_type.cast(db.Text),
@@ -266,8 +296,7 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             *([func.count().label("count")]),
         )
         .filter(
-            Notification.created_at >= start,
-            Notification.created_at <= end,
+            Notification.created_at >= start_time,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
@@ -277,8 +306,41 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(service_
             Notification.status,
         )
     )
+    if notification_type:
+        stats_for_today = stats_for_today.filter(Notification.notification_type == notification_type)
 
-    all_stats_table = stats_for_7_days.union_all(stats_for_today).subquery()
+    return stats_for_today
+
+
+def fetch_notification_status_for_service_for_today_and_7_previous_days(
+    service_id, by_template=False, limit_days=7, notification_type=None
+):
+    """
+    We want to take the data from the fact_notification_status table and the notifications table and combine them
+    We will take the data from notifications ONLY for today and the fact_notification_status for the last 6 days.
+    In total we will have 7 days worth of data.
+
+    As the data in facts is populated by a job, instead of
+    keeping track of the job - we will find the max date in the facts table and then use that date to get the
+    data from the notifications table.
+
+    Args:
+        service_id (uuid): service_id
+        by_template (bool, optional): aggregate by template Defaults to False.
+        limit_days (int, optional): Number of days we want to get data for - it can depend on sensitive services.
+            Defaults to 7.
+        notification_type (str, optional): notification type. Defaults to None which means all notification types.
+
+    Returns:
+        Aggregate data in a certain format for total notifications
+    """
+    facts_notification_start_time = get_query_date_based_on_retention_period(limit_days)
+    stats_from_facts = _stats_for_days_facts(service_id, facts_notification_start_time, by_template, notification_type)
+
+    start_time_notify_table = _timing_notification_table(service_id)
+    stats_for_today = _stats_for_today(service_id, start_time_notify_table, by_template, notification_type)
+
+    all_stats_table = stats_from_facts.union_all(stats_for_today).subquery()
 
     query = db.session.query(
         *(
@@ -350,21 +412,7 @@ def get_last_send_for_api_key(api_key_id):
     api_key_table = (
         db.session.query(ApiKey.last_used_timestamp.label("last_notification_created")).filter(ApiKey.id == api_key_id).all()
     )
-    if not api_key_table[0][0]:
-        notification_table = (
-            db.session.query(func.max(Notification.created_at).label("last_notification_created"))
-            .filter(Notification.api_key_id == api_key_id)
-            .all()
-        )
-        if not notification_table[0][0]:
-            notification_table = (
-                db.session.query(func.max(NotificationHistory.created_at).label("last_notification_created"))
-                .filter(NotificationHistory.api_key_id == api_key_id)
-                .all()
-            )
-            notification_table = [] if notification_table[0][0] is None else notification_table
-        return notification_table
-    return api_key_table
+    return [] if api_key_table[0][0] is None else api_key_table
 
 
 def get_api_key_ranked_by_notifications_created(n_days_back):
@@ -844,3 +892,48 @@ def fetch_monthly_notification_statuses_per_service(start_date, end_date):
         )
         .all()
     )
+
+
+def fetch_quarter_data(start_date, end_date, service_ids):
+    """
+    Get data for each quarter for the given year and service_ids
+
+    Args:
+        start_date (datetime obj)
+        end_date (datetime obj)
+        service_ids (list): list of service_ids
+    """
+    query = (
+        db.session.query(
+            FactNotificationStatus.service_id,
+            FactNotificationStatus.notification_type,
+            func.sum(FactNotificationStatus.notification_count).label("notification_count"),
+        )
+        .filter(
+            FactNotificationStatus.service_id.in_(service_ids),
+            FactNotificationStatus.bst_date >= start_date,
+            FactNotificationStatus.bst_date <= end_date,
+        )
+        .group_by(FactNotificationStatus.service_id, FactNotificationStatus.notification_type)
+    )
+    return query.all()
+
+
+def fetch_notification_status_totals_for_service_by_fiscal_year(service_id, fiscal_year, notification_type=None):
+    start_date, end_date = get_fiscal_dates(year=fiscal_year)
+
+    filters = [
+        FactNotificationStatus.service_id == (service_id),
+        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date <= end_date,
+    ]
+
+    if notification_type:
+        filters.append(FactNotificationStatus.notification_type == notification_type)
+
+    query = (
+        db.session.query(func.sum(FactNotificationStatus.notification_count).label("notification_count"))
+        .filter(*filters)
+        .scalar()
+    )
+    return query or 0

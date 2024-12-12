@@ -2,7 +2,14 @@ import time
 
 from flask import current_app
 
-from celery import Celery, Task
+from app.aws.xray_celery_handlers import (
+    xray_after_task_publish,
+    xray_before_task_publish,
+    xray_task_failure,
+    xray_task_postrun,
+    xray_task_prerun,
+)
+from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
 
@@ -41,6 +48,13 @@ class NotifyCelery(Celery):
             broker=app.config["BROKER_URL"],
             task_cls=make_task(app),
         )
+
+        # Register the xray handlers
+        signals.after_task_publish.connect(xray_after_task_publish)
+        signals.before_task_publish.connect(xray_before_task_publish)
+        signals.task_failure.connect(xray_task_failure)
+        signals.task_postrun.connect(xray_task_postrun)
+        signals.task_prerun.connect(xray_task_prerun)
 
         # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
         self.conf.update(

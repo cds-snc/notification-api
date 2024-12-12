@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import Mock, call
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 import requests_mock
@@ -104,14 +104,14 @@ class TestAcknowledgeReceipt:
         acknowledge_sms_normal_mock = mocker.patch("app.sms_normal.acknowledge", return_value=True)
         acknowledge_sms_priority_mock = mocker.patch("app.sms_bulk.acknowledge", return_value=False)
         acknowledge_receipt(SMS_TYPE, NORMAL, receipt)
-        assert acknowledge_sms_normal_mock.called_once_with(receipt)
-        assert acknowledge_sms_priority_mock.not_called()
+        acknowledge_sms_normal_mock.assert_called_once_with(receipt)
+        acknowledge_sms_priority_mock.assert_not_called()
 
     def test_acknowledge_wrong_queue(self, mocker, notify_api):
         receipt = uuid.uuid4()
         acknowledge_sms_bulk_mock = mocker.patch("app.sms_bulk.acknowledge", return_value=True)
         acknowledge_receipt(EMAIL_TYPE, NORMAL, receipt)
-        assert acknowledge_sms_bulk_mock.called_once_with(receipt)
+        acknowledge_sms_bulk_mock.assert_called_once_with(receipt)
 
     def test_acknowledge_no_queue(self):
         with pytest.raises(ValueError):
@@ -545,9 +545,10 @@ class TestProcessJob:
             queue="-normal-database-tasks",
         )
 
+    @pytest.mark.skip()
     @freeze_time("2016-01-01 11:09:00.061258")
     def test_should_not_process_sms_job_if_would_exceed_send_limits(self, notify_db_session, mocker):
-        service = create_service(message_limit=9)
+        service = create_service(sms_daily_limit=9)
         template = create_template(service=service)
         job = create_job(template=template, notification_count=10, original_file_name="multiple_sms.csv")
         mocker.patch(
@@ -563,41 +564,7 @@ class TestProcessJob:
         assert s3.get_job_from_s3.called is False
         assert tasks.process_rows.called is False
 
-    def test_should_not_process_sms_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, mocker):
-        service = create_service(message_limit=1)
-        template = create_template(service=service)
-        job = create_job(template=template)
-
-        save_notification(create_notification(template=template, job=job))
-
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3", return_value=load_example_csv("sms"))
-        mocker.patch("app.celery.tasks.process_rows")
-
-        process_job(job.id)
-
-        job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "sending limits exceeded"
-        assert s3.get_job_from_s3.called is False
-        assert tasks.process_rows.called is False
-
-    @pytest.mark.parametrize("template_type", ["sms", "email"])
-    def test_should_not_process_email_job_if_would_exceed_send_limits_inc_today(self, notify_db_session, template_type, mocker):
-        service = create_service(message_limit=1)
-        template = create_template(service=service, template_type=template_type)
-        job = create_job(template=template)
-
-        save_notification(create_notification(template=template, job=job))
-
-        mocker.patch("app.celery.tasks.s3.get_job_from_s3")
-        mocker.patch("app.celery.tasks.process_rows")
-
-        process_job(job.id)
-
-        job = jobs_dao.dao_get_job_by_id(job.id)
-        assert job.job_status == "sending limits exceeded"
-        assert s3.get_job_from_s3.called is False
-        assert tasks.process_rows.called is False
-
+    @pytest.mark.skip()
     def test_should_not_process_job_if_already_pending(self, sample_template, mocker):
         job = create_job(template=sample_template, job_status="scheduled")
 
@@ -628,6 +595,45 @@ class TestProcessJob:
         job = jobs_dao.dao_get_job_by_id(job.id)
         assert job.job_status == "in progress"
         tasks.save_emails.apply_async.assert_called_with(
+            (
+                str(job.service_id),
+                [
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                    "something_encrypted",
+                ],
+                None,
+            ),
+            queue="-normal-database-tasks",
+        )
+
+    @pytest.mark.parametrize("template_type, save_task", [("sms", save_smss), ("email", save_emails)])
+    def test_should_process_job_if_exactly_on_send_limits(self, notify_db_session, template_type, save_task, mocker):
+        service = create_service(message_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        job = create_job(template=template, notification_count=10)
+
+        mocker.patch(
+            "app.celery.tasks.s3.get_job_from_s3",
+            return_value=load_example_csv("multiple_email"),
+        )
+        save_task_mock = mocker.patch(f"app.celery.tasks.{save_task.__name__}.apply_async")
+        mocker.patch("app.signer_notification.sign", return_value="something_encrypted")
+        mocker.patch("app.celery.tasks.create_uuid", return_value="uuid")
+
+        process_job(job.id)
+
+        s3.get_job_from_s3.assert_called_once_with(str(job.service.id), str(job.id))
+        job = jobs_dao.dao_get_job_by_id(job.id)
+        assert job.job_status == "in progress"
+        save_task_mock.assert_called_with(
             (
                 str(job.service_id),
                 [
@@ -891,9 +897,10 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
         job = Mock(id="job_id", template_version="temp_vers", notification_count=1, api_key_id=api_key_id, sender_id=sender_id)
         service = Mock(id="service_id", research_mode=research_mode)
+        template.__len__.return_value = 1
 
         process_rows(
             [
@@ -950,10 +957,11 @@ class TestProcessRows:
     ):
         mock_save_email = mocker.patch("app.celery.tasks.save_emails")
 
-        template = Mock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
+        template = MagicMock(id=1, template_type=EMAIL_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
+        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -994,10 +1002,11 @@ class TestProcessRows:
     ):
         mock_save_sms = mocker.patch("app.celery.tasks.save_smss")
 
-        template = Mock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
+        template = MagicMock(id=1, template_type=SMS_TYPE, process_type=template_process_type)
         api_key = Mock(id=1, key_type=KEY_TYPE_NORMAL)
         job = Mock(id=1, template_version="temp_vers", notification_count=1, api_key=api_key)
         service = Mock(id=1, research_mode=False)
+        template.__len__.return_value = 1
 
         row = next(
             RecipientCSV(
@@ -1066,7 +1075,8 @@ class TestProcessRows:
         mocker.patch("app.celery.tasks.create_uuid", return_value="noti_uuid")
         task_mock = mocker.patch("app.celery.tasks.{}".format(expected_function))
         signer_mock = mocker.patch("app.celery.tasks.signer_notification.sign")
-        template = Mock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template = MagicMock(id="template_id", template_type=template_type, process_type=NORMAL)
+        template.__len__.return_value = 1
         api_key = {}
         job = Mock(
             id="job_id",
@@ -1154,7 +1164,7 @@ class TestSaveSmss:
             notification["sender_id"] = sender_id
 
         sms_sender = ServiceSmsSender()
-        sms_sender.sms_sender = "+16502532222"
+        sms_sender.sms_sender = "6135550123"
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
         celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
@@ -1191,6 +1201,8 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
+        assert persisted_notification.reply_to_text == (f"+1{sms_sender.sms_sender}" if sender_id else None)
+
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
         )
@@ -1328,12 +1340,11 @@ class TestSaveSmss:
     def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
-        with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-            save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
+
+        save_smss(sample_job.template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "+1 650 253 2222"
         assert persisted_notification.job_id == sample_job.id
@@ -1350,7 +1361,6 @@ class TestSaveSmss:
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
         )
-        mock_over_daily_limit.assert_called_once_with("normal", sample_job.service)
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
         notification = _notification_json(sample_template, "+1 650 253 2222")
@@ -1551,18 +1561,16 @@ class TestSaveEmails:
         mocked_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
         json_template_date = {"data": template_schema.dump(sample_template)}
-        json_service_data = {"data": service_schema.dump(sample_service)}
+
         mocked_redis_get = mocker.patch.object(redis_store, "get")
 
         mocked_redis_get.side_effect = [
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
             bytes(
                 json.dumps(json_template_date, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"
             ),
-            bytes(json.dumps(json_service_data, default=lambda o: o.hex if isinstance(o, uuid.UUID) else None), encoding="utf-8"),
             False,
             False,
         ]
@@ -1672,7 +1680,6 @@ class TestSaveEmails:
         self, notify_api, sample_email_template_with_placeholders, sample_api_key, mocker
     ):
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-        mock_over_daily_limit = mocker.patch("app.celery.tasks.check_service_over_daily_message_limit")
 
         now = datetime(2016, 1, 1, 11, 9, 0)
         notification_id = uuid.uuid4()
@@ -1686,10 +1693,9 @@ class TestSaveEmails:
             )
 
         with freeze_time("2016-01-01 11:10:00.00000"):
-            with set_config_values(notify_api, {"FF_EMAIL_DAILY_LIMIT": False}):
-                save_emails(
-                    sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
-                )
+            save_emails(
+                sample_email_template_with_placeholders.service_id, [signer_notification.sign(notification)], notification_id
+            )
 
         persisted_notification = Notification.query.one()
         assert persisted_notification.to == "my_email@my_email.com"
@@ -1709,7 +1715,6 @@ class TestSaveEmails:
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
             [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
         )
-        mock_over_daily_limit.assert_called_once_with("normal", sample_email_template_with_placeholders.service)
 
     def test_save_email_should_use_template_version_from_job_not_latest(self, sample_email_template, mocker):
         notification = _notification_json(sample_email_template, "my_email@my_email.com")

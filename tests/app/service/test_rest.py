@@ -38,7 +38,6 @@ from app.models import (
     Notification,
     Service,
     ServiceEmailReplyTo,
-    ServiceLetterContact,
     ServicePermission,
     ServiceSmsSender,
     User,
@@ -57,7 +56,6 @@ from tests.app.db import (
     create_ft_notification_status,
     create_inbound_number,
     create_letter_branding,
-    create_letter_contact,
     create_notification,
     create_organisation,
     create_reply_to_email,
@@ -70,6 +68,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_get_service_list(client, service_factory):
@@ -251,6 +250,20 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
     assert first["month"].startswith("2019-12-01")
     assert first["notification_type"] == "email"
     assert first["count"] == 3
+
+
+def test_get_delivered_notification_stats_by_month_data_without_heartbeat(notify_api, admin_request, sample_service):
+    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+
+    create_ft_notification_status(
+        utc_date=date(2019, 12, 10),
+        service=sample_service,
+        template=email_template,
+        count=3,
+    )
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+        response = admin_request.get("service.get_delivered_notification_stats_by_month_data", filter_heartbeats=True)["data"]
+        assert len(response) == 0
 
 
 def test_get_service_by_id(admin_request, sample_service):
@@ -443,7 +456,7 @@ def test_create_service_with_domain_sets_organisation(admin_request, sample_user
         assert json_resp["data"]["organisation"] is None
 
 
-def test_create_service_inherits_branding_from_organisation(admin_request, sample_user, mocker):
+def test_create_service_doesnt_inherit_branding_from_organisation(admin_request, sample_user, mocker):
     org = create_organisation()
     email_branding = create_email_branding()
     org.email_branding = email_branding
@@ -467,8 +480,7 @@ def test_create_service_inherits_branding_from_organisation(admin_request, sampl
         _expected_status=201,
     )
 
-    assert json_resp["data"]["email_branding"] == str(email_branding.id)
-    assert json_resp["data"]["letter_branding"] == str(letter_branding.id)
+    assert json_resp["data"]["email_branding"] is None
 
 
 def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
@@ -646,47 +658,6 @@ def test_cant_update_service_org_type_to_random_value(client, sample_service):
         headers=[("Content-Type", "application/json"), auth_header],
     )
     assert resp.status_code == 500
-
-
-def test_update_service_letter_branding(client, notify_db, sample_service):
-    letter_branding = create_letter_branding(name="test brand", filename="test-brand")
-    data = {"letter_branding": str(letter_branding.id)}
-
-    auth_header = create_authorization_header()
-
-    resp = client.post(
-        "/service/{}".format(sample_service.id),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-    result = resp.json
-    assert resp.status_code == 200
-    assert result["data"]["letter_branding"] == str(letter_branding.id)
-
-
-def test_update_service_remove_letter_branding(client, notify_db, sample_service):
-    letter_branding = create_letter_branding(name="test brand", filename="test-brand")
-    sample_service
-    data = {"letter_branding": str(letter_branding.id)}
-
-    auth_header = create_authorization_header()
-
-    client.post(
-        "/service/{}".format(sample_service.id),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    data = {"letter_branding": None}
-    resp = client.post(
-        "/service/{}".format(sample_service.id),
-        data=json.dumps(data),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
-
-    result = resp.json
-    assert resp.status_code == 200
-    assert result["data"]["letter_branding"] is None
 
 
 def test_update_service_remove_email_branding(admin_request, notify_db, sample_service):
@@ -1043,6 +1014,38 @@ def test_update_service_should_404_if_id_is_invalid(notify_api):
                 headers=[("Content-Type", "application/json"), auth_header],
             )
             assert resp.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "limit_field, limit_value, expected_status", [("sms_annual_limit", 1000, 200), ("email_annual_limit", 10000, 200)]
+)
+def test_update_service_annual_limits(
+    admin_request,
+    sample_service,
+    limit_field,
+    limit_value,
+    expected_status,
+    mocker,
+):
+    mocker.patch("app.service.rest.send_notification_to_service_users")
+    redis_delete = mocker.patch("app.service.rest.redis_store.delete_hash_fields")
+    admin_request.post(
+        "service.update_service",
+        service_id=sample_service.id,
+        _data={
+            limit_field: limit_value,
+        },
+        _expected_status=expected_status,
+    )
+    assert getattr(sample_service, limit_field) == limit_value
+    if limit_field == "sms_annual_limit":
+        assert redis_delete.call_args_list == [
+            call(f"annual-limit:{sample_service.id}:status", ["near_sms_limit", "near_email_limit"]),
+        ]
+    if limit_field == "email_annual_limit":
+        assert redis_delete.call_args_list == [
+            call(f"annual-limit:{sample_service.id}:status", ["over_email_limit", "near_email_limit"]),
+        ]
 
 
 def test_get_users_by_service(notify_api, sample_service):
@@ -1730,6 +1733,35 @@ def test_get_notifications_for_service_without_page_count(
     assert resp["notifications"][0]["id"] == str(without_job.id)
 
 
+@freeze_time("2018-11-20T18:00:00")
+@pytest.mark.parametrize("retention_period, expected_count_of_notifications", [(3, 72), (7, 168)])
+def test_get_notifications_for_service_gets_data_from_correct_timeframe(
+    admin_request, sample_service, retention_period, expected_count_of_notifications
+):
+    email_template = create_template(service=sample_service, template_type=EMAIL_TYPE)
+
+    # WEEK BEFORE
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(
+                create_notification(email_template, created_at=datetime(2018, 11, 5 + i, j, 0, 0), status="delivered")
+            )
+
+    # THIS WEEK
+    # Create 12 notifications for each hour of the day for 1 week
+    for i in range(retention_period):
+        for j in range(24):
+            save_notification(
+                create_notification(email_template, created_at=datetime(2018, 11, 14 + i, j, 0, 0), status="delivered")
+            )
+
+    resp = admin_request.get(
+        "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
+    )
+    assert resp["total"] == expected_count_of_notifications  #
+
+
 @pytest.mark.parametrize(
     "should_prefix",
     [
@@ -2225,9 +2257,7 @@ def test_update_service_updating_daily_limit_sends_notification_to_users(
     if expected_call:
         send_notification_mock.assert_called_once_with(
             service_id=service.id,
-            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"]
-            if current_app.config["FF_EMAIL_DAILY_LIMIT"]
-            else current_app.config["DAILY_LIMIT_UPDATED_TEMPLATE_ID"],
+            template_id=current_app.config["DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID"],
             personalisation={
                 "service_name": service.name,
                 "message_limit_en": "{:,}".format(new_limit),
@@ -2386,25 +2416,6 @@ def test_send_one_off_notification(sample_service, admin_request, mocker):
 
     noti = Notification.query.one()
     assert response["id"] == str(noti.id)
-
-
-def test_create_pdf_letter(mocker, sample_service_full_permissions, client, fake_uuid, notify_user):
-    mocker.patch("app.service.send_notification.utils_s3download")
-    mocker.patch("app.service.send_notification.get_page_count", return_value=1)
-    mocker.patch("app.service.send_notification.move_uploaded_pdf_to_letters_bucket")
-
-    user = sample_service_full_permissions.users[0]
-    data = json.dumps({"filename": "valid.pdf", "created_by": str(user.id), "file_id": fake_uuid})
-
-    response = client.post(
-        url_for("service.create_pdf_letter", service_id=sample_service_full_permissions.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-    json_resp = json.loads(response.get_data(as_text=True))
-
-    assert response.status_code == 201
-    assert json_resp == {"id": fake_uuid}
 
 
 def test_get_notification_for_service_includes_template_redacted(admin_request, sample_notification):
@@ -2922,218 +2933,6 @@ def test_get_email_reply_to_address(client, notify_db, notify_db_session):
     assert json.loads(response.get_data(as_text=True)) == reply_to.serialize()
 
 
-def test_get_letter_contacts_when_there_are_no_letter_contacts(client, sample_service):
-    response = client.get(
-        "/service/{}/letter-contact".format(sample_service.id),
-        headers=[create_authorization_header()],
-    )
-
-    assert json.loads(response.get_data(as_text=True)) == []
-    assert response.status_code == 200
-
-
-def test_get_letter_contacts_with_one_letter_contact(client, notify_db, notify_db_session):
-    service = create_service()
-    create_letter_contact(service, "Aberdeen, AB23 1XH")
-
-    response = client.get(
-        "/service/{}/letter-contact".format(service.id),
-        headers=[create_authorization_header()],
-    )
-    json_response = json.loads(response.get_data(as_text=True))
-
-    assert len(json_response) == 1
-    assert json_response[0]["contact_block"] == "Aberdeen, AB23 1XH"
-    assert json_response[0]["is_default"]
-    assert json_response[0]["created_at"]
-    assert not json_response[0]["updated_at"]
-    assert response.status_code == 200
-
-
-def test_get_letter_contacts_with_multiple_letter_contacts(client, notify_db, notify_db_session):
-    service = create_service()
-    letter_contact_a = create_letter_contact(service, "Aberdeen, AB23 1XH")
-    letter_contact_b = create_letter_contact(service, "London, E1 8QS", False)
-
-    response = client.get(
-        "/service/{}/letter-contact".format(service.id),
-        headers=[create_authorization_header()],
-    )
-    json_response = json.loads(response.get_data(as_text=True))
-
-    assert len(json_response) == 2
-    assert response.status_code == 200
-
-    assert json_response[0]["id"] == str(letter_contact_a.id)
-    assert json_response[0]["service_id"] == str(letter_contact_a.service_id)
-    assert json_response[0]["contact_block"] == "Aberdeen, AB23 1XH"
-    assert json_response[0]["is_default"]
-    assert json_response[0]["created_at"]
-    assert not json_response[0]["updated_at"]
-
-    assert json_response[1]["id"] == str(letter_contact_b.id)
-    assert json_response[1]["service_id"] == str(letter_contact_b.service_id)
-    assert json_response[1]["contact_block"] == "London, E1 8QS"
-    assert not json_response[1]["is_default"]
-    assert json_response[1]["created_at"]
-    assert not json_response[1]["updated_at"]
-
-
-def test_get_letter_contact_by_id(client, notify_db, notify_db_session):
-    service = create_service()
-    letter_contact = create_letter_contact(service, "London, E1 8QS")
-
-    response = client.get(
-        "/service/{}/letter-contact/{}".format(service.id, letter_contact.id),
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 200
-    assert json.loads(response.get_data(as_text=True)) == letter_contact.serialize()
-
-
-def test_get_letter_contact_return_404_when_invalid_contact_id(client, notify_db, notify_db_session):
-    service = create_service()
-
-    response = client.get(
-        "/service/{}/letter-contact/{}".format(service.id, "93d59f88-4aa1-453c-9900-f61e2fc8a2de"),
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 404
-
-
-def test_add_service_contact_block(client, sample_service):
-    data = json.dumps({"contact_block": "London, E1 8QS", "is_default": True})
-    response = client.post(
-        "/service/{}/letter-contact".format(sample_service.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 201
-    json_resp = json.loads(response.get_data(as_text=True))
-    results = ServiceLetterContact.query.all()
-    assert len(results) == 1
-    assert json_resp["data"] == results[0].serialize()
-
-
-def test_add_service_letter_contact_can_add_multiple_addresses(client, sample_service):
-    first = json.dumps({"contact_block": "London, E1 8QS", "is_default": True})
-    client.post(
-        "/service/{}/letter-contact".format(sample_service.id),
-        data=first,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    second = json.dumps({"contact_block": "Aberdeen, AB23 1XH", "is_default": True})
-    response = client.post(
-        "/service/{}/letter-contact".format(sample_service.id),
-        data=second,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-    assert response.status_code == 201
-    json_resp = json.loads(response.get_data(as_text=True))
-    results = ServiceLetterContact.query.all()
-    assert len(results) == 2
-    default = [x for x in results if x.is_default]
-    assert json_resp["data"] == default[0].serialize()
-    first_letter_contact_not_default = [x for x in results if not x.is_default]
-    assert first_letter_contact_not_default[0].contact_block == "London, E1 8QS"
-
-
-def test_add_service_letter_contact_block_fine_if_no_default(client, sample_service):
-    data = json.dumps({"contact_block": "London, E1 8QS", "is_default": False})
-    response = client.post(
-        "/service/{}/letter-contact".format(sample_service.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-    assert response.status_code == 201
-
-
-def test_add_service_letter_contact_block_404s_when_invalid_service_id(client, notify_db, notify_db_session):
-    response = client.post(
-        "/service/{}/letter-contact".format(uuid.uuid4()),
-        data={},
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 404
-    result = json.loads(response.get_data(as_text=True))
-    assert result["result"] == "error"
-    assert result["message"] == "No result found"
-
-
-def test_update_service_letter_contact(client, sample_service):
-    original_letter_contact = create_letter_contact(service=sample_service, contact_block="Aberdeen, AB23 1XH")
-    data = json.dumps({"contact_block": "London, E1 8QS", "is_default": True})
-    response = client.post(
-        "/service/{}/letter-contact/{}".format(sample_service.id, original_letter_contact.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 200
-    json_resp = json.loads(response.get_data(as_text=True))
-    results = ServiceLetterContact.query.all()
-    assert len(results) == 1
-    assert json_resp["data"] == results[0].serialize()
-
-
-def test_update_service_letter_contact_returns_200_when_no_default(client, sample_service):
-    original_reply_to = create_letter_contact(service=sample_service, contact_block="Aberdeen, AB23 1XH")
-    data = json.dumps({"contact_block": "London, E1 8QS", "is_default": False})
-    response = client.post(
-        "/service/{}/letter-contact/{}".format(sample_service.id, original_reply_to.id),
-        data=data,
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-    assert response.status_code == 200
-
-
-def test_update_service_letter_contact_returns_404_when_invalid_service_id(client, notify_db, notify_db_session):
-    response = client.post(
-        "/service/{}/letter-contact/{}".format(uuid.uuid4(), uuid.uuid4()),
-        data={},
-        headers=[("Content-Type", "application/json"), create_authorization_header()],
-    )
-
-    assert response.status_code == 404
-    result = json.loads(response.get_data(as_text=True))
-    assert result["result"] == "error"
-    assert result["message"] == "No result found"
-
-
-def test_delete_service_letter_contact_can_archive_letter_contact(admin_request, notify_db_session):
-    service = create_service()
-    create_letter_contact(service=service, contact_block="Edinburgh, ED1 1AA")
-    letter_contact = create_letter_contact(service=service, contact_block="Swansea, SN1 3CC", is_default=False)
-
-    admin_request.post(
-        "service.delete_service_letter_contact",
-        service_id=service.id,
-        letter_contact_id=letter_contact.id,
-    )
-
-    assert letter_contact.archived is True
-
-
-def test_delete_service_letter_contact_returns_200_if_archiving_template_default(admin_request, notify_db_session):
-    service = create_service()
-    create_letter_contact(service=service, contact_block="Edinburgh, ED1 1AA")
-    letter_contact = create_letter_contact(service=service, contact_block="Swansea, SN1 3CC", is_default=False)
-    create_template(service=service, template_type="letter", reply_to=letter_contact.id)
-
-    response = admin_request.post(
-        "service.delete_service_letter_contact",
-        service_id=service.id,
-        letter_contact_id=letter_contact.id,
-        _expected_status=200,
-    )
-    assert response["data"]["archived"] is True
-
-
 def test_add_service_sms_sender_can_add_multiple_senders(client, notify_db_session):
     service = create_service()
     data = {
@@ -3439,91 +3238,6 @@ def test_cancel_notification_for_service_raises_invalid_request_when_notificatio
     assert response["result"] == "error"
 
 
-@pytest.mark.parametrize(
-    "notification_status",
-    [
-        "cancelled",
-        "sending",
-        "sent",
-        "delivered",
-        "pending",
-        "failed",
-        "technical-failure",
-        "temporary-failure",
-        "permanent-failure",
-        "validation-failed",
-        "virus-scan-failed",
-        "returned-letter",
-    ],
-)
-@freeze_time("2018-07-07 12:00:00")
-def test_cancel_notification_for_service_raises_invalid_request_when_letter_is_in_wrong_state_to_be_cancelled(
-    admin_request,
-    sample_letter_notification,
-    notification_status,
-):
-    sample_letter_notification.status = notification_status
-
-    response = admin_request.post(
-        "service.cancel_notification_for_service",
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-        _expected_status=400,
-    )
-    assert response["message"] == "It’s too late to cancel this letter. Printing started today at 5.30pm"
-    assert response["result"] == "error"
-
-
-@pytest.mark.parametrize("notification_status", ["created", "pending-virus-check"])
-@freeze_time("2018-07-07 16:00:00")
-def test_cancel_notification_for_service_updates_letter_if_letter_is_in_cancellable_state(
-    admin_request,
-    sample_letter_notification,
-    notification_status,
-):
-    sample_letter_notification.status = notification_status
-    sample_letter_notification.created_at = datetime.now()
-
-    response = admin_request.post(
-        "service.cancel_notification_for_service",
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-    )
-    assert response["status"] == "cancelled"
-
-
-@freeze_time("2017-12-12 17:30:00")
-def test_cancel_notification_for_service_raises_error_if_its_too_late_to_cancel(
-    admin_request,
-    sample_letter_notification,
-):
-    sample_letter_notification.created_at = datetime(2017, 12, 11, 17, 0)
-
-    response = admin_request.post(
-        "service.cancel_notification_for_service",
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-        _expected_status=400,
-    )
-    assert response["message"] == "It’s too late to cancel this letter. Printing started on 11 December at 5.30pm"
-    assert response["result"] == "error"
-
-
-@freeze_time("2018-7-7 16:00:00")
-def test_cancel_notification_for_service_updates_letter_if_still_time_to_cancel(
-    admin_request,
-    sample_letter_notification,
-):
-    sample_letter_notification.created_at = datetime(2018, 7, 7, 10, 0)
-
-    response = admin_request.post(
-        "service.cancel_notification_for_service",
-        service_id=sample_letter_notification.service_id,
-        notification_id=sample_letter_notification.id,
-    )
-    assert response["status"] == "cancelled"
-
-
 def test_get_monthly_notification_data_by_service(mocker, admin_request):
     dao_mock = mocker.patch(
         "app.service.rest.fact_notification_status_dao.fetch_monthly_notification_statuses_per_service",
@@ -3541,3 +3255,27 @@ def test_get_monthly_notification_data_by_service(mocker, admin_request):
 
     dao_mock.assert_called_once_with(start_date, end_date)
     assert response == []
+
+
+class TestGetSensitiveServiceids:
+    def test_get_sensitive_service_id(self, client, notify_db, notify_db_session):
+        service = create_service(service_name="service1", sensitive_service=True)
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == [str(service.id)]
+
+    def test_no_sensitive_services(self, client, notify_db, notify_db_session):
+        assert Service.query.count() == 0
+        auth_header = create_authorization_header()
+        resp = client.get(
+            "/service/sensitive-service-ids",
+            headers=[auth_header],
+        )
+        assert resp.status_code == 200
+        json_resp = resp.json
+        assert json_resp["data"] == []

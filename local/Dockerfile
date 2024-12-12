@@ -1,7 +1,7 @@
-FROM python:3.10-alpine@sha256:860f632e67178d9e90c7dfa9844a5e02098220bff5716d3c2fe1870325f00853
+FROM python:3.10-alpine@sha256:7edffe5acc6a2c4c009fece2fbdc85f04fde4c8481202473b880ef3f8fbb2939
 
 ENV PYTHONDONTWRITEBYTECODE 1
-ENV POETRY_VERSION "1.3.2"
+ENV POETRY_VERSION "1.7.1"
 
 RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl curl-dev && rm -rf /var/cache/apk/*
 

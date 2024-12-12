@@ -66,7 +66,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**contact_request)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -117,7 +117,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_branding_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -127,12 +127,22 @@ class TestSendTicket:
                 "description": "A new logo has been uploaded by name (test@email.com) for the following service:<br>"
                 "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Service name: t6<br>"
+                "- Organisation id: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Organisation name: best org name ever<br>"
                 "- Logo filename: branding_url<br>"
+                "- Logo name: branding_logo_name<br>"
+                "- Alt text english: en alt text<br>"
+                "- Alt text french: fr alt text<br>"
                 "<hr><br>"
                 "Un nouveau logo a été téléchargé par name (test@email.com) pour le service suivant :<br>"
                 "- Identifiant du service : 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
                 "- Nom du service : t6<br>"
-                "- Nom du fichier du logo : branding_url",
+                "- Identifiant de l'organisation: 6b72e84f-8591-42e1-93b8-7d24a45e1d79<br>"
+                "- Nom de l'organisation: best org name ever<br>"
+                "- Nom du fichier du logo : branding_url<br>"
+                "- Nom du logo : branding_logo_name<br>"
+                "- Texte alternatif anglais : en alt text<br>"
+                "- Texte alternatif français : fr alt text",
                 "email": "test@email.com",
                 "priority": 1,
                 "status": 2,
@@ -158,13 +168,66 @@ class TestSendTicket:
                 "friendly_support_type": "Branding request",
                 "support_type": "branding_request",
                 "service_name": "t6",
+                "organisation_id": "6b72e84f-8591-42e1-93b8-7d24a45e1d79",
+                "department_org_name": "best org name ever",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "branding_url": "branding_url",
+                "branding_logo_name": "branding_logo_name",
+                "alt_text_en": "en alt text",
+                "alt_text_fr": "fr alt text",
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
+
+    def test_send_ticket_other_category(self, email_freshdesk_ticket_mock, notify_api: Flask):
+        def match_json(request):
+            expected = {
+                "product_id": 42,
+                "subject": "New template category request",
+                "description": "New template category request from name (test@email.com):<br>"
+                "- Service id: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+                "- New Template Category Request name: test category name<br>"
+                "- Template id request: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103<br>"
+                "<hr><br>"
+                "Demande de nouvelle catégorie de modèle de name (test@email.com):<br>"
+                "- Identifiant du service: 8624bd36-b70b-4d4b-a459-13e1f4770b92<br>"
+                "- Nom de la nouvelle catégorie de modèle demandée: test category name<br>"
+                "- Demande d'identifiant de modèle: http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103",
+                "email": "test@email.com",
+                "priority": 1,
+                "status": 2,
+                "tags": [],
+            }
+
+            encoded_auth = base64.b64encode(b"freshdesk-api-key:x").decode("ascii")
+            json_matches = request.json() == expected
+            basic_auth_header = request.headers.get("Authorization") == f"Basic {encoded_auth}"
+
+            return json_matches and basic_auth_header
+
+        with requests_mock.mock() as rmock:
+            rmock.request(
+                "POST",
+                "https://freshdesk-test.com/api/v2/tickets",
+                additional_matcher=match_json,
+                status_code=201,
+            )
+            data: Dict[str, Any] = {
+                "email_address": "test@email.com",
+                "name": "name",
+                "friendly_support_type": "New template category request",
+                "support_type": "new_template_category_request",
+                "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
+                "template_category_name_en": "test category name",
+                "template_category_name_fr": "test category name",
+                "template_id_link": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92/templates/3ed1f07a-1b20-4f83-9a3e-158ab9b00103",
+            }
+            with notify_api.app_context():
+                response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()
+                assert response == 201
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_other(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -195,7 +258,7 @@ class TestSendTicket:
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com")).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_user_profile(self, email_freshdesk_ticket_mock, notify_api: Flask):
         def match_json(request):
@@ -231,7 +294,7 @@ class TestSendTicket:
                     )
                 ).send_ticket()
                 assert response == 201
-                assert email_freshdesk_ticket_mock.not_called()
+                email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_freshdesk_integration_disabled(self, mocker, email_freshdesk_ticket_mock, notify_api: Flask):
         mocked_post = mocker.patch("requests.post")

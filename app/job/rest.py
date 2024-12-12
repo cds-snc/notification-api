@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import dateutil
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
@@ -20,6 +22,7 @@ from app.dao.jobs_dao import (
 from app.dao.notifications_dao import get_notifications_for_job
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.email_limit_utils import decrement_todays_email_count
 from app.errors import InvalidRequest, register_errors
 from app.models import (
     EMAIL_TYPE,
@@ -30,7 +33,9 @@ from app.models import (
 )
 from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
+    check_email_annual_limit,
     check_email_daily_limit,
+    check_sms_annual_limit,
     check_sms_daily_limit,
     increment_email_daily_count_send_warnings_if_needed,
     increment_sms_daily_count_send_warnings_if_needed,
@@ -67,7 +72,7 @@ def cancel_job(service_id, job_id):
     job = dao_get_future_scheduled_job_by_id_and_service_id(job_id, service_id)
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-
+    decrement_todays_email_count(service_id, job.notification_count)
     return get_job_by_service_and_job_id(service_id, job_id)
 
 
@@ -137,15 +142,23 @@ def create_job(service_id):
         raise InvalidRequest("Create job is not allowed: service is inactive ", 403)
 
     data = request.get_json()
-
     data.update({"service": service_id})
+
     try:
         data.update(**get_job_metadata_from_s3(service_id, data["id"]))
     except KeyError:
         raise InvalidRequest({"id": ["Missing data for required field."]}, status_code=400)
 
+    if data.get("valid") != "True":
+        raise InvalidRequest("File is not valid, can't create job", 400)
+
     data["template"] = data.pop("template_id")
+
     template = dao_get_template_by_id(data["template"])
+    template_errors = unarchived_template_schema.validate({"archived": template.archived})
+
+    if template_errors:
+        raise InvalidRequest(template_errors, status_code=400)
 
     job = get_job_from_s3(service_id, data["id"])
     recipient_csv = RecipientCSV(
@@ -156,36 +169,42 @@ def create_job(service_id):
     )
 
     if template.template_type == SMS_TYPE:
+        # set sender_id if missing
+        default_senders = [x for x in service.service_sms_senders if x.is_default]
+        default_sender_id = default_senders[0].id if default_senders else None
+        data["sender_id"] = data.get("sender_id", default_sender_id)
+
         # calculate the number of simulated recipients
-        numberOfSimulated = sum(
-            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
-        )
-        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(list(recipient_csv.get_rows()))
+        numberOfSimulated = sum(simulated_recipient(i["phone_number"].data, template.template_type) for i in recipient_csv.rows)
+        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != len(recipient_csv)
 
         # if they have specified testing and NON-testing recipients, raise an error
         if mixedRecipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
-        is_test_notification = len(list(recipient_csv.get_rows())) == numberOfSimulated
+        is_test_notification = len(recipient_csv) == numberOfSimulated
 
         if not is_test_notification:
+            check_sms_annual_limit(service, len(recipient_csv))
             check_sms_daily_limit(service, len(recipient_csv))
+            increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
-    if template.template_type == EMAIL_TYPE:
-        check_email_daily_limit(service, len(list(recipient_csv.get_rows())))
-
-    if data.get("valid") != "True":
-        raise InvalidRequest("File is not valid, can't create job", 400)
-
-    errors = unarchived_template_schema.validate({"archived": template.archived})
-
-    if errors:
-        raise InvalidRequest(errors, status_code=400)
-
-    if template.template_type == SMS_TYPE and not is_test_notification:
-        increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
     elif template.template_type == EMAIL_TYPE:
-        increment_email_daily_count_send_warnings_if_needed(service, len(list(recipient_csv.get_rows())))
+        if "notification_count" in data:
+            notification_count = int(data["notification_count"])
+        else:
+            current_app.logger.warning(
+                f"notification_count not in metadata for job {data['id']}, using len(recipient_csv) instead."
+            )
+            notification_count = len(recipient_csv)
+
+        check_email_annual_limit(service, notification_count)
+        check_email_daily_limit(service, notification_count)
+
+        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
+
+        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+            increment_email_daily_count_send_warnings_if_needed(service, notification_count)
 
     data.update({"template_version": template.version})
 

@@ -21,6 +21,7 @@ from app.dao.notifications_dao import dao_create_notification
 from app.dao.organisation_dao import dao_create_organisation
 from app.dao.provider_rates_dao import create_provider_rates
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
+from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template
 from app.dao.users_dao import create_secret_code, create_user_code
 from app.history_meta import create_history
@@ -52,6 +53,7 @@ from app.models import (
     ServiceEmailReplyTo,
     ServiceSafelist,
     Template,
+    TemplateCategory,
     TemplateHistory,
 )
 from tests import create_authorization_header
@@ -122,6 +124,14 @@ def notify_user(notify_db_session):
     )
 
 
+@pytest.fixture(scope="function")
+def cypress_user(notify_db_session):
+    return create_user(
+        email="cypress-service-user@cds-snc.ca",
+        id_=current_app.config["CYPRESS_TEST_USER_ID"],
+    )
+
+
 def create_code(notify_db, notify_db_session, code_type, usr=None, code=None):
     if code is None:
         code = create_secret_code()
@@ -152,6 +162,8 @@ def create_sample_service(
     restricted=False,
     limit=1000,
     sms_limit=1000,
+    email_annual_limit=None,
+    sms_annual_limit=None,
     email_from=None,
     permissions=None,
     research_mode=None,
@@ -165,6 +177,8 @@ def create_sample_service(
         "name": service_name,
         "message_limit": limit,
         "sms_daily_limit": sms_limit,
+        "email_annual_limit": email_annual_limit,
+        "sms_annual_limit": sms_annual_limit,
         "restricted": restricted,
         "email_from": email_from,
         "created_by": user,
@@ -213,6 +227,42 @@ def sample_service(
     )
 
 
+@pytest.fixture(scope="function")
+def sample_service_cypress(
+    notify_db,
+    notify_db_session,
+):
+    user = create_user()
+    service = Service.query.get(current_app.config["CYPRESS_SERVICE_ID"])
+    if not service:
+        service = Service(
+            name="Cypress Service",
+            message_limit=1000,
+            sms_daily_limit=1000,
+            restricted=False,
+            email_from="notify.service",
+            created_by=user,
+            prefix_sms=False,
+        )
+        dao_create_service(
+            service=service,
+            service_id=current_app.config["CYPRESS_SERVICE_ID"],
+            user=user,
+        )
+
+        data = {
+            "service": service,
+            "email_address": "notify@gov.uk",
+            "is_default": True,
+        }
+        reply_to = ServiceEmailReplyTo(**data)
+
+        db.session.add(reply_to)
+        db.session.commit()
+
+    return service, user
+
+
 @pytest.fixture(scope="function", name="sample_service_full_permissions")
 def _sample_service_full_permissions(notify_db_session):
     service = create_service(
@@ -230,6 +280,148 @@ def _sample_service_custom_letter_contact_block(sample_service):
     return sample_service
 
 
+@pytest.fixture(scope="function")
+def sample_template_category_with_templates(notify_db, notify_db_session, sample_template_category):
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    create_sample_template(notify_db, notify_db_session, template_category=sample_template_category)
+    return sample_template_category
+
+
+@pytest.fixture(scope="function")
+def populate_generic_categories(notify_db_session):
+    generic_categories = [
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
+            "name_en": "Low Category (Bulk)",
+            "name_fr": "Catégorie Basse (En Vrac)",
+            "sms_process_type": "low",
+            "email_process_type": "low",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
+            "name_en": "Medium Category (Normal)",
+            "name_fr": "Catégorie Moyenne (Normale)",
+            "sms_process_type": "normal",
+            "email_process_type": "normal",
+            "hidden": True,
+        },
+        {
+            "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
+            "name_en": "High Category (Priority)",
+            "name_fr": "Catégorie Haute (Priorité)",
+            "sms_process_type": "high",
+            "email_process_type": "high",
+            "hidden": True,
+        },
+    ]
+    for category in generic_categories:
+        dao_create_template_category(TemplateCategory(**category))
+
+    yield
+
+
+@pytest.fixture(scope="function")
+def sample_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_category_bulk(
+    notify_db,
+    notify_db_session,
+    name_en="Category Low",
+    name_fr="Category Low (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="bulk",
+    email_process_type="bulk",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_category_priority(
+    notify_db,
+    notify_db_session,
+    name_en="Category Priority",
+    name_fr="Category Priority (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="priority",
+    email_process_type="priority",
+    hidden=False,
+):
+    return create_template_category(
+        notify_db,
+        notify_db_session,
+        name_en=name_en,
+        name_fr=name_fr,
+        description_en=description_en,
+        description_fr=description_fr,
+        sms_process_type=sms_process_type,
+        email_process_type=email_process_type,
+        hidden=hidden,
+    )
+
+
+def create_template_category(
+    notify_db,
+    notify_db_session,
+    name_en="Category Name",
+    name_fr="Category Name (FR)",
+    description_en="Category Description",
+    description_fr="Category Description (FR)",
+    sms_process_type="normal",
+    email_process_type="normal",
+    hidden=False,
+):
+    data = {
+        "name_en": name_en,
+        "name_fr": name_fr,
+        "description_en": description_en,
+        "description_fr": description_fr,
+        "sms_process_type": sms_process_type,
+        "email_process_type": email_process_type,
+        "hidden": hidden,
+    }
+    template_category = TemplateCategory(**data)
+    dao_create_template_category(template_category)
+
+    return template_category
+
+
 def create_sample_template(
     notify_db,
     notify_db_session,
@@ -241,6 +433,7 @@ def create_sample_template(
     subject_line="Subject",
     user=None,
     service=None,
+    template_category=None,
     created_by=None,
     process_type="normal",
     permissions=[EMAIL_TYPE, SMS_TYPE],
@@ -268,6 +461,11 @@ def create_sample_template(
         data.update({"subject": subject_line})
     if template_type == "letter":
         data["postage"] = "second"
+    if template_category:
+        data["template_category"] = template_category
+    else:
+        cat = create_template_category(notify_db, notify_db_session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4()))
+        data.update({"template_category_id": cat.id})
     template = Template(**data)
     dao_create_template(template)
 
@@ -303,6 +501,42 @@ def sample_template(
         service=None,
         created_by=None,
         process_type="normal",
+        template_category=None,
+        permissions=[EMAIL_TYPE, SMS_TYPE],
+    )
+
+
+@pytest.fixture(scope="function")
+def sample_template_with_priority_override(
+    notify_db,
+    notify_db_session,
+    sample_template_category,
+    template_name="Template Name",
+    template_type="sms",
+    content="This is a template:\nwith a newline",
+    archived=False,
+    hidden=False,
+    subject_line="Subject",
+    user=None,
+    service=None,
+    created_by=None,
+    process_type="priority",
+    permissions=[EMAIL_TYPE, SMS_TYPE],
+):
+    return create_sample_template(
+        notify_db,
+        notify_db_session,
+        template_name="Template Name",
+        template_type="sms",
+        content="This is a template:\nwith a newline",
+        archived=False,
+        hidden=False,
+        subject_line="Subject",
+        user=None,
+        service=None,
+        created_by=None,
+        process_type="priority",
+        template_category=sample_template_category,
         permissions=[EMAIL_TYPE, SMS_TYPE],
     )
 
@@ -337,7 +571,12 @@ def create_sample_email_template(
     subject_line="Email Subject",
     service=None,
     permissions=[EMAIL_TYPE, SMS_TYPE],
+    template_category=None,
 ):
+    if not template_category:
+        template_category = create_template_category(
+            notify_db, notify_db_session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4())
+        )
     if user is None:
         user = create_user()
     if service is None:
@@ -353,6 +592,7 @@ def create_sample_email_template(
         "service": service,
         "created_by": user,
         "subject": subject_line,
+        "template_category_id": template_category.id,
     }
     template = Template(**data)
     dao_create_template(template)
@@ -1238,8 +1478,21 @@ def contact_form_email_template(notify_db, notify_db_session):
     )
 
 
-def create_custom_template(service, user, template_config_name, template_type, content="", subject=None):
-    template = Template.query.get(current_app.config[template_config_name])
+def create_custom_template(
+    service,
+    user,
+    template_config_name,
+    template_type,
+    content="",
+    subject=None,
+    template_category=None,
+):
+    id = current_app.config[template_config_name]
+    template = Template.query.get(id)
+    if not template_category:
+        template_category = create_template_category(db, db.session, name_en=str(uuid.uuid4()), name_fr=str(uuid.uuid4()))
+    if template:
+        template.template_category_id = template_category.id
     if not template:
         data = {
             "id": current_app.config[template_config_name],
@@ -1250,6 +1503,7 @@ def create_custom_template(service, user, template_config_name, template_type, c
             "created_by": user,
             "subject": subject,
             "archived": False,
+            "template_category_id": template_category.id,
         }
         template = Template(**data)
         db.session.add(template)

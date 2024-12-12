@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 from app.models import ServiceCallbackApi, ServiceInboundApi
 from tests.app.db import create_service_callback_api, create_service_inbound_api
 
@@ -196,3 +198,22 @@ def test_delete_service_callback_api(admin_request, sample_service):
 
     assert response is None
     assert ServiceCallbackApi.query.count() == 0
+
+
+class TestSuspendCallbackApi:
+    @pytest.mark.parametrize("suspend_unsuspend", [True, False])
+    def test_suspend_callback_api(self, admin_request, sample_service, suspend_unsuspend):
+        service_callback_api = create_service_callback_api(sample_service)
+
+        data = {
+            "suspend_unsuspend": suspend_unsuspend,
+            "updated_by_id": str(sample_service.users[0].id),
+        }
+        admin_request.post(
+            "service_callback.suspend_callback_api",
+            service_id=sample_service.id,
+            _data=data,
+        )
+        callback = ServiceCallbackApi.query.get(service_callback_api.id)
+        assert callback.is_suspended is suspend_unsuspend
+        assert callback.updated_by_id == sample_service.users[0].id
