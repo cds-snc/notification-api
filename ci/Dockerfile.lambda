@@ -1,4 +1,4 @@
-FROM python:3.12-alpine3.20@sha256:5049c050bdc68575a10bcb1885baa0689b6c15152d8a56a7e399fb49f783bf98
+FROM python:3.12-slim@sha256:2b0079146a74e23bf4ae8f6a28e1b484c6292f6fb904cbb51825b4a19812fcd8
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -9,9 +9,9 @@ ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
-RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libc6-compat make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
-# Install libexecinfo-dev ffrom a previous alpine version - check if this is still needed when we next upgrade the base image
-RUN apk add --repository=https://dl-cdn.alpinelinux.org/alpine/v3.16/main/ libexecinfo-dev
+RUN apt-get update
+RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip
+
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
 
