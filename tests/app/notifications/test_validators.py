@@ -740,7 +740,7 @@ def test_validate_notification_does_not_exceed_sqs_limit_within_limit(mocker):
     }
     assert validate_notification_does_not_exceed_sqs_limit(notification) is None
 
-    
+
 class TestAnnualLimitValidators:
     @freeze_time("2024-11-26")
     @pytest.mark.parametrize(
@@ -966,4 +966,3 @@ class TestAnnualLimitValidators:
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             check_sms_annual_limit(service, 4)
             mock_send_email.assert_not_called()
-
