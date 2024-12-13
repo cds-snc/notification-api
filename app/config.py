@@ -585,8 +585,8 @@ class Config(object):
         "job": "{}-dvla-file-per-job".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
         "notification": "{}-dvla-letter-api-files".format(os.getenv("NOTIFY_ENVIRONMENT", "development")),
     }
-    SERVICE_ANNUAL_EMAIL_LIMIT = env.int("SERVICE_ANNUAL_EMAIL_LIMIT", 10_000_000)
-    SERVICE_ANNUAL_SMS_LIMIT = env.int("SERVICE_ANNUAL_SMS_LIMIT", 25_000)
+    SERVICE_ANNUAL_EMAIL_LIMIT = env.int("SERVICE_ANNUAL_EMAIL_LIMIT", 20_000_000)
+    SERVICE_ANNUAL_SMS_LIMIT = env.int("SERVICE_ANNUAL_SMS_LIMIT", 100_000)
 
     FREE_SMS_TIER_FRAGMENT_COUNT = 250000
 

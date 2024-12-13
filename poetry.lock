@@ -2657,7 +2657,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.0.1"
+version = "53.1.0"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2693,8 +2693,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.0.1"
-resolved_reference = "8ee66e4ed598a694b778283573715d7d5b9eeb9c"
+reference = "task/pre-3.12-recipient-csv-annual-limit-validation-MERGE_IN_TO_MAIN"
+resolved_reference = "d496801e2f9d4ad3b4f168aeb700d721804aefdf"
 
 [[package]]
 name = "ordered-set"
@@ -4641,4 +4641,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "94e2e1cf0b1245b2278eec6647df33395c494c8b2114d9718ea86eb343d49174"
+content-hash = "fb4aea86fb759b74efb7f40aef08f0fd9ce214d6238b01468ddc3c633833f0b5"
