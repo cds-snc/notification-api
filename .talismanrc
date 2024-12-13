@@ -69,6 +69,8 @@ fileignoreconfig:
   checksum: 6ffb8742a19c5b834c608826fd459cc1b6ea35ebfffd2d929a3a0f269c74183d
 - filename: tests/app/celery/test_service_callback_tasks.py
   checksum: 70575434f7a4fedd43d4c9164bc899a606768526d432c364db372524eec26542
+- filename: tests/app/clients/test_twilio.py
+  checksum: cad49e634cc5ba56157358aa3dfba2dafe7b9dbd3a0c580ec5cda3072f6a76e5
 - filename: tests/app/conftest.py
   checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
 - filename: tests/app/dao/test_api_key_dao.py
@@ -77,6 +79,8 @@ fileignoreconfig:
   checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
 - filename: tests/app/notifications/test_send_notifications.py
   checksum: 69304e1edd6993acd9a842a87dba8ee16854befc643863e1589b15c303a71464
+- filename: tests/app/v2/notifications/test_get_notifications.py
+  checksum: f2460d8b22ff7ff2e89778dbbf3e0740cbb41dead60c49c32648d367aa05fe0e
 - filename: tests/app/v2/notifications/test_post_notifications.py
   checksum: 3181930a13e3679bb2f17eaa3f383512eb9caf4ed5d5e14496ca4193c6083965
 - filename: tests/app/v3/notifications/test_rest.py
@@ -85,6 +89,4 @@ fileignoreconfig:
   checksum: 4f0f4d7a4113762219e45a51f7b26a7c0cb83f1d8f10c5598533f6cdcf0e0ada
 - filename: tests/lambda_functions/vetext_incoming_forwarder_lambda/test_vetext_incoming_forwarder_lambda.py
   checksum: 7494eb4321fd2fbc3ff3915d8753d8fec7a936a69dc6ab78f0b532a701f032eb
-- filename: tests/app/clients/test_twilio.py
-  checksum: cad49e634cc5ba56157358aa3dfba2dafe7b9dbd3a0c580ec5cda3072f6a76e5
 version: "1.0"

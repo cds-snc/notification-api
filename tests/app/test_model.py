@@ -133,7 +133,7 @@ def test_notification_subject_fills_in_placeholders(
 ):
     template = sample_template(template_type=EMAIL_TYPE, subject='((name))')
     notification = sample_notification(template=template, personalisation={'name': 'hello'})
-    assert notification.subject == 'hello'
+    assert notification.subject == '<redacted>'
 
 
 def test_notification_serializes_created_by_name_with_no_created_by_id(client, sample_notification):

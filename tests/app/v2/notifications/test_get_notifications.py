@@ -155,7 +155,7 @@ def test_get_notification_by_id_with_placeholders_and_recipient_identifiers_retu
         'template': expected_template_response,
         'created_at': notification.created_at.strftime(DATETIME_FORMAT),
         'created_by_name': None,
-        'body': 'Hello Bob\nThis is an email from va.gov',
+        'body': 'Hello <redacted>\nThis is an email from va.gov',
         'subject': 'Subject',
         'sent_at': notification.sent_at,
         'sent_by': None,
@@ -881,3 +881,56 @@ def test_get_notifications_renames_letter_statuses(client, sample_letter_templat
     json_response = json.loads(response.get_data(as_text=True))
     assert response.status_code == 200
     assert json_response['status'] == expected_status
+
+
+@pytest.mark.parametrize('template_type', [SMS_TYPE, EMAIL_TYPE])
+def test_get_notifications_removes_personalisation_from_content(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+    template_type,
+):
+    template = sample_template(
+        content='Hello ((name))\nThis is an email from VA Notify about some ((thing))',
+        template_type=template_type,
+    )
+    notification = sample_notification(
+        template=template,
+        personalisation={'name': 'Bob', 'thing': 'important stuff'},
+    )
+    auth_header = create_authorization_header(sample_api_key(service=template.service))
+    response = client.get(
+        path=url_for('v2_notifications.get_notification_by_id', notification_id=notification.id),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    json_response = json.loads(response.get_data(as_text=True))
+    assert response.status_code == 200
+    assert json_response['body'] == 'Hello <redacted>\nThis is an email from VA Notify about some <redacted>'
+
+
+def test_get_notifications_removes_personalisation_from_subject(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+):
+    template = sample_template(
+        subject='Hello ((name))',
+        content='This is an email',
+        template_type=EMAIL_TYPE,
+    )
+    notification = sample_notification(
+        template=template,
+        personalisation={'name': 'Bob'},
+    )
+    auth_header = create_authorization_header(sample_api_key(service=template.service))
+    response = client.get(
+        path=url_for('v2_notifications.get_notification_by_id', notification_id=notification.id),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    json_response = json.loads(response.get_data(as_text=True))
+    assert response.status_code == 200
+    assert json_response['subject'] == 'Hello <redacted>'

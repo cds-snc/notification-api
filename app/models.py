@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 import datetime
+import html
 import itertools
 import uuid
 
@@ -1331,7 +1332,7 @@ class Notification(db.Model):
     def content(self):
         from app.utils import get_template_instance
 
-        template_object = get_template_instance(self.template.__dict__, self.personalisation)
+        template_object = get_template_instance(self.template.__dict__, {k: '<redacted>' for k in self.personalisation})
         return str(template_object)
 
     @property
@@ -1339,8 +1340,10 @@ class Notification(db.Model):
         from app.utils import get_template_instance
 
         if self.notification_type != SMS_TYPE:
-            template_object = get_template_instance(self.template.__dict__, self.personalisation)
-            return template_object.subject
+            template_object = get_template_instance(
+                self.template.__dict__, {k: '<redacted>' for k in self.personalisation}
+            )
+            return html.unescape(str(template_object.subject))
 
     @property
     def formatted_status(self):
