@@ -198,8 +198,8 @@ def check_email_annual_limit(service: Service, requested_emails=0):
 
     if not send_exceeds_annual_limit:
         # Will this send put the service right at their limit?
-        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, SMS_TYPE):
-            annual_limit_client.set_over_sms_limit(service.id)
+        if send_reaches_annual_limit and not annual_limit_client.check_has_over_limit_been_sent(service.id, EMAIL_TYPE):
+            annual_limit_client.set_over_email_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached their annual email limit of {service.email_annual_limit} when sending {requested_emails} messages. Sending reached annual limit email."
             )
@@ -218,7 +218,7 @@ def check_email_annual_limit(service: Service, requested_emails=0):
         return
 
     current_app.logger.info(
-        f"Service {service.id} is exceeding their annual email limit [total sent this fiscal: {int(emails_sent_today + emails_sent_this_fiscal)} limit: {service.email_annual_limit}, attempted send: {requested_emails}"
+        f"{'Trial service' if service.restricted else 'Service'} {service.id} is exceeding their annual email limit [total sent this fiscal: {int(emails_sent_today + emails_sent_this_fiscal)} limit: {service.email_annual_limit}, attempted send: {requested_emails}"
     )
     if service.restricted:
         raise TrialServiceRequestExceedsEmailAnnualLimitError(service.email_annual_limit)
@@ -257,16 +257,16 @@ def check_sms_annual_limit(service: Service, requested_sms=0):
             current_app.logger.info(
                 f"Service {service.id} reached their annual SMS limit of {service.sms_annual_limit} messages. Sending reached annual limit email."
             )
-            send_annual_limit_reached_email(service, "email", current_fiscal_year + 1)
+            send_annual_limit_reached_email(service, "sms", current_fiscal_year + 1)
 
         # Will this send put annual usage within 80% of the limit?
-        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, EMAIL_TYPE):
-            annual_limit_client.set_nearing_email_limit(service.id)
+        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, SMS_TYPE):
+            annual_limit_client.set_nearing_sms_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached 80% of their annual SMS limit of {service.sms_annual_limit} messages. Sending annual limit usage warning email."
             )
             send_near_annual_limit_warning_email(
-                service, "email", int(sms_sent_today + sms_sent_this_fiscal), current_fiscal_year + 1
+                service, "sms", int(sms_sent_today + sms_sent_this_fiscal), current_fiscal_year + 1
             )
 
         return
@@ -497,8 +497,9 @@ def send_annual_limit_reached_email(service: Service, notification_type: Notific
         service_id=service.id,
         template_id=current_app.config["REACHED_ANNUAL_LIMIT_TEMPLATE_ID"],
         personalisation={
-            "message_type_en": notification_type,
-            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
+            "service_name": service.name,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
             "fiscal_end": fiscal_end,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
@@ -512,15 +513,17 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
     if notification_type == EMAIL_TYPE:
         message_limit_fr = "{:,}".format(service.email_annual_limit).replace(",", " ")
         message_limit_en = service.email_annual_limit
-        message_type_fr = "Courriel"
-        remaining_en = service.email_annual_limit - count_en
-        remaining_fr = "{:,}".format(remaining_en).replace(",", " ")
+        message_type_fr = "courriels"
+        message_type_en = "emails"
+        remaining_en = "{:,}".format(service.email_annual_limit - count_en)
+        remaining_fr = "{:,}".format(service.email_annual_limit - count_en).replace(",", " ")
     else:
         message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
         message_limit_en = service.sms_annual_limit
-        message_type_fr = "sms"
-        remaining_en = service.sms_annual_limit - count_en
-        remaining_fr = "{:,}".format(remaining_en).replace(",", " ")
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+        remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
+        remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
 
     send_notification_to_service_users(
         service_id=service.id,
@@ -533,28 +536,10 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
             "count_fr": count_fr,
             "message_limit_en": message_limit_en,
             "message_limit_fr": message_limit_fr,
-            "message_type_en": notification_type,
+            "message_type_en": message_type_en,
             "message_type_fr": message_type_fr,
             "remaining_en": remaining_en,
             "remaining_fr": remaining_fr,
-            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
-            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
-        },
-        include_user_fields=["name"],
-    )
-
-
-def send_annual_limit_updated_email(service: Service, notification_type: NotificationType, fiscal_end: int):
-    send_notification_to_service_users(
-        service_id=service.id,
-        template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
-        personalisation={
-            "message_type_en": notification_type,
-            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
-            "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,
-            "message_limit_fr": "{:,}".format(
-                service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
-            ).replace(",", " "),
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
         },

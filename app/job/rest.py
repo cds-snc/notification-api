@@ -33,7 +33,9 @@ from app.models import (
 )
 from app.notifications.process_notifications import simulated_recipient
 from app.notifications.validators import (
+    check_email_annual_limit,
     check_email_daily_limit,
+    check_sms_annual_limit,
     check_sms_daily_limit,
     increment_email_daily_count_send_warnings_if_needed,
     increment_sms_daily_count_send_warnings_if_needed,
@@ -183,6 +185,7 @@ def create_job(service_id):
         is_test_notification = len(recipient_csv) == numberOfSimulated
 
         if not is_test_notification:
+            check_sms_annual_limit(service, len(recipient_csv))
             check_sms_daily_limit(service, len(recipient_csv))
             increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
 
@@ -195,6 +198,7 @@ def create_job(service_id):
             )
             notification_count = len(recipient_csv)
 
+        check_email_annual_limit(service, notification_count)
         check_email_daily_limit(service, notification_count)
 
         scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None

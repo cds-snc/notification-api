@@ -2608,7 +2608,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "52.4.0"
+version = "52.4.1"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.10.9"
@@ -2644,8 +2644,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "52.4.0"
-resolved_reference = "25ef1ae7703ec68b622bf24c4ea08f20ded0bab3"
+reference = "task/pre-3.12-recipient-csv-annual-limit-validation"
+resolved_reference = "f76351fbb28fd832c87016c7cc7ce69276ee88d5"
 
 [[package]]
 name = "ordered-set"

@@ -133,6 +133,10 @@ service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
 
+# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
+
 
 @service_blueprint.errorhandler(IntegrityError)
 def handle_integrity_error(exc):
@@ -314,11 +318,14 @@ def update_service(service_id):
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
-
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
@@ -376,9 +383,11 @@ def _warn_service_users_about_annual_limit_change(service: Service, notification
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": notification_type,
-            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
-            "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_limit_en": "{:,}".format(service.email_annual_limit)
+            if notification_type == EMAIL_TYPE
+            else "{:,}".format(service.sms_annual_limit),
             "message_limit_fr": "{:,}".format(
                 service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
             ).replace(",", " "),

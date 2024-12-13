@@ -51,7 +51,7 @@ more-itertools = "8.14.0"
 nanoid = "2.0.0"
 newrelic = "10.3.0"
 notifications-python-client = "6.4.1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "52.4.0" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", branch = "task/pre-3.12-recipient-csv-annual-limit-validation"}
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.9"
 pwnedpasswords = "2.0.0"
