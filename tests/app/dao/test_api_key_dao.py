@@ -187,3 +187,14 @@ def test_should_not_return_revoked_api_keys_older_than_7_days(
     all_api_keys = get_model_api_keys(service_id=service.id)
 
     assert len(all_api_keys) == expected_length
+
+
+def test_save_api_key_should_generate_secret_with_expected_format(sample_service):
+    service = sample_service()
+    api_key = ApiKey(
+        **{'service': service, 'name': service.name, 'created_by': service.created_by, 'key_type': KEY_TYPE_NORMAL}
+    )
+    save_model_api_key(api_key)
+
+    assert api_key.secret is not None
+    assert len(api_key.secret) >= 86

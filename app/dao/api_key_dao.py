@@ -1,12 +1,12 @@
+import secrets
 import uuid
 from datetime import datetime, timedelta
 
+from sqlalchemy import func, or_, select
+
 from app import db
-from app.models import ApiKey
-
 from app.dao.dao_utils import transactional, version_class
-
-from sqlalchemy import or_, func, select
+from app.models import ApiKey
 
 
 @transactional
@@ -15,7 +15,7 @@ def save_model_api_key(api_key):
     if not api_key.id:
         api_key.id = uuid.uuid4()  # must be set now so version history model can use same id
     if not api_key.secret:
-        api_key.secret = uuid.uuid4()
+        api_key.secret = secrets.token_urlsafe(64)
     db.session.add(api_key)
 
 

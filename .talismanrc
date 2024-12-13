@@ -14,7 +14,7 @@ fileignoreconfig:
 - filename: app/constants.py
   checksum: 44390d0a1258b184cf84dc9b6e97bd0768af84a9aa346ba963aa7735fc8bcb36
 - filename: app/dao/api_key_dao.py
-  checksum: ab93313f306c8a3f6576141e8f32d9fc99b0de7da8d44a1ddbe6ea55d167dcdb
+  checksum: c44cbd8ae02fb1d551a1f0941365c11977564a6444950ee2b0282ee4b5fd1314
 - filename: app/letters/utils.py
   checksum: 5e6071b9cab380f9f3ee172f8c731061241200f53453a9863f22bb5eaa05e6af
 - filename: app/notifications/process_notifications.py
@@ -72,7 +72,7 @@ fileignoreconfig:
 - filename: tests/app/conftest.py
   checksum: a80aa727586db82ed1b50bdb81ddfe1379e649a9dfc1ece2c36047486b41b83d
 - filename: tests/app/dao/test_api_key_dao.py
-  checksum: ef306fcc1dc512b74abeb5dde5f20977cf95e67a2fa049df6289a7b5500339a9
+  checksum: 40e551ca6677aab7657bbb43efdac56aa3c51065ed99052faff9bc1519e5b0df
 - filename: tests/app/notifications/test_process_notifications_for_profile_v3.py
   checksum: 4e15e63d349635131173ffdd7aebcd547621db08de877ef926d3a41fde72d065
 - filename: tests/app/notifications/test_send_notifications.py
