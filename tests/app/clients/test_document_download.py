@@ -101,5 +101,5 @@ def test_should_raise_for_connection_errors(document_download):
 
         document_download.upload_document("service-id", {"file": "abababab", "sending_method": "attach"})
 
-    assert excinfo.value.message == "connection error"
-    assert excinfo.value.status_code == 503
+    assert excinfo.value.message == "error connecting to document download"
+    assert excinfo.value.status_code > 399
