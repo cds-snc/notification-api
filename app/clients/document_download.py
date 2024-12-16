@@ -13,8 +13,8 @@ class DocumentDownloadError(Exception):
             message = e.response.json()["error"]
             status_code = e.response.status_code
         except (TypeError, ValueError, AttributeError, KeyError):
-            message = "connection error"
-            status_code = 503
+            message = "error connecting to document download"
+            status_code = e.response.status_code if e.response else 503
 
         return cls(message, status_code)
 
