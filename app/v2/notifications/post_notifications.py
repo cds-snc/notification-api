@@ -1,4 +1,5 @@
 import functools
+import html
 
 import werkzeug
 from flask import request, jsonify, current_app, abort
@@ -128,13 +129,13 @@ def post_notification(notification_type):  # noqa: C901
                 current_app.logger.debug('Sending a notification without contact information is not implemented.')
                 return jsonify(result='error', message='Not Implemented'), 501
 
-        template_with_content.values = notification.personalisation
+        template_with_content.values = {k: '<redacted>' for k in notification.personalisation}
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
     elif notification_type == EMAIL_TYPE:
         create_resp_partial = functools.partial(
-            create_post_email_response_from_notification, subject=template_with_content.subject
+            create_post_email_response_from_notification, subject=html.unescape(template_with_content.subject)
         )
     elif notification_type == LETTER_TYPE:
         create_resp_partial = functools.partial(

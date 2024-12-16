@@ -98,7 +98,7 @@ def test_post_sms_notification_returns_201(
     # endpoint checks
     assert resp_json['id'] == str(notifications[0].id)
     assert resp_json['reference'] == reference
-    assert resp_json['content']['body'] == template.content.replace('(( Name))', 'Jo')
+    assert resp_json['content']['body'] == template.content.replace('(( Name))', '<redacted>')
     assert resp_json['content']['from_number'] == current_app.config['FROM_NUMBER']
     assert f'v2/notifications/{notifications[0].id}' in resp_json['uri']
     assert resp_json['template']['id'] == str(template.id)
@@ -423,7 +423,7 @@ def test_post_sms_notification_without_callback_url(
     assert notification.callback_url is None
 
     assert resp_json['id'] == str(notification.id)
-    assert resp_json['content']['body'] == template.content.replace('(( Name))', 'Jo')
+    assert resp_json['content']['body'] == template.content.replace('(( Name))', '<redacted>')
     assert resp_json['callback_url'] is None
 
 
@@ -504,8 +504,8 @@ def test_post_email_notification_returns_201(
     assert resp_json['reference'] == reference
     assert notification.reference is None
     assert notification.reply_to_text is None
-    assert resp_json['content']['body'] == template.content.replace('((name))', 'Bob')
-    assert resp_json['content']['subject'] == template.subject.replace('((name))', 'Bob')
+    assert resp_json['content']['body'] == template.content.replace('((name))', '<redacted>')
+    assert resp_json['content']['subject'] == template.subject.replace('((name))', '<redacted>')
     assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
     assert resp_json['template']['id'] == str(template.id)
     assert resp_json['template']['version'] == template.version
@@ -560,8 +560,8 @@ def test_post_email_notification_with_reply_to_returns_201(
     assert resp_json['id'] == str(notification.id)
     assert resp_json['billing_code'] == 'TESTCODE'
     assert resp_json['reference'] == reference
-    assert resp_json['content']['body'] == template.content.replace('((name))', 'Bob')
-    assert resp_json['content']['subject'] == template.subject.replace('((name))', 'Bob')
+    assert resp_json['content']['body'] == template.content.replace('((name))', '<redacted>')
+    assert resp_json['content']['subject'] == template.subject.replace('((name))', '<redacted>')
     assert 'v2/notifications/{}'.format(notification.id) in resp_json['uri']
     assert resp_json['template']['id'] == str(template.id)
     assert resp_json['template']['version'] == template.version
@@ -1337,7 +1337,7 @@ class TestPostNotificationWithAttachment:
         resp_json = response.get_json()
         assert validate(resp_json, post_email_response) == resp_json
 
-        assert resp_json['content']['body'] == 'Document: simulated-attachment-url'
+        assert resp_json['content']['body'] == 'Document: <redacted>'
 
     def test_without_document_upload_permission(
         self,
