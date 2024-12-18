@@ -101,7 +101,7 @@ def process_job(
     for row in RecipientCSV(
         s3.get_job_from_s3(str(service.id), str(job_id)),
         template_type=template.template_type,
-        placeholders=template.placeholders,
+        placeholders=template.placeholder_names,
     ).get_rows():
         process_row(row, template, job, service, sender_id=sender_id)
 
@@ -578,7 +578,7 @@ def process_incomplete_job(job_id):
     for row in RecipientCSV(
         s3.get_job_from_s3(str(job.service_id), str(job.id)),
         template_type=template.template_type,
-        placeholders=template.placeholders,
+        placeholders=template.placeholder_names,
     ).get_rows():
         if row.index > resume_from_row:
             process_row(row, template, job, job.service)

@@ -172,7 +172,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     template = sample_template(
         template_type=EMAIL_TYPE,
         subject='((name)) <em>some HTML</em>',
-        content='Hello ((name))\nThis is an email from GOV.UK with <em>some HTML</em>',
+        content='Hello ((name))\nThis is an email from VA with <em>some HTML</em>',
     )
     db_notification = sample_notification(
         template=template,
@@ -188,7 +188,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         source=mock_source_email_address[0],
         to_addresses='jo.smith@example.com',
         subject='Jo <em>some HTML</em>',
-        body='Hello Jo\nThis is an email from GOV.\u200bUK with <em>some HTML</em>\n',
+        body='Hello Jo\nThis is an email from VA with <em>some HTML</em>\n\n',
         html_body=ANY,
         reply_to_address=None,
         attachments=[],

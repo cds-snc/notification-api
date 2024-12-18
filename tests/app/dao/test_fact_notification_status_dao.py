@@ -320,11 +320,9 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     sms_template = sample_template(service=service, template_type=SMS_TYPE, name=f'a {uuid4()}')
     sms_template_2 = sample_template(service=service, template_type=SMS_TYPE, name=f'b {uuid4()}')
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
-    letter_template = sample_template(service=service, template_type=LETTER_TYPE)
 
     job_sms = sample_job(sms_template)
     job_email = sample_job(email_template)
-    job_letter = sample_job(letter_template)
 
     # create unused email template
     sample_template(service=service, template_type=EMAIL_TYPE)
@@ -333,7 +331,6 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
     sample_ft_notification_status(date(1993, 10, 24), job_sms, count=8)
     sample_ft_notification_status(date(1993, 10, 29), job_sms, notification_status='created')
     sample_ft_notification_status(date(1993, 10, 29), job_email, count=3)
-    sample_ft_notification_status(date(1993, 10, 26), job_letter, count=5)
 
     sample_notification(template=sms_template, created_at=datetime(1993, 10, 31, 11, 0, 0))
     sample_notification(template=sms_template, created_at=datetime(1993, 10, 31, 12, 0, 0), status='delivered')
@@ -347,7 +344,6 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
 
     assert [
         (email_template.name, False, mock.ANY, EMAIL_TYPE, 'delivered', 4),
-        (letter_template.name, False, mock.ANY, LETTER_TYPE, 'delivered', 5),
         (sms_template.name, False, mock.ANY, SMS_TYPE, 'created', 2),
         (sms_template.name, False, mock.ANY, SMS_TYPE, 'delivered', 11),
         (sms_template_2.name, False, mock.ANY, SMS_TYPE, 'delivered', 1),

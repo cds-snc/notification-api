@@ -24,11 +24,7 @@ from notifications_utils.recipients import (
     validate_email_address,
     validate_phone_number,
 )
-from notifications_utils.template import (
-    LetterPrintTemplate,
-    PlainTextEmailTemplate,
-    SMSMessageTemplate,
-)
+from notifications_utils.template import PlainTextEmailTemplate, SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 
 from app import encryption
@@ -933,11 +929,6 @@ class TemplateBase(db.Model):
             return PlainTextEmailTemplate({'content': self.content, 'subject': self.subject})
         if self.template_type == SMS_TYPE:
             return SMSMessageTemplate({'content': self.content})
-        if self.template_type == LETTER_TYPE:
-            return LetterPrintTemplate(
-                {'content': self.content, 'subject': self.subject},
-                contact_block=self.service.get_default_letter_contact(),
-            )
 
     def serialize(self):
         serialized = {
@@ -954,7 +945,7 @@ class TemplateBase(db.Model):
                 key: {
                     'required': True,
                 }
-                for key in self._as_utils_template().placeholders
+                for key in self._as_utils_template().placeholder_names
             },
             'postage': self.postage,
         }

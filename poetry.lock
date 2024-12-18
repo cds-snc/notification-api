@@ -2030,13 +2030,13 @@ tests = ["pytest (<9)", "pytest-lazy-fixtures"]
 
 [[package]]
 name = "mistune"
-version = "0.8.4"
-description = "The fastest markdown parser in pure Python"
+version = "3.0.2"
+description = "A sane and fast Markdown parser with useful plugins and renderers"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7"
 files = [
-    {file = "mistune-0.8.4-py2.py3-none-any.whl", hash = "sha256:88a1051873018da288eee8538d476dffe1262495144b33ecb586c4ab266bb8d4"},
-    {file = "mistune-0.8.4.tar.gz", hash = "sha256:59a3429db53c50b5c6bcc8a07f8848cb00d7dc8bdb431a4ab41920d201d4756e"},
+    {file = "mistune-3.0.2-py3-none-any.whl", hash = "sha256:71481854c30fdbc938963d3605b72501f5c10a9320ecd412c121c163a1c7d205"},
+    {file = "mistune-3.0.2.tar.gz", hash = "sha256:fc7f93ded930c92394ef2cb6f04a8aabab4117a91449e72dcc8dfa646a508be8"},
 ]
 
 [[package]]
@@ -2224,7 +2224,7 @@ files = [
 
 [[package]]
 name = "notification-utils"
-version = "2.2.5"
+version = "2.3.0"
 description = "Shared python code for VA Notify. Forked from https://github.com/cds-snc/notification-utils"
 optional = false
 python-versions = "*"
@@ -2239,7 +2239,7 @@ Flask = ">=1.1.1"
 Flask-Redis = ">=0.4.0"
 Jinja2 = ">=2.11.3"
 MarkupSafe = ">=2.1.3"
-mistune = "0.8.4"
+mistune = "3.0.2"
 monotonic = ">=1.6"
 phonenumbers = ">=8.12.12,<8.13.0"
 pypdf = ">=3.15.0"
@@ -2254,7 +2254,7 @@ statsd = ">=3.3.0"
 type = "git"
 url = "https://github.com/department-of-veterans-affairs/notification-utils.git"
 reference = "HEAD"
-resolved_reference = "ab7d6c4b0e04032de415a864c3d2fcef552881bc"
+resolved_reference = "14881f7287e0d6f454c26d6223c9d4f4a4c61a2b"
 
 [[package]]
 name = "notifications-python-client"
