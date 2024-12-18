@@ -96,7 +96,6 @@ class TestSendTicket:
 
             encoded_auth = base64.b64encode(b"freshdesk-api-key:x").decode("ascii")
             json_matches = request.json() == expected
-            print(expected, request.json())
             basic_auth_header = request.headers.get("Authorization") == f"Basic {encoded_auth}"
 
             return json_matches and basic_auth_header
