@@ -56,6 +56,7 @@ from app.sms_fragment_utils import (
     increment_todays_requested_sms_count,
 )
 from app.utils import (
+    flatten_dct,
     get_document_url,
     get_fiscal_year,
     get_limit_reset_time_et,
@@ -763,3 +764,18 @@ def decode_personalisation_files(json_personalisation):
                 }
             )
     return json_personalisation, errors
+
+
+def validate_notification_does_not_exceed_sqs_limit(notification):
+    # SQS max payload size is 256KB
+    if len(str(notification)) >= current_app.config["MAX_SQS_PAYLOAD_SIZE"]:
+        # find the largest value in the payload for logging and return message
+        max_key, max_length = max(
+            ((key, len(str(value))) for key, value in flatten_dct(dict(notification)).items()), key=lambda x: x[1]
+        )
+        current_app.logger.debug(
+            f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262144 bytes. Largest key: {max_key} is {max_length} bytes."
+        )
+        raise BadRequestError(
+            message=f"Notification size cannot exceed 256Kb. Consider reducing the size of: {max_key}.", status_code=413
+        )
