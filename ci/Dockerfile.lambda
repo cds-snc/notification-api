@@ -1,6 +1,6 @@
-FROM python:3.10-slim@sha256:61912260e578182d00b5e163eb4cfb13b35fb8782c98d1df9ed584cec8939097
+FROM python:3.12-slim@sha256:2b0079146a74e23bf4ae8f6a28e1b484c6292f6fb904cbb51825b4a19812fcd8
 
-ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.10/site-packages"
+ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV TASK_ROOT /app
 ENV APP_VENV="${TASK_ROOT}/.venv"
