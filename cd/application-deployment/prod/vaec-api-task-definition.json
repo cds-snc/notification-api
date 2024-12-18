@@ -138,6 +138,10 @@
           "value": "true"
         },
         {
+          "name": "DD_APM_TELEMETRY_ENABLED",
+          "value": "false"
+        },
+        {
           "name": "DD_PROCESS_AGENT_ENABLED",
           "value": "true"
         },
