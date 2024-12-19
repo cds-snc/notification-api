@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
-from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, notify_celery, statsd_client
@@ -77,7 +76,7 @@ def process_sns_results(self, response):
             if not annual_limit_client.was_seeded_today(service_id):
                 annual_limit_client.set_seeded_at(service_id)
                 notifications_to_seed = fetch_notification_status_for_service_for_day(
-                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    datetime.now(timezone.utc),
                     service_id=service_id,
                 )
                 annual_limit_client.seed_annual_limit_notifications(
