@@ -1,8 +1,7 @@
 import pytest
 
-from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import AutoRetryException
-from app.constants import NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE
+from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND, STATUS_REASON_UNDELIVERABLE
 from app.exceptions import NotificationTechnicalFailureException
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
@@ -47,12 +46,12 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, sampl
     [
         (
             UnsupportedIdentifierException('some error'),
-            UnsupportedIdentifierException.failure_reason,
+            UnsupportedIdentifierException.status_reason,
             NOTIFICATION_PERMANENT_FAILURE,
         ),
         (
             IncorrectNumberOfIdentifiersException('some error'),
-            IncorrectNumberOfIdentifiersException.failure_reason,
+            IncorrectNumberOfIdentifiersException.status_reason,
             NOTIFICATION_PERMANENT_FAILURE,
         ),
     ],
@@ -102,12 +101,12 @@ def test_should_retry_on_retryable_exception(client, mocker, sample_notification
     mocked_mpi_client.get_va_profile_id.assert_called_with(notification)
 
 
-def test_should_update_notification_to_technical_failure_on_max_retries_and_should_call_callback(
+def test_should_update_notification_to_permanent_failure_on_max_retries_and_should_call_callback(
     client, mocker, sample_notification
 ):
     """
     Raising MpiRetryableException and subsequently determining the the maximum number of retries has been
-    reached should result in a technical failure.
+    reached should result in a permanent failure.
     """
 
     notification = sample_notification()
@@ -137,12 +136,12 @@ def test_should_update_notification_to_technical_failure_on_max_retries_and_shou
 @pytest.mark.parametrize(
     'exception, reason',
     [
-        (BeneficiaryDeceasedException('some error'), BeneficiaryDeceasedException.failure_reason),
-        (IdentifierNotFound('some error'), IdentifierNotFound.failure_reason),
-        (MultipleActiveVaProfileIdsException('some error'), MultipleActiveVaProfileIdsException.failure_reason),
-        (UnsupportedIdentifierException('some error'), UnsupportedIdentifierException.failure_reason),
-        (IncorrectNumberOfIdentifiersException('some error'), IncorrectNumberOfIdentifiersException.failure_reason),
-        (NoSuchIdentifierException('some error'), NoSuchIdentifierException.failure_reason),
+        (BeneficiaryDeceasedException('some error'), BeneficiaryDeceasedException.status_reason),
+        (IdentifierNotFound('some error'), IdentifierNotFound.status_reason),
+        (MultipleActiveVaProfileIdsException('some error'), MultipleActiveVaProfileIdsException.status_reason),
+        (UnsupportedIdentifierException('some error'), UnsupportedIdentifierException.status_reason),
+        (IncorrectNumberOfIdentifiersException('some error'), IncorrectNumberOfIdentifiersException.status_reason),
+        (NoSuchIdentifierException('some error'), NoSuchIdentifierException.status_reason),
     ],
 )
 def test_should_permanently_fail_when_permanent_failure_exception(
@@ -175,42 +174,42 @@ def test_should_permanently_fail_when_permanent_failure_exception(
 
 
 @pytest.mark.parametrize(
-    'exception, notification_status, failure_reason',
+    'exception, notification_status, status_reason',
     [
         (
             MpiRetryableException,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            RETRIES_EXCEEDED,
+            NOTIFICATION_PERMANENT_FAILURE,
+            STATUS_REASON_UNDELIVERABLE,
         ),
         (
             MpiNonRetryableException,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            MpiNonRetryableException.failure_reason,
+            NOTIFICATION_PERMANENT_FAILURE,
+            MpiNonRetryableException.status_reason,
         ),
         (
             IncorrectNumberOfIdentifiersException,
             NOTIFICATION_PERMANENT_FAILURE,
-            IncorrectNumberOfIdentifiersException.failure_reason,
+            IncorrectNumberOfIdentifiersException.status_reason,
         ),
         (
             IdentifierNotFound,
             NOTIFICATION_PERMANENT_FAILURE,
-            IdentifierNotFound.failure_reason,
+            IdentifierNotFound.status_reason,
         ),
         (
             MultipleActiveVaProfileIdsException,
             NOTIFICATION_PERMANENT_FAILURE,
-            MultipleActiveVaProfileIdsException.failure_reason,
+            MultipleActiveVaProfileIdsException.status_reason,
         ),
         (
             BeneficiaryDeceasedException,
             NOTIFICATION_PERMANENT_FAILURE,
-            BeneficiaryDeceasedException.failure_reason,
+            BeneficiaryDeceasedException.status_reason,
         ),
     ],
 )
 def test_caught_exceptions_should_set_status_reason_on_notification(
-    client, mocker, sample_notification, exception, notification_status, failure_reason
+    client, mocker, sample_notification, exception, notification_status, status_reason
 ):
     notification = sample_notification()
     mocker.patch('app.celery.lookup_va_profile_id_task.mpi_client.get_va_profile_id', side_effect=exception)
@@ -233,19 +232,19 @@ def test_caught_exceptions_should_set_status_reason_on_notification(
         else:
             lookup_va_profile_id(notification.id)
         mocker_mocker_update_notification_status_by_id.assert_called_with(
-            notification.id, notification_status, status_reason=failure_reason
+            notification.id, notification_status, status_reason=status_reason
         )
 
 
 @pytest.mark.parametrize(
     'exception, reason',
     [
-        (BeneficiaryDeceasedException('some error'), BeneficiaryDeceasedException.failure_reason),
-        (IdentifierNotFound('some error'), IdentifierNotFound.failure_reason),
-        (MultipleActiveVaProfileIdsException('some error'), MultipleActiveVaProfileIdsException.failure_reason),
-        (UnsupportedIdentifierException('some error'), UnsupportedIdentifierException.failure_reason),
-        (IncorrectNumberOfIdentifiersException('some error'), IncorrectNumberOfIdentifiersException.failure_reason),
-        (NoSuchIdentifierException('some error'), NoSuchIdentifierException.failure_reason),
+        (BeneficiaryDeceasedException('some error'), BeneficiaryDeceasedException.status_reason),
+        (IdentifierNotFound('some error'), IdentifierNotFound.status_reason),
+        (MultipleActiveVaProfileIdsException('some error'), MultipleActiveVaProfileIdsException.status_reason),
+        (UnsupportedIdentifierException('some error'), UnsupportedIdentifierException.status_reason),
+        (IncorrectNumberOfIdentifiersException('some error'), IncorrectNumberOfIdentifiersException.status_reason),
+        (NoSuchIdentifierException('some error'), NoSuchIdentifierException.status_reason),
     ],
 )
 def test_should_call_callback_on_permanent_failure_exception(client, mocker, sample_notification, exception, reason):
@@ -317,7 +316,7 @@ def test_should_permanently_fail_when_technical_failure_exception(client, mocker
         lookup_va_profile_id(notification.id)
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_TECHNICAL_FAILURE, status_reason='Unknown error from MPI'
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=STATUS_REASON_NO_ID_FOUND
     )
 
     mocked_check_and_queue_callback_task.assert_called_with(notification)

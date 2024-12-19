@@ -13,7 +13,6 @@ from app.clients.sms import SmsStatusRecord
 from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient, TwilioStatus
 from app.constants import (
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
@@ -163,7 +162,7 @@ MESSAAGE_BODY_WITH_UNDELIVERED_STATUS = {
 
 
 MESSAAGE_BODY_WITH_FAILED_STATUS = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
+    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
     'message': 'UmF3RGxyRG9uZURhdGU9MjMwMzA3MjE1NSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZXN'
     'zYWdlU3RhdHVzPWZhaWxlZCZUbz0lMkIxNzAzMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJ'
     'vbT0lMkIxMzM2NDQzMjIyMiZBcGlWZXJzaW9uPTIwMTAtMDQtMDE=',
@@ -171,7 +170,7 @@ MESSAAGE_BODY_WITH_FAILED_STATUS = {
 
 
 MESSAAGE_BODY_WITH_CANCELED_STATUS = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
+    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
     'message': 'UmF3RGxyRG9uZURhdGU9MjMwMzA3MjE1NSZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWRlbGl2ZXJlZCZNZ'
     'XNzYWdlU3RhdHVzPWNhbmNlbGVkJlRvPSUyQjE3MDMxMTExJk1lc3NhZ2VTaWQ9U015eXkmQWNjb3VudFNpZD1BQ3p6e'
     'iZGcm9tPSUyQjEzMzY0NDMyMjIyJkFwaVZlcnNpb249MjAxMC0wNC0wMQ==',
@@ -179,7 +178,7 @@ MESSAAGE_BODY_WITH_CANCELED_STATUS = {
 
 
 MESSAAGE_BODY_WITH_FAILED_STATUS_AND_ERROR_CODE_30010 = {
-    'twilio_status': NOTIFICATION_TECHNICAL_FAILURE,
+    'twilio_status': NOTIFICATION_PERMANENT_FAILURE,
     'message': 'eyJhcmdzIjogW3siTWVzc2FnZSI6IHsiYm9keSI6ICJSYXdEbHJEb25lRGF0ZT0yMzAzMDkyMDIx'
     'JkVycm9yQ29kZT0zMDAxMCZTbXNTaWQ9U014eHgmU21zU3RhdHVzPWZhaWxlZCZNZXNzYWdlU3RhdHVzPWZhaWx'
     'lZCZUbz0lMkIxMTExMTExMTExMSZNZXNzYWdlU2lkPVNNeXl5JkFjY291bnRTaWQ9QUN6enomRnJvbT0lMkIxMjI'
@@ -290,7 +289,7 @@ def test_notification_mapping(event, twilio_sms_client_mock):
 
     assert translation.status == event['twilio_status']
 
-    if translation.status not in (NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
+    if translation.status not in (NOTIFICATION_PERMANENT_FAILURE):
         assert translation.status_reason is None
     else:
         assert translation.status_reason is not None
@@ -300,7 +299,7 @@ def test_notification_mapping(event, twilio_sms_client_mock):
     'twilio_status',
     [
         *TwilioSMSClient.twilio_error_code_map.values(),
-        TwilioStatus(-1, NOTIFICATION_TECHNICAL_FAILURE, 'Technical error'),
+        TwilioStatus(-1, NOTIFICATION_PERMANENT_FAILURE, 'Technical error'),
     ],
     ids=[*TwilioSMSClient.twilio_error_code_map.keys(), 'invalid-error-code'],
 )
@@ -356,8 +355,8 @@ def test_should_return_correct_details_for_bounce():
     assert get_twilio_responses('undelivered') == 'permanent-failure'
 
 
-def test_should_return_correct_details_for_technical_failure():
-    assert get_twilio_responses('failed') == 'technical-failure'
+def test_should_return_correct_details_for_permanent_failure():
+    assert get_twilio_responses('failed') == 'permanent-failure'
 
 
 def test_should_be_raise_if_unrecognised_status_code():

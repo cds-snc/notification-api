@@ -5,11 +5,7 @@ from flask import current_app
 
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao.notifications_dao import get_notification_by_id, update_notification_status_by_id
-from app.constants import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE
-
-
-RETRIES_EXCEEDED = 'Retries exceeded'
-TECHNICAL_ERROR = 'VA Notify non-retryable technical error'
+from app.constants import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE
 
 
 def can_retry(
@@ -34,33 +30,38 @@ def handle_max_retries_exceeded(
     message = (
         'RETRY FAILED: Max retries reached. '
         f'The task {method_name} failed for notification {notification_id}. '
-        'Notification has been updated to technical-failure'
+        'Notification has been updated to permanent-failure'
     )
-    update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=RETRIES_EXCEEDED)
+    update_notification_status_by_id(
+        notification_id,
+        NOTIFICATION_PERMANENT_FAILURE,
+        status_reason=STATUS_REASON_UNDELIVERABLE,
+    )
     return message
 
 
-def log_and_update_technical_failure(
+def log_and_update_critical_failure(
     notification_id: UUID,
     method_name: str,
     e: Exception,
-    status_reason: str = None,
+    status_reason: str,
 ) -> None:
-    """Handles sms/email deliver requests that failed in a technical manner due to an exception"""
+    """Handles sms/email deliver requests that failed in a technical manner due to an exception."""
     current_app.logger.critical(
-        '%s: Notification: %s - Experienced an exception: %s',
+        '%s: Notification: %s - Experienced a critical failure with exception: %s',
         method_name,
         notification_id,
         e,
     )
+
     update_notification_status_by_id(
         notification_id,
-        NOTIFICATION_TECHNICAL_FAILURE,
-        status_reason=status_reason or TECHNICAL_ERROR,
+        NOTIFICATION_PERMANENT_FAILURE,
+        status_reason=status_reason,
     )
 
     current_app.logger.critical(
-        'Notification %s encountered a technical exception and has been updated to a technical-failure',
+        'Notification %s encountered a technical exception and has been updated to a permanent-failure',
         notification_id,
     )
 

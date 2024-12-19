@@ -5,7 +5,7 @@ from flask import json
 from freezegun import freeze_time
 from jsonschema import ValidationError
 
-from app.constants import NOTIFICATION_CREATED, EMAIL_TYPE, SMS_TYPE
+from app.constants import LETTER_TYPE, NOTIFICATION_CREATED, EMAIL_TYPE, SMS_TYPE
 from app.schema_validation import validate
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -42,20 +42,13 @@ def test_get_notifications_valid_json(data):
     ],
 )
 def test_get_notifications_request_invalid_statuses(client, invalid_statuses, valid_statuses):
-    partial_error_status = (
-        'is not one of '
-        '(cancelled, created, sending, sent, delivered, pending, failed, '
-        'technical-failure, temporary-failure, permanent-failure, pending-virus-check, '
-        'validation-failed, virus-scan-failed, returned-letter, pii-check-failed, preferences-declined)'
-    )
-
     with pytest.raises(ValidationError) as e:
         validate({'status': invalid_statuses + valid_statuses}, get_notifications_request)
 
     errors = json.loads(str(e.value)).get('errors')
     assert len(errors) == len(invalid_statuses)
     for index, value in enumerate(invalid_statuses):
-        assert errors[index]['message'] == 'status {} {}'.format(value, partial_error_status)
+        assert f'status {value} is not one of' in errors[index]['message']
 
 
 @pytest.mark.parametrize(
@@ -82,9 +75,12 @@ def test_get_notifications_request_invalid_template_types(client, invalid_templa
 
 
 def test_get_notifications_request_invalid_statuses_and_template_types(client):
+    fake_status_list = ['fake-status-1', 'fake-status-2']
+    fake_type_list = ['fake-type-1', 'fake-type-2']
+
     with pytest.raises(ValidationError) as e:
         validate(
-            {'status': ['created', 'elephant', 'giraffe'], 'template_type': [SMS_TYPE, 'orange', 'avocado']},
+            {'status': ['created', *fake_status_list], 'template_type': [SMS_TYPE, *fake_type_list]},
             get_notifications_request,
         )
 
@@ -93,17 +89,17 @@ def test_get_notifications_request_invalid_statuses_and_template_types(client):
     assert len(errors) == 4
 
     error_messages = [error['message'] for error in errors]
-    for invalid_status in ['elephant', 'giraffe']:
+
+    # status errors are returned first
+    assert f'status {fake_status_list[0]} is not one of' in error_messages[0]
+    assert f'status {fake_status_list[1]} is not one of' in error_messages[1]
+
+    # template errors are returned after status errors
+    for invalid_template_type in fake_type_list:
         assert (
-            'status {} is not one of (cancelled, created, sending, sent, delivered, '
-            'pending, failed, technical-failure, temporary-failure, permanent-failure, '
-            'pending-virus-check, validation-failed, virus-scan-failed, returned-letter, '
-            'pii-check-failed, preferences-declined)'.format(invalid_status)
+            f'template_type {invalid_template_type} is not one of ({SMS_TYPE}, {EMAIL_TYPE}, {LETTER_TYPE})'
             in error_messages
         )
-
-    for invalid_template_type in ['orange', 'avocado']:
-        assert 'template_type {} is not one of (sms, email, letter)'.format(invalid_template_type) in error_messages
 
 
 valid_phone_number_json = {'phone_number': '6502532222', 'template_id': str(uuid.uuid4())}

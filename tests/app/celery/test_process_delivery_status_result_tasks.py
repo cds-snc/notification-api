@@ -24,8 +24,6 @@ from app.dao.notifications_dao import (
     _DELIVERED_UPDATES,
     _TEMPORARY_FAILURE_UPDATES,
     _PERMANENT_FAILURE_UPDATES,
-    _TECHNICAL_FAILURE_UPDATES,
-    _PREFERENCES_DECLINED_UPDATES,
 )
 from app.constants import (
     NOTIFICATION_CREATED,
@@ -35,8 +33,6 @@ from app.constants import (
     NOTIFICATION_SENT,
     NOTIFICATION_PERMANENT_FAILURE,
     PINPOINT_PROVIDER,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     TWILIO_PROVIDER,
 )
@@ -356,8 +352,6 @@ def test_sms_status_provider_payload_set_to_none(notify_api, mocker, sample_noti
         *[(NOTIFICATION_DELIVERED, s) for s in _DELIVERED_UPDATES],
         *[(NOTIFICATION_TEMPORARY_FAILURE, s) for s in _TEMPORARY_FAILURE_UPDATES],
         *[(NOTIFICATION_PERMANENT_FAILURE, s) for s in _PERMANENT_FAILURE_UPDATES],
-        *[(NOTIFICATION_TECHNICAL_FAILURE, s) for s in _TECHNICAL_FAILURE_UPDATES],
-        *[(NOTIFICATION_PREFERENCES_DECLINED, s) for s in _PREFERENCES_DECLINED_UPDATES],
     ],
 )
 def test_sms_status_check_and_queue_called(notify_api, mocker, sample_notification, start_status, end_status):
@@ -381,8 +375,6 @@ def test_sms_status_check_and_queue_called(notify_api, mocker, sample_notificati
         *[(NOTIFICATION_DELIVERED, s) for s in _DELIVERED_UPDATES],
         *[(NOTIFICATION_TEMPORARY_FAILURE, s) for s in _TEMPORARY_FAILURE_UPDATES],
         *[(NOTIFICATION_PERMANENT_FAILURE, s) for s in _PERMANENT_FAILURE_UPDATES],
-        *[(NOTIFICATION_TECHNICAL_FAILURE, s) for s in _TECHNICAL_FAILURE_UPDATES],
-        *[(NOTIFICATION_PREFERENCES_DECLINED, s) for s in _PREFERENCES_DECLINED_UPDATES],
     ],
 )
 def test_sms_status_check_and_queue_not_called(notify_api, mocker, sample_notification, start_status, end_status):

@@ -1,17 +1,17 @@
 import pytest
 
-from app.celery.common import RETRIES_EXCEEDED
 from app.celery.exceptions import NonRetryableException, AutoRetryException
 from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
-from app.clients.sms import MESSAGE_TOO_LONG, OPT_OUT_MESSAGE
 from app.config import QueueNames
 from app.constants import (
     EMAIL_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
     SMS_TYPE,
+    STATUS_REASON_BLOCKED,
+    STATUS_REASON_UNDELIVERABLE,
+    STATUS_REASON_UNREACHABLE,
 )
 from app.exceptions import (
     NotificationTechnicalFailureException,
@@ -83,7 +83,7 @@ def test_should_add_to_retry_queue_if_notification_not_found_in_deliver_email_ta
 # DO THESE FOR THE 4 TYPES OF TASK
 
 
-def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
+def test_should_go_into_permanent_error_if_exceeds_retries_on_deliver_sms_task(
     notify_db_session,
     mocker,
     sample_template,
@@ -104,21 +104,19 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_sms_task(
 
     notify_db_session.session.refresh(notification)
     assert str(notification.id) in str(exc_info.value)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == RETRIES_EXCEEDED
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == STATUS_REASON_UNDELIVERABLE
     mocked_check_and_queue_callback_task.assert_called_once()
 
 
-def test_should_technical_error_and_not_retry_if_invalid_email(
+def test_should_permanent_error_and_not_retry_if_invalid_email(
     notify_db_session,
     mocker,
     sample_template,
     sample_notification,
 ):
     mocker.patch('app.delivery.send_to_providers.send_email_to_provider', side_effect=InvalidEmailError('bad email'))
-    mocked_check_and_queue_callback_task = mocker.patch(
-        'app.celery.provider_tasks.check_and_queue_callback_task',
-    )
+    mocked_check_and_queue_callback_task = mocker.patch('app.celery.common.check_and_queue_callback_task')
 
     template = sample_template(template_type=EMAIL_TYPE)
     assert template.template_type == EMAIL_TYPE
@@ -128,8 +126,8 @@ def test_should_technical_error_and_not_retry_if_invalid_email(
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == 'Email address is in invalid format'
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == STATUS_REASON_UNREACHABLE
     mocked_check_and_queue_callback_task.assert_called_once()
 
 
@@ -235,18 +233,18 @@ def test_should_go_into_technical_error_if_exceeds_retries_on_deliver_email_task
 
     notify_db_session.session.refresh(notification)
     assert str(notification.id) in str(exc_info.value)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == RETRIES_EXCEEDED
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == STATUS_REASON_UNDELIVERABLE
     mocked_check_and_queue_callback_task.assert_called_once()
 
 
 @pytest.mark.parametrize(
     'exception, status_reason',
     (
-        (InvalidProviderException, 'Email provider configuration invalid'),
-        (NullValueForNonConditionalPlaceholderException, 'VA Notify non-retryable technical error'),
-        (AttributeError, 'VA Notify non-retryable technical error'),
-        (RuntimeError, 'VA Notify non-retryable technical error'),
+        (InvalidProviderException, STATUS_REASON_UNDELIVERABLE),
+        (NullValueForNonConditionalPlaceholderException, STATUS_REASON_UNDELIVERABLE),
+        (AttributeError, STATUS_REASON_UNDELIVERABLE),
+        (RuntimeError, STATUS_REASON_UNDELIVERABLE),
     ),
 )
 def test_should_technical_error_and_not_retry_if_invalid_email_provider(
@@ -274,7 +272,7 @@ def test_should_technical_error_and_not_retry_if_invalid_email_provider(
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
     assert notification.status_reason == status_reason
     assert mocked_check_and_queue_callback_task.called_once or callback_mocker.called_once
 
@@ -299,18 +297,18 @@ def test_should_queue_callback_task_if_technical_failure_exception_is_thrown(
         deliver_email(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == 'Email provider configuration invalid'
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == STATUS_REASON_UNDELIVERABLE
     assert callback_mocker.called_once
 
 
 @pytest.mark.parametrize(
     'exception, status_reason',
     (
-        (InvalidProviderException, 'SMS provider configuration invalid'),
-        (NullValueForNonConditionalPlaceholderException, 'VA Notify non-retryable technical error'),
-        (AttributeError, 'VA Notify non-retryable technical error'),
-        (RuntimeError, 'VA Notify non-retryable technical error'),
+        (InvalidProviderException, STATUS_REASON_UNDELIVERABLE),
+        (NullValueForNonConditionalPlaceholderException, STATUS_REASON_UNDELIVERABLE),
+        (AttributeError, STATUS_REASON_UNDELIVERABLE),
+        (RuntimeError, STATUS_REASON_UNDELIVERABLE),
     ),
 )
 def test_should_technical_error_and_not_retry_if_invalid_sms_provider(
@@ -334,7 +332,7 @@ def test_should_technical_error_and_not_retry_if_invalid_sms_provider(
 
     notify_db_session.session.refresh(notification)
     retry_mocker.assert_not_called()
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
     assert notification.status_reason == status_reason
     callback_mocker.assert_called_once()
 
@@ -444,16 +442,16 @@ def test_deliver_sms_with_rate_limiting_max_retries_exceeded(
         deliver_sms_with_rate_limiting(notification.id)
 
     notify_db_session.session.refresh(notification)
-    assert notification.status == NOTIFICATION_TECHNICAL_FAILURE
-    assert notification.status_reason == RETRIES_EXCEEDED
+    assert notification.status == NOTIFICATION_PERMANENT_FAILURE
+    assert notification.status_reason == STATUS_REASON_UNDELIVERABLE
     mocked_check_and_queue_callback_task.assert_called_once()
 
 
 @pytest.mark.parametrize(
     'exception_message, status_reason',
     (
-        ('Message too long', MESSAGE_TOO_LONG),
-        ('Destination phone number opted out', OPT_OUT_MESSAGE),
+        ('Message too long', STATUS_REASON_UNDELIVERABLE),
+        ('Destination phone number opted out', STATUS_REASON_BLOCKED),
     ),
 )
 def test_deliver_sms_non_retryables(

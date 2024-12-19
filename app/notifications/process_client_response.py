@@ -11,7 +11,7 @@ from app.dao import notifications_dao
 from app.clients.sms.firetext import get_firetext_responses
 from app.clients.sms.mmg import get_mmg_responses
 from app.celery.service_callback_tasks import check_and_queue_callback_task
-from app.constants import NOTIFICATION_PENDING
+from app.constants import NOTIFICATION_PENDING, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_get_template_by_id
 
@@ -62,7 +62,10 @@ def process_sms_client_response(
         )
     except KeyError:
         _process_for_status(
-            notification_status='technical-failure', client_name=client_name, provider_reference=provider_reference
+            notification_status=NOTIFICATION_PERMANENT_FAILURE,
+            client_name=client_name,
+            provider_reference=provider_reference,
+            status_reason=STATUS_REASON_UNDELIVERABLE,
         )
         raise ClientException('{} callback failed: status {} not found.'.format(client_name, status))
 
@@ -73,13 +76,17 @@ def process_sms_client_response(
 
 
 def _process_for_status(
-    notification_status,
-    client_name,
-    provider_reference,
-) -> None | str:
+    notification_status: str,
+    client_name: str,
+    provider_reference: uuid.UUID,
+    status_reason: str = None,
+) -> str | None:
     # record stats
     notification = notifications_dao.update_notification_status_by_id(
-        notification_id=provider_reference, status=notification_status, sent_by=client_name.lower()
+        notification_id=provider_reference,
+        status=notification_status,
+        sent_by=client_name.lower(),
+        status_reason=status_reason,
     )
     if not notification:
         return

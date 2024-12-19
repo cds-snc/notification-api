@@ -3782,7 +3782,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"url\": \"https://some-url.com\",\n    \"callback_type\": \"delivery_status\",\n    \"callback_channel\": \"webhook\",\n    \"bearer_token\": \"static-bearer-token-used-to-authenticate-request\",\n    \"notification_statuses\": [\"sent\", \"delivered\", \"failed\", \"technical-failure\", \"temporary-failure\", \"permanent-failure\", \"preferences-declined\" ]\n}"
+									"raw": "{\n    \"url\": \"https://some-url.com\",\n    \"callback_type\": \"delivery_status\",\n    \"callback_channel\": \"webhook\",\n    \"bearer_token\": \"static-bearer-token-used-to-authenticate-request\",\n    \"notification_statuses\": [\"sent\", \"delivered\", \"failed\", \"temporary-failure\", \"permanent-failure\" ]\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/service/{{service-id}}/callback",

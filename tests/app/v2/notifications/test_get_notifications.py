@@ -4,7 +4,13 @@ import pytest
 from flask import json, url_for
 from sqlalchemy import select
 
-from app.constants import DATETIME_FORMAT, EMAIL_TYPE, SMS_TYPE
+from app.constants import (
+    DATETIME_FORMAT,
+    EMAIL_TYPE,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    SMS_TYPE,
+)
 from app.models import ScheduledNotification
 from app.va.identifier import IdentifierType
 from tests import create_authorization_header
@@ -567,12 +573,13 @@ def test_get_all_notifications_filter_by_status_invalid_status(
     sample_notification,
     sample_template,
 ):
+    fake_status = 'non-existant-status'
     api_key = sample_api_key()
     notification = sample_notification(template=sample_template(service=api_key.service))
     auth_header = create_authorization_header(api_key)
 
     response = client.get(
-        path='/v2/notifications?status=elephant', headers=[('Content-Type', 'application/json'), auth_header]
+        path=f'/v2/notifications?status={fake_status}', headers=[('Content-Type', 'application/json'), auth_header]
     )
 
     json_response = json.loads(response.get_data(as_text=True))
@@ -582,12 +589,7 @@ def test_get_all_notifications_filter_by_status_invalid_status(
 
     assert json_response['status_code'] == 400
     assert len(json_response['errors']) == 1
-    assert (
-        json_response['errors'][0]['message'] == 'status elephant is not one of (cancelled, created, sending, '
-        'sent, delivered, pending, failed, technical-failure, temporary-failure, permanent-failure, '
-        'pending-virus-check, validation-failed, virus-scan-failed, returned-letter, '
-        'pii-check-failed, preferences-declined)'
-    )
+    assert f'status {fake_status} is not one of' in json_response['errors'][0]['message']
 
     # Teardown
     notify_db_session.session.delete(notification)
@@ -643,7 +645,7 @@ def test_get_all_notifications_filter_by_failed_status(
     created_notification = create_notification(template=template, status='created')
     failed_notifications = [
         create_notification(template=template, status=_status)
-        for _status in ['technical-failure', 'temporary-failure', 'permanent-failure']
+        for _status in [NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PERMANENT_FAILURE]
     ]
 
     auth_header = create_authorization_header(sample_api_key(service=template.service))

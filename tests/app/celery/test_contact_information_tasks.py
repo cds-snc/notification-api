@@ -3,10 +3,9 @@ import uuid
 import pytest
 from requests import Timeout
 
-from app.celery.common import RETRIES_EXCEEDED
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.exceptions import AutoRetryException
-from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE, SMS_TYPE
+from app.constants import EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, SMS_TYPE, STATUS_REASON_UNDELIVERABLE
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier
 from app.va.identifier import IdentifierType
@@ -138,7 +137,7 @@ def test_should_not_retry_on_non_retryable_exception(client, mocker, sample_temp
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.status_reason
     )
     mocked_check_and_queue_callback_task.assert_called_once_with(notification)
 
@@ -204,7 +203,7 @@ def test_lookup_contact_info_should_retry_on_timeout(
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
 
-def test_should_update_notification_to_technical_failure_on_max_retries(
+def test_should_update_notification_to_permanent_failure_on_max_retries(
     client, mocker, sample_template, sample_notification
 ):
     template = sample_template(template_type=EMAIL_TYPE)
@@ -264,7 +263,7 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
     assert recipient_identifier.id_value == EXAMPLE_VA_PROFILE_ID
 
     mocked_update_notification_status_by_id.assert_called_with(
-        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.failure_reason
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=exception.status_reason
     )
 
     mocked_check_and_queue_callback_task.assert_called_once_with(notification)
@@ -276,20 +275,20 @@ def test_should_update_notification_to_permanent_failure_on_no_contact_info_exce
         (
             VAProfileRetryableException,
             NotificationTechnicalFailureException,
-            NOTIFICATION_TECHNICAL_FAILURE,
-            RETRIES_EXCEEDED,
+            NOTIFICATION_PERMANENT_FAILURE,
+            STATUS_REASON_UNDELIVERABLE,
         ),
         (
             NoContactInfoException,
             None,
             NOTIFICATION_PERMANENT_FAILURE,
-            NoContactInfoException.failure_reason,
+            NoContactInfoException.status_reason,
         ),
         (
             VAProfileNonRetryableException,
             None,
             NOTIFICATION_PERMANENT_FAILURE,
-            VAProfileNonRetryableException.failure_reason,
+            VAProfileNonRetryableException.status_reason,
         ),
     ],
 )
@@ -319,7 +318,7 @@ def test_exception_sets_failure_reason_if_thrown(
         'app.celery.contact_information_tasks.check_and_queue_callback_task',
     )
 
-    if exception_reason == RETRIES_EXCEEDED:
+    if exception == VAProfileRetryableException:
         mocker_handle_max_retries_exceeded = mocker.patch(
             'app.celery.contact_information_tasks.handle_max_retries_exceeded'
         )

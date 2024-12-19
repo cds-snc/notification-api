@@ -10,12 +10,12 @@ from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTempla
 from app import attachment_store, clients, statsd_client, provider_service
 from app.attachments.types import UploadedAttachmentMetadata
 from app.celery.research_mode_tasks import send_sms_response, send_email_response
+from app.clients import Client
 from app.constants import (
     BRANDING_BOTH,
     BRANDING_ORG_BANNER,
     EMAIL_TYPE,
     KEY_TYPE_TEST,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_SENDING,
     SMS_TYPE,
@@ -29,7 +29,7 @@ from app.dao.provider_details_dao import (  # noqa F401
     get_provider_details_by_notification_type,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
+from app.exceptions import InactiveServiceException, InvalidProviderException, NotificationTechnicalFailureException
 from app.feature_flags import is_gapixel_enabled, is_feature_enabled, FeatureFlag
 from app.googleanalytics.pixels import build_dynamic_ga4_pixel_tracking_url
 from app.models import (
@@ -41,9 +41,9 @@ from app.utils import create_uuid
 
 
 def send_sms_to_provider(
-    notification,
+    notification: Notification,
     sms_sender_id=None,
-):
+) -> None:
     """
     Send an HTTP request to an SMS backend provider to initiate an SMS message to a veteran.  Do not attempt to
     switch providers if one fails.
@@ -56,7 +56,7 @@ def send_sms_to_provider(
 
     if not service.active:
         # always raises NotificationTechnicalFailureException
-        technical_failure(notification=notification)
+        inactive_service_failure(notification=notification)
 
     if notification.status != 'created':
         return
@@ -109,7 +109,7 @@ def send_email_to_provider(notification: Notification):
 
     if not service.active:
         # This raises an exception.
-        technical_failure(notification=notification)
+        inactive_service_failure(notification=notification)
 
     if notification.status != 'created':
         raise RuntimeError(f'notification.status = {notification.status}')
@@ -192,9 +192,18 @@ def load_provider(provider_id: str) -> ProviderDetails:
         return provider_details
 
 
-def client_to_use(notification: Notification):
-    """
-    Return a subclass of Client to process a notification.
+def client_to_use(notification: Notification) -> Client | None:
+    """Return a subclass of Client to process a notification.
+
+    Args:
+        notification (Notification): A Notification instance.
+
+    Returns:
+        Client: A subclass of Client.
+
+    Raises:
+        RuntimeError: If no active providers are available.
+        ValueError: If no client is available.
     """
 
     try:
@@ -284,13 +293,15 @@ def get_html_email_options(notification: Notification) -> Dict[str, Union[str, b
     return options_dict
 
 
-def technical_failure(notification):
-    notification.status = NOTIFICATION_TECHNICAL_FAILURE
-    dao_update_notification(notification)
-    raise NotificationTechnicalFailureException(
-        'Send {} for notification id {} to provider is not allowed: service {} is inactive'.format(
-            notification.notification_type, notification.id, notification.service_id
-        )
+def inactive_service_failure(notification: Notification):
+    """Called when the service is inactive to raise InactiveServiceException with the proper error message.
+
+    Raises:
+        InactiveServiceException: always
+    """
+    raise InactiveServiceException(
+        f'Send {notification.notification_type} to provider is not allowed. '
+        f'Service {notification.service_id} is inactive. Notification {notification.id}'
     )
 
 

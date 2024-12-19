@@ -28,6 +28,7 @@ from app.constants import (
     EMAIL_TYPE,
     INBOUND_SMS_CALLBACK_TYPE,
     LETTER_TYPE,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_STATUS_TYPES,
     SMS_TYPE,
 )
@@ -206,7 +207,7 @@ def test_send_delivery_status_to_service_succeeds_if_sent_at_is_none(
     callback_api, template = _set_up_test_data(EMAIL_TYPE, 'delivery_status', sample_service, sample_template)
     datestr = datetime(2017, 6, 20)
     notification = sample_notification(
-        template=template, created_at=datestr, updated_at=datestr, sent_at=None, status='technical-failure'
+        template=template, created_at=datestr, updated_at=datestr, sent_at=None, status=NOTIFICATION_PERMANENT_FAILURE
     )
     encrypted_data = _set_up_data_for_status_update(callback_api, notification)
     with requests_mock.Mocker() as request_mock:

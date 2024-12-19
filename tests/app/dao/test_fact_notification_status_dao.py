@@ -19,7 +19,6 @@ from app.constants import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     SMS_TYPE,
 )
@@ -937,7 +936,7 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(
     )
 
     sample_ft_notification_status(
-        date(2019, 4, 30), job=job_sms, notification_status=NOTIFICATION_TECHNICAL_FAILURE, count=5
+        date(2019, 4, 30), job=job_sms, notification_status=NOTIFICATION_PERMANENT_FAILURE, count=5
     )
 
     sample_ft_notification_status(
@@ -950,6 +949,7 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(
     # "service id", "service name", "template id", "template name", "status", "reason", "count", "channel_type"
     assert [
         (service.id, service.name, sms_template.id, sms_template.name, NOTIFICATION_DELIVERED, 'foo', 2, SMS_TYPE),
+        (service.id, service.name, sms_template.id, sms_template.name, NOTIFICATION_PERMANENT_FAILURE, '', 5, SMS_TYPE),
         (
             service.id,
             service.name,
@@ -960,7 +960,6 @@ def test_fetch_notification_statuses_per_service_and_template_for_date(
             5,
             SMS_TYPE,
         ),
-        (service.id, service.name, sms_template.id, sms_template.name, NOTIFICATION_TECHNICAL_FAILURE, '', 5, SMS_TYPE),
         (
             service.id,
             service.name,
@@ -1035,9 +1034,11 @@ def test_fetch_monthly_notification_statuses_per_service(
     sample_ft_notification_status(date(2019, 4, 30), job=job_letter, notification_status=NOTIFICATION_DELIVERED)
     sample_ft_notification_status(date(2019, 3, 1), job=job_email, notification_status=NOTIFICATION_SENDING, count=4)
     sample_ft_notification_status(
-        date(2019, 3, 2), job=job_email, notification_status=NOTIFICATION_TECHNICAL_FAILURE, count=2
+        date(2019, 3, 2), job=job_email, notification_status=NOTIFICATION_PERMANENT_FAILURE, count=2
     )
-    sample_ft_notification_status(date(2019, 3, 7), job=job_email, notification_status=NOTIFICATION_FAILED, count=1)
+    sample_ft_notification_status(
+        date(2019, 3, 7), job=job_email, notification_status=NOTIFICATION_PERMANENT_FAILURE, count=1
+    )
     sample_ft_notification_status(
         date(2019, 3, 7),
         job=job2_letter,
@@ -1062,7 +1063,7 @@ def test_fetch_monthly_notification_statuses_per_service(
 
     # column order: date, service_id, service_name, notifaction_type, count_sending, count_delivered,
     # count_technical_failure, count_temporary_failure, count_permanent_failure, count_sent
-    assert [x for x in results[0]] == [date(2019, 3, 1), service_one.id, service_one.name, EMAIL_TYPE, 4, 0, 3, 0, 0, 0]
+    assert [x for x in results[0]] == [date(2019, 3, 1), service_one.id, service_one.name, EMAIL_TYPE, 4, 0, 0, 0, 3, 0]
     assert [x for x in results[1]] == [
         date(2019, 3, 1),
         service_one.id,

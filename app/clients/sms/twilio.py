@@ -10,16 +10,18 @@ from twilio.rest.api.v2010.account.message import MessageInstance
 from twilio.base.exceptions import TwilioRestException
 
 from app.celery.exceptions import NonRetryableException
-from app.clients.sms import SmsClient, SmsStatusRecord, OPT_OUT_MESSAGE, UNABLE_TO_TRANSLATE, MESSAGE_TOO_LONG
+from app.clients.sms import SmsClient, SmsStatusRecord, UNABLE_TO_TRANSLATE
 from app.constants import (
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
-    RETRYABLE_STATUS_REASON,
+    STATUS_REASON_BLOCKED,
+    STATUS_REASON_RETRYABLE,
+    STATUS_REASON_UNDELIVERABLE,
+    STATUS_REASON_UNREACHABLE,
     TWILIO_PROVIDER,
 )
 from app.exceptions import InvalidProviderException
@@ -28,13 +30,13 @@ from app.exceptions import InvalidProviderException
 # https://www.twilio.com/docs/messaging/api/message-resource#message-status-values
 TWILIO_RESPONSE_MAP = {
     'accepted': NOTIFICATION_CREATED,
+    'delivered': NOTIFICATION_DELIVERED,
+    'failed': NOTIFICATION_PERMANENT_FAILURE,
     'queued': NOTIFICATION_SENDING,
+    'received': NOTIFICATION_SENDING,
     'sending': NOTIFICATION_SENDING,
     'sent': NOTIFICATION_SENT,
-    'delivered': NOTIFICATION_DELIVERED,
     'undelivered': NOTIFICATION_PERMANENT_FAILURE,
-    'failed': NOTIFICATION_TECHNICAL_FAILURE,
-    'received': NOTIFICATION_SENDING,
 }
 
 
@@ -53,27 +55,40 @@ class TwilioSMSClient(SmsClient):
     RAW_DLR_DONE_DATE_FMT = '%y%m%d%H%M'
 
     twilio_error_code_map = {
-        '21268': TwilioStatus(21268, NOTIFICATION_PERMANENT_FAILURE, 'Premium numbers are not permitted'),
-        '21408': TwilioStatus(21408, NOTIFICATION_PERMANENT_FAILURE, 'Invalid region specified'),
-        '21610': TwilioStatus(21610, NOTIFICATION_PERMANENT_FAILURE, OPT_OUT_MESSAGE),
-        '21612': TwilioStatus(21612, NOTIFICATION_PERMANENT_FAILURE, 'Invalid to/from combo'),
-        '21614': TwilioStatus(21614, NOTIFICATION_PERMANENT_FAILURE, 'Non-mobile number'),
-        '21617': TwilioStatus(21617, NOTIFICATION_PERMANENT_FAILURE, MESSAGE_TOO_LONG),
-        '21635': TwilioStatus(21635, NOTIFICATION_PERMANENT_FAILURE, 'Non-mobile number'),
-        '30001': TwilioStatus(30001, NOTIFICATION_TEMPORARY_FAILURE, 'Queue overflow'),
-        '30002': TwilioStatus(30002, NOTIFICATION_PERMANENT_FAILURE, 'Account suspended'),
-        '30003': TwilioStatus(30003, NOTIFICATION_PERMANENT_FAILURE, 'Unreachable destination handset'),
-        '30004': TwilioStatus(30004, NOTIFICATION_PERMANENT_FAILURE, 'Message blocked'),
-        '30005': TwilioStatus(30005, NOTIFICATION_PERMANENT_FAILURE, 'Unknown destination handset'),
-        '30006': TwilioStatus(30006, NOTIFICATION_PERMANENT_FAILURE, 'Landline or unreachable carrier'),
-        '30007': TwilioStatus(30007, NOTIFICATION_PERMANENT_FAILURE, 'Message filtered'),
-        '30008': TwilioStatus(30008, NOTIFICATION_TECHNICAL_FAILURE, 'Unknown error'),
-        '30009': TwilioStatus(30009, NOTIFICATION_TECHNICAL_FAILURE, 'Missing inbound segment'),
-        '30010': TwilioStatus(30010, NOTIFICATION_TECHNICAL_FAILURE, 'Message price exceeds max price'),
-        '30024': TwilioStatus(30024, NOTIFICATION_TECHNICAL_FAILURE, 'Sender not provisioned by carrier'),
-        '30034': TwilioStatus(30034, NOTIFICATION_PERMANENT_FAILURE, 'Used an unregistered 10DLC Number'),
-        '30500': TwilioStatus(30500, NOTIFICATION_TEMPORARY_FAILURE, RETRYABLE_STATUS_REASON),
-        '60005': TwilioStatus(60005, NOTIFICATION_TEMPORARY_FAILURE, 'Carrier error'),
+        # 21268: 'Premium numbers are not permitted'
+        '21268': TwilioStatus(21268, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        # 21408: 'Invalid region specified'
+        '21408': TwilioStatus(21408, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '21610': TwilioStatus(21610, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        # 21612: 'Invalid to/from combo'
+        '21612': TwilioStatus(21612, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '21614': TwilioStatus(21614, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '21617': TwilioStatus(21617, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        '21635': TwilioStatus(21635, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '30001': TwilioStatus(30001, NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        # 30002: 'Account suspended'
+        '30002': TwilioStatus(30002, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        '30003': TwilioStatus(30003, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '30004': TwilioStatus(30004, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        '30005': TwilioStatus(30005, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '30006': TwilioStatus(30006, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '30007': TwilioStatus(30007, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        '30008': TwilioStatus(30008, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        # 30009: 'Missing inbound segment'
+        '30009': TwilioStatus(30009, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        # 30010: 'Message price exceeds max price'
+        '30010': TwilioStatus(30010, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        # 30024: 'Sender not provisioned by carrier'
+        '30024': TwilioStatus(30024, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        # 30034: 'Used an unregistered 10DLC Number'
+        '30034': TwilioStatus(30034, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        '30442': TwilioStatus(30442, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        '30500': TwilioStatus(30500, NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        '30884': TwilioStatus(30884, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        '32017': TwilioStatus(32017, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        '32203': TwilioStatus(32203, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        '60005': TwilioStatus(60005, NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        '63026': TwilioStatus(63026, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
     }
 
     def __init__(
@@ -104,9 +119,9 @@ class TwilioSMSClient(SmsClient):
             'sending': TwilioStatus(None, NOTIFICATION_SENDING, None),
             'sent': TwilioStatus(None, NOTIFICATION_SENT, None),
             'delivered': TwilioStatus(None, NOTIFICATION_DELIVERED, None),
-            'undelivered': TwilioStatus(None, NOTIFICATION_PERMANENT_FAILURE, 'Unable to deliver'),
-            'failed': TwilioStatus(None, NOTIFICATION_TECHNICAL_FAILURE, 'Technical error'),
-            'canceled': TwilioStatus(None, NOTIFICATION_TECHNICAL_FAILURE, 'Notification cancelled'),
+            'undelivered': TwilioStatus(None, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+            'failed': TwilioStatus(None, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+            'canceled': TwilioStatus(None, NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
         }
 
     def init_app(

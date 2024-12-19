@@ -9,23 +9,22 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.constants import (
+    EMAIL_TYPE,
+    JOB_STATUS_IN_PROGRESS,
+    KEY_TYPE_NORMAL,
+    KEY_TYPE_TEAM,
+    KEY_TYPE_TEST,
+    LETTER_TYPE,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_STATUS_TYPES,
     NOTIFICATION_STATUS_TYPES_FAILED,
-    KEY_TYPE_NORMAL,
-    KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
-    JOB_STATUS_IN_PROGRESS,
-    NOTIFICATION_PERMANENT_FAILURE,
-    EMAIL_TYPE,
-    LETTER_TYPE,
+    NOTIFICATION_TEMPORARY_FAILURE,
     SMS_TYPE,
 )
 from app.dao.notifications_dao import (
@@ -191,10 +190,10 @@ def test_should_update_status_by_id_and_set_sent_by(
     sample_provider,
 ):
     provider = sample_provider(str(uuid4()))
-    notification = sample_notification(template=sample_template(), status='sending')
+    notification = sample_notification(template=sample_template(), status=NOTIFICATION_SENDING)
 
-    updated = update_notification_status_by_id(notification.id, 'delivered', sent_by=provider.identifier)
-    assert updated.status == 'delivered'
+    updated = update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED, sent_by=provider.identifier)
+    assert updated.status == NOTIFICATION_DELIVERED
     assert updated.sent_by == provider.identifier
 
 
@@ -220,7 +219,7 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery
         phone_prefix='249',  # sudan has no delivery receipts (or at least, that we know about)
     )
 
-    res = update_notification_status_by_id(notification.id, 'delivered')
+    res = update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED)
 
     assert res is None
     assert notification.status == NOTIFICATION_SENT
@@ -236,7 +235,7 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_carrier_delivery
         phone_prefix='1',  # americans only have carrier delivery receipts
     )
 
-    res = update_notification_status_by_id(notification.id, 'delivered')
+    res = update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED)
 
     assert res is None
     assert notification.status == NOTIFICATION_SENT
@@ -250,7 +249,7 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_delivery_receipt
         phone_prefix='7',  # russians have full delivery receipts
     )
 
-    res = update_notification_status_by_id(notification.id, 'delivered')
+    res = update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED)
 
     assert res == notification
     assert notification.status == NOTIFICATION_DELIVERED
@@ -277,13 +276,13 @@ def test_should_by_able_to_update_status_by_id_from_pending_to_delivered(
 ):
     template = sample_template()
     job = sample_job(template)
-    notification = sample_notification(template=template, job=job, status='sending')
+    notification = sample_notification(template=template, job=job, status=NOTIFICATION_SENDING)
 
-    assert update_notification_status_by_id(notification_id=notification.id, status='pending')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'pending'
+    assert update_notification_status_by_id(notification_id=notification.id, status=NOTIFICATION_PENDING)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_PENDING
 
-    assert update_notification_status_by_id(notification.id, 'delivered')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    assert update_notification_status_by_id(notification.id, NOTIFICATION_DELIVERED)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
 
 
 @pytest.mark.skip(reason='firetext status update, not valid anymore')
@@ -295,10 +294,10 @@ def test_should_by_able_to_update_status_by_id_from_pending_to_temporary_failure
 ):
     template = sample_template()
     job = sample_job(template)
-    notification = sample_notification(template=template, job=job, status='sending')
+    notification = sample_notification(template=template, job=job, status=NOTIFICATION_SENDING)
 
-    assert update_notification_status_by_id(notification_id=notification.id, status='pending')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'pending'
+    assert update_notification_status_by_id(notification_id=notification.id, status=NOTIFICATION_PENDING)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_PENDING
 
     assert update_notification_status_by_id(notification.id, status='permanent-failure')
     assert notify_db_session.session.get(Notification, notification.id).status == 'temporary-failure'
@@ -309,12 +308,12 @@ def test_should_by_able_to_update_status_by_id_from_sending_to_permanent_failure
 ):
     template = sample_template()
     job = sample_job(template)
-    data = _notification_json(template, job_id=job.id, status='sending')
+    data = _notification_json(template, job_id=job.id, status=NOTIFICATION_SENDING)
     notification = Notification(**data)
     dao_create_notification(notification)
 
     try:
-        assert notify_db_session.session.get(Notification, notification.id).status == 'sending'
+        assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_SENDING
         assert update_notification_status_by_id(notification.id, status='permanent-failure')
         assert notify_db_session.session.get(Notification, notification.id).status == 'permanent-failure'
     finally:
@@ -327,25 +326,25 @@ def test_should_not_update_status_once_notification_status_is_delivered(
     notify_db_session, sample_template, sample_notification
 ):
     template = sample_template(template_type=EMAIL_TYPE)
-    notification = sample_notification(template=template, status='sending')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'sending'
+    notification = sample_notification(template=template, status=NOTIFICATION_SENDING)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_SENDING
 
     ref = str(uuid4())
     notification.reference = ref
     dao_update_notification(notification)
-    update_notification_status_by_reference(ref, 'delivered')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    update_notification_status_by_reference(ref, NOTIFICATION_DELIVERED)
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
 
     update_notification_status_by_reference(ref, 'failed')
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
 
 
 def test_should_return_zero_count_if_no_notification_with_id(notify_api):
-    assert not update_notification_status_by_id(str(uuid4()), 'delivered')
+    assert not update_notification_status_by_id(str(uuid4()), NOTIFICATION_DELIVERED)
 
 
 def test_should_return_zero_count_if_no_notification_with_reference(notify_api):
-    assert not update_notification_status_by_reference('something', 'delivered')
+    assert not update_notification_status_by_reference('something', NOTIFICATION_DELIVERED)
 
 
 def test_create_notification_creates_notification_with_personalisation(
@@ -356,7 +355,7 @@ def test_create_notification_creates_notification_with_personalisation(
     template = sample_template(content='Hello (( Name))\nYour thing is due soon')
     job = sample_job(template)
 
-    data = _notification_json(template=template, job_id=job.id, status='created')
+    data = _notification_json(template=template, job_id=job.id, status=NOTIFICATION_CREATED)
     data['personalisation'] = {'name': 'Jo'}
 
     notification = Notification(**data)
@@ -370,7 +369,7 @@ def test_create_notification_creates_notification_with_personalisation(
     assert data['template_id'] == notification_from_db.template.id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
     assert {'name': 'Jo'} == notification_from_db.personalisation
 
 
@@ -395,7 +394,7 @@ def test_save_notification_creates_sms(
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
 
 
 def test_save_notification_and_create_email(
@@ -419,7 +418,7 @@ def test_save_notification_and_create_email(
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
 
 
 def test_save_notification(
@@ -481,10 +480,10 @@ def test_update_notification_with_research_mode_service_does_not_create_or_updat
     stmt = select(NotificationHistory).where(NotificationHistory.template_id == template.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
-    notification.status = 'delivered'
+    notification.status = NOTIFICATION_DELIVERED
     dao_update_notification(notification)
 
-    assert notify_db_session.session.get(Notification, notification.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_DELIVERED
     stmt = select(NotificationHistory).where(NotificationHistory.template_id == template.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
@@ -528,7 +527,7 @@ def test_save_notification_and_increment_job(
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
 
     notification_2 = Notification(**data)
     dao_create_notification(notification_2)
@@ -557,7 +556,7 @@ def test_save_notification_and_increment_correct_job(
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
     assert job_1.id != job_2.id
 
 
@@ -577,7 +576,7 @@ def test_save_notification_with_no_job(
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
     assert data['created_at'] == notification_from_db.created_at
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
 
 
 def test_get_notification_with_personalisation_by_id(
@@ -585,7 +584,7 @@ def test_get_notification_with_personalisation_by_id(
     sample_notification,
 ):
     template = sample_template()
-    notification = sample_notification(template=template, scheduled_for='2017-05-05 14:15', status='created')
+    notification = sample_notification(template=template, scheduled_for='2017-05-05 14:15', status=NOTIFICATION_CREATED)
     notification_from_db = get_notification_with_personalisation(template.service.id, notification.id, key_type=None)
     assert notification == notification_from_db
     assert notification_from_db.scheduled_notification.scheduled_for == datetime(2017, 5, 5, 14, 15)
@@ -654,7 +653,7 @@ def test_save_notification_no_job_id(
     assert data['service'] == notification_from_db.service
     assert data['template_id'] == notification_from_db.template_id
     assert data['template_version'] == notification_from_db.template_version
-    assert notification_from_db.status == 'created'
+    assert notification_from_db.status == NOTIFICATION_CREATED
     assert data.get('job_id') is None
 
 
@@ -715,7 +714,7 @@ def test_update_notification_sets_status(
 ):
     template = sample_template()
     notification = sample_notification(template=template)
-    assert notification.status == 'created'
+    assert notification.status == NOTIFICATION_CREATED
 
     notification.status = 'failed'
     dao_update_notification(notification)
@@ -887,21 +886,21 @@ def test_dao_timeout_notifications(
 ):
     template = sample_template()
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
-        created = sample_notification(template=template, status='created')
-        sending = sample_notification(template=template, status='sending')
-        pending = sample_notification(template=template, status='pending')
-        delivered = sample_notification(template=template, status='delivered')
+        created = sample_notification(template=template, status=NOTIFICATION_CREATED)
+        sending = sample_notification(template=template, status=NOTIFICATION_SENDING)
+        pending = sample_notification(template=template, status=NOTIFICATION_PENDING)
+        delivered = sample_notification(template=template, status=NOTIFICATION_DELIVERED)
 
-    assert notify_db_session.session.get(Notification, created.id).status == 'created'
-    assert notify_db_session.session.get(Notification, sending.id).status == 'sending'
-    assert notify_db_session.session.get(Notification, pending.id).status == 'pending'
-    assert notify_db_session.session.get(Notification, delivered.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_CREATED
+    assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
+    assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
+    assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
 
-    assert notify_db_session.session.get(Notification, created.id).status == 'technical-failure'
-    assert notify_db_session.session.get(Notification, sending.id).status == 'temporary-failure'
-    assert notify_db_session.session.get(Notification, pending.id).status == 'temporary-failure'
-    assert notify_db_session.session.get(Notification, delivered.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_PERMANENT_FAILURE
+    assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_TEMPORARY_FAILURE
+    assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_TEMPORARY_FAILURE
+    assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
     assert len(technical_failure_notifications + temporary_failure_notifications) == 3
 
 
@@ -913,15 +912,15 @@ def test_dao_timeout_notifications_only_updates_for_older_notifications(
 ):
     template = sample_template()
     with freeze_time(datetime.utcnow() + timedelta(minutes=10)):
-        created = sample_notification(template=template, status='created')
-        sending = sample_notification(template=template, status='sending')
-        pending = sample_notification(template=template, status='pending')
-        delivered = sample_notification(template=template, status='delivered')
+        created = sample_notification(template=template, status=NOTIFICATION_CREATED)
+        sending = sample_notification(template=template, status=NOTIFICATION_SENDING)
+        pending = sample_notification(template=template, status=NOTIFICATION_PENDING)
+        delivered = sample_notification(template=template, status=NOTIFICATION_DELIVERED)
 
-    assert notify_db_session.session.get(Notification, created.id).status == 'created'
-    assert notify_db_session.session.get(Notification, sending.id).status == 'sending'
-    assert notify_db_session.session.get(Notification, pending.id).status == 'pending'
-    assert notify_db_session.session.get(Notification, delivered.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_CREATED
+    assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
+    assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
+    assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
     assert len(technical_failure_notifications + temporary_failure_notifications) == 0
 
@@ -933,15 +932,15 @@ def test_dao_timeout_notifications_doesnt_affect_letters(
 ):
     template = sample_template(template_type=LETTER_TYPE)
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
-        created = sample_notification(template=template, status='created')
-        sending = sample_notification(template=template, status='sending')
-        pending = sample_notification(template=template, status='pending')
-        delivered = sample_notification(template=template, status='delivered')
+        created = sample_notification(template=template, status=NOTIFICATION_CREATED)
+        sending = sample_notification(template=template, status=NOTIFICATION_SENDING)
+        pending = sample_notification(template=template, status=NOTIFICATION_PENDING)
+        delivered = sample_notification(template=template, status=NOTIFICATION_DELIVERED)
 
-    assert notify_db_session.session.get(Notification, created.id).status == 'created'
-    assert notify_db_session.session.get(Notification, sending.id).status == 'sending'
-    assert notify_db_session.session.get(Notification, pending.id).status == 'pending'
-    assert notify_db_session.session.get(Notification, delivered.id).status == 'delivered'
+    assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_CREATED
+    assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
+    assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
+    assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
 
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
 
@@ -1221,13 +1220,13 @@ def test_is_delivery_slow_for_provider(
     )
 
     for _ in range(normal_sending):
-        normal_notification(status='sending')
+        normal_notification(status=NOTIFICATION_SENDING)
     for _ in range(slow_sending):
-        slow_notification(status='sending')
+        slow_notification(status=NOTIFICATION_SENDING)
     for _ in range(normal_delivered):
-        normal_notification(status='delivered')
+        normal_notification(status=NOTIFICATION_DELIVERED)
     for _ in range(slow_delivered):
-        slow_notification(status='delivered')
+        slow_notification(status=NOTIFICATION_DELIVERED)
 
     assert (
         is_delivery_slow_for_provider(datetime.utcnow(), provider.identifier, threshold, timedelta(minutes=4))
@@ -1488,9 +1487,11 @@ def test_dao_created_scheduled_notification(
 
 def test_dao_get_scheduled_notifications(sample_template, sample_notification):
     template = sample_template()
-    notification_1 = sample_notification(template=template, scheduled_for='2017-05-05 14:15', status='created')
-    sample_notification(template=template, scheduled_for='2017-05-04 14:15', status='delivered')
-    sample_notification(template=template, status='created')
+    notification_1 = sample_notification(
+        template=template, scheduled_for='2017-05-05 14:15', status=NOTIFICATION_CREATED
+    )
+    sample_notification(template=template, scheduled_for='2017-05-04 14:15', status=NOTIFICATION_DELIVERED)
+    sample_notification(template=template, status=NOTIFICATION_CREATED)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert len(scheduled_notifications) == 1
     assert scheduled_notifications[0].id == notification_1.id
@@ -1498,7 +1499,9 @@ def test_dao_get_scheduled_notifications(sample_template, sample_notification):
 
 
 def test_set_scheduled_notification_to_processed(sample_template, sample_notification):
-    notification_1 = sample_notification(template=sample_template(), scheduled_for='2017-05-05 14:15', status='created')
+    notification_1 = sample_notification(
+        template=sample_template(), scheduled_for='2017-05-05 14:15', status=NOTIFICATION_CREATED
+    )
     scheduled_notifications = dao_get_scheduled_notifications()
     assert len(scheduled_notifications) == 1
     assert scheduled_notifications[0].id == notification_1.id
@@ -1512,14 +1515,14 @@ def test_set_scheduled_notification_to_processed(sample_template, sample_notific
 def test_dao_get_notifications_by_to_field_filters_status(sample_template, sample_notification):
     template = sample_template()
     notification = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='delivered'
+        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
     )
     sample_notification(
         template=template, to_field='+16502532222', normalised_to='+16502532222', status='temporary-failure'
     )
 
     notifications = dao_get_notifications_by_to_field(
-        notification.service_id, '+16502532222', statuses=['delivered'], notification_type=SMS_TYPE
+        notification.service_id, '+16502532222', statuses=[NOTIFICATION_DELIVERED], notification_type=SMS_TYPE
     )
 
     assert len(notifications) == 1
@@ -1529,14 +1532,17 @@ def test_dao_get_notifications_by_to_field_filters_status(sample_template, sampl
 def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_template, sample_notification):
     template = sample_template()
     notification1 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='delivered'
+        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
     )
     notification2 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='sending'
+        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_SENDING
     )
 
     notifications = dao_get_notifications_by_to_field(
-        notification1.service_id, '+16502532222', statuses=['delivered', 'sending'], notification_type=SMS_TYPE
+        notification1.service_id,
+        '+16502532222',
+        statuses=[NOTIFICATION_DELIVERED, NOTIFICATION_SENDING],
+        notification_type=SMS_TYPE,
     )
     notification_ids = [notification.id for notification in notifications]
 
@@ -1548,7 +1554,7 @@ def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_temp
 def test_dao_get_notifications_by_to_field_returns_all_if_no_status_filter(sample_template, sample_notification):
     template = sample_template()
     notification1 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='delivered'
+        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
     )
     notification2 = sample_notification(
         template=template, to_field='+16502532222', normalised_to='+16502532222', status='temporary-failure'
@@ -1672,7 +1678,7 @@ def test_dao_update_notifications_by_reference_updates_history_no_notifications_
     sample_notification_history(template=template, reference=ref_1)
 
     updated_count, updated_history_count = dao_update_notifications_by_reference(
-        references=[ref_0, ref_1], update_dict={'status': 'delivered', 'billable_units': 2}
+        references=[ref_0, ref_1], update_dict={'status': NOTIFICATION_DELIVERED, 'billable_units': 2}
     )
     assert updated_count == 0
     assert updated_history_count == 2
@@ -1680,7 +1686,7 @@ def test_dao_update_notifications_by_reference_updates_history_no_notifications_
 
 def test_dao_update_notifications_by_reference_returns_zero_when_no_notifications_to_update(notify_api):
     updated_count, updated_history_count = dao_update_notifications_by_reference(
-        references=[str(uuid4())], update_dict={'status': 'delivered', 'billable_units': 2}
+        references=[str(uuid4())], update_dict={'status': NOTIFICATION_DELIVERED, 'billable_units': 2}
     )
 
     assert updated_count == 0
@@ -1800,19 +1806,19 @@ def test_notifications_not_yet_sent(
         template=template,
         created_at=datetime.utcnow() - timedelta(seconds=older_than),
         api_key=api_key,
-        status='created',
+        status=NOTIFICATION_CREATED,
     )
     sample_notification(
         template=template,
         created_at=datetime.utcnow() - timedelta(seconds=older_than),
         api_key=api_key,
-        status='sending',
+        status=NOTIFICATION_SENDING,
     )
     sample_notification(
         template=template,
         created_at=datetime.utcnow(),
         api_key=api_key,
-        status='created',
+        status=NOTIFICATION_CREATED,
     )
 
     # serial - query does not support strict time-boxing
@@ -1832,9 +1838,9 @@ def test_notifications_not_yet_sent_return_no_rows(
     # The notification cannot be older than this number of seconds.
     older_than = 5
     template = sample_template(service=sample_service(), template_type=notification_type)
-    sample_notification(template=template, status='created')
-    sample_notification(template=template, status='sending')
-    sample_notification(template=template, status='delivered')
+    sample_notification(template=template, status=NOTIFICATION_CREATED)
+    sample_notification(template=template, status=NOTIFICATION_SENDING)
+    sample_notification(template=template, status=NOTIFICATION_DELIVERED)
 
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 0
@@ -2089,33 +2095,26 @@ def test_update_notification_status_by_id_can_update_status_in_order_when_given_
         (NOTIFICATION_CREATED, NOTIFICATION_DELIVERED),
         (NOTIFICATION_CREATED, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_CREATED, NOTIFICATION_PERMANENT_FAILURE),
-        (NOTIFICATION_CREATED, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_PENDING, NOTIFICATION_PENDING),
         (NOTIFICATION_PENDING, NOTIFICATION_SENT),
         (NOTIFICATION_PENDING, NOTIFICATION_DELIVERED),
         (NOTIFICATION_PENDING, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_PENDING, NOTIFICATION_PERMANENT_FAILURE),
-        (NOTIFICATION_PENDING, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_SENDING, NOTIFICATION_SENDING),
         (NOTIFICATION_SENDING, NOTIFICATION_PENDING),
         (NOTIFICATION_SENDING, NOTIFICATION_SENT),
         (NOTIFICATION_SENDING, NOTIFICATION_DELIVERED),
         (NOTIFICATION_SENDING, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_SENDING, NOTIFICATION_PERMANENT_FAILURE),
-        (NOTIFICATION_SENDING, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_SENT),
         (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_DELIVERED),
         (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_TEMPORARY_FAILURE),
         (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE),
-        (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_SENT, NOTIFICATION_SENT),
         (NOTIFICATION_SENT, NOTIFICATION_DELIVERED),
         (NOTIFICATION_SENT, NOTIFICATION_TEMPORARY_FAILURE),
-        (NOTIFICATION_SENT, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_DELIVERED, NOTIFICATION_DELIVERED),
-        (NOTIFICATION_DELIVERED, NOTIFICATION_TECHNICAL_FAILURE),
         (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_DELIVERED),
-        (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE),
     ],
 )
 def test_update_notification_delivery_status_valid_updates(

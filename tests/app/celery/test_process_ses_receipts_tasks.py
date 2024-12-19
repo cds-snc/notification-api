@@ -19,6 +19,8 @@ from app.constants import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TEMPORARY_FAILURE,
+    STATUS_REASON_RETRYABLE,
+    STATUS_REASON_UNDELIVERABLE,
 )
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint, Notification, Service, Template
@@ -420,7 +422,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     assert process_ses_receipts_tasks.process_ses_results(ses_soft_bounce_callback(reference=ref)) is None
     db_notification = notify_db_session.session.get(Notification, notification_id)
     assert db_notification.status == NOTIFICATION_TEMPORARY_FAILURE
-    assert db_notification.status_reason == 'Temporarily failed to deliver email due to soft bounce'
+    assert db_notification.status_reason == STATUS_REASON_RETRYABLE
     assert send_mock.called
 
 
@@ -452,7 +454,7 @@ def test_ses_callback_should_set_status_to_permanent_failure(
     assert process_ses_receipts_tasks.process_ses_results(ses_hard_bounce_callback(reference=ref)) is None
     db_notification = notify_db_session.session.get(Notification, notification_id)
     assert db_notification.status == NOTIFICATION_PERMANENT_FAILURE
-    assert db_notification.status_reason == 'Failed to deliver email due to hard bounce'
+    assert db_notification.status_reason == STATUS_REASON_UNDELIVERABLE
     assert send_mock.called
 
 
@@ -470,9 +472,11 @@ def test_ses_does_not_update_if_already_bounced(
     template = sample_template(template_type=EMAIL_TYPE)
     ref = str(uuid4())
     if bounce_status == NOTIFICATION_PERMANENT_FAILURE:
-        status_reason = 'Failed to deliver email due to hard bounce'
+        # status_reason = 'Failed to deliver email due to hard bounce'
+        status_reason = STATUS_REASON_UNDELIVERABLE
     elif bounce_status == NOTIFICATION_TEMPORARY_FAILURE:
-        status_reason = 'Temporarily failed to deliver email due to hard bounce'
+        # status_reason = 'Temporarily failed to deliver email due to hard bounce'
+        status_reason = STATUS_REASON_RETRYABLE
     else:
         raise NotImplementedError
 

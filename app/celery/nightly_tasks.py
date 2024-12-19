@@ -99,12 +99,16 @@ def delete_letter_notifications_older_than_retention():
 @notify_celery.task(name='timeout-sending-notifications')
 @cronitor('timeout-sending-notifications')
 @statsd(namespace='tasks')
-def timeout_notifications():
-    """A task that runs every night at 12:05 AM EST to update the status of notifications that have timed out."""
-    technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(
+def timeout_notifications() -> None:
+    """Task that runs every night at 12:05 AM EST to update the status of notifications that have timed out.
+
+    Raises:
+        NotificationTechnicalFailureException: If there are any notifications that were stuck in created status
+    """
+    unsent_created_notifications, temporary_failure_notifications = dao_timeout_notifications(
         current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD')
     )
-    notifications = technical_failure_notifications + temporary_failure_notifications
+    notifications = unsent_created_notifications + temporary_failure_notifications
     for notification in notifications:
         # queue callback task only if the service_callback_api exists
         check_and_queue_callback_task(notification)
@@ -112,11 +116,11 @@ def timeout_notifications():
     current_app.logger.info(
         'Timeout period reached for {} notifications, status has been updated.'.format(len(notifications))
     )
-    if technical_failure_notifications:
+    if unsent_created_notifications:
         message = (
-            '{} notifications have been updated to technical-failure because they '
-            'have timed out and are still in created.Notification ids: {}'.format(
-                len(technical_failure_notifications), [str(x.id) for x in technical_failure_notifications]
+            '{} notifications have been updated to permanent-failure because they '
+            'have timed out and are still in created. Notification ids: {}'.format(
+                len(unsent_created_notifications), [str(x.id) for x in unsent_created_notifications]
             )
         )
         raise NotificationTechnicalFailureException(message)

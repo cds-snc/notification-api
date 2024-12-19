@@ -32,7 +32,6 @@ from app.constants import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_RETURNED_LETTER,
     SMS_TYPE,
 )
@@ -56,7 +55,7 @@ from app.dao.service_sms_sender_dao import (
 )
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import DVLAException, NotificationTechnicalFailureException
+from app.exceptions import DVLAException
 from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import DailySortedLetter
 from app.notifications.process_notifications import persist_notification
@@ -375,23 +374,6 @@ def update_letter_notifications_to_sent_to_dvla(
     )
 
     current_app.logger.info('Updated %s letter notifications to sending', updated_count)
-
-
-@notify_celery.task(bind=True, name='update-letter-notifications-to-error')
-@statsd(namespace='tasks')
-def update_letter_notifications_to_error(
-    self,
-    notification_references,
-):
-    # This task will be called by the FTP app to update notifications as sent to DVLA
-
-    updated_count, _ = dao_update_notifications_by_reference(
-        notification_references, {'status': NOTIFICATION_TECHNICAL_FAILURE, 'updated_at': datetime.utcnow()}
-    )
-    message = 'Updated {} letter notifications to technical-failure with references {}'.format(
-        updated_count, notification_references
-    )
-    raise NotificationTechnicalFailureException(message)
 
 
 def handle_exception(

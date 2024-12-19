@@ -35,6 +35,8 @@ from app.constants import (
     SMS_TYPE,
     EMAIL_TYPE,
     NOTIFICATION_STATUS_TYPES_FAILED,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TEMPORARY_FAILURE,
 )
 from tests.app.aws.test_s3 import single_s3_object_stub
 from tests.app.db import (
@@ -228,9 +230,9 @@ def test_update_status_of_notifications_after_timeout(
         notify_db_session.session.refresh(not3)
 
         assert str(not2.id) in str(e.value)
-        assert not1.status == 'temporary-failure'
-        assert not2.status == 'technical-failure'
-        assert not3.status == 'temporary-failure'
+        assert not1.status == NOTIFICATION_TEMPORARY_FAILURE
+        assert not2.status == NOTIFICATION_PERMANENT_FAILURE
+        assert not3.status == NOTIFICATION_TEMPORARY_FAILURE
 
 
 @pytest.mark.serial

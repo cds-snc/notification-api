@@ -27,6 +27,7 @@ from werkzeug.datastructures import MultiDict
 from app import db
 from app.aws.s3 import remove_s3_object, get_s3_bucket_objects
 from app.constants import (
+    EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
@@ -34,13 +35,12 @@ from app.constants import (
     NOTIFICATION_SENDING,
     NOTIFICATION_PENDING,
     NOTIFICATION_PENDING_VIRUS_CHECK,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
-    NOTIFICATION_PREFERENCES_DECLINED,
     SMS_TYPE,
-    EMAIL_TYPE,
+    STATUS_REASON_RETRYABLE,
+    STATUS_REASON_UNDELIVERABLE,
 )
 from app.dao.dao_utils import transactional
 from app.errors import InvalidRequest
@@ -76,8 +76,6 @@ TRANSIENT_STATUSES = (
 FINAL_STATUS_STATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_TECHNICAL_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
 )
 
 _CREATED_UPDATES = (
@@ -87,8 +85,6 @@ _CREATED_UPDATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
 _SENDING_UPDATES = (
@@ -97,8 +93,6 @@ _SENDING_UPDATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
 _PENDING_UPDATES = (
@@ -106,8 +100,6 @@ _PENDING_UPDATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
 
@@ -115,39 +107,17 @@ _SENT_UPDATES = (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
-_DELIVERED_UPDATES = (
-    NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-)
+_DELIVERED_UPDATES = (NOTIFICATION_PERMANENT_FAILURE,)
 
 _TEMPORARY_FAILURE_UPDATES = (
     NOTIFICATION_SENT,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
 )
 
-_PERMANENT_FAILURE_UPDATES = (
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PREFERENCES_DECLINED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-)
-
-_TECHNICAL_FAILURE_UPDATES = (
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_PREFERENCES_DECLINED,
-)
-
-_PREFERENCES_DECLINED_UPDATES = (
-    NOTIFICATION_DELIVERED,
-    NOTIFICATION_TECHNICAL_FAILURE,
-)
+_PERMANENT_FAILURE_UPDATES = (NOTIFICATION_DELIVERED,)
 
 
 @statsd(namespace='dao')
@@ -207,10 +177,6 @@ def sms_conditions(incoming_status: str) -> Any:
         and_(Notification.status == NOTIFICATION_DELIVERED, incoming_status in _DELIVERED_UPDATES),
         and_(Notification.status == NOTIFICATION_TEMPORARY_FAILURE, incoming_status in _TEMPORARY_FAILURE_UPDATES),
         and_(Notification.status == NOTIFICATION_PERMANENT_FAILURE, incoming_status in _PERMANENT_FAILURE_UPDATES),
-        and_(Notification.status == NOTIFICATION_TECHNICAL_FAILURE, incoming_status in _TECHNICAL_FAILURE_UPDATES),
-        and_(
-            Notification.status == NOTIFICATION_PREFERENCES_DECLINED, incoming_status in _PREFERENCES_DECLINED_UPDATES
-        ),
     )
 
 
@@ -830,11 +796,12 @@ def dao_delete_notification_by_id(notification_id):
 
 
 def _timeout_notifications(
-    current_statuses,
-    new_status,
-    timeout_start,
-    updated_at,
-):
+    current_statuses: str,
+    new_status: str,
+    timeout_start: datetime,
+    updated_at: datetime,
+    status_reason: str,
+) -> list[Notification] | None:
     stmt = select(Notification).where(
         Notification.created_at < timeout_start,
         Notification.status.in_(current_statuses),
@@ -849,7 +816,7 @@ def _timeout_notifications(
             Notification.status.in_(current_statuses),
             Notification.notification_type != LETTER_TYPE,
         )
-        .values({'status': new_status, 'updated_at': updated_at})
+        .values({'status': new_status, 'updated_at': updated_at, 'status_reason': status_reason})
     )
     db.session.execute(stmt, execution_options={'synchronize_session': False})
     return notifications
@@ -860,7 +827,7 @@ def dao_timeout_notifications(timeout_period_in_seconds):
     Timeout SMS and email notifications by the following rules:
 
     we never sent the notification to the provider for some reason
-        created -> technical-failure
+        created -> permanent-failure
 
     the notification was sent to the provider but there was not a delivery receipt
         sending -> temporary-failure
@@ -872,17 +839,23 @@ def dao_timeout_notifications(timeout_period_in_seconds):
     updated_at = datetime.utcnow()
     timeout = functools.partial(_timeout_notifications, timeout_start=timeout_start, updated_at=updated_at)
 
-    # Notifications still in created status are marked with a technical-failure:
-    technical_failure_notifications = timeout([NOTIFICATION_CREATED], NOTIFICATION_TECHNICAL_FAILURE)
+    # Notifications still in created status are marked with a permanent-failure:
+    unsent_failed_notifications = timeout(
+        current_statuses=[NOTIFICATION_CREATED],
+        new_status=NOTIFICATION_PERMANENT_FAILURE,
+        status_reason=STATUS_REASON_UNDELIVERABLE,
+    )
 
     # Notifications still in sending or pending status are marked with a temporary-failure:
     temporary_failure_notifications = timeout(
-        [NOTIFICATION_SENDING, NOTIFICATION_PENDING], NOTIFICATION_TEMPORARY_FAILURE
+        current_statuses=[NOTIFICATION_SENDING, NOTIFICATION_PENDING],
+        new_status=NOTIFICATION_TEMPORARY_FAILURE,
+        status_reason=STATUS_REASON_RETRYABLE,
     )
 
     db.session.commit()
 
-    return technical_failure_notifications, temporary_failure_notifications
+    return unsent_failed_notifications, temporary_failure_notifications
 
 
 def is_delivery_slow_for_provider(

@@ -22,8 +22,10 @@ from app.constants import (
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
     MMG_PROVIDER,
+    NOTIFICATION_CREATED,
     NOTIFICATION_SENDING,
     NOTIFICATION_DELIVERED,
+    NOTIFICATION_SENT,
     SERVICE_PERMISSION_TYPES,
     SES_PROVIDER,
     SMS_TYPE,
@@ -32,7 +34,7 @@ from app.dao import provider_details_dao, notifications_dao
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
 from app.delivery.send_to_providers import load_provider
-from app.exceptions import NotificationTechnicalFailureException, InvalidProviderException
+from app.exceptions import InactiveServiceException, InvalidProviderException
 from app.feature_flags import FeatureFlag
 from app.models import (
     EmailBranding,
@@ -109,7 +111,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
         template=template,
         to_field='+16502532222',
         personalisation={'name': 'Jo'},
-        status='created',
+        status=NOTIFICATION_CREATED,
         reply_to_text=service.get_default_sms_sender(),
         api_key=api_key,
     )
@@ -200,13 +202,13 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     stmt = select(Notification).where(Notification.id == db_notification.id)
     notification = notify_db_session.session.scalars(stmt).one()
 
-    assert notification.status == 'sending'
+    assert notification.status == NOTIFICATION_SENDING
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_email_client.get_name()
     assert notification.personalisation == {'name': 'Jo'}
 
 
-def test_should_not_send_email_message_when_service_is_inactive_notification_is_in_tech_failure(
+def test_should_not_send_email_message_when_service_is_inactive_notification_is_not_updated(
     notify_db_session,
     sample_api_key,
     sample_template,
@@ -218,15 +220,16 @@ def test_should_not_send_email_message_when_service_is_inactive_notification_is_
     api_key = sample_api_key(service=template.service)
     notification = sample_notification(template=template, api_key=api_key)
 
-    with pytest.raises(NotificationTechnicalFailureException) as e:
+    with pytest.raises(InactiveServiceException) as e:
         send_to_providers.send_email_to_provider(notification)
     assert str(notification.id) in str(e.value)
     mock_email_client.send_email.assert_not_called()
-    assert notify_db_session.session.get(Notification, notification.id).status == 'technical-failure'
+    # notification is not updated until the exception is caught by "deliver_email"
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_CREATED
 
 
 @pytest.mark.parametrize('client_send', ['app.aws_sns_client.send_sms', 'app.mmg_client.send_sms'])
-def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_tech_failure(
+def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_not_updated(
     notify_db_session,
     sample_api_key,
     sample_template,
@@ -240,11 +243,12 @@ def test_should_not_send_sms_message_when_service_is_inactive_notifcation_is_in_
     notification = sample_notification(template=template, api_key=api_key)
     send_mock = mocker.patch(client_send, return_value='reference')
 
-    with pytest.raises(NotificationTechnicalFailureException) as e:
+    with pytest.raises(InactiveServiceException) as e:
         send_to_providers.send_sms_to_provider(notification)
     assert str(notification.id) in str(e.value)
     send_mock.assert_not_called()
-    assert notify_db_session.session.get(Notification, notification.id).status == 'technical-failure'
+    # notification is not updated until the exception is caught by "deliver_sms" or "deliver_sms_with_rate_limiting"
+    assert notify_db_session.session.get(Notification, notification.id).status == NOTIFICATION_CREATED
 
 
 @pytest.mark.parametrize('prefix', [True, False])
@@ -265,7 +269,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     db_notification = sample_notification(
         template=template,
         to_field='+16502532222',
-        status='created',
+        status=NOTIFICATION_CREATED,
         reply_to_text=service.get_default_sms_sender(),
         api_key=sample_api_key(service=template.service),
     )
@@ -372,7 +376,7 @@ def test_should_not_send_to_provider_when_status_is_not_created(
 ):
     template = sample_template()
     api_key = sample_api_key(service=template.service)
-    notification = sample_notification(template=template, status='sending', api_key=api_key)
+    notification = sample_notification(template=template, status=NOTIFICATION_SENDING, api_key=api_key)
     mocker.patch('app.aws_sns_client.send_sms')
     response_mock = mocker.patch('app.delivery.send_to_providers.send_sms_response')
 
@@ -462,7 +466,7 @@ def test_send_email_to_provider_should_call_research_mode_task_response_task_if_
     persisted_notification = notify_db_session.session.get(Notification, notification.id)
     assert persisted_notification.to == f'{reference}john@smith.com'
     assert persisted_notification.template_id == template.id
-    assert persisted_notification.status == 'sending'
+    assert persisted_notification.status == NOTIFICATION_SENDING
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.created_at <= datetime.utcnow()
     assert persisted_notification.sent_by == mock_email_client.get_name()
@@ -478,7 +482,7 @@ def test_send_email_to_provider_should_not_send_to_provider_when_status_is_not_c
 ):
     template = sample_template(template_type=EMAIL_TYPE)
     api_key = sample_api_key(service=template.service)
-    notification = sample_notification(template=template, status='sending', api_key=api_key)
+    notification = sample_notification(template=template, status=NOTIFICATION_SENDING, api_key=api_key)
     mocker.patch('app.aws_ses_client.send_email')
     mocker.patch('app.delivery.send_to_providers.send_email_response')
 
@@ -684,7 +688,9 @@ def test_should_update_billable_units_and_status_according_to_research_mode_and_
 ):
     template = sample_template()
     api_key = sample_api_key(service=template.service, key_type=key_type)
-    notification = sample_notification(template=template, billable_units=0, status='created', api_key=api_key)
+    notification = sample_notification(
+        template=template, billable_units=0, status=NOTIFICATION_CREATED, api_key=api_key
+    )
     mocker.patch(
         'app.delivery.send_to_providers.send_sms_response',
         side_effect=__update_notification(notification, research_mode, expected_status),
@@ -745,7 +751,7 @@ def test_should_send_sms_to_international_providers(
         template=template,
         to_field='+16135555555',
         personalisation={'name': 'Jo'},
-        status='created',
+        status=NOTIFICATION_CREATED,
         international=False,
         reply_to_text=service.get_default_sms_sender(),
         api_key=api_key,
@@ -755,7 +761,7 @@ def test_should_send_sms_to_international_providers(
         template=template,
         to_field='+1613555555',
         personalisation={'name': 'Jo'},
-        status='created',
+        status=NOTIFICATION_CREATED,
         international=False,
         reply_to_text=service.get_default_sms_sender(),
         api_key=api_key,
@@ -787,10 +793,10 @@ def test_should_send_sms_to_international_providers(
     notification = notify_db_session.session.get(Notification, db_notification.id)
     notification_int = notify_db_session.session.get(Notification, db_notification_int.id)
 
-    assert notification.status == 'sending'
-    assert notification.sent_by == 'firetext'
-    assert notification_int.status == 'sent'
-    assert notification_int.sent_by == 'mmg'
+    assert notification.status == NOTIFICATION_SENDING
+    assert notification.sent_by == FIRETEXT_PROVIDER
+    assert notification_int.status == NOTIFICATION_SENT
+    assert notification_int.sent_by == MMG_PROVIDER
 
 
 @pytest.mark.parametrize(
@@ -948,7 +954,7 @@ def test_notification_document_with_pdf_attachment(
     _, kwargs = mock_email_client.send_email.call_args
     assert kwargs['attachments'] == attachments
 
-    assert notify_db_session.session.get(Notification, db_notification.id).status == 'sending'
+    assert notify_db_session.session.get(Notification, db_notification.id).status == NOTIFICATION_SENDING
 
 
 def test_notification_passes_if_message_contains_phone_number(
@@ -976,7 +982,7 @@ def test_notification_passes_if_message_contains_phone_number(
 
     mock_email_client.send_email.assert_called()
 
-    assert notify_db_session.session.get(Notification, db_notification.id).status == 'sending'
+    assert notify_db_session.session.get(Notification, db_notification.id).status == NOTIFICATION_SENDING
 
 
 def test_load_provider_throws_exception_if_provider_is_inactive(

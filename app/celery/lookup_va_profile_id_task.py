@@ -2,7 +2,7 @@ from celery import Task
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
-from app.constants import NOTIFICATION_TECHNICAL_FAILURE, NOTIFICATION_PERMANENT_FAILURE
+from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import RecipientIdentifier
 from app import notify_celery
@@ -78,7 +78,7 @@ def lookup_va_profile_id(
         )
         current_app.logger.warning(message)
         notifications_dao.update_notification_status_by_id(
-            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.status_reason
         )
         check_and_queue_callback_task(notification)
         # Expected chain termination
@@ -86,12 +86,11 @@ def lookup_va_profile_id(
     except Exception as e:
         message = (
             f'Failed to retrieve VA Profile ID from MPI for notification: {notification_id} '
-            'Notification has been updated to technical-failure'
+            'Notification has been updated to permanent-failure'
         )
         current_app.logger.exception(message)
-        status_reason = e.failure_reason if hasattr(e, 'failure_reason') else 'Unknown error from MPI'
         notifications_dao.update_notification_status_by_id(
-            notification_id, NOTIFICATION_TECHNICAL_FAILURE, status_reason=status_reason
+            notification_id, NOTIFICATION_PERMANENT_FAILURE, status_reason=STATUS_REASON_NO_ID_FOUND
         )
         check_and_queue_callback_task(notification)
         raise NotificationTechnicalFailureException(message) from e

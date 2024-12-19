@@ -24,3 +24,7 @@ class MalwarePendingException(Exception):
 
 class InvalidProviderException(Exception):
     pass
+
+
+class InactiveServiceException(Exception):
+    pass

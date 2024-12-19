@@ -7,37 +7,38 @@ import pytest
 
 from app.celery.exceptions import NonRetryableException
 from app.celery.process_pinpoint_receipt_tasks import process_pinpoint_results
-from app.clients.sms import OPT_OUT_MESSAGE, UNABLE_TO_TRANSLATE
+from app.clients.sms import UNABLE_TO_TRANSLATE
 from app.constants import (
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
     PINPOINT_PROVIDER,
+    STATUS_REASON_BLOCKED,
+    STATUS_REASON_RETRYABLE,
+    STATUS_REASON_UNDELIVERABLE,
 )
 from app.dao import notifications_dao
 
 
 @pytest.mark.parametrize(
-    'event_type, record_status, expected_notification_status',
+    'event_type, record_status, expected_notification_status, expected_notification_status_reason',
     [
-        ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_DELIVERED),
-        ('_SMS.SUCCESS', 'DELIVERED', NOTIFICATION_DELIVERED),
-        ('_SMS.FAILURE', 'INVALID', NOTIFICATION_TECHNICAL_FAILURE),
-        ('_SMS.FAILURE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE),
-        ('_SMS.FAILURE', 'UNKNOWN', NOTIFICATION_TEMPORARY_FAILURE),
-        ('_SMS.FAILURE', 'BLOCKED', NOTIFICATION_PERMANENT_FAILURE),
-        ('_SMS.FAILURE', 'CARRIER_UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE),
-        ('_SMS.FAILURE', 'SPAM', NOTIFICATION_PERMANENT_FAILURE),
-        ('_SMS.FAILURE', 'INVALID_MESSAGE', NOTIFICATION_TECHNICAL_FAILURE),
-        ('_SMS.FAILURE', 'CARRIER_BLOCKED', NOTIFICATION_PERMANENT_FAILURE),
-        ('_SMS.FAILURE', 'TTL_EXPIRED', NOTIFICATION_TEMPORARY_FAILURE),
-        ('_SMS.FAILURE', 'MAX_PRICE_EXCEEDED', NOTIFICATION_TECHNICAL_FAILURE),
-        ('_SMS.FAILURE', 'OPTED_OUT', NOTIFICATION_PREFERENCES_DECLINED),
-        ('_SMS.OPTOUT', '', NOTIFICATION_PREFERENCES_DECLINED),
+        ('_SMS.BUFFERED', 'SUCCESSFUL', NOTIFICATION_DELIVERED, None),
+        ('_SMS.SUCCESS', 'DELIVERED', NOTIFICATION_DELIVERED, None),
+        ('_SMS.FAILURE', 'INVALID', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        ('_SMS.FAILURE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('_SMS.FAILURE', 'UNKNOWN', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('_SMS.FAILURE', 'BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('_SMS.FAILURE', 'CARRIER_UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('_SMS.FAILURE', 'SPAM', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('_SMS.FAILURE', 'INVALID_MESSAGE', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        ('_SMS.FAILURE', 'CARRIER_BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('_SMS.FAILURE', 'TTL_EXPIRED', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('_SMS.FAILURE', 'MAX_PRICE_EXCEEDED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        ('_SMS.FAILURE', 'OPTED_OUT', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('_SMS.OPTOUT', '', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
     ],
 )
 def test_process_pinpoint_results_notification_final_status(
@@ -46,6 +47,7 @@ def test_process_pinpoint_results_notification_final_status(
     event_type,
     record_status,
     expected_notification_status,
+    expected_notification_status_reason,
     sample_notification,
 ):
     """
@@ -77,8 +79,8 @@ def test_process_pinpoint_results_notification_final_status(
     notification = notifications_dao.dao_get_notification_by_reference(test_reference)
     assert notification.status == expected_notification_status
 
-    if expected_notification_status == NOTIFICATION_PREFERENCES_DECLINED:
-        assert notification.status_reason == OPT_OUT_MESSAGE
+    if expected_notification_status == NOTIFICATION_PERMANENT_FAILURE:
+        assert notification.status_reason == expected_notification_status_reason
     elif expected_notification_status == NOTIFICATION_DELIVERED:
         assert notification.status_reason is None
 
@@ -112,7 +114,7 @@ def test_process_pinpoint_results_should_not_update_notification_status_if_uncha
 
 
 @pytest.mark.parametrize(
-    'status', [NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TECHNICAL_FAILURE]
+    'status', [NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_PERMANENT_FAILURE]
 )
 def test_process_pinpoint_results_should_not_update_notification_status_to_sending_if_status_already_final(
     mocker,
@@ -144,10 +146,8 @@ def test_process_pinpoint_results_should_not_update_notification_status_to_sendi
     [
         NOTIFICATION_CREATED,
         NOTIFICATION_SENDING,
-        NOTIFICATION_TECHNICAL_FAILURE,
         NOTIFICATION_TEMPORARY_FAILURE,
         NOTIFICATION_PERMANENT_FAILURE,
-        NOTIFICATION_PREFERENCES_DECLINED,
     ],
 )
 def test_process_pinpoint_results_delivered_clears_status_reason(

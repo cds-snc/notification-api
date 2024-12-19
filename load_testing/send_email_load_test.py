@@ -120,7 +120,7 @@ class SendEmail(HttpUser):
                     self.report_status(start_time=start_time, response=notification_creation_response)
                     return
 
-                elif notification_status in ['technical-failure', 'permanent-failure']:
+                elif notification_status in ['permanent-failure']:
                     self.report_status(
                         start_time=start_time,
                         response=notification_creation_response,

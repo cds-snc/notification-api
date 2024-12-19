@@ -11,10 +11,8 @@ from app.constants import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
 )
 
 
@@ -25,10 +23,8 @@ from app.constants import (
         (NOTIFICATION_SENDING, True),
         (NOTIFICATION_SENT, False),
         (NOTIFICATION_DELIVERED, False),
-        (NOTIFICATION_TECHNICAL_FAILURE, False),
         (NOTIFICATION_TEMPORARY_FAILURE, False),
         (NOTIFICATION_PERMANENT_FAILURE, False),
-        (NOTIFICATION_PREFERENCES_DECLINED, False),
     ],
 )
 def test_get_notifications_statuses(sample_notification, status, expected):

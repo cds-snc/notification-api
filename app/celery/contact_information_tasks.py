@@ -10,9 +10,9 @@ from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.constants import (
     NOTIFICATION_PERMANENT_FAILURE,
-    NOTIFICATION_PREFERENCES_DECLINED,
     EMAIL_TYPE,
     SMS_TYPE,
+    STATUS_REASON_DECLINED,
 )
 from app.dao.notifications_dao import (
     get_notification_by_id,
@@ -142,9 +142,7 @@ def handle_lookup_contact_info_exception(
         )
         current_app.logger.info('%s - %s:  %s', e.__class__.__name__, str(e), message)
 
-        update_notification_status_by_id(
-            notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
-        )
+        update_notification_status_by_id(notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.status_reason)
         check_and_queue_callback_task(notification)
         # Expected chain termination
         lookup_task.request.chain = None
@@ -154,9 +152,7 @@ def handle_lookup_contact_info_exception(
             'Notification has been updated to permanent-failure'
         )
         current_app.logger.info(message)
-        update_notification_status_by_id(
-            notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.failure_reason
-        )
+        update_notification_status_by_id(notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=e.status_reason)
         check_and_queue_callback_task(notification)
         # Expected chain termination
         lookup_task.request.chain = None
@@ -168,9 +164,9 @@ def handle_lookup_contact_info_exception(
         )
         if not notification.default_send:
             update_notification_status_by_id(
-                notification_id=notification.id,
-                status=NOTIFICATION_PERMANENT_FAILURE,
-                status_reason='No recipient opt-in found for explicit preference',
+                notification.id,
+                NOTIFICATION_PERMANENT_FAILURE,
+                status_reason=e.status_reason,
             )
             check_and_queue_callback_task(notification)
             # Expected chain termination
@@ -206,8 +202,10 @@ def handle_communication_not_allowed(
         recipient_identifier.id_value,
         notification.id,
     )
-    reason = permission_message if permission_message is not None else 'Contact preferences set to false'
-    update_notification_status_by_id(notification.id, NOTIFICATION_PREFERENCES_DECLINED, status_reason=reason)
+
+    update_notification_status_by_id(
+        notification.id, NOTIFICATION_PERMANENT_FAILURE, status_reason=STATUS_REASON_DECLINED
+    )
 
     message = f'The recipient for notification {notification.id} has declined permission to receive notifications.'
     current_app.logger.info(message)

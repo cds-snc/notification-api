@@ -29,6 +29,8 @@ from app.constants import (
     NOTIFICATION_PENDING,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
+    STATUS_REASON_RETRYABLE,
+    STATUS_REASON_UNDELIVERABLE,
 )
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
@@ -212,9 +214,11 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
         if notification_status in (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
             # Add the failure status reason to the notification.
             if notification_status == NOTIFICATION_PERMANENT_FAILURE:
-                status_reason = 'Failed to deliver email due to hard bounce'
+                failure_reason = 'Failed to deliver email due to hard bounce'
+                status_reason = STATUS_REASON_UNDELIVERABLE
             else:
-                status_reason = 'Temporarily failed to deliver email due to soft bounce'
+                failure_reason = 'Temporarily failed to deliver email due to soft bounce'
+                status_reason = STATUS_REASON_RETRYABLE
 
             notification.status_reason = status_reason
             notification.status = notification_status
@@ -222,7 +226,7 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
             current_app.logger.warning(
                 '%s - %s - in process_ses_results for notification %s',
                 notification_status,
-                status_reason,
+                failure_reason,
                 notification.id,
             )
 

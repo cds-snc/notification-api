@@ -10,7 +10,6 @@ from app.constants import (
     NOTIFICATION_CREATED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
-    NOTIFICATION_TECHNICAL_FAILURE,
     SMS_TYPE,
 )
 from app.dao.dao_utils import get_reader_session
@@ -119,7 +118,7 @@ def v3_process_notification(  # noqa: C901
     if notification.to is None:
         # Launch a new task to get the contact information from VA Profile using the recipient ID.
         # TODO 1593
-        notification.status = NOTIFICATION_TECHNICAL_FAILURE
+        notification.status = NOTIFICATION_PERMANENT_FAILURE
         notification.status_reason = 'Sending with recipient_identifer is not yet implemented.'
         err = 'notification.to is None. Sending with recipient_identifer is not yet implemented.'
         v3_persist_failed_notification(notification, err)
@@ -131,7 +130,7 @@ def v3_process_notification(  # noqa: C901
         if notification.sms_sender_id is None:
             err, sms_sender_id = get_default_sms_sender_id(service_id)
             if err is not None:
-                notification.status = NOTIFICATION_TECHNICAL_FAILURE
+                notification.status = NOTIFICATION_PERMANENT_FAILURE
                 notification.status_reason = err
                 v3_persist_failed_notification(notification, err)
                 return
@@ -181,7 +180,7 @@ def v3_send_email_notification(
     # TODO 1505 - Determine the provider.  For now, assume SES.
     client = clients.get_email_client('ses')
     if client is None:
-        notification.status = NOTIFICATION_TECHNICAL_FAILURE
+        notification.status = NOTIFICATION_PERMANENT_FAILURE
         notification.status_reason = "Couldn't get the provider client."
         v3_persist_failed_notification(notification, "Couldn't get the provider client while trying to send email.")
         return
@@ -253,7 +252,7 @@ def v3_send_sms_notification(
     # TODO 1505 - Determine the provider.  For now, assume Pinpoint.
     client = clients.get_sms_client('pinpoint')
     if client is None:
-        notification.status = NOTIFICATION_TECHNICAL_FAILURE
+        notification.status = NOTIFICATION_PERMANENT_FAILURE
         notification.status_reason = "Couldn't get the provider client."
         v3_persist_failed_notification(
             notification, "Client is None. Couldn't get the provider client while sending sms."

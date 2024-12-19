@@ -1,7 +1,8 @@
 from enum import Enum
 
+from app.constants import STATUS_REASON_NO_PROFILE
 
-# TODO: Refactor this file to have actual classes that contain suffix, oid properties etc instead of all these dicts
+
 class IdentifierType(Enum):
     VA_PROFILE_ID = 'VAPROFILEID'
     PID = 'PID'
@@ -37,6 +38,7 @@ OIDS = {
 
 class UnsupportedIdentifierException(Exception):
     failure_reason = 'Unsupported identifier'
+    status_reason = STATUS_REASON_NO_PROFILE
 
 
 def transform_to_fhir_format(recipient_identifier):
