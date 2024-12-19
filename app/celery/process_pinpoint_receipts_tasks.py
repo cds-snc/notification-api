@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Union
 
 from flask import current_app, json
@@ -120,7 +120,7 @@ def process_pinpoint_results(self, response):
             if not annual_limit_client.was_seeded_today(service_id):
                 annual_limit_client.set_seeded_at(service_id)
                 notifications_to_seed = fetch_notification_status_for_service_for_day(
-                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    datetime.now(timezone.utc),
                     service_id=service_id,
                 )
                 annual_limit_client.seed_annual_limit_notifications(
