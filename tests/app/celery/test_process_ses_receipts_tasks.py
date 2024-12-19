@@ -21,6 +21,7 @@ from app.constants import (
     NOTIFICATION_TEMPORARY_FAILURE,
     STATUS_REASON_RETRYABLE,
     STATUS_REASON_UNDELIVERABLE,
+    STATUS_REASON_UNREACHABLE,
 )
 from app.dao.notifications_dao import get_notification_by_id
 from app.models import Complaint, Notification, Service, Template
@@ -454,7 +455,7 @@ def test_ses_callback_should_set_status_to_permanent_failure(
     assert process_ses_receipts_tasks.process_ses_results(ses_hard_bounce_callback(reference=ref)) is None
     db_notification = notify_db_session.session.get(Notification, notification_id)
     assert db_notification.status == NOTIFICATION_PERMANENT_FAILURE
-    assert db_notification.status_reason == STATUS_REASON_UNDELIVERABLE
+    assert db_notification.status_reason == STATUS_REASON_UNREACHABLE
     assert send_mock.called
 
 
@@ -618,12 +619,19 @@ def get_complaint_notification_and_email(mocker):
     return complaint, notification, recipient_email
 
 
-@pytest.mark.parametrize('status', (NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE))
+@pytest.mark.parametrize(
+    'status, status_reason',
+    (
+        (NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNREACHABLE),
+        (NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+    ),
+)
 def test_process_ses_results_no_bounce_regression(
     notify_db_session,
     sample_template,
     sample_notification,
     status,
+    status_reason,
 ):
     """
     If a bounce status has been persisted for a notificaiton, no further status updates should occur.
@@ -633,7 +641,7 @@ def test_process_ses_results_no_bounce_regression(
     notification = sample_notification(
         template=sample_template(template_type=EMAIL_TYPE),
         status=status,
-        status_reason='bounce',
+        status_reason=status_reason,
         reference=str(uuid4()),
     )
 
@@ -644,4 +652,4 @@ def test_process_ses_results_no_bounce_regression(
 
     notify_db_session.session.refresh(notification)
     assert notification.status == status, 'The status should not have changed.'
-    assert notification.status_reason == 'bounce'
+    assert notification.status_reason == status_reason

@@ -10,29 +10,31 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 
+from app.constants import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, NOTIFICATION_TEMPORARY_FAILURE
+
 ses_response_map = {
     'Permanent': {
         'message': 'Hard bounced',
         'success': False,
-        'notification_status': 'permanent-failure',
+        'notification_status': NOTIFICATION_PERMANENT_FAILURE,
         'notification_statistics_status': STATISTICS_FAILURE,
     },
     'Temporary': {
         'message': 'Soft bounced',
         'success': False,
-        'notification_status': 'temporary-failure',
+        'notification_status': NOTIFICATION_TEMPORARY_FAILURE,
         'notification_statistics_status': STATISTICS_FAILURE,
     },
     'Delivery': {
         'message': 'Delivered',
         'success': True,
-        'notification_status': 'delivered',
+        'notification_status': NOTIFICATION_DELIVERED,
         'notification_statistics_status': STATISTICS_DELIVERED,
     },
     'Complaint': {
         'message': 'Complaint',
         'success': True,
-        'notification_status': 'delivered',
+        'notification_status': NOTIFICATION_DELIVERED,
         'notification_statistics_status': STATISTICS_DELIVERED,
     },
 }

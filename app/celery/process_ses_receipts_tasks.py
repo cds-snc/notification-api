@@ -30,7 +30,7 @@ from app.constants import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     STATUS_REASON_RETRYABLE,
-    STATUS_REASON_UNDELIVERABLE,
+    STATUS_REASON_UNREACHABLE,
 )
 from app.clients.email.aws_ses import get_aws_responses
 from app.dao import notifications_dao, services_dao, templates_dao
@@ -177,7 +177,7 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
         aws_response_dict = get_aws_responses(notification_type)
 
         # This is the prospective, updated status.
-        notification_status = aws_response_dict['notification_status']
+        incoming_status = aws_response_dict['notification_status']
         reference = ses_message['mail']['messageId']
 
         try:
@@ -188,44 +188,39 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
                 self.retry(queue=QueueNames.RETRY)
             else:
                 current_app.logger.warning(
-                    'notification not found for reference: %s (update to %s)', reference, notification_status
+                    'notification not found for reference: %s (update to %s)', reference, incoming_status
                 )
             return
 
         # Prevent regressing bounce status.  Note that this is a test of the existing status; not the new status.
-        if (
-            notification.status_reason
-            and 'bounce' in notification.status_reason
-            and notification.status
-            in {
-                NOTIFICATION_TEMPORARY_FAILURE,
-                NOTIFICATION_PERMANENT_FAILURE,
-            }
-        ):
+        if notification.status_reason and notification.status in {
+            NOTIFICATION_TEMPORARY_FAILURE,
+            NOTIFICATION_PERMANENT_FAILURE,
+        }:
             # async from AWS means we may get a delivered status after a bounce, in rare cases
             current_app.logger.warning(
                 'Notification: %s was marked as a bounce, cannot be updated to: %s',
                 notification.id,
-                notification_status,
+                incoming_status,
             )
             return
 
         # This is a test of the new status.  Is it a bounce?
-        if notification_status in (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
+        if incoming_status in (NOTIFICATION_TEMPORARY_FAILURE, NOTIFICATION_PERMANENT_FAILURE):
             # Add the failure status reason to the notification.
-            if notification_status == NOTIFICATION_PERMANENT_FAILURE:
+            if incoming_status == NOTIFICATION_PERMANENT_FAILURE:
                 failure_reason = 'Failed to deliver email due to hard bounce'
-                status_reason = STATUS_REASON_UNDELIVERABLE
+                status_reason = STATUS_REASON_UNREACHABLE
             else:
                 failure_reason = 'Temporarily failed to deliver email due to soft bounce'
                 status_reason = STATUS_REASON_RETRYABLE
 
             notification.status_reason = status_reason
-            notification.status = notification_status
+            notification.status = incoming_status
 
             current_app.logger.warning(
                 '%s - %s - in process_ses_results for notification %s',
-                notification_status,
+                incoming_status,
                 failure_reason,
                 notification.id,
             )
@@ -235,15 +230,15 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
             check_and_queue_va_profile_notification_status_callback(notification)
 
             return
-        elif notification_status == NOTIFICATION_DELIVERED:
+        elif incoming_status == NOTIFICATION_DELIVERED:
             # Delivered messages should never have a status reason.
             notification.status_reason = None
 
         if notification.status not in (NOTIFICATION_SENDING, NOTIFICATION_PENDING):
-            notifications_dao.duplicate_update_warning(notification, notification_status)
+            notifications_dao.duplicate_update_warning(notification, incoming_status)
             return
 
-        notifications_dao._update_notification_status(notification=notification, status=notification_status)
+        notifications_dao._update_notification_status(notification=notification, status=incoming_status)
 
         if not aws_response_dict['success']:
             current_app.logger.info(
@@ -255,14 +250,14 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
         else:
             current_app.logger.info(
                 'SES callback return status of %s for notification: %s',
-                notification_status,
+                incoming_status,
                 notification.id,
             )
 
         log_notification_total_time(
             notification.id,
             notification.created_at,
-            notification_status,
+            incoming_status,
             'ses',
         )
 
