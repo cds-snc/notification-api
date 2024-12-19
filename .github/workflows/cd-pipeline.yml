@@ -109,6 +109,7 @@ jobs:
       draftReleaseReference: ${{ needs.create-release-notes.outputs.draftReleaseReference }}
 
   deploy-to-prod:
+    if: vars.CODE_FREEZE == 'false'
     needs: [publish-release-notes, create-and-post-tag]
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
