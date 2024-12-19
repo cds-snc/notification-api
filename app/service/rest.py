@@ -652,8 +652,10 @@ def get_monthly_notification_stats(service_id):
     statistics.add_monthly_notification_status_stats(data, stats)
 
     now = datetime.now(timezone.utc)
+    # end_date doesn't have tzinfo, so we need to remove it from now
+    end_date_now = now.replace(tzinfo=None)
     # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
         todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
