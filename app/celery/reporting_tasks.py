@@ -92,7 +92,7 @@ def create_nightly_notification_status_for_day(process_day):
     """
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
     service_ids = [x.id for x in Service.query.all()]
-    chunk_size = 20
+    chunk_size = 10
     iter_service_ids = iter(service_ids)
 
     while True:
