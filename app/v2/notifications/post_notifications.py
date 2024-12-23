@@ -429,6 +429,11 @@ def process_sms_or_email_notification(
         service=service,
         notification_type=notification_type,
     )
+    caller_payload = {
+        "template_id": template.id,
+        "email_address" if notification_type == EMAIL_TYPE else "phone_number": form_send_to,
+        "personalisation": form.get("personalisation"),
+    }
 
     # Do not persist or send notification to the queue if it is a simulated recipient
     simulated = simulated_recipient(send_to, notification_type)
@@ -449,7 +454,7 @@ def process_sms_or_email_notification(
         "reply_to_text": reply_to_text,
     }
 
-    validate_notification_does_not_exceed_sqs_limit(_notification)
+    validate_notification_does_not_exceed_sqs_limit(_notification, caller_payload)
 
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}

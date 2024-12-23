@@ -719,7 +719,7 @@ def test_validate_notification_does_not_exceed_sqs_limit_exceeds_limit(mocker):
     logger = mocker.patch("app.notifications.validators.current_app.logger.debug")
 
     with pytest.raises(BadRequestError) as e:
-        validate_notification_does_not_exceed_sqs_limit(notification)
+        validate_notification_does_not_exceed_sqs_limit(notification, notification)
 
     # We flatten the dict here so the key is composite
     assert e.value.message == "Notification size cannot exceed 256Kb. Consider reducing the size of: payload.key2."
@@ -738,7 +738,7 @@ def test_validate_notification_does_not_exceed_sqs_limit_within_limit(mocker):
             "key3": "value3",
         },
     }
-    assert validate_notification_does_not_exceed_sqs_limit(notification) is None
+    assert validate_notification_does_not_exceed_sqs_limit(notification, notification) is None
 
 
 class TestAnnualLimitValidators:
