@@ -43,8 +43,8 @@ def upgrade():
         to_char(datum, 'iyyy/IW') AS year_calendar_week,
         (SELECT CASE WHEN (extract(month from datum) <= 3) THEN (extract(year FROM datum) -1)
         ELSE (extract(year FROM datum)) end),
-        (datum + TIME '00:00:00') at Time zone 'America/Toronto' at TIME zone 'utc' as utc_daytime_start,	-- convert bst time to utc time
-        (datum + TIME '24:00:00') at Time zone 'America/Toronto' at TIME zone 'utc' as utc_daytime_end
+        (datum + TIME '00:00:00') at Time zone 'America/New_York' at TIME zone 'utc' as utc_daytime_start,	-- convert bst time to utc time
+        (datum + TIME '24:00:00') at Time zone 'America/New_York' at TIME zone 'utc' as utc_daytime_end
         FROM (
         -- There are 10 leap years in this range, so calculate 365 * 50 + 5 records
         SELECT '2015-01-01'::date + SEQUENCE.DAY AS datum

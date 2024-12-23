@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from app.constants import EMAIL_TYPE, LETTER_TYPE, PRECOMPILED_LETTER, PUSH_TYPE, SMS_TYPE, UPLOAD_DOCUMENT
 
-local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/Toronto'))
+local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/New_York'))
 
 
 def pagination_links(
@@ -95,12 +95,12 @@ def get_local_timezone_month_from_utc_column(column):
     the month in BST (British Summer Time).
     The database stores all timestamps as UTC without the timezone.
      - First set the timezone on created_at to UTC
-     - then convert the timezone to BST (or America/Toronto)
+     - then convert the timezone to BST (or America/New_York)
      - lastly truncate the datetime to month with which we can group
        queries
     """
     return func.date_trunc(
-        'month', func.timezone(os.getenv('TIMEZONE', 'America/Toronto'), func.timezone('UTC', column))
+        'month', func.timezone(os.getenv('TIMEZONE', 'America/New_York'), func.timezone('UTC', column))
     )
 
 

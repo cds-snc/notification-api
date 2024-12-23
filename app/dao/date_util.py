@@ -42,7 +42,7 @@ def get_april_fools(year):
     :return: the datetime of April 1 for the given year, for example 2016 = 2016-03-31 23:00:00
     """
     return (
-        pytz.timezone(os.getenv('TIMEZONE', 'America/Toronto'))
+        pytz.timezone(os.getenv('TIMEZONE', 'America/New_York'))
         .localize(datetime(year, 4, 1, 0, 0, 0))
         .astimezone(pytz.UTC)
         .replace(tzinfo=None)

@@ -350,7 +350,7 @@ def migrate_data_to_ft_billing(
                 from (
                     select
                         n.id,
-                        (n.created_at at time zone 'UTC' at time zone 'America/Toronto')::timestamp::date as bst_date,
+                        (n.created_at at time zone 'UTC' at time zone 'America/New_York')::timestamp::date as bst_date,
                         coalesce(n.template_id, '00000000-0000-0000-0000-000000000000') as template_id,
                         coalesce(n.service_id, '00000000-0000-0000-0000-000000000000') as service_id,
                         n.notification_type,
@@ -382,9 +382,9 @@ def migrate_data_to_ft_billing(
                     where n.key_type!='test'
                     and n.notification_status in
                     ('sending', 'sent', 'delivered', 'temporary-failure', 'permanent-failure', 'failed')
-                    and n.created_at >= (date :start + time '00:00:00') at time zone 'America/Toronto'
+                    and n.created_at >= (date :start + time '00:00:00') at time zone 'America/New_York'
                     at time zone 'UTC'
-                    and n.created_at < (date :end + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'
+                    and n.created_at < (date :end + time '00:00:00') at time zone 'America/New_York' at time zone 'UTC'
                     ) as individual_record
                 group by bst_date, template_id, service_id, notification_type, provider, rate_multiplier, international,
                     sms_rate, letter_rate, postage, created_at
@@ -477,7 +477,7 @@ def migrate_data_to_ft_notification_status(
             insert into ft_notification_status (bst_date, template_id, service_id, job_id, notification_type, key_type,
                 notification_status, created_at, notification_count)
                 select
-                    (n.created_at at time zone 'UTC' at time zone 'America/Toronto')::timestamp::date as bst_date,
+                    (n.created_at at time zone 'UTC' at time zone 'America/New_York')::timestamp::date as bst_date,
                     coalesce(n.template_id, '00000000-0000-0000-0000-000000000000') as template_id,
                     n.service_id,
                     coalesce(n.job_id, '00000000-0000-0000-0000-000000000000') as job_id,
@@ -487,8 +487,8 @@ def migrate_data_to_ft_notification_status(
                     now() as created_at,
                     count(*) as notification_count
                 from notification_history n
-                where n.created_at >= (date :start + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'
-                    and n.created_at < (date :end + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'
+                where n.created_at >= (date :start + time '00:00:00') at time zone 'America/New_York' at time zone 'UTC'
+                    and n.created_at < (date :end + time '00:00:00') at time zone 'America/New_York' at time zone 'UTC'
                 group by bst_date, template_id, service_id, job_id, notification_type, key_type, notification_status
                 order by bst_date
             """
@@ -626,9 +626,9 @@ def update_jobs_archived_flag(
         sql = """update
                     jobs set archived = true
                 where
-                    created_at >= (date :start + time '00:00:00') at time zone 'America/Toronto'
+                    created_at >= (date :start + time '00:00:00') at time zone 'America/New_York'
                     at time zone 'UTC'
-                    and created_at < (date :end + time '00:00:00') at time zone 'America/Toronto' at time zone 'UTC'"""
+                    and created_at < (date :end + time '00:00:00') at time zone 'America/New_York' at time zone 'UTC'"""
 
         result = db.session.execute(sql, {'start': process_date, 'end': process_date + timedelta(days=1)})
         db.session.commit()
