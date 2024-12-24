@@ -16,7 +16,6 @@ We wish to keep dependencies up to date so that we do not need such massive over
 - Troubleshooting tips:
   - When looking at changes in `poetry.lock`, revert major changes, then minor, then patch/security: **never** edit this file manually!
 
-
 ## Engineering Checklist
 
 - [ ] Review "Tech Debt" tickets in backlog to identify packages already known to have breaking changes (**don't try to upgrade these**) 
@@ -30,6 +29,7 @@ We wish to keep dependencies up to date so that we do not need such massive over
   - [ ] Identify the discrepancies and lock those versions in `pyproject.toml`, create a ticket, and label it "tech debt"
   - [ ] Any non-top level dependencies that have to be locked should have a comment added to `pyproject.toml` and have a checkbox to remove that dependency from `pyproject.toml` in the acceptance criteria
   - [ ] Created ticket has the package name in the title
+- [ ] Update dependencies in any "requirements" files still in the repository (ex. requirements.txt, requirements_cli.txt, etc.)
 
 ## Acceptance Criteria
 
