@@ -1,0 +1,23 @@
+name: Cleanup AWS ECS Task Definitions
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # weekly -- Sunday at 00:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Perform a dry run without deregistering task definitions'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  cleanup-task-definitions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: echo hello
+        run: echo hello
