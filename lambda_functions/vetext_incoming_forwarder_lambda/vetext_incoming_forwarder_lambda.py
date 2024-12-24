@@ -22,7 +22,7 @@ try:
     logger.setLevel(LOG_LEVEL)
 except ValueError:
     logger.setLevel('INFO')
-    logger.warning('Invalid log level specified, defaulting to INFO')
+    logger.exception('Invalid log level specified.  Defaulting to INFO.')
 
 # http timeout for calling vetext endpoint
 HTTPTIMEOUT = (3.05, 1)
@@ -60,9 +60,9 @@ def get_ssm_params(params):
                 WithDecryption=True,
             )
             params_value = response['Parameter']['Value']
-    except Exception as exc:
-        logger.error('Failed to get parameter value for: %s - encountered: %s', params, exc)
-        sys.exit('Unable to retrieve parameter store value, exiting')
+    except Exception:
+        logger.exception('Failed to get the value for parameter %s.', params)
+        sys.exit('Unable to retrieve parameter store value.  Exiting.')
 
     return params_value
 
@@ -79,8 +79,8 @@ def get_twilio_tokens():
 
         return get_ssm_params([TWILIO_AUTH_TOKEN_SSM_NAME, TWILIO_PH_AUTH_TOKEN_SSM_NAME])
     except Exception:
-        logger.error('Failed to retrieve required paramaters from SSM')
-        sys.exit('Unable to retrieve required auth token(s), exiting')
+        logger.exception('Failed to retrieve required paramaters from SSM.')
+        sys.exit('Unable to retrieve required auth token(s).  Exiting.')
 
 
 def get_encryption() -> MultiFernet:
@@ -93,8 +93,8 @@ def get_encryption() -> MultiFernet:
         key_list = encryption_log_key_str.replace(' ', '').split(',')
         # MultiFernet uses the first key, then tries subsequent, allows for rotation
         multifernet = MultiFernet([Fernet(key.encode()) for key in key_list])
-    except Exception as exc:
-        logger.error('Failed to set encryption key for failed validation logging: %s', exc)
+    except Exception:
+        logger.exception('Failed to set encryption key for failed validation logging.')
         sys.exit('Unable to retrieve/set required encryption keys, exiting')
 
     return multifernet
@@ -116,7 +116,7 @@ def validate_twilio_event(event: dict) -> bool:
     try:
         signature = event['headers'].get('x-twilio-signature', '')
         if not auth_tokens or not signature:
-            logger.error('Twilio auth token(s) or signature not set')
+            logger.error('Twilio auth token(s) or signature not set.')
             return False
         validators = [RequestValidator(auth_token) for auth_token in auth_tokens]
         uri = f"https://{event['headers']['host']}/vanotify{event['path']}"
@@ -125,8 +125,8 @@ def validate_twilio_event(event: dict) -> bool:
         params = parse_qs(decoded, keep_blank_values=True)
         params = {k: v[0] for k, v in params.items()}
         return any([validator.validate(uri=uri, params=params, signature=signature) for validator in validators])
-    except Exception as e:
-        logger.error('Error validating request origin: %s', e)
+    except Exception:
+        logger.exception('Error validating the request origin.')
         return False
 
 
@@ -157,8 +157,8 @@ def vetext_incoming_forwarder_lambda_handler(
                         encryption.encrypt(json.dumps(event).encode()).decode(),
                     )
                 except Exception:
-                    # In the event encryption or the dump fails, still log the event
-                    logger.error(
+                    # In the event encryption or the dump fails, still log the event.
+                    logger.exception(
                         'Returning 403 on unauthenticated Twilio request for event: %s - Unable to encrypt/json dump',
                         event,
                     )
@@ -193,8 +193,8 @@ def vetext_incoming_forwarder_lambda_handler(
                 push_to_retry_sqs(event_body)
 
         return create_twilio_response()
-    except Exception as e:
-        logger.error('Unexpected exception: %s', e)
+    except Exception:
+        logger.exception('Unexpected exception')
         push_to_dead_letter_sqs(event, 'vetext_incoming_forwarder_lambda_handler')
 
         return create_twilio_response(500)
@@ -222,20 +222,19 @@ def process_body_from_sqs_invocation(event):
 
             if not event_body:
                 logger.info('event_body from sqs record was not present')
-                logger.debug(record)
+                logger.debug('Record: %s', record)
                 continue
 
-            logger.debug('Processing record body from SQS')
+            logger.debug('Processing record body from SQS.')
             if not isinstance(event_body, dict):
                 event_body = json.loads(event_body)
-                logger.info('Successfully converted record body from sqs to json')
+                logger.info('Successfully converted record body from sqs to json.')
             event_bodies.append(event_body)
-        except json.decoder.JSONDecodeError as je:
-            logger.error('Failed to load json event_body: %s', je)
+        except json.decoder.JSONDecodeError:
+            logger.exception('Failed to load json event_body.')
             push_to_dead_letter_sqs(event_body, 'process_body_from_sqs_invocation')
-        except Exception as e:
-            logger.error('Failed to load event from sqs')
-            logger.exception(e)
+        except Exception:
+            logger.exception('Failed to load the event from sqs.')
             push_to_dead_letter_sqs(event_body, 'process_body_from_sqs_invocation')
 
     return event_bodies
@@ -346,8 +345,9 @@ def make_vetext_request(request_body):  # noqa: C901 (too complex 13 > 10)
 
     endpoint_uri = f'https://{domain}{path}'
 
-    logger.info('Making POST Request to VeText using: %s', endpoint_uri)
+    logger.info('Making POST Request to VeText using URL endpoint: %s, To: %s', endpoint_uri, body['to'])
     logger.debug('json dumps: %s', json.dumps(body))
+    response = None
 
     try:
         response = requests.post(endpoint_uri, verify=False, json=body, timeout=HTTPTIMEOUT, headers=headers)  # nosec
@@ -361,25 +361,30 @@ def make_vetext_request(request_body):  # noqa: C901 (too complex 13 > 10)
         logged_body = body.copy()
         logged_body['body'] = 'redacted'
         logger.warning(
-            'HTTPError With Call To VeText url: %s, with body: %s and error: %s', endpoint_uri, logged_body, e
+            'HTTPError With Call To VeText url: %s, with body: %s, response: %s, and error: %s',
+            endpoint_uri,
+            logged_body,
+            getattr(response, 'content', 'none'),
+            e,
         )
     except requests.RequestException as e:
         logged_body = body.copy()
         logged_body['body'] = 'redacted'
         logger.warning(
-            'RequestException With Call To VeText url: %s, with body: %s and error: %s',
+            'RequestException With Call To VeText url: %s, with body: %s, response: %s, and error: %s',
             endpoint_uri,
             logged_body,
+            getattr(response, 'content', 'none'),
             e,
         )
-    except Exception as e:
+    except Exception:
         logged_body = body.copy()
         logged_body['body'] = 'redacted'
-        logger.error(
-            'Unexpected Exception With Call to VeText url: %s, with body: %s and error: %s',
+        logger.exception(
+            'Unexpected Exception With Call to VeText url: %s, with body: %s, and response %s',
             endpoint_uri,
             logged_body,
-            e,
+            getattr(response, 'content', 'none'),
         )
 
     return None
@@ -393,8 +398,7 @@ def push_to_retry_sqs(event_body):
     queue_url = os.getenv('vetext_request_drop_sqs_url')
 
     if queue_url is None:
-        logger.error('Unable to retrieve vetext_request_drop_sqs_url from env variables')
-        logger.error(event_body)
+        logger.error('Unable to retrieve vetext_request_drop_sqs_url from env variables for event: %s', event_body)
         return None
 
     logger.debug('Retrieved queue_url: %s', queue_url)
@@ -408,10 +412,8 @@ def push_to_retry_sqs(event_body):
         sqs.send_message(QueueUrl=queue_url, MessageAttributes=queue_msg_attrs, MessageBody=queue_msg)
 
         logger.info('Completed enqueue of message to retry queue')
-    except Exception as e:
-        logger.error('Push to Retry SQS Exception')
-        logger.error(event_body)
-        logger.exception(e)
+    except Exception:
+        logger.exception('Push to Retry SQS Exception for event: %s', event_body)
         push_to_dead_letter_sqs(event_body, 'push_to_retry_sqs')
 
 
@@ -421,14 +423,12 @@ def push_to_dead_letter_sqs(
 ):
     """Places unaccounted for event on dead-letter queue to be inspected"""
 
-    logger.info('Placing event on dead-letter queue')
     logger.info('Preparing for DeadLetter SQS: %s', event)
 
     queue_url = os.getenv('vetext_request_dead_letter_sqs_url')
 
     if queue_url is None:
-        logger.error('Unable to retrieve vetext_request_dead_letter_sqs_url from env variables')
-        logger.error(event)
+        logger.error('Unable to retrieve vetext_request_dead_letter_sqs_url from env variables for event: %s', event)
         return None
 
     logger.debug('Retrieved queue_url: %s', queue_url)
@@ -442,7 +442,5 @@ def push_to_dead_letter_sqs(
         sqs.send_message(QueueUrl=queue_url, MessageAttributes=queue_msg_attrs, MessageBody=queue_msg)
 
         logger.info('Completed enqueue of message to dead letter queue')
-    except Exception as e:
-        logger.error('Push to Dead Letter SQS Exception')
-        logger.error(event)
-        logger.exception(e)
+    except Exception:
+        logger.exception('Push to Dead Letter SQS Exception for event: %s', event)
