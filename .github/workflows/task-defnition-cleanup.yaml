@@ -19,5 +19,150 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: echo hello
-        run: echo hello
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Cleanup Old ECS Task Definitions
+        env:
+          AWS_REGION: "us-gov-west-1"
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          #!/bin/bash
+          set -e
+
+          MAX_REV=10
+          REGION="$AWS_REGION"
+          DRY_RUN="$DRY_RUN"
+
+          echo "Starting ECS Task Definitions cleanup in region: $REGION"
+          echo "Dry run mode: $DRY_RUN"
+
+          # -----------------------------------------------------------------------------
+          # 1. Function to deregister task definitions (with exponential backoff & jitter).
+          # -----------------------------------------------------------------------------
+          deregister_task_definition() {
+            local task_def_arn="$1"
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[Dry Run] Would deregister task definition: $task_def_arn"
+            else
+              echo "Deregistering task definition: $task_def_arn"
+              
+              # We'll attempt up to 5 times in case of rate limiting
+              for attempt in {1..5}; do
+                if aws ecs deregister-task-definition --task-definition "$task_def_arn" --region "$REGION"; then
+                  echo "Deregistered $task_def_arn"
+                  break
+                else
+                  echo "Attempt $attempt to deregister $task_def_arn failed. Sleeping before retry..."
+                  sleep $((attempt * 2))  # exponential backoff (2, 4, 6, 8, 10 seconds)
+                fi
+              done
+
+              # Introduce a small random jitter between deregistrations
+              sleep_time=$((1 + RANDOM % 3)) # 1–3 seconds
+              echo "Sleeping for $sleep_time second(s) to reduce rate-limit risk..."
+              sleep $sleep_time
+            fi
+          }
+
+          # -----------------------------------------------------------------------------
+          # 2. Function to list all task definitions for a given family (with pagination).
+          #    We sort in descending order so that the newest revisions come first.
+          # -----------------------------------------------------------------------------
+          list_all_task_definitions() {
+            local family_filter="$1"
+            local next_token=""
+            local task_defs=()
+
+            while : ; do
+              if [ -z "$next_token" ]; then
+                response=$(aws ecs list-task-definitions \
+                  --region "$REGION" \
+                  --family-prefix "$family_filter" \
+                  --sort DESC \
+                  --max-items 1000 \
+                  --output json \
+                  --query '{taskDefinitionArns: taskDefinitionArns, nextToken: nextToken}')
+              else
+                response=$(aws ecs list-task-definitions \
+                  --region "$REGION" \
+                  --family-prefix "$family_filter" \
+                  --sort DESC \
+                  --max-items 1000 \
+                  --starting-token "$next_token" \
+                  --output json \
+                  --query '{taskDefinitionArns: taskDefinitionArns, nextToken: nextToken}')
+              fi
+
+              current_batch=$(echo "$response" | jq -r '.taskDefinitionArns[]')
+              if [ -n "$current_batch" ]; then
+                task_defs+=( $current_batch )
+              fi
+
+              next_token=$(echo "$response" | jq -r '.nextToken // empty')
+              if [ -z "$next_token" ]; then
+                break
+              fi
+            done
+
+            # Return all found ARNs
+            echo "${task_defs[@]}"
+          }
+
+          # -----------------------------------------------------------------------------
+          # 3. List of families to clean up, each keeping only the latest MAX_REV revisions.
+          # -----------------------------------------------------------------------------
+          TARGET_FAMILIES=(
+            "dev-notification-api-db-migrations-task"
+            "dev-notification-api-task"
+            "dev-va-enp-api-task"
+            "perf-notification-api-db-migrations-task"
+            "perf-notification-api-task"
+            "perf-va-enp-api-task"
+            "prod-notification-api-db-migrations-task"
+            "prod-notification-api-task"
+            "staging-notification-api-db-migrations-task"
+            "staging-notification-api-task"
+            "dev-notification-celery-beat-task"
+            "dev-notification-celery-task"
+            "perf-notification-celery-beat-task"
+            "perf-notification-celery-task"
+            "prod-notification-celery-beat-task"
+            "prod-notification-celery-task"
+            "staging-notification-celery-beat-task"
+            "staging-notification-celery-task"
+          )
+
+          # -----------------------------------------------------------------------------
+          # 4. Iterate over each family, keep the newest MAX_REV, and deregister older ones.
+          # -----------------------------------------------------------------------------
+          for FAMILY in "${TARGET_FAMILIES[@]}"; do
+            echo "--------------------------------------------------------------------------------"
+            echo "Processing Task Family: $FAMILY"
+            REVISIONS=$(list_all_task_definitions "$FAMILY")
+
+            if [ -z "$REVISIONS" ]; then
+              echo "No revisions found for family: $FAMILY"
+              continue
+            fi
+
+            REV_COUNT=0
+            for REV_ARN in $REVISIONS; do
+              REV_COUNT=$((REV_COUNT + 1))
+              if [ "$REV_COUNT" -le "$MAX_REV" ]; then
+                echo "Keeping revision $REV_COUNT: $REV_ARN"
+              else
+                deregister_task_definition "$REV_ARN"
+              fi
+            done
+          done
+
+          echo "ECS Task Definitions cleanup completed successfully."
