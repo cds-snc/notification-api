@@ -226,6 +226,7 @@ class Config(object):
         'task_serializer': 'json',
         'imports': (
             'app.celery.tasks',
+            'app.celery.process_comp_and_pen',
             'app.celery.scheduled_tasks',
             'app.celery.reporting_tasks',
             'app.celery.nightly_tasks',
@@ -314,12 +315,6 @@ class Config(object):
             'remove_sms_email_jobs': {
                 'task': 'remove_sms_email_jobs',
                 'schedule': crontab(hour=4, minute=0),
-                'options': {'queue': QueueNames.PERIODIC},
-            },
-            'send-scheduled-comp-and-pen-sms': {
-                'task': 'send-scheduled-comp-and-pen-sms',
-                # Every 1 minute past every hour from 13 through 21 on every day-of-month from 22 through end-of-month
-                'schedule': crontab(hour='13-21', day_of_month='23-31', minute='*/1'),
                 'options': {'queue': QueueNames.PERIODIC},
             },
             'update-twilio-status': {

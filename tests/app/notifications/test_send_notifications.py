@@ -78,7 +78,6 @@ def test_send_notification_bypass_route_no_recipient(
         send_notification_bypass_route(
             service,
             template,
-            SMS_TYPE,
             reply_to_text=service.get_default_sms_sender(),
             recipient=None,
             recipient_item=None,
@@ -109,7 +108,6 @@ def test_send_notification_bypass_route_sms_with_recipient_and_default_sms_sende
     send_notification_bypass_route(
         service=service,
         template=template,
-        notification_type=SMS_TYPE,
         reply_to_text=sender_number,
         recipient='+11234567890',
     )
@@ -162,7 +160,6 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
     send_notification_bypass_route(
         service=service,
         template=template,
-        notification_type=SMS_TYPE,
         reply_to_text=sender_number,
         recipient_item=recipient_item,
         sms_sender_id='test_sms_sender',
@@ -216,7 +213,6 @@ def test_send_notification_bypass_route_email_with_recipient(
         service=service,
         template=template,
         reply_to_text=send_number,
-        notification_type=EMAIL_TYPE,
         recipient='test123@email.com',
     )
 
@@ -265,7 +261,6 @@ def test_send_notification_bypass_route_email_with_recipient_item(
     send_notification_bypass_route(
         service=service,
         template=template,
-        notification_type=EMAIL_TYPE,
         reply_to_text=reply_to,
         recipient_item=recipient_item,
     )

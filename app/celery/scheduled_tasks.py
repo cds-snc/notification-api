@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta
-from time import monotonic
 
-from botocore.exceptions import ClientError
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import and_, select
@@ -28,11 +26,8 @@ from app.dao.notifications_dao import (
     dao_old_letters_with_created_status,
 )
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
-from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.integrations.comp_and_pen.scheduled_message_helpers import CompPenMsgHelper
 from app.models import Job
 from app.notifications.process_notifications import send_notification_to_queue
-from app.notifications.send_notifications import lookup_notification_sms_setup_data
 from app.v2.errors import JobIncompleteError
 
 
@@ -196,67 +191,3 @@ def check_templated_letter_state():
                 message=msg,
                 ticket_type=zendesk_client.TYPE_INCIDENT,
             )
-
-
-@notify_celery.task(name='send-scheduled-comp-and-pen-sms')
-@statsd(namespace='tasks')
-def send_scheduled_comp_and_pen_sms() -> None:
-    start_time = monotonic()
-    # this is the agreed upon message per 1 minute limit
-    messages_per_min = 90
-
-    # get config info
-    dynamodb_table_name = current_app.config['COMP_AND_PEN_DYNAMODB_TABLE_NAME']
-    service_id = current_app.config['COMP_AND_PEN_SERVICE_ID']
-    template_id = current_app.config['COMP_AND_PEN_TEMPLATE_ID']
-    sms_sender_id = current_app.config['COMP_AND_PEN_SMS_SENDER_ID']
-    # Perf uses the AWS simulated delivered number
-    perf_to_number = current_app.config['COMP_AND_PEN_PERF_TO_NUMBER']
-
-    comp_pen_helper = CompPenMsgHelper(dynamodb_table_name=dynamodb_table_name)
-
-    current_app.logger.debug('send_scheduled_comp_and_pen_sms connecting to dynamodb...')
-    try:
-        comp_pen_helper._connect_to_dynamodb()
-    except ClientError as e:
-        current_app.logger.critical(
-            'Unable to connect to dynamodb table with name %s - exception: %s', dynamodb_table_name, e
-        )
-        raise
-
-    current_app.logger.debug('... connected to dynamodb in send_scheduled_comp_and_pen_sms')
-    current_app.logger.info('dynamo connection took: %s seconds', monotonic() - start_time)
-
-    # get messages to send
-    try:
-        comp_and_pen_messages: list = comp_pen_helper.get_dynamodb_comp_pen_messages(messages_per_min)
-    except Exception as e:
-        current_app.logger.critical(
-            'Exception trying to scan dynamodb table for send_scheduled_comp_and_pen_sms exception_type: %s - '
-            'exception_message: %s',
-            type(e),
-            e,
-        )
-        raise
-
-    current_app.logger.debug('send_scheduled_comp_and_pen_sms list of items from dynamodb: %s', comp_and_pen_messages)
-
-    # only continue if there are messages to update and send
-    if comp_and_pen_messages:
-        comp_pen_helper.remove_dynamo_item_is_processed(comp_and_pen_messages)
-
-        if is_feature_enabled(FeatureFlag.COMP_AND_PEN_MESSAGES_ENABLED):
-            # get the data necessary to send the notifications
-            service, template, sms_sender_id = lookup_notification_sms_setup_data(
-                service_id, template_id, sms_sender_id
-            )
-
-            comp_pen_helper.send_comp_and_pen_sms(
-                service=service,
-                template=template,
-                sms_sender_id=sms_sender_id,
-                comp_and_pen_messages=comp_and_pen_messages,
-                perf_to_number=perf_to_number,
-            )
-        else:
-            current_app.logger.info('Comp and Pen Notifications not sent to queue (feature flag disabled)')

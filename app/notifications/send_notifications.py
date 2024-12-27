@@ -54,7 +54,6 @@ def lookup_notification_sms_setup_data(
 def send_notification_bypass_route(
     service: Service,
     template: Template,
-    notification_type: str,
     reply_to_text: str | None,
     recipient: str = None,
     personalisation: dict = None,
@@ -105,7 +104,7 @@ def send_notification_bypass_route(
             )
 
     # Use the service's default sms_sender if applicable
-    if notification_type == SMS_TYPE and sms_sender_id is None:
+    if template.template_type == SMS_TYPE and sms_sender_id is None:
         sms_sender_id = service.get_default_sms_sender_id()
 
     start_time = monotonic()
@@ -115,7 +114,7 @@ def send_notification_bypass_route(
         recipient=recipient,
         service_id=service.id,
         personalisation=personalisation,
-        notification_type=notification_type,
+        notification_type=template.template_type,
         api_key_id=None,
         key_type=api_key_type,
         recipient_identifier=recipient_item,
@@ -129,7 +128,7 @@ def send_notification_bypass_route(
         current_app.logger.info(
             'sending %s notification with send_notification_bypass_route via '
             'send_to_queue_for_recipient_info_based_on_recipient_identifier, notification id %s',
-            notification_type,
+            template.template_type,
             notification.id,
         )
 
@@ -146,7 +145,7 @@ def send_notification_bypass_route(
         current_app.logger.info(
             'sending %s notification with send_notification_bypass_route via send_notification_to_queue, '
             'notification id %s',
-            notification_type,
+            template.template_type,
             notification.id,
         )
 
