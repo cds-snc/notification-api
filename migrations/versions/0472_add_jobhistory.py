@@ -17,8 +17,6 @@ down_revision = "0471_edit_limit_emails2"
 
 
 def upgrade():
-    conn = op.get_bind()
-
     op.create_table(
         "jobs_history",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, nullable=False, default=sa.text("uuid_generate_v4()")),
@@ -48,7 +46,9 @@ def upgrade():
         sa.Index("ix_jobs_history_job_status", "job_status"),
         sa.Index("ix_jobs_history_scheduled_for", "scheduled_for"),
     )
+    op.add_column("jobs", sa.Column("version", sa.Integer, nullable=False, server_default="0"))
 
 
 def downgrade():
     op.drop_table("jobs_history")
+    op.drop_column("jobs", "version")

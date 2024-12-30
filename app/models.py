@@ -1451,6 +1451,7 @@ class Job(BaseModel):
     __tablename__ = "jobs"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    version = db.Column(db.Integer, primary_key=True, nullable=False)
     original_file_name = db.Column(db.String, nullable=False)
     service_id = db.Column(
         UUID(as_uuid=True),
