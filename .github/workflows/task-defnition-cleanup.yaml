@@ -12,7 +12,7 @@ on:
         type: boolean
 
 jobs:
-  cleanup-task-definitions:
+  deregister-task-definitions:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,6 +30,7 @@ jobs:
           role-duration-seconds: 1800
 
       - name: Cleanup Old ECS Task Definitions
+        id: cleanup-active
         env:
           AWS_REGION: "us-gov-west-1"
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
@@ -166,3 +167,127 @@ jobs:
           done
 
           echo "ECS Task Definitions cleanup completed successfully."
+
+  delete-task-definitions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Delete Inactive ECS Task Definitions
+        env:
+          AWS_REGION: "us-gov-west-1"
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          #!/bin/bash
+          set -e
+
+          REGION="$AWS_REGION"
+          DRY_RUN="$DRY_RUN"
+
+          echo "======================================================="
+          echo "Step 2: Delete all INACTIVE ECS Task Definitions (Paginated)."
+          echo "Region: $REGION"
+          echo "Dry run mode: $DRY_RUN"
+          echo "======================================================="
+
+          # Paginate manually over INACTIVE definitions
+          list_inactive_task_definitions() {
+            local next_token=""
+            local definitions=()
+
+            while : ; do
+              if [ -z "$next_token" ]; then
+                response=$(aws ecs list-task-definitions \
+                  --status INACTIVE \
+                  --region "$REGION" \
+                  --output json \
+                  --query '{taskDefinitionArns: taskDefinitionArns, nextToken: nextToken}')
+              else
+                response=$(aws ecs list-task-definitions \
+                  --status INACTIVE \
+                  --starting-token "$next_token" \
+                  --region "$REGION" \
+                  --output json \
+                  --query '{taskDefinitionArns: taskDefinitionArns, nextToken: nextToken}')
+              fi
+
+              current_batch=$(echo "$response" | jq -r '.taskDefinitionArns[]?')
+              if [ -n "$current_batch" ]; then
+                definitions+=( $current_batch )
+              fi
+
+              next_token=$(echo "$response" | jq -r '.nextToken // empty')
+              [ -z "$next_token" ] && break
+            done
+
+            echo "${definitions[@]}"
+          }
+
+          INACTIVE_TASKS_ARRAY=($(list_inactive_task_definitions))
+          TOTAL_INACTIVE=${#INACTIVE_TASKS_ARRAY[@]}
+
+          if [ "$TOTAL_INACTIVE" -eq 0 ]; then
+            echo "No INACTIVE task definitions found. Nothing to delete."
+            exit 0
+          fi
+
+          echo "Found $TOTAL_INACTIVE INACTIVE task definitions total."
+          echo "We'll delete them in chunks of up to 10."
+
+          # Function to delete up to 10 definitions (with backoff & jitter):
+          delete_chunk() {
+            local chunk=("$@")
+            echo "Deleting the following INACTIVE tasks:"
+            printf '%s\n' "${chunk[@]}"
+
+            for attempt in {1..5}; do
+              if aws ecs delete-task-definitions \
+                --task-definitions "${chunk[@]}" \
+                --region "$REGION"; then
+                echo "Successfully deleted chunk of up to 10 tasks."
+                break
+              else
+                echo "Attempt $attempt failed. Sleeping before retry..."
+                sleep $((attempt * 2))  # exponential backoff
+              fi
+
+              if [ "$attempt" -eq 5 ]; then
+                echo "ERROR: Failed to delete chunk after 5 attempts."
+                exit 1
+              fi
+            done
+
+            # Random jitter of 1–3s
+            local sleep_time=$((1 + RANDOM % 3))
+            echo "Sleeping for $sleep_time second(s)..."
+            sleep $sleep_time
+          }
+
+          # Chunk the array
+          CHUNK_SIZE=10
+          i=0
+          while [ $i -lt $TOTAL_INACTIVE ]; do
+            CHUNK=("${INACTIVE_TASKS_ARRAY[@]:i:CHUNK_SIZE}")
+            i=$((i + CHUNK_SIZE))
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[Dry Run] Would delete the following tasks:"
+              printf '%s\n' "${CHUNK[@]}"
+            else
+              delete_chunk "${CHUNK[@]}"
+            fi
+          done
+
+          echo "Step 2 complete: All possible INACTIVE definitions have been fully deleted."
