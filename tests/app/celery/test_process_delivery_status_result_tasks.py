@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from logging import getLogger
 from uuid import uuid4
 
 import pytest
@@ -489,6 +490,9 @@ def test_get_notification_notification_found(
 
 
 def test_get_notification_platform_status(notify_api, sample_delivery_status_result_message):
+    twilio_client = TwilioSMSClient()
+    twilio_client.logger = getLogger('test')
+
     # Happy path
     expected_sms_status_record = SmsStatusRecord(
         payload='RawDlrDoneDate=2303222338&SmsSid=SMxxx&SmsStatus=delivered&MessageStatus=delivered&To=%2B11111111111&MessageSid=SMyyy&AccountSid=ACzzz&From=%2B12223334444&ApiVersion=2010-04-01',
@@ -501,7 +505,7 @@ def test_get_notification_platform_status(notify_api, sample_delivery_status_res
         provider_updated_at=datetime.strptime('2303222338', TwilioSMSClient.RAW_DLR_DONE_DATE_FMT),
     )
     assert expected_sms_status_record == get_notification_platform_status(
-        TwilioSMSClient(), sample_delivery_status_result_message['message']['body']
+        twilio_client, sample_delivery_status_result_message['message']['body']
     )
 
 

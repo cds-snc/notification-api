@@ -201,6 +201,13 @@ class AwsPinpointClient(SmsClient):
             self.logger.error('Did not receive pinpoint delivery status as a string')
             raise NonRetryableException(f'Incorrect datatype sent to pinpoint, {UNABLE_TO_TRANSLATE}')
 
+        if delivery_status_message.get('attributes', {}).get('destination_phone_number'):
+            # Replace the last 4 charactes with X. Works with empty strings
+            delivery_status_message['attributes']['destination_phone_number'] = (
+                f'{delivery_status_message["attributes"]["destination_phone_number"][:-4]}XXXX'
+            )
+        self.logger.info('Translate raw delivery status pinpoint: %s', delivery_status_message)
+
         pinpoint_attributes = delivery_status_message['attributes']
         event_type = delivery_status_message['event_type']
         record_status = pinpoint_attributes['record_status']
