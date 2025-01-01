@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
 from sqlalchemy import Date, case, func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
@@ -106,6 +106,7 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
 
 
 def update_fact_notification_status(data, process_day, service_ids=None):
+    table = FactNotificationStatus.__table__
     if service_ids:
         FactNotificationStatus.query.filter(
             FactNotificationStatus.bst_date == process_day, FactNotificationStatus.service_id.in_(service_ids)
@@ -113,34 +114,20 @@ def update_fact_notification_status(data, process_day, service_ids=None):
     else:
         FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
 
-    # Prepare bulk insert data
-    bulk_insert_data = [
-        {
-            "bst_date": process_day,
-            "template_id": row.template_id,
-            "service_id": row.service_id,
-            "job_id": row.job_id,
-            "notification_type": row.notification_type,
-            "key_type": row.key_type,
-            "notification_status": row.status,
-            "notification_count": row.notification_count,
-            "billable_units": row.billable_units,
-        }
-        for row in data
-    ]
-    try:
-        if bulk_insert_data:
-            db.session.bulk_insert_mappings(FactNotificationStatus, bulk_insert_data)
+    for row in data:
+        stmt = insert(table).values(
+            bst_date=process_day,
+            template_id=row.template_id,
+            service_id=row.service_id,
+            job_id=row.job_id,
+            notification_type=row.notification_type,
+            key_type=row.key_type,
+            notification_status=row.status,
+            notification_count=row.notification_count,
+            billable_units=row.billable_units,
+        )
+        db.session.connection().execute(stmt)
         db.session.commit()
-
-    except IntegrityError as e:
-        db.session.rollback()
-        current_app.logger.error(f"Integrity error in update_fact_notification_status: {e}")
-        raise
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Unexpected error in update_fact_notification_status: {e}")
-        raise
 
 
 def fetch_notification_status_for_service_by_month(start_date, end_date, service_id):
