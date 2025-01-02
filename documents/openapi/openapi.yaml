@@ -1,7 +1,7 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.0.10
+  version: 1.1.0
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -2194,23 +2194,22 @@ components:
         - webhook
         - queue
     NotificationStatus:
+      description: |
+        <p>These statuses do not warrant additional action: cancelled, created, delivered, pending, sending, and sent.</p>
+        <p>These statuses indicate a client-side error, such as specifying a nonexistent template ID, or other condition that will result in VA Notify <b>not</b> retrying to send the notification: failed, permanent-failure, and validation-failed.  See the associated status_reason for amplifying information.</p>
+        <p>"temporary-failure" indicates that VA Notify will retry sending the notification.</p>
       type: string
       enum:
         - cancelled
         - created
         - delivered
         - failed
+        - pending
+        - permanent-failure
         - sending
         - sent
         - temporary-failure
-        - pending
-        - pending-virus-check
-        - permanent-failure
-        - pii-check-failed
-        - returned-letter
         - validation-failed
-        - virus-scan-failed
-
     User:
       type: object
       properties:
@@ -2943,9 +2942,7 @@ components:
           nullable: true
           description: The provider that sent or tried to send the notification
         status:
-          type: string
-          enum:
-            - created
+          $ref: '#/components/schemas/NotificationStatus'
         status_reason:
           type: string
           nullable: true
