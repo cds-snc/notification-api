@@ -41,7 +41,7 @@ def celery_mock(mocker):
     return mocker.patch("app.service.send_notification.send_notification_to_queue")
 
 
-def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_mock, notify_db_session):
+def test_send_one_off_notification_calls_celery_correctly(notify_api, persist_mock, celery_mock, notify_db_session):
     service = create_service()
     template = create_template(service=service)
 
@@ -53,7 +53,8 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
         "created_by": str(service.created_by_id),
     }
 
-    resp = send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        resp = send_one_off_notification(service.id, post_data)
 
     assert resp == {"id": str(persist_mock.return_value.id)}
 
@@ -62,7 +63,7 @@ def test_send_one_off_notification_calls_celery_correctly(persist_mock, celery_m
     )
 
 
-def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock, celery_mock, notify_db_session):
+def test_send_one_off_notification_calls_persist_correctly_for_sms(notify_api, persist_mock, celery_mock, notify_db_session):
     service = create_service()
     template = create_template(
         service=service,
@@ -77,7 +78,8 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock,
         "created_by": str(service.created_by_id),
     }
 
-    send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        send_one_off_notification(service.id, post_data)
 
     persist_mock.assert_called_once_with(
         template_id=template.id,
@@ -95,7 +97,7 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock,
     )
 
 
-def test_send_one_off_notification_calls_persist_correctly_for_email(persist_mock, celery_mock, notify_db_session):
+def test_send_one_off_notification_calls_persist_correctly_for_email(notify_api, persist_mock, celery_mock, notify_db_session):
     service = create_service()
     template = create_template(
         service=service,
@@ -111,7 +113,8 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(persist_moc
         "created_by": str(service.created_by_id),
     }
 
-    send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        send_one_off_notification(service.id, post_data)
 
     persist_mock.assert_called_once_with(
         template_id=template.id,
@@ -129,7 +132,7 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(persist_moc
     )
 
 
-def test_send_one_off_notification_honors_research_mode(notify_db_session, persist_mock, celery_mock):
+def test_send_one_off_notification_honors_research_mode(notify_api, notify_db_session, persist_mock, celery_mock):
     service = create_service(research_mode=True)
     template = create_template(service=service)
 
@@ -138,8 +141,8 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
         "to": "6502532222",
         "created_by": str(service.created_by_id),
     }
-
-    send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        send_one_off_notification(service.id, post_data)
 
     assert celery_mock.call_args[1]["research_mode"] is True
 
@@ -149,7 +152,7 @@ def test_send_one_off_notification_honors_research_mode(notify_db_session, persi
     [("priority", QueueNames.SEND_EMAIL_HIGH), ("bulk", QueueNames.SEND_EMAIL_MEDIUM), ("normal", QueueNames.SEND_EMAIL_MEDIUM)],
 )
 def test_send_one_off_email_notification_honors_process_type(
-    notify_db_session, persist_mock, celery_mock, process_type, expected_queue
+    notify_api, notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
     service = create_service()
     template = create_template(service=service, template_type=EMAIL_TYPE)
@@ -161,7 +164,8 @@ def test_send_one_off_email_notification_honors_process_type(
         "created_by": str(service.created_by_id),
     }
 
-    send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        send_one_off_notification(service.id, post_data)
 
     assert celery_mock.call_args[1]["queue"] == expected_queue
 
@@ -171,7 +175,7 @@ def test_send_one_off_email_notification_honors_process_type(
     [("priority", QueueNames.SEND_SMS_HIGH), ("bulk", QueueNames.SEND_SMS_MEDIUM), ("normal", QueueNames.SEND_SMS_MEDIUM)],
 )
 def test_send_one_off_sms_notification_honors_process_type(
-    notify_db_session, persist_mock, celery_mock, process_type, expected_queue
+    notify_api, notify_db_session, persist_mock, celery_mock, process_type, expected_queue
 ):
     service = create_service()
     template = create_template(service=service, template_type=SMS_TYPE)
@@ -183,7 +187,8 @@ def test_send_one_off_sms_notification_honors_process_type(
         "created_by": str(service.created_by_id),
     }
 
-    send_one_off_notification(service.id, post_data)
+    with notify_api.test_request_context():
+        send_one_off_notification(service.id, post_data)
 
     assert celery_mock.call_args[1]["queue"] == expected_queue
 
@@ -337,7 +342,7 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
     assert notification.reply_to_text == reply_to_email.email_address
 
 
-def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sample_service, celery_mock):
+def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(notify_api, sample_service, celery_mock):
     template = create_template(service=sample_service, template_type=SMS_TYPE)
     sms_sender = create_service_sms_sender(service=sample_service, sms_sender="6502532222", is_default=False)
 
@@ -347,8 +352,8 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(sampl
         "created_by": str(sample_service.created_by_id),
         "sender_id": str(sms_sender.id),
     }
-
-    notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
+    with notify_api.test_request_context():
+        notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_SMS_MEDIUM)
 
