@@ -29,6 +29,7 @@ from app.notifications.validators import (
     check_template_is_active,
     check_template_is_for_notification_type,
     service_has_permission,
+    validate_notification_does_not_exceed_sqs_limit,
 )
 from app.schemas import (
     email_notification_schema,
@@ -104,6 +105,8 @@ def send_notification(notification_type: NotificationType):
     except ValidationError as err:
         errors = err.messages
         raise InvalidRequest(errors, status_code=400)
+
+    validate_notification_does_not_exceed_sqs_limit(notification_form, request.get_json())
 
     current_app.logger.info(f"POST to V1 API: send_notification, service_id: {authenticated_service.id}")
 

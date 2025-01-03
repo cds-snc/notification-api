@@ -26,7 +26,7 @@ class InvalidRequest(Exception):
         self.status_code = status_code
 
     def to_dict(self):
-        return {"result": "error", "message": self.message}
+        return {"result": "error", "message": self.message, "fields": self.fields}
 
     def to_dict_v2(self):
         """
