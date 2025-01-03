@@ -327,7 +327,7 @@ def test_send_one_off_notification_fails_if_created_by_other_service(sample_temp
     assert e.value.message == 'Can’t create notification - Test User is not part of the "Sample service" service'
 
 
-def test_send_one_off_notification_should_add_email_reply_to_text_for_notification(sample_email_template, celery_mock):
+def test_send_one_off_notification_should_add_email_reply_to_text_for_notification(notfy_api, sample_email_template, celery_mock):
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     data = {
         "to": "ok@ok.com",
@@ -336,7 +336,8 @@ def test_send_one_off_notification_should_add_email_reply_to_text_for_notificati
         "created_by": str(sample_email_template.service.created_by_id),
     }
 
-    notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
+    with notify_api.test_request_context():
+        notification_id = send_one_off_notification(service_id=sample_email_template.service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_EMAIL_MEDIUM)
     assert notification.reply_to_text == reply_to_email.email_address
@@ -360,7 +361,7 @@ def test_send_one_off_sms_notification_should_use_sms_sender_reply_to_text(notif
     assert notification.reply_to_text == "+16502532222"
 
 
-def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(sample_service, celery_mock):
+def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(notify_api, sample_service, celery_mock):
     template = create_template(service=sample_service, template_type=SMS_TYPE)
     sample_service.service_sms_senders[0].is_default = False
     create_service_sms_sender(service=sample_service, sms_sender="6502532222", is_default=True)
@@ -371,7 +372,8 @@ def test_send_one_off_sms_notification_should_use_default_service_reply_to_text(
         "created_by": str(sample_service.created_by_id),
     }
 
-    notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
+    with notify_api.test_request_context():
+        notification_id = send_one_off_notification(service_id=sample_service.id, post_data=data)
     notification = Notification.query.get(notification_id["id"])
     celery_mock.assert_called_once_with(notification=notification, research_mode=False, queue=QueueNames.SEND_SMS_MEDIUM)
 

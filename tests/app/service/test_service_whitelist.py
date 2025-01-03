@@ -90,6 +90,7 @@ def test_update_safelist_doesnt_remove_old_safelist_if_error(client, sample_serv
     assert json.loads(response.get_data(as_text=True)) == {
         "result": "error",
         "message": 'Invalid safelist: "" is not a valid email address or phone number',
+        "fields": []
     }
     safelist = ServiceSafelist.query.one()
     assert safelist.id == sample_service_safelist.id
