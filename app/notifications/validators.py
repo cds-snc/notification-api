@@ -56,6 +56,7 @@ from app.sms_fragment_utils import (
     increment_todays_requested_sms_count,
 )
 from app.utils import (
+    flatten_dct,
     get_document_url,
     get_fiscal_year,
     get_limit_reset_time_et,
@@ -763,3 +764,35 @@ def decode_personalisation_files(json_personalisation):
                 }
             )
     return json_personalisation, errors
+
+
+def validate_notification_does_not_exceed_sqs_limit(notification, caller_payload):
+    """Validates that the total size of the notification payload does not exceed the SQS limit.
+       The largest data element is identified from the `caller_payload` as the complete notification
+       contains data elements that are outside of the user's control.
+
+    Args:
+        notification (dict): The notification to be sent.
+        caller_payload (dict): The payload passed in by the caller, either from the UI or a request from the V2 api
+
+    Raises:
+        BadRequestError: The error message containing a reference the largest data element in the notification
+    """
+    # SQS max payload size is 256KB
+    if len(str(notification)) >= current_app.config["MAX_SQS_PAYLOAD_SIZE"]:
+        # Identify the largest value in the payload for logging and the return message
+        max_key, max_length = max(
+            ((key, len(str(value))) for key, value in flatten_dct(dict(caller_payload)).items()), key=lambda x: x[1]
+        )
+        current_app.logger.debug(
+            f"Unable to send notification {notification['id']}. Payload size exceeds SQS limit of 262,144 bytes. Largest key: {max_key} is {max_length} bytes."
+        )
+
+        raise BadRequestError(
+            message=f"Notification size cannot exceed 256Kb. Consider reducing the size of: {max_key}",
+            # Provide UI users with a more friendly representation of the largest key. e.g. personalisation.some_variable -> ((some_variable))
+            fields=[
+                {"largest_element": f"(({max_key.split('personalisation.')[1]}))" if "personalisation" in max_key else max_key}
+            ],
+            status_code=413,
+        )

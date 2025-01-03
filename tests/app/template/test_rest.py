@@ -1100,7 +1100,7 @@ def test_update_redact_template_400s_if_no_created_by(admin_request, sample_temp
         _expected_status=400,
     )
 
-    assert resp == {"result": "error", "message": {"created_by": ["Field is required"]}}
+    assert resp == {"result": "error", "message": {"created_by": ["Field is required"]}, "fields": []}
 
     assert sample_template.redact_personalisation is False
     assert sample_template.template_redacted.updated_at == original_updated_time

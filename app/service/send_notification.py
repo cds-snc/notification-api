@@ -31,6 +31,7 @@ from app.notifications.process_notifications import (
     persist_notification,
     send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -42,6 +43,7 @@ from app.notifications.validators import (
     increment_email_daily_count_send_warnings_if_needed,
     increment_sms_daily_count_send_warnings_if_needed,
     validate_and_format_recipient,
+    validate_notification_does_not_exceed_sqs_limit,
     validate_template,
 )
 from app.utils import get_delivery_queue_for_template
@@ -102,6 +104,24 @@ def send_one_off_notification(service_id, post_data):
         service=service,
         template=template,
     )
+
+    notification_model = transform_notification(
+        template_id=template.id,
+        template_version=template.version,
+        template_postage=template.postage,
+        recipient=post_data["to"],
+        service=service,
+        personalisation=personalisation,
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        created_by_id=post_data["created_by"],
+        reply_to_text=reply_to,
+        reference=create_one_off_reference(template.template_type),
+    )
+    notification_model.template = template
+    validate_notification_does_not_exceed_sqs_limit(notification_model.serialize(), post_data)
+
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
