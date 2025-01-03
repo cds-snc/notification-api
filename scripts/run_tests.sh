@@ -20,8 +20,15 @@ function display_result {
   fi
 }
 
+# Code style
 ruff format --check
 display_result $? 1 "Code style check"
+
+# Poetry version stability check
+POETRY_VERSION=$(grep "poetry_version" pyproject.toml | grep -oE "[0-9]{1}.[0-9]{1,3}.[0-9]{1,3}")
+head -1 poetry.lock | grep -qE "${POETRY_VERSION}"
+display_result $? 1 "Expected Poetry version: ${POETRY_VERSION}, found: $(head -1 poetry.lock | grep -oE "[0-9]{1}.[0-9]{1,3}.[0-9]{1,3}")"
+
 
 # Run tests in concurrent threads when able and serial otherwise
 # https://docs.pytest.org/en/stable/reference/customize.html
