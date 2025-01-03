@@ -327,7 +327,9 @@ def test_send_one_off_notification_fails_if_created_by_other_service(sample_temp
     assert e.value.message == 'Can’t create notification - Test User is not part of the "Sample service" service'
 
 
-def test_send_one_off_notification_should_add_email_reply_to_text_for_notification(notify_api, sample_email_template, celery_mock):
+def test_send_one_off_notification_should_add_email_reply_to_text_for_notification(
+    notify_api, sample_email_template, celery_mock
+):
     reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
     data = {
         "to": "ok@ok.com",
