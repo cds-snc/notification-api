@@ -247,6 +247,9 @@ def fetch_notification_stats_for_trial_services():
 
 
 def fetch_notification_status_for_service_for_day(bst_day, service_id):
+    # Fetch data from bst_day 00:00:00 to bst_day 23:59:59
+    # bst_dat is currently in UTC and the return is in UTC
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
     return (
         db.session.query(
             # return current month as a datetime so the data has the same shape as the ft_notification_status query
@@ -256,8 +259,8 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
             func.count().label("count"),
         )
         .filter(
-            Notification.created_at >= get_local_timezone_midnight_in_utc(bst_day),
-            Notification.created_at < get_local_timezone_midnight_in_utc(bst_day + timedelta(days=1)),
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
