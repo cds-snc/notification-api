@@ -77,7 +77,7 @@ jobs:
         with:
           ref: ${{ needs.setup-environment.outputs.tag }}
       - name: Configure VAEC AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4.0.2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
