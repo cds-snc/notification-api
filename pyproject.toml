@@ -65,7 +65,6 @@ Werkzeug = "3.0.4"
 MarkupSafe = "2.1.5"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", branch = "task/pre-3.12-recipient-csv-annual-limit-validation"}
 
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.12.2"
@@ -77,6 +76,7 @@ certifi = "^2024.0.0" # pinned for security reasons: https://github.com/cds-snc/
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 flask-marshmallow = "0.14.0"
 aws-xray-sdk = "2.14.0"
+notifications-utils = {git = "https://github.com/cds-snc/notifier-utils.git", rev = "task/pre-3.12-recipient-csv-annual-limit-validation"}
 
 [tool.poetry.group.test.dependencies]
 flake8 = "6.1.0"
