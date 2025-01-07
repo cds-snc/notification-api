@@ -2694,7 +2694,7 @@ werkzeug = "3.0.4"
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
 reference = "task/pre-3.12-recipient-csv-annual-limit-validation-MERGE_IN_TO_MAIN"
-resolved_reference = "d496801e2f9d4ad3b4f168aeb700d721804aefdf"
+resolved_reference = "82750a3c3c8466c804b687896abd24cf39c3bfbd"
 
 [[package]]
 name = "ordered-set"
