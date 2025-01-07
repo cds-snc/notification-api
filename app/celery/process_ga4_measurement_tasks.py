@@ -114,7 +114,7 @@ def post_to_ga4(notification_id: str, event_name, event_source, event_medium) ->
         response.raise_for_status()
         status = response.status_code == 204
     except (requests.HTTPError, requests.Timeout, requests.ConnectionError) as e:
-        current_app.logger.exception(e)
+        current_app.logger.warning('Encountered a retryable error with ga4: %s', str(e))
         raise AutoRetryException from e
     else:
         current_app.logger.info('GA4 event %s posted successfully', event_name)
