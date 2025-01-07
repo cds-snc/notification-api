@@ -1,6 +1,6 @@
 # Heavily inspired from Dockerfile, this one also install requirements_for_test.txt
 
-FROM python:3.10-alpine@sha256:7edffe5acc6a2c4c009fece2fbdc85f04fde4c8481202473b880ef3f8fbb2939
+FROM python:3.10-alpine@sha256:3a668bb2be7a49c999d97b2fd08eb2e153725125d80692f9ac27a338b939df4a
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV POETRY_VERSION "1.7.1"
