@@ -2706,7 +2706,7 @@ werkzeug = "3.0.4"
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
 reference = "task/pre-3.12-recipient-csv-annual-limit-validation"
-resolved_reference = "f76351fbb28fd832c87016c7cc7ce69276ee88d5"
+resolved_reference = "db98c2b42f28397f861af48a4e1394a2d1288f40"
 
 [[package]]
 name = "notifications-utils"
