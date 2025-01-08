@@ -81,3 +81,5 @@ jobs:
       run: |
         json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|GitHub actions>"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+
+        
