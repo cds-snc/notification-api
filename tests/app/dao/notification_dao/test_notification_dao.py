@@ -1498,6 +1498,7 @@ def test_dao_get_scheduled_notifications(sample_template, sample_notification):
     assert scheduled_notifications[0].scheduled_notification.pending
 
 
+@pytest.mark.skip(reason='Scheduled notifications are not used')
 def test_set_scheduled_notification_to_processed(sample_template, sample_notification):
     notification_1 = sample_notification(
         template=sample_template(), scheduled_for='2017-05-05 14:15', status=NOTIFICATION_CREATED

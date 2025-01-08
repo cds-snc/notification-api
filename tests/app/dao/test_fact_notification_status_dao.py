@@ -207,6 +207,7 @@ def test_fetch_notification_status_for_service_by_month(
     assert results[3].count == 1
 
 
+@pytest.mark.serial
 def test_fetch_notification_status_for_service_for_day(sample_service, sample_template, sample_notification):
     service_1 = sample_service()
     service_2 = sample_service()
