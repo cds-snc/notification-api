@@ -147,3 +147,5 @@ local database with user access, (pytest.ini takes precedence)
 __Problem__: Messages are in the queue but not sending
 
 __Solution__: Check that `celery` is running.
+
+Bentest
