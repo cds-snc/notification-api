@@ -528,7 +528,7 @@ class Config(object):
         "insert-quarter-data-for-annual-limits-q4": {
             "task": "insert-quarter-data-for-annual-limits",
             "schedule": crontab(
-                minute=0, hour=23, day_of_month=1, month_of_year=1
+                minute=0, hour=23, day_of_month=1, month_of_year=4
             ),  # Running this at the end of the day on 1st April
             "options": {"queue": QueueNames.PERIODIC},
         },
