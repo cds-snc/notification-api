@@ -101,9 +101,17 @@ def deliver_sms_with_rate_limiting(
             raise RuntimeError(
                 f'The "to" field was not set for notification {notification_id}.  This is a programming error.'
             )
+
+        # notification.reply_to_text is set for v2 send routes in
+        # app/v2/notifications/post_notifications.py::post_notification via the call to get_reply_to_text, which is
+        # in the same file.  The value is a phone number.  When notification POST data specifies an SMS sender, the
+        # phone number should be the phone number associated with that sender.  Otherwise, the phone number should
+        # be the phone number associated with the authenticated service's default SMS sender.  Ergo, the SMS sender
+        # returned in the next line should be the correct SMS sender to test for a rate-limiting condition.
         sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
             notification.service_id, notification.reply_to_text
         )
+
         check_sms_sender_over_rate_limit(notification.service_id, sms_sender)
         send_to_providers.send_sms_to_provider(notification, sms_sender_id)
         current_app.logger.info('Successfully sent sms with rate limiting for notification id: %s', notification_id)
@@ -123,7 +131,9 @@ def deliver_sms_with_rate_limiting(
         _handle_delivery_failure(task, notification, 'deliver_sms_with_rate_limiting', e, notification_id, SMS_TYPE)
 
 
-# Including sms_sender_id is necessary in case it's passed in when being called.
+# Including sms_sender_id is necessary because the upstream code in app/notifications/process_notifications.py
+# constructs a Celery task chain using the function _get_delivery_task, and the subsequent invocation always passes
+# sms_sender_id.
 @notify_celery.task(
     bind=True,
     name='deliver_email',
