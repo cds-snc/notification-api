@@ -1,6 +1,6 @@
 [tool.black]
 line-length = 130
-target-version = ['py310']
+target-version = ['py312']
 include = '(app|migrations|tests)/.*\.pyi?$'
 
 [tool.poetry]
@@ -20,7 +20,7 @@ requires = ["poetry>=1.3.2"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
-python = "~3.10.9"
+python = "~3.12.7"
 apig-wsgi = "2.18.0"
 boto = "2.49.0"
 cffi = "1.17.0"
@@ -65,11 +65,11 @@ Werkzeug = "3.0.4"
 MarkupSafe = "2.1.5"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", branch = "task/pre-3.12-recipient-csv-annual-limit-validation"}
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", branch = "task/pre-3.12-recipient-csv-annual-limit-validation-MERGE_IN_TO_MAIN"}
 
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.12.2"
-greenlet = "2.0.2"
+greenlet = "3.1.1"
 simple-salesforce = "^1.12.3"
 
 # Pinned dependencies
