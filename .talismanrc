@@ -5,6 +5,10 @@ fileignoreconfig:
   checksum: 128bde997e5a0f41e6bac5a5dfe3180f93b33bca138d4b4eb64443af7b1b15bd
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 5bab4eaddf8760c502111ae3e5f9f8bee59482d99f053f94598e8c77bd10b7b6
+- filename: tests/app/dao/test_ft_billing_dao.py
+  checksum: dc425af859e49b9822259fad20d0ff99f3fde5c0237728fe73e5c9db2b78591b
+- filename: tests/app/dao/test_services_dao.py
+  checksum: 572fb3a52e89ae19c5a94be881bcbfe0247bae112bce58d4ae1e9eff5a5c91b7
 - filename: tests/app/v2/notifications/test_get_notifications.py
   checksum: 167aa80c8aac01566b3cf627cdaa839feac9dc77f0b13b6d0a008035aa8e15f1
 version: "1.0"

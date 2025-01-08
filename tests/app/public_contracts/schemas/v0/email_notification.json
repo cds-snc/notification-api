@@ -35,7 +35,6 @@
         "delivered",
         "pending",
         "failed",
-        "technical-failure",
         "temporary-failure",
         "permanent-failure"
       ]

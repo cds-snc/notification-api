@@ -1063,8 +1063,8 @@ def test_fetch_monthly_notification_statuses_per_service(
     assert len(results) == 6
 
     # column order: date, service_id, service_name, notifaction_type, count_sending, count_delivered,
-    # count_technical_failure, count_temporary_failure, count_permanent_failure, count_sent
-    assert [x for x in results[0]] == [date(2019, 3, 1), service_one.id, service_one.name, EMAIL_TYPE, 4, 0, 0, 0, 3, 0]
+    # count_temporary_failure, count_permanent_failure, count_sent
+    assert [x for x in results[0]] == [date(2019, 3, 1), service_one.id, service_one.name, EMAIL_TYPE, 4, 0, 0, 3, 0]
     assert [x for x in results[1]] == [
         date(2019, 3, 1),
         service_one.id,
@@ -1075,15 +1075,13 @@ def test_fetch_monthly_notification_statuses_per_service(
         0,
         0,
         0,
-        0,
     ]
-    assert [x for x in results[2]] == [date(2019, 3, 1), service_one.id, service_one.name, SMS_TYPE, 0, 0, 0, 0, 0, 1]
+    assert [x for x in results[2]] == [date(2019, 3, 1), service_one.id, service_one.name, SMS_TYPE, 0, 0, 0, 0, 1]
     assert [x for x in results[3]] == [
         date(2019, 3, 1),
         service_two.id,
         service_two.name,
         LETTER_TYPE,
-        0,
         0,
         0,
         0,
@@ -1100,14 +1098,12 @@ def test_fetch_monthly_notification_statuses_per_service(
         0,
         0,
         0,
-        0,
     ]
     assert [x for x in results[5]] == [
         date(2019, 4, 1),
         service_two.id,
         service_two.name,
         LETTER_TYPE,
-        0,
         0,
         0,
         10,

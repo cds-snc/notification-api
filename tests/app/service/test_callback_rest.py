@@ -13,6 +13,7 @@ from app.constants import (
     DELIVERY_STATUS_CALLBACK_TYPE,
     INBOUND_SMS_CALLBACK_TYPE,
     MANAGE_SETTINGS,
+    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     QUEUE_CHANNEL_TYPE,
     WEBHOOK_CHANNEL_TYPE,
@@ -553,7 +554,9 @@ class TestUpdateServiceCallback:
         request_data,
     ):
         service = sample_service()
-        service_callback_api = sample_service_callback(service=service, notification_statuses=['technical-failure'])
+        service_callback_api = sample_service_callback(
+            service=service, notification_statuses=[NOTIFICATION_PERMANENT_FAILURE]
+        )
 
         response = client.post(
             url_for(
@@ -579,7 +582,9 @@ class TestUpdateServiceCallback:
         sample_service,
     ):
         service = sample_service()
-        service_callback_api = sample_service_callback(service=service, notification_statuses=['technical-failure'])
+        service_callback_api = sample_service_callback(
+            service=service, notification_statuses=[NOTIFICATION_PERMANENT_FAILURE]
+        )
 
         data = {
             'notification_statuses': ['nonexistent-status'],

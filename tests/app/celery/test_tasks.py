@@ -531,7 +531,6 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     assert mocked_deliver_sms.called
 
 
-@pytest.mark.serial
 def test_should_save_sms_if_restricted_service_and_valid_number(
     notify_db_session,
     mocker,
@@ -551,7 +550,6 @@ def test_should_save_sms_if_restricted_service_and_valid_number(
     notification_id = uuid4()
     encrypt_notification = encryption.encrypt(notification)
 
-    # Intermittently makes the status 'technical-failure'
     save_sms(
         service.id,
         notification_id,
@@ -878,7 +876,6 @@ def test_should_use_email_template_and_persist(
     )
 
 
-@pytest.mark.serial
 def test_save_email_should_use_template_version_from_job_not_latest(
     notify_db_session,
     sample_template,
@@ -902,7 +899,6 @@ def test_save_email_should_use_template_version_from_job_not_latest(
 
     notification_id = uuid4()
 
-    # Intermittently makes the status 'technical-failure'
     save_email(
         template.service_id,
         notification_id,
@@ -926,7 +922,6 @@ def test_save_email_should_use_template_version_from_job_not_latest(
     )
 
 
-@pytest.mark.serial
 def test_should_use_email_template_subject_placeholders(
     notify_db_session,
     sample_template,
@@ -944,7 +939,7 @@ def test_should_use_email_template_subject_placeholders(
 
     notification_id = uuid4()
     now = datetime.utcnow()
-    # Intermittently makes the status 'technical-failure'
+
     save_email(
         template.service_id,
         notification_id,

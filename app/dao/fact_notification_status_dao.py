@@ -16,7 +16,6 @@ from app.constants import (
     NOTIFICATION_CANCELLED,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_FAILED,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TEMPORARY_FAILURE,
@@ -815,18 +814,6 @@ def fetch_monthly_notification_statuses_per_service(
                     else_=0,
                 )
             ).label('count_delivered'),
-            # TODO 2191 - remove this after technical-failure is removed from the codebase
-            func.sum(
-                case(
-                    [
-                        (
-                            FactNotificationStatus.notification_status.in_(['technical-failure', NOTIFICATION_FAILED]),
-                            FactNotificationStatus.notification_count,
-                        )
-                    ],
-                    else_=0,
-                )
-            ).label('count_technical_failure'),
             func.sum(
                 case(
                     [

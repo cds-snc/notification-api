@@ -29,8 +29,7 @@ def format_admin_stats(statistics):
             counts[row.notification_type]['test-key'] += row.count
         else:
             counts[row.notification_type]['total'] += row.count
-            # TODO 2191 - remove this after technical-failure is removed from the codebase
-            if row.status in ('technical-failure', 'permanent-failure', 'temporary-failure', 'virus-scan-failed'):
+            if row.status in ('permanent-failure', 'temporary-failure', 'virus-scan-failed'):
                 counts[row.notification_type]['failures'][row.status] += row.count
 
     return counts
@@ -45,8 +44,6 @@ def create_stats_dict():
             stats_dict[template][status] = 0
 
         stats_dict[template]['failures'] = {
-            # TODO 2191 - remove this after technical-failure is removed from the codebase
-            'technical-failure': 0,
             'permanent-failure': 0,
             'temporary-failure': 0,
             'virus-scan-failed': 0,
@@ -94,7 +91,6 @@ def _update_statuses_from_row(
         update_dict['delivered'] += row.count
     elif row.status in (
         'failed',
-        'technical-failure',
         'temporary-failure',
         'permanent-failure',
         'validation-failed',

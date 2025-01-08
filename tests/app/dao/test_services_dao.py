@@ -17,6 +17,8 @@ from app.constants import (
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_PERMANENT_FAILURE,
     SES_PROVIDER,
     SMS_TYPE,
 )
@@ -78,7 +80,7 @@ def service_status_mappings(stats: list) -> dict:
     """
     Takes a stats list from the `dao_fetch_todays_stats_for_all_services` query and maps status counts per service
 
-    {'service one': {'created': X, 'sent': Y, 'permanent-failure': Z}, 'service two': {'created': A, 'delivered': B}
+    {'service one': {NOTIFICATION_CREATED: X, 'sent': Y, 'permanent-failure': Z}, 'service two': {NOTIFICATION_CREATED: A, 'delivered': B}
     """
     status_count_mapping = {}
     for row in stats:
@@ -1093,25 +1095,25 @@ def test_fetch_stats_counts_correctly(
     sms_template = sample_template(service=service)
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
     # two created email, one failed email, and one created sms
-    sample_notification(template=email_template, status='created', api_key=api_key)
-    sample_notification(template=email_template, status='created', api_key=api_key)
-    sample_notification(template=email_template, status='technical-failure', api_key=api_key)
-    sample_notification(template=sms_template, status='created', api_key=api_key)
+    sample_notification(template=email_template, status=NOTIFICATION_CREATED, api_key=api_key)
+    sample_notification(template=email_template, status=NOTIFICATION_CREATED, api_key=api_key)
+    sample_notification(template=email_template, status=NOTIFICATION_PERMANENT_FAILURE, api_key=api_key)
+    sample_notification(template=sms_template, status=NOTIFICATION_CREATED, api_key=api_key)
 
     stats = dao_fetch_stats_for_service(sms_template.service_id, 7)
     stats = sorted(stats, key=lambda x: (x.notification_type, x.status))
     assert len(stats) == 3
 
     assert stats[0].notification_type == EMAIL_TYPE
-    assert stats[0].status == 'created'
+    assert stats[0].status == NOTIFICATION_CREATED
     assert stats[0].count == 2
 
     assert stats[1].notification_type == EMAIL_TYPE
-    assert stats[1].status == 'technical-failure'
+    assert stats[1].status == NOTIFICATION_PERMANENT_FAILURE
     assert stats[1].count == 1
 
     assert stats[2].notification_type == SMS_TYPE
-    assert stats[2].status == 'created'
+    assert stats[2].status == NOTIFICATION_CREATED
     assert stats[2].count == 1
 
 
@@ -1137,7 +1139,7 @@ def test_fetch_stats_counts_should_ignore_team_key(
     stats = dao_fetch_stats_for_service(template.service_id, 7)
     assert len(stats) == 1
     assert stats[0].notification_type == SMS_TYPE
-    assert stats[0].status == 'created'
+    assert stats[0].status == NOTIFICATION_CREATED
     assert stats[0].count == 3
 
 
@@ -1159,14 +1161,14 @@ def test_fetch_stats_for_today_only_includes_today(
 
     with freeze_time('2001-01-02T12:00:00'):
         # right_now
-        sample_notification(template=template, to_field='3', status='created')
+        sample_notification(template=template, to_field='3', status=NOTIFICATION_CREATED)
 
         stats = dao_fetch_todays_stats_for_service(template.service_id)
 
     stats = {row.status: row.count for row in stats}
     assert 'delivered' not in stats
     assert stats['failed'] == 1
-    assert stats['created'] == 1
+    assert stats[NOTIFICATION_CREATED] == 1
 
 
 @pytest.mark.parametrize(

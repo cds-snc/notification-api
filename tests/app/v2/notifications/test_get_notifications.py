@@ -865,7 +865,6 @@ def test_get_all_notifications_renames_letter_statuses(client, sample_letter_not
         ('sending', 'accepted'),
         ('delivered', 'received'),
         ('pending', 'pending'),
-        ('technical-failure', 'technical-failure'),
     ],
 )
 def test_get_notifications_renames_letter_statuses(client, sample_letter_template, db_status, expected_status):

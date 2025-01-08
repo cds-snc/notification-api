@@ -5,6 +5,22 @@ from unittest.mock import Mock
 from freezegun import freeze_time
 import pytest
 
+from app.constants import (
+    EMAIL_TYPE,
+    LETTER_TYPE,
+    NOTIFICATION_CANCELLED,
+    NOTIFICATION_CREATED,
+    NOTIFICATION_DELIVERED,
+    NOTIFICATION_FAILED,
+    NOTIFICATION_PENDING_VIRUS_CHECK,
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENDING,
+    NOTIFICATION_SENT,
+    NOTIFICATION_TEMPORARY_FAILURE,
+    NOTIFICATION_VALIDATION_FAILED,
+    NOTIFICATION_VIRUS_SCAN_FAILED,
+    SMS_TYPE,
+)
 from app.service.statistics import (
     format_admin_stats,
     format_statistics,
@@ -24,27 +40,30 @@ NewStatsRow = collections.namedtuple('row', ('notification_type', 'status', 'key
     {
         'empty': ([], [0, 0, 0], [0, 0, 0], [0, 0, 0]),
         'always_increment_requested': (
-            [StatsRow('email', 'delivered', 1), StatsRow('email', 'failed', 1)],
+            [StatsRow(EMAIL_TYPE, NOTIFICATION_DELIVERED, 1), StatsRow(EMAIL_TYPE, NOTIFICATION_FAILED, 1)],
             [2, 1, 1],
             [0, 0, 0],
             [0, 0, 0],
         ),
         'dont_mix_template_types': (
-            [StatsRow('email', 'delivered', 1), StatsRow('sms', 'delivered', 1), StatsRow('letter', 'delivered', 1)],
+            [
+                StatsRow(EMAIL_TYPE, NOTIFICATION_DELIVERED, 1),
+                StatsRow(SMS_TYPE, NOTIFICATION_DELIVERED, 1),
+                StatsRow(LETTER_TYPE, NOTIFICATION_DELIVERED, 1),
+            ],
             [1, 1, 0],
             [1, 1, 0],
             [1, 1, 0],
         ),
         'convert_fail_statuses_to_failed': (
             [
-                StatsRow('email', 'failed', 1),
-                StatsRow('email', 'technical-failure', 1),
-                StatsRow('email', 'temporary-failure', 1),
-                StatsRow('email', 'permanent-failure', 1),
-                StatsRow('letter', 'validation-failed', 1),
-                StatsRow('letter', 'virus-scan-failed', 1),
-                StatsRow('letter', 'permanent-failure', 1),
-                StatsRow('letter', 'cancelled', 1),
+                StatsRow(EMAIL_TYPE, NOTIFICATION_FAILED, 1),
+                StatsRow(EMAIL_TYPE, NOTIFICATION_TEMPORARY_FAILURE, 1),
+                StatsRow(EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, 2),
+                StatsRow(LETTER_TYPE, NOTIFICATION_VALIDATION_FAILED, 1),
+                StatsRow(LETTER_TYPE, NOTIFICATION_VIRUS_SCAN_FAILED, 1),
+                StatsRow(LETTER_TYPE, NOTIFICATION_PERMANENT_FAILURE, 1),
+                StatsRow(LETTER_TYPE, NOTIFICATION_CANCELLED, 1),
             ],
             [4, 0, 4],
             [0, 0, 0],
@@ -52,16 +71,16 @@ NewStatsRow = collections.namedtuple('row', ('notification_type', 'status', 'key
         ),
         'convert_sent_to_delivered': (
             [
-                StatsRow('sms', 'sending', 1),
-                StatsRow('sms', 'delivered', 1),
-                StatsRow('sms', 'sent', 1),
+                StatsRow(SMS_TYPE, NOTIFICATION_SENDING, 1),
+                StatsRow(SMS_TYPE, NOTIFICATION_DELIVERED, 1),
+                StatsRow(SMS_TYPE, NOTIFICATION_SENT, 1),
             ],
             [0, 0, 0],
             [3, 2, 0],
             [0, 0, 0],
         ),
         'handles_none_rows': (
-            [StatsRow('sms', 'sending', 1), StatsRow(None, None, None)],
+            [StatsRow(SMS_TYPE, NOTIFICATION_SENDING, 1), StatsRow(None, None, None)],
             [0, 0, 0],
             [1, 0, 0],
             [0, 0, 0],
@@ -71,53 +90,55 @@ NewStatsRow = collections.namedtuple('row', ('notification_type', 'status', 'key
 def test_format_statistics(stats, email_counts, sms_counts, letter_counts):
     ret = format_statistics(stats)
 
-    assert ret['email'] == {status: count for status, count in zip(['requested', 'delivered', 'failed'], email_counts)}
+    assert ret[EMAIL_TYPE] == {
+        status: count for status, count in zip(['requested', NOTIFICATION_DELIVERED, NOTIFICATION_FAILED], email_counts)
+    }
 
-    assert ret['sms'] == {status: count for status, count in zip(['requested', 'delivered', 'failed'], sms_counts)}
+    assert ret[SMS_TYPE] == {
+        status: count for status, count in zip(['requested', NOTIFICATION_DELIVERED, NOTIFICATION_FAILED], sms_counts)
+    }
 
-    assert ret['letter'] == {
-        status: count for status, count in zip(['requested', 'delivered', 'failed'], letter_counts)
+    assert ret[LETTER_TYPE] == {
+        status: count
+        for status, count in zip(['requested', NOTIFICATION_DELIVERED, NOTIFICATION_FAILED], letter_counts)
     }
 
 
 def test_create_zeroed_stats_dicts():
     assert create_zeroed_stats_dicts() == {
-        'sms': {'requested': 0, 'delivered': 0, 'failed': 0},
-        'email': {'requested': 0, 'delivered': 0, 'failed': 0},
-        'letter': {'requested': 0, 'delivered': 0, 'failed': 0},
+        SMS_TYPE: {'requested': 0, NOTIFICATION_DELIVERED: 0, NOTIFICATION_FAILED: 0},
+        EMAIL_TYPE: {'requested': 0, NOTIFICATION_DELIVERED: 0, NOTIFICATION_FAILED: 0},
+        LETTER_TYPE: {'requested': 0, NOTIFICATION_DELIVERED: 0, NOTIFICATION_FAILED: 0},
     }
 
 
 def test_create_stats_dict():
     assert create_stats_dict() == {
-        'sms': {
+        SMS_TYPE: {
             'total': 0,
             'test-key': 0,
             'failures': {
-                'technical-failure': 0,
-                'permanent-failure': 0,
-                'temporary-failure': 0,
-                'virus-scan-failed': 0,
+                NOTIFICATION_PERMANENT_FAILURE: 0,
+                NOTIFICATION_TEMPORARY_FAILURE: 0,
+                NOTIFICATION_VIRUS_SCAN_FAILED: 0,
             },
         },
-        'email': {
+        EMAIL_TYPE: {
             'total': 0,
             'test-key': 0,
             'failures': {
-                'technical-failure': 0,
-                'permanent-failure': 0,
-                'temporary-failure': 0,
-                'virus-scan-failed': 0,
+                NOTIFICATION_PERMANENT_FAILURE: 0,
+                NOTIFICATION_TEMPORARY_FAILURE: 0,
+                NOTIFICATION_VIRUS_SCAN_FAILED: 0,
             },
         },
-        'letter': {
+        LETTER_TYPE: {
             'total': 0,
             'test-key': 0,
             'failures': {
-                'technical-failure': 0,
-                'permanent-failure': 0,
-                'temporary-failure': 0,
-                'virus-scan-failed': 0,
+                NOTIFICATION_PERMANENT_FAILURE: 0,
+                NOTIFICATION_TEMPORARY_FAILURE: 0,
+                NOTIFICATION_VIRUS_SCAN_FAILED: 0,
             },
         },
     }
@@ -125,46 +146,46 @@ def test_create_stats_dict():
 
 def test_format_admin_stats_only_includes_test_key_notifications_in_test_key_section():
     rows = [
-        NewStatsRow('email', 'technical-failure', 'test', 3),
-        NewStatsRow('sms', 'permanent-failure', 'test', 4),
-        NewStatsRow('letter', 'virus-scan-failed', 'test', 5),
+        NewStatsRow(EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, 'test', 3),
+        NewStatsRow(SMS_TYPE, NOTIFICATION_PERMANENT_FAILURE, 'test', 4),
+        NewStatsRow(LETTER_TYPE, NOTIFICATION_VIRUS_SCAN_FAILED, 'test', 5),
     ]
     stats_dict = format_admin_stats(rows)
 
-    assert stats_dict['email']['total'] == 0
-    assert stats_dict['email']['failures']['technical-failure'] == 0
-    assert stats_dict['email']['test-key'] == 3
+    assert stats_dict[EMAIL_TYPE]['total'] == 0
+    assert stats_dict[EMAIL_TYPE]['failures'][NOTIFICATION_PERMANENT_FAILURE] == 0
+    assert stats_dict[EMAIL_TYPE]['test-key'] == 3
 
-    assert stats_dict['sms']['total'] == 0
-    assert stats_dict['sms']['failures']['permanent-failure'] == 0
-    assert stats_dict['sms']['test-key'] == 4
+    assert stats_dict[SMS_TYPE]['total'] == 0
+    assert stats_dict[SMS_TYPE]['failures'][NOTIFICATION_PERMANENT_FAILURE] == 0
+    assert stats_dict[SMS_TYPE]['test-key'] == 4
 
-    assert stats_dict['letter']['total'] == 0
-    assert stats_dict['letter']['failures']['virus-scan-failed'] == 0
-    assert stats_dict['letter']['test-key'] == 5
+    assert stats_dict[LETTER_TYPE]['total'] == 0
+    assert stats_dict[LETTER_TYPE]['failures'][NOTIFICATION_VIRUS_SCAN_FAILED] == 0
+    assert stats_dict[LETTER_TYPE]['test-key'] == 5
 
 
 def test_format_admin_stats_counts_non_test_key_notifications_correctly():
     rows = [
-        NewStatsRow('email', 'technical-failure', 'normal', 1),
-        NewStatsRow('email', 'created', 'team', 3),
-        NewStatsRow('sms', 'temporary-failure', 'normal', 6),
-        NewStatsRow('sms', 'sent', 'normal', 2),
-        NewStatsRow('letter', 'pending-virus-check', 'normal', 1),
+        NewStatsRow(EMAIL_TYPE, NOTIFICATION_PERMANENT_FAILURE, 'normal', 1),
+        NewStatsRow(EMAIL_TYPE, NOTIFICATION_CREATED, 'team', 3),
+        NewStatsRow(SMS_TYPE, NOTIFICATION_TEMPORARY_FAILURE, 'normal', 6),
+        NewStatsRow(SMS_TYPE, NOTIFICATION_SENT, 'normal', 2),
+        NewStatsRow(LETTER_TYPE, NOTIFICATION_PENDING_VIRUS_CHECK, 'normal', 1),
     ]
     stats_dict = format_admin_stats(rows)
 
-    assert stats_dict['email']['total'] == 4
-    assert stats_dict['email']['failures']['technical-failure'] == 1
+    assert stats_dict[EMAIL_TYPE]['total'] == 4
+    assert stats_dict[EMAIL_TYPE]['failures'][NOTIFICATION_PERMANENT_FAILURE] == 1
 
-    assert stats_dict['sms']['total'] == 8
-    assert stats_dict['sms']['failures']['permanent-failure'] == 0
+    assert stats_dict[SMS_TYPE]['total'] == 8
+    assert stats_dict[SMS_TYPE]['failures'][NOTIFICATION_PERMANENT_FAILURE] == 0
 
-    assert stats_dict['letter']['total'] == 1
+    assert stats_dict[LETTER_TYPE]['total'] == 1
 
 
 def _stats(requested, delivered, failed):
-    return {'requested': requested, 'delivered': delivered, 'failed': failed}
+    return {'requested': requested, NOTIFICATION_DELIVERED: delivered, NOTIFICATION_FAILED: failed}
 
 
 @pytest.mark.parametrize(
@@ -196,17 +217,37 @@ def test_create_empty_monthly_notification_status_stats_dict(year, expected_year
     output = create_empty_monthly_notification_status_stats_dict(year)
     assert sorted(output.keys()) == expected_years
     for v in output.values():
-        assert v == {'sms': {}, 'email': {}, 'letter': {}}
+        assert v == {SMS_TYPE: {}, EMAIL_TYPE: {}, LETTER_TYPE: {}}
 
 
 @freeze_time('2018-06-01 04:59:59')
 # This test assumes the local timezone is EST
 def test_add_monthly_notification_status_stats():
     row_data = [
-        {'month': datetime(2018, 4, 1), 'notification_type': 'sms', 'notification_status': 'sending', 'count': 1},
-        {'month': datetime(2018, 4, 1), 'notification_type': 'sms', 'notification_status': 'delivered', 'count': 2},
-        {'month': datetime(2018, 4, 1), 'notification_type': 'email', 'notification_status': 'sending', 'count': 4},
-        {'month': datetime(2018, 5, 1), 'notification_type': 'sms', 'notification_status': 'sending', 'count': 8},
+        {
+            'month': datetime(2018, 4, 1),
+            'notification_type': SMS_TYPE,
+            'notification_status': NOTIFICATION_SENDING,
+            'count': 1,
+        },
+        {
+            'month': datetime(2018, 4, 1),
+            'notification_type': SMS_TYPE,
+            'notification_status': NOTIFICATION_DELIVERED,
+            'count': 2,
+        },
+        {
+            'month': datetime(2018, 4, 1),
+            'notification_type': EMAIL_TYPE,
+            'notification_status': NOTIFICATION_SENDING,
+            'count': 4,
+        },
+        {
+            'month': datetime(2018, 5, 1),
+            'notification_type': SMS_TYPE,
+            'notification_status': NOTIFICATION_SENDING,
+            'count': 8,
+        },
     ]
     rows = []
     for r in row_data:
@@ -217,15 +258,19 @@ def test_add_monthly_notification_status_stats():
 
     data = create_empty_monthly_notification_status_stats_dict(2018)
     # this data won't be affected
-    data['2018-05']['email']['sending'] = 32
+    data['2018-05'][EMAIL_TYPE][NOTIFICATION_SENDING] = 32
 
     # this data will get combined with the 8 from row_data
-    data['2018-05']['sms']['sending'] = 16
+    data['2018-05'][SMS_TYPE][NOTIFICATION_SENDING] = 16
 
     add_monthly_notification_status_stats(data, rows)
 
     assert data == {
-        '2018-04': {'sms': {'sending': 1, 'delivered': 2}, 'email': {'sending': 4}, 'letter': {}},
-        '2018-05': {'sms': {'sending': 24}, 'email': {'sending': 32}, 'letter': {}},
-        '2018-06': {'sms': {}, 'email': {}, 'letter': {}},
+        '2018-04': {
+            SMS_TYPE: {NOTIFICATION_SENDING: 1, NOTIFICATION_DELIVERED: 2},
+            EMAIL_TYPE: {NOTIFICATION_SENDING: 4},
+            LETTER_TYPE: {},
+        },
+        '2018-05': {SMS_TYPE: {NOTIFICATION_SENDING: 24}, EMAIL_TYPE: {NOTIFICATION_SENDING: 32}, LETTER_TYPE: {}},
+        '2018-06': {SMS_TYPE: {}, EMAIL_TYPE: {}, LETTER_TYPE: {}},
     }
