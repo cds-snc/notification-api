@@ -94,7 +94,7 @@ jobs:
       run: |
         aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster     
 
-    - name: Update images in staging
+    - name: Update images in staging (Kustomize)
       run: |
         DOCKER_TAG=${GITHUB_SHA::7}
         kubectl set image deployment.apps/notify-api notify-api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
@@ -107,6 +107,8 @@ jobs:
         kubectl set image deployment.apps/notify-celery-email-send-primary notify-celery-email-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
         kubectl set image deployment.apps/notify-celery-email-send-scalable notify-celery-email-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config        
 
+    - name: Update images in staging (Helm)
+      uses: ./.github/actions/call-manifests-update-docker-tag.yaml
 
     - name: my-app-install token
       id: notify-pr-bot
