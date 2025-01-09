@@ -2693,8 +2693,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "task/pre-3.12-recipient-csv-annual-limit-validation-MERGE_IN_TO_MAIN"
-resolved_reference = "82750a3c3c8466c804b687896abd24cf39c3bfbd"
+reference = "53.1.0"
+resolved_reference = "ec2de5f266cdb79c3931588040d1665a845b8c86"
 
 [[package]]
 name = "ordered-set"
@@ -4641,4 +4641,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "fb4aea86fb759b74efb7f40aef08f0fd9ce214d6238b01468ddc3c633833f0b5"
+content-hash = "2f8a60a2105cf509f81540d2ee722678ee83b01d4808142663d2c352df4a6215"
