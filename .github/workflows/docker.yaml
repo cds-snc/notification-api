@@ -111,6 +111,7 @@ jobs:
       env:
         GITHUB_SHA: ${{ github.sha }}
       run: |
+        echo "DOCKER_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
         curl -L \
         -X POST \
           -H "Accept: application/vnd.github+json" \
