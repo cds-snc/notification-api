@@ -10,10 +10,10 @@ jobs:
       - name: Install libcurl
         run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
         with:
-          python-version: '3.10'
+          python-version: '3.12'
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
       - uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c # v3.3.3
@@ -27,5 +27,5 @@ jobs:
       - name: Notify Slack channel if this performance test job fails
         if: ${{ failure() && github.ref == 'refs/heads/main' }}
         run: |
-          json="{'text':'Scheduled CI Performance testing failed: <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|GitHub actions>'}"
+          json='{"text":"Scheduled CI Performance testing failed: <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|GitHub actions>"}'
           curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

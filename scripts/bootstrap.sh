@@ -7,4 +7,4 @@ make generate-version-file
 poetry install --only test
 
 # Upgrade databases
-flask db upgrade
+poetry run flask db upgrade

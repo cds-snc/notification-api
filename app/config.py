@@ -530,7 +530,7 @@ class Config(object):
         "insert-quarter-data-for-annual-limits-q4": {
             "task": "insert-quarter-data-for-annual-limits",
             "schedule": crontab(
-                minute=0, hour=23, day_of_month=1, month_of_year=1
+                minute=0, hour=23, day_of_month=1, month_of_year=4
             ),  # Running this at the end of the day on 1st April
             "options": {"queue": QueueNames.PERIODIC},
         },
@@ -698,6 +698,7 @@ class Development(Config):
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
+    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "dev-notify-cypress-secret-key")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")

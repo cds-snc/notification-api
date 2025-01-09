@@ -1,5 +1,5 @@
 import itertools
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
@@ -649,13 +649,15 @@ def get_monthly_notification_stats(service_id):
     data = statistics.create_empty_monthly_notification_status_stats_dict(year)
 
     stats = fetch_notification_status_for_service_by_month(start_date, end_date, service_id)
-    # statistics.add_monthly_notification_status_stats(data, stats)
+    statistics.add_monthly_notification_status_stats(data, stats)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    # end_date doesn't have tzinfo, so we need to remove it from now
+    end_date_now = now.replace(tzinfo=None)
     # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
-        # statistics.add_monthly_notification_status_stats(data, todays_deltas)
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
+        todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
+        statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)
 
