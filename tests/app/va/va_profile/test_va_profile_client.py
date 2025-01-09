@@ -525,13 +525,14 @@ class TestSendVAProfileNotificationStatus:
         expected_url = f'{MOCK_VA_PROFILE_URL}/contact-information-vanotify/notify/status'
         assert rmock.request_history[0].url == expected_url
 
+    @pytest.mark.parametrize('test_exc', (requests.ConnectTimeout, requests.ReadTimeout, requests.exceptions.SSLError))
     @pytest.mark.parametrize('notification_data', [mock_email_notification_data, mock_sms_notification_data])
-    def test_send_va_profile_notification_status_timeout(
-        self, rmock, mock_va_profile_client, mocker, notification_data
+    def test_send_va_profile_notification_status_retryable_exception(
+        self, rmock, test_exc, mock_va_profile_client, mocker, notification_data
     ):
-        rmock.post(requests_mock.ANY, exc=requests.ReadTimeout)
+        rmock.post(requests_mock.ANY, exc=test_exc)
 
-        with pytest.raises(requests.Timeout):
+        with pytest.raises(test_exc):
             mock_va_profile_client.send_va_profile_notification_status(notification_data)
 
         assert rmock.called

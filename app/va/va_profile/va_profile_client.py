@@ -377,10 +377,11 @@ class VAProfileClient:
         # raise errors if they occur, they will be handled by the calling function
         try:
             response = requests.post(url, json=notification_data, headers=headers, timeout=self.timeout)
-        except requests.Timeout:
-            self.logger.exception(
-                'Request timeout attempting to send notification status to VA Profile for notification %s | retrying...',
+        except (requests.Timeout, requests.ConnectTimeout, requests.exceptions.SSLError) as e:
+            self.logger.warning(
+                'Retryable exception when sending notification status to VA Profile for notification %s | %s',
                 notification_data.get('id'),
+                str(e),
             )
             raise
         except requests.RequestException:
