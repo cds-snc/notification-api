@@ -9,9 +9,7 @@ env:
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
-  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_STAGING }}
   
-
 permissions:
   id-token: write   # This is required for requesting the OIDC JWT
   contents: read    # This is required for actions/checkout
@@ -61,15 +59,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
-
-    - name: Setup Terraform tools
-      uses: cds-snc/terraform-tools-setup@v1
-      env: # In case you want to override default versions
-        CONFTEST_VERSION: 0.30.0 
-        TERRAFORM_VERSION: 1.9.5
-        TERRAGRUNT_VERSION: 0.66.9
-        TF_SUMMARIZE_VERSION: 0.2.3                           
+        aws-region: ca-central-1                      
 
     - name: Set Docker Tag
       run: echo "DOCKER_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
