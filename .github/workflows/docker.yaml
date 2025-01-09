@@ -63,16 +63,6 @@ jobs:
         aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
         aws-region: ca-central-1
 
-    - name: Install OpenVPN
-      run: |
-        sudo apt update
-        sudo apt install -y openvpn openvpn-systemd-resolved
-
-    - name: Install 1Pass CLI
-      run: |
-        curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
-        sudo dpkg -i 1pass.deb
-
     - name: Setup Terraform tools
       uses: cds-snc/terraform-tools-setup@v1
       env: # In case you want to override default versions
