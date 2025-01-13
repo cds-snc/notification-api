@@ -136,13 +136,16 @@ class Freshdesk(object):
                 return 201
         except requests.RequestException as e:
             current_app.logger.error(f"Failed to create Freshdesk ticket: {e}")
-            if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
-                current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
-                return 500
-            self.email_freshdesk_ticket(
-                current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
-            )
+            self.email_freshdesk_ticket_freshdesk_down()
             return 201
+
+    def email_freshdesk_ticket_freshdesk_down(self):
+        if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
+            current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
+            return 500
+        self.email_freshdesk_ticket(
+            current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
+        )
 
     def email_freshdesk_ticket(self, email_address, template_id) -> None:
         content = self._generate_ticket()

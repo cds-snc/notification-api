@@ -326,7 +326,6 @@ class TestEmailFreshdesk:
         with set_config_values(notify_api, {"CONTACT_FORM_EMAIL_ADDRESS": "contact@test.com"}):
             with notify_api.app_context():
                 freshdesk_object = freshdesk.Freshdesk(ContactRequest(email_address="test@email.com"))
-                content = {"data": "data"}
-                freshdesk_object.email_freshdesk_ticket(content)
+                freshdesk_object.email_freshdesk_ticket_freshdesk_down()
                 mock_persist_notification.assert_called_once()
                 mock_send_notification_to_queue.assert_called_once()
