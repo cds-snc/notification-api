@@ -142,7 +142,6 @@ class Freshdesk(object):
     def email_freshdesk_ticket_freshdesk_down(self):
         if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
             current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
-            return 500
         self.email_freshdesk_ticket(
             current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
         )
