@@ -27,7 +27,7 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
+from app.dao.services_dao import dao_fetch_service_by_id, dao_fetch_service_ids_of_sensitive_services, dao_update_service
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -479,6 +479,40 @@ def send_contact_request(user_id):
 
         except Exception as e:
             current_app.logger.exception(e)
+
+    # Check if user is member of any sensitive services
+    if current_app.config.get('FF_SENSITIVE_SERVICE_EMAIL', False) and user:
+        try:
+            sensitive_service_ids = dao_fetch_service_ids_of_sensitive_services()
+            user_service_ids = [str(service.id) for service in user.services]
+
+            if any(service_id in user_service_ids for service_id in sensitive_service_ids):
+                # Send to secure email instead of Freshdesk
+                template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
+                service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+                saved_notification = persist_notification(
+                    template_id=template.id,
+                    template_version=template.version,
+                    recipient=current_app.config.get('SENSITIVE_SERVICE_EMAIL'),
+                    service=service,
+                    personalisation={
+                        'name': contact.name,
+                        'email_address': contact.email_address,
+                        'support_type': contact.support_type,
+                        'service_id': contact.service_id,
+                        'message': contact.message,
+                    },
+                    notification_type=template.template_type,
+                    api_key_id=None,
+                    key_type=KEY_TYPE_NORMAL,
+                    reply_to_text=service.get_default_reply_to_email_address(),
+                )
+
+                send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+                return jsonify({'status_code': 204}), 204
+        except Exception as e:
+            current_app.logger.exception(f"Failed to email contact form {json.dumps(contact, indent=4)}, error: {e}")
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
