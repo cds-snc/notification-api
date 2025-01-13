@@ -1,6 +1,6 @@
 """
 
-Revision ID: 0472_add_sensitive_service_direct_email
+Revision ID: 0472_add_direct_email_2
 Revises: 0471_edit_limit_emails2
 Create Date: 2025-01-13 00:00:00
 
@@ -10,7 +10,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0472_add_sensitive_service_direct_email"
+revision = "0472_add_direct_email_2"
 down_revision = "0471_edit_limit_emails2"
 
 contact_us_template_id = current_app.config["CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID"]
