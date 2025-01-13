@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 from urllib.parse import urljoin
 
 import requests
@@ -139,7 +139,9 @@ class Freshdesk(object):
             if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
                 current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
                 return 500
-            self.email_freshdesk_ticket(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
+            self.email_freshdesk_ticket(
+                current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
+            )
             return 201
 
     def email_freshdesk_ticket(self, email_address, template_id) -> None:

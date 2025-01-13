@@ -27,7 +27,11 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id, dao_fetch_service_ids_of_sensitive_services, dao_update_service
+from app.dao.services_dao import (
+    dao_fetch_service_by_id,
+    dao_fetch_service_ids_of_sensitive_services,
+    dao_update_service,
+)
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -481,22 +485,19 @@ def send_contact_request(user_id):
             current_app.logger.exception(e)
 
     # Check if user is member of any sensitive services
-    if current_app.config.get('FF_SENSITIVE_SERVICE_SKIP_FRESHDESK', False) and user:
-        try:
-            sensitive_service_ids = dao_fetch_service_ids_of_sensitive_services()
-            user_service_ids = [str(service.id) for service in user.services]
+    if current_app.config.get("FF_SENSITIVE_SERVICE_SKIP_FRESHDESK", False) and user:
+        sensitive_service_ids = dao_fetch_service_ids_of_sensitive_services()
+        user_service_ids = [str(service.id) for service in user.services]
 
-            if any(service_id in user_service_ids for service_id in sensitive_service_ids):
-                # Send to secure email instead of Freshdesk
-                email_address = current_app.config.get('SENSITIVE_SERVICE_EMAIL')
-                template_id = current_app.config.get('CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID')
-                if not email_address:
-                    current_app.logger.error("Sensitive service email address not set")
-                    return jsonify({}), 500
-                status_code = Freshdesk(contact).email_freshdesk_ticket(email_address, template_id)
-                return jsonify({'status_code': status_code}), 204
-        except Exception as e:
-            current_app.logger.exception(f"Failed to email contact form {json.dumps(contact, indent=4)}, error: {e}")
+        if any(service_id in user_service_ids for service_id in sensitive_service_ids):
+            # Send to secure email instead of Freshdesk
+            email_address = current_app.config.get("SENSITIVE_SERVICE_EMAIL")
+            template_id = current_app.config.get("CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID")
+            if not email_address:
+                current_app.logger.error("Sensitive service email address not set")
+                return jsonify({}), 500
+            status_code = Freshdesk(contact).email_freshdesk_ticket(email_address, template_id)
+            return jsonify({"status_code": status_code}), 204
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
