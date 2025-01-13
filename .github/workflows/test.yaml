@@ -79,7 +79,7 @@ jobs:
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |
-        json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|GitHub actions>"}'
+        json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|GitHub actions>"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
         
