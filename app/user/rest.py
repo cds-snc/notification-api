@@ -481,36 +481,20 @@ def send_contact_request(user_id):
             current_app.logger.exception(e)
 
     # Check if user is member of any sensitive services
-    if current_app.config.get('FF_SENSITIVE_SERVICE_EMAIL', False) and user:
+    if current_app.config.get('FF_SENSITIVE_SERVICE_SKIP_FRESHDESK', False) and user:
         try:
             sensitive_service_ids = dao_fetch_service_ids_of_sensitive_services()
             user_service_ids = [str(service.id) for service in user.services]
 
             if any(service_id in user_service_ids for service_id in sensitive_service_ids):
                 # Send to secure email instead of Freshdesk
-                template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
-                service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
-
-                saved_notification = persist_notification(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient=current_app.config.get('SENSITIVE_SERVICE_EMAIL'),
-                    service=service,
-                    personalisation={
-                        'name': contact.name,
-                        'email_address': contact.email_address,
-                        'support_type': contact.support_type,
-                        'service_id': contact.service_id,
-                        'message': contact.message,
-                    },
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type=KEY_TYPE_NORMAL,
-                    reply_to_text=service.get_default_reply_to_email_address(),
-                )
-
-                send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
-                return jsonify({'status_code': 204}), 204
+                email_address = current_app.config.get('SENSITIVE_SERVICE_EMAIL')
+                template_id = current_app.config.get('CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID')
+                if not email_address:
+                    current_app.logger.error("Sensitive service email address not set")
+                    return jsonify({}), 500
+                status_code = Freshdesk(contact).email_freshdesk_ticket(email_address, template_id)
+                return jsonify({'status_code': status_code}), 204
         except Exception as e:
             current_app.logger.exception(f"Failed to email contact form {json.dumps(contact, indent=4)}, error: {e}")
 

@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 from urllib.parse import urljoin
 
 import requests
@@ -136,31 +136,31 @@ class Freshdesk(object):
                 return 201
         except requests.RequestException as e:
             current_app.logger.error(f"Failed to create Freshdesk ticket: {e}")
-            self.email_freshdesk_ticket(self._generate_ticket())
-            return 201
-
-    def email_freshdesk_ticket(self, content: dict) -> None:
-        try:
-            template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
-            notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
-
             if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
                 current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
-            else:
-                current_app.logger.info("Emailing contact us form to {}".format(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"]))
-                saved_notification = persist_notification(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient=current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
-                    service=notify_service,
-                    personalisation={
-                        "contact_us_content": json.dumps(content, indent=4),
-                    },
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type=KEY_TYPE_NORMAL,
-                    reply_to_text=notify_service.get_default_reply_to_email_address(),
-                )
-                send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+                return 500
+            self.email_freshdesk_ticket(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
+            return 201
+
+    def email_freshdesk_ticket(self, email_address, template_id) -> None:
+        content = self._generate_ticket()
+        try:
+            template = dao_get_template_by_id(template_id)
+            notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
+
+            saved_notification = persist_notification(
+                template_id=template.id,
+                template_version=template.version,
+                recipient=email_address,
+                service=notify_service,
+                personalisation={
+                    "contact_us_content": json.dumps(content, indent=4),
+                },
+                notification_type=template.template_type,
+                api_key_id=None,
+                key_type=KEY_TYPE_NORMAL,
+                reply_to_text=notify_service.get_default_reply_to_email_address(),
+            )
+            send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
         except Exception as e:
             current_app.logger.exception(f"Failed to email contact form {json.dumps(content, indent=4)}, error: {e}")
