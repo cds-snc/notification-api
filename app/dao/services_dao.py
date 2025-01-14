@@ -601,6 +601,6 @@ def dao_fetch_service_ids_of_sensitive_services():
     return [str(service_id) for (service_id,) in sensitive_service_ids]
 
 
-def dao_fetch_service_ids_of_ptm_services():
-    ptm_service_ids = Service.query.filter(Service.organisation_type.is_("province_or_territory")).with_entities(Service.id).all()
-    return [str(service_id) for (service_id,) in ptm_service_ids]
+def dao_fetch_service_ids_of_pt_services():
+    pt_service_ids = Service.query.filter(Service.organisation_type == "province_or_territory").with_entities(Service.id).all()
+    return [str(service_id) for (service_id,) in pt_service_ids]
