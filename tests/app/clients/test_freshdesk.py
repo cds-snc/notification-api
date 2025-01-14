@@ -329,3 +329,41 @@ class TestEmailFreshdesk:
                 freshdesk_object.email_freshdesk_ticket_freshdesk_down()
                 mock_persist_notification.assert_called_once()
                 mock_send_notification_to_queue.assert_called_once()
+
+
+class TestEmailFreshdeskSensitiveService:
+    def test_email_freshdesk_ticket_sensitive_service_success(self, mocker, notify_api):
+        """Test successful sending of sensitive service email"""
+        mock_email_ticket = mocker.patch.object(freshdesk.Freshdesk, 'email_freshdesk_ticket')
+
+        with set_config_values(notify_api, {
+            "SENSITIVE_SERVICE_EMAIL": "sensitive@test.gov.uk",
+            "CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID": "template-123"
+        }):
+            with notify_api.app_context():
+                freshdesk_client = freshdesk.Freshdesk(ContactRequest(email_address="user@example.com"))
+                freshdesk_client.email_freshdesk_ticket_sensitive_service()
+
+                mock_email_ticket.assert_called_once_with(
+                    "sensitive@test.gov.uk",
+                    "template-123"
+                )
+
+    def test_email_freshdesk_ticket_sensitive_service_no_email(self, mocker, notify_api):
+        """Test handling when sensitive service email not configured"""
+        mock_email_ticket = mocker.patch.object(freshdesk.Freshdesk, 'email_freshdesk_ticket')
+        mock_logger = mocker.patch('app.clients.freshdesk.current_app.logger.error')
+
+        with set_config_values(notify_api, {
+            "SENSITIVE_SERVICE_EMAIL": None,
+            "CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID": "template-123"
+        }):
+            with notify_api.app_context():
+                freshdesk_client = freshdesk.Freshdesk(ContactRequest(email_address="user@example.com"))
+                freshdesk_client.email_freshdesk_ticket_sensitive_service()
+
+                mock_logger.assert_called_once_with("Sensitive service email address not set")
+                mock_email_ticket.assert_called_once_with(
+                    None,
+                    "template-123"
+                )
