@@ -491,13 +491,8 @@ def send_contact_request(user_id):
 
         if any(service_id in user_service_ids for service_id in sensitive_service_ids):
             # Send to secure email instead of Freshdesk
-            email_address = current_app.config.get("SENSITIVE_SERVICE_EMAIL")
-            template_id = current_app.config.get("CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID")
-            if not email_address:
-                current_app.logger.error("Sensitive service email address not set")
-                return jsonify({}), 500
-            status_code = Freshdesk(contact).email_freshdesk_ticket(email_address, template_id)
-            return jsonify({"status_code": status_code}), 204
+            Freshdesk(contact).email_freshdesk_ticket_sensitive_service()
+            return 201
 
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
