@@ -33,6 +33,7 @@ from tests.app.db import (
     create_template_folder,
     create_user,
 )
+from tests.conftest import set_config
 
 
 def test_get_user_list(admin_request, sample_service):
@@ -869,6 +870,59 @@ def test_send_contact_request_with_live_service(client, sample_service, mocker):
     assert resp.status_code == 204
     mocked_freshdesk.assert_called_once_with()
     mocked_salesforce_client.engagement_update.assert_not_called()
+
+
+def test_send_contact_request_with_cetral_service(client, mocker, notify_api):
+    with set_config(notify_api, "FF_PT_SERVICE_SKIP_FRESHDESK", True):
+        user = create_user()
+        data = {
+            "name": user.name,
+            "email_address": user.email_address,
+            "support_type": "ask_question",
+            "message": "test message",
+        }
+        create_service(user=user, service_name="test service", organisation_type="central")
+
+        mocked_freshdesk_send_ticket = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+        mocked_freshdesk_email = mocker.patch("app.user.rest.Freshdesk.email_freshdesk_ticket_pt_service", return_value=201)
+        mocker.patch("app.user.rest.salesforce_client")
+
+        resp = client.post(
+            url_for("user.send_contact_request", user_id=str(user.id)),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header()],
+        )
+        assert resp.status_code == 204
+        mocked_freshdesk_send_ticket.assert_called_once_with()
+        mocked_freshdesk_email.assert_not_called()
+
+
+def test_send_contact_request_with_pt_service(client, mocker, notify_api):
+    with set_config(notify_api, "FF_PT_SERVICE_SKIP_FRESHDESK", True):
+        user = create_user(name="user 2")
+        data = {
+            "name": user.name,
+            "email_address": user.email_address,
+            "support_type": "ask_question",
+            "message": "test message",
+        }
+        mocked_freshdesk_send_ticket = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
+        mocked_freshdesk_email = mocker.patch("app.user.rest.Freshdesk.email_freshdesk_ticket_pt_service", return_value=201)
+
+        org = create_organisation(name="Ontario", organisation_type="province_or_territory")
+
+        service = create_service(user=user, service_name="test service 2", organisation=org)
+        org.services = [service]
+        user.services = [service]
+        service.organisation = org
+        resp = client.post(
+            url_for("user.send_contact_request", user_id=str(user.id)),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header()],
+        )
+        assert resp.status_code == 204
+        mocked_freshdesk_send_ticket.assert_not_called()
+        mocked_freshdesk_email.assert_called_once_with()
 
 
 def test_send_contact_request_demo(client, sample_user, mocker):
