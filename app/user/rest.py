@@ -29,7 +29,7 @@ from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.services_dao import (
     dao_fetch_service_by_id,
-    dao_fetch_service_ids_of_sensitive_services,
+    dao_fetch_service_ids_of_ptm_services,
     dao_update_service,
 )
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
@@ -484,14 +484,14 @@ def send_contact_request(user_id):
         except Exception as e:
             current_app.logger.exception(e)
 
-    # Check if user is member of any sensitive services
-    if current_app.config.get("FF_SENSITIVE_SERVICE_SKIP_FRESHDESK", False) and user:
-        sensitive_service_ids = dao_fetch_service_ids_of_sensitive_services()
+    # Check if user is member of any ptm services
+    if current_app.config.get("FF_PTM_SERVICE_SKIP_FRESHDESK", False) and user:
+        ptm_service_ids = dao_fetch_service_ids_of_ptm_services()
         user_service_ids = [str(service.id) for service in user.services]
 
-        if any(service_id in user_service_ids for service_id in sensitive_service_ids):
+        if any(service_id in user_service_ids for service_id in ptm_service_ids):
             # Send to secure email instead of Freshdesk
-            Freshdesk(contact).email_freshdesk_ticket_sensitive_service()
+            Freshdesk(contact).email_freshdesk_ticket_ptm_service()
             return 201
 
     status_code = Freshdesk(contact).send_ticket()

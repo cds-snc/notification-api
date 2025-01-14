@@ -146,11 +146,11 @@ class Freshdesk(object):
             current_app.config["CONTACT_FORM_EMAIL_ADDRESS"], current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"]
         )
 
-    def email_freshdesk_ticket_sensitive_service(self):
+    def email_freshdesk_ticket_ptm_service(self):
         email_address = current_app.config.get("SENSITIVE_SERVICE_EMAIL")
         template_id = current_app.config.get("CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID")
         if not email_address:
-            current_app.logger.error("Sensitive service email address not set")
+            current_app.logger.error("SENSITIVE_SERVICE_EMAIL not set")
         self.email_freshdesk_ticket(email_address, template_id)
 
     def email_freshdesk_ticket(self, email_address, template_id) -> None:

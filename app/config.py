@@ -560,7 +560,7 @@ class Config(object):
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
-    SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", " ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
+    SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
 
     FROM_NUMBER = "development"
 
@@ -637,7 +637,7 @@ class Config(object):
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
     FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
-    FF_SENSITIVE_SERVICE_SKIP_FRESHDESK = env.bool("FF_SENSITIVE_SERVICE_SKIP_FRESHDESK", False)
+    FF_PTM_SERVICE_SKIP_FRESHDESK = env.bool("FF_PTM_SERVICE_SKIP_FRESHDESK", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
