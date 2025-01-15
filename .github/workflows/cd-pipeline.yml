@@ -117,3 +117,21 @@ jobs:
       environment: prod
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
+
+  send-slack-notifications:
+    needs: [deploy-to-prod, create-and-post-tag]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Post to VA Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.VA_NOTIFY_PUBLIC_SLACK_URL }}
+          TAG: ${{ needs.create-and-post-tag.outputs.newVersion }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data "{
+            \"text\": \":llama: Production Release Alert :llama:\n*Notification-API* \`${TAG}\` was released to production.\n:rocket: *<https://github.com/department-of-veterans-affairs/notification-api/releases/tag/${TAG}|Release notes are here>*\"
+          }" \
+          "$SLACK_WEBHOOK_URL"
