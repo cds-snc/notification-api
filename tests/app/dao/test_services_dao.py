@@ -29,7 +29,6 @@ from app.dao.services_dao import (
     dao_fetch_service_by_id,
     dao_fetch_service_by_inbound_number,
     dao_fetch_service_creator,
-    dao_fetch_service_ids_of_pt_services,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_stats_for_service,
     dao_fetch_todays_stats_for_all_services,
@@ -1550,27 +1549,3 @@ class TestSensitiveService:
     def test_non_sensitive_service(self, notify_db, notify_db_session):
         sensitive_service = dao_fetch_service_ids_of_sensitive_services()
         assert sensitive_service == []
-
-
-class TestPtService:
-    def test_pt_service(self, notify_db, notify_db_session):
-        user = create_user()
-        assert Service.query.count() == 0
-        service = Service(
-            name="test service",
-            email_from="email_from",
-            message_limit=1000,
-            sms_daily_limit=1000,
-            restricted=False,
-            organisation_type="province_or_territory",
-            created_by=user,
-        )
-        dao_create_service(service, user)
-        assert Service.query.count() == 1
-        service_db = Service.query.one()
-
-        assert service_db.name == "test service"
-        assert service_db.organisation_type == "province_or_territory"
-
-        pt_service = dao_fetch_service_ids_of_pt_services()
-        assert [str(service.id)] == pt_service
