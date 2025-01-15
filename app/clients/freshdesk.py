@@ -164,6 +164,9 @@ class Freshdesk(object):
                 template_version=template.version,
                 recipient=email_address,
                 service=notify_service,
+                # This email will be badly formatted, but this allows us to re-use the
+                # _generate_description fn without having to duplicate all of that logic to get the
+                # description in plain text.
                 personalisation={
                     "contact_us_content": json.dumps(content, indent=4),
                 },
