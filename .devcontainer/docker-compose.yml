@@ -54,3 +54,4 @@ networks:
   notify-network:
     name:   notify-network
     driver: bridge
+    external: true
