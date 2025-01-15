@@ -881,8 +881,7 @@ def test_send_contact_request_with_cetral_service(client, mocker, notify_api):
             "support_type": "ask_question",
             "message": "test message",
         }
-        create_service(user=user, service_name="test service", organisation_type="central")
-
+        mocked_dao = mocker.patch("app.user.rest.dao_fetch_service_ids_of_pt_services", return_value=[])
         mocked_freshdesk_send_ticket = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
         mocked_freshdesk_email = mocker.patch("app.user.rest.Freshdesk.email_freshdesk_ticket_pt_service", return_value=201)
         mocker.patch("app.user.rest.salesforce_client")
@@ -893,6 +892,7 @@ def test_send_contact_request_with_cetral_service(client, mocker, notify_api):
             headers=[("Content-Type", "application/json"), create_authorization_header()],
         )
         assert resp.status_code == 204
+        mocked_dao.assert_called_once_with()
         mocked_freshdesk_send_ticket.assert_called_once_with()
         mocked_freshdesk_email.assert_not_called()
 
@@ -906,21 +906,20 @@ def test_send_contact_request_with_pt_service(client, mocker, notify_api):
             "support_type": "ask_question",
             "message": "test message",
         }
+        org = create_organisation(name="Ontario", organisation_type="province_or_territory")
+        service = create_service(user=user, service_name="test service 2", organisation=org)
+
+        mocked_dao = mocker.patch("app.user.rest.dao_fetch_service_ids_of_pt_services", return_value=[str(service.id)])
         mocked_freshdesk_send_ticket = mocker.patch("app.user.rest.Freshdesk.send_ticket", return_value=201)
         mocked_freshdesk_email = mocker.patch("app.user.rest.Freshdesk.email_freshdesk_ticket_pt_service", return_value=201)
 
-        org = create_organisation(name="Ontario", organisation_type="province_or_territory")
-
-        service = create_service(user=user, service_name="test service 2", organisation=org)
-        org.services = [service]
-        user.services = [service]
-        service.organisation = org
         resp = client.post(
             url_for("user.send_contact_request", user_id=str(user.id)),
             data=json.dumps(data),
             headers=[("Content-Type", "application/json"), create_authorization_header()],
         )
-        assert resp.status_code == 204
+        assert resp.status_code == 201
+        mocked_dao.assert_called_once_with()
         mocked_freshdesk_send_ticket.assert_not_called()
         mocked_freshdesk_email.assert_called_once_with()
 
