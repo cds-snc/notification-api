@@ -485,15 +485,10 @@ def send_contact_request(user_id):
             current_app.logger.exception(e)
 
     # Check if user is member of any ptm services
-    print("hi 1")
     if current_app.config.get("FF_PT_SERVICE_SKIP_FRESHDESK", False) and user:
-        print("hi 2")
         pt_service_ids = dao_fetch_service_ids_of_pt_services()
         user_service_ids = [str(service.id) for service in user.services]
-        print("pt_service_ids", pt_service_ids)
-        print("user_service_ids", user_service_ids)
         if any(service_id in user_service_ids for service_id in pt_service_ids):
-            print("hi 3")
             # Send to secure email instead of Freshdesk
             Freshdesk(contact).email_freshdesk_ticket_pt_service()
             return jsonify({"status_code": 201}), 201
