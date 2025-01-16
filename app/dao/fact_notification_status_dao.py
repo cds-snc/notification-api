@@ -135,11 +135,11 @@ def update_fact_notification_status(data, process_day, service_ids=None):
 
     except IntegrityError as e:
         db.session.rollback()
-        current_app.logger.error(f"Integrity error in update_fact_notification_status: {e}")
+        current_app.logger.info(f"Integrity error in update_fact_notification_status: {e}")
         raise
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Unexpected error in update_fact_notification_status: {e}")
+        current_app.logger.info(f"Unexpected error in update_fact_notification_status: {e}")
         raise
 
 
