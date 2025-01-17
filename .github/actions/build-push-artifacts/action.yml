@@ -46,9 +46,9 @@ runs:
         push: true
         tags: ${{ steps.login-ecr-vaec.outputs.registry }}/notification_api:${{ inputs.ref }}
 
-    - name: Dispatch Twistlock Workflow
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        gh workflow run -r main -F image-tag=${{ inputs.ref }} twistlock.yml
+   # - name: Dispatch Twistlock Workflow
+   #   shell: bash
+   #   env:
+   #     GH_TOKEN: ${{ github.token }}
+   #   run: |
+   #     gh workflow run -r main -F image-tag=${{ inputs.ref }} twistlock.yml
