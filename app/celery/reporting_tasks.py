@@ -72,9 +72,12 @@ def create_nightly_notification_status(day_start=None):
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()
+    current_app.logger.info("create-nightly-notification-status started for {} ".format(day_start))
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
-
+        current_app.logger.info(
+            "create-nightly-notification-status-for-day called from higher level job for day {} ".format(process_day)
+        )
         create_nightly_notification_status_for_day.apply_async(
             kwargs={"process_day": process_day.isoformat()}, queue=QueueNames.REPORTING
         )
@@ -94,6 +97,7 @@ def create_nightly_notification_status_for_day(process_day):
     service_ids = [x.id for x in Service.query.all()]
     chunk_size = 10
     iter_service_ids = iter(service_ids)
+    current_app.logger.info("create-nightly-notification-status-for-day STARTED for day {} ".format(process_day))
 
     while True:
         chunk = list(islice(iter_service_ids, chunk_size))

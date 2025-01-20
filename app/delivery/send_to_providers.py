@@ -20,7 +20,13 @@ from unidecode import unidecode
 from urllib3 import PoolManager
 from urllib3.util import Retry
 
-from app import bounce_rate_client, clients, document_download_client, statsd_client
+from app import (
+    bounce_rate_client,
+    clients,
+    create_uuid,
+    document_download_client,
+    statsd_client,
+)
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
@@ -99,8 +105,9 @@ def send_sms_to_provider(notification):
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
             current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
-            notification.reference = send_sms_response(provider.get_name(), notification.to)
+            notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
+            send_sms_response(provider.get_name(), notification.to, notification.reference)
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
