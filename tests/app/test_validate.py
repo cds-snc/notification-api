@@ -122,3 +122,43 @@ def test_validate_v2_notifications_icn_and_personalisation_redaction(
         'Validation failed for: %s',
         {'recipient_identifier': {'id_type': 'ICN', 'id_value': '<redacted>'}, 'personalisation': '<redacted>'},
     )
+
+
+def test_validate_with_personalisation_files(
+    notify_api,
+    mocker,
+):
+    """
+    When the call to decode_personalisation_files fails, a ValidationError should be raised.
+    """
+    # patch the call to decode_personalisation_files
+    mocker.patch('app.schema_validation.decode_personalisation_files', return_value=({}, ['error']))
+
+    payload = {
+        'personalisation': {'file': 'foo'},
+    }
+    with pytest.raises(ValidationError):
+        validate(payload, {})
+
+
+@pytest.mark.parametrize(
+    'payload',
+    [
+        'not a dictionary',
+        12345,
+        ['a', 'list'],
+        None,
+        '',
+        False,
+    ],
+)
+def test_validate_with_invalid_dict(
+    notify_api,
+    mocker,
+    payload,
+):
+    """
+    When the payload is not a dictionary, a ValidationError should be raised.
+    """
+    with pytest.raises(ValidationError):
+        validate(payload, {})

@@ -1,6 +1,8 @@
 fileignoreconfig:
 - filename: app/dao/api_key_dao.py
   checksum: c44cbd8ae02fb1d551a1f0941365c11977564a6444950ee2b0282ee4b5fd1314
+- filename: app/schema_validation/__init__.py
+  checksum: 9487ddbb105a20f5fd495eb4426b7c27ee3be1894b69a189363363ed616722c0
 - filename: poetry.lock
   checksum: eb38a16cd7377f2d20690e9b607e9ed0858ca35a8e3647fb42bb8021c333df44
 - filename: tests/app/dao/test_api_key_dao.py
