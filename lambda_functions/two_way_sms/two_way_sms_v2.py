@@ -215,7 +215,7 @@ def notify_incoming_sms_handler(
             continue
 
         if not result_of_forwarding:
-            logger.error('Failed to make an HTTP request. Placing the record in the retry queue.')
+            logger.warning('Failed to make an HTTP request. Placing the record in the retry queue.')
             batch_item_failures.append({'itemIdentifier': record_body.get('messageId', '')})
             push_to_sqs(record_body, True)
 
@@ -301,7 +301,7 @@ def forward_to_service(
         logger.debug('Response Content: %s', response.content)
         return True
     except (requests.HTTPError, requests.RequestException) as e:
-        logger.error('Forward request failed - Retryable. Error: %s', e)
+        logger.warning('Forward request failed - Retryable. Error: %s', e)
     except Exception as e:
         logger.critical(
             'Unexpected Exception forwarding to url: %s, with message: %s, and error: %s',
