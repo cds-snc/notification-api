@@ -2,6 +2,10 @@ import itertools
 import json
 from typing import Optional
 
+from boto3 import resource
+import botocore
+
+
 import requests
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
@@ -69,14 +73,18 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 
 def get_gc_organisation_data() -> list[dict]:
     "Returns the dataset from the gc-organisations repo"
-    response = requests.get(
-        current_app.config["CRM_ORG_LIST_URL"],
-        headers={"Authorization": f'token {current_app.config["CRM_GITHUB_PERSONAL_ACCESS_TOKEN"]}'},
-    )
-    response.raise_for_status()
+    bucket = current_app.config["GC_ORGANISATIONS_BUCKET_NAME"]
+    filename = current_app.config["GC_ORGANISATIONS_FILENAME"]
+    try:
+        s3 = resource("s3")
+        key = s3.Object(bucket, filename)
+        data_str = key.get()["Body"].read().decode("utf-8")
+        org_data = json.loads(data_str)
+        return org_data
 
-    account_data = json.loads(response.text)
-    return account_data
+    except botocore.exceptions.ClientError as exception:
+        current_app.logger.error("Unable to download s3 file {}/{}".format(bucket, filename))
+        raise exception
 
 
 def get_organisation_id_from_crm_org_notes(org_notes: str) -> Optional[str]:
