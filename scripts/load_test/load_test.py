@@ -22,7 +22,7 @@ def job_lines(data: str, number_of_lines: int) -> Iterator[List[str]]:
 
 
 class NotifyApiUser(HttpUser):
-    wait_time = constant_pacing(1)  # do something every second
+    wait_time = constant_pacing(30)  # do something every second
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
@@ -55,36 +55,36 @@ class NotifyApiUser(HttpUser):
 
     # SMS Tasks
 
-    @task(120)  # about every 5 seconds
-    def send_high_priority_sms(self):
-        json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
-        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+    # @task(120)  # about every 5 seconds
+    # def send_high_priority_sms(self):
+    #     json = {"phone_number": self.phone_number, "template_id": self.high_priority_sms_template}
+    #     self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
 
-    @task(2)  # about every 5 minutes
-    def send_medium_priority_sms(self):
-        self.send_bulk_sms(self.medium_priority_sms_template, 199)
+    # @task(2)  # about every 5 minutes
+    # def send_medium_priority_sms(self):
+    #     self.send_bulk_sms(self.medium_priority_sms_template, 199)
 
-    @task(1)  # about every 10 minutes
-    def send_low_priority_sms(self):
-        self.send_bulk_sms(self.low_priority_sms_template, 1000)
+    # @task(1)  # about every 10 minutes
+    # def send_low_priority_sms(self):
+    #     self.send_bulk_sms(self.low_priority_sms_template, 1000)
 
-    # Email Tasks
+    # # Email Tasks
 
-    @task(120)  # about every 5 seconds
-    def send_high_priority_email(self):
-        json = {"email_address": self.email_address, "template_id": self.high_priority_email_template}
-        self.client.post("/v2/notifications/email", json=json, headers=self.headers)
+    # @task(120)  # about every 5 seconds
+    # def send_high_priority_email(self):
+    #     json = {"email_address": self.email_address, "template_id": self.high_priority_email_template}
+    #     self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(2)  # about every 5 minutes
-    def send_medium_priority_email(self):
-        self.send_bulk_email(self.medium_priority_email_template, 199)
+    # @task(2)  # about every 5 minutes
+    # def send_medium_priority_email(self):
+    #     self.send_bulk_email(self.medium_priority_email_template, 199)
 
     @task(1)  # about every 10 minutes
     def send_low_priority_emails(self):
-        self.send_bulk_email(self.low_priority_email_template, 10000)
+        self.send_bulk_email(self.low_priority_email_template, 5000)
 
     # Do nothing task
 
-    @task(600 - 120 - 2 - 1 - 120 - 2 - 1)
-    def do_nothing(self):
-        pass
+    # @task(600 - 120 - 2 - 1 - 120 - 2 - 1)
+    # def do_nothing(self):
+    #     pass
