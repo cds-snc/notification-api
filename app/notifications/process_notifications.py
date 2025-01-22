@@ -301,7 +301,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
     """
 
     lofnotifications = []
-    api_key_last_used = None
 
     for notification in notifications:
         notification_created_at = notification.get("created_at") or datetime.utcnow()
@@ -361,13 +360,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
                 notification.get("notification_created_at"),  # type: ignore
             )
         )
-        # If the bulk message is sent using an api key, we want to keep track of the last time the api key was used
-        # We will only update the api key once
-        api_key_id = notification.get("api_key_id")
-        if api_key_id:
-            api_key_last_used = datetime.utcnow()
-    if api_key_last_used:
-        update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
 
     return lofnotifications
