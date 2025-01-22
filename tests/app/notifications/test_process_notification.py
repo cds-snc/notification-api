@@ -14,11 +14,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.models import (
+from app.models import (  # ApiKey,
     BULK,
     NORMAL,
     PRIORITY,
-    ApiKey,
     Notification,
     NotificationHistory,
     ScheduledNotification,
