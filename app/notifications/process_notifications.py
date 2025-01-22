@@ -15,7 +15,7 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
-from app.dao.api_key_dao import update_last_used_api_key
+# from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
@@ -134,8 +134,9 @@ def persist_notification(
             if redis_store.get(redis.daily_limit_cache_key(service.id)):
                 redis_store.incr(redis.daily_limit_cache_key(service.id))
         current_app.logger.info("{} {} created at {}".format(notification_type, notification_id, notification_created_at))
-        if api_key_id:
-            update_last_used_api_key(api_key_id, notification_created_at)
+        # try to fix an incident
+        # if api_key_id:
+        # update_last_used_api_key(api_key_id, notification_created_at)
     return notification
 
 
@@ -366,8 +367,9 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         api_key_id = notification.get("api_key_id")
         if api_key_id:
             api_key_last_used = datetime.utcnow()
-    if api_key_last_used:
-        update_last_used_api_key(api_key_id, api_key_last_used)
+    # try to fix an incident
+    # if api_key_last_used:
+        # update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
 
     return lofnotifications
