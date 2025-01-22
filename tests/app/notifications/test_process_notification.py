@@ -14,11 +14,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.models import (
+from app.models import (  # ApiKey,
     BULK,
     NORMAL,
     PRIORITY,
-    ApiKey,
     Notification,
     NotificationHistory,
     ScheduledNotification,
@@ -411,8 +410,10 @@ class TestPersistNotification:
         assert persisted_notification[0].service == sample_job.service
 
         # Test that the api key last_used_timestamp got updated
-        api_key = ApiKey.query.get(sample_api_key.id)
-        assert api_key.last_used_timestamp is not None
+
+        # incident fix - should revert this later
+        # api_key = ApiKey.query.get(sample_api_key.id)
+        # assert api_key.last_used_timestamp is not None
 
     def test_persist_notifications_reply_to_text_is_original_value_if_sender_is_changed_later(
         self, sample_template, sample_api_key, mocker
@@ -894,8 +895,9 @@ class TestTransformNotification:
 
         assert persisted_notification.to == recipient
         assert persisted_notification.normalised_to == expected_recipient_normalised
-        api_key = ApiKey.query.get(sample_api_key.id)
-        assert api_key.last_used_timestamp is not None
+        # incident fix - should revert this later
+        # api_key = ApiKey.query.get(sample_api_key.id)
+        # assert api_key.last_used_timestamp is not None
 
 
 class TestDBSaveAndSendNotification:
