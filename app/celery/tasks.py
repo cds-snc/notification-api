@@ -39,6 +39,7 @@ from app.aws.metrics import (
     put_batch_saving_bulk_processed,
 )
 from app.config import Config, Priorities, QueueNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
@@ -138,6 +139,13 @@ def process_job(job_id):
     csv = get_recipient_csv(job, template)
 
     rows = csv.get_rows()
+
+    # Update the api_key last_used, we will only update this once per job
+    api_key_id = job.api_key_id
+    if api_key_id:
+        api_key_last_used = datetime.utcnow()
+        update_last_used_api_key(api_key_id, api_key_last_used)
+
     for result in chunked(rows, Config.BATCH_INSERTION_CHUNK_SIZE):
         process_rows(result, template, job, service)
         put_batch_saving_bulk_created(
