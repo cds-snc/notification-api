@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.1.0
+  version: 1.1.1
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -2166,8 +2166,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/NotificationStatus'
-      required:
-        - notification_statuses
     UpdateCallbackRequest:
       type: object
       properties:
@@ -2195,6 +2193,7 @@ components:
         - queue
     NotificationStatus:
       description: |
+        <p> This field is optional. If not provided, the service will receive updates on all notification statuses by default. If included, the service will only receive updates for the specific statuses listed in this field.
         <p>These statuses do not warrant additional action: cancelled, created, delivered, pending, sending, and sent.</p>
         <p>These statuses indicate a client-side error, such as specifying a nonexistent template ID, or other condition that will result in VA Notify <b>not</b> retrying to send the notification: failed, permanent-failure, and validation-failed.  See the associated status_reason for amplifying information.</p>
         <p>"temporary-failure" indicates that VA Notify will retry sending the notification.</p>
