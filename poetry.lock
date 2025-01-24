@@ -326,32 +326,32 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.35.94"
+version = "1.36.5"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.35.94-py3-none-any.whl", hash = "sha256:516c514fb447d6f216833d06a0781c003fcf43099a4ca2f5a363a8afe0942070"},
-    {file = "boto3-1.35.94.tar.gz", hash = "sha256:5aa606239f0fe0dca0506e0ad6bbe4c589048e7e6c2486cee5ec22b6aa7ec2f8"},
+    {file = "boto3-1.36.5-py3-none-any.whl", hash = "sha256:a404ad5ec94ff40c176215a991bf62f0db5514a93a3dd361b7b2ab9660f811f4"},
+    {file = "boto3-1.36.5.tar.gz", hash = "sha256:58a6b7c3d5145b3ac04d4b6caa76223b8ef88004b4237444e553041e29581a11"},
 ]
 
 [package.dependencies]
-botocore = ">=1.35.94,<1.36.0"
+botocore = ">=1.36.5,<1.37.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.10.0,<0.11.0"
+s3transfer = ">=0.11.0,<0.12.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.35.94"
+version = "1.36.5"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.35.94-py3-none-any.whl", hash = "sha256:d784d944865d8279c79d2301fc09ac28b5221d4e7328fb4e23c642c253b9932c"},
-    {file = "botocore-1.35.94.tar.gz", hash = "sha256:2b3309b356541faa4d88bb957dcac1d8004aa44953c0b7d4521a6cc5d3d5d6ba"},
+    {file = "botocore-1.36.5-py3-none-any.whl", hash = "sha256:6d9f70afa9bf9d21407089dc22b8cc8ec6fa44866d4660858c062c74fc8555eb"},
+    {file = "botocore-1.36.5.tar.gz", hash = "sha256:234ed3d29a8954c37a551c933453bf14c6ae44a69a4f273ffef377a2612ca6a6"},
 ]
 
 [package.dependencies]
@@ -360,7 +360,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""}
 
 [package.extras]
-crt = ["awscrt (==0.22.0)"]
+crt = ["awscrt (==0.23.4)"]
 
 [[package]]
 name = "bytecode"
@@ -2217,7 +2217,7 @@ files = [
 
 [[package]]
 name = "notification-utils"
-version = "2.3.0"
+version = "2.3.1"
 description = "Shared python code for VA Notify. Forked from https://github.com/cds-snc/notification-utils"
 optional = false
 python-versions = "*"
@@ -2225,29 +2225,29 @@ files = []
 develop = false
 
 [package.dependencies]
-bleach = ">=4.1.0"
-boto3 = ">=1.24.61"
-botocore = ">=1.27.61"
-Flask = ">=1.1.1"
+bleach = ">=6.2.0"
+boto3 = ">=1.36.5"
+botocore = ">=1.36.5"
+Flask = ">=3.1.0"
 Flask-Redis = ">=0.4.0"
-Jinja2 = ">=2.11.3"
-MarkupSafe = ">=2.1.3"
+Jinja2 = ">=3.1.5"
+MarkupSafe = ">=3.0.2"
 mistune = "3.0.2"
 monotonic = ">=1.6"
 phonenumbers = ">=8.12.12,<8.13.0"
-pypdf = ">=3.15.0"
-python-json-logger = ">=2.0.7,<2.1.0"
-pytz = ">=2021.3"
+pypdf = ">=5.1.0"
+python-json-logger = ">=3.2.1"
+pytz = ">=2024.2"
 pyyaml = "6.0.2"
-requests = ">=2.26.0"
+requests = ">=2.32.3"
 smartypants = ">=2.0.1"
-statsd = ">=3.3.0"
+statsd = ">=4.0.1"
 
 [package.source]
 type = "git"
 url = "https://github.com/department-of-veterans-affairs/notification-utils.git"
 reference = "HEAD"
-resolved_reference = "14881f7287e0d6f454c26d6223c9d4f4a4c61a2b"
+resolved_reference = "99add3228d89f952de23a741769d61a95efc025e"
 
 [[package]]
 name = "notifications-python-client"
@@ -2847,14 +2847,17 @@ cli = ["click (>=5.0)"]
 
 [[package]]
 name = "python-json-logger"
-version = "2.0.7"
-description = "A python library adding a json log formatter"
+version = "3.2.1"
+description = "JSON Log Formatter for the Python Logging Package"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.8"
 files = [
-    {file = "python-json-logger-2.0.7.tar.gz", hash = "sha256:23e7ec02d34237c5aa1e29a070193a4ea87583bb4e7f8fd06d3de8264c4b2e1c"},
-    {file = "python_json_logger-2.0.7-py3-none-any.whl", hash = "sha256:f380b826a991ebbe3de4d897aeec42760035ac760345e57b812938dc8b35e2bd"},
+    {file = "python_json_logger-3.2.1-py3-none-any.whl", hash = "sha256:cdc17047eb5374bd311e748b42f99d71223f3b0e186f4206cc5d52aefe85b090"},
+    {file = "python_json_logger-3.2.1.tar.gz", hash = "sha256:8eb0554ea17cb75b05d2848bc14fb02fbdbd9d6972120781b974380bfa162008"},
 ]
+
+[package.extras]
+dev = ["backports.zoneinfo", "black", "build", "freezegun", "mdx_truly_sane_lists", "mike", "mkdocs", "mkdocs-awesome-pages-plugin", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-material (>=8.5)", "mkdocstrings[python]", "msgspec", "msgspec-python313-pre", "mypy", "orjson", "pylint", "pytest", "tzdata", "validate-pyproject[all]"]
 
 [[package]]
 name = "python-magic"
@@ -3210,20 +3213,20 @@ files = [
 
 [[package]]
 name = "s3transfer"
-version = "0.10.4"
+version = "0.11.2"
 description = "An Amazon S3 Transfer Manager"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "s3transfer-0.10.4-py3-none-any.whl", hash = "sha256:244a76a24355363a68164241438de1b72f8781664920260c48465896b712a41e"},
-    {file = "s3transfer-0.10.4.tar.gz", hash = "sha256:29edc09801743c21eb5ecbc617a152df41d3c287f67b615f73e5f750583666a7"},
+    {file = "s3transfer-0.11.2-py3-none-any.whl", hash = "sha256:be6ecb39fadd986ef1701097771f87e4d2f821f27f6071c872143884d2950fbc"},
+    {file = "s3transfer-0.11.2.tar.gz", hash = "sha256:3b39185cb72f5acc77db1a58b6e25b977f28d20496b6e58d6813d75f464d632f"},
 ]
 
 [package.dependencies]
-botocore = ">=1.33.2,<2.0a.0"
+botocore = ">=1.36.0,<2.0a.0"
 
 [package.extras]
-crt = ["botocore[crt] (>=1.33.2,<2.0a.0)"]
+crt = ["botocore[crt] (>=1.36.0,<2.0a.0)"]
 
 [[package]]
 name = "sentry-sdk"
