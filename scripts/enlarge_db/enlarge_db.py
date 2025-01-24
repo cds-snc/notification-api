@@ -69,4 +69,4 @@ if __name__ == "__main__":
                 print(f"Error adding notifications: {e}")
                 db.session.rollback()
                 sys.exit(1)
-        print(f"Done {notifications_done+len(notifications)} / {args.notifications}")
+        print(f"Done {notifications_done + len(notifications)} / {args.notifications}")

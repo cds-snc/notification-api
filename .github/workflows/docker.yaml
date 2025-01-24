@@ -9,8 +9,7 @@ env:
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
-  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_STAGING }}
-
+  
 permissions:
   id-token: write   # This is required for requesting the OIDC JWT
   contents: read    # This is required for actions/checkout
@@ -60,53 +59,22 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
-        aws-region: ca-central-1
+        aws-region: ca-central-1                      
 
-    - name: Install OpenVPN
+    - name: Set Docker Tag
+      run: echo "DOCKER_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      env:
+        GITHUB_SHA: ${{ github.sha }}
+
+    - name: Update images in staging (Helm)
       run: |
-        sudo apt update
-        sudo apt install -y openvpn openvpn-systemd-resolved
-
-    - name: Install 1Pass CLI
-      run: |
-        curl -o 1pass.deb https://downloads.1password.com/linux/debian/amd64/stable/1password-cli-amd64-latest.deb
-        sudo dpkg -i 1pass.deb
-
-    - name: Setup Terraform tools
-      uses: cds-snc/terraform-tools-setup@v1
-      env: # In case you want to override default versions
-        CONFTEST_VERSION: 0.30.0 
-        TERRAFORM_VERSION: 1.9.5
-        TERRAGRUNT_VERSION: 0.66.9
-        TF_SUMMARIZE_VERSION: 0.2.3                           
-
-    - name: Fetch VPN
-      run: |
-        curl https://raw.githubusercontent.com/cds-snc/notification-manifests/refs/heads/main/scripts/createVPNConfig.sh | bash -s staging
-
-    - name: Connect to VPN
-      uses: "kota65535/github-openvpn-connect-action@cd2ed8a90cc7b060dc4e001143e811b5f7ea0af5"
-      with:
-        config_file: /var/tmp/staging.ovpn
-        echo_config: false       
-        
-    - name: Configure kubeconfig
-      run: |
-        aws eks update-kubeconfig --name notification-canada-ca-staging-eks-cluster     
-
-    - name: Update images in staging
-      run: |
-        DOCKER_TAG=${GITHUB_SHA::7}
-        kubectl set image deployment.apps/notify-api notify-api=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-beat notify-celery-beat=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-sms notify-celery-sms=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-primary notify-celery-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-scalable notify-celery-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-sms-send-primary notify-celery-sms-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-sms-send-scalable notify-celery-sms-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-email-send-primary notify-celery-email-send-primary=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config
-        kubectl set image deployment.apps/notify-celery-email-send-scalable notify-celery-email-send-scalable=$DOCKER_SLUG:$DOCKER_TAG -n=notification-canada-ca --kubeconfig=$HOME/.kube/config        
-
+        curl -L \
+        -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
+          -d '{"event_type":"update-docker-image","client_payload":{"component":"API","docker_tag":"${{ env.DOCKER_TAG }}"}}'
 
     - name: my-app-install token
       id: notify-pr-bot
@@ -132,6 +100,6 @@ jobs:
     - name: Notify Slack channel if this job failed
       if: ${{ failure() }}
       run: |
-        json="{'text':'<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/${GITHUB_RUN_ID}|notification-api> !'}"
+        json='{"text":"<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|notification-api> !"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 

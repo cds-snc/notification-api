@@ -480,6 +480,13 @@ def send_contact_request(user_id):
         except Exception as e:
             current_app.logger.exception(e)
 
+    # Check if user is member of any ptm services
+    if current_app.config.get("FF_PT_SERVICE_SKIP_FRESHDESK", False) and user:
+        if "province_or_territory" in [service.organisation_type for service in user.services]:
+            # Send to secure email instead of Freshdesk
+            Freshdesk(contact).email_freshdesk_ticket_pt_service()
+            return jsonify({"status_code": 201}), 201
+
     status_code = Freshdesk(contact).send_ticket()
     return jsonify({"status_code": status_code}), 204
 

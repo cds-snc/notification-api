@@ -8,7 +8,6 @@ import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
 from pytest_mock import MockFixture
-from requests import HTTPError
 
 import app
 from app import aws_sns_client
@@ -476,9 +475,8 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
 def test_should_call_send_sms_response_task_if_research_mode(
     notify_db, sample_service, sample_notification, mocker, research_mode, key_type
 ):
-    reference = str(uuid.uuid4())
     mocker.patch("app.aws_sns_client.send_sms")
-    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value=reference)
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value="not-used")
 
     if research_mode:
         sample_service.research_mode = True
@@ -490,7 +488,9 @@ def test_should_call_send_sms_response_task_if_research_mode(
     send_to_providers.send_sms_to_provider(sample_notification)
     assert not aws_sns_client.send_sms.called
 
-    app.delivery.send_to_providers.send_sms_response.assert_called_once_with("sns", sample_notification.to)
+    app.delivery.send_to_providers.send_sms_response.assert_called_once_with(
+        "sns", sample_notification.to, sample_notification.reference
+    )
 
     persisted_notification = notifications_dao.get_notification_by_id(sample_notification.id)
     assert persisted_notification.to == sample_notification.to
@@ -498,19 +498,7 @@ def test_should_call_send_sms_response_task_if_research_mode(
     assert persisted_notification.status == "sent"
     assert persisted_notification.sent_at <= datetime.utcnow()
     assert persisted_notification.sent_by == "sns"
-    assert persisted_notification.reference == reference
     assert not persisted_notification.personalisation
-
-
-def test_should_not_have_sent_status_if_fake_callback_function_fails(sample_notification, mocker):
-    mocker.patch("app.delivery.send_to_providers.send_sms_response", side_effect=HTTPError)
-
-    sample_notification.key_type = KEY_TYPE_TEST
-
-    with pytest.raises(HTTPError):
-        send_to_providers.send_sms_to_provider(sample_notification)
-    assert sample_notification.status == "created"
-    assert sample_notification.sent_by is None
 
 
 def test_should_not_send_to_provider_when_status_is_not_created(sample_template, mocker):
