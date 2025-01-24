@@ -34,6 +34,7 @@ echo -e "# fzf key bindings and completion" >> ~/.zshrc
 echo -e "source /usr/share/doc/fzf/examples/key-bindings.zsh" >> ~/.zshrc
 echo -e "source /usr/share/doc/fzf/examples/completion.zsh" >> ~/.zshrc
 
+
 cd /workspace
 
 # Poetry autocomplete
@@ -51,6 +52,9 @@ touch ~/.zfunc/_poetry
 poetry completions zsh > ~/.zfunc/_poetry
 
 make generate-version-file
+
+# Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 # Install dependencies
 poetry install
