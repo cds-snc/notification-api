@@ -70,7 +70,7 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 def get_gc_organisation_data() -> list[dict]:
     "Returns the dataset from the gc-organisations repo, which we cache in s3"
     file_data = get_s3_file(
-        current_app.config["GC_ORGANISATION_DATA_BUCKET_NAME"],
+        current_app.config["GC_ORGANISATIONS_BUCKET_NAME"],
         current_app.config["GC_ORGANISATIONS_FILENAME"],
     )
 
