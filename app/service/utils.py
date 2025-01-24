@@ -2,11 +2,11 @@ import itertools
 import json
 from typing import Optional
 
-from app.aws.s3 import get_s3_file
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.aws.s3 import get_s3_file
 from app.dao.organisation_dao import dao_get_organisation_by_id
 from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import (
