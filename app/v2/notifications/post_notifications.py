@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from io import StringIO
 
+from app.dao.api_key_dao import update_last_used_api_key
 import werkzeug
 from flask import abort, current_app, jsonify, request
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
@@ -443,6 +444,14 @@ def process_sms_or_email_notification(
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
+
+    # Update the api_key last_used, we will only update this once per job
+    if api_key:
+        api_key_id = api_key.id
+        if api_key_id:
+            api_key_last_used = datetime.utcnow()
+            update_last_used_api_key(api_key_id, api_key_last_used)
+
     if scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
