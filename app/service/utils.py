@@ -2,11 +2,11 @@ import itertools
 import json
 from typing import Optional
 
+import requests
 from flask import current_app
 from notifications_utils.recipients import allowed_to_send_to
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.aws.s3 import get_s3_file
 from app.dao.organisation_dao import dao_get_organisation_by_id
 from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import (
@@ -68,13 +68,14 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 
 
 def get_gc_organisation_data() -> list[dict]:
-    "Returns the dataset from the gc-organisations repo, which we cache in s3"
-    file_data = get_s3_file(
-        current_app.config["GC_ORGANISATIONS_BUCKET_NAME"],
-        current_app.config["GC_ORGANISATIONS_FILENAME"],
+    "Returns the dataset from the gc-organisations repo"
+    response = requests.get(
+        current_app.config["CRM_ORG_LIST_URL"],
+        headers={"Authorization": f'token {current_app.config["CRM_GITHUB_PERSONAL_ACCESS_TOKEN"]}'},
     )
+    response.raise_for_status()
 
-    account_data = json.loads(file_data)
+    account_data = json.loads(response.text)
     return account_data
 
 

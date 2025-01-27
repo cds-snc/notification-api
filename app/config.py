@@ -233,8 +233,8 @@ class Config(object):
     SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
     SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
     SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
-    GC_ORGANISATIONS_BUCKET_NAME = os.getenv("GC_ORGANISATIONS_BUCKET_NAME")
-    GC_ORGANISATIONS_FILENAME = os.getenv("GC_ORGANISATIONS_FILENAME", "all.json")
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = os.getenv("CRM_GITHUB_PERSONAL_ACCESS_TOKEN")
+    CRM_ORG_LIST_URL = os.getenv("CRM_ORG_LIST_URL")
 
     # Logging
     DEBUG = False
@@ -748,8 +748,9 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
+    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
+    CRM_ORG_LIST_URL = "https://test-url.com"
     FAILED_LOGIN_LIMIT = 0
-    GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
 
 
 class Production(Config):
