@@ -2,7 +2,8 @@ import pytest
 from freezegun import freeze_time
 
 from app.dao.date_util import get_current_financial_year_start_year
-from app.service.utils import get_organisation_id_from_crm_org_notes
+from app.service.utils import get_gc_organisation_data, get_organisation_id_from_crm_org_notes
+from tests.conftest import set_config
 
 
 # see get_financial_year for conversion of financial years.
@@ -39,3 +40,11 @@ def test_get_organisation_id_from_crm_org_notes(mocker, org_notes, expected_id):
     ]
     mocker.patch("app.service.utils.get_gc_organisation_data", return_value=mock_gc_org_data)
     assert get_organisation_id_from_crm_org_notes(org_notes) == expected_id
+
+
+def test_get_gc_org_data(mocker, client):
+    with set_config(client.application, "GC_ORGANISATIONS_BUCKET_NAME", None):
+        gc_org_fallback_data = get_gc_organisation_data()
+        assert len(gc_org_fallback_data) > 0
+        assert "Canadian Space Agency" in [x["name_eng"] for x in gc_org_fallback_data]
+        assert "Office des transports du Canada" in [x["name_fra"] for x in gc_org_fallback_data]
