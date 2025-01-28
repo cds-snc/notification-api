@@ -16,8 +16,14 @@ from app.exceptions import (
     MalwareDetectedException,
     MalwareScanInProgressException,
     NotificationTechnicalFailureException,
+    PinpointConflictException,
+    PinpointValidationException,
 )
-from app.models import NOTIFICATION_TECHNICAL_FAILURE, Notification
+from app.models import (
+    NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_TECHNICAL_FAILURE,
+    Notification,
+)
 from app.notifications.callbacks import _check_and_queue_callback_task
 from celery import Task
 
@@ -108,6 +114,12 @@ def _deliver_sms(self, notification_id):
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
+    except (PinpointConflictException, PinpointValidationException) as e:
+        # As this is due to Pinpoint errors, we are NOT retrying the notification
+        # We are only warning on the error, and not logging an error
+        current_app.logger.warning("Pinpoint error: {}".format(e))
+        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
         _check_and_queue_callback_task(notification)
     except Exception:
         try:
