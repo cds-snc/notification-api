@@ -147,7 +147,7 @@ class Freshdesk(object):
         self.email_freshdesk_ticket(
             current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
             current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"],
-            content_str
+            content_str,
         )
 
     def email_freshdesk_ticket_pt_service(self):
@@ -157,17 +157,19 @@ class Freshdesk(object):
             current_app.logger.error("SENSITIVE_SERVICE_EMAIL not set")
         content = self._generate_ticket()
         # This email will display the form data as a quote block
-        content_str_nice = "\n".join([
-            f"^**Subject**: {content["subject"]}",
-            "^",
-            f"^**User-entered info**:",
-            f"^{content['description'].replace('<br>', '\n').replace('\n', '\n^')}",
-            "^",
-            f"^**User's Email**: {content["email"]}",
-        ])
+        content_str_nice = "\n".join(
+            [
+                f"^**Subject**: {content['subject']}",
+                "^",
+                "^**User-entered info**:",
+                f"^{content['description'].replace('<br>', '\n').replace('\n', '\n^')}",
+                "^",
+                f"^**User's Email**: {content['email']}",
+            ]
+        )
         self.email_freshdesk_ticket(email_address, template_id, content_str_nice)
 
-    def email_freshdesk_ticket(self, email_address, template_id, content_str) -> None:
+    def email_freshdesk_ticket(self, email_address: str, template_id: str, content_str: str) -> None:
         content = self._generate_ticket()
         try:
             template = dao_get_template_by_id(template_id)
