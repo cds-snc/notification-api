@@ -2,7 +2,10 @@ import pytest
 from freezegun import freeze_time
 
 from app.dao.date_util import get_current_financial_year_start_year
-from app.service.utils import get_gc_organisation_data, get_organisation_id_from_crm_org_notes
+from app.service.utils import (
+    get_gc_organisation_data,
+    get_organisation_id_from_crm_org_notes,
+)
 from tests.conftest import set_config
 
 
