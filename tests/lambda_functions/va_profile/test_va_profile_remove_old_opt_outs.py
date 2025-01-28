@@ -40,7 +40,8 @@ def test_remove_opted_out_records_query(notify_db_session, sample_va_profile_loc
         # This tests the lambda handler, which calls the stored procedure.
         va_profile_remove_old_opt_outs_handler()
 
-    # TODO 1636 - This should not be commented out.
-    # assert notify_db_session.session.get(VAProfileLocalCache, opt_out_id) is None
+    notify_db_session.session.expire_all()
+
+    assert notify_db_session.session.get(VAProfileLocalCache, opt_out_id) is None
     assert notify_db_session.session.get(VAProfileLocalCache, opt_out_newer.id) is not None
     assert notify_db_session.session.get(VAProfileLocalCache, opt_in.id) is not None
