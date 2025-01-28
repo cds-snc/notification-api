@@ -25,3 +25,15 @@ class InvalidUrlException(Exception):
 
 class DocumentDownloadException(Exception):
     pass
+
+
+class PinpointConflictException(Exception):
+    def __init__(self, original_exception):
+        self.original_exception = original_exception
+        super().__init__(str(original_exception))
+
+
+class PinpointValidationException(Exception):
+    def __init__(self, original_exception):
+        self.original_exception = original_exception
+        super().__init__(str(original_exception))
