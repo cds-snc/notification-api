@@ -653,3 +653,27 @@ def test_process_ses_results_no_bounce_regression(
     notify_db_session.session.refresh(notification)
     assert notification.status == status, 'The status should not have changed.'
     assert notification.status_reason == status_reason
+
+
+def test_process_ses_results_personalisation(notify_db_session, sample_template, sample_notification, mocker):
+    template = sample_template(template_type=EMAIL_TYPE, content='Hello ((name))')
+    ref = str(uuid4())
+
+    mock_send_email_status = mocker.patch(
+        'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile.apply_async'
+    )
+    mock_send_email_status.return_value = None
+
+    notification = sample_notification(
+        template=template,
+        reference=ref,
+        sent_at=datetime.utcnow(),
+        status=NOTIFICATION_SENDING,
+        status_reason='just because',
+        personalisation={'name': 'Jo'},
+    )
+    assert process_ses_receipts_tasks.process_ses_results(response=ses_notification_callback(reference=ref))
+
+    notify_db_session.session.refresh(notification)
+    assert notification.status == NOTIFICATION_DELIVERED
+    assert notification.personalisation == {'name': '<redacted>'}
