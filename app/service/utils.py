@@ -69,13 +69,20 @@ def safelisted_members(service, key_type, is_simulated=False, allow_safelisted_r
 
 def get_gc_organisation_data() -> list[dict]:
     "Returns the dataset from the gc-organisations repo, which we cache in s3"
-    file_data = get_s3_file(
-        current_app.config["GC_ORGANISATIONS_BUCKET_NAME"],
-        current_app.config["GC_ORGANISATIONS_FILENAME"],
-    )
+    try:
+        file_data = get_s3_file(
+            current_app.config["GC_ORGANISATIONS_BUCKET_NAME"],
+            current_app.config["GC_ORGANISATIONS_FILENAME"],
+        )
 
-    account_data = json.loads(file_data)
-    return account_data
+        account_data = json.loads(file_data)
+        return account_data
+    except Exception as e:
+        current_app.logger.error(f"Error getting gc-organisations data from s3: {e}")
+
+    # if we can't get the data from s3, use the local copy
+    with open("app/data/gc-organisations-all.json") as f:
+        return json.load(f)
 
 
 def get_organisation_id_from_crm_org_notes(org_notes: str) -> Optional[str]:
