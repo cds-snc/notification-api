@@ -5,7 +5,6 @@ import uuid
 from datetime import datetime
 from io import StringIO
 
-from app.dao.api_key_dao import update_last_used_api_key
 import werkzeug
 from flask import abort, current_app, jsonify, request
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
@@ -37,6 +36,7 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
@@ -713,7 +713,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
                     message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
                     status_code=400,
                 )
-        ## TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
+        # TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
         if recipient_csv.more_rows_than_can_send:
             if recipient_csv.template_type == SMS_TYPE:
                 raise BadRequestError(
