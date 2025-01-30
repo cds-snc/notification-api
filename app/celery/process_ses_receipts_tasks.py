@@ -43,12 +43,12 @@ def process_ses_results(self, response):  # noqa: C901
         ses_message = json.loads(response["Message"])
         notification_type = ses_message["notificationType"]
 
-        if notification_type == "Complaint":
-            _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
-            return True
-
-        reference = ses_message["mail"]["messageId"]
         try:
+            if notification_type == "Complaint":
+                _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
+                return True
+
+            reference = ses_message["mail"]["messageId"]
             notification = notifications_dao.dao_get_notification_by_reference(reference)
         except NoResultFound:
             try:
