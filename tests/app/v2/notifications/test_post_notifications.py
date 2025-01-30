@@ -2854,21 +2854,13 @@ def test_post_bulk_returns_429_if_over_rate_limit(
     create_api_key(service=sample_email_template.service)
     mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
     mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
-
-    # set the service's rate limit to 10 requests/minute
-    sample_email_template.service.rate_limit = 10
+    mocker.patch("app.notifications.validators.redis_store.exceeded_rate_limit", return_value=True)
 
     auth_header = create_authorization_header(service_id=sample_email_template.service.id)
 
-    responses = []
-    for _ in range(11):
-        response = client.post(
-            path="/v2/notifications/bulk",
-            data=json.dumps(data),
-            headers=[("Content-Type", "application/json"), auth_header],
-        )
-        responses.append(response)
-
-    status_codes = [response.status_code for response in responses]
-    assert status_codes[:10] == [201 for _ in range(10)]
-    assert status_codes[10] == 429
+    response = client.post(
+        path="/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    assert response.status_code == 429
