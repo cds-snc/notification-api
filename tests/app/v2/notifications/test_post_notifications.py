@@ -2463,7 +2463,6 @@ class TestBulkSend:
         use_sender_id,
         has_default_reply_to,
     ):
-        # yyy
         data = {"name": "job_name", "template_id": sample_email_template.id}
         rows = [["email address"], ["foo@example.com"]]
         if data_type == "csv":
