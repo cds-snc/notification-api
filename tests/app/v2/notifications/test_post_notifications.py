@@ -2463,6 +2463,7 @@ class TestBulkSend:
         use_sender_id,
         has_default_reply_to,
     ):
+        # yyy
         data = {"name": "job_name", "template_id": sample_email_template.id}
         rows = [["email address"], ["foo@example.com"]]
         if data_type == "csv":
@@ -2829,3 +2830,46 @@ class TestSeedingBounceRateData:
 
         if result:
             seed_bounce_rate_in_redis.apply_async.assert_called_once_with(service_id)
+
+
+@pytest.mark.parametrize(
+    "notification_type",
+    [
+        "email",
+        "sms",
+    ],
+)
+def test_post_bulk_returns_429_if_over_rate_limit(
+    notify_db_session,
+    mocker,
+    client,
+    sample_email_template,
+    notify_user,
+    notify_api,
+    notification_type,
+):
+    rows = [["email address"], ["foo@example.com"]]
+    data = {"name": "job_name", "template_id": sample_email_template.id, "rows": rows}
+
+    job_id = str(uuid.uuid4())
+    create_api_key(service=sample_email_template.service)
+    mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+    mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+
+    # set the service's rate limit to 10 requests/minute
+    sample_email_template.service.rate_limit = 10
+
+    auth_header = create_authorization_header(service_id=sample_email_template.service.id)
+
+    responses = []
+    for _ in range(11):
+        response = client.post(
+            path="/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        responses.append(response)
+
+    status_codes = [response.status_code for response in responses]
+    assert status_codes[:10] == [201 for _ in range(10)]
+    assert status_codes[10] == 429
