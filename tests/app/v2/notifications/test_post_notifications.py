@@ -2854,7 +2854,10 @@ def test_post_bulk_returns_429_if_over_rate_limit(
     create_api_key(service=sample_email_template.service)
     mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
     mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
-    mocker.patch("app.notifications.validators.redis_store.exceeded_rate_limit", return_value=True)
+    mocker.patch(
+        "app.v2.notifications.post_notifications.check_rate_limiting",
+        side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
+    )
 
     auth_header = create_authorization_header(service_id=sample_email_template.service.id)
 
