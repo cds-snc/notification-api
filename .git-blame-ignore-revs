@@ -1,3 +1,8 @@
+##################################################################
+## This file lists commits that should be ignored by git blame. ##
+## e.g. Formatting commits, non-functional changes, etc.        ##
+##################################################################
+
 # Run black on codebase (#1303) https://github.com/cds-snc/notification-api/pull/1303
 bebd806cad9581101e5cc1d52db2613c1baa1fa9
 # Add Ruff formatter: https://github.com/cds-snc/notification-api/commit/5764ae6d65d98e4a876870cc8b3c22ba9981f031
