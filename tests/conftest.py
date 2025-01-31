@@ -34,9 +34,7 @@ def notify_api():
         error_handlers.pop(500, None)
         if None in error_handlers:
             error_handlers[None] = {
-                exc_class: error_handler
-                for exc_class, error_handler in error_handlers[None].items()
-                if exc_class is not Exception
+                exc_class: error_handler for exc_class, error_handler in error_handlers[None].items() if exc_class != Exception
             }
             if error_handlers[None] == []:
                 error_handlers.pop(None)
