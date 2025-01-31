@@ -14,7 +14,6 @@ Lastly when to create a version is done manually in dao_utils version decorator 
 session events.
 
 """
-
 import datetime
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, Table, util
