@@ -43,6 +43,8 @@ from app.exceptions import (
     MalwareDetectedException,
     MalwareScanInProgressException,
     NotificationTechnicalFailureException,
+    PinpointConflictException,
+    PinpointValidationException,
 )
 from app.models import (
     BRANDING_BOTH_EN,
@@ -126,6 +128,8 @@ def send_sms_to_provider(notification):
                     service_id=notification.service_id,
                     sending_vehicle=sending_vehicle,
                 )
+            except (PinpointConflictException, PinpointValidationException) as e:
+                raise e
             except Exception as e:
                 notification.billable_units = template.fragment_count
                 dao_update_notification(notification)
