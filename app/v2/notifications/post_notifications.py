@@ -183,6 +183,7 @@ def post_bulk():
         raise BadRequestError(message="You should specify either rows or csv", status_code=400)
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
+    check_rate_limiting(authenticated_service, api_user)
 
     if template.template_type == SMS_TYPE:
         fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
