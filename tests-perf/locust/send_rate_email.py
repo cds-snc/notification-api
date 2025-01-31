@@ -1,5 +1,5 @@
-""" send_rate_email.py
-    isort:skip_file
+"""send_rate_email.py
+isort:skip_file
 """
 # flake8: noqa
 

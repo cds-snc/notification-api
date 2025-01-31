@@ -1,5 +1,5 @@
-""" locust-notifications-with-bounce.py
-    isort:skip_file
+"""locust-notifications-with-bounce.py
+isort:skip_file
 """
 # flake8: noqa
 
