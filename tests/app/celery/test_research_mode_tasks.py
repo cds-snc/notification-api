@@ -6,7 +6,6 @@ import pytest
 import requests_mock
 from flask import current_app, json
 from freezegun import freeze_time
-from tests.conftest import Matcher, set_config_values
 
 from app.aws.mocks import (
     pinpoint_delivered_callback,
@@ -21,6 +20,7 @@ from app.celery.research_mode_tasks import (
     send_sms_response,
 )
 from app.config import QueueNames
+from tests.conftest import Matcher, set_config_values
 
 dvla_response_file_matcher = Matcher(
     "dvla_response_file",

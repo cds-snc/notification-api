@@ -91,5 +91,3 @@ jinja_templates/
 cypress.env.json
 node_modules/
 tests_cypress/cypress/videos/
-
-.ruff_cache/
