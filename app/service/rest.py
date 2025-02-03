@@ -1,5 +1,5 @@
 import itertools
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
@@ -383,9 +383,11 @@ def _warn_service_users_about_annual_limit_change(service: Service, notification
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": notification_type,
-            "message_type_fr": "Courriel" if notification_type == EMAIL_TYPE else "SMS",
-            "message_limit_en": service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_limit_en": "{:,}".format(service.email_annual_limit)
+            if notification_type == EMAIL_TYPE
+            else "{:,}".format(service.sms_annual_limit),
             "message_limit_fr": "{:,}".format(
                 service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
             ).replace(",", " "),
@@ -649,10 +651,12 @@ def get_monthly_notification_stats(service_id):
     stats = fetch_notification_status_for_service_by_month(start_date, end_date, service_id)
     statistics.add_monthly_notification_status_stats(data, stats)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    # end_date doesn't have tzinfo, so we need to remove it from now
+    end_date_now = now.replace(tzinfo=None)
     # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
+        todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)

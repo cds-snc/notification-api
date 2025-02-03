@@ -36,6 +36,7 @@ from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
 from app.config import QueueNames, TaskNames
+from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
@@ -66,6 +67,7 @@ from app.models import (
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
     choose_queue,
+    csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
     persist_notification,
     persist_scheduled_notification,
@@ -181,6 +183,7 @@ def post_bulk():
         raise BadRequestError(message="You should specify either rows or csv", status_code=400)
     template = validate_template_exists(form["template_id"], authenticated_service)
     check_service_has_permission(template.template_type, authenticated_service.permissions)
+    check_rate_limiting(authenticated_service, api_user)
 
     if template.template_type == SMS_TYPE:
         fragments_sent = fetch_todays_requested_sms_count(authenticated_service.id)
@@ -232,15 +235,6 @@ def post_bulk():
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
     notification_count_requested = len(list(recipient_csv.get_rows()))
 
-    for row in recipient_csv.get_rows():
-        try:
-            validate_template(template.id, row.personalisation, authenticated_service, template.template_type)
-        except BadRequestError as e:
-            message = e.message + ". Notification to {} on row #{} exceeds the maximum size limit.".format(
-                row.recipient, row.index + 1
-            )
-            raise BadRequestError(message=message)
-
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
         check_email_daily_limit(authenticated_service, notification_count_requested)
@@ -257,16 +251,16 @@ def post_bulk():
             form["validated_sender_id"] = default_sender_id
 
         # calculate the number of simulated recipients
-        numberOfSimulated = sum(
-            simulated_recipient(i["phone_number"].data, template.template_type) for i in list(recipient_csv.get_rows())
+        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
+            requested_recipients, template.template_type
         )
-        mixedRecipients = numberOfSimulated > 0 and numberOfSimulated != notification_count_requested
 
         # if its a live or a team key, and they have specified testing and NON-testing recipients, raise an error
-        if api_user.key_type != KEY_TYPE_TEST and mixedRecipients:
+        if api_user.key_type != KEY_TYPE_TEST and (has_simulated and has_real_recipients):
             raise BadRequestError(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
-        is_test_notification = api_user.key_type == KEY_TYPE_TEST or notification_count_requested == numberOfSimulated
+        is_test_notification = api_user.key_type == KEY_TYPE_TEST or (has_simulated and not has_real_recipients)
 
         if not is_test_notification:
             check_sms_annual_limit(authenticated_service, len(recipient_csv))
@@ -451,6 +445,14 @@ def process_sms_or_email_notification(
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}
     scheduled_for = form.get("scheduled_for", None)
+
+    # Update the api_key last_used, we will only update this once per job
+    if api_key:
+        api_key_id = api_key.id
+        if api_key_id:
+            api_key_last_used = datetime.utcnow()
+            update_last_used_api_key(api_key_id, api_key_last_used)
+
     if scheduled_for:
         notification = persist_notification(  # keep scheduled notifications using the old code path for now
             template_id=template.id,
@@ -712,7 +714,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
                     message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
                     status_code=400,
                 )
-        ## TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
+        # TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
         if recipient_csv.more_rows_than_can_send:
             if recipient_csv.template_type == SMS_TYPE:
                 raise BadRequestError(

@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
-from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_client
@@ -44,12 +43,12 @@ def process_ses_results(self, response):  # noqa: C901
         ses_message = json.loads(response["Message"])
         notification_type = ses_message["notificationType"]
 
-        if notification_type == "Complaint":
-            _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
-            return True
-
-        reference = ses_message["mail"]["messageId"]
         try:
+            if notification_type == "Complaint":
+                _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
+                return True
+
+            reference = ses_message["mail"]["messageId"]
             notification = notifications_dao.dao_get_notification_by_reference(reference)
         except NoResultFound:
             try:
@@ -97,7 +96,7 @@ def process_ses_results(self, response):  # noqa: C901
             if not annual_limit_client.was_seeded_today(service_id):
                 annual_limit_client.set_seeded_at(service_id)
                 notifications_to_seed = fetch_notification_status_for_service_for_day(
-                    convert_utc_to_local_timezone(datetime.utcnow()),
+                    datetime.now(timezone.utc),
                     service_id=service_id,
                 )
                 annual_limit_client.seed_annual_limit_notifications(

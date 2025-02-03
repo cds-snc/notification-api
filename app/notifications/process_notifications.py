@@ -4,6 +4,7 @@ from typing import List
 
 from flask import current_app
 from notifications_utils.clients import redis
+from notifications_utils.decorators import parallel_process_iterable
 from notifications_utils.recipients import (
     format_email_address,
     get_international_phone_info,
@@ -301,7 +302,6 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
     """
 
     lofnotifications = []
-    api_key_last_used = None
 
     for notification in notifications:
         notification_created_at = notification.get("created_at") or datetime.utcnow()
@@ -361,16 +361,57 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
                 notification.get("notification_created_at"),  # type: ignore
             )
         )
-        # If the bulk message is sent using an api key, we want to keep track of the last time the api key was used
-        # We will only update the api key once
-        api_key_id = notification.get("api_key_id")
-        if api_key_id:
-            api_key_last_used = datetime.utcnow()
-    if api_key_last_used:
-        update_last_used_api_key(api_key_id, api_key_last_used)
     bulk_insert_notifications(lofnotifications)
 
     return lofnotifications
+
+
+def csv_has_simulated_and_non_simulated_recipients(
+    to_addresses: set, notification_type: NotificationType, chunk_size=5000
+) -> tuple[bool, bool]:
+    """Kicks off a parallelized process to check if a RecipientCSV contains simulated, non-simulated, or both types of recipients.
+
+    Args:
+        to_addresses (list): A list of recipients pulled from a RecipientCSV.
+        notification_type (NotificationType): The notification type (email | sms)
+
+    Returns:
+        int: The number of recipients that are simulated
+    """
+    simulated_recipients = (
+        current_app.config["SIMULATED_SMS_NUMBERS"]
+        if notification_type == SMS_TYPE
+        else current_app.config["SIMULATED_EMAIL_ADDRESSES"]
+    )
+    results = bulk_simulated_recipients(to_addresses, simulated_recipients)
+
+    found_simulated = any(result[0] for result in results)
+    found_non_simulated = any(result[1] for result in results)
+
+    return found_simulated, found_non_simulated
+
+
+@parallel_process_iterable(break_condition=lambda result: result[0] and result[1])
+def bulk_simulated_recipients(chunk: list, simulated_recipients: tuple):
+    """Parallelized function that processes a chunk of recipients, checking if the chunk contains simulated, non-simulated, or both types of recipients.
+
+    Args:
+        chunk (list): The list of recipients to be processed
+        simulated_recipients (list): The list of simulated recipients from the app's config
+
+    Returns:
+        tuple: Two boolean values indicating if the chunk contains simulated and non-simulated recipients
+    """
+    found_simulated = False
+    found_non_simulated = False
+    for recipient in chunk:
+        if recipient in simulated_recipients:
+            found_simulated = True
+        else:
+            found_non_simulated = True
+        if found_simulated and found_non_simulated:
+            break
+    return found_simulated, found_non_simulated
 
 
 def simulated_recipient(to_address: str, notification_type: NotificationType) -> bool:

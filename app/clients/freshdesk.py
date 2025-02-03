@@ -136,31 +136,58 @@ class Freshdesk(object):
                 return 201
         except requests.RequestException as e:
             current_app.logger.error(f"Failed to create Freshdesk ticket: {e}")
-            self.email_freshdesk_ticket(self._generate_ticket())
+            self.email_freshdesk_ticket_freshdesk_down()
             return 201
 
-    def email_freshdesk_ticket(self, content: dict) -> None:
+    def email_freshdesk_ticket_freshdesk_down(self):
+        if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
+            current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
+        content = self._generate_ticket()
+        content_str = json.dumps(content, indent=4)
+        self.email_freshdesk_ticket(
+            current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
+            current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"],
+            content_str,
+        )
+
+    def email_freshdesk_ticket_pt_service(self):
+        email_address = current_app.config.get("SENSITIVE_SERVICE_EMAIL")
+        template_id = current_app.config.get("CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID")
+        if not email_address:
+            current_app.logger.error("SENSITIVE_SERVICE_EMAIL not set")
+        content = self._generate_ticket()
+        # This email will display the form data as a quote block
+        content_str_nice = "\n".join(
+            [
+                f"^**Subject**: {content['subject']}",
+                "^",
+                "^**User-entered info**:",
+                f"^{content['description'].replace('<br>', '\n').replace('\n', '\n^')}",
+                "^",
+                f"^**User's Email**: {content['email']}",
+            ]
+        )
+        self.email_freshdesk_ticket(email_address, template_id, content_str_nice)
+
+    def email_freshdesk_ticket(self, email_address: str, template_id: str, content_str: str) -> None:
+        content = self._generate_ticket()
         try:
-            template = dao_get_template_by_id(current_app.config["CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID"])
+            template = dao_get_template_by_id(template_id)
             notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
 
-            if current_app.config["CONTACT_FORM_EMAIL_ADDRESS"] is None:
-                current_app.logger.info("Cannot email contact us form, CONTACT_FORM_EMAIL_ADDRESS is empty")
-            else:
-                current_app.logger.info("Emailing contact us form to {}".format(current_app.config["CONTACT_FORM_EMAIL_ADDRESS"]))
-                saved_notification = persist_notification(
-                    template_id=template.id,
-                    template_version=template.version,
-                    recipient=current_app.config["CONTACT_FORM_EMAIL_ADDRESS"],
-                    service=notify_service,
-                    personalisation={
-                        "contact_us_content": json.dumps(content, indent=4),
-                    },
-                    notification_type=template.template_type,
-                    api_key_id=None,
-                    key_type=KEY_TYPE_NORMAL,
-                    reply_to_text=notify_service.get_default_reply_to_email_address(),
-                )
-                send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+            saved_notification = persist_notification(
+                template_id=template.id,
+                template_version=template.version,
+                recipient=email_address,
+                service=notify_service,
+                personalisation={
+                    "contact_us_content": content_str,
+                },
+                notification_type=template.template_type,
+                api_key_id=None,
+                key_type=KEY_TYPE_NORMAL,
+                reply_to_text=notify_service.get_default_reply_to_email_address(),
+            )
+            send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
         except Exception as e:
             current_app.logger.exception(f"Failed to email contact form {json.dumps(content, indent=4)}, error: {e}")

@@ -103,7 +103,7 @@ def utc_midnight_n_days_ago(number_of_days):
     """
     Returns utc midnight a number of days ago.
     """
-    return get_midnight(datetime.utcnow() - timedelta(days=number_of_days))
+    return get_midnight(datetime.now(timezone.utc) - timedelta(days=number_of_days))
 
 
 def get_query_date_based_on_retention_period(retention_period):

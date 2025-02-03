@@ -233,8 +233,8 @@ class Config(object):
     SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
     SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
     SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
-    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = os.getenv("CRM_GITHUB_PERSONAL_ACCESS_TOKEN")
-    CRM_ORG_LIST_URL = os.getenv("CRM_ORG_LIST_URL")
+    GC_ORGANISATIONS_BUCKET_NAME = os.getenv("GC_ORGANISATIONS_BUCKET_NAME")
+    GC_ORGANISATIONS_FILENAME = os.getenv("GC_ORGANISATIONS_FILENAME", "all.json")
 
     # Logging
     DEBUG = False
@@ -333,6 +333,7 @@ class Config(object):
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
     CONTACT_FORM_DIRECT_EMAIL_TEMPLATE_ID = "b04beb4a-8408-4280-9a5c-6a046b6f7704"
+    CONTACT_FORM_SENSITIVE_SERVICE_EMAIL_TEMPLATE_ID = "4bf8c15b-7393-463f-b6fe-e3fd1e99a03d"
     NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
@@ -528,7 +529,7 @@ class Config(object):
         "insert-quarter-data-for-annual-limits-q4": {
             "task": "insert-quarter-data-for-annual-limits",
             "schedule": crontab(
-                minute=0, hour=23, day_of_month=1, month_of_year=1
+                minute=0, hour=23, day_of_month=1, month_of_year=4
             ),  # Running this at the end of the day on 1st April
             "options": {"queue": QueueNames.PERIODIC},
         },
@@ -559,6 +560,7 @@ class Config(object):
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
+    SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
 
     FROM_NUMBER = "development"
 
@@ -635,6 +637,7 @@ class Config(object):
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
     FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
+    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
@@ -696,6 +699,7 @@ class Development(Config):
     SRE_CLIENT_SECRET = os.getenv("SRE_CLIENT_SECRET", "dev-notify-secret-key")
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
+    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "dev-notify-cypress-secret-key")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
@@ -744,9 +748,8 @@ class Test(Development):
     API_HOST_NAME = "http://localhost:6011"
 
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
-    CRM_GITHUB_PERSONAL_ACCESS_TOKEN = "test-token"
-    CRM_ORG_LIST_URL = "https://test-url.com"
     FAILED_LOGIN_LIMIT = 0
+    GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
 
 
 class Production(Config):

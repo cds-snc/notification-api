@@ -2,6 +2,7 @@ import pytest
 
 from app import aws_pinpoint_client
 from app.clients.sms import SmsSendingVehicles
+from app.exceptions import PinpointConflictException, PinpointValidationException
 from tests.conftest import set_config_values
 
 
@@ -77,16 +78,43 @@ def test_send_sms_returns_raises_error_if_there_is_no_valid_number_is_found(noti
     assert "No valid numbers found for SMS delivery" in str(excinfo.value)
 
 
-def test_handles_opted_out_numbers(notify_api, mocker, sample_template):
-    conflict_error = aws_pinpoint_client._client.exceptions.ConflictException(
-        error_response={"Reason": "DESTINATION_PHONE_NUMBER_OPTED_OUT"}, operation_name="send_text_message"
-    )
-    mocker.patch("app.aws_pinpoint_client._client.send_text_message", side_effect=conflict_error)
+class TestErrorHandling:
+    def test_handles_opted_out_numbers(self, notify_api, mocker, sample_template):
+        conflict_error = aws_pinpoint_client._client.exceptions.ConflictException(
+            error_response={"Reason": "DESTINATION_PHONE_NUMBER_OPTED_OUT"}, operation_name="send_text_message"
+        )
+        mocker.patch("app.aws_pinpoint_client._client.send_text_message", side_effect=conflict_error)
 
-    to = "6135555555"
-    content = "foo"
-    reference = "ref"
-    assert aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id) == "opted_out"
+        to = "6135555555"
+        content = "foo"
+        reference = "ref"
+        assert aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id) == "opted_out"
+
+    def test_raises_PinpointConflictException(self, notify_api, mocker, sample_template):
+        conflict_error = aws_pinpoint_client._client.exceptions.ConflictException(
+            error_response={"Reason": "REGISTRATION_NOT_COMPLETE"}, operation_name="send_text_message"
+        )
+        mocker.patch("app.aws_pinpoint_client._client.send_text_message", side_effect=conflict_error)
+
+        to = "6135555555"
+        content = "foo"
+        reference = "ref"
+        with pytest.raises(PinpointConflictException) as excinfo:
+            aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+            assert excinfo.original_exception == conflict_error
+
+    def test_raises_PinpointValidationException(self, notify_api, mocker, sample_template):
+        conflict_error = aws_pinpoint_client._client.exceptions.ValidationException(
+            error_response={"Reason": "DestinationCountryBlocked"}, operation_name="send_text_message"
+        )
+        mocker.patch("app.aws_pinpoint_client._client.send_text_message", side_effect=conflict_error)
+
+        to = "6135555555"
+        content = "foo"
+        reference = "ref"
+        with pytest.raises(PinpointValidationException) as excinfo:
+            aws_pinpoint_client.send_sms(to, content, reference=reference, template_id=sample_template.id)
+            assert excinfo.original_exception == conflict_error
 
 
 @pytest.mark.serial
