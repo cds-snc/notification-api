@@ -106,7 +106,7 @@ def test_post_v3_notifications(client, mocker, sample_api_key, sample_service, r
     auth_header = create_authorization_header(api_key)
 
     response = client.post(
-        path=url_for(f"v3.v3_notifications.v3_post_notification_{request_data['notification_type']}"),
+        path=url_for(f'v3.v3_notifications.v3_post_notification_{request_data["notification_type"]}'),
         data=dumps(request_data),
         headers=(('Content-Type', 'application/json'), auth_header),
     )
@@ -382,7 +382,7 @@ def test_post_v3_notifications_custom_validation_error_messages(
     }
 
     response = client.post(
-        path=url_for(f"v3.v3_notifications.v3_post_notification_{request_data['notification_type']}"),
+        path=url_for(f'v3.v3_notifications.v3_post_notification_{request_data["notification_type"]}'),
         data=dumps(request_data),
         headers=(('Content-Type', 'application/json'), auth_header),
     )

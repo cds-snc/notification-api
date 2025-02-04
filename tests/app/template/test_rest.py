@@ -1619,7 +1619,7 @@ def test_preview_letter_template_precompiled_png_template_preview_pdf_error(
 
             assert request[
                 'message'
-            ] == 'Error extracting requested page from PDF file for notification_id {} type ' '{} {}'.format(
+            ] == 'Error extracting requested page from PDF file for notification_id {} type {} {}'.format(
                 notification.id, type(PdfReadError()), error_message
             )
 

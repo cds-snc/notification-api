@@ -99,7 +99,7 @@ class MpiClient:
         recipient_identifiers = notification.recipient_identifiers.values()
         if len(recipient_identifiers) != 1:
             error_message = (
-                'Unexpected number of recipient_identifiers in: ' f'{notification.recipient_identifiers.keys()}'
+                f'Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}'
             )
             self.statsd_client.incr('clients.mpi.get_va_profile_id.error.incorrect_number_of_recipient_identifiers')
             raise IncorrectNumberOfIdentifiersException(error_message)
@@ -200,8 +200,7 @@ class MpiClient:
         if response_json.get('severity'):
             error_code = _get_nested_value_from_response_body(response_json, 'details.coding.index.code')
             error_message = (
-                f'MPI returned error: {response_json} '
-                f'for notification {notification_id} with fhir {fhir_identifier}'
+                f'MPI returned error: {response_json} for notification {notification_id} with fhir {fhir_identifier}'
             )
             if exception_code_mapping.get(error_code):
                 exception = exception_code_mapping.get(error_code)

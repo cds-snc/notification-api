@@ -100,12 +100,12 @@ def create_app(application):
     if notify_environment == 'test':
         # Set the read-db to be the same as the write/default instance.
         application.config['SQLALCHEMY_BINDS'] = {'read-db': application.config['SQLALCHEMY_DATABASE_URI']}
-        assert application.config['SQLALCHEMY_DATABASE_URI'].endswith(
-            'notification_api'
-        ), "Don't run tests against the main writer database."
-        assert application.config['SQLALCHEMY_BINDS']['read-db'].endswith(
-            'notification_api'
-        ), "Don't run tests against the main reader database."
+        assert application.config['SQLALCHEMY_DATABASE_URI'].endswith('notification_api'), (
+            "Don't run tests against the main writer database."
+        )
+        assert application.config['SQLALCHEMY_BINDS']['read-db'].endswith('notification_api'), (
+            "Don't run tests against the main reader database."
+        )
 
     application.config['NOTIFY_APP_NAME'] = application.name
     init_app(application)

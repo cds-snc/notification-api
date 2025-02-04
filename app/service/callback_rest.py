@@ -116,7 +116,7 @@ def handle_sql_error(
         and hasattr(e.orig, 'pgerror')
         and e.orig.pgerror
         and (
-            'insert or update on table "{0}" violates ' 'foreign key constraint "{0}_api_service_id_fkey"'.format(
+            'insert or update on table "{0}" violates foreign key constraint "{0}_api_service_id_fkey"'.format(
                 table_name
             )
             in e.orig.pgerror

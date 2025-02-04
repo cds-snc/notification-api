@@ -138,9 +138,9 @@ def replay_created_notifications():
 
         if len(notifications_to_resend) > 0:
             current_app.logger.info(
-                'Sending {} {} notifications '
-                'to the delivery queue because the notification '
-                'status was created.'.format(len(notifications_to_resend), notification_type)
+                'Sending {} {} notifications to the delivery queue because the notification status was created.'.format(
+                    len(notifications_to_resend), notification_type
+                )
             )
 
         for n in notifications_to_resend:
@@ -156,7 +156,7 @@ def check_precompiled_letter_state():
     if len(letters) > 0:
         letter_ids = [str(letter.id) for letter in letters]
 
-        msg = '{} precompiled letters have been pending-virus-check for over 90 minutes. ' 'Notifications: {}'.format(
+        msg = '{} precompiled letters have been pending-virus-check for over 90 minutes. Notifications: {}'.format(
             len(letters), letter_ids
         )
 
@@ -179,8 +179,9 @@ def check_templated_letter_state():
         letter_ids = [str(letter.id) for letter in letters]
 
         msg = (
-            "{} letters were created before 17.30 yesterday and still have 'created' status. "
-            'Notifications: {}'.format(len(letters), letter_ids)
+            "{} letters were created before 17.30 yesterday and still have 'created' status. Notifications: {}".format(
+                len(letters), letter_ids
+            )
         )
 
         current_app.logger.exception(msg)

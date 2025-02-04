@@ -12,7 +12,7 @@ def lambda_handler(
     context,
 ):
     sqs = boto3.resource('sqs')
-    queue = sqs.get_queue_by_name(QueueName=f"{os.getenv('NOTIFICATION_QUEUE_PREFIX')}{ROUTING_KEY}")
+    queue = sqs.get_queue_by_name(QueueName=f'{os.getenv("NOTIFICATION_QUEUE_PREFIX")}{ROUTING_KEY}')
 
     for record in event['Records']:
         task = {

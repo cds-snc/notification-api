@@ -54,8 +54,8 @@ def process_sns_delivery_status():
         status = aws_sns_status_map.get(callback['status'])
         current_app.logger.info(
             (
-                f"AWS SNS delivery status callback for notification {notification.id} has status {callback['status']}"
-                f", which maps to notification-api status {status}"
+                f'AWS SNS delivery status callback for notification {notification.id} has status {callback["status"]}'
+                f', which maps to notification-api status {status}'
             )
         )
         notification = _update_notification_status(notification, status)

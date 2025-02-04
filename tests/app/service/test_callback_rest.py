@@ -310,8 +310,8 @@ class TestCreateServiceCallback:
         resp_json = response.json
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert (
-            resp_json['errors'][0]['message'] == f"callback_channel {data['callback_channel']} is not one of "
-            f"[webhook, queue]"
+            resp_json['errors'][0]['message'] == f'callback_channel {data["callback_channel"]} is not one of '
+            f'[webhook, queue]'
         )
 
     def test_users_cannot_create_service_callbacks_with_queue_channel(self, client, sample_service):

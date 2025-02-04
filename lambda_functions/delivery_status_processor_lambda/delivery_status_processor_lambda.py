@@ -74,7 +74,7 @@ def validate_twilio_event(event: dict) -> bool:
         signature = event['headers'].get('x-twilio-signature', '')
 
         validator = RequestValidator(auth_token)
-        uri = f"https://{event['headers']['host']}/vanotify/sms/deliverystatus"
+        uri = f'https://{event["headers"]["host"]}/vanotify/sms/deliverystatus'
         decoded = base64.b64decode(event.get('body')).decode()
         params = parse_qs(decoded)
         params = {k: v[0] for k, v in sorted(params.items())}

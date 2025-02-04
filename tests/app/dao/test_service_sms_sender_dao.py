@@ -46,9 +46,9 @@ def test_dao_get_service_sms_sender_by_id(sample_provider, sample_service):
 
     assert service_sms_sender.sms_sender == 'second'
     assert not service_sms_sender.is_default
-    assert (
-        isinstance(service_sms_sender.sms_sender_specifics, dict) and not service_sms_sender.sms_sender_specifics
-    ), 'This should be an empty dictionary by default.'
+    assert isinstance(service_sms_sender.sms_sender_specifics, dict) and not service_sms_sender.sms_sender_specifics, (
+        'This should be an empty dictionary by default.'
+    )
 
 
 def test_dao_get_service_sms_sender_by_id_with_sender_specifics(sample_provider, sample_service):

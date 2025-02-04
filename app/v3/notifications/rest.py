@@ -107,7 +107,7 @@ def v3_send_notification(
 
         # This is a possible phone number, but is it in an assigned exchange (valid area code, etc.)?
         if not phonenumbers.is_valid_number(phone_number):
-            raise ValueError(f"{request_data['phone_number']} is not a valid phone number.")
+            raise ValueError(f'{request_data["phone_number"]} is not a valid phone number.')
 
     # This has the side effect of modifying the input in the upstream code.
     request_data['id'] = str(uuid4())

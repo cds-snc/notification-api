@@ -159,7 +159,7 @@ class VAProfileClient:
 
         if telephone.get('countryCode') and telephone.get('areaCode') and telephone.get('phoneNumber'):
             self.statsd_client.incr('clients.va-profile.get-telephone.success')
-            return f"+{telephone['countryCode']}{telephone['areaCode']}{telephone['phoneNumber']}"
+            return f'+{telephone["countryCode"]}{telephone["areaCode"]}{telephone["phoneNumber"]}'
         else:
             self.statsd_client.incr('clients.va-profile.get-telephone.failure')
             self.logger.warning(

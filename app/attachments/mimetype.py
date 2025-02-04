@@ -13,7 +13,7 @@ def extract_and_validate_mimetype(
     if mimetype not in current_app.config['ATTACHMENTS_ALLOWED_MIME_TYPES']:
         raise UnsupportedMimeTypeException(
             f"Unsupported attachment type '{mimetype}'. "
-            f"Supported types are: {current_app.config['ATTACHMENTS_ALLOWED_MIME_TYPES']}"
+            f'Supported types are: {current_app.config["ATTACHMENTS_ALLOWED_MIME_TYPES"]}'
         )
 
     # Our MIME type auto-detection resolves CSV content as text/plain, so we fix that if possible

@@ -129,7 +129,7 @@ def test_send_email_uses_configuration_set_from_config(notify_api, ses_client, b
 
 
 def email_b64_encoding(input):
-    return f"=?utf-8?b?{b64encode(input.encode('utf-8')).decode('utf-8')}?="
+    return f'=?utf-8?b?{b64encode(input.encode("utf-8")).decode("utf-8")}?='
 
 
 @pytest.mark.parametrize(

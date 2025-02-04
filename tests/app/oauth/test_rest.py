@@ -458,7 +458,7 @@ class TestCallback:
 
         mocked_dao.assert_called_with(
             email_address=va_sso_user_info['email'],
-            name=f"{va_sso_user_info['given_name']} {va_sso_user_info['family_name']}",
+            name=f'{va_sso_user_info["given_name"]} {va_sso_user_info["family_name"]}',
             identity_provider='va_sso',
             identity_provider_user_id=va_sso_user_info['sub'],
         )

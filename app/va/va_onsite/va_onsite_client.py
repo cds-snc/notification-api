@@ -40,7 +40,7 @@ class VAOnsiteClient:
 
         try:
             response = requests.post(
-                url=f'{ self.url_base }/v0/onsite_notifications',
+                url=f'{self.url_base}/v0/onsite_notifications',
                 data=json.dumps(data),
                 headers=self._build_header(),
                 timeout=self.timeout,

@@ -326,11 +326,9 @@ def pytest_sessionfinish(session, exitstatus):
                 else:
                     print(f'Table {table} contains too many records but {color}cannot be truncated{reset}.')
             db.session.commit()
-            print(
-                f'\n\nThese tables contained artifacts: ' f'{tables_with_artifacts}\n\n{color}UNIT TESTS FAILED{reset}'
-            )
+            print(f'\n\nThese tables contained artifacts: {tables_with_artifacts}\n\n{color}UNIT TESTS FAILED{reset}')
         elif tables_with_artifacts:
-            print(f'\n\nThese tables contain artifacts: ' f'{color}{tables_with_artifacts}\n\nUNIT TESTS FAILED{reset}')
+            print(f'\n\nThese tables contain artifacts: {color}{tables_with_artifacts}\n\nUNIT TESTS FAILED{reset}')
         else:
             color = '\033[32m'  # Green - pulled out for clarity
             print(f'\n\n{color}DATABASE IS CLEAN{reset}')

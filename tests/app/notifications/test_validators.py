@@ -588,7 +588,7 @@ class TestSmsSenderRateLimit:
 
             should_throttle.assert_called_once_with(sms_sender.sms_sender, service.rate_limit, 60)
             assert e.value.status_code == 429
-            assert e.value.message == ('Exceeded rate limit of ' f'{sms_sender.rate_limit} requests per 60 seconds')
+            assert e.value.message == (f'Exceeded rate limit of {sms_sender.rate_limit} requests per 60 seconds')
             assert e.value.fields == []
 
     def test_that_when_not_exceeded_sms_sender_rate_limit_request_succeeds(self, sample_service, mocker):

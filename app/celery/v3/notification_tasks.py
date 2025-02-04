@@ -96,7 +96,7 @@ def v3_process_notification(  # noqa: C901
         except MultipleResultsFound:
             notification.status = NOTIFICATION_PERMANENT_FAILURE
             notification.status_reason = 'Multiple templates found.'
-            err = f"Multiple templates with id {request_data['template_id']} found. Notification {notification.id}."
+            err = f'Multiple templates with id {request_data["template_id"]} found. Notification {notification.id}.'
             v3_persist_failed_notification(notification, err)
             return
 

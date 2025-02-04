@@ -362,8 +362,7 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         chain(*tasks).apply_async()
     except Exception as e:
         current_app.logger.critical(
-            'apply_async failed in send_to_queue_for_recipient_info_based_on_recipient_identifier '
-            'for notification %s.',
+            'apply_async failed in send_to_queue_for_recipient_info_based_on_recipient_identifier for notification %s.',
             notification.id,
         )
         current_app.logger.exception(e)

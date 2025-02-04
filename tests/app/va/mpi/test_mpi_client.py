@@ -141,9 +141,9 @@ class TestGetVaProfileId:
         )
 
         expected_url = (
-            f"{mpi_client.base_url}/psim_webservice/fhir/Patient/"
-            f"{quote('some-transformed-fhir-identifier')}"
-            f"?-sender={MpiClient.SYSTEM_IDENTIFIER}"
+            f'{mpi_client.base_url}/psim_webservice/fhir/Patient/'
+            f'{quote("some-transformed-fhir-identifier")}'
+            f'?-sender={MpiClient.SYSTEM_IDENTIFIER}'
         )
 
         actual_va_profile_id = mpi_client.get_va_profile_id(notification)

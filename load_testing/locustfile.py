@@ -34,7 +34,7 @@ class SendEmail(HttpUser):
 
     @task
     def send_email(self):
-        headers = {'Authorization': f"Bearer {self._get_jwt().decode('utf-8')}"}
+        headers = {'Authorization': f'Bearer {self._get_jwt().decode("utf-8")}'}
         payload = {'template_id': self.template_id, 'email_address': 'test-email@not-a-real-email.com'}
         self.client.post(
             '/v2/notifications/email', json=payload, headers=headers, verify=os.getenv('REQUESTS_CA_BUNDLE')

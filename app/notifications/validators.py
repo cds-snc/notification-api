@@ -62,8 +62,7 @@ def check_service_over_daily_message_limit(
             redis_store.set(cache_key, service_stats, ex=3600)
         if round((int(service_stats) / service.message_limit), 1) * 100 > 75:
             current_app.logger.info(
-                f'service {service.id} nearing daily limit '
-                f'{(int(service_stats) / service.message_limit * 100):.1f}%'
+                f'service {service.id} nearing daily limit {(int(service_stats) / service.message_limit * 100):.1f}%'
             )
 
         if int(service_stats) >= service.message_limit:

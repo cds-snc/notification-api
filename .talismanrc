@@ -6,7 +6,7 @@ fileignoreconfig:
 - filename: app/schema_validation/__init__.py
   checksum: 9487ddbb105a20f5fd495eb4426b7c27ee3be1894b69a189363363ed616722c0
 - filename: poetry.lock
-  checksum: c981c82916c525c5afd0c39bea5f2c94d375362550d03bf6be4454499e32ee3a
+  checksum: 1fb22a1a20ebe8084ccdd64b9a57f30fd0a9fbe35edfeaca4ea3cba8b9fb725b
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 5bab4eaddf8760c502111ae3e5f9f8bee59482d99f053f94598e8c77bd10b7b6
 - filename: tests/app/dao/test_ft_billing_dao.py
@@ -17,4 +17,6 @@ fileignoreconfig:
   checksum: 167aa80c8aac01566b3cf627cdaa839feac9dc77f0b13b6d0a008035aa8e15f1
 - filename: app/notifications/process_notifications.py
   checksum: 199e175df804d0d9cc5413630ae0d3be805a3bfc54f2822f9a54936054354c9a
+- filename: tests/app/celery/test_process_ga4_measurement_task.py
+  checksum: f25a9c4e5a2711a4c35ba1ac98031d23d072c58f1345d39a5f5ed4329368d558
 version: "1.0"

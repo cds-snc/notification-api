@@ -119,8 +119,7 @@ def deliver_sms_with_rate_limiting(
     except RateLimitError:
         retry_time = sms_sender.rate_limit_interval / sms_sender.rate_limit
         current_app.logger.info(
-            'SMS notification delivery for id: %s failed due to rate limit being exceeded. '
-            'Will retry in %s seconds.',
+            'SMS notification delivery for id: %s failed due to rate limit being exceeded. Will retry in %s seconds.',
             notification_id,
             retry_time,
         )

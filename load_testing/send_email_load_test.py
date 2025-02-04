@@ -94,7 +94,7 @@ class SendEmail(HttpUser):
         notification_creation_response = self.client.post(
             '/v2/notifications/email',
             json={'template_id': self.email_template_id, 'email_address': 'test-email@not-a-real-email.com'},
-            headers={'Authorization': f"Bearer {self._get_jwt().decode('utf-8')}"},
+            headers={'Authorization': f'Bearer {self._get_jwt().decode("utf-8")}'},
             verify=os.getenv('REQUESTS_CA_BUNDLE'),
         )
 
@@ -108,7 +108,7 @@ class SendEmail(HttpUser):
         while time.monotonic() < start_time + timeout:
             notification_status_response = self.client.get(
                 f'/v2/notifications/{notification_id}',
-                headers={'Authorization': f"Bearer {self._get_jwt().decode('utf-8')}"},
+                headers={'Authorization': f'Bearer {self._get_jwt().decode("utf-8")}'},
                 verify=os.getenv('REQUESTS_CA_BUNDLE'),
                 name='notification status',
             )

@@ -192,9 +192,9 @@ def test_v3_send_email_notification(mocker, notify_db_session, sample_template):
     """
 
     template = sample_template(template_type=EMAIL_TYPE)
-    assert (
-        notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None
-    ), 'Needed downstream to avoid IntegrityError.'
+    assert notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None, (
+        'Needed downstream to avoid IntegrityError.'
+    )
 
     client_mock = mocker.Mock()
     client_mock.send_email = mocker.Mock(return_value='provider reference')
@@ -345,9 +345,9 @@ def test_v3_send_sms_notification(mocker, notify_db_session, sample_service, sam
 
     template = sample_template()
     assert template.template_type == SMS_TYPE
-    assert (
-        notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None
-    ), 'Needed downstream to avoid IntegrityError.'
+    assert notify_db_session.session.get(TemplateHistory, (template.id, template.version)) is not None, (
+        'Needed downstream to avoid IntegrityError.'
+    )
 
     service = sample_service()
     sms_sender = sample_sms_sender(service.id)

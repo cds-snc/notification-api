@@ -82,11 +82,11 @@ def authorize():
     except OAuthError:
         current_app.logger.exception('User denied authorization')
         statsd_client.incr('oauth.authorization.denied')
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure?denied_authorization"))
+        return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure?denied_authorization'))
     except (OAuthException, HTTPError):
         current_app.logger.exception('Authorization exception raised')
         statsd_client.incr('oauth.authorization.failure')
-        return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+        return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure'))
     except InsufficientGithubScopesException as e:
         current_app.logger.exception(e)
         statsd_client.incr('oauth.authorization.github_incorrect_scopes')
@@ -109,7 +109,7 @@ def authorize():
             except IncorrectGithubIdException as e:
                 current_app.logger.exception(e)
                 statsd_client.incr('oauth.authorization.github_id_mismatch')
-                return make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/failure"))
+                return make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/failure'))
 
 
 @oauth_blueprint.route('/my-services/<uuid:user_id>', methods=['GET'])
@@ -136,7 +136,7 @@ def callback():
         user_info = oauth_registry.va_sso.parse_id_token(tokens)
         return _process_sso_user(
             email=user_info['email'],
-            name=f"{user_info['given_name']} {user_info['family_name']}",
+            name=f'{user_info["given_name"]} {user_info["family_name"]}',
             identity_provider='va_sso',
             identity_provider_user_id=user_info['sub'],
         )
@@ -176,7 +176,7 @@ def _process_sso_user(
 
 
 def _successful_sso_login_response(user: User) -> Response:
-    response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}/login/success"))
+    response = make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}/login/success'))
     response.set_cookie(
         current_app.config['JWT_ACCESS_COOKIE_NAME'],
         create_access_token(identity=user),
@@ -249,7 +249,7 @@ def token():
 
 @oauth_blueprint.route('/logout', methods=['GET'])
 def logout():
-    response = make_response(redirect(f"{current_app.config['UI_HOST_NAME']}"))
+    response = make_response(redirect(f'{current_app.config["UI_HOST_NAME"]}'))
     response.delete_cookie(current_app.config['JWT_ACCESS_COOKIE_NAME'])
     statsd_client.incr('oauth.logout.success')
     return response

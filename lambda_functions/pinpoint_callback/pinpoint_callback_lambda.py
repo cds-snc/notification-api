@@ -24,7 +24,7 @@ except ValueError:
     logger.warning('Invalid log level specified. Defaulting to INFO.')
 
 # set up sqs resource
-queue_name = f"{os.getenv('NOTIFICATION_QUEUE_PREFIX')}{ROUTING_KEY}"
+queue_name = f'{os.getenv("NOTIFICATION_QUEUE_PREFIX")}{ROUTING_KEY}'
 try:
     sqs = boto3.resource('sqs', region_name=AWS_REGION)
     queue = sqs.get_queue_by_name(QueueName=queue_name)

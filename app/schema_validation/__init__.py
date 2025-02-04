@@ -128,7 +128,7 @@ def build_error_message(errors):
             if len(e.path) > 0:
                 # a path indicates that we are validating a specific property
                 # eg: "template_id" + " is not a valid UUID"
-                error_message = f"{e.path[0]} {e.schema['validationMessage']}"
+                error_message = f'{e.path[0]} {e.schema["validationMessage"]}'
             elif e.validator in e.schema['validationMessage']:
                 error_message = e.schema['validationMessage'][e.validator]
             else:

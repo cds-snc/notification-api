@@ -119,7 +119,7 @@ def validate_twilio_event(event: dict) -> bool:
             logger.error('Twilio auth token(s) or signature not set.')
             return False
         validators = [RequestValidator(auth_token) for auth_token in auth_tokens]
-        uri = f"https://{event['headers']['host']}/vanotify{event['path']}"
+        uri = f'https://{event["headers"]["host"]}/vanotify{event["path"]}'
 
         decoded = base64.b64decode(event.get('body')).decode('utf-8')
         params = parse_qs(decoded, keep_blank_values=True)

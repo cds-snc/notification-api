@@ -329,7 +329,7 @@ class TestVAProfileClientExceptionHandling:
         result = mock_va_profile_client.get_telephone(recipient_identifier, sample_notification())
         assert (
             result.recipient
-            == f"+{mobile_phone_created_yesterday_morning['countryCode']}{mobile_phone_created_yesterday_morning['areaCode']}{mobile_phone_created_yesterday_morning['phoneNumber']}"
+            == f'+{mobile_phone_created_yesterday_morning["countryCode"]}{mobile_phone_created_yesterday_morning["areaCode"]}{mobile_phone_created_yesterday_morning["phoneNumber"]}'
         )
 
     def test_handle_exceptions_retryable_exception(self, mock_va_profile_client, mocker):

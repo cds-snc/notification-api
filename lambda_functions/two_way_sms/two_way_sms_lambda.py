@@ -68,7 +68,7 @@ def _send_default_sms_message(
 ):
     response = _make_pinpoint_send_message_request(recipient_number, sender, pinpoint)
     logging.info(
-        f'Handler successfully sent message with message ' f'{response["MessageResponse"]["Result"][recipient_number]}'
+        f'Handler successfully sent message with message {response["MessageResponse"]["Result"][recipient_number]}'
     )
     return response['MessageResponse']['Result'][recipient_number]
 

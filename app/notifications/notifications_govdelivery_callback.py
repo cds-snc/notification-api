@@ -51,7 +51,7 @@ def process_govdelivery_response():
             )
             if data.get('error_message'):
                 current_app.logger.info(
-                    f"Govdelivery error_message for notification {notification.id}: " f"{data['error_message']}"
+                    f'Govdelivery error_message for notification {notification.id}: {data["error_message"]}'
                 )
 
             notifications_dao._update_notification_status(notification, notify_status)

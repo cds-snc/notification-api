@@ -26,7 +26,7 @@ def test_mobile_app_push_notification_delivered(
     service = sample_service(service_permissions=[PUSH_TYPE])
     api_key = sample_api_key(service=service)
     rmock.register_uri(
-        'POST', f"{client.application.config['VETEXT_URL']}/mobile/push/send", json={'result': 'success'}
+        'POST', f'{client.application.config["VETEXT_URL"]}/mobile/push/send', json={'result': 'success'}
     )
 
     push_request_body = {

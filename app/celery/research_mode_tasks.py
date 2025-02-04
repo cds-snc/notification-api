@@ -85,7 +85,7 @@ def make_request(
     headers,
     path=None,
 ):
-    callback_url = f"{current_app.config['API_HOST_NAME']}/notifications/{notification_type}/{provider}"
+    callback_url = f'{current_app.config["API_HOST_NAME"]}/notifications/{notification_type}/{provider}'
     if path:
         callback_url += f'/{path}'
 

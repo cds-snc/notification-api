@@ -28,8 +28,7 @@ def post_to_ga4_with_valid_data_helper(
     assert response
     assert rmock.called
     assert (
-        rmock.request_history[0].url == 'http://foo.bar/ga4?measurement_id=ga4_measurement_id'
-        '&api_secret=ga4_api_secret'
+        rmock.request_history[0].url == 'http://foo.bar/ga4?measurement_id=ga4_measurement_id&api_secret=ga4_api_secret'
     )
 
     actual_ga4_payload = rmock.request_history[0].json()

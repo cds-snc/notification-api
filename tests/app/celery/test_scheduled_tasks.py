@@ -113,7 +113,7 @@ def test_should_update_all_scheduled_jobs_and_put_on_queue(
 def test_should_send_all_scheduled_notifications_to_deliver_queue(mocker, sample_template, sample_notification):
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     mock_sms_sender = mocker.patch(
-        'app.notifications.process_notifications.' 'dao_get_service_sms_sender_by_service_id_and_number'
+        'app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number'
     )
     mock_sms_sender.rate_limit = mocker.Mock()
     template = sample_template()
@@ -381,8 +381,9 @@ def test_check_precompiled_letter_state(mocker, sample_template, sample_notifica
     check_precompiled_letter_state()
 
     message = (
-        '2 precompiled letters have been pending-virus-check for over 90 minutes. '
-        "Notifications: ['{}', '{}']".format(noti_2.id, noti_1.id)
+        "2 precompiled letters have been pending-virus-check for over 90 minutes. Notifications: ['{}', '{}']".format(
+            noti_2.id, noti_1.id
+        )
     )
 
     mock_logger.assert_called_once_with(message)
