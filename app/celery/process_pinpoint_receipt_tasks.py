@@ -7,7 +7,12 @@ from notifications_utils.statsd_decorators import statsd
 from app import aws_pinpoint_client, notify_celery, statsd_client
 from app.celery.exceptions import AutoRetryException, NonRetryableException
 from app.clients.sms import SmsStatusRecord, UNABLE_TO_TRANSLATE
-from app.celery.process_delivery_status_result_tasks import sms_status_update, get_notification_platform_status
+from app.celery.process_delivery_status_result_tasks import (
+    sms_attempt_retry,
+    sms_status_update,
+    get_notification_platform_status,
+)
+from app.constants import STATUS_REASON_RETRYABLE
 
 
 @notify_celery.task(
@@ -62,4 +67,8 @@ def process_pinpoint_results(
         notification_platform_status.price_millicents,
         notification_platform_status.provider_updated_at,
     )
-    sms_status_update(notification_platform_status, pinpoint_message['event_timestamp'])
+
+    if notification_platform_status.status_reason == STATUS_REASON_RETRYABLE:
+        sms_attempt_retry(notification_platform_status, pinpoint_message['event_timestamp'])
+    else:
+        sms_status_update(notification_platform_status, pinpoint_message['event_timestamp'])

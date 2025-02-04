@@ -1,5 +1,6 @@
 """Common constants."""
 
+from datetime import timedelta
 import os
 
 from dotenv import load_dotenv
@@ -260,3 +261,7 @@ STATUS_REASON_NO_PROFILE = 'Undeliverable - No VA Profile found in MPI'
 STATUS_REASON_NO_ID_FOUND = 'Undeliverable - Identifier not found in MPI'
 STATUS_REASON_DECEASED = 'Undeliverable - Individual is deceased'
 STATUS_REASON_UNDELIVERABLE = 'Undeliverable - Unable to deliver'
+
+# Carrier
+CARRIER_SMS_MAX_RETRIES = 2
+CARRIER_SMS_MAX_RETRY_WINDOW = timedelta(days=3)

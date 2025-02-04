@@ -393,6 +393,63 @@ def dao_update_sms_notification_delivery_status(
 
 
 @statsd(namespace='dao')
+def dao_update_sms_notification_status_to_created_for_retry(
+    notification_id: UUID,
+    notification_type: str,
+    cost_in_millicents: float,
+    segments_count: int,
+) -> Notification:
+    """Update an SMS notification status to created for retry.
+
+    SMS messages that result in retryable errors may be able to be retried.
+    This is a special case update statement to update the notification to NOTIFICATION_CREATED in order to attempt requeue.
+    Provider reference is also cleared to prevent lookup by old value
+    The normal status state transition checks are not enforced, only that the notification is currently NOTIFICATION_SENDING
+    Current cost is also updated to keep track of the running cost
+
+    Args:
+        provider (str): The provider being used
+        notification_id (UUID): The id to update
+        cost_in_millicents (float): The amount that charged to send the message (running total for retries)
+        segments_count (int): The number of message parts that Amazon Pinpoint created in order to send the message.
+
+    Returns:
+        Notification: A Notification object
+    """
+
+    if notification_type == SMS_TYPE:
+        stmt = (
+            update(Notification)
+            .where(Notification.id == notification_id)
+            .where(Notification.status == NOTIFICATION_SENDING)
+            .values(
+                status=NOTIFICATION_CREATED,
+                status_reason=None,
+                reference=None,
+                cost_in_millicents=cost_in_millicents,
+                segments_count=segments_count,
+            )
+        )
+        current_app.logger.debug('sms delivery status statement: %s', stmt)
+    else:
+        raise NotImplementedError(
+            f'dao_update_sms_notification_status_to_created_for_retry not configured for {notification_type} yet'
+        )
+
+    try:
+        db.session.execute(stmt)
+        db.session.commit()
+    except Exception:
+        current_app.logger.exception(
+            'Updating notification %s to status "%s" failed.', notification_id, NOTIFICATION_CREATED
+        )
+        db.session.rollback()
+        raise
+
+    return db.session.get(Notification, notification_id)
+
+
+@statsd(namespace='dao')
 @transactional
 def update_notification_status_by_reference(reference: UUID, status: str, status_reason: str | None = None):
     # this is used to update letters and emails

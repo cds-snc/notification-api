@@ -26,6 +26,7 @@ from app.constants import (
     NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TEMPORARY_FAILURE,
     SMS_TYPE,
+    STATUS_REASON_UNDELIVERABLE,
 )
 from app.dao.notifications_dao import (
     dao_create_notification,
@@ -40,6 +41,7 @@ from app.dao.notifications_dao import (
     dao_update_notification,
     dao_update_notification_by_id,
     dao_update_notifications_by_reference,
+    dao_update_sms_notification_status_to_created_for_retry,
     delete_notifications_older_than_retention_by_type,
     get_notification_by_id,
     get_notification_for_job,
@@ -2197,6 +2199,65 @@ def test_update_notification_delivery_status_invalid_updates(
     )
 
     assert notification.status != new_status
+    assert notification.status_reason == status_reason
+
+
+def test_dao_update_sms_notification_status_to_created_for_retry_valid_update(
+    sample_notification,
+):
+    initial_cost = 10.0
+    final_cost = 30.0
+
+    notification: Notification = sample_notification(
+        status=NOTIFICATION_SENDING,
+        cost_in_millicents=initial_cost,
+        segments_count=6,
+    )
+
+    assert notification.status == NOTIFICATION_SENDING
+
+    dao_update_sms_notification_status_to_created_for_retry(
+        notification_id=notification.id,
+        notification_type=notification.notification_type,
+        cost_in_millicents=final_cost,
+        segments_count=6,
+    )
+
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.status_reason is None
+    notification.cost_in_millicents
+    assert notification.cost_in_millicents == final_cost
+    assert notification.segments_count == 6
+
+
+@pytest.mark.parametrize(
+    'status, status_reason',
+    [
+        (NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+        (NOTIFICATION_DELIVERED, None),
+    ],
+)
+def test_dao_update_sms_notification_status_to_created_for_retry_invalid_updates(
+    sample_notification,
+    status,
+    status_reason,
+):
+    notification: Notification = sample_notification(
+        status=status,
+        status_reason=status_reason,
+    )
+
+    assert notification.status == status
+    assert notification.status_reason == status_reason
+
+    dao_update_sms_notification_status_to_created_for_retry(
+        notification_id=notification.id,
+        notification_type=notification.notification_type,
+        cost_in_millicents=0.0,
+        segments_count=6,
+    )
+
+    assert notification.status == status
     assert notification.status_reason == status_reason
 
 
