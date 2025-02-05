@@ -98,7 +98,6 @@ from app.models import (
     NotificationType,
     Permission,
     Service,
-    User,
 )
 from app.notifications.process_notifications import (
     persist_notification,
