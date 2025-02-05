@@ -221,7 +221,7 @@ class Config(object):
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
-    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -753,6 +753,7 @@ class Test(Development):
 
 
 class Production(Config):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
@@ -770,14 +771,17 @@ class Production(Config):
 
 
 class Staging(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
 
 
 class Scratch(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "scratch"
 
 
 class Dev(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "dev"
 
 
