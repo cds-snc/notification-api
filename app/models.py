@@ -645,6 +645,12 @@ class Service(BaseModel, Versioned):
             "research_mode": self.research_mode,
         }
 
+    def get_users_with_permission(self, permission):
+        from app.dao.permissions_dao import permission_dao
+
+        if permission:
+            return permission_dao.get_team_members_with_permission(self.id, permission)
+        return []
 
 class AnnualBilling(BaseModel):
     __tablename__ = "annual_billing"

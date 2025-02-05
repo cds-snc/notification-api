@@ -67,5 +67,9 @@ class PermissionDAO(DAOClass):
             self.Meta.model.query.filter_by(user_id=user_id).join(Permission.service).filter_by(active=True, id=service_id).all()
         )
 
+    def get_team_members_with_permission(self, service_id, permission):
+        permission_objs = self.Meta.model.query.filter_by(service_id=service_id, permission=permission).join(Permission.user).filter_by(state="active").all()
+        return [p.user for p in permission_objs]
+
 
 permission_dao = PermissionDAO()
