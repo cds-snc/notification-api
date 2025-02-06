@@ -1,8 +1,8 @@
 name: Continuous Deployment Pipeline
-# note:
-# It's useful to recognize that this workflow is designed to be triggered by a merge to the default branch. 
-# Therefore, ${{ github.sha }} will always be in reference to the SHA that originally triggered this workflow. 
-# $GITHUB_SHA, on the other hand, is created whenever actions/checkout@v4 is run
+# Note:
+# This workflow is designed to be triggered by a merge to the default branch.
+# Therefore, ${{ github.sha }} will always be in reference to the SHA that originally triggered this workflow.
+# $GITHUB_SHA, on the other hand, is created whenever actions/checkout@v4 is run.
 
 # note:
 # environment:
@@ -12,7 +12,7 @@ name: Continuous Deployment Pipeline
 # with: 
   # environment:
 # is simply using a variable named environment 
-  
+
 on:
   push:
     branches:
@@ -85,15 +85,8 @@ jobs:
       - name: Pause for manual approval
         run: echo "Deployment paused for manual approval to staging and production."
 
-  create-release-notes:
-    needs: [create-and-post-tag, approval-deploy]
-    uses: ./.github/workflows/create-release-notes.yml
-    secrets: inherit
-    with:
-      previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
-
   deploy-to-staging:
-    needs: [create-release-notes, create-and-post-tag]
+    needs: [approval-deploy, create-and-post-tag]
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
     with:
@@ -101,16 +94,9 @@ jobs:
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
 
-  publish-release-notes:
-    needs: [create-release-notes, deploy-to-staging]
-    uses: ./.github/workflows/publish-release-notes.yml
-    secrets: inherit
-    with:
-      draftReleaseReference: ${{ needs.create-release-notes.outputs.draftReleaseReference }}
-
   deploy-to-prod:
     if: vars.CODE_FREEZE == 'false'
-    needs: [publish-release-notes, create-and-post-tag]
+    needs: [deploy-to-staging, create-and-post-tag]
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
     with:
@@ -118,8 +104,15 @@ jobs:
       ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
       lambdaDeploy: true
 
+  create-release-notes:
+    needs: [create-and-post-tag, deploy-to-prod]
+    uses: ./.github/workflows/create-release-notes.yml
+    secrets: inherit
+    with:
+      previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
+
   send-slack-notifications:
-    needs: [deploy-to-prod, create-and-post-tag]
+    needs: [create-release-notes, create-and-post-tag]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

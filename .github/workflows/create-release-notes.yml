@@ -7,15 +7,15 @@ on:
         required: true
         type: string
     outputs:
-      draftReleaseReference:
-        description: 'This value is the id that will be used when actually publishing this release notes'
-        value: ${{ jobs.create-release-notes.outputs.draftReleaseReference }}
+      releaseUrl:
+        description: 'The URL of the published release'
+        value: ${{ jobs.create-release-notes.outputs.releaseUrl }}
 
 jobs:
   create-release-notes:
     runs-on: ${{ vars.RUNS_ON }}
     outputs:
-      draftReleaseReference: ${{ steps.create_notes.outputs.draftReleaseReference }}
+      releaseUrl: ${{ steps.create_notes.outputs.releaseUrl }}
     permissions:
       contents: write
     steps:
@@ -28,8 +28,7 @@ jobs:
           previousVersion: ${{ inputs.previousVersion }}
         with:
           github-token: ${{ secrets.VAR_PAT }}
-          # This script outputs draftReleaseReference for publish-release-notes.yml
+          # This script creates a published release and outputs the releaseUrl
           script: |
             const createReleaseNotes = require('.github/scripts/createReleaseNotes.js');
-            createReleaseNotes({github, context, core});
-
+            createReleaseNotes({ github, context, core });
