@@ -1,4 +1,5 @@
 from app.dao.permissions_dao import permission_dao
+from app.models import MANAGE_SETTINGS
 from tests.app.conftest import create_sample_service
 
 
@@ -27,3 +28,17 @@ def test_get_permissions_by_user_id_returns_only_active_service(notify_db, notif
     assert len(permissions) == 8
     assert active_service in [i.service for i in permissions]
     assert inactive_service not in [i.service for i in permissions]
+
+
+def test_get_team_members_with_permission(notify_db, notify_db_session, sample_user):
+    active_service = create_sample_service(notify_db, notify_db_session, service_name="Active service", user=sample_user)
+
+    users_w_permission_1 = permission_dao.get_team_members_with_permission(active_service.id, MANAGE_SETTINGS)
+    assert users_w_permission_1 == [sample_user]
+
+    permission_dao.remove_user_service_permissions(user=sample_user, service=active_service)
+    users_w_permission_2 = permission_dao.get_team_members_with_permission(active_service.id, MANAGE_SETTINGS)
+    assert users_w_permission_2 == []
+
+    users_w_permission_3 = permission_dao.get_team_members_with_permission(active_service.id, None)
+    assert users_w_permission_3 == []

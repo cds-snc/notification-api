@@ -1482,18 +1482,42 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
 
 def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission, mocker):
     mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
-    second_user = create_user(email="new@digital.cabinet-office.gov.uk")
+    third_user = create_user(email="new@digital.cabinet-office.gov.uk")
+    fourth_user = create_user(email="new@cds-snc.ca")
     # Simulates successfully adding a user to the service
-    second_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=second_user)
+    third_permission = create_sample_user_service_permission(notify_db, notify_db_session, user=third_user)
+    create_sample_user_service_permission(notify_db, notify_db_session, user=fourth_user)
     endpoint = url_for(
         "service.remove_user_from_service",
-        service_id=str(second_permission.service.id),
-        user_id=str(second_permission.user.id),
+        service_id=str(third_permission.service.id),
+        user_id=str(third_permission.user.id),
     )
     auth_header = create_authorization_header()
     resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])
     assert resp.status_code == 204
-    mocked_salesforce_client.engagement_delete_contact_role.assert_called_with(second_permission.service, second_permission.user)
+    mocked_salesforce_client.engagement_delete_contact_role.assert_called_with(third_permission.service, third_permission.user)
+
+
+def test_remove_user_from_service_only_user_with_manage_perm(
+    notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker
+):
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            manage_settings_user = sample_user_service_permission.user
+            second_user = create_user(email="new2@cds-snc.ca")
+            third_user = create_user(email="new3@cds-snc.ca")
+            create_sample_user_service_permission(notify_db, notify_db_session, user=second_user, permission="view_activity")
+            create_sample_user_service_permission(notify_db, notify_db_session, user=third_user, permission="view_activity")
+            endpoint = url_for(
+                "service.remove_user_from_service",
+                service_id=str(sample_user_service_permission.service.id),
+                user_id=str(manage_settings_user.id),
+            )
+            auth_header = create_authorization_header()
+            resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])
+            assert resp.status_code == 400
+            result = resp.json
+            assert result["message"] == "SERVICE_NEEDS_USER_W_MANAGE_SETTINGS_PERM"
 
 
 def test_remove_non_existant_user_from_service(client, sample_user_service_permission):
@@ -1521,6 +1545,25 @@ def test_cannot_remove_only_user_from_service(notify_api, notify_db, notify_db_s
             assert resp.status_code == 400
             result = resp.json
             assert result["message"] == "You cannot remove the only user for a service"
+
+
+def test_remove_user_from_service_with_2_users(
+    notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker
+):
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            second_user = create_user(email="new@cds-snc.ca")
+            create_sample_user_service_permission(notify_db, notify_db_session, user=second_user, permission="view_activity")
+            endpoint = url_for(
+                "service.remove_user_from_service",
+                service_id=str(sample_user_service_permission.service.id),
+                user_id=str(sample_user_service_permission.user.id),
+            )
+            auth_header = create_authorization_header()
+            resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])
+            assert resp.status_code == 400
+            result = resp.json
+            assert result["message"] == "SERVICE_CANNOT_HAVE_LT_2_MEMBERS"
 
 
 # This test is just here verify get_service_and_api_key_history that is a temp solution
