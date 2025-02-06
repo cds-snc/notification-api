@@ -41,12 +41,21 @@ def url_with_token(
 
 
 def get_template_instance(
-    template,
-    values,
+    template: dict,
+    personalisation: dict,
 ):
+    """
+    Return an appropriate template instance from the notifications-utils repository.  This happens here
+    in order to validate that POST data for sending a notification has the correct personalisation values.
+    Note that the same process inefficiently happens again later, in Celery, when the message is sending.
+
+    template - A dictionary of the attributes and values of a Template instance
+    personalisation - personalization for a template instance
+    """
+
     return {SMS_TYPE: SMSMessageTemplate, EMAIL_TYPE: WithSubjectTemplate, LETTER_TYPE: WithSubjectTemplate}[
         template['template_type']
-    ](template, values)
+    ](template, personalisation)
 
 
 def get_html_email_body_from_template(template_instance):

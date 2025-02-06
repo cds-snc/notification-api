@@ -33,6 +33,7 @@ from app.models import (
     RecipientIdentifier,
 )
 from app.notifications.process_notifications import (
+    check_placeholders,
     create_content_for_notification,
     persist_notification,
     persist_scheduled_notification,
@@ -42,6 +43,8 @@ from app.notifications.process_notifications import (
     simulated_recipient,
 )
 from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
+from notifications_utils.template import WithSubjectTemplate
+from app.utils import get_template_instance
 from app.v2.errors import BadRequestError
 from app.va.identifier import IdentifierType
 
@@ -1225,3 +1228,43 @@ def test_send_notification_to_queue_delayed_throws_exception_when_send_message_f
     assert 'test exception' in str(e)
 
     logger.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ('subject', 'content', 'personalisation'),
+    [
+        ('subject', 'content', {}),
+        # Unused placeholder values should be ignored and not cause problems.
+        ('subject', 'content', {'test': 'test'}),
+        ('subject', 'hello ((name))', {'name': 'name'}),
+        ('subject ((name))', 'hello', {'name': 'name'}),
+        ('subject ((subject_name))', 'hello ((content_name))', {'subject_name': 'name', 'content_name': 'name'}),
+    ],
+)
+def test_check_placeholders_email(sample_template, subject, content, personalisation):
+    """
+    Test the happy path.  No exception should get raised.
+    """
+
+    template = sample_template(template_type=EMAIL_TYPE, subject=subject, content=content)
+    utils_template_instance = get_template_instance(template.__dict__, personalisation)
+    assert isinstance(utils_template_instance, WithSubjectTemplate)
+    assert check_placeholders(utils_template_instance) is None
+
+
+@pytest.mark.parametrize(
+    ('subject', 'content', 'personalisation'),
+    [
+        ('subject', 'hello ((name))', {}),
+        ('subject ((name))', 'hello', {}),
+        ('subject', 'hello ((name))', {'other': 'other'}),
+        ('subject ((name))', 'hello', {'other': 'other'}),
+    ],
+)
+def test_check_placeholders_email_missing_personalisation(sample_template, subject, content, personalisation):
+    template = sample_template(template_type=EMAIL_TYPE, subject=subject, content=content)
+    utils_template_instance = get_template_instance(template.__dict__, personalisation)
+    assert isinstance(utils_template_instance, WithSubjectTemplate)
+
+    with pytest.raises(BadRequestError):
+        check_placeholders(utils_template_instance)

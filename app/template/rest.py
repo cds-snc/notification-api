@@ -215,7 +215,7 @@ def preview_template_by_id_and_service_id(
 ):
     fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
     data = template_schema.dump(fetched_template)
-    template_object = get_template_instance(data, values=request.args.to_dict())
+    template_object = get_template_instance(data, request.args.to_dict())
 
     if template_object.missing_data:
         raise InvalidRequest(

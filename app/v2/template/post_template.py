@@ -21,7 +21,7 @@ def post_template_preview(template_id):
 
     template = templates_dao.dao_get_template_by_id_and_service_id(template_id, authenticated_service.id)
 
-    template_object = get_template_instance(template.__dict__, values=data.get('personalisation'))
+    template_object = get_template_instance(template.__dict__, data.get('personalisation'))
 
     check_placeholders(template_object)
 
