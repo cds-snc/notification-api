@@ -1509,7 +1509,7 @@ def test_remove_user_from_service_only_user_with_manage_perm(notify_api, notify_
             endpoint = url_for(
                 "service.remove_user_from_service",
                 service_id=str(sample_user_service_permission.service.id),
-                user_id=str(sample_user_service_permission.user.id),
+                user_id=str(manage_settings_user.id),
             )
             auth_header = create_authorization_header()
             resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])

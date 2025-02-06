@@ -652,6 +652,7 @@ class Service(BaseModel, Versioned):
             return permission_dao.get_team_members_with_permission(self.id, permission)
         return []
 
+
 class AnnualBilling(BaseModel):
     __tablename__ = "annual_billing"
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=False)
