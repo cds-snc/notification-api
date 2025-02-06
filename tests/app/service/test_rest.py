@@ -1498,7 +1498,9 @@ def test_remove_user_from_service(notify_db, notify_db_session, client, sample_u
     mocked_salesforce_client.engagement_delete_contact_role.assert_called_with(third_permission.service, third_permission.user)
 
 
-def test_remove_user_from_service_only_user_with_manage_perm(notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker):
+def test_remove_user_from_service_only_user_with_manage_perm(
+    notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker
+):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             manage_settings_user = sample_user_service_permission.user
@@ -1545,7 +1547,9 @@ def test_cannot_remove_only_user_from_service(notify_api, notify_db, notify_db_s
             assert result["message"] == "You cannot remove the only user for a service"
 
 
-def test_remove_user_from_service_with_2_users(notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker):
+def test_remove_user_from_service_with_2_users(
+    notify_api, notify_db, notify_db_session, client, sample_user_service_permission, mocker
+):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             second_user = create_user(email="new@cds-snc.ca")
