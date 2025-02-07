@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from flask import current_app
-from sqlalchemy import select
+from sqlalchemy import and_, select
 
 from app import db, notify_celery, twilio_sms_client
 from app.celery.exceptions import NonRetryableException
@@ -15,15 +15,18 @@ def _get_notifications() -> list:
     current_app.logger.info('Getting notifications to update status')
     one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     stmt = (
-        select(Notification)
-        .where(Notification.notification_type == 'sms')
-        .where(Notification.sent_by == 'twilio')
-        .where(~Notification.status.in_(NOTIFICATION_STATUS_TYPES_COMPLETED))
-        .where(Notification.created_at < one_hour_ago)
-        .order_by(Notification.created_at)
+        select(Notification.id, Notification.status, Notification.reference)
+        .where(
+            and_(
+                Notification.notification_type == 'sms',
+                Notification.created_at < one_hour_ago,
+                ~Notification.status.in_(NOTIFICATION_STATUS_TYPES_COMPLETED),
+                Notification.sent_by == 'twilio',
+            )
+        )
         .limit(current_app.config['TWILIO_STATUS_PAGE_SIZE'])
     )
-    return db.session.scalars(stmt).all()
+    return db.session.execute(stmt).all()
 
 
 @notify_celery.task(name='update-twilio-status')

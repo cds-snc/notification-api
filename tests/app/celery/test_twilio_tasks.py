@@ -14,6 +14,7 @@ from app.constants import (
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
 )
+from app.models import Notification
 
 
 @pytest.mark.parametrize(
@@ -68,9 +69,11 @@ def test_get_notifications_datefilter(sample_notification, minute_offset, expect
 def test_update_twilio_status_with_results(mocker, sample_notification):
     """Test that update_twilio_status() calls twilio_sms_client.update_notification_status_override() with the
     notification reference when there are notifications to update."""
-    notification = sample_notification(status=NOTIFICATION_CREATED, sent_by='twilio')
-
-    mocker.patch('app.celery.twilio_tasks._get_notifications', return_value=[notification])
+    notification: Notification = sample_notification(
+        status=NOTIFICATION_SENDING,
+        created_at=datetime.now(timezone.utc) - timedelta(hours=3),
+        sent_by='twilio',
+    )
 
     with patch(
         'app.celery.twilio_tasks.twilio_sms_client.update_notification_status_override'
