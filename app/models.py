@@ -1548,6 +1548,7 @@ NOTIFICATION_FAILED = "failed"
 NOTIFICATION_TECHNICAL_FAILURE = "technical-failure"
 NOTIFICATION_TEMPORARY_FAILURE = "temporary-failure"
 NOTIFICATION_PERMANENT_FAILURE = "permanent-failure"
+NOTIFICATION_PINPOINT_FAILURE = "pinpoint-failure"
 NOTIFICATION_PENDING_VIRUS_CHECK = "pending-virus-check"
 NOTIFICATION_VALIDATION_FAILED = "validation-failed"
 NOTIFICATION_VIRUS_SCAN_FAILED = "virus-scan-failed"
@@ -1558,6 +1559,7 @@ NOTIFICATION_STATUS_TYPES_FAILED = [
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PINPOINT_FAILURE,
     NOTIFICATION_VALIDATION_FAILED,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_RETURNED_LETTER,
@@ -1605,6 +1607,7 @@ NOTIFICATION_STATUS_TYPES = [
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PINPOINT_FAILURE,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_VALIDATION_FAILED,
     NOTIFICATION_VIRUS_SCAN_FAILED,
@@ -1739,6 +1742,7 @@ class Notification(BaseModel):
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
+    feedback_reason = db.Column(db.String, nullable=True)
 
     # SMS columns
     sms_total_message_price = db.Column(db.Numeric(), nullable=True)
