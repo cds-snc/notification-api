@@ -3,6 +3,9 @@
 """
 # flake8: noqa
 
+from tests_smoke.smoke.common import job_line, rows_to_csv  # type: ignore
+from locust import HttpUser, constant_pacing, task
+from dotenv import load_dotenv
 import os
 import sys
 from datetime import datetime
@@ -10,9 +13,6 @@ from dataclasses import make_dataclass
 
 sys.path.append(os.path.abspath(os.path.join("..", "tests_smoke")))
 
-from dotenv import load_dotenv
-from locust import HttpUser, constant_pacing, task
-from tests_smoke.smoke.common import job_line, rows_to_csv  # type: ignore
 
 load_dotenv()
 NotifyApiUserTemplateGroup = make_dataclass('NotifyApiUserTemplateGroup', [
@@ -65,7 +65,7 @@ class NotifyApiUser(HttpUser):
     @task(2)
     def send_email_with_link_notifications(self):
         personalisation = {
-            "application_file": {
+            "var": {
                 "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
                 "filename": "attached_file.txt",
                 "sending_method": "link",
