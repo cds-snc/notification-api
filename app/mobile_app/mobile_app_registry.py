@@ -21,8 +21,12 @@ class MobileAppRegistry:
     def get_app(
         self,
         app_type: MobileAppType,
-    ) -> MobileApp | None:
-        return self._registry.get(app_type)
+    ) -> MobileApp:
+        try:
+            return self._registry[app_type]
+        except KeyError:
+            self.logger.exception('Attempted to use an app that is not initialized: %s', app_type)
+            raise
 
     def get_registered_apps(self) -> List[MobileAppType]:
         return list(self._registry.keys())

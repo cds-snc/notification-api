@@ -234,6 +234,7 @@ class Config(object):
             'app.celery.process_pinpoint_receipt_tasks',
             'app.celery.process_pinpoint_inbound_sms',
             'app.celery.process_delivery_status_result_tasks',
+            'app.celery.provider_tasks',
             'app.celery.v3.notification_tasks',
             'app.celery.process_ses_receipts_tasks',
             'app.celery.send_va_profile_notification_status_tasks',
@@ -325,6 +326,7 @@ class Config(object):
         },
         'task_queues': [Queue(queue, Exchange('default'), routing_key=queue) for queue in QueueNames.all_queues()],
         'task_routes': {
+            'app.celery.provider_tasks.deliver_push': {'queue': QueueNames.SEND_EMAIL},
             'app.celery.v3.notification_tasks.v3_process_notification': {'queue': QueueNames.NOTIFY},
             'app.celery.v3.notification_tasks.v3_send_email_notification': {'queue': QueueNames.SEND_EMAIL},
             'app.celery.v3.notification_tasks.v3_send_sms_notification': {'queue': QueueNames.SEND_SMS},

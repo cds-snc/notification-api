@@ -11,4 +11,4 @@ class MobileAppType(str, Enum):
         return list(x.value for x in MobileAppType)
 
 
-DEAFULT_MOBILE_APP_TYPE = MobileAppType.VA_FLAGSHIP_APP
+DEFAULT_MOBILE_APP_TYPE = MobileAppType.VA_FLAGSHIP_APP

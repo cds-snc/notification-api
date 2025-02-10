@@ -1,6 +1,13 @@
+import copy
 from uuid import UUID
 
-from app import notify_celery
+from celery import Task
+from flask import current_app
+from notifications_utils.field import NullValueForNonConditionalPlaceholderException
+from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
+from notifications_utils.statsd_decorators import statsd
+
+from app import notify_celery, vetext_client
 from app.celery.common import (
     can_retry,
     handle_max_retries_exceeded,
@@ -28,13 +35,8 @@ from app.exceptions import (
     NotificationTechnicalFailureException,
 )
 from app.models import Notification
+from app.v2.dataclasses import V2PushPayload
 from app.v2.errors import RateLimitError
-
-from celery import Task
-from flask import current_app
-from notifications_utils.field import NullValueForNonConditionalPlaceholderException
-from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
-from notifications_utils.statsd_decorators import statsd
 
 
 # Including sms_sender_id is necessary in case it's passed in when being called
@@ -268,3 +270,44 @@ def _handle_delivery_failure(
             if notification:
                 check_and_queue_callback_task(notification)
             raise NotificationTechnicalFailureException(msg)
+
+
+@notify_celery.task(
+    bind=True,
+    name='deliver_push',
+    throws=(AutoRetryException,),
+    autoretry_for=(AutoRetryException,),
+    max_retries=2886,
+    retry_backoff=True,
+    retry_backoff_max=60,
+)
+@statsd(namespace='tasks')
+def deliver_push(
+    celery_task: Task,
+    payload: V2PushPayload,
+) -> None:
+    """Deliver a validated push (or broadcast) payload to the provider client."""
+
+    current_app.logger.debug('deliver_push celery task called with payload: %s', payload)
+
+    try:
+        vetext_client.send_push_notification(payload)
+    except RetryableException:
+        max_retries = celery_task.max_retries
+        retries = celery_task.request.retries
+
+        if retries < max_retries:
+            redacted_payload = copy.deepcopy(payload)
+            if 'icn' in redacted_payload:
+                redacted_payload['icn'] = '<redacted>'
+
+            current_app.logger.warning(
+                'Push notification retrying: %s, max retries: %s, retries: %s', redacted_payload, max_retries, retries
+            )
+            raise AutoRetryException('Found RetryableException, autoretrying...')
+        else:
+            current_app.logger.exception('deliver_push: Notification failed by exceeding retry limits')
+            raise NonRetryableException('Exceeded retries')
+    except NonRetryableException:
+        current_app.logger.exception('deliver_push encountered a NonRetryableException')
+        raise

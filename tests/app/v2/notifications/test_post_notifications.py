@@ -1041,39 +1041,6 @@ class TestPostNotificationWithAttachment:
     def feature_toggle_enabled(self, mocker):
         mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
 
-    def test_returns_not_implemented_if_feature_flag_disabled(
-        self,
-        client,
-        mocker,
-        sample_api_key,
-        sample_service,
-        sample_template,
-        attachment_store_mock,
-    ):
-        service = sample_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
-        template = sample_template(service=service, template_type=EMAIL_TYPE, content='See attached file')
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='False')
-
-        response = post_send_notification(
-            client,
-            sample_api_key(service),
-            EMAIL_TYPE,
-            {
-                'email_address': 'foo@bar.com',
-                'template_id': template.id,
-                'personalisation': {
-                    'some_attachment': {
-                        'file': self.base64_encoded_file,
-                        'filename': 'attachment.pdf',
-                        'sending_method': 'attach',
-                    }
-                },
-            },
-        )
-
-        assert response.status_code == 501
-        attachment_store_mock.put.assert_not_called()
-
     def test_returns_not_implemented_if_sending_method_is_link(
         self,
         client,

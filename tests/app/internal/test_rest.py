@@ -1,6 +1,7 @@
 from flask import url_for
 
 import pytest
+from unittest.mock import patch
 
 
 @pytest.mark.parametrize(
@@ -75,3 +76,22 @@ def test_ut_post_internal(client, mocker, query_string):
 
     actual = mock_logger.call_args_list[0].args[1]
     assert f'QUERY_STRING: {query_string[1]}' in actual, 'The logged info did not contain the correct QUERY_STRING.'
+
+
+@pytest.mark.parametrize('method', ['POST', 'GET'])
+def test_throw_502(client, method):
+    response = client.open('/internal/502', method=method)
+    assert response.status_code == 502
+    assert response.json['result'] == 'error'
+    assert response.json['message'] == 'hello world'
+
+
+@pytest.mark.parametrize('method', ['POST', 'GET'])
+def test_sleep(client, method):
+    # Mock time.sleep to return immediately
+    with patch('time.sleep', return_value=None):
+        response = client.open('/internal/sleep', method=method)
+
+    assert response.status_code == 201
+    assert response.json['result'] == 'success'
+    assert response.json['message'] == 'slept for 30s'

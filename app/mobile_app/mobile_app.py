@@ -10,7 +10,7 @@ class MobileApp:
         self.type: MobileAppType = type
         self.sid = self._get_sid_from_env()
 
-    def _get_sid_from_env(self):
+    def _get_sid_from_env(self) -> str:
         sid = os.getenv(f'{self.type.value}_SID', None)
         if not sid:
             raise ValueError(f'Missing SID for app: {self.type.value}')

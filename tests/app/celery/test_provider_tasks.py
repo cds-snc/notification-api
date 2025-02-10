@@ -1,7 +1,10 @@
+from requests import HTTPError, Response
+from requests.exceptions import ConnectTimeout, RequestException
+from app.mobile_app.mobile_app_types import MobileAppType
 import pytest
 
-from app.celery.exceptions import NonRetryableException, AutoRetryException
-from app.celery.provider_tasks import deliver_sms, deliver_email, deliver_sms_with_rate_limiting
+from app.celery.exceptions import AutoRetryException, NonRetryableException
+from app.celery.provider_tasks import deliver_email, deliver_push, deliver_sms, deliver_sms_with_rate_limiting
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.constants import (
@@ -492,3 +495,146 @@ def test_deliver_sms_non_retryables(
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_PERMANENT_FAILURE
     assert notification.status_reason == status_reason
+
+
+def test_deliver_push_happy_path_icn(
+    client,
+    rmock,
+):
+    url = f'{client.application.config["VETEXT_URL"]}/mobile/push/send'
+
+    rmock.register_uri(
+        'POST',
+        url,
+        json={'message': 'success'},
+        status_code=201,
+    )
+
+    formatted_payload = {
+        'appSid': f'{MobileAppType.VA_FLAGSHIP_APP}_SID',
+        'templateSid': '2222',
+        'icn': '3333',
+        'personalization': {'%MSG_ID': '4444'},
+    }
+
+    # Should run without exceptions
+    deliver_push(formatted_payload)
+
+    assert rmock.called
+    assert rmock.request_history[0].method == 'POST'
+    assert rmock.request_history[0].url == url
+    assert rmock.request_history[0].json()
+
+
+def test_deliver_push_happy_path_topic(
+    client,
+    rmock,
+):
+    url = f'{client.application.config["VETEXT_URL"]}/mobile/push/send'
+
+    rmock.register_uri(
+        'POST',
+        url,
+        json={'message': 'success'},
+        status_code=201,
+    )
+
+    formatted_payload = {
+        'appSid': f'{MobileAppType.VA_FLAGSHIP_APP}_SID',
+        'templateSid': '2222',
+        'topicSid': '3333',
+        'personalization': {'%MSG_ID': '4444'},
+    }
+
+    # Should run without exceptions
+    deliver_push(formatted_payload)
+
+    assert rmock.called
+    assert rmock.request_history[0].method == 'POST'
+    assert rmock.request_history[0].url == url
+    assert rmock.request_history[0].json()
+
+
+@pytest.mark.parametrize(
+    'test_exception, status_code',
+    [
+        (ConnectTimeout(), None),
+        (HTTPError(response=Response()), 429),
+        (HTTPError(response=Response()), 500),
+        (HTTPError(response=Response()), 502),
+        (HTTPError(response=Response()), 503),
+        (HTTPError(response=Response()), 504),
+    ],
+)
+def test_deliver_push_retryable_exception(
+    client,
+    rmock,
+    test_exception,
+    status_code,
+):
+    if status_code is not None:
+        test_exception.response.status_code = status_code
+
+    url = f'{client.application.config["VETEXT_URL"]}/mobile/push/send'
+
+    rmock.register_uri(
+        'POST',
+        url,
+        exc=test_exception,
+    )
+    formatted_payload = {
+        'appSid': f'{MobileAppType.VA_FLAGSHIP_APP}_SID',
+        'templateSid': '2222',
+        'icn': '3333',
+        'personalization': {'%MSG_ID': '4444'},
+    }
+
+    with pytest.raises(AutoRetryException):
+        deliver_push(formatted_payload)
+
+    assert rmock.called
+    assert rmock.request_history[0].method == 'POST'
+    assert rmock.request_history[0].url == url
+    assert rmock.request_history[0].json()
+
+
+@pytest.mark.parametrize(
+    'test_exception, status_code',
+    [
+        (HTTPError(response=Response()), 400),
+        (HTTPError(response=Response()), 403),
+        (HTTPError(response=Response()), 405),
+        (RequestException(), None),
+    ],
+)
+def test_deliver_push_nonretryable_exception(
+    client,
+    test_exception,
+    status_code,
+    rmock,
+):
+    if status_code is not None:
+        test_exception.response.status_code = status_code
+
+    url = f'{client.application.config["VETEXT_URL"]}/mobile/push/send'
+
+    rmock.register_uri(
+        'POST',
+        url,
+        exc=test_exception,
+    )
+
+    formatted_payload = {
+        'appSid': f'{MobileAppType.VA_FLAGSHIP_APP}_SID',
+        'templateSid': '2222',
+        'icn': '3333',
+        'personalization': {'%MSG_ID': '4444'},
+    }
+
+    with pytest.raises(NonRetryableException):
+        deliver_push(formatted_payload)
+
+    assert rmock.called
+    assert rmock.request_history[0].method == 'POST'
+    assert rmock.request_history[0].url == url
+    assert rmock.request_history[0].json()

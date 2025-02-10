@@ -34,6 +34,8 @@ def test_all_routes_have_authentication(client):
         '/auth/logout',
         '/ga4/open-email-tracking/<notification_id>',
         '/internal/<generic>',
+        '/internal/sleep',
+        '/internal/502',
         '/notifications/govdelivery',
         '/auth/redeem-token',
         '/auth/token',
@@ -41,8 +43,10 @@ def test_all_routes_have_authentication(client):
         '/auth/my-services/<uuid:user_id>',
     )
 
-    for route in routes_without_authentication:
-        assert route in expected_routes_without_authentication
+    # Mock time.sleep to return immediately
+    with patch('time.sleep', return_value=None):
+        for route in routes_without_authentication:
+            assert route in expected_routes_without_authentication
 
 
 def _build_url(rule):
