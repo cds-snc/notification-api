@@ -69,8 +69,8 @@ class Queue(ABC):
         can later be used in conjunction with the `acknowledge` function
         to confirm that the polled messages were properly processed.
         This will delete the in-flight messages and these will not get
-        back into the main inbox. Failure to achknowledge the polled
-        messages will get these back into the inbox after a preconfigured
+        back into the main inbox. Failure to acknowledge the polled
+        messages will get these back into the inbox after a pre-configured
         timeout has passed, ready to be retried.
 
         Args:
