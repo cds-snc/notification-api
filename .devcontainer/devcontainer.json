@@ -21,6 +21,7 @@
 			},
 			"extensions": [
 				"bungcip.better-toml",
+				"charliermarsh.ruff",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
@@ -37,7 +38,6 @@
 				"ms-vsliveshare.vsliveshare",
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
-				"pmbenjamin.vscode-snyk",
 				"timonwong.shellcheck",
 				"usernamehw.errorlens",
 				"visualstudioexptteam.vscodeintellicode",
