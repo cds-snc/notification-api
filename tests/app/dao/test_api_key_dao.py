@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.constants import KEY_TYPE_NORMAL
@@ -88,22 +87,7 @@ def test_get_unsigned_secret_returns_key(sample_api_key):
     assert unsigned_api_key == api_key.secret
 
 
-def test_should_not_allow_duplicate_key_names_per_service(sample_api_key, fake_uuid):
-    api_key = sample_api_key()
-    api_key = ApiKey(
-        **{
-            'id': fake_uuid,
-            'service': api_key.service,
-            'name': api_key.name,
-            'created_by': api_key.created_by,
-            'key_type': KEY_TYPE_NORMAL,
-        }
-    )
-    with pytest.raises(IntegrityError):
-        save_model_api_key(api_key)
-
-
-def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(
+def test_save_api_key_can_create_keys_with_same_name(
     notify_db_session,
     sample_api_key,
     sample_service,
@@ -117,6 +101,13 @@ def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(
         expired=True,
     )
 
+    # Create an API key with the same name that is not expired
+    sample_api_key(
+        service=service,
+        key_name='normal api key',
+        expired=False,
+    )
+
     api_key = ApiKey(
         service=service,
         name='normal api key',
@@ -124,8 +115,17 @@ def test_save_api_key_can_create_key_with_same_name_if_other_is_expired(
         key_type=KEY_TYPE_NORMAL,
     )
 
-    # This should not raise IntegrityError.
+    # Adding a key with the same name should not raise IntegrityError. They will have unique IDs and secrets.
     save_model_api_key(api_key)
+
+    api_keys = get_model_api_keys(service.id)
+
+    # ensure there are 3 keys
+    assert len(api_keys) == 3
+    # ensure they have unique ids
+    assert len(set([key.id for key in api_keys])) == 3
+    # ensure the names are the same
+    assert len(set([key.name for key in api_keys])) == 1
 
     try:
         assert api_key.expiry_date is None, 'The key should not be expired.'

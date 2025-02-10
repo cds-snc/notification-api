@@ -3,20 +3,24 @@ fileignoreconfig:
   checksum: 3e7ce740725d4c904663c34102a5bb3587ffec3991ffb1a6919b1b9cf8327267
 - filename: app/dao/api_key_dao.py
   checksum: c44cbd8ae02fb1d551a1f0941365c11977564a6444950ee2b0282ee4b5fd1314
+- filename: app/models.py
+  checksum: 386e62b8fc698c2ceb709c46b062b0880ff8289aaaad05bd8934ca1941027cc1
+- filename: app/notifications/process_notifications.py
+  checksum: 199e175df804d0d9cc5413630ae0d3be805a3bfc54f2822f9a54936054354c9a
 - filename: app/schema_validation/__init__.py
   checksum: 9487ddbb105a20f5fd495eb4426b7c27ee3be1894b69a189363363ed616722c0
+- filename: migrations/versions/0375_add_key_revoked.py
+  checksum: e55773aebd65f6e1c7686d920953441966d530b3966af2a095b9a11195935b7f
 - filename: poetry.lock
   checksum: 8c411d33b37e4d0a60851e15d921fe9109fb9355e031c0deb417f8776971c8de
+- filename: tests/app/celery/test_process_ga4_measurement_task.py
+  checksum: f25a9c4e5a2711a4c35ba1ac98031d23d072c58f1345d39a5f5ed4329368d558
 - filename: tests/app/dao/test_api_key_dao.py
-  checksum: 5bab4eaddf8760c502111ae3e5f9f8bee59482d99f053f94598e8c77bd10b7b6
+  checksum: 836997bf3ef0f86836f25eeb658e39d53d9497de35c7fcaef7144732f4f54829
 - filename: tests/app/dao/test_ft_billing_dao.py
   checksum: dc425af859e49b9822259fad20d0ff99f3fde5c0237728fe73e5c9db2b78591b
 - filename: tests/app/dao/test_services_dao.py
   checksum: 572fb3a52e89ae19c5a94be881bcbfe0247bae112bce58d4ae1e9eff5a5c91b7
 - filename: tests/app/v2/notifications/test_get_notifications.py
   checksum: 167aa80c8aac01566b3cf627cdaa839feac9dc77f0b13b6d0a008035aa8e15f1
-- filename: app/notifications/process_notifications.py
-  checksum: 199e175df804d0d9cc5413630ae0d3be805a3bfc54f2822f9a54936054354c9a
-- filename: tests/app/celery/test_process_ga4_measurement_task.py
-  checksum: f25a9c4e5a2711a4c35ba1ac98031d23d072c58f1345d39a5f5ed4329368d558
 version: "1.0"
