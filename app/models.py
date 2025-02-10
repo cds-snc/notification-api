@@ -1873,7 +1873,7 @@ class Notification(BaseModel):
             if self.feedback_reason:
                 return {
                     "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
-                    "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number"
+                    "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number",
                 }.get(self.feedback_reason, "No such number")
             else:
                 return "No such number"

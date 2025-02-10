@@ -10,7 +10,6 @@ from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_thrott
 from app.clients.email.aws_ses import AwsSesClientException
 from app.exceptions import (
     NotificationTechnicalFailureException,
-    PinpointConflictException,
     PinpointValidationException,
 )
 from celery.exceptions import MaxRetriesExceededError
@@ -135,7 +134,9 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointValidationException(original_exception=MagicMock(response={"Reason": "NO_ORIGINATION_IDENTITIES_FOUND"})),
+            side_effect=PinpointValidationException(
+                original_exception=MagicMock(response={"Reason": "NO_ORIGINATION_IDENTITIES_FOUND"})
+            ),
         )
 
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
@@ -156,7 +157,9 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointValidationException(original_exception=MagicMock(response={"Reason": "DESTINATION_COUNTRY_BLOCKED"})),
+            side_effect=PinpointValidationException(
+                original_exception=MagicMock(response={"Reason": "DESTINATION_COUNTRY_BLOCKED"})
+            ),
         )
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
 

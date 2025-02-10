@@ -134,7 +134,9 @@ def test_should_update_feedback_reason_if_present(sample_template, sample_job):
     assert Notification.query.get(notification.id).status == "sending"
 
     with freeze_time("2000-01-02 12:00:00"):
-        updated = update_notification_status_by_id(notification.id, status="pinpoint-failure", feedback_reason="NO_ORIGINATION_IDENTITIES_FOUND")
+        updated = update_notification_status_by_id(
+            notification.id, status="pinpoint-failure", feedback_reason="NO_ORIGINATION_IDENTITIES_FOUND"
+        )
 
     assert updated.status == "pinpoint-failure"
     assert updated.updated_at == datetime(2000, 1, 2, 12, 0, 0)
