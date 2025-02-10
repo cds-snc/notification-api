@@ -1,4 +1,4 @@
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 
 import pytest
 from botocore.exceptions import ClientError
@@ -135,13 +135,15 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointConflictException("hello"),
+            side_effect=PinpointValidationException(original_exception=MagicMock(response={"Reason": "NO_ORIGINATION_IDENTITIES_FOUND"})),
         )
+
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "permanent-failure"
+        assert sample_notification.status == "pinpoint-failure"
+        assert sample_notification.feedback_reason == "NO_ORIGINATION_IDENTITIES_FOUND"
         queued_callback.assert_called_once_with(sample_notification)
 
     @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
@@ -154,13 +156,14 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointValidationException("hello"),
+            side_effect=PinpointValidationException(original_exception=MagicMock(response={"Reason": "DESTINATION_COUNTRY_BLOCKED"})),
         )
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "permanent-failure"
+        assert sample_notification.status == "pinpoint-failure"
+        assert sample_notification.feedback_reason == "DESTINATION_COUNTRY_BLOCKED"
         queued_callback.assert_called_once_with(sample_notification)
 
 

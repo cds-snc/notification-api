@@ -131,30 +131,34 @@ def test_notification_for_csv_returns_correct_job_row_number(sample_job):
 
 @freeze_time("2016-01-30 12:39:58.321312")
 @pytest.mark.parametrize(
-    "template_type, status, feedback_subtype, expected_status",
+    "template_type, status, feedback_subtype, feedback_reason, expected_status",
     [
-        ("email", "failed", None, "Failed"),
-        ("email", "technical-failure", None, "Tech issue"),
-        ("email", "temporary-failure", None, "Content or inbox issue"),
-        ("email", "permanent-failure", None, "No such address"),
-        ("email", "permanent-failure", "suppressed", "Blocked"),
-        ("email", "permanent-failure", "on-account-suppression-list", "Blocked"),
-        ("sms", "temporary-failure", None, "Carrier issue"),
-        ("sms", "permanent-failure", None, "No such number"),
-        ("sms", "sent", None, "Sent"),
-        ("letter", "created", None, "Accepted"),
-        ("letter", "sending", None, "Accepted"),
-        ("letter", "technical-failure", None, "Technical failure"),
-        ("letter", "delivered", None, "Received"),
+        ("email", "failed", None, None, "Failed"),
+        ("email", "technical-failure", None, None, "Tech issue"),
+        ("email", "temporary-failure", None, None, "Content or inbox issue"),
+        ("email", "permanent-failure", None, None, "No such address"),
+        ("email", "permanent-failure", "suppressed", None, "Blocked"),
+        ("email", "permanent-failure", "on-account-suppression-list", None, "Blocked"),
+        ("sms", "temporary-failure", None, None, "Carrier issue"),
+        ("sms", "permanent-failure", None, None, "No such number"),
+        ("sms", "pinpoint-failure", None, "DESTINATION_COUNTRY_BLOCKED", "Can't send to this international number"),
+        ("sms", "pinpoint-failure", None, "NO_ORIGINATION_IDENTITIES_FOUND", "Can't send to this international number"),
+        ("sms", "sent", None, None, "Sent"),
+        ("letter", "created", None, None, "Accepted"),
+        ("letter", "sending", None, None, "Accepted"),
+        ("letter", "technical-failure", None, None, "Technical failure"),
+        ("letter", "delivered", None, None, "Received"),
     ],
 )
 def test_notification_for_csv_returns_formatted_status_ff_bouncerate(
-    sample_service, template_type, status, feedback_subtype, expected_status
+    sample_service, template_type, status, feedback_subtype, feedback_reason, expected_status
 ):
     template = create_template(sample_service, template_type=template_type)
     notification = save_notification(create_notification(template, status=status))
     if feedback_subtype:
         notification.feedback_subtype = feedback_subtype
+    if feedback_reason:
+        notification.feedback_reason = feedback_reason
 
     serialized = notification.serialize_for_csv()
     assert serialized["status"] == expected_status

@@ -21,6 +21,7 @@ from app.exceptions import (
 )
 from app.models import (
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PINPOINT_FAILURE,
     NOTIFICATION_TECHNICAL_FAILURE,
     Notification,
 )
@@ -119,7 +120,9 @@ def _deliver_sms(self, notification_id):
         # As this is due to Pinpoint errors, we are NOT retrying the notification
         # We are only warning on the error, and not logging an error
         current_app.logger.warning("Pinpoint error: {}".format(e))
-        update_notification_status_by_id(notification_id, NOTIFICATION_PERMANENT_FAILURE)
+        # PinpointConflictException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ConflictException.html
+        # PinpointValidationException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ValidationException.html
+        update_notification_status_by_id(notification_id, NOTIFICATION_PINPOINT_FAILURE, feedback_reason=e.original_exception.response.get("Reason", ""))
         _check_and_queue_callback_task(notification)
     except Exception:
         try:

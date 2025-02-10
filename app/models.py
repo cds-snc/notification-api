@@ -1868,6 +1868,16 @@ class Notification(BaseModel):
             else:
                 return "No such address"
 
+        def _get_sms_status_by_feedback_reason():
+            """Return the status of a notification based on the feedback reason"""
+            if self.feedback_reason:
+                return {
+                    "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
+                    "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number"
+                }.get(self.feedback_reason, "No such number")
+            else:
+                return "No such number"
+
         return {
             "email": {
                 "failed": "Failed",
@@ -1888,6 +1898,7 @@ class Notification(BaseModel):
                 "technical-failure": "Tech issue",
                 "temporary-failure": "Carrier issue",
                 "permanent-failure": "No such number",
+                "pinpoint-failure": _get_sms_status_by_feedback_reason(),
                 "delivered": "Delivered",
                 "sending": "In transit",
                 "created": "In transit",
