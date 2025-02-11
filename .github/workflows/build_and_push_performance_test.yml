@@ -8,6 +8,7 @@ on:
     paths:
       - 'tests-perf/locust/**'
       - 'tests-perf/ops/**'
+      - 'bin/execute_and_publish_performance_test.sh'
 
 env:
   GITHUB_SHA: ${{ github.sha }}
