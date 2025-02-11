@@ -15,7 +15,7 @@ new_notification_status = "provider-failure"
 
 
 def upgrade():
-    op.execute("UPDATE notification_status_types set name = 'provider-failure' where name = 'provider-failure'")
+    op.execute("UPDATE notification_status_types set name = 'provider-failure' where name = 'pinpoint-failure'")
 
 
 def downgrade():
