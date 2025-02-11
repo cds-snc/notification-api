@@ -45,9 +45,9 @@ class CannotRemoveUserError(InvalidRequest):
     message = "Cannot remove user from team"
 
     def __init__(self, fields=[], message=None, status_code=400):
-        self.status_code = status_code
+        # Call parent class __init__ with message and status_code
+        super().__init__(message=message if message else self.message, status_code=status_code)
         self.fields = fields
-        self.message = message if message else self.message
 
 
 def register_errors(blueprint):
