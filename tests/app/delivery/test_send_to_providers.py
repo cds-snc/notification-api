@@ -125,6 +125,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
         sender=current_app.config['FROM_NUMBER'],
         service_id=ANY,
         sms_sender_id=ANY,
+        created_at=db_notification.created_at,
     )
 
     notification = notify_db_session.session.get(Notification, db_notification.id)
@@ -299,6 +300,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
         sender=current_app.config['FROM_NUMBER'],
         service_id=ANY,
         sms_sender_id=ANY,
+        created_at=db_notification.created_at,
     )
 
     persisted_notification = notifications_dao.get_notification_by_id(db_notification.id)
@@ -409,7 +411,13 @@ def test_should_send_sms_with_downgraded_content(
     send_to_providers.send_sms_to_provider(db_notification)
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=ANY, content=gsm_message, reference=ANY, sender=ANY, service_id=ANY, sms_sender_id=ANY
+        to=ANY,
+        content=gsm_message,
+        reference=ANY,
+        sender=ANY,
+        service_id=ANY,
+        sms_sender_id=ANY,
+        created_at=db_notification.created_at,
     )
 
 
@@ -430,7 +438,13 @@ def test_send_sms_should_use_service_sms_sender(
     )
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=ANY, content=ANY, reference=ANY, sender=sms_sender.sms_sender, service_id=ANY, sms_sender_id=ANY
+        to=ANY,
+        content=ANY,
+        reference=ANY,
+        sender=sms_sender.sms_sender,
+        service_id=ANY,
+        sms_sender_id=ANY,
+        created_at=db_notification.created_at,
     )
 
 
@@ -840,6 +854,7 @@ def test_should_handle_sms_sender_and_prefix_message(
         reference=ANY,
         service_id=ANY,
         sms_sender_id=ANY,
+        created_at=notification.created_at,
     )
 
 

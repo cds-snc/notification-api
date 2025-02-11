@@ -19,6 +19,7 @@ from app.constants import (
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TEMPORARY_FAILURE,
+    SMS_TYPE,
     STATUS_REASON_BLOCKED,
     STATUS_REASON_INVALID_NUMBER,
     STATUS_REASON_RETRYABLE,
@@ -185,6 +186,7 @@ class TwilioSMSClient(SmsClient):
         to,
         content,
         reference,
+        created_at=datetime.utcnow(),
         **kwargs,
     ) -> str:
         """
@@ -225,6 +227,13 @@ class TwilioSMSClient(SmsClient):
                     messaging_service_sid = service_sms_sender.sms_sender_specifics.get('messaging_service_sid')
 
                     self.logger.info('Twilio sender has sms_sender_specifics')
+
+            # Log how long it spent in our system before we sent it
+            self.logger.info(
+                'Total time spent to send %s notification: %s seconds',
+                SMS_TYPE,
+                (datetime.utcnow() - created_at).total_seconds(),
+            )
 
             if messaging_service_sid is None:
                 # Make a request using a sender phone number.

@@ -19,6 +19,7 @@ from app.constants import (
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
     PINPOINT_PROVIDER,
+    SMS_TYPE,
     STATUS_REASON_BLOCKED,
     STATUS_REASON_INVALID_NUMBER,
     STATUS_REASON_RETRYABLE,
@@ -83,15 +84,22 @@ class AwsPinpointClient(SmsClient):
         reference,
         multi=True,
         sender=None,
+        created_at=datetime.utcnow(),
         **kwargs,
     ):
         aws_phone_number = self.origination_number if sender is None else sender
         recipient_number = str(to)
 
-        try:
-            start_time = monotonic()
-            response = self._post_message_request(recipient_number, content, aws_phone_number)
+        # Log how long it spent in our system before we sent it
+        self.logger.info(
+            'Total time spent to send %s notification: %s seconds',
+            SMS_TYPE,
+            (datetime.utcnow() - created_at).total_seconds(),
+        )
+        start_time = monotonic()
 
+        try:
+            response = self._post_message_request(recipient_number, content, aws_phone_number)
         except (botocore.exceptions.ClientError, Exception) as e:
             self.statsd_client.incr('clients.pinpoint.error')
             raise AwsPinpointException(str(e))

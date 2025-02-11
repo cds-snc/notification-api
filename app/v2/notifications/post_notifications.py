@@ -1,5 +1,6 @@
 import functools
 import html
+from datetime import datetime, timezone
 
 import werkzeug
 from flask import request, jsonify, current_app, abort
@@ -49,6 +50,7 @@ from app.utils import get_public_notify_type_text
 
 @v2_notification_blueprint.route('/<notification_type>', methods=['POST'])
 def post_notification(notification_type):  # noqa: C901
+    created_at = datetime.now(timezone.utc)
     try:
         request_json = request.get_json()
     except werkzeug.exceptions.BadRequest as e:
@@ -111,6 +113,7 @@ def post_notification(notification_type):  # noqa: C901
                 template=template,
                 service=authenticated_service,
                 reply_to_text=reply_to,
+                created_at=created_at,
             )
         else:
             # This execution path uses a given recipient identifier to lookup the
@@ -124,6 +127,7 @@ def post_notification(notification_type):  # noqa: C901
                     service=authenticated_service,
                     reply_to_text=reply_to,
                     onsite_enabled=onsite_enabled,
+                    created_at=created_at,
                 )
             else:
                 current_app.logger.debug('Sending a notification without contact information is not implemented.')
@@ -161,6 +165,7 @@ def process_sms_or_email_notification(
     template,
     service,
     reply_to_text=None,
+    created_at: datetime | None = None,
 ):
     form_send_to = form['email_address' if (notification_type == EMAIL_TYPE) else 'phone_number']
 
@@ -194,6 +199,7 @@ def process_sms_or_email_notification(
         billing_code=form.get('billing_code'),
         sms_sender_id=form.get('sms_sender_id'),
         callback_url=form.get('callback_url'),
+        created_at=created_at,
     )
 
     if 'scheduled_for' in form:
@@ -214,7 +220,15 @@ def process_sms_or_email_notification(
 
 
 def process_notification_with_recipient_identifier(
-    *, form, notification_type, api_key, template, service, reply_to_text=None, onsite_enabled: bool = False
+    *,
+    form,
+    notification_type,
+    api_key,
+    template,
+    service,
+    reply_to_text=None,
+    onsite_enabled: bool = False,
+    created_at: datetime | None = None,
 ):
     personalisation = process_document_uploads(form.get('personalisation'), service)
 
@@ -232,6 +246,7 @@ def process_notification_with_recipient_identifier(
         billing_code=form.get('billing_code'),
         sms_sender_id=form.get('sms_sender_id'),
         callback_url=form.get('callback_url'),
+        created_at=created_at,
     )
 
     send_to_queue_for_recipient_info_based_on_recipient_identifier(
