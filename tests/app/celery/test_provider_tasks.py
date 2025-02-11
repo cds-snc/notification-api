@@ -143,7 +143,7 @@ class TestErrorHandling:
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "pinpoint-failure"
+        assert sample_notification.status == "provider-failure"
         assert sample_notification.feedback_reason == "NO_ORIGINATION_IDENTITIES_FOUND"
         queued_callback.assert_called_once_with(sample_notification)
 
@@ -165,7 +165,7 @@ class TestErrorHandling:
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "pinpoint-failure"
+        assert sample_notification.status == "provider-failure"
         assert sample_notification.feedback_reason == "DESTINATION_COUNTRY_BLOCKED"
         queued_callback.assert_called_once_with(sample_notification)
 
