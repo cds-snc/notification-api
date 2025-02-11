@@ -1,6 +1,4 @@
-""" send_rate_sms.py
-    isort:skip_file
-"""
+# isort:skip_file
 # flake8: noqa
 
 from tests_smoke.smoke.common import job_line, rows_to_csv  # type: ignore
@@ -48,7 +46,7 @@ class NotifyApiUser(HttpUser):
     @task(1)
     def send_bulk_sms_notifications(self):
         """
-        Send BULK_SIZE emails through the /bulk endpoint
+        Send BULK_SIZE SMS through the /bulk endpoint
         """
 
         json = {
