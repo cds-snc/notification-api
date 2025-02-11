@@ -197,10 +197,14 @@ def test_email_notification_serializes_with_recipient_identifiers(
         {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'some vaprofileid'},
         {'id_type': IdentifierType.ICN.value, 'id_value': 'some icn'},
     ]
+
     template = sample_template(template_type=EMAIL_TYPE)
-    noti = sample_notification(template=template, recipient_identifiers=recipient_identifiers)
-    response = noti.serialize()
-    assert response['recipient_identifiers'] == recipient_identifiers
+    notification = sample_notification(template=template, recipient_identifiers=recipient_identifiers)
+
+    serialized_recipient_identifiers = notification.serialize()['recipient_identifiers']
+
+    recipient_identifiers[1]['id_value'] = '<redacted>'
+    assert serialized_recipient_identifiers == recipient_identifiers
 
 
 def test_email_notification_serializes_with_empty_recipient_identifiers(

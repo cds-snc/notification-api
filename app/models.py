@@ -1461,7 +1461,14 @@ class Notification(db.Model):
             ),
             'postage': self.postage,
             'recipient_identifiers': [
-                {'id_type': recipient_identifier.id_type, 'id_value': recipient_identifier.id_value}
+                {
+                    'id_type': recipient_identifier.id_type,
+                    'id_value': (
+                        '<redacted>'
+                        if (recipient_identifier.id_type == IdentifierType.ICN.value)
+                        else recipient_identifier.id_value
+                    ),
+                }
                 for recipient_identifier in self.recipient_identifiers.values()
             ],
             'billing_code': self.billing_code,

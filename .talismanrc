@@ -22,7 +22,7 @@ fileignoreconfig:
 - filename: tests/app/dao/test_services_dao.py
   checksum: 572fb3a52e89ae19c5a94be881bcbfe0247bae112bce58d4ae1e9eff5a5c91b7
 - filename: tests/app/v2/notifications/test_get_notifications.py
-  checksum: 167aa80c8aac01566b3cf627cdaa839feac9dc77f0b13b6d0a008035aa8e15f1
+  checksum: b20c4b5e1e1e1204dea37b7cb37fec94f6720b7bb58d216af3b94d0520e09a69
 - filename: tests/app/v2/notifications/test_push_broadcast_notifications.py
   checksum: 430fb5f087b3d9995af9cff700fe0fc0152b5582901cfc46db7d0ec884367d12
 - filename: tests/app/v2/notifications/test_push_notifications.py
