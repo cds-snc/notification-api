@@ -118,7 +118,7 @@ def _deliver_sms(self, notification_id):
     except (PinpointConflictException, PinpointValidationException) as e:
         # As this is due to Pinpoint errors, we are NOT retrying the notification
         # We are only warning on the error, and not logging an error
-        current_app.logger.warning("Pinpoint error: {}".format(e))
+        current_app.logger.warning("SMS delivery failed for notification_id {} Pinpoint error: {}".format(notification.id, e))
         # PinpointConflictException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ConflictException.html
         # PinpointValidationException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ValidationException.html
         update_notification_status_by_id(
