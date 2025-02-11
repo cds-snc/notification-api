@@ -6,7 +6,6 @@ Create Date: 2025-02-11 15:37:00 EST
 
 """
 
-import sqlalchemy as sa
 from alembic import op
 
 revision = "0475_change_notification_status"
@@ -17,7 +16,6 @@ new_notification_status = "provider-failure"
 
 def upgrade():
     op.execute("UPDATE notification_status_types set name = 'provider-failure' where name = 'provider-failure'")
-    pass
 
 
 def downgrade():
