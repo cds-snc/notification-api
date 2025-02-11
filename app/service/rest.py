@@ -85,7 +85,7 @@ from app.dao.services_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
-from app.errors import InvalidRequest, register_errors
+from app.errors import InvalidRequest, CannotRemoveUserError, register_errors
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -499,15 +499,15 @@ def remove_user_from_service(service_id, user_id):
 
     elif len(service.users) == 1:
         error = "You cannot remove the only user for a service"
-        raise InvalidRequest(error, status_code=400)
+        raise CannotRemoveUserError(message=error)
 
     elif len(service.users) == 2:
         error = "SERVICE_CANNOT_HAVE_LT_2_MEMBERS"
-        raise InvalidRequest(error, status_code=400)
+        raise CannotRemoveUserError(message=error)
 
     elif user in users_with_manage_settings_perm and len(users_with_manage_settings_perm) <= 1:
         error = "SERVICE_NEEDS_USER_W_MANAGE_SETTINGS_PERM"
-        raise InvalidRequest(error, status_code=400)
+        raise CannotRemoveUserError(message=error)
 
     dao_remove_user_from_service(service, user)
 
