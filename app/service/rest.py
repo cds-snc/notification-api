@@ -85,7 +85,7 @@ from app.dao.services_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
-from app.errors import InvalidRequest, CannotRemoveUserError, register_errors
+from app.errors import CannotRemoveUserError, InvalidRequest, register_errors
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,

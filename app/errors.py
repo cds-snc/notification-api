@@ -40,6 +40,7 @@ class InvalidRequest(Exception):
     def __str__(self):
         return str(self.to_dict())
 
+
 class CannotRemoveUserError(InvalidRequest):
     message = "Cannot remove user from team"
 
