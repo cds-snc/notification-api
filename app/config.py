@@ -51,23 +51,6 @@ class QueueNames(object):
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
 
-<<<<<<< HEAD
-    # A queue meant for database tasks but it seems to be the default for sending
-    # notifications in some occasion. Need to investigate the purpose of this one
-    # further.
-    DATABASE = "database-tasks"
-=======
-    # For high priority tasks. The queue should be kept at relatively low volume
-    # and fast processing.
-    PRIORITY = "priority-tasks"
-
-    # For bulk send of notifications. This can be high volume and flushed over time.
-    # It would get most traffic coming from the API for example.
-    BULK = "bulk-tasks"
-
-    NORMAL = "normal-tasks"
->>>>>>> main
-
     # database operations for high priority notifications
     PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
