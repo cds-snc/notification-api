@@ -33,7 +33,6 @@ def test_queue_names_all_queues_correct():
             QueueNames.PRIORITY,
             QueueNames.BULK,
             QueueNames.PERIODIC,
-            QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
