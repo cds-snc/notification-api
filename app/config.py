@@ -55,10 +55,6 @@ class QueueNames(object):
     # and fast processing.
     PRIORITY = "priority-tasks"
 
-    # For bulk send of notifications. This can be high volume and flushed over time.
-    # It would get most traffic coming from the API for example.
-    BULK = "bulk-tasks"
-
     NORMAL = "normal-tasks"
 
     # A queue meant for database tasks but it seems to be the default for sending
@@ -129,7 +125,6 @@ class QueueNames(object):
             Priorities.HIGH: SEND_EMAIL_HIGH,
         },
         "letter": {
-            Priorities.LOW: BULK,
             Priorities.MEDIUM: NORMAL,
             Priorities.HIGH: PRIORITY,
         },
@@ -140,7 +135,6 @@ class QueueNames(object):
         return [
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
-            QueueNames.BULK,
             QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
