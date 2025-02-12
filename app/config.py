@@ -93,12 +93,6 @@ class QueueNames(object):
     CALLBACKS = "service-callbacks"
     CALLBACKS_RETRY = "service-callbacks-retry"
 
-    # Queue for letters, unused by CDS at this time as we don't use these.
-    LETTERS = "letter-tasks"
-
-    # Queue for antivirus/malware tasks
-    ANTIVIRUS = "antivirus-tasks"
-
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
 
