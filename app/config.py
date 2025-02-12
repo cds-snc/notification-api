@@ -51,12 +51,6 @@ class QueueNames(object):
     # Periodic tasks executed by Notify.
     PERIODIC = "periodic-tasks"
 
-    # For high priority tasks. The queue should be kept at relatively low volume
-    # and fast processing.
-    PRIORITY = "priority-tasks"
-
-    NORMAL = "normal-tasks"
-
     # A queue meant for database tasks but it seems to be the default for sending
     # notifications in some occasion. Need to investigate the purpose of this one
     # further.
@@ -124,16 +118,11 @@ class QueueNames(object):
             Priorities.MEDIUM: SEND_EMAIL_MEDIUM,
             Priorities.HIGH: SEND_EMAIL_HIGH,
         },
-        "letter": {
-            Priorities.MEDIUM: NORMAL,
-            Priorities.HIGH: PRIORITY,
-        },
     }
 
     @staticmethod
     def all_queues():
         return [
-            QueueNames.PRIORITY,
             QueueNames.PERIODIC,
             QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
