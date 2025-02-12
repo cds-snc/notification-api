@@ -11,7 +11,7 @@ mkdir -p "$perf_test_results_folder"
 
 # Run old performance test and copy results to S3
 locust --headless --config tests-perf/locust/locust.conf --html "$perf_test_results_folder/index.html" --csv "$perf_test_results_folder/perf_test"
-aws s3 cp $"perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
+aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
 
 # Sleep 15 minutes to allow the system to stabilize
 sleep 900
