@@ -8,8 +8,8 @@ from functools import wraps
 
 def unsign_params(func):
     """
-    A decorator that verifies the first argument of the decorated function
-    using `CryptoSigner().verify`.
+    A decorator that verifies the SignedNotification|SignedNotifications typed
+    arguments of the decorated function using `CryptoSigner().verify`.
     Args:
         func (callable): The function to be decorated.
     Returns:
