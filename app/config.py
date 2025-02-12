@@ -119,11 +119,6 @@ class QueueNames(object):
     def all_queues():
         return [
             QueueNames.PERIODIC,
-<<<<<<< HEAD
-            QueueNames.DATABASE,
-=======
-            QueueNames.BULK,
->>>>>>> main
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
