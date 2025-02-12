@@ -41,7 +41,23 @@ class InvalidRequest(Exception):
         return str(self.to_dict())
 
 
+class CannotRemoveUserError(InvalidRequest):
+    message = "Cannot remove user from team"
+
+    def __init__(self, fields=[], message=None, status_code=400):
+        # Call parent class __init__ with message and status_code
+        super().__init__(message=message if message else self.message, status_code=status_code)
+        self.fields = fields
+
+
 def register_errors(blueprint):
+    @blueprint.errorhandler(CannotRemoveUserError)
+    def cannot_remove_user_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
     @blueprint.errorhandler(InvalidEmailError)
     def invalid_format(error):
         # Please not that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone,
