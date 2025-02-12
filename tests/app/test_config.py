@@ -31,7 +31,6 @@ def test_queue_names_all_queues_correct():
     assert set(
         [
             QueueNames.PRIORITY,
-            QueueNames.BULK,
             QueueNames.PERIODIC,
             QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
