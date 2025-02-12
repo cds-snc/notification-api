@@ -61,11 +61,6 @@ class QueueNames(object):
 
     NORMAL = "normal-tasks"
 
-    # A queue meant for database tasks but it seems to be the default for sending
-    # notifications in some occasion. Need to investigate the purpose of this one
-    # further.
-    DATABASE = "database-tasks"
-
     # database operations for high priority notifications
     PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
@@ -141,7 +136,6 @@ class QueueNames(object):
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
             QueueNames.BULK,
-            QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
