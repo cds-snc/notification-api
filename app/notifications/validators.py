@@ -14,6 +14,10 @@ from notifications_utils.clients.redis import (
     over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
 )
+from notifications_utils.clients.redis.annual_limit import (
+    TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
+)
 from notifications_utils.decorators import requires_feature
 from notifications_utils.recipients import (
     get_international_phone_info,
@@ -24,10 +28,8 @@ from notifications_utils.statsd_decorators import statsd_catch
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, redis_store
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.dao import services_dao, templates_dao
-from app.dao.fact_notification_status_dao import (
-    fetch_notification_status_totals_for_service_by_fiscal_year,
-)
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -187,9 +189,7 @@ def check_email_daily_limit(service: Service, requested_email=0):
 def check_email_annual_limit(service: Service, requested_emails=0):
     current_fiscal_year = get_fiscal_year(datetime.utcnow())
     emails_sent_today = fetch_todays_email_count(service.id)
-    emails_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
-        service.id, current_fiscal_year, notification_type=EMAIL_TYPE
-    )
+    emails_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY]
     send_exceeds_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) > service.email_annual_limit
     send_reaches_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) == service.email_annual_limit
     is_near_annual_limit = (emails_sent_today + emails_sent_this_fiscal + requested_emails) > (
@@ -241,9 +241,7 @@ def check_email_annual_limit(service: Service, requested_emails=0):
 def check_sms_annual_limit(service: Service, requested_sms=0):
     current_fiscal_year = get_fiscal_year(datetime.utcnow())
     sms_sent_today = fetch_todays_requested_sms_count(service.id)
-    sms_sent_this_fiscal = fetch_notification_status_totals_for_service_by_fiscal_year(
-        service.id, current_fiscal_year, notification_type=SMS_TYPE
-    )
+    sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
     send_exceeds_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) > service.sms_annual_limit
     send_reaches_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) == service.sms_annual_limit
     is_near_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) >= (
