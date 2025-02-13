@@ -3322,3 +3322,31 @@ class TestGetSensitiveServiceids:
         assert resp.status_code == 200
         json_resp = resp.json
         assert json_resp["data"] == []
+
+
+class TestAnnualLimitStats:
+    def test_get_annual_limit_stats(self, admin_request, sample_service, mocker):
+        mock_get_stats = mocker.patch(
+            "app.service.rest.get_annual_limit_notifications_v2",
+            return_value={
+                "email_delivered_today": 5,
+                "email_failed_today": 1,
+                "sms_delivered_today": 3,
+                "sms_failed_today": 2,
+                "total_email_fiscal_year_to_yesterday": 100,
+                "total_sms_fiscal_year_to_yesterday": 200,
+            },
+        )
+
+        response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
+
+        assert response == {
+            "email_delivered_today": 5,
+            "email_failed_today": 1,
+            "sms_delivered_today": 3,
+            "sms_failed_today": 2,
+            "total_email_fiscal_year_to_yesterday": 100,
+            "total_sms_fiscal_year_to_yesterday": 200,
+        }
+
+        mock_get_stats.assert_called_once_with((sample_service.id))
