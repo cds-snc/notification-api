@@ -363,14 +363,17 @@ class VAProfileClient:
             requests.Timeout: if the request to VA Profile times out
             RequestException: if something unexpected happens when sending the request
         """
+
         headers = {'Authorization': f'Bearer {self.va_profile_token}'}
         url = f'{self.va_profile_url}/contact-information-vanotify/notify/status'
 
         self.logger.debug(
-            'Sending notification status to VA Profile with url: %s | notification_id: %s | notification_status: %s',
+            'Sending notification status to VA Profile with url: %s | notification_id: %s '
+            '| notification_status: %s | service_name: %s',
             url,
             notification_data.get('id'),
             notification_data.get('status'),
+            notification_data.get('service_name'),
         )
 
         # make POST request to VA Profile endpoint for notification statuses
@@ -392,9 +395,11 @@ class VAProfileClient:
             raise
 
         self.logger.info(
-            'VA Profile response when receiving status of notification_id: %s | notification_status: %s | status code: %s | json: %s',
+            'VA Profile response when receiving status of notification_id: %s | notification_status: %s | '
+            'status code: %s service_name: %s | json: %s',
             notification_data.get('id'),
             notification_data.get('status'),
+            notification_data.get('service_name'),
             response.status_code,
             response.json(),
         )

@@ -39,6 +39,7 @@ def check_and_queue_va_profile_notification_status_callback(notification: Notifi
             'sent_at': notification.sent_at.strftime(DATETIME_FORMAT) if notification.sent_at else None,
             'notification_type': notification.notification_type,  # this is the channel/type of notification (email or sms)
             'provider': notification.sent_by,
+            'service_name': notification.service.name,
         }
 
         # data passed to tasks must be JSON serializable
