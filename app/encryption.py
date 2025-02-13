@@ -39,9 +39,7 @@ class CryptoSigner:
             salt (str): The salt to use for signing.
         """
         self.app = app
-        self.secret_key = cast(
-            List[str], [secret_key] if type(secret_key) is str else secret_key
-        )
+        self.secret_key = cast(List[str], [secret_key] if type(secret_key) is str else secret_key)
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
 
@@ -56,9 +54,7 @@ class CryptoSigner:
         """
         return self.serializer.dumps(to_sign, salt=self.salt)
 
-    def sign_with_all_keys(
-        self, to_sign: str | NotificationDictToSign
-    ) -> List[str | bytes]:
+    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
         """Sign a string or dict with all the individual keys in the class secret key list, and the class salt.
 
         Args:

@@ -35,9 +35,7 @@ def unsign_params(func):
                 if param.annotation is SignedNotification:
                     verified_value = signer_notification.verify(signed)
                 elif param.annotation is SignedNotifications:
-                    verified_value = [
-                        signer_notification.verify(item) for item in signed
-                    ]
+                    verified_value = [signer_notification.verify(item) for item in signed]
 
                 # Replace the signed value with the verified value
                 bound_args.arguments[param_name] = verified_value

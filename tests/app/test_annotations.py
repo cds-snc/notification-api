@@ -57,10 +57,7 @@ class TestUnsignParamsAnnotation:
         ):
             return signed_notifications
 
-        signed = [
-            signer_notification.sign(notification)
-            for notification in ["raw notification 1", "raw notification 2"]
-        ]
+        signed = [signer_notification.sign(notification) for notification in ["raw notification 1", "raw notification 2"]]
         unsigned = func_with_list_of_signed_notifications(signed)
         assert unsigned == ["raw notification 1", "raw notification 2"]
 
@@ -89,9 +86,10 @@ class TestUnsignParamsAnnotation:
             return ["raw notification 1", "raw notification 2"]
 
         signed = func_to_sign_return()
-        assert [
-            signer_notification.verify(notification) for notification in signed
-        ] == ["raw notification 1", "raw notification 2"]
+        assert [signer_notification.verify(notification) for notification in signed] == [
+            "raw notification 1",
+            "raw notification 2",
+        ]
 
     def test_sign_return_with_empty_list(self):
         @sign_return

@@ -47,9 +47,7 @@ class TestEncryption:
         signer2.init_app(notify_api, ["s2", "s3"], "salt")
         assert signer2.verify(signer1.sign("this")) == "this"
 
-    def test_should_unsafe_verify_content_signed_with_different_secrets(
-        self, notify_api
-    ):
+    def test_should_unsafe_verify_content_signed_with_different_secrets(self, notify_api):
         signer1 = CryptoSigner()
         signer2 = CryptoSigner()
         signer1.init_app(notify_api, "secret1", "salt")
