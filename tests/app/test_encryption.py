@@ -4,6 +4,13 @@ from itsdangerous import BadSignature
 from app.encryption import CryptoSigner
 
 
+@pytest.fixture()
+def crypto_signer(notify_api):
+    signer = CryptoSigner()
+    signer.init_app(notify_api, "secret", "salt")
+    yield signer
+
+
 class TestEncryption:
     def test_sign_and_verify(self, notify_api):
         signer = CryptoSigner()
@@ -40,7 +47,9 @@ class TestEncryption:
         signer2.init_app(notify_api, ["s2", "s3"], "salt")
         assert signer2.verify(signer1.sign("this")) == "this"
 
-    def test_should_unsafe_verify_content_signed_with_different_secrets(self, notify_api):
+    def test_should_unsafe_verify_content_signed_with_different_secrets(
+        self, notify_api
+    ):
         signer1 = CryptoSigner()
         signer2 = CryptoSigner()
         signer1.init_app(notify_api, "secret1", "salt")
@@ -54,4 +63,7 @@ class TestEncryption:
         signer2.init_app(notify_api, "s2", "salt")
         signer12 = CryptoSigner()
         signer12.init_app(notify_api, ["s1", "s2"], "salt")
-        assert signer12.sign_with_all_keys("this") == [signer2.sign("this"), signer1.sign("this")]
+        assert signer12.sign_with_all_keys("this") == [
+            signer2.sign("this"),
+            signer1.sign("this"),
+        ]

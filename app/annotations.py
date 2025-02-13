@@ -1,4 +1,4 @@
-from app.encryption import CryptoSigner, SignedNotification, SignedNotifications
+from app.encryption import SignedNotification, SignedNotifications
 from app import signer_notification
 
 # from flask import current_app
