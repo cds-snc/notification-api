@@ -1,4 +1,5 @@
 import functools
+from datetime import datetime
 from typing import Callable
 from uuid import uuid4
 
@@ -195,15 +196,33 @@ def validate_service_api_key_auth():  # noqa: C901
             err_msg = 'Error: Your system clock must be accurate to within 30 seconds'
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
-        if api_key.expiry_date:
+        # TODO 2309 - The revoked field is added as a temporary measure until we can implement proper use of the expiry date
+        if api_key.revoked:
             raise AuthError('Invalid token: API key revoked', 403, service_id=service.id, api_key_id=api_key.id)
+
+        if api_key.expiry_date is not None and api_key.expiry_date < datetime.utcnow():
+            current_app.logger.warning(
+                'service %s - %s used expired api key %s expired as of %s',
+                service.id,
+                service.name,
+                api_key.id,
+                api_key.expiry_date,
+            )
+        elif api_key.expiry_date is None:
+            current_app.logger.warning(
+                'service %s - %s used old-style api key %s with no expiry_date',
+                service.id,
+                service.name,
+                api_key.id,
+            )
 
         g.service_id = api_key.service_id
         g.api_user = api_key
         g.authenticated_service = service
         current_app.logger.info(
-            'API authorised for service %s with api key %s, using client %s',
+            'API authorised for service %s (%s) with api key %s, using client %s',
             service.id,
+            service.name,
             api_key.id,
             request.headers.get('User-Agent'),
         )

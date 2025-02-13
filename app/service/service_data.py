@@ -3,7 +3,7 @@ from sqlalchemy.sql.expression import select
 from types import SimpleNamespace
 from typing import Union
 
-from app.models import Service, User
+from app.models import ApiKey, Service, User
 from app.dao.dao_utils import get_reader_session
 
 
@@ -45,6 +45,7 @@ class ServiceDataApiKey:
         created_by (User): The user who created the API key.
         created_by_id (str): The ID of the user who created the API key.
         expiry_date (datetime): The expiry date of the API key.
+        revoked (bool): The property indicating if the key has been revoked or not
         id (str): The unique identifier of the API key.
         key_type (str): The type of the API key (e.g., "normal").
         name (str): The name of the API key.
@@ -57,7 +58,7 @@ class ServiceDataApiKey:
 
     def __init__(
         self,
-        key,
+        key: ApiKey,
     ) -> None:
         """
         Args:
@@ -66,6 +67,7 @@ class ServiceDataApiKey:
         self.created_at = key.created_at
         self.created_by_id = key.created_by_id
         self.expiry_date = key.expiry_date
+        self.revoked = key.revoked
         self.id = key.id
         self.key_type = key.key_type
         self.name = key.name
@@ -162,6 +164,7 @@ class ServiceData:
         self.permissions = None
         self.api_keys = None
         self.id = None
+        self.name = None
         self.research_mode = None
         self.restricted = None
         self.rate_limit = None
@@ -193,6 +196,7 @@ class ServiceData:
         self.permissions = [p.permission for p in result.permissions]
         self.api_keys = [ServiceDataApiKey(key) for key in result.api_keys]
         self.id = result.id
+        self.name = result.name
         self.research_mode = result.research_mode
         self.restricted = result.restricted
         self.rate_limit = result.rate_limit

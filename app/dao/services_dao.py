@@ -181,7 +181,7 @@ def dao_fetch_service_by_inbound_number(number):
 def dao_fetch_service_by_id_with_api_keys(
     service_id,
     only_active=False,
-):
+) -> ServiceData:
     with get_reader_session() as session:
         # Constructing the query
         stmt = select(Service).where(Service.id == service_id).options(joinedload('api_keys'))
@@ -488,7 +488,7 @@ def dao_suspend_service(service_id):
     service = db.session.scalars(stmt).unique().one()
 
     for api_key in service.api_keys:
-        if not api_key.expiry_date:
+        if not api_key.expiry_date or api_key.expiry_date > datetime.utcnow():
             api_key.expiry_date = datetime.utcnow()
 
     service.active = False

@@ -1,8 +1,9 @@
 import secrets
-import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.dao.dao_utils import transactional, version_class
@@ -11,62 +12,106 @@ from app.models import ApiKey
 
 @transactional
 @version_class(ApiKey)
-def save_model_api_key(api_key):
+def save_model_api_key(api_key: ApiKey) -> None:
+    """Adds or updates the API key in the database with the provided information.
+
+    Args:
+        api_key (ApiKey): The API key object containing the information to add or update in the database.
+    """
     if not api_key.id:
-        api_key.id = uuid.uuid4()  # must be set now so version history model can use same id
+        api_key.id = uuid4()  # must be set now so version history model can use same id
+
     if not api_key.secret:
         api_key.secret = secrets.token_urlsafe(64)
+
     db.session.add(api_key)
 
 
 @transactional
 @version_class(ApiKey)
 def expire_api_key(
-    service_id,
-    api_key_id,
-):
+    service_id: UUID,
+    api_key_id: UUID,
+) -> None:
+    """Revokes API key for the given service with the given key id.
+
+    Args:
+        service_id (UUID): The id of the service
+        api_key_id (UUID): The id of the key to revoke
+    """
     stmt = select(ApiKey).where(ApiKey.id == api_key_id, ApiKey.service_id == service_id)
-    api_key = db.session.scalars(stmt).one()
+
+    api_key: ApiKey = db.session.scalars(stmt).one()
     api_key.expiry_date = datetime.utcnow()
+    api_key.revoked = True
+
     db.session.add(api_key)
 
 
-def get_model_api_keys(
-    service_id,
-    id=None,
-):
-    if id:
-        stmt = select(ApiKey).where(ApiKey.id == id, ApiKey.service_id == service_id, ApiKey.expiry_date.is_(None))
-        return db.session.scalars(stmt).one()
+def get_model_api_key(
+    key_id: UUID,
+) -> ApiKey:
+    """Retrieves the API key with the given id.
 
-    seven_days_ago = datetime.utcnow() - timedelta(days=7)
-    stmt = select(ApiKey).where(
-        or_(ApiKey.expiry_date.is_(None), func.date(ApiKey.expiry_date) > seven_days_ago),
-        ApiKey.service_id == service_id,
-    )
+    Args:
+        key_id (UUID): The API key uuid to lookup.
 
-    return db.session.scalars(stmt).all()
+    Returns:
+        ApiKey: The API key with the given id if one is found.
+
+    Raises:
+        NoResultFound: If there is no key with the given ID.
+    """
+    stmt = select(ApiKey).where(ApiKey.id == key_id)
+    return db.session.scalars(stmt).one()
 
 
-def get_unsigned_secrets(service_id):
+def get_model_api_keys(service_id: UUID) -> list[ApiKey]:
+    """Retrieves the API keys associated with the given service id.
+
+    Args:
+        service_id (UUID): The service id uuid to use when looking up API keys.
+
+    Returns:
+        list[ApiKey]: The API keys associated with the given service id, if one is found.
+
+    Raises:
+        NoResultFound: If there is no key associated with the given service, or the key has been revoked.
+    """
+    stmt = select(ApiKey).where(ApiKey.service_id == service_id)
+    keys = db.session.scalars(stmt).all()
+
+    if not keys:
+        raise NoResultFound()
+
+    return keys
+
+
+def get_unsigned_secrets(service_id: UUID) -> list[str]:
     """
     This method can only be exposed to the Authentication of the api calls.
+
+    Args:
+        service_id (UUID): The ID of the service to pull the secrets from
+
+    Returns:
+        list[str]: The list of secrets retrieved
     """
-    stmt = select(ApiKey).where(ApiKey.service_id == service_id, ApiKey.expiry_date.is_(None))
+    stmt = select(ApiKey).where(ApiKey.service_id == service_id, ApiKey.revoked.is_(False))
     api_keys = db.session.scalars(stmt).all()
     keys = [x.secret for x in api_keys]
     return keys
 
 
-def get_unsigned_secret(key_id: uuid.UUID) -> str:
+def get_unsigned_secret(key_id: UUID) -> str:
     """Retrieve the secret for a given key.
 
     Args:
-        key_id (uuid.UUID): The id related to the secret being looked up
+        key_id (UUID): The id related to the secret being looked up
 
     Returns:
         str: The secret
     """
-    stmt = select(ApiKey).where(ApiKey.id == key_id, ApiKey.expiry_date.is_(None))
+    stmt = select(ApiKey).where(ApiKey.id == key_id, ApiKey.revoked.is_(False))
     api_key = db.session.scalars(stmt).one()
     return api_key.secret

@@ -42,6 +42,7 @@ from app.dao.services_dao import (
     dao_fetch_service_by_inbound_number,
     get_services_by_partial_name,
     dao_services_by_partial_smtp_name,
+    dao_fetch_service_by_id_with_api_keys,
 )
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import save_model_user, create_user_code
@@ -1413,3 +1414,26 @@ def test_dao_services_by_partial_smtp_name(
     create_service(service_name=name, smtp_user='smtp_champ', user=sample_user())
     services_from_db = dao_services_by_partial_smtp_name('smtp')
     assert services_from_db.name == name
+
+
+def test_dao_fetch_service_by_id_with_api_keys(sample_user_service_api_key):
+    """Test that dao_fetch_service_by_id_with_api_keys returns the expected data when called."""
+    _, service, key = sample_user_service_api_key
+
+    service_data = dao_fetch_service_by_id_with_api_keys(service_id=service.id)
+
+    assert service_data.id == service.id
+    assert service_data.active == service.active
+    assert service_data.name == service.name
+    assert key.id in [k.id for k in service_data.api_keys]
+
+
+def test_dao_fetch_service_by_id_with_api_keys_throws_no_results_found(sample_service):
+    """
+    Test that dao_fetch_service_by_id_with_api_keys throws NoResultFound when service to look up is not active and
+    `only_active=True`
+    """
+    service = sample_service(active=False)
+
+    with pytest.raises(NoResultFound):
+        dao_fetch_service_by_id_with_api_keys(service_id=service.id, only_active=True)
