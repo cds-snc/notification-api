@@ -203,6 +203,7 @@ def _update_notification_status(
     status,
     provider_response=None,
     bounce_response=None,
+    feedback_reason=None,
     sms_total_message_price=None,
     sms_total_carrier_fee=None,
     sms_iso_country_code=None,
@@ -219,6 +220,8 @@ def _update_notification_status(
         notification.feedback_subtype = bounce_response.get("feedback_subtype")
         notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
         notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+    if feedback_reason:
+        notification.feedback_reason = feedback_reason
 
     notification.sms_total_message_price = sms_total_message_price
     notification.sms_total_carrier_fee = sms_total_carrier_fee
@@ -233,7 +236,7 @@ def _update_notification_status(
 
 @statsd(namespace="dao")
 @transactional
-def update_notification_status_by_id(notification_id, status, sent_by=None):
+def update_notification_status_by_id(notification_id, status, sent_by=None, feedback_reason=None):
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
@@ -254,7 +257,7 @@ def update_notification_status_by_id(notification_id, status, sent_by=None):
         return None
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
-    return _update_notification_status(notification=notification, status=status)
+    return _update_notification_status(notification=notification, status=status, feedback_reason=feedback_reason)
 
 
 @statsd(namespace="dao")
