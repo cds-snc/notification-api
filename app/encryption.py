@@ -1,7 +1,6 @@
 from typing import Any, List, NewType, Optional, TypedDict, cast
 
 from flask_bcrypt import check_password_hash, generate_password_hash
-
 from itsdangerous import URLSafeSerializer
 from typing_extensions import NotRequired  # type: ignore
 

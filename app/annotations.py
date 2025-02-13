@@ -1,9 +1,10 @@
-from app.encryption import SignedNotification, SignedNotifications
-from app import signer_notification
+from functools import wraps
 
 # from flask import current_app
 from inspect import signature
-from functools import wraps
+
+from app import signer_notification
+from app.encryption import SignedNotification, SignedNotifications
 
 
 def unsign_params(func):

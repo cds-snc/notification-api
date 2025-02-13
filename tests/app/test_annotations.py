@@ -1,14 +1,9 @@
 import pytest
-
-from app.encryption import CryptoSigner, SignedNotification, SignedNotifications
-from app import signer_notification
-
-from app.annotations import (
-    sign_return,
-    unsign_params,
-)
-
 from itsdangerous.exc import BadSignature
+
+from app import signer_notification
+from app.annotations import sign_return, unsign_params
+from app.encryption import CryptoSigner, SignedNotification, SignedNotifications
 
 
 class TestUnsignParamsAnnotation:
