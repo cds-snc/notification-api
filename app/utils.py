@@ -21,7 +21,7 @@ FAILURE_STATUSES = [
     "temporary-failure",
     "permanent-failure",
     "technical-failure",
-    "pinpoint-failure",
+    "provider-failure",
     "virus-scan-failed",
     "validation-failed",
 ]

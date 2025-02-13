@@ -12,7 +12,7 @@ from alembic import op
 revision = "0474_add_feedback_reason_column"
 down_revision = "0473_change_pt_support_email"
 
-new_notification_status = "pinpoint-failure"
+new_notification_status = "provider-failure"
 
 
 def upgrade():
