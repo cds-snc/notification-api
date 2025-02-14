@@ -50,7 +50,12 @@ class Buffer(Enum):
             return f"{Buffer.IN_FLIGHT.value}::{str(process_type)}"
         return f"{Buffer.IN_FLIGHT.value}"
 
-    def inflight_name(self, receipt: UUID = uuid4(), suffix: Optional[str] = None, process_type: Optional[str] = None) -> str:
+    def inflight_name(
+        self,
+        receipt: UUID = uuid4(),
+        suffix: Optional[str] = None,
+        process_type: Optional[str] = None,
+    ) -> str:
         return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
@@ -69,8 +74,8 @@ class Queue(ABC):
         can later be used in conjunction with the `acknowledge` function
         to confirm that the polled messages were properly processed.
         This will delete the in-flight messages and these will not get
-        back into the main inbox. Failure to achknowledge the polled
-        messages will get these back into the inbox after a preconfigured
+        back into the main inbox. Failure to acknowledge the polled
+        messages will get these back into the inbox after a pre-configured
         timeout has passed, ready to be retried.
 
         Args:
@@ -159,7 +164,11 @@ class RedisQueue(Queue):
                 self._expire_inflight_after_seconds,
             ]
         else:
-            args = [f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*", self._inbox, self._expire_inflight_after_seconds]
+            args = [
+                f"{Buffer.IN_FLIGHT.inflight_prefix()}:{self._suffix}*",
+                self._inbox,
+                self._expire_inflight_after_seconds,
+            ]
         expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
