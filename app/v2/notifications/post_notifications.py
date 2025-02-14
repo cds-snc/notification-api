@@ -596,42 +596,7 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
 
 
 def process_precompiled_letter_notifications(*, letter_data, api_key, template, reply_to_text):
-    try:
-        status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data["content"])
-    except ValueError:
-        raise BadRequestError(
-            message="Cannot decode letter content (invalid base64 encoding)",
-            status_code=400,
-        )
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    filename = upload_letter_pdf(notification, letter_content, precompiled=True)
-
-    current_app.logger.info("Calling task scan-file for {}".format(filename))
-
-    # call task to add the filename to anti virus queue
-    if current_app.config["ANTIVIRUS_ENABLED"]:
-        notify_celery.send_task(
-            name=TaskNames.SCAN_FILE,
-            kwargs={"filename": filename},
-            queue=QueueNames.ANTIVIRUS,
-        )
-    else:
-        # stub out antivirus in dev
-        process_virus_scan_passed.apply_async(
-            kwargs={"filename": filename},
-            queue=QueueNames.LETTERS,
-        )
-
-    return notification
+    pass
 
 
 def validate_sender_id(template, reply_to_id):

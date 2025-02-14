@@ -5,6 +5,7 @@ from itsdangerous import URLSafeSerializer
 from typing_extensions import NotRequired  # type: ignore
 
 SignedNotification = NewType("SignedNotification", str)
+SignedNotifications = NewType("SignedNotifications", List[SignedNotification])
 
 
 class NotificationDictToSign(TypedDict):

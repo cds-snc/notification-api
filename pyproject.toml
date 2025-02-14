@@ -7,6 +7,9 @@ license = "MIT license"
 readme = "README.md"
 packages = []
 
+[tool.pylint]
+disable = ["missing-class-docstring", "missing-function-docstring"]
+
 [build-system]
 requires = ["poetry-core>=1.7.1"]
 build-backend = "poetry.core.masonry.api"
@@ -114,6 +117,7 @@ exclude = [
     "build",
 ]
 extend-include = ['(app|migrations|tests)/.*\.pyi?$']
+ignore = ["D101", "D102", "D103"]
 src = ["app", "migrations", "tests"]
 # Ruff formatter will wrap lines at a length of 130 characters.
 line-length = 130
@@ -130,7 +134,7 @@ select = [
     "I001",
     "I002",
 ]
-ignore = ["E203", "E501", "E402"]
+ignore = ["E203", "E501", "E402", "D101", "D102", "D103"]
 
 # Provide line length leeway for docstrings
 [tool.ruff.lint.pycodestyle]

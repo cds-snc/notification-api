@@ -19,6 +19,7 @@
 			},
 			"extensions": [
 				"tamasfe.even-better-toml",
+				"charliermarsh.ruff",
 				"donjayamanne.python-extension-pack",
 				"-ms-python.autopep8",
 				"eamodio.gitlens",
@@ -36,7 +37,6 @@
 				"ms-vsliveshare.vsliveshare",
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
-				"pmbenjamin.vscode-snyk",
 				"timonwong.shellcheck",
 				"usernamehw.errorlens",
 				"visualstudioexptteam.vscodeintellicode",

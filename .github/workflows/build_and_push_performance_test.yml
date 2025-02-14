@@ -8,6 +8,7 @@ on:
     paths:
       - 'tests-perf/locust/**'
       - 'tests-perf/ops/**'
+      - 'bin/execute_and_publish_performance_test.sh'
 
 env:
   GITHUB_SHA: ${{ github.sha }}
@@ -29,6 +30,7 @@ jobs:
             performance-test: 
               - 'tests-perf/**'
               - 'tests_smoke/**'
+              - 'bin/execute_and_publish_performance_test.sh'
 
   build-push-and-deploy:
     if: ${{ needs.changes.outputs.images != '[]' }}

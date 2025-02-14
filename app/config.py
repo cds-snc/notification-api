@@ -61,11 +61,6 @@ class QueueNames(object):
 
     NORMAL = "normal-tasks"
 
-    # A queue meant for database tasks but it seems to be the default for sending
-    # notifications in some occasion. Need to investigate the purpose of this one
-    # further.
-    DATABASE = "database-tasks"
-
     # database operations for high priority notifications
     PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
@@ -104,16 +99,9 @@ class QueueNames(object):
     RETRY = "retry-tasks"
 
     NOTIFY = "notify-internal-tasks"
-    PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
     CALLBACKS_RETRY = "service-callbacks-retry"
-
-    # Queue for letters, unused by CDS at this time as we don't use these.
-    LETTERS = "letter-tasks"
-
-    # Queue for antivirus/malware tasks
-    ANTIVIRUS = "antivirus-tasks"
 
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
@@ -142,7 +130,6 @@ class QueueNames(object):
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
             QueueNames.BULK,
-            QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
@@ -221,7 +208,7 @@ class Config(object):
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
-    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -753,6 +740,7 @@ class Test(Development):
 
 
 class Production(Config):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
@@ -770,14 +758,17 @@ class Production(Config):
 
 
 class Staging(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
 
 
 class Scratch(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "scratch"
 
 
 class Dev(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "dev"
 
 
