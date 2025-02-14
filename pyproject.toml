@@ -107,7 +107,7 @@ types-requests = "2.32.0.20240712"
 
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 exclude = [
     "venv*",
     "__pycache__",
@@ -125,16 +125,21 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    # PyFlakes
-    "F",
-    # Pycodestyle
-    "E",
-    "W",
-    # isort
-    "I001",
-    "I002",
+    "F", # Ruff: Enable PyFlakes rules
+    "E", # Ruff: Enable pycodestyle rules
+    "W", # Ruff: Enable pycodestyle rules
+    "I001", # isort: Unused imports
+    "I002", # isort: Missing imports
 ]
+ignore = [
+    "E203", # Whitespace before punctuation
+    "E501", # Line too long (Ignored in favour of Ruff's line-length)
+    "E402", # module-import-not-at-top-of-file
+]
+<<<<<<< Updated upstream
 ignore = ["E203", "E501", "E402", "D101", "D102", "D103"]
+=======
+>>>>>>> Stashed changes
 
 # Provide line length leeway for docstrings
 [tool.ruff.lint.pycodestyle]
