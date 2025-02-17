@@ -1,7 +1,7 @@
 from datetime import datetime
 
+from common import Config, job_line, rows_to_csv
 from locust import HttpUser, constant_pacing, task
-from common import job_line, rows_to_csv, Config
 
 BULK_SIZE = 2000
 
@@ -14,13 +14,13 @@ class NotifyApiUser(HttpUser):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
         Config.check()
         self.headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
-    
+
     @task(16)
     def send_one_email(self):
         json = {
             "email_address": Config.EMAIL_ADDRESS,
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "personalisation": {"var":" single email"},
+            "personalisation": {"var": "single email"},
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
@@ -29,7 +29,7 @@ class NotifyApiUser(HttpUser):
         json = {
             "phone_number": Config.PHONE_NUMBER,
             "template_id": Config.SMS_TEMPLATE_ID_ONE_VAR,
-            "personalisation": {"var":" single sms"},
+            "personalisation": {"var": "single sms"},
         }
         self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
 
@@ -72,5 +72,3 @@ class NotifyApiUser(HttpUser):
             "csv": rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_ADDRESS, 2)])
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
-                
-
