@@ -21,9 +21,11 @@ We are running three performance tests:
 - max out the email send rate (100K emails POSTed over 10 minutes)
 - max out the sms send rate (40K sms POSTed over 10 minutes)
   
-The api test is run every night in ECS while the send rate tests are run Tuesday through Friday (to save a bit of money)
+The api test is run every night in [ECS](https://ca-central-1.console.aws.amazon.com/ecs/v2/clusters/performance_test_cluster/services?region=ca-central-1) while the send rate tests are run Tuesday through Friday (to save a bit of money)
 
 These test are run by locust. The locust results (essentially whether there were POSTs that failed) are uploaded to [s3](https://s3.console.aws.amazon.com/s3/buckets/notify-performance-test-results-staging?region=ca-central-1&tab=objects) and [GitHub](https://github.com/cds-snc/notification-performance-test-results) and posted to Slack.
+
+The [code to upload the results to GitHub and post to Slack](https://github.com/cds-snc/notification-performance-test-results/blob/main/.github/workflows/sync-performance-test-results.yml) is located in the [notification-performance-test-results](https://github.com/cds-snc/notification-performance-test-results) repository.
 
 ## Configuration
 
