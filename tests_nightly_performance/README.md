@@ -36,7 +36,7 @@ PERF_TEST_SMS_TEMPLATE_ID_ONE_VAR=
 
 ## Running the tests manually
 
-The tests are run automatically in ECS every night. To run manually in ECS refer to the [Tricks and Tips](https://docs.google.com/document/d/16LLelZ7WEKrnbocrl0Az74JqkCv5DBZ9QILRBUFJQt8/edit?tab=t.0#heading=h.72a482juoxa7) document. To run locally, create a local `.env` file and run a modified version of the locust lines in the fule `execute_and_publish_erformance_Test.sh`, for example to run with the locust gui you can use the `--headful` command.
+The tests are run automatically in ECS every night. To run manually in ECS refer to the [Tricks and Tips](https://docs.google.com/document/d/16LLelZ7WEKrnbocrl0Az74JqkCv5DBZ9QILRBUFJQt8/edit?tab=t.0#heading=h.72a482juoxa7) document. To run locally, create a local `.env` file and run a modified version of the locust lines in the fule `execute_and_publish_performance_test.sh`, for example to run with the locust gui you can use the `--headful` command.
 ```
 locust --config locust.conf \
        --locustfile email_send_rate.py \
