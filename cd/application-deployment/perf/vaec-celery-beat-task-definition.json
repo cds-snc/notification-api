@@ -234,7 +234,7 @@
     },
     {
       "name": "datadog-agent",
-      "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:7.62.1",
+      "image": "171875617347.dkr.ecr.us-gov-west-1.amazonaws.com/datadog/agent:7.62.3",
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {

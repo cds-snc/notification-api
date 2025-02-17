@@ -18,6 +18,14 @@ RUN /scripts/import-va-certs.sh \
   && apt-get remove --auto-remove -y wget openssl \
   && apt-get clean
 
+# Copy custom Datadog check for certificate expiration into the Agent
+# Place the custom Python check script in the Agent's checks.d directory
+COPY ./custom_checks/custom_cert_expiration_check.py /etc/datadog-agent/checks.d/
+
+# Place the check configuration file in the Agent's conf.d directory
+COPY ./custom_checks/custom_cert_expiration_check.yaml /etc/datadog-agent/conf.d/
+
+# Copy the script that exposes the ECS Task ARN
 COPY ./scripts/datadog_expose_task_arn.sh /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

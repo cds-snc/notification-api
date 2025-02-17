@@ -1,0 +1,5 @@
+init_config:
+
+instances:
+  - cert_dir: /usr/local/share/ca-certificates/
+    min_collection_interval: 86400
