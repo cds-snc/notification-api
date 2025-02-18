@@ -71,7 +71,6 @@ from app.models import (
     ScheduledNotification,
     ServiceCallback,
     ServiceDataRetention,
-    ServiceEmailReplyTo,
     ServiceLetterContact,
     ServicePermission,
     ServiceSmsSender,
@@ -495,7 +494,6 @@ def sample_service(
     sample_permissions,
     sample_service_permissions,
     sample_sms_sender,
-    sample_service_email_reply_to,
 ):
     created_service_ids = []
 
@@ -554,8 +552,7 @@ def sample_service(
         sample_service_permissions(service, service_permissions)
         sample_permissions(user, service)
         sample_sms_sender(service.id, sms_sender)
-        if email_address is not None:
-            sample_service_email_reply_to(service, email_address=email_address)
+
         # Service should be version 1 in the history after calling this - commits the service
         version_service(service)
 
@@ -674,9 +671,6 @@ def service_cleanup(  # noqa: C901
 
         # Clear inbound_numbers
         session.execute(delete(InboundSms).where(InboundSms.service_id == service_id))
-
-        # Clear service_email_reply_to
-        session.execute(delete(ServiceEmailReplyTo).where(ServiceEmailReplyTo.service_id == service_id))
 
         session.execute(delete(Service).where(Service.id == service_id))
     if commit:
@@ -2230,41 +2224,6 @@ def sample_service_with_inbound_number(
 
 
 @pytest.fixture
-def sample_service_email_reply_to(notify_db_session):
-    service_email_reply_to_ids = []
-
-    def _sample_service_email_reply_to(service: Service, email_address: str = '', **kwargs):
-        data = {
-            'service': service,
-            'service_id': service.id,
-            'email_address': email_address or 'vanotify@va.gov',
-            'is_default': True,
-            'archived': kwargs.get('archived', False),
-        }
-        service_email_reply_to = ServiceEmailReplyTo(**data)
-
-        notify_db_session.session.add(service_email_reply_to)
-        notify_db_session.session.commit()
-
-        if data['is_default']:
-            for email in service.reply_to_email_addresses:
-                # Set each to False unless it is the new default
-                email.is_default = email.id == service_email_reply_to.id
-                notify_db_session.session.add(email)
-            notify_db_session.session.commit()
-
-        service_email_reply_to_ids.append(service_email_reply_to.id)
-        return service_email_reply_to
-
-    yield _sample_service_email_reply_to
-
-    # Teardown
-    stmt = delete(ServiceEmailReplyTo).where(ServiceEmailReplyTo.id.in_(service_email_reply_to_ids))
-    notify_db_session.session.execute(stmt)
-    notify_db_session.session.commit()
-
-
-@pytest.fixture
 def sample_complaint(notify_db_session, sample_service, sample_template, sample_notification):
     created_complaints = []
 
@@ -2509,9 +2468,7 @@ def x_minutes_ago():
 
 
 @pytest.fixture(scope='session')
-def sample_notify_service_user_session(
-    notify_db, sample_service_session, sample_service_email_reply_to_session, sample_user_session
-):
+def sample_notify_service_user_session(notify_db, sample_service_session, sample_user_session):
     u_id = current_app.config['NOTIFY_USER_ID']
     s_id = current_app.config['NOTIFY_SERVICE_ID']
 
@@ -2522,7 +2479,6 @@ def sample_notify_service_user_session(
         service = notify_db.session.get(Service, s_id) or sample_service_session(
             service_name='Notify Service', email_from='notify.service', user=user, service_id=s_id
         )
-        sample_service_email_reply_to_session(service)
         return service, user
 
     yield _wrapper
@@ -2548,28 +2504,6 @@ def sample_service_session(notify_db, sample_user_session):
 
     yield _wrapper
     service_cleanup(created_service_ids, notify_db.session)
-
-
-@pytest.fixture(scope='session')
-def sample_service_email_reply_to_session(notify_db, sample_service_session):
-    service_email_reply_to_ids = []
-
-    def _wrapper(service=None, **kwargs):
-        data = {'service': service or sample_service_session(), 'email_address': 'vanotify@va.gov', 'is_default': True}
-        service_email_reply_to = ServiceEmailReplyTo(**data)
-
-        notify_db.session.add(service_email_reply_to)
-        notify_db.session.commit()
-
-        service_email_reply_to_ids.append(service_email_reply_to.id)
-        return service_email_reply_to
-
-    yield _wrapper
-
-    # Teardown
-    stmt = delete(ServiceEmailReplyTo).where(ServiceEmailReplyTo.id.in_(service_email_reply_to_ids))
-    notify_db.session.execute(stmt)
-    notify_db.session.commit()
 
 
 @pytest.fixture(scope='session')

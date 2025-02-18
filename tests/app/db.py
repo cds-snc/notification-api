@@ -30,7 +30,6 @@ from app.models import (
     Permission,
     Rate,
     Service,
-    ServiceEmailReplyTo,
     ServiceCallback,
     ServiceLetterContact,
     ScheduledNotification,
@@ -624,21 +623,6 @@ def create_inbound_number(
     db.session.add(inbound_number)
     db.session.commit()
     return inbound_number
-
-
-def create_reply_to_email(service, email_address, is_default=True, archived=False):
-    data = {
-        'service': service,
-        'email_address': email_address,
-        'is_default': is_default,
-        'archived': archived,
-    }
-    reply_to = ServiceEmailReplyTo(**data)
-
-    db.session.add(reply_to)
-    db.session.commit()
-
-    return reply_to
 
 
 def create_service_sms_sender(

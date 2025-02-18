@@ -205,9 +205,6 @@ def database_prep():
     C = meta_data.tables['communication_items']
     db.session.execute(delete(C))
 
-    SERT = meta_data.tables['service_email_reply_to']
-    db.session.execute(delete(SERT).where(SERT.c.service_id == notify_service_id))
-
     SP = meta_data.tables['service_permissions']
     db.session.execute(delete(SP).where(SP.c.service_id == notify_service_id))
 

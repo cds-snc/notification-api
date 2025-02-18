@@ -419,6 +419,7 @@ class Service(db.Model, Versioned):
         return {'id': str(self.id), 'name': self.name, 'research_mode': self.research_mode}
 
 
+# Portal uses this table.  Do not drop it without consulting the front-end team.
 class ReplyToInbox(db.Model):
     __tablename__ = 'reply_to_inbox'
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1731,32 +1732,6 @@ class LetterRate(db.Model):
     rate = db.Column(db.Numeric(), nullable=False)
     crown = db.Column(db.Boolean, nullable=False)
     post_class = db.Column(db.String, nullable=False)
-
-
-class ServiceEmailReplyTo(db.Model):
-    __tablename__ = 'service_email_reply_to'
-
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey('services.id'), unique=False, index=True, nullable=False)
-    service = db.relationship(Service, backref=db.backref('reply_to_email_addresses'))
-
-    email_address = db.Column(db.Text, nullable=False, index=False, unique=False)
-    is_default = db.Column(db.Boolean, nullable=False, default=True)
-    archived = db.Column(db.Boolean, nullable=False, default=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
-
-    def serialize(self):
-        return {
-            'id': str(self.id),
-            'service_id': str(self.service_id),
-            'email_address': self.email_address,
-            'is_default': self.is_default,
-            'archived': self.archived,
-            'created_at': self.created_at.strftime(DATETIME_FORMAT),
-            'updated_at': self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
-        }
 
 
 class ServiceLetterContact(db.Model):
