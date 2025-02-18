@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from common import Config, job_line, rows_to_csv
+from common import Config, generate_job_rows, rows_to_csv
 from locust import HttpUser, constant_pacing, task
 
 BULK_SIZE = 2000
@@ -69,6 +69,6 @@ class NotifyApiUser(HttpUser):
         json = {
             "name": f"Email send rate test {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv([["email address", "var"], *job_line(Config.EMAIL_ADDRESS, 2)])
+            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, 2)])
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)

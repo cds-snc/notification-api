@@ -23,7 +23,7 @@ class Config:
     def check():
         for key in ["EMAIL_ADDRESS", "PHONE_NUMBER", "EMAIL_TEMPLATE_ID_ONE_VAR", "SMS_TEMPLATE_ID_ONE_VAR", "API_KEY"]:
             if not getattr(Config, key):
-                raise Exception(f"{key} is not set")
+                raise ValueError(f"{key} is not set")
 
 
 def rows_to_csv(rows: List[List[str]]):
@@ -33,5 +33,5 @@ def rows_to_csv(rows: List[List[str]]):
     return output.getvalue()
 
 
-def job_line(data: str, number_of_lines: int, prefix: str = "") -> Iterator[List[str]]:
+def generate_job_rows(data: str, number_of_lines: int, prefix: str = "") -> Iterator[List[str]]:
     return map(lambda n: [data, f"{prefix} {n}"], range(0, number_of_lines))
