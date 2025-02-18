@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import call
 
 import pytest
 from botocore.exceptions import ClientError
@@ -10,6 +10,7 @@ from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_thrott
 from app.clients.email.aws_ses import AwsSesClientException
 from app.exceptions import (
     NotificationTechnicalFailureException,
+    PinpointConflictException,
     PinpointValidationException,
 )
 from celery.exceptions import MaxRetriesExceededError
@@ -134,17 +135,13 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointValidationException(
-                original_exception=MagicMock(response={"Reason": "NO_ORIGINATION_IDENTITIES_FOUND"})
-            ),
+            side_effect=PinpointConflictException("hello"),
         )
-
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "provider-failure"
-        assert sample_notification.feedback_reason == "NO_ORIGINATION_IDENTITIES_FOUND"
+        assert sample_notification.status == "permanent-failure"
         queued_callback.assert_called_once_with(sample_notification)
 
     @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
@@ -157,16 +154,13 @@ class TestErrorHandling:
     ):
         mocker.patch(
             "app.delivery.send_to_providers.send_sms_to_provider",
-            side_effect=PinpointValidationException(
-                original_exception=MagicMock(response={"Reason": "DESTINATION_COUNTRY_BLOCKED"})
-            ),
+            side_effect=PinpointValidationException("hello"),
         )
         queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
 
         sms_method(sample_notification.id)
 
-        assert sample_notification.status == "provider-failure"
-        assert sample_notification.feedback_reason == "DESTINATION_COUNTRY_BLOCKED"
+        assert sample_notification.status == "permanent-failure"
         queued_callback.assert_called_once_with(sample_notification)
 
 
