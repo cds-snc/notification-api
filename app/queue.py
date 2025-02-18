@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 from flask import current_app
 from redis import Redis
 
+from app.annotations import sign_param
 from app.aws.metrics import (
     put_batch_saving_expiry_metric,
     put_batch_saving_inflight_metric,
@@ -59,6 +60,31 @@ class Buffer(Enum):
         return f"{self.inflight_prefix(suffix, process_type)}:{str(receipt)}"
 
 
+class QueueMessage(ABC):
+    """
+    Abstract base class for queue messages.
+    This class provides a template for creating queue messages that can be
+    converted to and from dictionaries, JSON strings, and signed strings.
+    Methods
+    -------
+    to_dict() -> dict
+        Convert the object to a dictionary. Must be implemented by subclasses.
+    from_dict(cls, data: dict)
+        Create an object from a dictionary. Must be implemented by subclasses.
+    """
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        """Convert the object to a dictionary."""
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, data: dict):
+        """Create an object from a dictionary."""
+        pass
+
+
 class Queue(ABC):
     """Queue interface for custom buffer.
 
@@ -99,14 +125,14 @@ class Queue(ABC):
         pass
 
     @abstractmethod
-    def publish(self, message: str):
+    def publish(self, message: QueueMessage):
         """Publishes the message into the buffer queue.
 
         The message is put onto the back of the queue to be later processed
         in a FIFO order.
 
         Args:
-            message (str): Message to store into the queue.
+            message (QueueMessage): Message to store into the queue.
         """
         pass
 
@@ -193,8 +219,9 @@ class RedisQueue(Queue):
         put_batch_saving_inflight_processed(self.__metrics_logger, self, 1)
         return True
 
-    def publish(self, message: str):
-        self._redis_client.rpush(self._inbox, message)
+    @sign_param
+    def publish(self, message: QueueMessage):
+        self._redis_client.rpush(self._inbox, message)  # type: ignore
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
@@ -279,5 +306,5 @@ class MockQueue(Queue):
     def acknowledge(self, receipt: UUID):
         pass
 
-    def publish(self, message: str):
+    def publish(self, message: QueueMessage):
         pass

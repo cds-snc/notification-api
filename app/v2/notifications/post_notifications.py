@@ -41,7 +41,6 @@ from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import NotificationDictToSign
 from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
@@ -94,6 +93,7 @@ from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
+from app.types import PendingNotification
 from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
@@ -384,7 +384,7 @@ def post_notification(notification_type: NotificationType):
     return jsonify(resp), 201
 
 
-def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
+def triage_notification_to_queues(notification_type: NotificationType, notification: PendingNotification, template: Template):
     """Determine which queue to use based on notification_type and process_type
 
     Args:
@@ -397,18 +397,18 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
     """
     if notification_type == SMS_TYPE:
         if template.process_type == PRIORITY:
-            sms_priority_publish.publish(signed_notification_data)
+            sms_priority_publish.publish(notification)
         elif template.process_type == NORMAL:
-            sms_normal_publish.publish(signed_notification_data)
+            sms_normal_publish.publish(notification)
         elif template.process_type == BULK:
-            sms_bulk_publish.publish(signed_notification_data)
+            sms_bulk_publish.publish(notification)
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
-            email_priority_publish.publish(signed_notification_data)
+            email_priority_publish.publish(notification)
         elif template.process_type == NORMAL:
-            email_normal_publish.publish(signed_notification_data)
+            email_normal_publish.publish(notification)
         elif template.process_type == BULK:
-            email_bulk_publish.publish(signed_notification_data)
+            email_bulk_publish.publish(notification)
 
 
 def process_sms_or_email_notification(
@@ -428,22 +428,25 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    _notification: NotificationDictToSign = {
-        "id": create_uuid(),
-        "template": str(template.id),
-        "service_id": str(service.id),
-        "template_version": str(template.version),  # type: ignore
-        "to": form_send_to,
-        "personalisation": personalisation,
-        "simulated": simulated,
-        "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),
-        "client_reference": form.get("reference", None),
-        "reply_to_text": reply_to_text,
-    }
+    _notification = PendingNotification.from_dict(
+        {
+            "id": create_uuid(),
+            "template": str(template.id),
+            "service_id": str(service.id),
+            "template_version": str(template.version),  # type: ignore
+            "to": form_send_to,
+            "personalisation": personalisation,
+            "simulated": simulated,
+            "api_key": str(api_key.id),
+            "key_type": str(api_key.key_type),
+            "client_reference": form.get("reference", None),
+            "reply_to_text": reply_to_text,
+            # "queue": None,  # review if necessary
+            # "sender_id": None,  # review if necessary
+        }
+    )
 
-    signed_notification_data = signer_notification.sign(_notification)
-    notification = {**_notification}
+    notification = _notification.to_dict()
     scheduled_for = form.get("scheduled_for", None)
 
     # Update the api_key last_used, we will only update this once per job
@@ -468,7 +471,7 @@ def process_sms_or_email_notification(
         )
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     elif not simulated:
-        triage_notification_to_queues(notification_type, signed_notification_data, template)
+        triage_notification_to_queues(notification_type, _notification, template)
 
         current_app.logger.info(
             f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
