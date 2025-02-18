@@ -61,11 +61,6 @@ class QueueNames(object):
 
     NORMAL = "normal-tasks"
 
-    # A queue meant for database tasks but it seems to be the default for sending
-    # notifications in some occasion. Need to investigate the purpose of this one
-    # further.
-    DATABASE = "database-tasks"
-
     # database operations for high priority notifications
     PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
@@ -104,16 +99,9 @@ class QueueNames(object):
     RETRY = "retry-tasks"
 
     NOTIFY = "notify-internal-tasks"
-    PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
     CALLBACKS_RETRY = "service-callbacks-retry"
-
-    # Queue for letters, unused by CDS at this time as we don't use these.
-    LETTERS = "letter-tasks"
-
-    # Queue for antivirus/malware tasks
-    ANTIVIRUS = "antivirus-tasks"
 
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
@@ -142,7 +130,6 @@ class QueueNames(object):
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
             QueueNames.BULK,
-            QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,

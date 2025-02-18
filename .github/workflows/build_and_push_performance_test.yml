@@ -30,6 +30,7 @@ jobs:
             performance-test: 
               - 'tests-perf/**'
               - 'tests_smoke/**'
+              - 'bin/execute_and_publish_performance_test.sh'
 
   build-push-and-deploy:
     if: ${{ needs.changes.outputs.images != '[]' }}
