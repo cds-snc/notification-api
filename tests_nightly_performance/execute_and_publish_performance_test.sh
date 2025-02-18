@@ -49,11 +49,9 @@ fi
 sleep 1200
 
 # evaluate send rates
-PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_URL" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_NAME" \
- -f sql_queries/email_send_rate_query.sql > "$perf_test_results_folder/email_send_rate.txt"
+psql "$DATABASE_READER_URI" -f sql_queries/email_send_rate_query.sql | grep -v row > "$perf_test_results_folder/email_send_rate.txt"
 
-PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_URL" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_NAME" \
- -f sql_queries/sms_send_rate_query.sql > "$perf_test_results_folder/sms_send_rate.txt"
+psql "$DATABASE_READER_URI" -f sql_queries/sms_send_rate_query.sql | grep -v row > "$perf_test_results_folder/sms_send_rate.txt"
 
 # Copy data to s3
 aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --recursive || exit 1

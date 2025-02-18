@@ -9,8 +9,7 @@ with data as (
         round_minutes(sent_at, 5) as sent_minute
     from notifications
     where sent_at is not null
-        and sent_at >= NOW() - INTERVAL '3 hours'
-        and sent_at >= CURRENT_DATE
+        and sent_at >= CURRENT_DATE - INTERVAL '7 days'
         and notification_type = 'email'
 ),
 rollup as (
@@ -25,3 +24,4 @@ select day,
     max(notifications_per_minute) as sustained_emails_per_minute
 from rollup
 group by day
+order by day
