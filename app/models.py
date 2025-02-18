@@ -1905,7 +1905,7 @@ class Notification(BaseModel):
                 "technical-failure": "Tech issue",
                 "temporary-failure": "Carrier issue",
                 "permanent-failure": "No such number",
-                "pinpoint-failure": _get_sms_status_by_feedback_reason(),
+                "provider-failure": _get_sms_status_by_feedback_reason(),
                 "delivered": "Delivered",
                 "sending": "In transit",
                 "created": "In transit",
