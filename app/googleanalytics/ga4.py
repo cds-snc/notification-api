@@ -28,11 +28,17 @@ def get_ga4(notification_id):
     except ValueError:
         current_app.logger.error('GA4: Invalid notification ID %s', notification_id)
     else:
-        post_to_ga4.delay(
-            notification_id,
-            current_app.config['GA4_PIXEL_TRACKING_NAME'],
-            current_app.config['GA4_PIXEL_TRACKING_SOURCE'],
-            current_app.config['GA4_PIXEL_TRACKING_MEDIUM'],
-        )
+        try:
+            post_to_ga4.delay(
+                notification_id,
+                current_app.config['GA4_PIXEL_TRACKING_NAME'],
+                current_app.config['GA4_PIXEL_TRACKING_SOURCE'],
+                current_app.config['GA4_PIXEL_TRACKING_MEDIUM'],
+            )
+        except Exception:
+            # Uncertain why this exception is raised. Logging to identify the cause
+            current_app.logger.exception(
+                'Failed to send request to ga4 post task for notification: %s', notification_id
+            )
 
     return send_file(GA4_PIXEL_TRACKING_IMAGE_PATH, mimetype='image/png')
