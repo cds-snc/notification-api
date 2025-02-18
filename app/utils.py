@@ -4,6 +4,12 @@ from typing import Any
 
 import pytz
 from flask import current_app, url_for
+from notifications_utils.clients.redis.annual_limit import (
+    EMAIL_DELIVERED_TODAY,
+    EMAIL_FAILED_TODAY,
+    SMS_DELIVERED_TODAY,
+    SMS_FAILED_TODAY,
+)
 from notifications_utils.template import (
     SMSMessageTemplate,
     WithSubjectTemplate,
@@ -252,11 +258,12 @@ def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
     Returns:
         dict: That acts as a mapping to build the notification counts in Redis
     """
-    return {
-        f"{notification_type}_{'delivered' if status in DELIVERED_STATUSES else 'failed'}": count
-        for _, notification_type, status, count in notification_counts
-        if status in DELIVERED_STATUSES or status in FAILURE_STATUSES
-    }
+    result = {SMS_FAILED_TODAY: 0, EMAIL_FAILED_TODAY: 0, SMS_DELIVERED_TODAY: 0, EMAIL_DELIVERED_TODAY: 0}
+    for _, notification_type, status, count in notification_counts:
+        if status in DELIVERED_STATUSES or status in FAILURE_STATUSES:
+            key = f"{notification_type}_{'delivered' if status in DELIVERED_STATUSES else 'failed'}_today"
+            result[key] = count
+    return result
 
 
 def get_fiscal_year(current_date=None):

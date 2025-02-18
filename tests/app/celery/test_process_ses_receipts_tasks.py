@@ -480,16 +480,47 @@ class TestAnnualLimits:
             annual_limit_client.increment_email_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
-        "callback",
+        "callback, data",
         [
-            ses_notification_callback,
-            ses_hard_bounce_callback,
-            ses_soft_bounce_callback,
+            (
+                ses_notification_callback,
+                {
+                    "sms_failed_today": 0,
+                    "email_failed_today": 0,
+                    "sms_delivered_today": 0,
+                    "email_delivered_today": 1,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                    "total_email_fiscal_year_to_yesterday": 0,
+                },
+            ),
+            (
+                ses_hard_bounce_callback,
+                {
+                    "sms_failed_today": 0,
+                    "email_failed_today": 1,
+                    "sms_delivered_today": 0,
+                    "email_delivered_today": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                    "total_email_fiscal_year_to_yesterday": 0,
+                },
+            ),
+            (
+                ses_soft_bounce_callback,
+                {
+                    "sms_failed_today": 0,
+                    "email_failed_today": 1,
+                    "sms_delivered_today": 0,
+                    "email_delivered_today": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                    "total_email_fiscal_year_to_yesterday": 0,
+                },
+            ),
         ],
     )
     def test_process_ses_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
         self,
         callback,
+        data,
         sample_email_template,
         notify_api,
         mocker,
@@ -497,7 +528,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
-        mocker.patch("app.annual_limit_client.set_seeded_at")
+        mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
 
         notification = save_notification(
             create_notification(
@@ -509,8 +540,8 @@ class TestAnnualLimits:
             )
         )
         # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             process_ses_results(callback(reference="ref"))
-            annual_limit_client.set_seeded_at.assert_called_once_with(notification.service_id)
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
             annual_limit_client.increment_email_delivered.assert_not_called()
             annual_limit_client.increment_email_failed.assert_not_called()
