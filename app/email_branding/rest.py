@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
 from app.dao.email_branding_dao import (
@@ -26,6 +26,9 @@ def handle_integrity_error(exc):
     """
     if "uq_email_branding_name" in str(exc):
         return jsonify(result="error", message="Email branding name already exists"), 400
+
+    current_app.logger.exception(exc)
+    return jsonify(result="error", message="Internal server error"), 500
 
 
 @email_branding_blueprint.route("", methods=["GET"])
