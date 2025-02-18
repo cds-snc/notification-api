@@ -191,6 +191,20 @@ def test_post_create_email_branding_returns_400_when_name_is_missing(admin_reque
     assert response["errors"][0]["message"] == "name is a required property"
 
 
+def test_post_create_email_branding_returns_400_if_name_is_duplicate(admin_request, notify_db_session):
+    data = {
+        "name": "niceName",
+        "text": "some text",
+        "logo": "images/text_x2.png",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
+    }
+    admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
+    response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=400)
+
+    assert response["message"] == "Email branding name already exists"
+
+
 @pytest.mark.parametrize(
     "data_update",
     [

@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import IntegrityError
 
 from app.dao.template_categories_dao import (
     dao_create_template_category,
@@ -19,6 +20,17 @@ template_category_blueprint = Blueprint(
 )
 
 register_errors(template_category_blueprint)
+
+
+@template_category_blueprint.errorhandler(IntegrityError)
+def handle_integrity_error(exc):
+    """
+    Handle integrity errors caused by the unique constraints on ix_template_categories_name_en and ix_template_categories_name_fr
+    """
+    if "template_categories_name_en_key" in str(exc):
+        return jsonify(result="error", message="English Template category name already exists"), 400
+    if "template_categories_name_fr_key" in str(exc):
+        return jsonify(result="error", message="French Template category name already exists"), 400
 
 
 @template_category_blueprint.route("", methods=["POST"])

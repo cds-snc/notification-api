@@ -33,6 +33,26 @@ def test_should_create_new_template_category(client, notify_db, notify_db_sessio
     assert response.json["template_category"]["hidden"]
 
 
+@pytest.mark.parametrize("key, updated_value", [("name_en", "updated english"), ("name_fr", "updated_french")])
+def test_post_create_template_categories_returns_400_if_name_is_duplicate(key, updated_value, admin_request, notify_db_session):
+    data = {
+        "name_en": "new english",
+        "name_fr": "new french",
+        "description_en": "new english description",
+        "description_fr": "new french description",
+        "sms_process_type": "bulk",
+        "email_process_type": "bulk",
+        "hidden": True,
+    }
+    admin_request.post("template_category.create_template_category", _data=data, _expected_status=201)
+    data[key] = updated_value
+    response = admin_request.post("template_category.create_template_category", _data=data, _expected_status=400)
+    if key == "name_en":
+        assert response["message"] == "French Template category name already exists"
+    else:
+        assert response["message"] == "English Template category name already exists"
+
+
 def test_get_template_category_by_id(client, sample_template_category):
     auth_header = create_authorization_header()
     response = client.get(
