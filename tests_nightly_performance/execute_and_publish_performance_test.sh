@@ -13,7 +13,7 @@ cd tests_nightly_performance || exit 1
 
 # Test 1 - Hammer the api
 locust --config locust.conf \
-       --locustfile blast_api.py \
+       --locustfile src/blast_api.py \
        --users 3000 \
        --html "$perf_test_results_folder/index.html" --csv "$perf_test_results_folder/api_test"
 
@@ -26,7 +26,7 @@ sleep 900
 
 if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
     locust --config locust.conf \
-       --locustfile email_send_rate.py \
+       --locustfile src/email_send_rate.py \
        --users 5 \
        --csv "$perf_test_results_folder/email_send_rate_test"
 fi
@@ -40,10 +40,20 @@ sleep 1800
 
 if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
     locust --config locust.conf \
-       --locustfile sms_send_rate.py \
+       --locustfile src/sms_send_rate.py \
        --users 2 \
        --csv "$perf_test_results_folder/sms_send_rate_test"
 fi
+
+# Sleep 20 minutes to allow the tests to finish
+sleep 1200
+
+# evaluate send rates
+PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_URL" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_NAME" \
+ -f sql_queries/email_send_rate_query.sql > "$perf_test_results_folder/email_send_rate.txt"
+
+PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_URL" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE_NAME" \
+ -f sql_queries/sms_send_rate_query.sql > "$perf_test_results_folder/sms_send_rate.txt"
 
 # Copy data to s3
 aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --recursive || exit 1
