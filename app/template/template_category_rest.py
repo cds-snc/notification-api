@@ -35,6 +35,7 @@ def handle_integrity_error(exc):
     current_app.logger.exception(exc)
     return jsonify(result="error", message="Internal server error"), 500
 
+
 @template_category_blueprint.route("", methods=["POST"])
 def create_template_category():
     data = request.get_json()
