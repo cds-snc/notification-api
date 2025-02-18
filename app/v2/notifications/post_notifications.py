@@ -29,7 +29,6 @@ from app.notifications.validators import (
     validate_and_format_recipient,
     check_rate_limiting,
     validate_template,
-    check_service_email_reply_to_id,
     check_service_sms_sender_id,
 )
 from app.schema_validation import validate
@@ -318,16 +317,9 @@ def get_reply_to_text(
     template,
 ):
     reply_to = None
+
     if notification_type == EMAIL_TYPE:
-        if template.reply_to_email is not None:
-            reply_to = template.reply_to_email
-        else:
-            if 'email_reply_to_id' in form:
-                reply_to = check_service_email_reply_to_id(
-                    str(authenticated_service.id), form['email_reply_to_id'], notification_type
-                )
-            if reply_to is None:
-                template.get_reply_to_text()
+        reply_to = template.reply_to_email
 
     elif notification_type == SMS_TYPE:
         sms_sender_id = check_service_sms_sender_id(
@@ -337,9 +329,6 @@ def get_reply_to_text(
             reply_to = try_validate_and_format_phone_number(sms_sender_id)
         else:
             reply_to = template.get_reply_to_text()
-
-    elif notification_type == LETTER_TYPE:
-        reply_to = template.get_reply_to_text()
 
     return reply_to
 

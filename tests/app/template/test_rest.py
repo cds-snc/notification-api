@@ -935,32 +935,6 @@ def test_create_a_template_with_foreign_service_reply_to(admin_request, sample_s
     )
 
 
-@pytest.mark.parametrize(
-    'template_default, service_default',
-    [('template address', 'service address'), (None, 'service address'), ('template address', None), (None, None)],
-)
-def test_get_template_reply_to(client, sample_service, sample_template, template_default, service_default):
-    service = sample_service()
-    auth_header = create_admin_authorization_header()
-    if service_default:
-        create_letter_contact(service=service, contact_block=service_default, is_default=True)
-    if template_default:
-        template_default_contact = create_letter_contact(
-            service=service, contact_block=template_default, is_default=False
-        )
-    reply_to_id = str(template_default_contact.id) if template_default else None
-    template = sample_template(service=service, template_type='letter', reply_to=reply_to_id)
-
-    resp = client.get('/service/{}/template/{}'.format(template.service_id, template.id), headers=[auth_header])
-
-    assert resp.status_code == 200, resp.get_data(as_text=True)
-    json_resp = json.loads(resp.get_data(as_text=True))
-
-    assert 'service_letter_contact_id' not in json_resp['data']
-    assert json_resp['data']['reply_to'] == reply_to_id
-    assert json_resp['data']['reply_to_text'] == template_default
-
-
 def test_update_template_reply_to(client, notify_db_session, sample_template, sample_service):
     service = sample_service(service_permissions=SERVICE_PERMISSION_TYPES)
     template = sample_template(service=service, template_type=LETTER_TYPE, postage='second')
@@ -1028,33 +1002,6 @@ def test_update_template_reply_to_set_to_blank(client, notify_db_session, sample
     )
     notify_db_session.session.delete(template_history)
     notify_db_session.session.commit()
-
-
-def test_update_template_with_foreign_service_reply_to(client, sample_service, sample_template):
-    auth_header = create_admin_authorization_header()
-
-    service = sample_service(
-        service_name=f'test service {str(uuid.uuid4())}', email_from='test@example.com', service_permissions=['letter']
-    )
-    service_all_perms = sample_service(service_permissions=SERVICE_PERMISSION_TYPES)
-    letter_contact = create_letter_contact(service_all_perms, 'Edinburgh, ED1 1AA')
-    template = sample_template(service=service, template_type=LETTER_TYPE, postage='second')
-    data = {
-        'reply_to': str(letter_contact.id),
-    }
-
-    resp = client.post(
-        '/service/{}/template/{}'.format(template.service_id, template.id),
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header],
-    )
-
-    assert resp.status_code == 400, resp.get_data(as_text=True)
-    json_resp = json.loads(resp.get_data(as_text=True))
-
-    assert json_resp['message'] == 'letter_contact_id {} does not exist in database for service id {}'.format(
-        str(letter_contact.id), str(template.service_id)
-    )
 
 
 def test_update_redact_template(admin_request, sample_template):

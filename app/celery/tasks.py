@@ -48,7 +48,6 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
 )
 from app.dao.provider_details_dao import get_current_provider
-from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_id,
     dao_get_service_sms_sender_by_service_id_and_number,
@@ -256,17 +255,13 @@ def save_email(
     service_id,
     notification_id,
     encrypted_notification,
-    sender_id=None,
 ):
     notification = encryption.decrypt(encrypted_notification)
 
     service = dao_fetch_service_by_id(service_id)
     template = dao_get_template_by_id(notification['template'], version=notification['template_version'])
 
-    if sender_id:
-        reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-    else:
-        reply_to_text = template.get_reply_to_text()
+    reply_to_text = template.get_reply_to_text()
 
     if not service_allowed_to_send_to(notification['to'], service, KEY_TYPE_NORMAL):
         current_app.logger.info('Email %s failed as restricted service', notification_id)

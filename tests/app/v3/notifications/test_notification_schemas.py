@@ -126,7 +126,6 @@ def test_v3_notifications_post_sms_request_validator_requires_notification_type(
                 'template_id': '4f365dd4-332e-454d-94ff-e393463602db',
                 'billing_code': 'billing code',
                 'client_reference': 'client reference',
-                'email_reply_to_id': '4f365dd4-332e-454d-94ff-e393463602db',
                 'personalisation': {
                     'test_file': {
                         'file': 'string',

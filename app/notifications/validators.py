@@ -16,7 +16,6 @@ from app.constants import (
     INTERNATIONAL_SMS_TYPE,
     SMS_TYPE,
     EMAIL_TYPE,
-    LETTER_TYPE,
     KEY_TYPE_TEST,
     KEY_TYPE_TEAM,
     SCHEDULE_NOTIFICATIONS,
@@ -29,7 +28,6 @@ from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
 from app import redis_store
 from app.notifications.process_notifications import create_content_for_notification
-from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 
 
@@ -212,27 +210,8 @@ def check_reply_to(
     reply_to_id,
     type_,
 ):
-    if type_ == EMAIL_TYPE:
-        return check_service_email_reply_to_id(service_id, reply_to_id, type_)
-    elif type_ == SMS_TYPE:
+    if type_ == SMS_TYPE:
         return check_service_sms_sender_id(service_id, reply_to_id, type_)
-    elif type_ == LETTER_TYPE:
-        return check_service_letter_contact_id(service_id, reply_to_id, type_)
-
-
-def check_service_email_reply_to_id(
-    service_id,
-    reply_to_id,
-    notification_type,
-):
-    if reply_to_id:
-        try:
-            return dao_get_reply_to_by_id(service_id, reply_to_id).email_address
-        except NoResultFound:
-            message = 'email_reply_to_id {} does not exist in database for service id {}'.format(
-                reply_to_id, service_id
-            )
-            raise BadRequestError(message=message)
 
 
 @cached(cache=TTLCache(maxsize=1024, ttl=600))

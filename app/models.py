@@ -380,14 +380,6 @@ class Service(db.Model, Versioned):
 
         return None
 
-    def get_default_reply_to_email_address(self):
-        # there should only be one default reply to email per service
-        for default_reply_to in self.reply_to_email_addresses:
-            if default_reply_to.is_default:
-                return default_reply_to.email_address
-
-        return None
-
     def get_default_letter_contact(self):
         # there should only be one default letter contact per service
         for default_letter_contact in self.letter_contacts:
@@ -885,15 +877,11 @@ class TemplateBase(db.Model):
         else:
             raise ValueError('Unable to set sender for {} template'.format(self.template_type))
 
-    def get_reply_to_text(self) -> str:
-        if self.template_type == LETTER_TYPE:
-            return self.service_letter_contact.contact_block if self.service_letter_contact else None
-        elif self.template_type == EMAIL_TYPE:
-            return self.service.get_default_reply_to_email_address()
-        elif self.template_type == SMS_TYPE:
+    def get_reply_to_text(self) -> Optional[str]:
+        if self.template_type == SMS_TYPE:
             return try_validate_and_format_phone_number(self.service.get_default_sms_sender())
-        else:
-            return None
+
+        return None
 
     # https://docs.sqlalchemy.org/en/13/orm/extensions/hybrid.html
     # https://stackoverflow.com/questions/55690796/sqlalchemy-typeerror-boolean-value-of-this-clause-is-not-defined/55692795#55692795

@@ -16,7 +16,6 @@ from app.notifications.validators import (
     service_can_send_to_recipient,
     check_service_over_api_rate_limit,
     validate_and_format_recipient,
-    check_service_email_reply_to_id,
     check_service_sms_sender_id,
     check_service_letter_contact_id,
     check_reply_to,
@@ -414,48 +413,6 @@ def test_rejects_api_calls_with_no_recipient():
 
 
 @pytest.mark.parametrize('notification_type', [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE])
-def test_check_service_email_reply_to_id_where_reply_to_id_is_none(notification_type):
-    assert check_service_email_reply_to_id(None, None, notification_type) is None
-
-
-def test_check_service_email_reply_to_where_email_reply_to_is_found(
-    sample_service,
-    sample_service_email_reply_to,
-):
-    service = sample_service()
-    email_address = f'{uuid4()}@test.va.gov'
-    reply_to_address = sample_service_email_reply_to(service, email_address=email_address)
-    assert check_service_email_reply_to_id(service.id, reply_to_address.id, EMAIL_TYPE) == email_address
-
-
-def test_check_service_email_reply_to_id_where_service_id_is_not_found(
-    sample_service,
-    sample_service_email_reply_to,
-):
-    fake_service_id = uuid4()
-    reply_to_address = sample_service_email_reply_to(sample_service(), email_address=f'{uuid4()}@test.va.gov')
-    with pytest.raises(BadRequestError) as e:
-        check_service_email_reply_to_id(fake_service_id, reply_to_address.id, EMAIL_TYPE)
-    assert e.value.status_code == 400
-    assert e.value.message == 'email_reply_to_id {} does not exist in database for service id {}'.format(
-        reply_to_address.id, fake_service_id
-    )
-
-
-def test_check_service_email_reply_to_id_where_reply_to_id_is_not_found(
-    sample_service,
-):
-    fake_id = uuid4()
-    service = sample_service()
-    with pytest.raises(BadRequestError) as e:
-        check_service_email_reply_to_id(service.id, fake_id, EMAIL_TYPE)
-    assert e.value.status_code == 400
-    assert e.value.message == 'email_reply_to_id {} does not exist in database for service id {}'.format(
-        fake_id, service.id
-    )
-
-
-@pytest.mark.parametrize('notification_type', [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE])
 def test_check_service_sms_sender_id_where_sms_sender_id_is_none(notification_type):
     assert check_service_sms_sender_id(None, None, notification_type) is None
 
@@ -529,31 +486,12 @@ def test_check_reply_to_with_empty_reply_to(sample_service, notification_type):
     assert check_reply_to(sample_service().id, None, notification_type) is None
 
 
-def test_check_reply_to_email_type(
-    sample_service,
-    sample_service_email_reply_to,
-):
-    service = sample_service()
-    email_address = f'{uuid4()}@test.va.gov'
-    reply_to_address = sample_service_email_reply_to(service, email_address=email_address)
-    assert check_reply_to(service.id, reply_to_address.id, EMAIL_TYPE) == email_address
-
-
 def test_check_reply_to_sms_type(
     sample_service,
 ):
     number = randint(1000000, 9999999999)
     service = sample_service(sms_sender=number)
     assert check_reply_to(service.id, service.get_default_sms_sender_id(), SMS_TYPE) == str(number)
-
-
-def test_check_reply_to_letter_type(
-    sample_service,
-):
-    service = sample_service()
-    number = randint(1000000, 9999999999)
-    letter_contact = create_letter_contact(service=service, contact_block=number)
-    assert check_reply_to(service.id, letter_contact.id, LETTER_TYPE) == str(number)
 
 
 class TestSmsSenderRateLimit:

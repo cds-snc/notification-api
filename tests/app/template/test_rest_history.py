@@ -1,14 +1,11 @@
 import json
 from datetime import datetime, date
-from uuid import uuid4
 
 import pytest
 from flask import url_for
 
-from app.constants import SERVICE_PERMISSION_TYPES, LETTER_TYPE
 from app.dao.templates_dao import dao_update_template
 from tests import create_admin_authorization_header
-from tests.app.db import create_letter_contact
 
 
 def test_template_history_version(notify_api, sample_user, sample_template):
@@ -88,27 +85,3 @@ def test_all_versions_of_template(notify_api, sample_template):
             assert json_resp['data'][1]['content'] == newer_content
             assert json_resp['data'][1]['updated_at']
             assert json_resp['data'][2]['content'] == old_content
-
-
-def test_update_template_reply_to_updates_history(client, sample_template, sample_service):
-    service = sample_service(
-        service_name=f'sample service full permissions {uuid4()}',
-        service_permissions=set(SERVICE_PERMISSION_TYPES),
-        check_if_service_exists=True,
-    )
-    template = sample_template(service=service, template_type=LETTER_TYPE, postage='second')
-    auth_header = create_admin_authorization_header()
-    letter_contact = create_letter_contact(template.service, 'Edinburgh, ED1 1AA')
-
-    template.reply_to = letter_contact.id
-    dao_update_template(template)
-
-    resp = client.get(
-        '/service/{}/template/{}/version/2'.format(template.service_id, template.id), headers=[auth_header]
-    )
-    assert resp.status_code == 200
-
-    hist_json_resp = json.loads(resp.get_data(as_text=True))
-    assert 'service_letter_contact_id' not in hist_json_resp['data']
-    assert hist_json_resp['data']['reply_to'] == str(letter_contact.id)
-    assert hist_json_resp['data']['reply_to_text'] == letter_contact.contact_block

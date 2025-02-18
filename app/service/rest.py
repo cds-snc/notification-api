@@ -56,13 +56,6 @@ from app.dao.service_data_retention_dao import (
     insert_service_data_retention,
     update_service_data_retention,
 )
-from app.dao.service_email_reply_to_dao import (
-    add_reply_to_email_address_for_service,
-    archive_reply_to_email_address,
-    dao_get_reply_to_by_id,
-    dao_get_reply_to_by_service_id,
-    update_reply_to_email_address,
-)
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
@@ -715,89 +708,6 @@ def create_one_off_notification(service_id):
     return jsonify(resp), 201
 
 
-@service_blueprint.route('/<uuid:service_id>/email-reply-to', methods=['GET'])
-@requires_admin_auth()
-def get_email_reply_to_addresses(service_id):
-    result = dao_get_reply_to_by_service_id(service_id)
-    return jsonify([i.serialize() for i in result]), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_id>', methods=['GET'])
-@requires_admin_auth()
-def get_email_reply_to_address(
-    service_id,
-    reply_to_id,
-):
-    result = dao_get_reply_to_by_id(service_id=service_id, reply_to_id=reply_to_id)
-    return jsonify(result.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/email-reply-to/verify', methods=['POST'])
-@requires_admin_auth()
-def verify_reply_to_email_address(service_id):
-    email_address, errors = email_data_request_schema.load(request.get_json())
-    check_if_reply_to_address_already_in_use(service_id, email_address['email'])
-    template = dao_get_template_by_id(current_app.config['REPLY_TO_EMAIL_ADDRESS_VERIFICATION_TEMPLATE_ID'])
-    notify_service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
-    saved_notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        recipient=email_address['email'],
-        service_id=notify_service.id,
-        personalisation='',
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        reply_to_text=notify_service.get_default_reply_to_email_address(),
-    )
-
-    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
-
-    return jsonify(data={'id': saved_notification.id}), 201
-
-
-@service_blueprint.route('/<uuid:service_id>/email-reply-to', methods=['POST'])
-@requires_admin_auth()
-def add_service_reply_to_email_address(service_id):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_email_reply_to_request)
-    check_if_reply_to_address_already_in_use(service_id, form['email_address'])
-    new_reply_to = add_reply_to_email_address_for_service(
-        service_id=service_id, email_address=form['email_address'], is_default=form.get('is_default', True)
-    )
-    return jsonify(data=new_reply_to.serialize()), 201
-
-
-@service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_email_id>', methods=['POST'])
-@requires_admin_auth()
-def update_service_reply_to_email_address(
-    service_id,
-    reply_to_email_id,
-):
-    # validate the service exists, throws ResultNotFound exception.
-    dao_fetch_service_by_id(service_id)
-    form = validate(request.get_json(), add_service_email_reply_to_request)
-    new_reply_to = update_reply_to_email_address(
-        service_id=service_id,
-        reply_to_id=reply_to_email_id,
-        email_address=form['email_address'],
-        is_default=form.get('is_default', True),
-    )
-    return jsonify(data=new_reply_to.serialize()), 200
-
-
-@service_blueprint.route('/<uuid:service_id>/email-reply-to/<uuid:reply_to_email_id>/archive', methods=['POST'])
-@requires_admin_auth()
-def delete_service_reply_to_email_address(
-    service_id,
-    reply_to_email_id,
-):
-    archived_reply_to = archive_reply_to_email_address(service_id, reply_to_email_id)
-
-    return jsonify(data=archived_reply_to.serialize()), 200
-
-
 @service_blueprint.route('/<uuid:service_id>/organisation', methods=['GET'])
 @requires_admin_auth()
 def get_organisation_for_service(service_id):
@@ -963,14 +873,3 @@ def check_request_args(request):
     if errors:
         raise InvalidRequest(errors, status_code=400)
     return service_id, name, email_from
-
-
-def check_if_reply_to_address_already_in_use(
-    service_id,
-    email_address,
-):
-    existing_reply_to_addresses = dao_get_reply_to_by_service_id(service_id)
-    if email_address in [i.email_address for i in existing_reply_to_addresses]:
-        raise InvalidRequest(
-            'Your service already uses ‘{}’ as an email reply-to address.'.format(email_address), status_code=400
-        )

@@ -137,7 +137,7 @@ def update_user_attribute(user_id):
         if 'email_address' in update_dct:
             template = dao_get_template_by_id(current_app.config['TEAM_MEMBER_EDIT_EMAIL_TEMPLATE_ID'])
             recipient = user_to_update.email_address
-            reply_to = template.service.get_default_reply_to_email_address()
+            reply_to = None
         elif 'mobile_number' in update_dct:
             template = dao_get_template_by_id(current_app.config['TEAM_MEMBER_EDIT_MOBILE_TEMPLATE_ID'])
             recipient = user_to_update.mobile_number
@@ -319,10 +319,10 @@ def create_2fa_code(
     # save the code in the VerifyCode table
     create_user_code(user_to_send_to, secret_code, template.template_type)
     reply_to = None
+
     if template.template_type == SMS_TYPE:
         reply_to = template.service.get_default_sms_sender()
-    elif template.template_type == EMAIL_TYPE:
-        reply_to = template.service.get_default_reply_to_email_address()
+
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -363,7 +363,6 @@ def send_user_confirm_new_email(user_id):
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -387,7 +386,6 @@ def send_new_user_email_verification(user_id):
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -414,7 +412,6 @@ def send_already_registered_email(user_id):
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -475,7 +472,6 @@ def send_branding_request(user_id):
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
     )
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
@@ -569,7 +565,6 @@ def send_user_reset_password():
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=service.get_default_reply_to_email_address(),
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
@@ -777,7 +772,6 @@ def _update_alert(
     service = db.session.get(Service, current_app.config['NOTIFY_SERVICE_ID'])
     template = dao_get_template_by_id(current_app.config['ACCOUNT_CHANGE_TEMPLATE_ID'])
     recipient = user_to_update.email_address
-    reply_to = template.service.get_default_reply_to_email_address()
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -792,7 +786,6 @@ def _update_alert(
         notification_type=template.template_type,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
-        reply_to_text=reply_to,
     )
 
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)

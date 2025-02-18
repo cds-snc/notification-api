@@ -1912,36 +1912,6 @@ def test_is_service_name_unique_returns_400_when_name_does_not_exist(admin_reque
     assert response['message'][2]['email_from'] == ["Can't be empty"]
 
 
-def test_get_email_reply_to_addresses_when_there_are_no_reply_to_email_addresses(client, sample_service):
-    service = sample_service(email_address=None)
-    response = client.get(f'/service/{service.id}/email-reply-to', headers=[create_admin_authorization_header()])
-
-    assert response.status_code == 200
-    assert response.get_json() == []
-
-
-def test_add_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
-    response = admin_request.post(
-        'service.add_service_reply_to_email_address', service_id=uuid.uuid4(), _data={}, _expected_status=404
-    )
-
-    assert response['result'] == 'error'
-    assert response['message'] == 'No result found'
-
-
-def test_update_service_reply_to_email_address_404s_when_invalid_service_id(admin_request):
-    response = admin_request.post(
-        'service.update_service_reply_to_email_address',
-        service_id=uuid.uuid4(),
-        reply_to_email_id=uuid.uuid4(),
-        _data={},
-        _expected_status=404,
-    )
-
-    assert response['result'] == 'error'
-    assert response['message'] == 'No result found'
-
-
 def test_get_organisation_for_service_id_return_empty_dict_if_service_not_in_organisation(admin_request, fake_uuid):
     response = admin_request.get('service.get_organisation_for_service', service_id=fake_uuid)
     assert response == {}

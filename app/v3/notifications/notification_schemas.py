@@ -38,7 +38,6 @@ notification_v3_post_email_request_schema = {
     'type': 'object',
     'properties': {
         'email_address': {'type': 'string', 'format': 'email'},
-        'email_reply_to_id': {'type': 'string', 'format': 'uuid'},
         'notification_type': {'const': EMAIL_TYPE},
     },
     'additionalProperties': False,

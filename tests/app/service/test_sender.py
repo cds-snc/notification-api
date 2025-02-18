@@ -35,7 +35,7 @@ def test_send_notification_to_service_users_persists_notifications_correctly(
     assert notification.template.id == template.id
     assert notification.template.template_type == notification_type
     assert notification.notification_type == notification_type
-    assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
+    assert notification.reply_to_text is None
 
 
 def test_send_notification_to_service_users_sends_to_queue(

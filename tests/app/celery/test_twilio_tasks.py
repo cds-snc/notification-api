@@ -96,19 +96,25 @@ def test_update_twilio_status_no_results(mocker):
     mock_update_notification_status_override.assert_not_called()
 
 
+@pytest.mark.serial
 def test_update_twilio_status_exception(mocker, sample_notification):
     """Test that update_twilio_status() logs an error when twilio_sms_client.update_notification_status_override()
     raises a NonRetryableException, and does not update any more notifications."""
+
     created_at = datetime.now(timezone.utc) - timedelta(minutes=99)
     notification_one = sample_notification(status=NOTIFICATION_CREATED, sent_by='twilio', created_at=created_at)
+
     created_at = datetime.now(timezone.utc) - timedelta(minutes=90)
     sample_notification(status=NOTIFICATION_CREATED, sent_by='twilio', created_at=created_at)
+
     mock_twilio_status_override = mocker.patch(
         'app.celery.twilio_tasks.twilio_sms_client.update_notification_status_override',
         side_effect=[NonRetryableException('Test exception')],
     )
     mock_logger = mocker.patch('app.celery.twilio_tasks.current_app.logger.error')
+
     update_twilio_status()
+
     mock_logger.assert_called_once_with(
         'Failed to update notification %s: %s due to rate limit, aborting.', str(notification_one.id), 'Test exception'
     )

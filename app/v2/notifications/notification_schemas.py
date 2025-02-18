@@ -202,7 +202,6 @@ post_email_request = {
         'template_id': uuid,
         'personalisation': personalisation,
         'scheduled_for': {'type': ['string', 'null'], 'format': 'datetime_within_next_day'},
-        'email_reply_to_id': uuid,
         'billing_code': {'type': ['string', 'null'], 'maxLength': 256},
         'callback_url': {'type': ['string', 'null'], 'format': 'uri', 'pattern': '^https.*', 'maxLength': 255},
     },
