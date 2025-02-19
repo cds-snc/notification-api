@@ -48,7 +48,7 @@ def test_post_create_template_categories_returns_400_if_name_is_duplicate(key, u
     data[key] = updated_value
     response = admin_request.post("template_category.create_template_category", _data=data, _expected_status=400)
 
-    assert response["message"] == "Template category already exists, name_en and name_fr must be unique"
+    assert response["message"] == "Template category already exists, name_en and name_fr must be unique."
 
 
 @pytest.mark.parametrize("key", ["name_en", "name_fr"])
@@ -71,7 +71,7 @@ def test_post_update_template_category_returns_400_if_name_is_duplicate(admin_re
         _expected_status=400,
     )
 
-    assert updated_response["message"] == "Template category already exists, name_en and name_fr must be unique"
+    assert updated_response["message"] == "Template category already exists, name_en and name_fr must be unique."
 
 
 def test_get_template_category_by_id(client, sample_template_category):

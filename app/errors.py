@@ -51,6 +51,13 @@ class CannotRemoveUserError(InvalidRequest):
 
 
 class DuplicateEntityError(InvalidRequest):
+    """Generic error for handling unique constraint errors. This error should be subclassed to provide more specific error messages depending on the entity and their unique fields.
+
+    Args:
+        entity (str): The name of the entity that was saved/updated and triggered an IntegrityError. E.g. Template Category, Email Branding, Service, etc.
+        fields (list): List of fields associated with the DB entity that must be unique.
+    """
+
     message: str = "{} already exists, {}"
     entity: str = "Entity"
 
@@ -62,12 +69,15 @@ class DuplicateEntityError(InvalidRequest):
         if num_fields > 0:
             formatted_fields = ""
             if num_fields == 1:
-                formatted_fields = f"{fields[0]} must be unique"
+                # e.g. "name must be unique"
+                formatted_fields = f"{fields[0]} must be unique."
             elif num_fields >= 2:
-                formatted_fields = f"{', '.join(fields[:-1])} and {fields[-1]} must be unique"
+                # e.g. "name_en and name_fr must be unique" or "name_en, name_fr, and phone_number must be unique"
+                formatted_fields = f"{', '.join(fields[:-1])} and {fields[-1]} must be unique."
             self.message = self.message.format(self.entity, formatted_fields)
         else:
-            self.message = self.message.format(self.entity, "")
+            # Default fallback when no specific entity or required unique fields are present "Entity already exists."
+            self.message = self.message.format(self.entity, "").replace(",", ".").strip()
 
         super().__init__(message=self.message, status_code=status_code)
 

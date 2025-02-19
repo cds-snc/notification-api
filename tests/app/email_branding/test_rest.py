@@ -202,7 +202,7 @@ def test_post_create_email_branding_returns_400_if_name_is_duplicate(admin_reque
     admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=400)
 
-    assert response["message"] == "Email branding already exists, name must be unique"
+    assert response["message"] == "Email branding already exists, name must be unique."
 
 
 def test_post_update_email_branding_returns_400_if_name_is_duplicate(admin_request, notify_db_session):
@@ -224,7 +224,7 @@ def test_post_update_email_branding_returns_400_if_name_is_duplicate(admin_reque
         _expected_status=400,
     )
 
-    assert update_response["message"] == "Email branding already exists, name must be unique"
+    assert update_response["message"] == "Email branding already exists, name must be unique."
 
 
 @pytest.mark.parametrize(
