@@ -202,7 +202,29 @@ def test_post_create_email_branding_returns_400_if_name_is_duplicate(admin_reque
     admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
     response = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=400)
 
-    assert response["message"] == "Email branding name already exists"
+    assert response["message"] == "Email branding already exists, name must be unique"
+
+
+def test_post_update_email_branding_returns_400_if_name_is_duplicate(admin_request, notify_db_session):
+    data = {
+        "name": "niceName",
+        "text": "some text",
+        "logo": "images/text_x2.png",
+        "alt_text_en": "hello",
+        "alt_text_fr": "bonjour",
+    }
+    admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
+    data["name"] = "niceName2"
+    second_branding = admin_request.post("email_branding.create_email_branding", _data=data, _expected_status=201)
+
+    update_response = admin_request.post(
+        "email_branding.update_email_branding",
+        _data={"name": "niceName"},
+        email_branding_id=second_branding["data"]["id"],
+        _expected_status=400,
+    )
+
+    assert update_response["message"] == "Email branding already exists, name must be unique"
 
 
 @pytest.mark.parametrize(

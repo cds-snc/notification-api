@@ -9,7 +9,7 @@ from app.dao.template_categories_dao import (
     dao_get_template_category_by_template_id,
     dao_update_template_category,
 )
-from app.errors import register_errors
+from app.errors import CannotSaveDuplicateTemplateCategoryError, register_errors
 from app.models import TemplateCategory
 from app.schemas import template_category_schema
 
@@ -43,7 +43,11 @@ def create_template_category():
     template_category_schema.load(data)
     template_category = TemplateCategory.from_json(data)
 
-    dao_create_template_category(template_category)
+    try:
+        dao_create_template_category(template_category)
+    except IntegrityError as e:
+        if any(unique_field in str(e) for unique_field in ["template_categories_name_en_key", "template_categories_name_fr_key"]):
+            raise CannotSaveDuplicateTemplateCategoryError()
 
     return jsonify(template_category=template_category_schema.dump(template_category)), 201
 
@@ -88,8 +92,12 @@ def update_template_category(template_category_id):
     current_category.update(request.get_json())
 
     updated_category = template_category_schema.load(current_category)
-    dao_update_template_category(updated_category)
 
+    try:
+        dao_update_template_category(updated_category)
+    except IntegrityError as e:
+        if any(unique_field in str(e) for unique_field in ["template_categories_name_en_key", "template_categories_name_fr_key"]):
+            raise CannotSaveDuplicateTemplateCategoryError()
     return jsonify(template_category=template_category_schema.dump(updated_category)), 200
 
 

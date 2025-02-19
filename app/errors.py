@@ -50,7 +50,59 @@ class CannotRemoveUserError(InvalidRequest):
         self.fields = fields
 
 
-def register_errors(blueprint):
+class DuplicateEntityError(InvalidRequest):
+    message: str = "{} already exists, {}"
+    entity: str = "Entity"
+
+    def __init__(self, fields=[], entity=None, status_code=400):
+        self.entity = entity if entity else self.entity
+        self.fields = fields
+
+        num_fields = len(fields)
+        if num_fields > 0:
+            formatted_fields = ""
+            if num_fields == 1:
+                formatted_fields = f"{fields[0]} must be unique"
+            elif num_fields >= 2:
+                formatted_fields = f"{', '.join(fields[:-1])} and {fields[-1]} must be unique"
+            self.message = self.message.format(self.entity, formatted_fields)
+        else:
+            self.message = self.message.format(self.entity, "")
+
+        super().__init__(message=self.message, status_code=status_code)
+
+
+class CannotSaveDuplicateEmailBrandingError(DuplicateEntityError):
+    entity = "Email branding"
+    fields = ["name"]
+
+    def __init__(self, status_code=400):
+        super().__init__(fields=self.fields, entity=self.entity, status_code=status_code)
+
+
+class CannotSaveDuplicateTemplateCategoryError(DuplicateEntityError):
+    entity = "Template category"
+    fields = ["name_en", "name_fr"]
+
+    def __init__(self, status_code=400):
+        super().__init__(fields=self.fields, entity=self.entity, status_code=status_code)
+
+
+def register_errors(blueprint):  # noqa: C901
+    @blueprint.errorhandler(CannotSaveDuplicateEmailBrandingError)
+    def cannot_save_duplicate_email_branding_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
+    @blueprint.errorhandler(CannotSaveDuplicateTemplateCategoryError)
+    def cannot_save_duplicate_template_category_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
     @blueprint.errorhandler(CannotRemoveUserError)
     def cannot_remove_user_error(error):
         response = jsonify(error.to_dict())

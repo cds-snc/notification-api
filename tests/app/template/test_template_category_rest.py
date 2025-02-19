@@ -47,10 +47,31 @@ def test_post_create_template_categories_returns_400_if_name_is_duplicate(key, u
     admin_request.post("template_category.create_template_category", _data=data, _expected_status=201)
     data[key] = updated_value
     response = admin_request.post("template_category.create_template_category", _data=data, _expected_status=400)
-    if key == "name_en":
-        assert response["message"] == "Template category name (FR) already exists"
-    else:
-        assert response["message"] == "Template category name (EN) already exists"
+
+    assert response["message"] == "Template category already exists, name_en and name_fr must be unique"
+
+
+@pytest.mark.parametrize("key", ["name_en", "name_fr"])
+def test_post_update_template_category_returns_400_if_name_is_duplicate(admin_request, key, sample_template_category):
+    data = {
+        "name_en": "new english",
+        "name_fr": "new french",
+        "description_en": "new english description",
+        "description_fr": "new french description",
+        "sms_process_type": "bulk",
+        "email_process_type": "bulk",
+        "hidden": True,
+    }
+    tc_to_update = admin_request.post("template_category.create_template_category", _data=data, _expected_status=201)
+    name_en_fr = sample_template_category.name_en if key == "name_en" else sample_template_category.name_fr
+    updated_response = admin_request.post(
+        "template_category.update_template_category",
+        _data={key: name_en_fr},
+        template_category_id=tc_to_update["template_category"]["id"],
+        _expected_status=400,
+    )
+
+    assert updated_response["message"] == "Template category already exists, name_en and name_fr must be unique"
 
 
 def test_get_template_category_by_id(client, sample_template_category):
