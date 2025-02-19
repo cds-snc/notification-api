@@ -17,7 +17,8 @@
 				"python.linting.enabled": true,
 				"python.linting.pylintEnabled": true,
 				"python.linting.pylintPath": "/usr/local/bin/pylint",
-				"python.pythonPath": "/usr/local/bin/python"
+				"python.defaultInterpreterPath": "/home/vscode/.venv/workspace/bin/python",
+				"python.venvPath": "/home/vscode/.venv"
 			},
 			"extensions": [
 				"bungcip.better-toml",
