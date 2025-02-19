@@ -48,9 +48,9 @@ def test_post_create_template_categories_returns_400_if_name_is_duplicate(key, u
     data[key] = updated_value
     response = admin_request.post("template_category.create_template_category", _data=data, _expected_status=400)
     if key == "name_en":
-        assert response["message"] == "French Template category name already exists"
+        assert response["message"] == "Template category name (FR) already exists"
     else:
-        assert response["message"] == "English Template category name already exists"
+        assert response["message"] == "Template category name (EN) already exists"
 
 
 def test_get_template_category_by_id(client, sample_template_category):
