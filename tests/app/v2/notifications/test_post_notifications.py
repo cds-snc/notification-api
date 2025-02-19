@@ -512,7 +512,7 @@ class TestPostNotificationsErrors:
 
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             # Success
             create_sample_notification(
                 notify_db,
@@ -521,7 +521,7 @@ class TestPostNotificationsErrors:
                 service=sample_service,
                 created_at=datetime.utcnow(),
             )
-            with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
                 response = client.post(
                     path="/v2/notifications/{}".format(notification_type),
                     data=json.dumps(data),
@@ -2367,7 +2367,7 @@ class TestBulkSend:
         }
 
         # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2398,7 +2398,7 @@ class TestBulkSend:
         }
 
         # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2790,7 +2790,7 @@ def test_post_bulk_validates_annual_limit(
 
     auth_header = create_authorization_header(service_id=template.service.id)
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
         response = client.post(
             path="/v2/notifications/bulk",
             data=json.dumps(data),

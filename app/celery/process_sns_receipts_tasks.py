@@ -1,15 +1,13 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, notify_celery, statsd_client
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.dao.fact_notification_status_dao import (
-    fetch_notification_status_for_service_for_day,
-)
 from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -19,7 +17,6 @@ from app.models import (
     SNS_PROVIDER,
 )
 from app.notifications.callbacks import _check_and_queue_callback_task
-from app.utils import prepare_notification_counts_for_seeding
 from celery.exceptions import Retry
 
 
@@ -74,14 +71,7 @@ def process_sns_results(self, response):
         notifications_to_seed = None
         if current_app.config["FF_ANNUAL_LIMIT"]:
             if not annual_limit_client.was_seeded_today(service_id):
-                annual_limit_client.set_seeded_at(service_id)
-                notifications_to_seed = fetch_notification_status_for_service_for_day(
-                    datetime.now(timezone.utc),
-                    service_id=service_id,
-                )
-                annual_limit_client.seed_annual_limit_notifications(
-                    service_id, prepare_notification_counts_for_seeding(notifications_to_seed)
-                )
+                notifications_to_seed = get_annual_limit_notifications_v2(service_id)
 
         if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info(
