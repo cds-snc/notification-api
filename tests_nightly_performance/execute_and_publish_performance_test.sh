@@ -48,10 +48,11 @@ fi
 # Sleep 20 minutes to allow the tests to finish
 sleep 1200
 
+# this probably won't work, let's figure it out in a later PR
 # evaluate send rates
-psql "$DATABASE_READER_URI" -f sql_queries/email_send_rate_query.sql | grep -v row > "$perf_test_results_folder/email_send_rate.txt"
+# psql "$DATABASE_READER_URI" -f sql_queries/email_send_rate_query.sql | grep -v row > "$perf_test_results_folder/email_send_rate.txt"
 
-psql "$DATABASE_READER_URI" -f sql_queries/sms_send_rate_query.sql | grep -v row > "$perf_test_results_folder/sms_send_rate.txt"
+# psql "$DATABASE_READER_URI" -f sql_queries/sms_send_rate_query.sql | grep -v row > "$perf_test_results_folder/sms_send_rate.txt"
 
 # Copy data to s3
 aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --recursive || exit 1

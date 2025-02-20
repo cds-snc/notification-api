@@ -5,6 +5,8 @@ from locust import HttpUser, constant_pacing, task
 
 BULK_SIZE = 2000
 
+# Note that task weights add up to 100
+# If you add / remove tasks please keep the sum 100
 
 class NotifyApiUser(HttpUser):
 
@@ -15,7 +17,7 @@ class NotifyApiUser(HttpUser):
         Config.check()
         self.headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
 
-    @task(16)
+    @task(35)
     def send_one_email(self):
         json = {
             "email_address": Config.EMAIL_ADDRESS,
@@ -24,7 +26,7 @@ class NotifyApiUser(HttpUser):
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(16)
+    @task(35)
     def send_one_sms(self):
         json = {
             "phone_number": Config.PHONE_NUMBER,
@@ -33,7 +35,7 @@ class NotifyApiUser(HttpUser):
         }
         self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
 
-    @task(2)
+    @task(5)
     def send_email_with_attachment(self):
         json = {
             "email_address": Config.EMAIL_ADDRESS,
@@ -49,7 +51,7 @@ class NotifyApiUser(HttpUser):
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(2)
+    @task(5)
     def send_email_with_link_notifications(self):
         json = {
             "email_address": Config.EMAIL_ADDRESS,
@@ -64,7 +66,7 @@ class NotifyApiUser(HttpUser):
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
-    @task(8)
+    @task(20)
     def send_bulk_emails(self):
         json = {
             "name": f"Email send rate test {datetime.utcnow().isoformat()}",
