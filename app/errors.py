@@ -58,12 +58,12 @@ class DuplicateEntityError(InvalidRequest):
         fields (list): List of fields associated with the DB entity that must be unique.
     """
 
-    message: str = "{} already exists, {}"
     entity: str = "Entity"
 
     def __init__(self, fields=[], entity=None, status_code=400):
         self.entity = entity if entity else self.entity
         self.fields = fields
+        message = "{} already exists, {}"
 
         num_fields = len(fields)
         if num_fields > 0:
@@ -74,12 +74,12 @@ class DuplicateEntityError(InvalidRequest):
             elif num_fields >= 2:
                 # e.g. "name_en and name_fr must be unique" or "name_en, name_fr, and phone_number must be unique"
                 formatted_fields = f"{', '.join(fields[:-1])} and {fields[-1]} must be unique."
-            self.message = self.message.format(self.entity, formatted_fields)
+            message = message.format(self.entity, formatted_fields)
         else:
             # Default fallback when no specific entity or required unique fields are present "Entity already exists."
-            self.message = self.message.format(self.entity, "").replace(",", ".").strip()
+            self.message = message.format(self.entity, "").replace(",", ".").strip()
 
-        super().__init__(message=self.message, status_code=status_code)
+        super().__init__(message=message, status_code=status_code)
 
 
 class CannotSaveDuplicateEmailBrandingError(DuplicateEntityError):
