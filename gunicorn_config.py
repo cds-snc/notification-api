@@ -7,6 +7,7 @@ worker_connections = 256
 bind = '0.0.0.0:{}'.format(os.getenv('PORT'))
 accesslog = '-'
 keepalive = 70
+timeout = 90  # Celery delay/apply_async can take 60s, worst case
 
 
 def on_starting(server):
