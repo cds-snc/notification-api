@@ -77,9 +77,10 @@ class DuplicateEntityError(InvalidRequest):
             message = message.format(self.entity, formatted_fields)
         else:
             # Default fallback when no specific entity or required unique fields are present "Entity already exists."
-            self.message = message.format(self.entity, "").replace(",", ".").strip()
+            message = message.format(self.entity, "").replace(",", ".").strip()
 
         super().__init__(message=message, status_code=status_code)
+        self.message = message
 
 
 class CannotSaveDuplicateEmailBrandingError(DuplicateEntityError):
