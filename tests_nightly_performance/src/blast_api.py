@@ -8,6 +8,7 @@ BULK_SIZE = 2000
 # Note that task weights add up to 100
 # If you add / remove tasks please keep the sum 100
 
+
 class NotifyApiUser(HttpUser):
 
     wait_time = constant_pacing(60)  # 60 seconds between each task
