@@ -80,7 +80,6 @@ class DuplicateEntityError(InvalidRequest):
             message = message.format(self.entity, "").replace(",", ".").strip()
 
         super().__init__(message=message, status_code=status_code)
-        self.message = message
 
 
 class CannotSaveDuplicateEmailBrandingError(DuplicateEntityError):
