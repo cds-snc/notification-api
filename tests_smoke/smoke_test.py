@@ -10,6 +10,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--local", default=False, action='store_true', help="run locally, do not check for delivery success (default false)")
     parser.add_argument("--nofiles", default=False, action='store_true', help="do not send files (default false)")
+    parser.add_argument("--nocsv", default=False, action='store_true', help="do not send with admin csv uploads (default false)")
     args = parser.parse_args()
 
     print("API Smoke test\n")
@@ -19,7 +20,8 @@ if __name__ == "__main__":
 
     for notification_type in [Notification_type.EMAIL, Notification_type.SMS]:
         test_admin_one_off(notification_type, local=args.local)
-        test_admin_csv(notification_type, local=args.local)
+        if not args.nocsv:
+            test_admin_csv(notification_type, local=args.local)
         test_api_one_off(notification_type, local=args.local)
         test_api_bulk(notification_type, local=args.local)
 
