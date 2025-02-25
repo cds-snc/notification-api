@@ -16,6 +16,7 @@ from app.models import (
     ApiKeyType,
 )
 from app.notifications.validators import (
+    check_email_annual_limit,
     check_email_daily_limit,
     check_reply_to,
     check_service_email_reply_to_id,
@@ -23,6 +24,7 @@ from app.notifications.validators import (
     check_service_over_api_rate_limit_and_update_rate,
     check_service_over_daily_message_limit,
     check_service_sms_sender_id,
+    check_sms_annual_limit,
     check_sms_content_char_count,
     check_sms_daily_limit,
     check_template_is_active,
@@ -35,10 +37,14 @@ from app.notifications.validators import (
 from app.utils import get_document_url
 from app.v2.errors import (
     BadRequestError,
+    LiveServiceRequestExceedsEmailAnnualLimitError,
+    LiveServiceRequestExceedsSMSAnnualLimitError,
     RateLimitError,
     TooManyEmailRequestsError,
     TooManyRequestsError,
     TooManySMSRequestsError,
+    TrialServiceRequestExceedsEmailAnnualLimitError,
+    TrialServiceRequestExceedsSMSAnnualLimitError,
 )
 from tests.app.conftest import (
     create_sample_api_key,
@@ -48,6 +54,7 @@ from tests.app.conftest import (
     create_sample_template,
 )
 from tests.app.db import (
+    create_ft_notification_status,
     create_letter_contact,
     create_reply_to_email,
     create_service_sms_sender,
@@ -526,7 +533,7 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
         with pytest.raises(RateLimitError) as e:
             check_service_over_api_rate_limit_and_update_rate(service, api_key)
 
-        assert app.redis_store.exceeded_rate_limit.called_with(
+        app.redis_store.exceeded_rate_limit.assert_called_with(
             "{}-{}".format(str(service.id), api_key.key_type), service.rate_limit, 60
         )
         assert e.value.status_code == 429
@@ -545,7 +552,7 @@ def test_that_when_not_exceeded_rate_limit_request_succeeds(notify_db, notify_db
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
 
         check_service_over_api_rate_limit_and_update_rate(service, api_key)
-        assert app.redis_store.exceeded_rate_limit.called_with("{}-{}".format(str(service.id), api_key.key_type), 3000, 60)
+        app.redis_store.exceeded_rate_limit.assert_called_with("{}-{}".format(str(service.id), api_key.key_type), 1000, 60)
 
 
 def test_should_not_rate_limit_if_limiting_is_disabled(notify_db, notify_db_session, mocker):
@@ -696,3 +703,230 @@ def test_check_reply_to_sms_type(sample_service):
 def test_check_reply_to_letter_type(sample_service):
     letter_contact = create_letter_contact(service=sample_service, contact_block="123456")
     assert check_reply_to(sample_service.id, letter_contact.id, LETTER_TYPE) == "123456"
+
+
+class TestAnnualLimitValidators:
+    @freeze_time("2024-11-26")
+    @pytest.mark.parametrize(
+        "annual_limit, counts_from_redis, do_ft_insert, ft_count, notifications_requested, will_raise, has_sent_reached_limit_email, has_sent_near_limit_email, log_msg",
+        [
+            (100, 81, False, 0, 20, True, False, True, "is exceeding their annual email limit"),
+            (100, 0, True, 100, 5, True, False, True, "is exceeding their annual email limit"),
+            (100, 50, True, 50, 1, True, False, True, "is exceeding their annual email limit"),
+            (100, 5, True, 50, 5, False, False, False, None),
+            (100, 50, True, 29, 5, False, False, True, "reached 80% of their annual email limit of"),
+            (100, 5, True, 50, 5, False, True, False, "reached their annual email limit of"),
+        ],
+        ids=[
+            " Cache only - Service attempts to go over annual limit",
+            " DB only - Service exceeded annual limit - attempts more sends",
+            " Cache & DB - Service attempts to go over annual limit",
+            " Cache only - Within annual limit - not near or over limit",
+            " DB only - Within annual limit - near limit",
+            " Cache & DB - Within annual limit - reaches limit with current send",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "is_trial_service, exception_type",
+        [(True, TrialServiceRequestExceedsEmailAnnualLimitError), (False, LiveServiceRequestExceedsEmailAnnualLimitError)],
+        ids=["Trial service ", "Live service "],
+    )
+    def test_check_email_annual_limit(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        annual_limit,
+        counts_from_redis,
+        do_ft_insert,
+        ft_count,
+        is_trial_service,
+        exception_type,
+        notifications_requested,
+        will_raise,
+        has_sent_reached_limit_email,
+        has_sent_near_limit_email,
+        log_msg,
+        mocker,
+    ):
+        mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
+        mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
+        mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
+        mocker.patch(
+            "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
+        )  # Email sent flag checks
+        mocker.patch("app.notifications.validators.send_notification_to_service_users")
+        is_near = (counts_from_redis + ft_count + notifications_requested) >= (annual_limit * 0.8)
+        is_reached = (counts_from_redis + ft_count + notifications_requested) == annual_limit
+
+        service = create_sample_service(
+            notify_db, notify_db_session, restricted=is_trial_service, email_annual_limit=annual_limit
+        )
+        email_template = create_sample_template(notify_db, notify_db_session, template_type=EMAIL_TYPE)
+        sms_template = create_sample_template(notify_db, notify_db_session, template_type=SMS_TYPE)
+
+        if do_ft_insert:
+            # Previous fiscal year
+            create_ft_notification_status(
+                utc_date="2024-03-31",
+                service=service,
+                template=email_template,
+                notification_type=EMAIL_TYPE,
+            )
+            # Within current fiscal year
+            create_ft_notification_status(
+                utc_date="2024-04-01", service=service, template=email_template, notification_type=EMAIL_TYPE, count=ft_count
+            )
+            # In the next fiscal year
+            create_ft_notification_status(
+                utc_date="2025-04-01", service=service, template=email_template, notification_type=EMAIL_TYPE
+            )
+            # Make sure we're not counting non-email notifications
+            create_ft_notification_status(
+                utc_date="2024-04-01", service=service, template=sms_template, notification_type=SMS_TYPE
+            )
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            if will_raise:
+                with pytest.raises(exception_type) as e:
+                    check_email_annual_limit(service, notifications_requested)
+                assert e.value.status_code == 429
+                assert e.value.message == f"Exceeded annual email sending limit of {service.email_annual_limit} messages"
+                assert log_msg in mock_logger.call_args[0][0]
+            else:
+                assert check_email_annual_limit(service, notifications_requested) is None
+                if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
+                    mock_redis_set.assert_called_with(service.id)
+                    if log_msg:
+                        assert log_msg in mock_logger.call_args[0][0]
+
+    @freeze_time("2024-11-26")
+    @pytest.mark.parametrize(
+        "annual_limit, counts_from_redis, do_ft_insert, ft_count, notifications_requested, will_raise, has_sent_reached_limit_email, has_sent_near_limit_email, log_msg",
+        [
+            (100, 81, False, 0, 20, True, False, True, "is exceeding their annual SMS limit"),
+            (100, 0, True, 100, 5, True, False, True, "is exceeding their annual SMS limit"),
+            (100, 50, True, 50, 1, True, False, True, "is exceeding their annual SMS limit"),
+            (100, 5, True, 50, 5, False, False, False, None),
+            (100, 50, True, 29, 5, False, False, True, "reached 80% of their annual SMS limit of"),
+            (100, 5, True, 50, 5, False, True, False, "reached their annual SMS limit of"),
+        ],
+        ids=[
+            " Cache only - Service attempts to go over annual limit",
+            " DB only - Service exceeded annual limit - attempts more sends",
+            " Cache & DB - Service attempts to go over annual limit",
+            " Cache only - Within annual limit - not near or over limit",
+            " DB only - Within annual limit - near limit",
+            " Cache & DB - Within annual limit - reaches limit with current send",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "is_trial_service, exception_type",
+        [(True, TrialServiceRequestExceedsSMSAnnualLimitError), (False, LiveServiceRequestExceedsSMSAnnualLimitError)],
+        ids=["Trial service ", "Live service "],
+    )
+    def test_check_sms_annual_limit(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        annual_limit,
+        counts_from_redis,
+        do_ft_insert,
+        ft_count,
+        is_trial_service,
+        exception_type,
+        notifications_requested,
+        will_raise,
+        has_sent_reached_limit_email,
+        has_sent_near_limit_email,
+        log_msg,
+        mocker,
+    ):
+        mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
+        mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
+        mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
+        mocker.patch(
+            "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
+        )  # Email sent flag checks
+        mocker.patch("app.notifications.validators.send_notification_to_service_users")
+        is_near = (counts_from_redis + ft_count + notifications_requested) >= (annual_limit * 0.8)
+        is_reached = (counts_from_redis + ft_count + notifications_requested) == annual_limit
+
+        service = create_sample_service(notify_db, notify_db_session, restricted=is_trial_service, sms_annual_limit=annual_limit)
+        email_template = create_sample_template(notify_db, notify_db_session, template_type=EMAIL_TYPE)
+        sms_template = create_sample_template(notify_db, notify_db_session, template_type=SMS_TYPE)
+
+        if do_ft_insert:
+            # Previous fiscal year
+            create_ft_notification_status(
+                utc_date="2024-03-31",
+                service=service,
+                template=sms_template,
+                notification_type=SMS_TYPE,
+            )
+            # Within current fiscal year
+            create_ft_notification_status(
+                utc_date="2024-04-01", service=service, template=sms_template, notification_type=SMS_TYPE, count=ft_count
+            )
+            # In the next fiscal year
+            create_ft_notification_status(
+                utc_date="2025-04-01", service=service, template=sms_template, notification_type=SMS_TYPE
+            )
+            # Make sure we're not counting non-email notifications
+            create_ft_notification_status(
+                utc_date="2024-04-01", service=service, template=email_template, notification_type=EMAIL_TYPE
+            )
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            if will_raise:
+                with pytest.raises(exception_type) as e:
+                    check_sms_annual_limit(service, notifications_requested)
+                assert e.value.status_code == 429
+                assert e.value.message == f"Exceeded annual SMS sending limit of {service.sms_annual_limit} messages"
+                assert log_msg in mock_logger.call_args[0][0]
+            else:
+                assert check_sms_annual_limit(service, notifications_requested) is None
+                if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
+                    mock_redis_set.assert_called_with(service.id)
+                    if log_msg:
+                        assert log_msg in mock_logger.call_args[0][0]
+
+    def test_check_sms_annual_limit_only_sends_warning_email_once(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            check_sms_annual_limit(service, 2)
+            mock_send_email.assert_not_called()
+
+    def test_check_sms_annual_limit_only_sends_reached_limit_email_once(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=True)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
+
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            check_sms_annual_limit(service, 4)
+            mock_send_email.assert_not_called()

@@ -9,6 +9,8 @@ from app.models import EMAIL_TYPE, SMS_TYPE
 from app.utils import (
     get_delivery_queue_for_template,
     get_document_url,
+    get_fiscal_dates,
+    get_fiscal_year,
     get_limit_reset_time_et,
     get_local_timezone_midnight,
     get_local_timezone_midnight_in_utc,
@@ -156,3 +158,35 @@ def test_get_limit_reset_time_et():
 def test_get_delivery_queue_for_template(sample_service, template_type, process_type, expected_queue):
     template = create_template(sample_service, process_type=process_type, template_type=template_type)
     assert get_delivery_queue_for_template(template) == expected_queue
+
+
+@pytest.mark.parametrize(
+    "current_date, expected_fiscal_year",
+    [
+        (datetime(2023, 3, 31), 2022),
+        (datetime(2023, 4, 1), 2023),
+        (datetime(2023, 12, 31), 2023),
+        (None, datetime.today().year if datetime.today().month >= 4 else datetime.today().year - 1),
+    ],
+)
+def test_get_fiscal_year(current_date, expected_fiscal_year):
+    assert get_fiscal_year(current_date) == expected_fiscal_year
+
+
+@freeze_time("2024-11-28")
+@pytest.mark.parametrize(
+    "current_date, year, expected_start, expected_end",
+    [
+        (datetime(2023, 3, 31), None, datetime(2022, 4, 1), datetime(2023, 3, 31)),
+        (datetime(2023, 4, 1), None, datetime(2023, 4, 1), datetime(2024, 3, 31)),
+        (None, 2023, datetime(2023, 4, 1), datetime(2024, 3, 31)),
+        (None, None, datetime(2024, 4, 1), datetime(2025, 3, 31)),
+    ],
+)
+def test_get_fiscal_dates(current_date, year, expected_start, expected_end):
+    assert get_fiscal_dates(current_date, year) == (expected_start, expected_end)
+
+
+def test_get_fiscal_dates_raises_value_error():
+    with pytest.raises(ValueError):
+        get_fiscal_dates(current_date=datetime(2023, 4, 1), year=2023)

@@ -72,9 +72,12 @@ def create_nightly_notification_status(day_start=None):
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()
+    current_app.logger.info("create-nightly-notification-status started for {} ".format(day_start))
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
-
+        current_app.logger.info(
+            "create-nightly-notification-status-for-day called from higher level job for day {} ".format(process_day)
+        )
         create_nightly_notification_status_for_day.apply_async(
             kwargs={"process_day": process_day.isoformat()}, queue=QueueNames.REPORTING
         )
@@ -92,8 +95,9 @@ def create_nightly_notification_status_for_day(process_day):
     """
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
     service_ids = [x.id for x in Service.query.all()]
-    chunk_size = 20
+    chunk_size = 10
     iter_service_ids = iter(service_ids)
+    current_app.logger.info("create-nightly-notification-status-for-day STARTED for day {} ".format(process_day))
 
     while True:
         chunk = list(islice(iter_service_ids, chunk_size))
@@ -134,18 +138,16 @@ def create_nightly_notification_status_for_day(process_day):
 
 @notify_celery.task(name="insert-quarter-data-for-annual-limits")
 @statsd(namespace="tasks")
-def insert_quarter_data_for_annual_limits(process_day):
+def insert_quarter_data_for_annual_limits(process_day=None):
     """
     This function gets all the service ids and fetches all the notification_count
     for the given quarter for the service_ids. It then inserts that data
     into the annaual_limits_data_table.
 
     The process_day determines which quarter to fetch data for.
-
-    Args:
-        process_day = datetime object
+    This is based on the schedule of this task. The task is scheduled to at the start of the new quarter.
     """
-
+    process_day = process_day if process_day else datetime.now()
     quarter, dates = get_previous_quarter(process_day)
     start_date = dates[0]
     end_date = dates[1]
@@ -239,7 +241,8 @@ def _create_quarterly_email_markdown_list(service_info, service_ids, cummulative
 
 @notify_celery.task(name="send-quarterly-email")
 @statsd(namespace="tasks")
-def send_quarter_email(process_date):
+def send_quarter_email(process_date=None):
+    process_date = process_date if process_date else datetime.now()  # this is the day the task is run
     service_info = {x.id: (x.name, x.email_annual_limit, x.sms_annual_limit) for x in Service.query.all()}
 
     user_service_array = get_services_for_all_users()

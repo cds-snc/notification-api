@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta, timezone
 
 from flask import current_app
 from sqlalchemy import Date, case, func
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.expression import extract, literal
 from sqlalchemy.types import DateTime, Integer
 
@@ -32,6 +32,7 @@ from app.models import (
     User,
 )
 from app.utils import (
+    get_fiscal_dates,
     get_local_timezone_midnight_in_utc,
     get_local_timezone_month_from_utc_column,
 )
@@ -105,7 +106,6 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
 
 
 def update_fact_notification_status(data, process_day, service_ids=None):
-    table = FactNotificationStatus.__table__
     if service_ids:
         FactNotificationStatus.query.filter(
             FactNotificationStatus.bst_date == process_day, FactNotificationStatus.service_id.in_(service_ids)
@@ -113,20 +113,34 @@ def update_fact_notification_status(data, process_day, service_ids=None):
     else:
         FactNotificationStatus.query.filter(FactNotificationStatus.bst_date == process_day).delete()
 
-    for row in data:
-        stmt = insert(table).values(
-            bst_date=process_day,
-            template_id=row.template_id,
-            service_id=row.service_id,
-            job_id=row.job_id,
-            notification_type=row.notification_type,
-            key_type=row.key_type,
-            notification_status=row.status,
-            notification_count=row.notification_count,
-            billable_units=row.billable_units,
-        )
-        db.session.connection().execute(stmt)
+    # Prepare bulk insert data
+    bulk_insert_data = [
+        {
+            "bst_date": process_day,
+            "template_id": row.template_id,
+            "service_id": row.service_id,
+            "job_id": row.job_id,
+            "notification_type": row.notification_type,
+            "key_type": row.key_type,
+            "notification_status": row.status,
+            "notification_count": row.notification_count,
+            "billable_units": row.billable_units,
+        }
+        for row in data
+    ]
+    try:
+        if bulk_insert_data:
+            db.session.bulk_insert_mappings(FactNotificationStatus, bulk_insert_data)
         db.session.commit()
+
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.info(f"Integrity error in update_fact_notification_status: {e}")
+        raise
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.info(f"Unexpected error in update_fact_notification_status: {e}")
+        raise
 
 
 def fetch_notification_status_for_service_by_month(start_date, end_date, service_id):
@@ -233,6 +247,9 @@ def fetch_notification_stats_for_trial_services():
 
 
 def fetch_notification_status_for_service_for_day(bst_day, service_id):
+    # Fetch data from bst_day 00:00:00 to bst_day 23:59:59
+    # bst_dat is currently in UTC and the return is in UTC
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
     return (
         db.session.query(
             # return current month as a datetime so the data has the same shape as the ft_notification_status query
@@ -242,8 +259,8 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
             func.count().label("count"),
         )
         .filter(
-            Notification.created_at >= get_local_timezone_midnight_in_utc(bst_day),
-            Notification.created_at < get_local_timezone_midnight_in_utc(bst_day + timedelta(days=1)),
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
         )
@@ -916,3 +933,23 @@ def fetch_quarter_data(start_date, end_date, service_ids):
         .group_by(FactNotificationStatus.service_id, FactNotificationStatus.notification_type)
     )
     return query.all()
+
+
+def fetch_notification_status_totals_for_service_by_fiscal_year(service_id, fiscal_year, notification_type=None):
+    start_date, end_date = get_fiscal_dates(year=fiscal_year)
+
+    filters = [
+        FactNotificationStatus.service_id == (service_id),
+        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date <= end_date,
+    ]
+
+    if notification_type:
+        filters.append(FactNotificationStatus.notification_type == notification_type)
+
+    query = (
+        db.session.query(func.sum(FactNotificationStatus.notification_count).label("notification_count"))
+        .filter(*filters)
+        .scalar()
+    )
+    return query or 0

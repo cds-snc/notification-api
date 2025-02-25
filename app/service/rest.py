@@ -1,5 +1,5 @@
 import itertools
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
@@ -87,11 +87,14 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import (
+    EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
     NOTIFICATION_CANCELLED,
+    SMS_TYPE,
     EmailBranding,
     LetterBranding,
+    NotificationType,
     Permission,
     Service,
 )
@@ -129,6 +132,10 @@ from app.utils import pagination_links
 service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
+
+# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
 
 
 @service_blueprint.errorhandler(IntegrityError)
@@ -267,7 +274,6 @@ def create_service():
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
-# TODO: FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
 # flake8: noqa: C901
 @service_blueprint.route("/<uuid:service_id>", methods=["POST"])
 def update_service(service_id):
@@ -312,15 +318,14 @@ def update_service(service_id):
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
-
-    # TODO: FF_ANNUAL_LIMIT removal
-    if current_app.config["FF_ANNUAL_LIMIT"]:
-        if sms_annual_limit_changed:
-            # TODO: Delete cache for sms annual limit (if used)
-            _warn_service_users_about_annual_sms_limit_changed(service_id, current_data)
-        if email_annual_limit_changed:
-            # TODO: Delete cache for email annual limit (if used)
-            _warn_service_users_about_annual_email_limit_changed(service_id, current_data)
+    if sms_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+    if email_annual_limit_changed:
+        _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
+        # TODO: abstract this in the annual_limits_client
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS)
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
@@ -346,14 +351,6 @@ def update_service(service_id):
     return jsonify(data=service_schema.dump(fetched_service)), 200
 
 
-def _warn_service_users_about_annual_email_limit_changed(service_id, data):
-    pass
-
-
-def _warn_service_users_about_annual_sms_limit_changed(service_id, data):
-    pass
-
-
 def _warn_service_users_about_message_limit_changed(service_id, data):
     send_notification_to_service_users(
         service_id=service_id,
@@ -375,6 +372,27 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
+        },
+        include_user_fields=["name"],
+    )
+
+
+def _warn_service_users_about_annual_limit_change(service: Service, notification_type: NotificationType):
+    send_notification_to_service_users(
+        service_id=service.id,
+        template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
+            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_limit_en": "{:,}".format(service.email_annual_limit)
+            if notification_type == EMAIL_TYPE
+            else "{:,}".format(service.sms_annual_limit),
+            "message_limit_fr": "{:,}".format(
+                service.email_annual_limit if notification_type == EMAIL_TYPE else service.sms_annual_limit
+            ).replace(",", " "),
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
         },
         include_user_fields=["name"],
     )
@@ -633,10 +651,12 @@ def get_monthly_notification_stats(service_id):
     stats = fetch_notification_status_for_service_by_month(start_date, end_date, service_id)
     statistics.add_monthly_notification_status_stats(data, stats)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    # end_date doesn't have tzinfo, so we need to remove it from now
+    end_date_now = now.replace(tzinfo=None)
     # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > now:
-        todays_deltas = fetch_notification_status_for_service_for_day(convert_utc_to_local_timezone(now), service_id=service_id)
+    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
+        todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
         statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)
