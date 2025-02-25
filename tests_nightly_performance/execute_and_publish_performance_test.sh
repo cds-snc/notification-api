@@ -45,7 +45,7 @@ if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
        --csv "$perf_test_results_folder/sms_send_rate_test"
 fi
 
-# Sleep 30 minutes to allow the tests to finish
+# Sleep 20 minutes to allow the tests to finish
 sleep 1200
 
 # evaluate send rates

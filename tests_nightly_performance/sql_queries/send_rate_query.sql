@@ -37,8 +37,8 @@ rollup as (
         sent_minute
 )
 select day,
-    max(emails_per_minute) as sustained_emails_per_minute,
-    max(sms_per_minute) as sustained_sms_per_minute
+    max(emails_per_minute) as email,
+    max(sms_per_minute) as sms
 from rollup
 group by day
 order by day
