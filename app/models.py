@@ -802,6 +802,8 @@ class TemplateBase(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
     content = db.Column(db.Text, nullable=False)
+    content_as_html = db.Column(db.Text, nullable=True)
+    content_as_plain_text = db.Column(db.Text, nullable=True)
     archived = db.Column(db.Boolean, nullable=False, default=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
     onsite_notification = db.Column(db.Boolean, nullable=False, default=False)
@@ -925,6 +927,8 @@ class TemplateBase(db.Model):
             'created_by': self.created_by.email_address,
             'version': self.version,
             'body': self.content,
+            'html': self.content_as_html,
+            'plain_text': self.content_as_plain_text,
             'subject': self.subject if self.template_type != SMS_TYPE else None,
             'name': self.name,
             'personalisation': {

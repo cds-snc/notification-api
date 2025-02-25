@@ -45,6 +45,8 @@ def test_get_template_by_id_returns_200(
         'version': template.version,
         'created_by': template.created_by.email_address,
         'body': template.content,
+        'html': None,
+        'plain_text': None,
         'subject': template.subject,
         'name': template.name,
         'personalisation': {},

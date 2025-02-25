@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.1.3
+  version: 1.2.0
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -2506,6 +2506,12 @@ components:
           format: date-time
         version:
           type: number
+        content_as_html:
+          type: string
+          nullable: true
+        content_as_plain_text:
+          type: string
+          nullable: true
     CreateHTMLPreviewRequest:
       type: object
       properties:
