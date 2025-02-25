@@ -70,9 +70,18 @@ def expire_api_key(service_id, api_key_id):
 
 @transactional
 def update_last_used_api_key(api_key_id, last_used=None) -> None:
-    api_key = ApiKey.query.filter_by(id=api_key_id).one()
-    api_key.last_used_timestamp = last_used if last_used else datetime.utcnow()
-    db.session.add(api_key)
+    """
+    Update the last_used_timestamp of an API key using a direct SQLAlchemy update.
+    Using update() directly is more efficient than loading the model instance.
+    Setting `synchronize_session=False` improves performance and can be used since we 
+    don't need to access the updated value in the same session.
+    """
+    timestamp = last_used if last_used else datetime.utcnow()
+    
+    ApiKey.query.filter_by(id=api_key_id).update(
+        {"last_used_timestamp": timestamp},
+        synchronize_session=False
+    )
 
 
 @transactional
