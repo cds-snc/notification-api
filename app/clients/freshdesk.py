@@ -125,9 +125,6 @@ class Freshdesk(object):
         try:
             api_url = current_app.config["FRESH_DESK_API_URL"]
             if not api_url:
-                print("=====================")
-                print(self.contact)
-                print("=====================")
                 raise NotImplementedError
 
             if current_app.config["FRESH_DESK_ENABLED"] is True:
