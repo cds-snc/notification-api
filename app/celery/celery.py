@@ -2,7 +2,13 @@ import logging
 import time
 
 from celery import Celery, signals, Task
-from celery.signals import task_prerun, task_postrun, worker_process_shutdown, worker_shutting_down, worker_process_init
+from celery.signals import (
+    task_prerun,
+    task_postrun,
+    worker_process_shutdown,
+    worker_shutting_down,
+    worker_process_init,
+)
 from flask import current_app
 
 
@@ -142,6 +148,9 @@ def _get_request_id(task_id: str, *args, **kwargs) -> str:
 def add_id_to_logger(task_id, task, *args, **kwargs):
     """Create filter for all logs related to this task.
 
+    signal args:
+    'task_id', 'task', 'args', 'kwargs'
+
     Args:
         task_id (str): The celery task id
         task (Task): The celery Task object
@@ -149,10 +158,16 @@ def add_id_to_logger(task_id, task, *args, **kwargs):
     request_id = _get_request_id(task_id, args, kwargs)
     current_app.logger.addFilter(CeleryRequestIdFilter(request_id, f'celery-{request_id}'))
 
+    task_name = getattr(task, 'name', 'UNKNOWN')
+    current_app.logger.debug(f'celery task_prerun task_id: {task_id} | task_name: {task_name}')
+
 
 @task_postrun.connect
 def id_cleanup_logger(task_id, task, *args, **kwargs):
     """Removes previously created filters when they are no longer necessary.
+
+    signal args:
+    'task_id', 'task', 'args', 'kwargs', 'retval'
 
     Args:
         task_id (str): The celery task id
@@ -162,6 +177,54 @@ def id_cleanup_logger(task_id, task, *args, **kwargs):
     for filter in current_app.logger.filters:
         if filter.name == f'celery-{request_id}':
             current_app.logger.removeFilter(filter)
+
+    task_name = getattr(task, 'name', 'UNKNOWN')
+    current_app.logger.debug(f'celery task_postrun task_id: {task_id} | task_name: {task_name}')
+
+
+@signals.task_internal_error.connect
+def log_internal_error(task_id, einfo, *args, **kwargs):
+    """Log internal Celery errors.
+
+    signal args:
+    'task_id', 'args', 'kwargs', 'request', 'exception', 'traceback', 'einfo'
+    """
+    current_app.logger.exception(f'celery task_internal_error task_id: {task_id} | einfo: {einfo}')
+
+
+@signals.task_revoked.connect
+def log_task_revoked(request, terminated, signum, *args, **kwargs):
+    """Log when a task is revoked.
+
+    signal args:
+    'request', 'terminated', 'signum', 'expired'
+    """
+
+    request_task = getattr(request, 'task', 'UNKNOWN')
+    request_id = getattr(request, 'id', 'UNKNOWN')
+    current_app.logger.error(
+        f'celery task_revoked request_task: {request_task} | request_id: {request_id} | terminated: {terminated} | signum: {signum}'
+    )
+
+
+@signals.task_unknown.connect
+def log_task_unknown(message, exc, name, id, *args, **kwargs):
+    """Log when an unknown task is received.
+
+    signal args:
+    'message', 'exc', 'name', 'id'
+    """
+    current_app.logger.exception(f'celery task_unknown name: {name} | id: {id} | message: {message} | error: {exc}')
+
+
+@signals.task_rejected.connect
+def log_task_rejected(message, exc, *args, **kwargs):
+    """Log when a task is rejected.
+
+    signal args:
+    'message', 'exc'
+    """
+    current_app.logger.exception(f'celery task_rejected message: {message} | error: {exc}')
 
 
 @signals.setup_logging.connect
