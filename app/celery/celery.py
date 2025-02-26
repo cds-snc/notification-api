@@ -191,7 +191,13 @@ def id_cleanup_logger(task_id: str, task: Task, *args, **kwargs) -> None:
 
 
 @task_internal_error.connect
-def log_internal_error(task_id: str, request: Request, exception: Exception, *args, **kwargs) -> None:
+def log_internal_error(
+    task_id: str,
+    request: Request,
+    exception: Exception,
+    *args,
+    **kwargs,
+) -> None:
     """Log internal Celery errors.
 
     available signal args:
@@ -209,7 +215,14 @@ def log_internal_error(task_id: str, request: Request, exception: Exception, *ar
 
 
 @task_revoked.connect
-def log_task_revoked(request: Request, terminated: bool, signum: int, expired: bool, *args, **kwargs) -> None:
+def log_task_revoked(
+    request: Request,
+    terminated: bool,
+    signum: int,
+    expired: bool,
+    *args,
+    **kwargs,
+) -> None:
     """Log when a task is revoked.
 
     available signal args:
@@ -230,7 +243,14 @@ def log_task_revoked(request: Request, terminated: bool, signum: int, expired: b
 
 
 @task_unknown.connect
-def log_task_unknown(message: str, exc: Exception, name: str, id: str, *args, **kwargs) -> None:
+def log_task_unknown(
+    message: str,
+    exc: Exception,
+    name: str,
+    id: str,
+    *args,
+    **kwargs,
+) -> None:
     """Log when an unknown task is received.
 
     available signal args:
@@ -238,7 +258,11 @@ def log_task_unknown(message: str, exc: Exception, name: str, id: str, *args, **
     """
     # logger formatter includes notification_id if it is available
     current_app.logger.exception(
-        'celery task_unknown name: %s | id: %s | message: %s | error: %s', name, id, message, exc
+        'celery task_unknown name: %s | id: %s | message: %s | error: %s',
+        name,
+        id,
+        message,
+        exc,
     )
 
 
