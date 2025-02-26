@@ -360,7 +360,7 @@ class TestEmailFreshdeskSensitiveService:
                 freshdesk_client = freshdesk.Freshdesk(ContactRequest(email_address="user@example.com"))
                 freshdesk_client.email_freshdesk_ticket_pt_service()
 
-                mock_email_ticket.assert_called_once_with("sensitive@test.gov.uk", "template-123")
+                mock_email_ticket.assert_called_once_with("sensitive@test.gov.uk", "template-123", mocker.ANY)
 
     def test_email_freshdesk_ticket_pt_service_no_email(self, mocker, notify_api):
         """Test handling when sensitive service email not configured"""
@@ -375,4 +375,4 @@ class TestEmailFreshdeskSensitiveService:
                 freshdesk_client.email_freshdesk_ticket_pt_service()
 
                 mock_logger.assert_called_once_with("SENSITIVE_SERVICE_EMAIL not set")
-                mock_email_ticket.assert_called_once_with(None, "template-123")
+                mock_email_ticket.assert_called_once_with(None, "template-123", mocker.ANY)

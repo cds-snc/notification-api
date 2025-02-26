@@ -512,7 +512,7 @@ class TestPostNotificationsErrors:
 
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             # Success
             create_sample_notification(
                 notify_db,
@@ -521,7 +521,7 @@ class TestPostNotificationsErrors:
                 service=sample_service,
                 created_at=datetime.utcnow(),
             )
-            with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+            with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
                 response = client.post(
                     path="/v2/notifications/{}".format(notification_type),
                     data=json.dumps(data),
@@ -2367,7 +2367,7 @@ class TestBulkSend:
         }
 
         # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2398,7 +2398,7 @@ class TestBulkSend:
         }
 
         # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2790,7 +2790,7 @@ def test_post_bulk_validates_annual_limit(
 
     auth_header = create_authorization_header(service_id=template.service.id)
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
+    with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
         response = client.post(
             path="/v2/notifications/bulk",
             data=json.dumps(data),
@@ -2829,3 +2829,41 @@ class TestSeedingBounceRateData:
 
         if result:
             seed_bounce_rate_in_redis.apply_async.assert_called_once_with(service_id)
+
+
+@pytest.mark.parametrize(
+    "notification_type",
+    [
+        "email",
+        "sms",
+    ],
+)
+def test_post_bulk_returns_429_if_over_rate_limit(
+    notify_db_session,
+    mocker,
+    client,
+    sample_email_template,
+    notify_user,
+    notify_api,
+    notification_type,
+):
+    rows = [["email address"], ["foo@example.com"]]
+    data = {"name": "job_name", "template_id": sample_email_template.id, "rows": rows}
+
+    job_id = str(uuid.uuid4())
+    create_api_key(service=sample_email_template.service)
+    mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+    mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+    mocker.patch(
+        "app.v2.notifications.post_notifications.check_rate_limiting",
+        side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
+    )
+
+    auth_header = create_authorization_header(service_id=sample_email_template.service.id)
+
+    response = client.post(
+        path="/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+    assert response.status_code == 429

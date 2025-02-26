@@ -124,6 +124,29 @@ def test_should_by_able_to_update_status_by_id(sample_template, sample_job):
     assert notification.status == "delivered"
 
 
+def test_should_update_feedback_reason_if_present(sample_template, sample_job):
+    with freeze_time("2000-01-01 12:00:00"):
+        data = _notification_json(sample_template, job_id=sample_job.id, status="sending")
+        notification = Notification(**data)
+        dao_create_notification(notification)
+        assert notification.status == "sending"
+
+    assert Notification.query.get(notification.id).status == "sending"
+
+    with freeze_time("2000-01-02 12:00:00"):
+        updated = update_notification_status_by_id(
+            notification.id, status="provider-failure", feedback_reason="NO_ORIGINATION_IDENTITIES_FOUND"
+        )
+
+    assert updated.status == "provider-failure"
+    assert updated.updated_at == datetime(2000, 1, 2, 12, 0, 0)
+    assert updated.feedback_reason == "NO_ORIGINATION_IDENTITIES_FOUND"
+    assert Notification.query.get(notification.id).status == "provider-failure"
+    assert notification.updated_at == datetime(2000, 1, 2, 12, 0, 0)
+    assert notification.status == "provider-failure"
+    assert notification.feedback_reason == "NO_ORIGINATION_IDENTITIES_FOUND"
+
+
 def test_should_not_update_status_by_id_if_not_sending_and_does_not_update_job(
     sample_job,
 ):

@@ -17,10 +17,12 @@
 				"python.linting.enabled": true,
 				"python.linting.pylintEnabled": true,
 				"python.linting.pylintPath": "/usr/local/bin/pylint",
-				"python.pythonPath": "/usr/local/bin/python"
+				"python.defaultInterpreterPath": "/home/vscode/.venv/workspace/bin/python",
+				"python.venvPath": "/home/vscode/.venv"
 			},
 			"extensions": [
 				"bungcip.better-toml",
+				"charliermarsh.ruff",
 				"donjayamanne.python-extension-pack",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
@@ -37,7 +39,6 @@
 				"ms-vsliveshare.vsliveshare",
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
-				"pmbenjamin.vscode-snyk",
 				"timonwong.shellcheck",
 				"usernamehw.errorlens",
 				"visualstudioexptteam.vscodeintellicode",

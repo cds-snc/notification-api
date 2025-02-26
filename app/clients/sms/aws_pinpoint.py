@@ -4,6 +4,7 @@ import boto3
 import phonenumbers
 
 from app.clients.sms import SmsClient, SmsSendingVehicles
+from app.exceptions import PinpointConflictException, PinpointValidationException
 
 
 class AwsPinpointClient(SmsClient):
@@ -69,8 +70,9 @@ class AwsPinpointClient(SmsClient):
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
                 else:
-                    raise e
-
+                    raise PinpointConflictException(e)
+            except self._client.exceptions.ValidationException as e:
+                raise PinpointValidationException(e)
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise e

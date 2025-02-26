@@ -8,7 +8,7 @@ ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
-RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ libexecinfo-dev make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash build-base git libtool cmake autoconf automake gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl curl-dev rust cargo postgresql-client && rm -rf /var/cache/apk/*
 
 RUN set -ex && mkdir /app
 WORKDIR /app
@@ -32,4 +32,4 @@ RUN . ${APP_VENV}/bin/activate \
 
 RUN echo "fs.file-max = 100000" >> /etc/sysctl.conf
 
-ENTRYPOINT [ "bin/execute_and_publish_performance_test.sh" ]
+ENTRYPOINT [ "tests_nightly_performance/execute_and_publish_performance_test.sh" ]

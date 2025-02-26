@@ -20,7 +20,13 @@ from unidecode import unidecode
 from urllib3 import PoolManager
 from urllib3.util import Retry
 
-from app import bounce_rate_client, clients, document_download_client, statsd_client
+from app import (
+    bounce_rate_client,
+    clients,
+    create_uuid,
+    document_download_client,
+    statsd_client,
+)
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
@@ -37,6 +43,8 @@ from app.exceptions import (
     MalwareDetectedException,
     MalwareScanInProgressException,
     NotificationTechnicalFailureException,
+    PinpointConflictException,
+    PinpointValidationException,
 )
 from app.models import (
     BRANDING_BOTH_EN,
@@ -99,8 +107,9 @@ def send_sms_to_provider(notification):
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
             current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
-            notification.reference = send_sms_response(provider.get_name(), notification.to)
+            notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
+            send_sms_response(provider.get_name(), notification.to, notification.reference)
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
@@ -119,6 +128,8 @@ def send_sms_to_provider(notification):
                     service_id=notification.service_id,
                     sending_vehicle=sending_vehicle,
                 )
+            except (PinpointConflictException, PinpointValidationException) as e:
+                raise e
             except Exception as e:
                 notification.billable_units = template.fragment_count
                 dao_update_notification(notification)

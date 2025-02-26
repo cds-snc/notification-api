@@ -464,7 +464,7 @@ def test_get_all_notifications_filter_by_status_invalid_status(client, sample_no
     assert len(json_response["errors"]) == 1
     assert (
         json_response["errors"][0]["message"] == "status elephant is not one of [cancelled, created, sending, "
-        "sent, delivered, pending, failed, technical-failure, temporary-failure, permanent-failure, "
+        "sent, delivered, pending, failed, technical-failure, temporary-failure, permanent-failure, provider-failure, "
         "pending-virus-check, validation-failed, virus-scan-failed, returned-letter, "
         "pii-check-failed, accepted, received]"
     )
