@@ -195,7 +195,7 @@ def test_get_fiscal_dates_raises_value_error():
 
 def test_rate_limit_db_calls_no_redis(notify_api, mocker):
     mock_redis = mocker.patch("app.redis_store.get")
-    mock_redis_set = mocker.patch("app.redis_store.setex")
+    mock_redis_set = mocker.patch("app.redis_store.set")
 
     # Create test function with rate limiting
     @rate_limit_db_calls("test_prefix")
@@ -215,7 +215,7 @@ def test_rate_limit_db_calls_no_redis(notify_api, mocker):
 
 def test_rate_limit_db_calls_first_call(notify_api, mocker):
     mock_redis = mocker.patch("app.redis_store.get", return_value=None)
-    mock_redis_set = mocker.patch("app.redis_store.setex")
+    mock_redis_set = mocker.patch("app.redis_store.set")
 
     @rate_limit_db_calls("test_prefix", period_seconds=30)
     def limited_function(key_id):
@@ -228,12 +228,12 @@ def test_rate_limit_db_calls_first_call(notify_api, mocker):
         result = limited_function("123")
         assert result == "called"
         mock_redis.assert_called_once_with("test_prefix:123")
-        mock_redis_set.assert_called_once_with("test_prefix:123", 30, "1")
+        mock_redis_set.assert_called_once_with("test_prefix:123", "1", ex=30)
 
 
 def test_rate_limit_db_calls_blocked(notify_api, mocker):
     mock_redis = mocker.patch("app.redis_store.get", return_value="1")
-    mock_redis_set = mocker.patch("app.redis_store.setex")
+    mock_redis_set = mocker.patch("app.redis_store.set")
 
     @rate_limit_db_calls("test_prefix")
     def limited_function(key_id):

@@ -361,8 +361,8 @@ def rate_limit_db_calls(key_prefix: str, period_seconds: int = 60) -> Callable:
             if redis_store.get(key):
                 return None  # Skip update if within rate limit period
 
-            # Set key with expiry
-            redis_store.setex(key, period_seconds, "1")
+            # Set key with expiry - the "1" value is meaningless
+            redis_store.set(key, "1", ex=period_seconds)
 
             return func(*args, **kwargs)
 
