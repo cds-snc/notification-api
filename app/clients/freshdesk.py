@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Dict, List, Union
 from urllib.parse import urljoin
 
@@ -42,7 +43,8 @@ class Freshdesk(object):
                 self.contact.department_org_name = self.contact.department_org_name.replace(">", "/")
             message = "<br>".join(
                 [
-                    f"{self.contact.service_name} just requested to go live.",
+                    f"{self.contact.service_name} just requested to go live",
+                    f"{datetime.now().astimezone(tz=None).strftime('%Y-%m-%d %H:%M:%S %Z%z')}",
                     "",
                     f"- Department/org: {self.contact.department_org_name}",
                     f"- Intended recipients: {self.contact.intended_recipients}",

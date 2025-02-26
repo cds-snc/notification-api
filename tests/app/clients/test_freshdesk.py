@@ -68,22 +68,27 @@ class TestSendTicket:
                 assert response == 201
                 email_freshdesk_ticket_mock.assert_not_called()
 
-    def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask):
+    def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask, mocker):
+        mock_datetime = mocker.patch('app.clients.freshdesk.datetime')
+        mock_datetime.now.return_value.astimezone.return_value.strftime.return_value = '2023-10-10 10:10:10 UTC+0000'
+        
         def match_json(request):
             expected = {
                 "product_id": 42,
                 "subject": "Support Request",
-                "description": "t6 just requested to go live.<br>"
+                "description": "t6 just requested to go live<br>"
+                "2023-10-10 10:10:10 UTC+0000<br>"
                 "<br>"
                 "- Department/org: department_org_name<br>"
                 "- Intended recipients: internal, external, public<br>"
-                "- Purpose: main_use_case<br>"
+                "- Purpose: main, use, cases<br>"
+                "- Other purpose: Other use cases<br>"
                 "<br>"
-                "- Expected email volumes:<br>"
-                "- Daily: above_limit (None)<br>"
+                "*Expected email volumes:*<br>"
+                "- Daily: above_limit (99888)<br>"
                 "- Yearly: within_limit<br>"
                 "<br>"
-                "- Expected SMS volumes:<br>"
+                "*Expected SMS volumes:*<br>"
                 "- Daily: more_sms (54321)<br>"
                 "- Yearly: above_limit<br>"
                 "---<br>"
@@ -112,20 +117,20 @@ class TestSendTicket:
                 "name": "name",
                 "department_org_name": "department_org_name",
                 "intended_recipients": "internal, external, public",
-                "main_use_case": "main_use_case",
+                "main_use_case": "main, use, cases",
+                "other_use_case": "Other use cases",
                 "friendly_support_type": "Support Request",
                 "support_type": "go_live_request",
                 "service_name": "t6",
                 "service_id": "8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "service_url": "http://localhost:6012/services/8624bd36-b70b-4d4b-a459-13e1f4770b92",
                 "notification_types": "email, sms",
-                "expected_volume": "100k+",
                 "daily_email_volume": "above_limit",
                 "annual_email_volume": "within_limit",
                 "daily_sms_volume": "more_sms",
                 "annual_sms_volume": "above_limit",
-                "how_many_more_email": None,
-                "how_many_more_sms": 54321,
+                "exact_daily_email": 99888,
+                "exact_daily_sms": 54321,
             }
             with notify_api.app_context():
                 response = freshdesk.Freshdesk(ContactRequest(**data)).send_ticket()

@@ -22,6 +22,7 @@ class ContactRequest:
     intended_recipients: str = field(default="")
     main_use_case: str = field(default="")
     other_use_case: str = field(default="")
+    main_use_case_details: str = field(default="")
     friendly_support_type: str = field(default="Support Request")
     support_type: str = field(default="")
     language: str = field(default="en")
