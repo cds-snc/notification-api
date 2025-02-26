@@ -18,7 +18,11 @@ def test_task_prerun_logging(mocker, notify_api):
 
     task_prerun.send(sender=None, task_id=task_id, task=task)
 
-    mock_logger.assert_called_once_with('celery task_prerun task_id: %s | task_name: %s', task_id, task.name)
+    mock_logger.assert_called_once_with(
+        'celery task_prerun task_id: %s | task_name: %s',
+        task_id,
+        task.name,
+    )
 
 
 def test_task_postrun_logging(mocker, notify_api):
@@ -30,7 +34,11 @@ def test_task_postrun_logging(mocker, notify_api):
 
     task_postrun.send(sender=None, task_id=task_id, task=task)
 
-    mock_logger.assert_called_once_with('celery task_postrun task_id: %s | task_name: %s', task_id, task.name)
+    mock_logger.assert_called_once_with(
+        'celery task_postrun task_id: %s | task_name: %s',
+        task_id,
+        task.name,
+    )
 
 
 def test_task_internal_error_logging(mocker, notify_api):
@@ -41,7 +49,12 @@ def test_task_internal_error_logging(mocker, notify_api):
     request = MagicMock(task_name='dummy_task')
     exception = ValueError('Test error message')
 
-    task_internal_error.send(sender=None, task_id=task_id, request=request, exception=exception)
+    task_internal_error.send(
+        sender=None,
+        task_id=task_id,
+        request=request,
+        exception=exception,
+    )
 
     mock_logger.assert_called_once_with(
         'celery task_internal_error task_id: %s | task_name: %s | exception: %s',
@@ -60,7 +73,13 @@ def test_task_revoked_logging(mocker, notify_api):
     expired = False
     signum = 9
 
-    task_revoked.send(sender=None, request=request, terminated=terminated, signum=signum, expired=expired)
+    task_revoked.send(
+        sender=None,
+        request=request,
+        terminated=terminated,
+        signum=signum,
+        expired=expired,
+    )
 
     mock_logger.assert_called_once_with(
         'celery task_revoked request_task: %s | request_id: %s | terminated: %s | signum: %s | expired: %s',
