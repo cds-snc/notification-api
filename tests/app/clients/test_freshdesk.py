@@ -69,9 +69,9 @@ class TestSendTicket:
                 email_freshdesk_ticket_mock.assert_not_called()
 
     def test_send_ticket_go_live_request(self, email_freshdesk_ticket_mock, notify_api: Flask, mocker):
-        mock_datetime = mocker.patch('app.clients.freshdesk.datetime')
-        mock_datetime.now.return_value.astimezone.return_value.strftime.return_value = '2023-10-10 10:10:10 UTC+0000'
-        
+        mock_datetime = mocker.patch("app.clients.freshdesk.datetime")
+        mock_datetime.now.return_value.astimezone.return_value.strftime.return_value = "2023-10-10 10:10:10 UTC+0000"
+
         def match_json(request):
             expected = {
                 "product_id": 42,
