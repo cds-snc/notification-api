@@ -37,10 +37,12 @@ class Freshdesk(object):
                 ]
             )
         elif self.contact.is_go_live_request():
+            print("=====================")
+            print(self.contact.department_org_name)
+            print("=====================")
             # the ">" character breaks rendering for the freshdesk preview in slack
             if self.contact.department_org_name:
                 self.contact.department_org_name = self.contact.department_org_name.replace(">", "/")
-
             message = "<br>".join(
                 [
                     f"{self.contact.service_name} just requested to go live.",
@@ -50,11 +52,11 @@ class Freshdesk(object):
                     f"- Purpose: {self.contact.main_use_case}",
                     f"- Other purpose: {self.contact.other_use_case}",
                     "<br>",
-                    "<b>Expected email volumes:</b>",
+                    "*Expected email volumes:*",
                     f"- Daily: {self.contact.daily_email_volume} ({self.contact.exact_daily_email})",
                     f"- Yearly: {self.contact.annual_email_volume}",
                     "<br>",
-                    "<b>Expected SMS volumes:</b>",
+                    "*Expected SMS volumes:*",
                     f"- Daily: {self.contact.daily_sms_volume} ({self.contact.exact_daily_sms})",
                     f"- Yearly: {self.contact.annual_sms_volume}",
                     "---",
@@ -123,6 +125,9 @@ class Freshdesk(object):
         try:
             api_url = current_app.config["FRESH_DESK_API_URL"]
             if not api_url:
+                print("=====================")
+                print(self.contact)
+                print("=====================")
                 raise NotImplementedError
 
             if current_app.config["FRESH_DESK_ENABLED"] is True:
