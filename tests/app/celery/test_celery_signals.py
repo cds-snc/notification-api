@@ -1,4 +1,3 @@
-from unittest.mock import MagicMock
 from celery.signals import (
     task_prerun,
     task_postrun,
@@ -7,7 +6,7 @@ from celery.signals import (
     task_unknown,
     task_rejected,
 )
-from billiard.einfo import ExceptionInfo
+from unittest.mock import MagicMock
 
 
 def test_task_prerun_logging(mocker, notify_api):
@@ -19,7 +18,7 @@ def test_task_prerun_logging(mocker, notify_api):
 
     task_prerun.send(sender=None, task_id=task_id, task=task)
 
-    mock_logger.assert_called_once_with(f'celery task_prerun task_id: {task_id} | task_name: {task.name}')
+    mock_logger.assert_called_once_with('celery task_prerun task_id: %s | task_name: %s', task_id, task.name)
 
 
 def test_task_postrun_logging(mocker, notify_api):
@@ -31,7 +30,7 @@ def test_task_postrun_logging(mocker, notify_api):
 
     task_postrun.send(sender=None, task_id=task_id, task=task)
 
-    mock_logger.assert_called_once_with(f'celery task_postrun task_id: {task_id} | task_name: {task.name}')
+    mock_logger.assert_called_once_with('celery task_postrun task_id: %s | task_name: %s', task_id, task.name)
 
 
 def test_task_internal_error_logging(mocker, notify_api):
@@ -39,15 +38,17 @@ def test_task_internal_error_logging(mocker, notify_api):
     mock_logger = mocker.patch('app.celery.celery.current_app.logger.exception')
 
     task_id = '12345'
+    request = MagicMock(task_name='dummy_task')
+    exception = ValueError('Test error message')
 
-    try:
-        raise ValueError('Test error message')
-    except ValueError:
-        einfo = ExceptionInfo()
+    task_internal_error.send(sender=None, task_id=task_id, request=request, exception=exception)
 
-    task_internal_error.send(sender=None, task_id=task_id, einfo=einfo)
-
-    mock_logger.assert_called_once_with(f'celery task_internal_error task_id: {task_id} | einfo: {einfo}')
+    mock_logger.assert_called_once_with(
+        'celery task_internal_error task_id: %s | task_name: %s | exception: %s',
+        task_id,
+        request.task_name,
+        exception,
+    )
 
 
 def test_task_revoked_logging(mocker, notify_api):
@@ -56,12 +57,18 @@ def test_task_revoked_logging(mocker, notify_api):
 
     request = MagicMock(task='dummy_task', id='12345')
     terminated = True
+    expired = False
     signum = 9
 
-    task_revoked.send(sender=None, request=request, terminated=terminated, signum=signum)
+    task_revoked.send(sender=None, request=request, terminated=terminated, signum=signum, expired=expired)
 
     mock_logger.assert_called_once_with(
-        f'celery task_revoked request_task: {request.task} | request_id: {request.id} | terminated: {terminated} | signum: {signum}'
+        'celery task_revoked request_task: %s | request_id: %s | terminated: %s | signum: %s | expired: %s',
+        request.task,
+        request.id,
+        terminated,
+        signum,
+        expired,
     )
 
 
@@ -77,7 +84,11 @@ def test_task_unknown_logging(mocker, notify_api):
     task_unknown.send(sender=None, message=message, exc=exc, name=name, id=id)
 
     mock_logger.assert_called_once_with(
-        f'celery task_unknown name: {name} | id: {id} | message: {message} | error: {exc}'
+        'celery task_unknown name: %s | id: %s | message: %s | error: %s',
+        name,
+        id,
+        message,
+        exc,
     )
 
 
@@ -90,4 +101,8 @@ def test_task_rejected_logging(mocker, notify_api):
 
     task_rejected.send(sender=None, message=message, exc=exc)
 
-    mock_logger.assert_called_once_with(f'celery task_rejected message: {message} | error: {exc}')
+    mock_logger.assert_called_once_with(
+        'celery task_rejected message: %s | error: %s',
+        message,
+        exc,
+    )
