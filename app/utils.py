@@ -1,6 +1,7 @@
+import functools
 import os
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Callable
 
 import pytz
 from flask import current_app, url_for
@@ -17,6 +18,7 @@ from notifications_utils.template import (
 )
 from sqlalchemy import func
 
+from app import redis_store
 from app.config import Priorities, QueueNames
 
 local_timezone = pytz.timezone(os.getenv("TIMEZONE", "America/Toronto"))
@@ -323,3 +325,47 @@ def get_fiscal_dates(current_date=None, year=None):
         fiscal_year_end = datetime(year + 1, fiscal_year_start_month - 1, 31)
 
     return fiscal_year_start, fiscal_year_end
+
+
+def rate_limit_db_calls(key_prefix: str, period_seconds: int = 60) -> Callable:
+    """
+    Rate limit database operations using Redis. Once the function is called, subsequent calls
+    with the same arguments will be blocked until the rate limit period expires.
+
+    Args:
+        key_prefix: Prefix for the Redis key
+        period_seconds: How long before the rate limit expires, in seconds. For example,
+            if period_seconds=60, the function can only be called once per minute. After
+            60 seconds, the rate limit resets and the function can be called again.
+
+    Returns:
+        Decorated function that will be rate limited
+
+    Example:
+        @rate_limit_db_calls("update_key", period_seconds=60)
+        def update_something(key_id):
+            # This database operation can only be called once per minute for each key_id
+            pass
+    """
+
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            if not current_app.config["REDIS_ENABLED"]:
+                return func(*args, **kwargs)
+
+            # Create unique key for this function call
+            key = f"{key_prefix}:{args[0]}"  # args[0] is api_key_id
+
+            # Try to get the key
+            if redis_store.get(key):
+                return None  # Skip update if within rate limit period
+
+            # Set key with expiry
+            redis_store.setex(key, period_seconds, "1")
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

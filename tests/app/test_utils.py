@@ -17,6 +17,7 @@ from app.utils import (
     get_logo_url,
     get_midnight_for_day_before,
     midnight_n_days_ago,
+    rate_limit_db_calls,
     update_dct_to_str,
 )
 from tests.app.db import create_template
@@ -190,3 +191,59 @@ def test_get_fiscal_dates(current_date, year, expected_start, expected_end):
 def test_get_fiscal_dates_raises_value_error():
     with pytest.raises(ValueError):
         get_fiscal_dates(current_date=datetime(2023, 4, 1), year=2023)
+
+
+def test_rate_limit_db_calls_no_redis(notify_api, mocker):
+    mock_redis = mocker.patch("app.redis_store.get")
+    mock_redis_set = mocker.patch("app.redis_store.setex")
+
+    # Create test function with rate limiting
+    @rate_limit_db_calls("test_prefix")
+    def limited_function(key_id):
+        return "called"
+
+    with notify_api.test_request_context():
+        # Disable redis
+        notify_api.config["REDIS_ENABLED"] = False
+
+        # Should call through without checking redis
+        result = limited_function("123")
+        assert result == "called"
+        mock_redis.assert_not_called()
+        mock_redis_set.assert_not_called()
+
+
+def test_rate_limit_db_calls_first_call(notify_api, mocker):
+    mock_redis = mocker.patch("app.redis_store.get", return_value=None)
+    mock_redis_set = mocker.patch("app.redis_store.setex")
+
+    @rate_limit_db_calls("test_prefix", period_seconds=30)
+    def limited_function(key_id):
+        return "called"
+
+    with notify_api.test_request_context():
+        notify_api.config["REDIS_ENABLED"] = True
+
+        # First call should succeed and set redis key
+        result = limited_function("123")
+        assert result == "called"
+        mock_redis.assert_called_once_with("test_prefix:123")
+        mock_redis_set.assert_called_once_with("test_prefix:123", 30, "1")
+
+
+def test_rate_limit_db_calls_blocked(notify_api, mocker):
+    mock_redis = mocker.patch("app.redis_store.get", return_value="1")
+    mock_redis_set = mocker.patch("app.redis_store.setex")
+
+    @rate_limit_db_calls("test_prefix")
+    def limited_function(key_id):
+        return "called"
+
+    with notify_api.test_request_context():
+        notify_api.config["REDIS_ENABLED"] = True
+
+        # Call should be blocked by existing redis key
+        result = limited_function("123")
+        assert result is None
+        mock_redis.assert_called_once_with("test_prefix:123")
+        mock_redis_set.assert_not_called()
