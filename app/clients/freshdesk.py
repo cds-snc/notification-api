@@ -37,9 +37,6 @@ class Freshdesk(object):
                 ]
             )
         elif self.contact.is_go_live_request():
-            print("=====================")
-            print(self.contact.department_org_name)
-            print("=====================")
             # the ">" character breaks rendering for the freshdesk preview in slack
             if self.contact.department_org_name:
                 self.contact.department_org_name = self.contact.department_org_name.replace(">", "/")
