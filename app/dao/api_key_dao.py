@@ -70,14 +70,14 @@ def expire_api_key(service_id, api_key_id):
 
 
 @transactional
-@rate_limit_db_calls(key_prefix="update_api_key_last_used", period_seconds=60)
+@rate_limit_db_calls(key_prefix="update_api_key_last_used", period_seconds=10)
 def update_last_used_api_key(api_key_id, last_used=None) -> None:
     """
     Update the last_used_timestamp of an API key using a direct SQLAlchemy update.
     Using update() directly is more efficient than loading the model instance.
     Setting `synchronize_session=False` improves performance and can be used since we
     don't need to access the updated value in the same session.
-    Rate limited to once per minute using Redis.
+    Rate limited to once every 10 seconds using Redis.
     """
     timestamp = last_used if last_used else datetime.utcnow()
 
