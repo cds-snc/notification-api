@@ -28,7 +28,7 @@ echo -e "complete -F __start_kubectl k" >> ~/.zshrc
 echo -e "alias smoke-local='cd /workspace && cp .env_smoke_local tests_smoke/.env && poetry run make smoke-test-local'" >> ~/.zshrc
 echo -e "alias smoke-staging='cd /workspace && cp .env_smoke_staging tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
 echo -e "alias smoke-prod='cd /workspace && cp .env_smoke_prod tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
-echo -e "alias smoke-dev='cd /workspace && cp .env_smoke_dev tests_smoke/.env && poetry run make smoke-test'" >> ~/.zshrc
+echo -e "alias smoke-dev='cd /workspace && cp .env_smoke_dev tests_smoke/.env && poetry run make smoke-test-dev'" >> ~/.zshrc
 
 echo -e "# fzf key bindings and completion" >> ~/.zshrc
 echo -e "source /usr/share/doc/fzf/examples/key-bindings.zsh" >> ~/.zshrc
@@ -45,10 +45,20 @@ export PATH=$PATH:/home/vscode/.local/bin/
 which poetry
 poetry --version
 
+# Disable poetry auto-venv creation
+poetry config virtualenvs.create false
+
 # Initialize poetry autocompletions
 mkdir ~/.zfunc
 touch ~/.zfunc/_poetry
 poetry completions zsh > ~/.zfunc/_poetry
+
+# Manually create and activate a virtual environment with a static path
+python -m venv "${POETRY_VENV_PATH}"
+source "${POETRY_VENV_PATH}/bin/activate"
+
+# Ensure newly created shells activate the poetry venv
+echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 
 make generate-version-file
 

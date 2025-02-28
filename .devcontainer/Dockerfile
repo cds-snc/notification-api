@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:3.12
 
 ARG KUBENS_VERSION="0.9.4"
 ENV POETRY_VERSION="1.7.1"
+ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 
 # Install packages
 RUN apt-get update \
