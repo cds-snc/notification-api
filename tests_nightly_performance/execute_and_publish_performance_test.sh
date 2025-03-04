@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Post to Slack
-json='{"text":"Performance tests starting"}'
+json='{"text":":warning: Performance tests starting :rotating-light-blue:"}'
 curl -X POST -H 'Content-type: application/json' --data "$json" "${PERF_TEST_SLACK_WEBHOOK}"
 
 # Setup
