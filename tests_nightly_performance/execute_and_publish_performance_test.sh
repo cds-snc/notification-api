@@ -62,5 +62,5 @@ aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --rec
 rm -rf "${perf_test_csv_directory_path:?}"
 
 # Post to Slack
-json='{"text":"Performance tests complete"}'
+json='{"text":":warning: Performance tests complete :rotating-light-blue:"}'
 curl -X POST -H 'Content-type: application/json' --data "$json" "${PERF_TEST_SLACK_WEBHOOK}"
