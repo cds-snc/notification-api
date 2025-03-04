@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Post to Slack
+json='{"text":":warning: Performance tests starting :rotating-light-blue:"}'
+curl -X POST -H 'Content-type: application/json' --data "$json" "${PERF_TEST_SLACK_WEBHOOK}"
+
 # Setup
 current_month=$(date "+%Y.%m")
 current_time=$(date "+%Y.%m.%d-%H.%M.%S")
@@ -56,3 +60,7 @@ aws s3 cp "$perf_test_csv_directory_path/" "s3://$perf_test_aws_s3_bucket" --rec
 
 # Cleanup
 rm -rf "${perf_test_csv_directory_path:?}"
+
+# Post to Slack
+json='{"text":":warning: Performance tests complete :rotating-light-blue:"}'
+curl -X POST -H 'Content-type: application/json' --data "$json" "${PERF_TEST_SLACK_WEBHOOK}"
