@@ -25,7 +25,6 @@ def test_contact_info():
         "service_id": "service_id",
         "service_url": "service_url",
         "notification_types": "notification_types",
-        "expected_volume": "expected_volume",
     }
     contact = ContactRequest(**mock_dict)
     assert mock_dict["email_address"] == contact.email_address
@@ -44,7 +43,6 @@ def test_contact_info():
     assert mock_dict["service_id"] == contact.service_id
     assert mock_dict["service_url"] == contact.service_url
     assert mock_dict["notification_types"] == contact.notification_types
-    assert mock_dict["expected_volume"] == contact.expected_volume
 
 
 def test_contact_info_defaults():
@@ -68,7 +66,6 @@ def test_contact_info_defaults():
     assert contact.service_id == ""
     assert contact.service_url == ""
     assert contact.notification_types == ""
-    assert contact.expected_volume == ""
 
 
 @pytest.mark.parametrize(
