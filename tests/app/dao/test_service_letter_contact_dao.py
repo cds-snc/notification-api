@@ -1,12 +1,9 @@
-import uuid
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.dao.service_letter_contact_dao import (
     add_letter_contact_for_service,
     archive_letter_contact,
     dao_get_letter_contacts_by_service_id,
-    dao_get_letter_contact_by_id,
     update_letter_contact,
 )
 from app.models import ServiceLetterContact
@@ -198,30 +195,3 @@ def test_archive_letter_contact_does_dissociates_template_defaults_before_archiv
     assert associated_template_1.reply_to is None
     assert associated_template_2.reply_to is None
     assert template_default.archived is True
-
-
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
-def test_dao_get_letter_contact_by_id(sample_service):
-    letter_contact = create_letter_contact(service=sample_service, contact_block='Aberdeen, AB12 23X')
-    result = dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=letter_contact.id)
-    assert result == letter_contact
-
-
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
-def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_letter_contact_does_not_exist(sample_service):
-    with pytest.raises(SQLAlchemyError):
-        dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=uuid.uuid4())
-
-
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
-def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_letter_contact_is_archived(sample_service):
-    archived_contact = create_letter_contact(service=sample_service, contact_block='Aberdeen, AB12 23X', archived=True)
-    with pytest.raises(SQLAlchemyError):
-        dao_get_letter_contact_by_id(service_id=sample_service.id, letter_contact_id=archived_contact.id)
-
-
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
-def test_dao_get_letter_contact_by_id_raises_sqlalchemy_error_when_service_does_not_exist(sample_service):
-    letter_contact = create_letter_contact(service=sample_service, contact_block='Some address')
-    with pytest.raises(SQLAlchemyError):
-        dao_get_letter_contact_by_id(service_id=uuid.uuid4(), letter_contact_id=letter_contact.id)

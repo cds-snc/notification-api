@@ -636,8 +636,22 @@ def service_cleanup(  # noqa: C901
         # Clear service_letter_contacts
         session.execute(delete(ServiceLetterContact).where(ServiceLetterContact.service_id == service_id))
 
-        # Clear template_folder
+        # Clear template_folder and template_reacted object
+        template_ids_query = select(Template.id).where(Template.service_id == service_id)
+        template_ids = session.scalars(template_ids_query).all()
+
+        session.execute(delete(TemplateRedacted).where(TemplateRedacted.template_id.in_(template_ids)))
+        session.execute(delete(template_folder_map).where(template_folder_map.c.template_id.in_(template_ids)))
+
         session.execute(delete(TemplateFolder).where(TemplateFolder.service_id == service_id))
+        session.execute(delete(TemplateHistory).where(TemplateHistory.service_id == service_id))
+        session.execute(delete(Template).where(Template.service_id == service_id))
+
+        # Clear communication items
+        communication_item_ids_query = select(Template.communication_item_id).where(Template.service_id == service_id)
+        communication_item_ids = session.scalars(communication_item_ids_query).all()
+
+        session.execute(delete(CommunicationItem).where(CommunicationItem.id.in_(communication_item_ids)))
 
         # Clear user_to_service
         session.execute(delete(user_folder_permissions).where(user_folder_permissions.c.service_id == service_id))
@@ -1704,6 +1718,19 @@ def sample_provider(notify_db_session, worker_id):
     yield _sample_provider
 
     # Teardown
+
+    # Clear template_folder and template_reacted
+    template_ids_query = select(Template.id).where(Template.provider_id.in_(created_provider_ids[worker_id]))
+    template_ids = notify_db_session.session.scalars(template_ids_query).all()
+
+    notify_db_session.session.execute(delete(TemplateRedacted).where(TemplateRedacted.template_id.in_(template_ids)))
+    notify_db_session.session.execute(
+        delete(template_folder_map).where(template_folder_map.c.template_id.in_(template_ids))
+    )
+
+    stmt = delete(Template).where(Template.provider_id.in_(created_provider_ids[worker_id]))
+    notify_db_session.session.execute(stmt)
+
     stmt = delete(ProviderDetailsHistory).where(ProviderDetailsHistory.id.in_(created_provider_ids[worker_id]))
     notify_db_session.session.execute(stmt)
 

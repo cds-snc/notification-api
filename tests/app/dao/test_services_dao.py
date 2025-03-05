@@ -1248,7 +1248,6 @@ def test_dao_fetch_todays_total_message_count_returns_count_for_today(
     assert fetch_todays_total_message_count(service.id) == sms_qty * 2 + email_qty * 2 + 2  # 38 notifications
 
 
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
 def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_today(
     sample_service,
 ):

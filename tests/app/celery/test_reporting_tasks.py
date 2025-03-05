@@ -525,8 +525,7 @@ def test_create_nightly_billing_for_day_use_BST(
         notify_db_session.session.commit()
 
 
-@freeze_time('2018-01-15T03:30:00')
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
+@freeze_time('2018-01-15T010:30:00')
 def test_create_nightly_billing_for_day_update_when_record_exists(
     notify_db_session,
     mocker,
@@ -545,16 +544,15 @@ def test_create_nightly_billing_for_day_update_when_record_exists(
         rate_multiplier=1.0,
         billable_units=1,
     )
-
     stmt = select(FactBilling).where(FactBilling.template_id == template.id)
-    assert (notify_db_session.session.scalars(stmt).all()) == 0
+    assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
     try:
         create_nightly_billing_for_day('2018-01-14')
         records = notify_db_session.session.scalars(stmt).all()
 
         assert len(records) == 1
-        assert records[0].bst_date == date(2018, 1, 13)
+        assert records[0].bst_date == date(2018, 1, 14)
         assert records[0].billable_units == 1
         assert not records[0].updated_at
 

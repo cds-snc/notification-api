@@ -1,7 +1,6 @@
 import json
 from datetime import datetime, date
 
-import pytest
 from flask import url_for
 
 from app.dao.templates_dao import dao_update_template
@@ -60,18 +59,21 @@ def test_404_missing_template_version(notify_api, sample_template):
             assert resp.status_code == 404
 
 
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped.')
-def test_all_versions_of_template(notify_api, sample_template):
-    template = sample_template()
+def test_all_versions_of_template(notify_db_session, notify_api, sample_template):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
+            template = sample_template()
             old_content = template.content
             newer_content = 'Newer content'
             newest_content = 'Newest content'
+
             template.content = newer_content
             dao_update_template(template)
+            notify_db_session.session.refresh(template)
+
             template.content = newest_content
             dao_update_template(template)
+
             auth_header = create_admin_authorization_header()
             endpoint = url_for(
                 'template.get_template_versions', service_id=template.service.id, template_id=template.id

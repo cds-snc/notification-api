@@ -2,8 +2,6 @@ import pytest
 from flask import json
 from uuid import uuid4
 
-from tests.app.db import create_organisation
-
 
 @pytest.mark.parametrize('path', ['/', '/_status'])
 def test_get_status_all_ok(client, path):
@@ -16,7 +14,7 @@ def test_get_status_all_ok(client, path):
     assert resp_json['build_time']
 
 
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped')
+@pytest.mark.serial
 def test_empty_live_service_and_organisation_counts(admin_request):
     assert admin_request.get('status.live_service_and_organisation_counts') == {
         'organisations': 0,
@@ -24,10 +22,10 @@ def test_empty_live_service_and_organisation_counts(admin_request):
     }
 
 
-@pytest.mark.skip(reason='Mislabelled for route removal, fails when unskipped')
-def test_populated_live_service_and_organisation_counts(admin_request, sample_service):
+@pytest.mark.serial
+def test_populated_live_service_and_organisation_counts(admin_request, sample_organisation, sample_service):
     # Org 1 has three real live services and one fake, for a total of 3
-    org_1 = create_organisation('org 1')
+    org_1 = sample_organisation('org 1')
     live_service_1 = sample_service(service_name=f'1_{uuid4()}')
     live_service_1.organisation = org_1
     live_service_2 = sample_service(service_name=f'2_{uuid4()}')
@@ -43,7 +41,7 @@ def test_populated_live_service_and_organisation_counts(admin_request, sample_se
     sample_service(service_name=f'4_{uuid4()}')
 
     # Org 2 has no real live services
-    org_2 = create_organisation('org 2')
+    org_2 = sample_organisation('org 2')
     trial_service_1 = sample_service(service_name=f't1_{uuid4()}', restricted=True)
     trial_service_1.organisation = org_2
     fake_live_service_2 = sample_service(service_name=f'f2_{uuid4()}', count_as_live=False)
@@ -51,8 +49,8 @@ def test_populated_live_service_and_organisation_counts(admin_request, sample_se
     inactive_service_2 = sample_service(service_name=f'i2_{uuid4()}', active=False)
     inactive_service_2.organisation = org_2
 
-    # Org 2 has no services at all
-    create_organisation('org 3')
+    # Org 3 has no services at all
+    sample_organisation('org 3')
 
     # This service isn’t associated to an org, and should not be counted as live
     # because it’s marked as not counted
