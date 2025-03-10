@@ -23,7 +23,7 @@ from app.constants import (
     STATUS_REASON_UNREACHABLE,
 )
 from app.dao.notifications_dao import get_notification_by_id
-from app.models import Complaint, Notification, Service, Template
+from app.models import Complaint, Notification, NotificationHistory, Service, Template
 from app.model import User
 from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
@@ -33,6 +33,39 @@ from tests.app.db import (
     create_service_callback_api,
     ses_complaint_callback,
 )
+
+
+def ses_notification_complaint_callback(reference):
+    """Sample callback data for an SES complaint event"""
+    ses_message_body = {
+        'complaint': {
+            'arrivalDate': str(datetime.utcnow()),
+            'complaintSubType': None,
+            'feedbackId': reference,
+            'timestamp': str(datetime.utcnow()),
+            'complainedRecipients': [{'emailAddress': 'richard@example.com'}],
+        },
+        'eventType': 'Complaint',
+        'mail': {
+            'headersTruncated': False,
+            'messageId': reference,
+            'sendingAccountId': '171875617347',
+            'source': '"U.S. Department of Veterans Affairs" <do-not-reply@notifications.va.gov>',
+            'sourceArn': 'arn:aws-us-gov:ses:us-gov-west-1:171875617347:identity/notifications.va.gov',
+            'destination': ['richard@example.com'],
+            'tags': {
+                'ses:caller-identity': ['project-dev-notification-api-task-role'],
+                'ses:configuration-set': ['dev-configuration-set'],
+                'ses:from-domain': ['dev-notifications.va.gov'],
+                'ses:operation': ['SendRawEmail'],
+                'ses:source-ip': ['152.129.43.2'],
+                'ses:source-tls-version': ['TLSv1.3'],
+            },
+            'timestamp': str(datetime.utcnow()),
+        },
+    }
+
+    return {'Message': json.dumps(ses_message_body)}
 
 
 def test_process_ses_results(notify_db_session, sample_template, sample_notification, mocker):
@@ -59,6 +92,49 @@ def test_process_ses_results(notify_db_session, sample_template, sample_notifica
     notify_db_session.session.refresh(notification)
     assert notification.status == NOTIFICATION_DELIVERED
     assert notification.status_reason is None
+
+
+def test_process_ses_results_notification_complaint(notify_db_session, sample_template, sample_notification, mocker):
+    """Test that SES complaint referencing a notification is processed without error."""
+    send_complaint_to_vanotify = mocker.patch(
+        'app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async'
+    )
+    send_complaint_to_vanotify.return_value = None
+
+    template = sample_template(template_type=EMAIL_TYPE)
+    notification: Notification = sample_notification(
+        status=NOTIFICATION_DELIVERED,
+        template=template,
+    )
+
+    assert process_ses_receipts_tasks.process_ses_results(
+        response=ses_notification_complaint_callback(reference=notification.reference)
+    )
+    send_complaint_to_vanotify.assert_called()
+
+
+def test_process_ses_results_notification_history_complaint(
+    notify_db_session, sample_template, sample_notification_history, mocker
+):
+    """Test that SES complaint referencing a notification in NotificationHistory is processed without error.
+
+    NotificationHistory does not contain template so additional lookup is required during processing.
+    """
+    send_complaint_to_vanotify = mocker.patch(
+        'app.celery.service_callback_tasks.send_complaint_to_vanotify.apply_async'
+    )
+    send_complaint_to_vanotify.return_value = None
+
+    template = sample_template(template_type=EMAIL_TYPE)
+    notification: NotificationHistory = sample_notification_history(
+        status=NOTIFICATION_DELIVERED,
+        template=template,
+    )
+
+    assert process_ses_receipts_tasks.process_ses_results(
+        response=ses_notification_complaint_callback(reference=notification.reference)
+    )
+    send_complaint_to_vanotify.assert_called()
 
 
 def test_process_ses_results_retry_called(mocker, sample_template, sample_notification):
