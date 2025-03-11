@@ -17,7 +17,7 @@ from notifications_utils.timezones import (
 )
 from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
@@ -344,6 +344,7 @@ def get_notifications_for_service(
     older_than=None,
     client_reference=None,
     include_one_off=True,
+    format_for_csv=False,
 ):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
@@ -375,6 +376,17 @@ def get_notifications_for_service(
     query = _filter_query(query, filter_dict)
     if personalisation:
         query = query.options(joinedload("template"))
+    else:
+        # this field is not used and it can contain a lot of data
+        query = query.options(defer("_personalisation"))
+
+    if format_for_csv:
+        # do an explicit join on the template, job, and created_by tables so that we won't
+        # do a separate query for each notification to get the template, job, and created_by
+        # when the csv data is being generated
+        query = query.options(
+            joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by)
+        )
 
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 
