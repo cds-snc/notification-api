@@ -1,4 +1,3 @@
-import base64
 import csv
 import functools
 import uuid
@@ -22,7 +21,6 @@ from app import (
     email_bulk_publish,
     email_normal_publish,
     email_priority_publish,
-    notify_celery,
     signer_notification,
     sms_bulk_publish,
     sms_normal_publish,
@@ -30,18 +28,17 @@ from app import (
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
-from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
+from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
-from app.config import QueueNames, TaskNames
+from app.config import QueueNames
 from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import NotificationDictToSign
-from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
     EMAIL_TYPE,
@@ -53,7 +50,6 @@ from app.models import (
     NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
     PRIORITY,
     SMS_TYPE,
