@@ -381,11 +381,13 @@ def get_notifications_for_service(
         query = query.options(defer("_personalisation"))
 
     if format_for_csv:
-        # do an explicit join on the template, job, and created_by tables so that we won't 
+        # do an explicit join on the template, job, and created_by tables so that we won't
         # do a separate query for each notification to get the template, job, and created_by
         # when the csv data is being generated
-        query = query.options(joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by))
-    
+        query = query.options(
+            joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by)
+        )
+
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 
 

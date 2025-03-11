@@ -571,7 +571,7 @@ def get_all_notifications_for_service(service_id):
 
     count_pages = data.get("count_pages", True)
     format_for_csv = data.get("format_for_csv", False)
-    
+
     pagination = notifications_dao.get_notifications_for_service(
         service_id,
         filter_dict=data,
