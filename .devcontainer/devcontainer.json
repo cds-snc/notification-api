@@ -11,7 +11,6 @@
 		"vscode": {
 			"settings": {
 				"ruff.lint.ignore": ["F401"],
-				"ruff.lint.run": "onSave",
 				"ruff.organizeImports": false,
 				"[python]": {
 					"editor.defaultFormatter": "charliermarsh.ruff",
