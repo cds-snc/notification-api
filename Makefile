@@ -46,6 +46,10 @@ format:
 smoke-test:
 	cd tests_smoke && poetry run python smoke_test.py
 
+.PHONY: smoke-test-dev
+smoke-test-dev:
+	cd tests_smoke && poetry run python smoke_test.py --nofiles --nocsv
+
 .PHONY: smoke-test-local
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles

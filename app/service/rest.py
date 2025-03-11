@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -1089,6 +1090,12 @@ def create_service_data_retention(service_id):
         )
 
     return jsonify(result=new_data_retention.serialize()), 201
+
+
+@service_blueprint.route("/<uuid:service_id>/annual-limit-stats", methods=["GET"])
+def get_annual_limit_stats(service_id):
+    data_retention = get_annual_limit_notifications_v2(service_id)
+    return data_retention if data_retention else {}, 200
 
 
 @service_blueprint.route("/<uuid:service_id>/data-retention/<uuid:data_retention_id>", methods=["POST"])

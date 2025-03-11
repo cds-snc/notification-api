@@ -6,9 +6,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'tests-perf/locust/**'
-      - 'tests-perf/ops/**'
-      - 'bin/execute_and_publish_performance_test.sh'
+      - 'tests_nightly_performance/**'
 
 env:
   GITHUB_SHA: ${{ github.sha }}
@@ -28,9 +26,8 @@ jobs:
         with:
           filters: |
             performance-test: 
-              - 'tests-perf/**'
-              - 'tests_smoke/**'
-              - 'bin/execute_and_publish_performance_test.sh'
+              - 'tests_nightly_performance/**'
+
 
   build-push-and-deploy:
     if: ${{ needs.changes.outputs.images != '[]' }}
@@ -51,7 +48,7 @@ jobs:
           --build-arg git_sha=$GITHUB_SHA \
           -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
           -t $REGISTRY/${{ matrix.image }}:latest . \
-          -f tests-perf/ops/Dockerfile
+          -f tests_nightly_performance/Dockerfile
 
       - name: Configure AWS credentials
         id: aws-creds

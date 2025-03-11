@@ -54,7 +54,7 @@ more-itertools = "8.14.0"
 nanoid = "2.0.0"
 newrelic = "10.3.0"
 notifications-python-client = "6.4.1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.1.2" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.0" }
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.9"
 pwnedpasswords = "2.0.0"
@@ -117,7 +117,6 @@ exclude = [
     "build",
 ]
 extend-include = ['(app|migrations|tests)/.*\.pyi?$']
-ignore = ["D101", "D102", "D103"]
 src = ["app", "migrations", "tests"]
 # Ruff formatter will wrap lines at a length of 130 characters.
 line-length = 130
@@ -132,14 +131,13 @@ select = [
     "I002", # isort: Missing imports
 ]
 ignore = [
+    "D101", # Missing docstring in public class
+    "D102", # Missing docstring in public method
+    "D103", # Missing docstring in public function
     "E203", # Whitespace before punctuation
     "E501", # Line too long (Ignored in favour of Ruff's line-length)
     "E402", # module-import-not-at-top-of-file
 ]
-<<<<<<< Updated upstream
-ignore = ["E203", "E501", "E402", "D101", "D102", "D103"]
-=======
->>>>>>> Stashed changes
 
 # Provide line length leeway for docstrings
 [tool.ruff.lint.pycodestyle]

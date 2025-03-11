@@ -14,7 +14,13 @@
 				"ruff.lint.run": "onSave",
 				"ruff.organizeImports": false,
 				"[python]": {
-					"editor.defaultFormatter": "charliermarsh.ruff"
+					"editor.defaultFormatter": "charliermarsh.ruff",
+					"ruff.lint.run": "onSave",
+					"editor.formatOnSave": false,
+					"editor.codeActionsOnSave": {
+						"source.fixAll": "explicit"
+					},
+					"ruff.configurationPreference": "filesystemFirst"
 				}
 			},
 			"extensions": [
