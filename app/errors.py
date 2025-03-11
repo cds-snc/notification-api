@@ -51,7 +51,8 @@ class CannotRemoveUserError(InvalidRequest):
 
 
 class DuplicateEntityError(InvalidRequest):
-    """Generic error for handling unique constraint errors. This error should be subclassed to provide more specific error messages depending on the entity and their unique fields.
+    """Generic error for handling unique constraint errors. This error should be subclassed to provide more specific error messages depending on the entity
+       and their unique fields.
 
     Args:
         entity (str): The name of the entity that was saved/updated and triggered an IntegrityError. E.g. Template Category, Email Branding, Service, etc.

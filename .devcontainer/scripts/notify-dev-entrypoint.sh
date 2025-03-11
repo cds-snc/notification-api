@@ -34,13 +34,14 @@ echo -e "# fzf key bindings and completion" >> ~/.zshrc
 echo -e "source /usr/share/doc/fzf/examples/key-bindings.zsh" >> ~/.zshrc
 echo -e "source /usr/share/doc/fzf/examples/completion.zsh" >> ~/.zshrc
 
+
 cd /workspace
 
 # Poetry autocomplete
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
 echo -e "autoload -Uz compinit && compinit"
 
-pip install poetry==${POETRY_VERSION}
+pip install poetry=="${POETRY_VERSION}" poetry-plugin-sort
 export PATH=$PATH:/home/vscode/.local/bin/
 which poetry
 poetry --version
@@ -62,8 +63,14 @@ echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 
 make generate-version-file
 
+# Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+
 # Install dependencies
 poetry install
+
+# Install pre-commit hooks
+poetry run pre-commit install
 
 # Upgrade schema of the notification_api database.
 poetry run flask db upgrade

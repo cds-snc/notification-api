@@ -10,20 +10,23 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
+				"ruff.lint.ignore": ["F401"],
+				"ruff.organizeImports": false,
 				"[python]": {
-					"editor.formatOnSave": true
-				},
-				"python.formatting.blackPath": "/usr/local/bin/black",
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.linting.pylintPath": "/usr/local/bin/pylint",
-				"python.defaultInterpreterPath": "/home/vscode/.venv/workspace/bin/python",
-				"python.venvPath": "/home/vscode/.venv"
+					"editor.defaultFormatter": "charliermarsh.ruff",
+					"ruff.lint.run": "onSave",
+					"editor.formatOnSave": false,
+					"editor.codeActionsOnSave": {
+						"source.fixAll": "explicit"
+					},
+					"ruff.configurationPreference": "filesystemFirst"
+				}
 			},
 			"extensions": [
-				"bungcip.better-toml",
+				"tamasfe.even-better-toml",
 				"charliermarsh.ruff",
 				"donjayamanne.python-extension-pack",
+				"-ms-python.autopep8",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
 				"GitHub.copilot",
@@ -44,7 +47,8 @@
 				"visualstudioexptteam.vscodeintellicode",
 				"wenfangdu.jump",
 				"wholroyd.jinja",
-				"yzhang.markdown-all-in-one"
+				"yzhang.markdown-all-in-one",
+				"charliermarsh.ruff"
 			]
 		}
 	},
