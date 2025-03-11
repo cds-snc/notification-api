@@ -570,7 +570,8 @@ def get_all_notifications_for_service(service_id):
     include_one_off = data.get("include_one_off", True)
 
     count_pages = data.get("count_pages", True)
-
+    format_for_csv = data.get("format_for_csv", False)
+    
     pagination = notifications_dao.get_notifications_for_service(
         service_id,
         filter_dict=data,
@@ -581,12 +582,13 @@ def get_all_notifications_for_service(service_id):
         include_jobs=include_jobs,
         include_from_test_key=include_from_test_key,
         include_one_off=include_one_off,
+        format_for_csv=format_for_csv,
     )
 
     kwargs = request.args.to_dict()
     kwargs["service_id"] = service_id
 
-    if data.get("format_for_csv"):
+    if format_for_csv:
         notifications = [notification.serialize_for_csv() for notification in pagination.items]
     else:
         notifications = notification_with_template_schema.dump(pagination.items, many=True)

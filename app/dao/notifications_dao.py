@@ -344,6 +344,7 @@ def get_notifications_for_service(
     older_than=None,
     client_reference=None,
     include_one_off=True,
+    format_for_csv=False,
 ):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
@@ -375,7 +376,20 @@ def get_notifications_for_service(
     query = _filter_query(query, filter_dict)
     if personalisation:
         query = query.options(joinedload("template"))
-
+    if format_for_csv:
+        # only include the columns that are needed for the csv export
+        query = query.with_entities(
+            Notification.id,
+            Notification.job_row_number,
+            Notification.to,
+            Notification.template.name,
+            Notification.template.template_type,
+            Notification.job.original_file_name,
+            Notification.feedback_subtype,
+            Notification.created_at,
+            Notification.created_by.name,
+            Notification.created_by.email_address,
+        )
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 
 
