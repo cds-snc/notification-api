@@ -16,19 +16,13 @@ def determine_notification_bounce_type(
     return 'Permanent' if ses_message['bounce']['bounceType'] == 'Permanent' else 'Temporary'
 
 
-def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, str]:
+def handle_ses_complaint(ses_message: dict, notification: Notification) -> Tuple[Complaint, str]:
     recipient_email = remove_emails_from_complaint(ses_message)[0]
     current_app.logger.info(
         'Complaint from SES: \n{}'.format(json.dumps(ses_message).replace('{', '(').replace('}', ')'))
     )
-    try:
-        reference = ses_message['mail']['messageId']
-    except KeyError:
-        current_app.logger.exception('Complaint from SES failed to get reference from message.')
-        return
-    notification = dao_get_notification_history_by_reference(reference)
-    ses_complaint = ses_message.get('complaint', None)
 
+    ses_complaint = ses_message.get('complaint')
     complaint_type = ses_complaint.get('complaintFeedbackType', None) if ses_complaint else None
 
     if not complaint_type:
@@ -42,7 +36,7 @@ def handle_ses_complaint(ses_message: dict) -> Tuple[Complaint, Notification, st
         complaint_date=ses_complaint.get('timestamp', None) if ses_complaint else None,
     )
     save_complaint(complaint)
-    return complaint, notification, recipient_email
+    return complaint, recipient_email
 
 
 def handle_smtp_complaint(ses_message):

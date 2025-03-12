@@ -9,7 +9,6 @@ from flask import (
 from json import JSONDecodeError
 
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.common import log_notification_total_time
@@ -36,31 +35,63 @@ from app.celery.service_callback_tasks import check_and_queue_callback_task
 
 @notify_celery.task(bind=True, name='process-ses-result', max_retries=5, default_retry_delay=300)
 @statsd(namespace='tasks')
-def process_ses_results(  # noqa: C901 (too complex 14 > 10)
+def process_ses_results(  # noqa: C901 (too complex 19 > 10)
     self,
     response,
 ):
     current_app.logger.debug('Full SES result response: %s', response)
+
     try:
         ses_message = json.loads(response['Message'])
-        notification_type = ses_message.get('eventType')
+    except JSONDecodeError:
+        current_app.logger.exception('Error decoding SES results: full response data: %s', response)
+        return
 
+    reference = ses_message.get('mail', {}).get('messageId')
+    if not reference:
+        current_app.logger.warning(
+            'SES complaint: unable to lookup notification, messageId (reference) was None | ses_message: %s',
+            ses_message,
+        )
+        return
+
+    notification_type = ses_message.get('eventType')
+    if notification_type is None:
+        current_app.logger.warning(
+            'SES response: nothing to process, eventType was None | ses_message: %s',
+            ses_message,
+        )
+        return
+
+    try:
         if notification_type == 'Bounce':
             # Bounces have ran their course with AWS and should be considered done. Clients can retry soft bounces.
             notification_type = determine_notification_bounce_type(notification_type, ses_message)
         elif notification_type == 'Complaint':
-            complaint, notification, recipient_email = handle_ses_complaint(ses_message)
-            return publish_complaint(complaint, notification, recipient_email)
+            try:
+                notification = notifications_dao.dao_get_notification_history_by_reference(reference)
+            except Exception:
+                # we expect results or no results but it could be multiple results
+                message_time = iso8601.parse_date(ses_message['mail']['timestamp']).replace(tzinfo=None)
+                if datetime.utcnow() - message_time < timedelta(minutes=5):
+                    self.retry(queue=QueueNames.RETRY)
+                else:
+                    current_app.logger.warning('SES complaint: notification not found | reference: %s', reference)
+                return
+
+            complaint, recipient_email = handle_ses_complaint(ses_message, notification)
+            publish_complaint(complaint, notification, recipient_email)
+            return
 
         aws_response_dict = get_aws_responses(notification_type)
 
         # This is the prospective, updated status.
         incoming_status = aws_response_dict['notification_status']
-        reference = ses_message['mail']['messageId']
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
-        except NoResultFound:
+        except Exception:
+            # we expect results or no results but it could be multiple results
             message_time = iso8601.parse_date(ses_message['mail']['timestamp']).replace(tzinfo=None)
             if datetime.utcnow() - message_time < timedelta(minutes=5):
                 self.retry(queue=QueueNames.RETRY)
@@ -149,8 +180,8 @@ def process_ses_results(  # noqa: C901 (too complex 14 > 10)
 
         return True
 
-    except JSONDecodeError:
-        current_app.logger.exception('Error decoding SES results: full response data: %s', response)
+    except KeyError:
+        current_app.logger.exception('AWS message malformed: full response data: %s', response)
 
     except Retry:
         raise

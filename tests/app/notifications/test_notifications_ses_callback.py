@@ -32,23 +32,12 @@ def test_process_ses_results_in_complaint(
     ref = str(uuid4())
     notification = sample_notification(gen_type=EMAIL_TYPE, reference=ref)
     complaint = ses_complaint_callback()['Message'].replace('ref1', ref)
-    handle_ses_complaint(json.loads(complaint))
+    handle_ses_complaint(json.loads(complaint), notification)
 
     stmt = select(Complaint).where(Complaint.service_id == notification.service.id)
     complaints = notify_db_session.session.scalars(stmt).all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
-
-
-def test_handle_complaint_does_not_raise_exception_if_reference_is_missing():
-    response = json.loads(ses_complaint_callback_malformed_message_id()['Message'])
-    assert handle_ses_complaint(response) is None
-
-
-def test_handle_complaint_does_raise_exception_if_notification_not_found():
-    response = json.loads(ses_complaint_callback()['Message'])
-    with pytest.raises(expected_exception=SQLAlchemyError):
-        handle_ses_complaint(response)
 
 
 def test_process_ses_results_in_complaint_if_notification_history_does_not_exist(
@@ -58,7 +47,7 @@ def test_process_ses_results_in_complaint_if_notification_history_does_not_exist
     ref = str(uuid4())
     notification = sample_notification(gen_type=EMAIL_TYPE, reference=ref)
     complaint = ses_complaint_callback()['Message'].replace('ref1', ref)
-    handle_ses_complaint(json.loads(complaint))
+    handle_ses_complaint(json.loads(complaint), notification)
 
     stmt = select(Complaint).where(Complaint.service_id == notification.service.id)
     complaints = notify_db_session.session.scalars(stmt).all()
@@ -73,7 +62,7 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
     ref = str(uuid4())
     notification = create_notification_history(template=sample_template(template_type=EMAIL_TYPE), reference=ref)
     complaint = ses_complaint_callback()['Message'].replace('ref1', ref)
-    handle_ses_complaint(json.loads(complaint))
+    handle_ses_complaint(json.loads(complaint), notification)
 
     stmt = select(Complaint).where(Complaint.service_id == notification.service.id)
     complaints = notify_db_session.session.scalars(stmt).all()
@@ -93,7 +82,7 @@ def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_typ
     ref = str(uuid4())
     notification = sample_notification(gen_type=EMAIL_TYPE, reference=ref)
     complaint = ses_complaint_callback_with_missing_complaint_type()['Message'].replace('ref1', ref)
-    handle_ses_complaint(json.loads(complaint))
+    handle_ses_complaint(json.loads(complaint), notification)
 
     stmt = select(Complaint).where(Complaint.service_id == notification.service.id)
     complaints = notify_db_session.session.scalars(stmt).all()
