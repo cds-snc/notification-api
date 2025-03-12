@@ -64,6 +64,7 @@ echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 make generate-version-file
 
 # Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
+git config --global --add safe.directory /workspace
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 # Install dependencies
