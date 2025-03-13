@@ -14,54 +14,21 @@ on:
         type: string
         required: true
 
-env:
-  PYTHONDONTWRITEBYTECODE: 1
-  REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
-  PORT: 6011
-  POETRY_ARGS: "--with static_tools,test"
-  POETRY_HOME: "/opt/poetry" 
-  POETRY_VIRTUALENVS_IN_PROJECT: 1 
-  POETRY_NO_INTERACTION: 1
-
 jobs:
   test:
-    runs-on: ubuntu-22.04
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: notification_api
-        ports:
-          - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install Dependencies
+      - name: Run tests using docker-compose
         run: |
-          # Prepare path to use environmental variable specified and install with poetry.lock
-          export PATH="$POETRY_HOME/bin:$PATH"
-          curl -sSL https://install.python-poetry.org | python3 - && poetry install --no-root --no-ansi $POETRY_ARGS
-
-      - name: Run tests
-        run: |
-          # Set path to poetry venv
-          export PATH="$PWD/.venv/bin:$PATH"
-          # Prepare env variables - App loads .env with dotfiles
-          mv ci/.local.env .env
-          # Adjust for GHA service "postgres"
-          sed -i 's/LocalPassword@db:5432/postgres@localhost/g' .env
-          make test
+          # Build images, start containers, and run tests.
+          docker compose -f ci/docker-compose-ci.yml up --build --abort-on-container-exit
+          # Tear down containers after tests complete
+          docker compose -f ci/docker-compose-ci.yml down
 
   code-scan:
     runs-on: ${{ vars.RUNS_ON }}

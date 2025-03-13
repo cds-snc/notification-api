@@ -1,0 +1,36 @@
+services:
+  test:
+    build:
+      context: ..
+      dockerfile: ci/Dockerfile
+      target: ci
+      args:
+        POETRY_ARGS: --with static_tools,test
+        FLASK_DEBUG: 1
+        TEST_FOLDER: tests
+    environment:
+      - AWS_ACCESS_KEY_ID=your_access_key_id
+      - AWS_DEFAULT_REGION=us-gov-west-1
+      - AWS_SECRET_ACCESS_KEY=your_secret_access_key
+      - VAEC_AWS_ACCESS_KEY_ID=your_vaec_aws_access_key_id
+    image: &notify_image test-notification-api
+    ports:
+      - 6011:6011
+    env_file:
+      - .local.env
+    depends_on:
+      - db
+    volumes:
+      - ../tests:/app/tests  # Bind mount: host's tests folder to container's /app/tests
+    command: ["make test"]
+
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    logging:
+      driver: "none"
+    environment:
+      - POSTGRES_DB=notification_api
+      - POSTGRES_PASSWORD=LocalPassword
