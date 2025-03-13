@@ -66,19 +66,23 @@ def get_model_api_key(
     return db.session.scalars(stmt).one()
 
 
-def get_model_api_keys(service_id: UUID) -> list[ApiKey]:
-    """Retrieves the API keys associated with the given service id.
+def get_model_api_keys(service_id: UUID, include_revoked: bool = False) -> list[ApiKey]:
+    """Retrieves the API keys associated with the given service id. By default, only active keys are returned.
 
     Args:
         service_id (UUID): The service id uuid to use when looking up API keys.
+        include_revoked (bool): If True, include revoked keys in the results. Defaults to False.
 
     Returns:
-        list[ApiKey]: The API keys associated with the given service id, if one is found.
+        list[ApiKey]: The API keys associated with the given service id, if any are found.
 
     Raises:
         NoResultFound: If there is no key associated with the given service, or the key has been revoked.
     """
     stmt = select(ApiKey).where(ApiKey.service_id == service_id)
+    if not include_revoked:
+        stmt = stmt.where(ApiKey.revoked.is_(False))
+
     keys = db.session.scalars(stmt).all()
 
     if not keys:

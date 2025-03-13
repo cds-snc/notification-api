@@ -1044,6 +1044,7 @@ paths:
   /service/{service_id}/api-keys:
     parameters:
       - $ref: "#/components/parameters/ServiceId"
+      - $ref: "#/components/parameters/IncludeRevoked"
     get:
       tags:
         - api key
@@ -1788,6 +1789,13 @@ components:
       required: true
       description: CommunicationItem identifier
       example: e925b547-8195-4ed2-83c5-0633a74d780a
+    IncludeRevoked:
+      name: include_revoked
+      in: query
+      schema:
+        type: boolean
+      required: false
+      description: Setting this parameter to true will include revoked keys in the response
   responses:
     PushCreated:
       description: CREATED

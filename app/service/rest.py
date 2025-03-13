@@ -14,8 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
-from app.config import QueueNames
-from app.constants import KEY_TYPE_NORMAL, LETTER_TYPE, NOTIFICATION_CANCELLED
+from app.constants import LETTER_TYPE, NOTIFICATION_CANCELLED
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
     get_model_api_key,
@@ -56,7 +55,6 @@ from app.dao.service_data_retention_dao import (
     insert_service_data_retention,
     update_service_data_retention,
 )
-from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import InvalidRequest, register_errors
 from app.letters.utils import letter_print_day
@@ -65,7 +63,6 @@ from app.models import (
     Service,
     EmailBranding,
 )
-from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 from app.schema_validation import validate
 from app.service import statistics
 from app.service.send_notification import send_one_off_notification
@@ -74,14 +71,12 @@ from app.service.service_data_retention_schema import (
     add_service_data_retention_request,
     update_service_data_retention_request,
 )
-from app.service.service_senders_schema import add_service_email_reply_to_request
 from app.schemas import (
     service_schema,
     api_key_schema,
     notification_with_template_schema,
     notifications_filter_schema,
     detailed_service_schema,
-    email_data_request_schema,
 )
 from app.smtp.aws import smtp_add, smtp_get_user_key, smtp_remove
 from app.user.users_schema import post_set_permissions_schema
@@ -325,6 +320,10 @@ def get_api_keys(
         service_id (UUID): The uuid of the service from which to pull keys
         key_id (UUID): The uuid of the key to lookup
 
+    Params:
+        include_revoked: Including this param will return all keys, including revoked ones. By default, returns only
+        non-revoked keys.
+
     Returns:
         tuple[Response, Literal[200, 404]]: 200 OK
         - Returns json list of API keys for the given service, or a list with the indicated key if a key_id is included.
@@ -333,13 +332,19 @@ def get_api_keys(
         InvalidRequest: 404 NoResultsFound
         - If there are no valid API keys for the requested service, or the requested service id does not exist.
     """
+    include_revoked = request.args.get('include_revoked', 'f')
+    include_revoked = str(include_revoked).lower()
+    if include_revoked not in ('true', 't', 'false', 'f'):
+        raise InvalidRequest('Invalid value for include_revoked', status_code=400)
+    include_revoked = include_revoked in ('true', 't')
+
     dao_fetch_service_by_id(service_id=service_id)
 
     try:
         if key_id:
             api_keys = [get_model_api_key(key_id=key_id)]
         else:
-            api_keys = get_model_api_keys(service_id=service_id)
+            api_keys = get_model_api_keys(service_id=service_id, include_revoked=include_revoked)
     except NoResultFound:
         error = f'No valid API key found for service {service_id}'
         raise InvalidRequest(error, status_code=404)

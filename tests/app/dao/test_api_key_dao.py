@@ -142,10 +142,10 @@ def test_save_api_key_can_create_keys_with_same_name(
 
     api_keys = get_model_api_keys(service.id)
 
-    # ensure there are 3 keys
-    assert len(api_keys) == 3
+    # ensure there are 2 keys
+    assert len(api_keys) == 2
     # ensure they have unique ids
-    assert len(set([key.id for key in api_keys])) == 3
+    assert len(set([key.id for key in api_keys])) == 2
     # ensure the names are the same
     assert len(set([key.name for key in api_keys])) == 1
 

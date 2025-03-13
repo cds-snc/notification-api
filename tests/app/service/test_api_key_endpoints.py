@@ -1,9 +1,9 @@
 import json
-
-from flask import url_for
-from sqlalchemy import delete, select, Table
 from uuid import uuid4
 
+import pytest
+from flask import url_for
+from sqlalchemy import delete, select, Table
 
 from app import db
 from app.constants import KEY_TYPE_NORMAL
@@ -216,8 +216,8 @@ def test_get_api_keys_should_return_all_keys_for_service(
             # Second bogus key to put data into the DB after adding to the correct service
             sample_api_key(service=bogus_service)
 
-            # Verify 3 keys are are in the table with the given service id
-            assert len(get_model_api_keys(service.id)) == 3
+            # Verify 2 keys are in the table with the given service id
+            assert len(get_model_api_keys(service.id)) == 2
 
             # Get request verification
             auth_header = create_admin_authorization_header()
@@ -227,7 +227,7 @@ def test_get_api_keys_should_return_all_keys_for_service(
             )
             assert response.status_code == 200
             json_resp = json.loads(response.get_data(as_text=True))
-            assert len(json_resp['apiKeys']) == 3
+            assert len(json_resp['apiKeys']) == 2
 
 
 def test_get_api_keys_should_return_one_key_for_service(notify_api, notify_db_session, sample_api_key, sample_service):
@@ -248,3 +248,66 @@ def test_get_api_keys_should_return_one_key_for_service(notify_api, notify_db_se
 
             # DB verification
             assert len(get_model_api_keys(service.id)) == 1
+
+
+@pytest.mark.parametrize(
+    'include_revoked,num_keys',
+    [
+        (None, 2),
+        (False, 2),
+        (True, 3),
+        ('True', 3),
+        ('T', 3),
+        ('true', 3),
+        ('t', 3),
+    ],
+    ids=[
+        'include_revoked_none',
+        'include_revoked_false_bool',
+        'include_revoked_true_bool',
+        'include_revoked_true_cap_str',
+        'include_revoked_true_cap_char',
+        'include_revoked_true_str',
+        'include_revoked_true_char',
+    ],
+)
+def test_get_api_keys_with_is_revoked(
+    notify_api, notify_db_session, sample_service, sample_api_key, include_revoked, num_keys
+):
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            service = sample_service()
+            sample_api_key(service=service, key_name='key1')
+            sample_api_key(service=service, key_name='key2')
+            expired_key = sample_api_key(service=service, key_name='expired_key')
+            expire_api_key(service_id=expired_key.service_id, api_key_id=expired_key.id)
+
+            auth_header = create_admin_authorization_header()
+            url = url_for('service.get_api_keys', service_id=service.id, include_revoked=include_revoked)
+            response = client.get(
+                url,
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
+            assert response.status_code == 200
+            json_resp = json.loads(response.get_data(as_text=True))
+            assert len(json_resp['apiKeys']) == num_keys
+
+
+def test_get_api_keys_with_invalid_is_revoked_param(notify_api, notify_db_session, sample_service, sample_api_key):
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            service = sample_service()
+            sample_api_key(service=service, key_name='key1')
+            sample_api_key(service=service, key_name='key2')
+            expired_key = sample_api_key(service=service, key_name='expired_key')
+            expire_api_key(service_id=expired_key.service_id, api_key_id=expired_key.id)
+
+            auth_header = create_admin_authorization_header()
+            url = url_for('service.get_api_keys', service_id=service.id, include_revoked='invalid')
+            response = client.get(
+                url,
+                headers=[('Content-Type', 'application/json'), auth_header],
+            )
+            assert response.status_code == 400
+            json_resp = json.loads(response.get_data(as_text=True))
+            assert json_resp['message'] == 'Invalid value for include_revoked'
