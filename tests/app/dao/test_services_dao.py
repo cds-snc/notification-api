@@ -193,6 +193,7 @@ def test_create_nhs_service_get_default_branding_based_on_email_address(
     expected_branding,
     email_address,
     organisation_type,
+    sample_user,
 ):
     user = create_user(email=email_address)
     letter_branding = create_letter_branding(name=branding_name_to_create)
