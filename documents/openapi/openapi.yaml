@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.2.0
+  version: 1.2.1
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>

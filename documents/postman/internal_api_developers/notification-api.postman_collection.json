@@ -4349,6 +4349,14 @@
 										"service",
 										"{{service-id}}",
 										"api-keys"
+									],
+									"query": [
+										{
+											"key": "include_revoked",
+											"value": true,
+											"disabled": true,
+											"description": "A value of true will include revoked api-keys in the response"
+										}
 									]
 								}
 							},
