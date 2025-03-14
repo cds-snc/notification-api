@@ -1,3 +1,4 @@
+import json
 from flask import url_for
 
 import pytest
@@ -16,7 +17,8 @@ def test_ut_get_internal(client, mocker, query_string):
     mock_logger = mocker.patch('app.internal.rest.current_app.logger.info')
     response = client.get(url_for('internal.handler', generic='foo', **query_string[0]))
     assert response.status_code == 200
-    assert response.text == f'GET request received for endpoint /internal/foo?{query_string[1]}'
+    response_json = json.loads(response.text)
+    assert response_json['foo'] == f'GET request received for endpoint /internal/foo?{query_string[1]}'
 
     actual = mock_logger.call_args_list[0].args[0]
     expected = 'Generic Internal Request: %s'

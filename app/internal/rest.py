@@ -53,11 +53,10 @@ def handler(generic):
     logs.append(f'HEADERS: {headers_string}')
     current_app.logger.info('Generic Internal Request: %s', ' | '.join(logs))
     if request.method == 'GET':
-        response_body = f'GET request received for endpoint {request.full_path}'
+        response_body = jsonify({generic: f'GET request received for endpoint {request.full_path}'})
     else:
         response_body = {generic: request.json}
 
-    # TODO - CodeQL issue with this line will be addressed in TEAM-1487
     return response_body, status_code
 
 
