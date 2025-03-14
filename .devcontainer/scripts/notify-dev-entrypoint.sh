@@ -7,6 +7,8 @@ set -ex
 # tools and the filesystem mount enabled should be located here.
 ###################################################################
 
+git config --global --add safe.directory /workspace
+
 # Define aliases
 echo -e "\n\n# User's Aliases" >> ~/.zshrc
 echo -e "alias fd=fdfind" >> ~/.zshrc
@@ -63,9 +65,6 @@ echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 
 make generate-version-file
 
-# Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
-git config blame.ignoreRevsFile .git-blame-ignore-revs
-
 # Install dependencies
 poetry install
 
@@ -74,6 +73,9 @@ poetry run pre-commit install
 
 # Upgrade schema of the notification_api database.
 poetry run flask db upgrade
+
+# Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
+git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 # install npm deps (i.e. cypress)
 cd tests_cypress && npm install && npx cypress install && cd ..
