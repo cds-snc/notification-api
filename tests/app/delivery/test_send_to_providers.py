@@ -693,6 +693,7 @@ def test_get_html_email_renderer_with_branding_details(
         logo="justice-league.png",
         name="Justice League",
         text="League of Justice",
+        created_by_id=sample_service.created_by.id,
     )
     sample_service.email_branding = email_branding
     notify_db.session.add_all([sample_service, email_branding])

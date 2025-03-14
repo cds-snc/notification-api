@@ -16,7 +16,7 @@ from tests.app.conftest import create_sample_template
 
 
 class TestCreateTemplateCategory:
-    def test_create_template_category(self, notify_db_session):
+    def test_create_template_category(self, sample_user, notify_db_session):
         data = {
             "name_en": "english",
             "name_fr": "french",
@@ -26,6 +26,7 @@ class TestCreateTemplateCategory:
             "email_process_type": NORMAL,
             "hidden": False,
             "sms_sending_vehicle": "short_code",
+            "created_by_id": str(sample_user.id),
         }
 
         template_category = TemplateCategory(**data)
@@ -36,7 +37,7 @@ class TestCreateTemplateCategory:
         assert len(temp_cat) == 1
         assert temp_cat[0].sms_sending_vehicle == "short_code"
 
-    def test_create_template_category_with_no_sms_sending_vehicle(self, notify_db_session):
+    def test_create_template_category_with_no_sms_sending_vehicle(self, sample_user, notify_db_session):
         data = {
             "name_en": "english",
             "name_fr": "french",
@@ -45,6 +46,7 @@ class TestCreateTemplateCategory:
             "sms_process_type": NORMAL,
             "email_process_type": NORMAL,
             "hidden": False,
+            "created_by_id": str(sample_user.id),
         }
 
         template_category = TemplateCategory(**data)
@@ -81,12 +83,15 @@ class TestCreateTemplateCategory:
         )
     ],
 )
-def test_update_template_category(notify_db_session, category, updated_category):
+def test_update_template_category(notify_db_session, category, sample_user, updated_category):
     template_category = TemplateCategory(**category)
+    setattr(template_category, "created_by_id", str(sample_user.id))
     dao_create_template_category(template_category)
 
     for key, value in updated_category.items():
         setattr(template_category, key, value)
+
+    setattr(template_category, "updated_by_id", str(sample_user.id))
 
     dao_update_template_category(template_category)
 
@@ -120,6 +125,7 @@ def test_update_template_category(notify_db_session, category, updated_category)
 )
 def test_dao_get_template_category_by_template_id(category, template, notify_db_session, sample_service, sample_user):
     template_category = TemplateCategory(**category)
+    setattr(template_category, "created_by_id", str(sample_user.id))
     dao_create_template_category(template_category)
 
     template = Template(**template)
@@ -131,7 +137,7 @@ def test_dao_get_template_category_by_template_id(category, template, notify_db_
     assert dao_get_template_category_by_template_id(template.id) == template_category
 
 
-def test_get_template_category_by_id(notify_db_session):
+def test_get_template_category_by_id(notify_db_session, sample_user):
     data = {
         "name_en": "english",
         "name_fr": "french",
@@ -140,6 +146,7 @@ def test_get_template_category_by_id(notify_db_session):
         "sms_process_type": NORMAL,
         "email_process_type": NORMAL,
         "hidden": False,
+        "created_by_id": str(sample_user.id),
     }
 
     template_category = TemplateCategory(**data)
@@ -349,10 +356,11 @@ def test_get_template_category_by_id(notify_db_session):
     ],
 )
 def test_get_all_template_categories_with_filters(
-    template_type, hidden, expected_count, categories_to_insert, notify_db, notify_db_session
+    template_type, hidden, expected_count, categories_to_insert, notify_db, sample_user, notify_db_session
 ):
     for category_data in categories_to_insert:
         template_category = TemplateCategory(**category_data)
+        setattr(template_category, "created_by_id", str(sample_user.id))
         dao_create_template_category(template_category)
 
         create_sample_template(notify_db, notify_db_session, template_type="email", template_category=template_category)

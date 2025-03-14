@@ -289,6 +289,7 @@ def sample_template_category_with_templates(notify_db, notify_db_session, sample
 
 @pytest.fixture(scope="function")
 def populate_generic_categories(notify_db_session):
+    user = create_user()
     generic_categories = [
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
@@ -297,6 +298,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "low",
             "email_process_type": "low",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
@@ -305,6 +307,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "normal",
             "email_process_type": "normal",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
@@ -313,6 +316,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "high",
             "email_process_type": "high",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
     ]
     for category in generic_categories:
@@ -406,6 +410,7 @@ def create_template_category(
     sms_process_type="normal",
     email_process_type="normal",
     hidden=False,
+    created_by_id=None,
 ):
     data = {
         "name_en": name_en,
@@ -416,6 +421,11 @@ def create_template_category(
         "email_process_type": email_process_type,
         "hidden": hidden,
     }
+
+    if not created_by_id:
+        user = create_user()
+        data.update({"created_by_id": str(user.id)})
+
     template_category = TemplateCategory(**data)
     dao_create_template_category(template_category)
 
