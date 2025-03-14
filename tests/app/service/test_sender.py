@@ -12,22 +12,22 @@ from app.service.sender import send_notification_to_service_users
 def test_send_notification_to_service_users_persists_notifications_correctly(
     notify_db_session,
     notification_type,
-    sample_notify_service_user_session,
     sample_service,
     sample_template,
     mocker,
 ):
     service = sample_service()
+    sender_service = sample_service()
     user = service.users[0]
 
     mocker.patch('app.service.sender.send_notification_to_queue')
+    mocker.patch('app.service.sender.current_app.config', {'NOTIFY_SERVICE_ID': str(sender_service.id)})
 
-    notify_service, _ = sample_notify_service_user_session()
     template = sample_template(service=service, user=user, template_type=notification_type)
     send_notification_to_service_users(service_id=service.id, template_id=template.id)
     to = user.email_address if notification_type == EMAIL_TYPE else user.mobile_number
 
-    stmt = select(Notification).where(Notification.service_id == notify_service.id).where(Notification.to == to)
+    stmt = select(Notification).where(Notification.service_id == sender_service.id).where(Notification.to == to)
     notification = notify_db_session.session.scalars(stmt).one()
 
     assert notification.to == to
@@ -40,13 +40,15 @@ def test_send_notification_to_service_users_persists_notifications_correctly(
 
 def test_send_notification_to_service_users_sends_to_queue(
     notify_api,
-    sample_notify_service_user_session,
     sample_service,
     sample_template,
     mocker,
 ):
-    # Needs the Notify service to exist
-    sample_notify_service_user_session()
+    sender_service = sample_service()
+    mocker.patch(
+        'app.service.sender.current_app.config',
+        {'NOTIFY_SERVICE_ID': str(sender_service.id), 'FROM_NUMBER': '+1234567890'},
+    )
 
     send_mock = mocker.patch('app.service.sender.send_notification_to_queue')
 
@@ -60,13 +62,15 @@ def test_send_notification_to_service_users_sends_to_queue(
 
 
 def test_send_notification_to_service_users_includes_user_fields_in_personalisation(
-    sample_notify_service_user_session,
     sample_service,
     sample_template,
     mocker,
 ):
-    # Needs the Notify service to exist
-    sample_notify_service_user_session()
+    sender_service = sample_service()
+    mocker.patch(
+        'app.service.sender.current_app.config',
+        {'NOTIFY_SERVICE_ID': str(sender_service.id), 'FROM_NUMBER': '+1234567890'},
+    )
     persist_mock = mocker.patch('app.service.sender.persist_notification')
     mocker.patch('app.service.sender.send_notification_to_queue')
 
@@ -92,13 +96,16 @@ def test_send_notification_to_service_users_includes_user_fields_in_personalisat
 
 def test_send_notification_to_service_users_sends_to_active_users_only(
     notify_db_session,
-    sample_notify_service_user_session,
     sample_service,
     sample_template,
     sample_user,
     mocker,
 ):
-    notify_service, _ = sample_notify_service_user_session()
+    sender_service = sample_service()
+    mocker.patch(
+        'app.service.sender.current_app.config',
+        {'NOTIFY_SERVICE_ID': str(sender_service.id), 'FROM_NUMBER': '+1234567890'},
+    )
     mocker.patch('app.service.sender.send_notification_to_queue')
 
     # User and service setup
@@ -127,7 +134,7 @@ def test_send_notification_to_service_users_sends_to_active_users_only(
         select(Notification)
         .filter(Notification.to == User.email_address)
         .where(User.email_address.in_(email_addresses))
-        .where(Notification.service_id == notify_service.id)
+        .where(Notification.service_id == sender_service.id)
     )
     notifications = notify_db_session.session.scalars(stmt).all()
     notifications_recipients = [notification.to for notification in notifications]
