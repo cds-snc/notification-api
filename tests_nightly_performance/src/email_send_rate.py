@@ -9,6 +9,7 @@ BULK_SIZE = 2000
 class NotifyApiUser(HttpUser):
 
     wait_time = constant_pacing(60)  # 60 seconds between each task
+    host = Config.HOST
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
