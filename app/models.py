@@ -293,7 +293,7 @@ class EmailBranding(BaseModel):
     created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
-    updated_at = db.Column(db.DateTime, nullable=True, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     updated_by = db.relationship("User", foreign_keys=[updated_by_id], lazy="select")
 
     def serialize(self) -> dict:
