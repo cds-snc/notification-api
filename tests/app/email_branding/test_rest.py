@@ -277,32 +277,11 @@ def test_post_update_email_branding_returns_400_if_name_is_duplicate(admin_reque
 @pytest.mark.parametrize(
     "data_update",
     [
-        (
-            {
-                "name": "test email_branding 1",
-            }
-        ),
-        (
-            {
-                "logo": "images/text_x3.png",
-                "colour": "#ffffff",
-            }
-        ),
-        (
-            {
-                "logo": "images/text_x3.png",
-            }
-        ),
-        (
-            {
-                "logo": "images/text_x3.png",
-            }
-        ),
-        (
-            {
-                "logo": "images/text_x3.png",
-            }
-        ),
+        ({"name": "test email_branding 1"}),
+        ({"logo": "images/text_x3.png", "colour": "#ffffff"}),
+        ({"logo": "images/text_x3.png"}),
+        ({"logo": "images/text_x3.png"}),
+        ({"logo": "images/text_x3.png"}),
     ],
 )
 def test_post_update_email_branding_updates_field(admin_request, sample_user, notify_db_session, data_update):
