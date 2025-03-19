@@ -18,7 +18,7 @@ def upgrade():
     sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
     sa.Column('report_type', sa.String(length=255), nullable=False),
     sa.Column('requested_at', sa.DateTime(), nullable=False),
-    sa.Column('completed_at', sa.DateTime(), nullable=False),
+    sa.Column('completed_at', sa.DateTime(), nullable=True),
     sa.Column('expires_at', sa.DateTime(), nullable=True),
     sa.Column('requesting_user_id', postgresql.UUID(as_uuid=True), nullable=True),
     sa.Column('service_id', postgresql.UUID(as_uuid=True), nullable=False),

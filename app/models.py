@@ -2663,6 +2663,18 @@ class AnnualLimitsData(BaseModel):
     )
 
 
+class ReportStatus(Enum):
+    REQUESTED = "requested"
+    GENERATING = "generating"
+    READY = "ready"
+
+
+class ReportType(Enum):
+    SMS = "sms"
+    EMAIL = "email"
+    JOB = "job"
+
+
 class Report(BaseModel):
     __tablename__ = "reports"
 
@@ -2679,7 +2691,7 @@ class Report(BaseModel):
         db.DateTime,
         index=False,
         unique=False,
-        nullable=False,
+        nullable=True,
         default=datetime.datetime.utcnow,
     )
     expires_at = db.Column(
