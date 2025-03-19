@@ -516,6 +516,40 @@ class Organisation(BaseModel):
         }
 
 
+class Report(BaseModel, Versioned):
+    __tablename__ = "reports"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_type = db.Column(db.String(255), nullable=False)  # email, sms, job, other types in future
+    requested_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=False,
+        default=datetime.datetime.utcnow,
+    )
+    completed_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=False,
+        default=datetime.datetime.utcnow,
+    )
+    expires_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=True,
+        onupdate=datetime.datetime.utcnow,
+    )
+    requesting_user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
+    )  # only set if report is requested by a user
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=False)
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), nullable=True)  # only set if report is for a bulk job
+    url = db.Column(db.String(), nullable=True)  # url to download the report from s3
+
+
 class Service(BaseModel, Versioned):
     __tablename__ = "services"
 
