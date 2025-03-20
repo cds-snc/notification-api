@@ -110,6 +110,10 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
 class TemplateCategorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.TemplateCategory
+        exclude = ("created_by", "updated_by")
+
+    created_by_id = field_for(models.TemplateCategory, "created_by_id", required=True)
+    updated_by_id = field_for(models.TemplateCategory, "updated_by_id", required=False)
 
     @validates("name_en")
     def validate_name_en(self, value):
