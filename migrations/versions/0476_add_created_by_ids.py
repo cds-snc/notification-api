@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0476_add_created_by_ids
-Revises: 0475_change_notification_status
+Revision ID: 0477_add_created_by_ids
+Revises: 0476_add_reports_table
 Create Date: 2025-02-11 15:37:00 EST
 
 """
@@ -14,8 +14,8 @@ from alembic import op
 
 from app.encryption import hashpw
 
-revision = "0476_add_created_by_ids"
-down_revision = "0475_change_notification_status"
+revision = "0477_add_created_by_ids"
+down_revision = "0476_add_reports_table"
 
 missing_data_uuid = "00000000-0000-0000-0000-000000000000"
 
