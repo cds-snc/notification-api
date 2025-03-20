@@ -2732,3 +2732,15 @@ class Report(BaseModel):
     job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), nullable=True)  # only set if report is for a bulk job
     url = db.Column(db.String(255), nullable=True)  # url to download the report from s3
     status = db.Column(db.String(255), nullable=False)
+
+    def serialize(self):
+        return {
+            "id": str(self.id),
+            "report_type": self.report_type,
+            "service_id": str(self.service_id),
+            "status": self.status,
+            "requested_at": self.requested_at.strftime(DATETIME_FORMAT),
+            "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
+            "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
+            "url": self.url,
+        }
