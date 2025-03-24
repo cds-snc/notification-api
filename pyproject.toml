@@ -48,6 +48,9 @@ python-dotenv = "*"
 python-magic = "*"
 rfc3339-validator = "*"
 sentry-sdk = {extras = ["flask"], version = "*"}
+# #2370 - setuptools pinned due to a bug in 78.0.1 on March 24th, 2025
+# https://github.com/pypa/setuptools/issues/4910
+setuptools= "77.0.3"
 SQLAlchemy = "^1.4"
 twilio = "*"
 Unidecode = "*"

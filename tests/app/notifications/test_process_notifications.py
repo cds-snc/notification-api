@@ -808,6 +808,7 @@ def test_persist_email_notification_stores_normalised_email(
     assert persisted_notification.normalised_to == expected_recipient_normalised
 
 
+@pytest.mark.serial
 def test_persist_notification_with_billable_units_stores_correct_info(
     notify_db_session,
     mocker,
