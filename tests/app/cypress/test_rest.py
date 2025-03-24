@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -7,7 +8,7 @@ from tests import create_cypress_authorization_header
 from tests.app.conftest import create_sample_template, create_template_category
 from tests.conftest import set_config_values
 
-EMAIL_PREFIX = "notify-ui-tests+ag_"
+EMAIL_PREFIX = os.getenv("CYPRESS_USER_EMAIL_PREFIX", "notify-ui-tests+ag_")
 
 
 def test_create_test_user(client, sample_service_cypress):

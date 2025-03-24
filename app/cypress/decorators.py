@@ -1,10 +1,11 @@
+import os
 from functools import wraps
 
 from flask import current_app, jsonify
 
 from app.models import User
 
-EMAIL_PREFIX = "notify-ui-tests+ag_"
+EMAIL_PREFIX = os.getenv("CYPRESS_USER_EMAIL_PREFIX", "notify-ui-tests+ag_")
 
 
 def fetch_cypress_user_by_id(func):
