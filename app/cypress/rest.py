@@ -11,17 +11,21 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify
 
 from app import db
+from app.cypress.decorators import fetch_cypress_user_by_id
 from app.dao.services_dao import dao_add_user_to_service
+from app.dao.template_categories_dao import dao_delete_template_category_by_id
 from app.dao.users_dao import save_model_user
 from app.errors import register_errors
 from app.models import (
     AnnualBilling,
+    EmailBranding,
     LoginEvent,
     Permission,
     Service,
     ServicePermission,
     ServiceUser,
     Template,
+    TemplateCategory,
     TemplateHistory,
     TemplateRedacted,
     User,
@@ -141,6 +145,7 @@ def _destroy_test_user(email_name):
         cypress_service.created_by_id = current_app.config["CYPRESS_TEST_USER_ID"]
 
         # cycle through all the services created by this user, remove associated entities
+
         services = Service.query.filter_by(created_by=user).filter(Service.id != current_app.config["CYPRESS_SERVICE_ID"])
         for service in services.all():
             TemplateHistory.query.filter_by(service_id=service.id).delete()
@@ -156,6 +161,8 @@ def _destroy_test_user(email_name):
         TemplateRedacted.query.filter_by(updated_by=user).delete()
         TemplateHistory.query.filter_by(created_by=user).delete()
         Template.query.filter_by(created_by=user).delete()
+        TemplateCategory.query.filter_by(created_by=user).delete()
+        EmailBranding.query.filter_by(created_by=user).delete()
         Permission.query.filter_by(user=user).delete()
         LoginEvent.query.filter_by(user=user).delete()
         ServiceUser.query.filter_by(user_id=user.id).delete()
@@ -167,6 +174,49 @@ def _destroy_test_user(email_name):
     except Exception as e:
         current_app.logger.error(f"Error destroying test user {user.email_address}: {str(e)}")
         db.session.rollback()
+
+
+@cypress_blueprint.route("/template-categories/cleanup/<user_id>", methods=["POST"])
+@fetch_cypress_user_by_id
+def delete_template_categories_by_user_id(user_id, user):
+    """Deletes all template categories created by user_id.
+
+
+    Args:
+        user_id (str): The id of the user to delete template categories for.
+        user (User): The DB user object to delete template categories for, fetched by the fetch_cypress_user_by_id decorator.
+
+    Returns:
+        A JSON response with a 201 if all template categories were successfully deleted. If a template failes deletion the ID
+        and exception message are stored and returned with a 207 response.
+    """
+    query = TemplateCategory.query.filter_by(created_by_id=user_id)
+    results = query.all()
+    remaining = []
+
+    current_app.logger.info(f"[Cypress API]: Deleting {len(results)} template categories created by user {user_id}.")
+
+    for template_category in results:
+        try:
+            dao_delete_template_category_by_id(template_category.id, cascade=True)
+        except Exception as e:
+            remaining.append({"template_category_id": template_category.id, "error": str(e)})
+
+    if remaining:
+        message = (
+            jsonify(
+                message=f"Template category clean up complete {len(results) - len(remaining)} of {len(results)} deleted.",
+                errors=remaining,
+            ),
+            207,
+        )
+    else:
+        message = (
+            jsonify(message=f"Template category clean up complete {len(results) - len(remaining)} of {len(results)} deleted."),
+            201,
+        )
+
+    return message
 
 
 @cypress_blueprint.route("/cleanup", methods=["GET"])

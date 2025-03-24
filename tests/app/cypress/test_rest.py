@@ -1,8 +1,10 @@
 import json
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from app.models import User
 from tests import create_cypress_authorization_header
+from tests.app.conftest import create_sample_template, create_template_category
 from tests.conftest import set_config_values
 
 EMAIL_PREFIX = "notify-ui-tests+ag_"
@@ -97,3 +99,43 @@ def test_cleanup_stale_users(client, sample_service_cypress, cypress_user, notif
 
     user = User.query.filter_by(email_address=f"{EMAIL_PREFIX}emailsuffix_admin@cds-snc.ca").first()
     assert user is None
+
+
+def test_delete_template_categories_by_user_id_success(client, cypress_user, notify_db, notify_db_session):
+    cascade = "true"
+    path = f"/cypress/template-categories/cleanup/{cypress_user.id}?cascade={cascade}"
+    auth_header = create_cypress_authorization_header()
+
+    category = create_template_category(notify_db, notify_db_session, created_by_id=cypress_user.id)
+
+    with patch("app.cypress.rest.dao_delete_template_category_by_id") as mock_delete:
+        mock_delete.return_value = None  # Simulate successful deletion
+        response = client.post(path, headers=[auth_header], content_type="application/json")
+
+    assert response.status_code == 201
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert resp_json["message"] == "Template category clean up complete 1 of 1 deleted."
+
+    # Verify the mock was called for each template category
+    assert mock_delete.call_count == 1
+    mock_delete.assert_any_call(category.id, cascade=True)
+
+
+def test_delete_template_categories_by_user_id_exception(client, cypress_user, notify_db, notify_db_session):
+    path = f"/cypress/template-categories/cleanup/{cypress_user.id}"
+    auth_header = create_cypress_authorization_header()
+
+    # Mock template categories created by the user
+    categories = [
+        create_template_category(notify_db, notify_db_session, name_en="1", name_fr="1", created_by_id=cypress_user.id),
+        create_template_category(notify_db, notify_db_session, created_by_id=cypress_user.id),
+    ]
+    create_sample_template(notify_db, notify_db_session, template_category=categories[0])
+
+    with patch("app.cypress.rest.dao_delete_template_category_by_id", side_effect=Exception("bad things happened")):
+        response = client.post(path, headers=[auth_header], content_type="application/json")
+
+    assert response.status_code == 207
+    resp_json = json.loads(response.get_data(as_text=True))
+    assert resp_json["message"] == "Template category clean up complete 0 of 2 deleted."
+    assert len(resp_json["errors"]) == 2

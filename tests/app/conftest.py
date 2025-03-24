@@ -412,6 +412,10 @@ def create_template_category(
     hidden=False,
     created_by_id=None,
 ):
+    if not created_by_id:
+        user = create_user()
+        created_by_id = user.id
+
     data = {
         "name_en": name_en,
         "name_fr": name_fr,
@@ -420,11 +424,8 @@ def create_template_category(
         "sms_process_type": sms_process_type,
         "email_process_type": email_process_type,
         "hidden": hidden,
+        "created_by_id": created_by_id,
     }
-
-    if not created_by_id:
-        user = create_user()
-        data.update({"created_by_id": str(user.id)})
 
     template_category = TemplateCategory(**data)
     dao_create_template_category(template_category)
