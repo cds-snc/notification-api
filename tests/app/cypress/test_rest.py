@@ -139,4 +139,4 @@ def test_delete_template_categories_by_user_id_exception(client, cypress_user, n
     assert response.status_code == 207
     resp_json = json.loads(response.get_data(as_text=True))
     assert resp_json["message"] == "Template category clean up complete 0 of 2 deleted."
-    assert len(resp_json["errors"]) == 2
+    assert len(resp_json["failed_category_ids"]) == 2

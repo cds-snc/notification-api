@@ -187,8 +187,8 @@ def delete_template_categories_by_user_id(user_id, user):
         user (User): The DB user object to delete template categories for, fetched by the fetch_cypress_user_by_id decorator.
 
     Returns:
-        A JSON response with a 201 if all template categories were successfully deleted. If a template failes deletion the ID
-        and exception message are stored and returned with a 207 response.
+        A JSON response with a 201 if all template categories were successfully deleted. If a template fails deletion the ID
+        is stored and returned with a 207 response.
     """
     query = TemplateCategory.query.filter_by(created_by_id=user_id)
     results = query.all()
@@ -200,13 +200,14 @@ def delete_template_categories_by_user_id(user_id, user):
         try:
             dao_delete_template_category_by_id(template_category.id, cascade=True)
         except Exception as e:
-            remaining.append({"template_category_id": template_category.id, "error": str(e)})
+            current_app.logger.info(f"[Cypress API]: Error deleting template category {template_category.id}: {str(e)}")
+            remaining.append(template_category.id)
 
     if remaining:
         message = (
             jsonify(
                 message=f"Template category clean up complete {len(results) - len(remaining)} of {len(results)} deleted.",
-                errors=remaining,
+                failed_category_ids=remaining,
             ),
             207,
         )
