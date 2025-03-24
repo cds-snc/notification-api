@@ -96,12 +96,6 @@ jobs:
           zip -j nightly_stats_bigquery_upload_lambda nightly_stats_bigquery_upload/nightly_stats_bigquery_upload_lambda.py
           aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-stats-bigquery-upload-lambda --zip-file fileb://nightly_stats_bigquery_upload_lambda.zip
 
-      - name: Package and deploy nightly billing stats upload lambda function
-        if: ${{ (inputs.lambdaName == 'NightBillingBQUpload') || (inputs.lambdaName == 'All') }}
-        run: |
-          zip -j nightly_billing_stats_upload_lambda nightly_billing_bigquery_upload/nightly_billing_stats_upload_lambda.py
-          aws lambda update-function-code --function-name project-${{ inputs.environment }}-nightly-billing-stats-upload-lambda --zip-file fileb://nightly_billing_stats_upload_lambda.zip
-
       - name: Package and deploy vetext incoming forwarder lambda
         if: ${{ (inputs.lambdaName == 'VetTextIncomingForwarder') || (inputs.lambdaName == 'All') }}
         run: |

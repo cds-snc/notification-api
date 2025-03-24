@@ -154,9 +154,6 @@ class Config(object):
     CSV_UPLOAD_BUCKET_NAME = os.getenv(
         'CSV_UPLOAD_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-csv-upload'
     )
-    DAILY_BILLING_STATS_BUCKET_NAME = os.getenv(
-        'DAILY_BILLING_STATS_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-daily-billing-stats'
-    )
     ASSET_UPLOAD_BUCKET_NAME = os.getenv('ASSET_UPLOAD_BUCKET_NAME', 'dev-notifications-va-gov-assets')
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2

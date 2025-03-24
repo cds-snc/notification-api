@@ -669,7 +669,7 @@ def test_generate_daily_notification_status_csv_report(notify_api, mocker):
 
     mock_boto.client.return_value.put_object.assert_called_once()
     _, kwargs = mock_boto.client.return_value.put_object.call_args
-    assert kwargs['Key'] == '2021-12-16.csv'
+    assert kwargs['Key'] == '2021-12-16.stats.csv'
     assert (
         kwargs['Body'] == 'date,service id,service name,template id,template name,status,status reason,count,'
         'channel_type\r\n'
@@ -712,5 +712,7 @@ def test_generate_nightly_billing_csv_report(mocker, sample_service, sample_temp
     mock_boto = mocker.patch('app.celery.reporting_tasks.boto3')
     generate_nightly_billing_csv_report(process_day_string)
     mock_boto.client.return_value.put_object.assert_called_once_with(
-        Body=expected_csv, Bucket=current_app.config['DAILY_BILLING_STATS_BUCKET_NAME'], Key=f'{process_day_string}.csv'
+        Body=expected_csv,
+        Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'],
+        Key=f'{process_day_string}.billing.csv',
     )

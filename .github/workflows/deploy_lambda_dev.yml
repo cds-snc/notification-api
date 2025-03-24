@@ -1,5 +1,5 @@
 name: Deploy Lambdas to Env
-run-name: "Deploy Lambdas to ${{ inputs.environment }}"
+run-name: "Deploy ${{ inputs.lambda }} Lambda(s) to ${{ inputs.environment }}"
 
 on:
   workflow_dispatch:
@@ -31,7 +31,6 @@ on:
           - ProfileOptInOut
           - ProfileRemoveOldOptOuts
           - NightBigQueryUpload
-          - NightBillingBQUpload
           - DeliveryStatusProcessor
 
 jobs:

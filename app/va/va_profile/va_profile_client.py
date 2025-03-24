@@ -395,11 +395,11 @@ class VAProfileClient:
             raise
 
         self.logger.info(
-            'VA Profile response when receiving status of notification_id: %s | notification_status: %s | '
+            'VA Profile response when receiving status of notification: %s | notification_status: %s | '
             'status code: %s service_name: %s | json: %s',
             notification_data.get('id'),
             notification_data.get('status'),
-            notification_data.get('service_name'),
             response.status_code,
+            notification_data.get('service_name'),
             response.json(),
         )
