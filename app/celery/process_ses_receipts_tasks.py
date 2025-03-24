@@ -102,10 +102,15 @@ def process_ses_results(  # noqa: C901 (too complex 19 > 10)
             return
 
         # Prevent regressing bounce status.  Note that this is a test of the existing status; not the new status.
-        if notification.status_reason and notification.status in {
-            NOTIFICATION_TEMPORARY_FAILURE,
-            NOTIFICATION_PERMANENT_FAILURE,
-        }:
+        if (
+            notification.status_reason
+            and 'bounce' in notification.status_reason
+            and notification.status
+            in {
+                NOTIFICATION_TEMPORARY_FAILURE,
+                NOTIFICATION_PERMANENT_FAILURE,
+            }
+        ):
             # async from AWS means we may get a delivered status after a bounce, in rare cases
             current_app.logger.warning(
                 'Notification: %s was marked as a bounce, cannot be updated to: %s',
