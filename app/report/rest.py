@@ -14,41 +14,8 @@ register_errors(report_blueprint)
 
 @report_blueprint.route("", methods=["POST"])
 def create_service_report(service_id):
-    """
-    Creates a new report for a service
-    ---
-    tags:
-      - Report
-    parameters:
-      - name: service_id
-        in: path
-        type: string
-        required: true
-        description: The ID of the service
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              report_type:
-                type: string
-                enum: [sms, email, job]
-                description: Type of report to generate
-              requesting_user_id:
-                type: string
-                format: uuid
-                description: ID of the user requesting the report
-            required:
-              - report_type
-    responses:
-      201:
-        description: Report request created
-      400:
-        description: Invalid request
-      403:
-        description: Unauthorized
-    """
+    "Creates a new report for a service"
+
     data = request.get_json()
 
     validate(data, {"report_type": {"type": "string", "required": True}})
