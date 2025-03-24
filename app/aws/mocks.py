@@ -12,6 +12,71 @@ def sns_s3_callback(filename, message_id="some-message-id"):
     )
 
 
+def generate_ses_notification_callbacks(references):
+    messages = []
+
+    for i, ref in enumerate(references):
+        ses_message_body = {
+            "delivery": {
+                "processingTimeMillis": 2003,
+                "recipients": ["success@simulator.amazonses.com"],
+                "remoteMtaIp": "123.123.123.123",
+                "reportingMTA": "a7-32.smtp-out.eu-west-1.amazonses.com",
+                "smtpResponse": "250 2.6.0 Message received",
+                "timestamp": "2017-11-17T12:14:03.646Z",
+            },
+            "mail": {
+                "commonHeaders": {
+                    "from": ["TEST <TEST@notify.works>"],
+                    "subject": "lambda test",
+                    "to": ["success@simulator.amazonses.com"],
+                },
+                "destination": ["success@simulator.amazonses.com"],
+                "headers": [
+                    {"name": "From", "value": "TEST <TEST@notify.works>"},
+                    {"name": "To", "value": "success@simulator.amazonses.com"},
+                    {"name": "Subject", "value": "lambda test"},
+                    {"name": "MIME-Version", "value": "1.0"},
+                    {
+                        "name": "Content-Type",
+                        "value": 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"',
+                    },
+                ],
+                "headersTruncated": False,
+                "messageId": ref,
+                "sendingAccountId": "12341234",
+                "source": '"TEST" <TEST@notify.works>',
+                "sourceArn": "arn:aws:ses:eu-west-1:12341234:identity/notify.works",
+                "sourceIp": "0.0.0.1",
+                "timestamp": "2017-11-17T12:14:01.643Z",
+            },
+            "notificationType": "Delivery",
+        }
+        if i % 2 == 0:
+            ses_message_body["notificationType"] = "Complaint"
+            ses_message_body["complaint"] = {
+                "complaintFeedbackType": "abuse",
+                "complainedRecipients": [{"emailAddress": "recipient1@example.com"}],
+                "timestamp": "2018-06-05T13:59:58.000Z",
+                "feedbackId": "ses_feedback_id",
+            }
+        messages.append(ses_message_body)
+
+    return {
+        "Type": "Notification",
+        "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
+        "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
+        "Subject": None,
+        "Messages": json.dumps(messages),
+        "Timestamp": "2017-11-17T12:14:03.710Z",
+        "SignatureVersion": "1",
+        "Signature": "[REDACTED]",
+        "SigningCertUrl": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
+        "MessageAttributes": {},
+    }
+
+
 def ses_notification_callback(reference):
     ses_message_body = {
         "delivery": {
@@ -55,7 +120,7 @@ def ses_notification_callback(reference):
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Message": json.dumps(ses_message_body),
+        "Messages": json.dumps(ses_message_body),
         "Timestamp": "2017-11-17T12:14:03.710Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",

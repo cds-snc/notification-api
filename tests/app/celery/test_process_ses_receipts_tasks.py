@@ -12,7 +12,7 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
-from app.aws.mocks import ses_complaint_callback, ses_unknown_bounce_callback
+from app.aws.mocks import generate_ses_notification_callbacks, ses_complaint_callback, ses_unknown_bounce_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
@@ -46,16 +46,20 @@ from celery.exceptions import MaxRetriesExceededError
 
 
 def test_process_ses_results(sample_email_template):
-    save_notification(
-        create_notification(
-            sample_email_template,
-            reference="ref1",
-            sent_at=datetime.utcnow(),
-            status="sending",
+    refs = []
+    for i in range(10):
+        ref = f"ref{i}"
+        save_notification(
+            create_notification(
+                sample_email_template,
+                reference=ref,
+                sent_at=datetime.utcnow(),
+                status="sending",
+            )
         )
-    )
+        refs.append(ref)
 
-    assert process_ses_results(response=ses_notification_callback(reference="ref1"))
+    assert process_ses_results(response=generate_ses_notification_callbacks(references=refs))
 
 
 def test_process_ses_results_retry_called(sample_email_template, notify_db, mocker):

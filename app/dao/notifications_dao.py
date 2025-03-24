@@ -262,6 +262,17 @@ def update_notification_status_by_id(notification_id, status, sent_by=None, feed
 
 @statsd(namespace="dao")
 @transactional
+def update_notification_statuses(notifications):
+    # notifications_to_update = (
+    #     Notification.query.filter(Notification.id.in_([n.id for n in notifications]))
+    #     .filter(Notification.status.not_in_([NOTIFICATION_SENDING, NOTIFICATION_PENDING]))
+    #     .all()
+    # )
+    pass
+
+
+@statsd(namespace="dao")
+@transactional
 def update_notification_status_by_reference(reference, status):
     # this is used to update letters and emails
     notification = Notification.query.filter(Notification.reference == reference).first()
