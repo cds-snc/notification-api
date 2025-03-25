@@ -5,7 +5,7 @@ from marshmallow import ValidationError
 
 from app.dao.reports_dao import create_report, get_reports_for_service
 from app.dao.services_dao import dao_fetch_service_by_id
-from app.errors import register_errors
+from app.errors import InvalidRequest, register_errors
 from app.models import Report, ReportStatus, ReportType
 from app.schema_validation import validate
 from app.schemas import report_schema
@@ -54,8 +54,9 @@ def create_service_report(service_id):
 
         return jsonify(data=report_schema.dump(created_report)), 201
 
-    except ValidationError as e:
-        return jsonify(result="error", message=str(e)), 400
+    except ValidationError as err:
+        errors = err.messages
+        raise InvalidRequest(errors, status_code=400)
 
 
 @report_blueprint.route("", methods=["GET"])
