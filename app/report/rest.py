@@ -1,12 +1,14 @@
 import uuid
 
 from flask import Blueprint, current_app, jsonify, request
+from marshmallow import ValidationError
 
 from app.dao.reports_dao import create_report
 from app.dao.services_dao import dao_fetch_service_by_id
-from app.errors import register_errors
+from app.errors import InvalidRequest, register_errors
 from app.models import Report, ReportStatus, ReportType
 from app.schema_validation import validate
+from app.schemas import report_schema
 
 report_blueprint = Blueprint("report", __name__, url_prefix="/service/<uuid:service_id>/report")
 register_errors(report_blueprint)
@@ -18,6 +20,7 @@ def create_service_report(service_id):
 
     data = request.get_json()
 
+    # Validate basic required fields
     validate(data, {"report_type": {"type": "string", "required": True}})
 
     # Validate report type is one of the allowed types
@@ -28,18 +31,29 @@ def create_service_report(service_id):
     # Check service exists
     dao_fetch_service_by_id(service_id)
 
-    # Create the report object
-    report = Report(
-        id=uuid.uuid4(),
-        report_type=report_type,
-        service_id=service_id,
-        status=ReportStatus.REQUESTED.value,
-        requesting_user_id=data.get("requesting_user_id"),
-    )
+    try:
+        # Validate the report data against the schema
+        report_data = {
+            "id": str(uuid.uuid4()),
+            "report_type": report_type,
+            "service_id": str(service_id),
+            "status": ReportStatus.REQUESTED.value,
+            "requesting_user_id": data.get("requesting_user_id"),
+        }
 
-    # Save the report to the database
-    created_report = create_report(report)
+        # Validate against the schema
+        report_schema.load(report_data)
 
-    current_app.logger.info(f"Report {created_report.id} created for service {service_id}")
+        # Create the report object
+        report = Report(**report_data)
 
-    return jsonify(data=created_report.serialize()), 201
+        # Save the report to the database
+        created_report = create_report(report)
+
+        current_app.logger.info(f"Report {created_report.id} created for service {service_id}")
+
+        return jsonify(data=report_schema.dump(created_report)), 201
+
+    except ValidationError as err:
+        errors = err.messages
+        raise InvalidRequest(errors, status_code=400)
