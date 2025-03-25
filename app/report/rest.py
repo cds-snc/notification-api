@@ -61,7 +61,7 @@ def create_service_report(service_id):
 
 @report_blueprint.route("", methods=["GET"])
 def get_service_reports(service_id):
-    """Get reports for a service with optional days parameter"""
+    """Get reports for a service with optional limit_days parameter"""
 
     # Get optional days parameter, default to 30 if not provided
     limit_days = request.args.get("limit_days", type=int, default=30)

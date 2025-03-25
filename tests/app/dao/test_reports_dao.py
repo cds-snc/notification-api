@@ -28,6 +28,7 @@ def test_create_report(sample_service, notify_db_session):
 
 
 @pytest.fixture
+@freeze_time("2023-01-15 12:00:00")
 def sample_reports(sample_service):
     """Create a set of sample reports for testing"""
     reports = []
@@ -65,82 +66,56 @@ def sample_reports(sample_service):
 
 
 @freeze_time("2023-01-15 12:00:00")
-def test_get_reports_for_service_with_limit(sample_service, sample_reports, mocker):
+def test_get_reports_for_service_with_limit(sample_service, sample_reports, notify_db_session):
     """Test getting reports with a day limit applies filter correctly"""
-    # Mock the query processing
-    mock_query = mocker.patch("app.models.Report.query")
-    mock_filter_by = mock_query.filter_by.return_value
-    mock_filter = mock_filter_by.filter.return_value
-    mock_order_by = mock_filter.order_by.return_value
-    mock_all = mock_order_by.all
-
-    # Set up the return value to be the subset of reports within the time limit
-    expected_reports = [r for r in sample_reports if (datetime.datetime.utcnow() - r.requested_at).days <= 7]
-    mock_all.return_value = expected_reports
+    # Add the sample reports to the database
+    for report in sample_reports:
+        create_report(report)
 
     # Call function with 7 day limit
     result = get_reports_for_service(sample_service.id, limit_days=7)
 
-    # Assertions
-    mock_query.filter_by.assert_called_once_with(service_id=sample_service.id)
-    assert mock_filter_by.filter.called
-    assert mock_filter.order_by.called
-    assert result == expected_reports
-    assert len(result) == 5  # All but the oldest report
+    # Get expected reports (reports within the 7-day limit)
+    expected_reports = [r for r in sample_reports if (datetime.datetime.utcnow() - r.requested_at).days <= 7]
+    expected_reports.sort(key=lambda x: x.requested_at, reverse=True)  # Sort by requested_at desc
+
+    assert len(result) == 5  # Should have 5 reports within the 7-day limit
+    assert len(result) == len(expected_reports)
+
+    # Verify the oldest report (35 days old) is not included
+    oldest_report = [r for r in sample_reports if (datetime.datetime.utcnow() - r.requested_at).days > 30][0]
+    assert oldest_report.id not in [r.id for r in result]
 
 
 def test_get_reports_for_service_empty_result(sample_service, mocker):
     """Test when no reports exist for a service"""
-    # Mock the query processing
-    mock_query = mocker.patch("app.models.Report.query")
-    mock_filter_by = mock_query.filter_by.return_value
-    mock_filter = mock_filter_by.filter.return_value
-    mock_order_by = mock_filter.order_by.return_value
-    mock_order_by.all.return_value = []
-
-    # Call function
     result = get_reports_for_service(sample_service.id, limit_days=30)
-
-    # Assertions
     assert result == []
 
 
 @freeze_time("2023-01-15 12:00:00")
-def test_get_reports_for_service_sorting(sample_service, mocker):
+def test_get_reports_for_service_sorting(sample_service, sample_reports, notify_db_session):
     """Test that reports are sorted by requested_at in descending order"""
-    # Create a set of reports with different timestamps
-    today = datetime.datetime.utcnow()
-    reports = [
-        Report(
-            id=uuid.uuid4(),
-            service_id=sample_service.id,
-            requested_at=today - datetime.timedelta(days=1),
-            status=ReportStatus.READY.value,
-        ),
-        Report(id=uuid.uuid4(), service_id=sample_service.id, requested_at=today, status=ReportStatus.READY.value),
-        Report(
-            id=uuid.uuid4(),
-            service_id=sample_service.id,
-            requested_at=today - datetime.timedelta(days=2),
-            status=ReportStatus.READY.value,
-        ),
-    ]
+    # Add the first 3 reports from sample_reports to the database
+    # These will be 5, 4, and 3 days ago
+    test_reports = sample_reports[:3]
 
-    # Expected order: today, today-1, today-2
-    expected_order = [reports[1], reports[0], reports[2]]
+    for report in test_reports:
+        create_report(report)
 
-    # Mock the query processing
-    mock_query = mocker.patch("app.models.Report.query")
-    mock_filter_by = mock_query.filter_by.return_value
-    mock_filter = mock_filter_by.filter.return_value
-    mock_order_by = mock_filter.order_by.return_value
-    mock_order_by.all.return_value = expected_order
+    # Expected order based on dates: 3 days ago (index 2), 4 days ago (index 1), 5 days ago (index 0)
+    expected_order = [test_reports[2], test_reports[1], test_reports[0]]
 
     # Call function
     result = get_reports_for_service(sample_service.id, limit_days=30)
 
     # Assertions
-    assert result == expected_order
-    mock_filter.order_by.assert_called_once()
-    # Check that the first report has the most recent date
+    assert len(result) == 3
+
+    # Check that the reports are sorted properly (newest first)
     assert result[0].requested_at > result[1].requested_at > result[2].requested_at
+
+    # Check that the IDs match the expected order
+    assert result[0].id == expected_order[0].id
+    assert result[1].id == expected_order[1].id
+    assert result[2].id == expected_order[2].id
