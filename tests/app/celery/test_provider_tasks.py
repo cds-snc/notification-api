@@ -1,10 +1,19 @@
+from unittest.mock import patch
+from uuid import uuid4
+
 from requests import HTTPError, Response
 from requests.exceptions import ConnectTimeout, RequestException
 from app.mobile_app.mobile_app_types import MobileAppType
 import pytest
 
 from app.celery.exceptions import AutoRetryException, NonRetryableException
-from app.celery.provider_tasks import deliver_email, deliver_push, deliver_sms, deliver_sms_with_rate_limiting
+from app.celery.provider_tasks import (
+    deliver_email,
+    deliver_push,
+    deliver_sms,
+    deliver_sms_with_rate_limiting,
+    _handle_delivery_failure,
+)
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
 from app.config import QueueNames
 from app.constants import (
@@ -25,7 +34,6 @@ from app.v2.errors import RateLimitError
 from collections import namedtuple
 from notifications_utils.field import NullValueForNonConditionalPlaceholderException
 from notifications_utils.recipients import InvalidEmailError, InvalidPhoneError
-from uuid import uuid4
 
 
 def test_should_have_decorated_tasks_functions():
@@ -638,3 +646,18 @@ def test_deliver_push_nonretryable_exception(
     assert rmock.request_history[0].method == 'POST'
     assert rmock.request_history[0].url == url
     assert rmock.request_history[0].json()
+
+
+@patch('app.celery.provider_tasks.current_app.logger.warning')
+@patch('app.celery.provider_tasks.log_and_update_critical_failure')
+def test_handle_delivery_failure_duplication_prevention(mock_log_critical, mock_logger, notify_api):
+    # Ensure a Duplication prevention RuntimeError is handled appropriately
+    notification_id = str(uuid4())
+    try:
+        raise RuntimeError('Duplication prevention - notification.status = sending')
+    except Exception as e:
+        with pytest.raises(NotificationTechnicalFailureException):
+            _handle_delivery_failure(None, None, None, e, notification_id, None)
+    # Assert an appropriate warning was logged and that the log_and_update function was not called
+    mock_logger.assert_called_with('Attempted to send duplicate notification for: %s', notification_id)
+    mock_log_critical.assert_not_called()

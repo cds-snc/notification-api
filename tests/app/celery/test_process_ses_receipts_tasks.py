@@ -2,6 +2,7 @@ import json
 import pytest
 from datetime import datetime
 from freezegun import freeze_time
+from unittest.mock import patch
 from uuid import uuid4
 
 from app.celery import process_ses_receipts_tasks
@@ -632,6 +633,7 @@ def get_complaint_notification_and_email(mocker):
     return complaint, notification, recipient_email
 
 
+@patch('app.celery.process_ses_receipts_tasks.current_app.logger.warning')
 @pytest.mark.parametrize(
     'status, status_reason',
     (
@@ -640,6 +642,7 @@ def get_complaint_notification_and_email(mocker):
     ),
 )
 def test_process_ses_results_no_bounce_regression(
+    mock_logger,
     notify_db_session,
     sample_template,
     sample_notification,
@@ -666,6 +669,7 @@ def test_process_ses_results_no_bounce_regression(
     notify_db_session.session.refresh(notification)
     assert notification.status == status, 'The status should not have changed.'
     assert notification.status_reason == status_reason
+    mock_logger.assert_called_once()
 
 
 def test_process_ses_results_personalisation(notify_db_session, sample_template, sample_notification, mocker):

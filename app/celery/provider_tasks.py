@@ -155,6 +155,7 @@ def deliver_email(
     try:
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
+            # Race condition, though this has not been observed to ever occur between Dec 24, 2024 and Mar 24, 2025
             current_app.logger.warning('Notification not found for: %s, retrying', notification_id)
             raise AutoRetryException
         if not notification.to:
@@ -242,12 +243,16 @@ def _handle_delivery_failure(
         celery_task.request.chain = None
 
     elif isinstance(e, (NullValueForNonConditionalPlaceholderException, AttributeError, RuntimeError)):
-        log_and_update_critical_failure(
-            notification_id,
-            method_name,
-            e,
-            STATUS_REASON_UNDELIVERABLE,
-        )
+        if 'Duplication prevention' in str(e):
+            current_app.logger.warning('Attempted to send duplicate notification for: %s', notification_id)
+        else:
+            # Only update the notification if it's not a duplication issue
+            log_and_update_critical_failure(
+                notification_id,
+                method_name,
+                e,
+                STATUS_REASON_UNDELIVERABLE,
+            )
         raise NotificationTechnicalFailureException(f'Found {type(e).__name__}, NOT retrying...', e, e.args)
 
     else:

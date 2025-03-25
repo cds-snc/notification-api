@@ -894,6 +894,23 @@ def test_send_email_to_provider_should_format_reply_to_email_address(
     assert kwargs['reply_to_address'] == 'test@test.com'
 
 
+def test_send_email_to_provider_should_not_trigger_second_email(
+    sample_api_key,
+    sample_notification,
+    sample_provider,
+    sample_template,
+    mock_email_client,
+):
+    sample_provider(identifier=SES_PROVIDER, notification_type=EMAIL_TYPE)
+    template = sample_template(template_type=EMAIL_TYPE)
+    db_notification = sample_notification(template=template, api_key=sample_api_key(service=template.service))
+
+    send_to_providers.send_email_to_provider(db_notification)
+    # Second call should raise raise the runtime error
+    with pytest.raises(RuntimeError):
+        send_to_providers.send_email_to_provider(db_notification)
+
+
 def test_send_sms_to_provider_should_format_phone_number(
     sample_api_key,
     sample_notification,

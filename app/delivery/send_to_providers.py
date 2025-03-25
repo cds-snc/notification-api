@@ -113,7 +113,7 @@ def send_email_to_provider(notification: Notification):
         inactive_service_failure(notification=notification)
 
     if notification.status != 'created':
-        raise RuntimeError(f'notification.status = {notification.status}')
+        raise RuntimeError(f'Duplication prevention - notification.status = {notification.status}')
 
     client = client_to_use(notification)
 
