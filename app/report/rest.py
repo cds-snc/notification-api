@@ -3,7 +3,7 @@ import uuid
 from flask import Blueprint, current_app, jsonify, request
 from marshmallow import ValidationError
 
-from app.dao.reports_dao import create_report
+from app.dao.reports_dao import create_report, get_reports_for_service
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import Report, ReportStatus, ReportType
@@ -57,3 +57,19 @@ def create_service_report(service_id):
     except ValidationError as err:
         errors = err.messages
         raise InvalidRequest(errors, status_code=400)
+
+
+@report_blueprint.route("", methods=["GET"])
+def get_service_reports(service_id):
+    """Get reports for a service with optional limit_days parameter"""
+
+    # Get optional days parameter, default to 30 if not provided
+    limit_days = request.args.get("limit_days", type=int, default=30)
+
+    # Check service exists
+    dao_fetch_service_by_id(service_id)
+
+    reports = get_reports_for_service(service_id, limit_days)
+
+    # Serialize all reports using the schema
+    return jsonify(data=report_schema.dump(reports, many=True)), 200
