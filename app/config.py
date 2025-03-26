@@ -737,6 +737,7 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
+    CYPRESS_USER_EMAIL_PREFIX = "notify-ui-tests+ag_"
 
 
 class Production(Config):
