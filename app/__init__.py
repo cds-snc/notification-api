@@ -209,6 +209,7 @@ def register_blueprint(application):
     from app.organisation.rest import organisation_blueprint
     from app.platform_stats.rest import platform_stats_blueprint
     from app.provider_details.rest import provider_details as provider_details_blueprint
+    from app.report.rest import report_blueprint
     from app.service.callback_rest import service_callback_blueprint
     from app.service.rest import service_blueprint
     from app.status.healthcheck import status as status_blueprint
@@ -280,6 +281,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, support_blueprint, requires_admin_auth, "/support")
 
     register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
+
+    register_notify_blueprint(application, report_blueprint, requires_admin_auth)
 
 
 def register_v2_blueprints(application):
