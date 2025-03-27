@@ -185,7 +185,6 @@ def test_update_free_sms_fragment_limit_data(client, sample_service):
     assert annual_billing.free_sms_fragment_limit == 9999
 
 
-@pytest.mark.serial
 @freeze_time('1990-04-21 14:00')
 def test_get_yearly_usage_by_monthly_from_ft_billing_populates_deltas(
     notify_db_session,
@@ -216,6 +215,7 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_populates_deltas(
 
         assert response.status_code == 200
         assert len(response.get_json()) == 1
+        notify_db_session.session.expire_all()
         stmt = select(FactBilling).where(FactBilling.service_id == service.id)
         fact_billing = notify_db_session.session.scalars(stmt).all()
 
@@ -229,8 +229,6 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_populates_deltas(
         notify_db_session.session.commit()
 
 
-# This test takes a long time to run.
-@pytest.mark.serial
 def test_get_yearly_usage_by_monthly_from_ft_billing(
     client,
     notify_db_session,
@@ -341,7 +339,7 @@ def test_get_yearly_billing_usage_summary_from_ft_billing_returns_empty_list_if_
     assert response.get_json() == []
 
 
-# This test takes a long time to run.
+# Cannot be ran in parallel - Gathers all
 @pytest.mark.serial
 def test_get_yearly_billing_usage_summary_from_ft_billing(
     notify_db_session,

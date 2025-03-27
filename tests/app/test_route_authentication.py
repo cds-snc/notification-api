@@ -5,7 +5,9 @@ from flask import url_for
 from werkzeug.routing import UUIDConverter, UnicodeConverter, IntegerConverter, PathConverter
 
 
-def test_all_routes_have_authentication(client):
+def test_all_routes_have_authentication(client, mocker):
+    # Redis adds +25 seconds to this check for no reason, we are not checking redis in this test
+    mocker.patch('app.status.healthcheck.redis_check', return_value=None)
     routes_without_authentication = set()
     # Populate the set with routes that do not enforce authentication.
     for rule in client.application.url_map.iter_rules():
@@ -17,9 +19,10 @@ def test_all_routes_have_authentication(client):
                 continue
 
             make_request = getattr(client, method.lower())
-
-            with patch('app.googleanalytics.ga4.post_to_ga4.delay'):
-                response = make_request(_build_url(rule))
+            # Mock time.sleep to return immediately
+            with patch('time.sleep', return_value=None):
+                with patch('app.googleanalytics.ga4.post_to_ga4.delay'):
+                    response = make_request(_build_url(rule))
 
             if response.status_code not in (401, 403):
                 routes_without_authentication.add(str(rule))
@@ -43,10 +46,8 @@ def test_all_routes_have_authentication(client):
         '/auth/my-services/<uuid:user_id>',
     )
 
-    # Mock time.sleep to return immediately
-    with patch('time.sleep', return_value=None):
-        for route in routes_without_authentication:
-            assert route in expected_routes_without_authentication
+    for route in routes_without_authentication:
+        assert route in expected_routes_without_authentication
 
 
 def _build_url(rule):

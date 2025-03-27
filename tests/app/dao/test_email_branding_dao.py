@@ -12,10 +12,12 @@ from app.dao.email_branding_dao import (
 from app.models import EmailBranding
 
 
+@pytest.mark.serial
 def test_get_email_branding_options_gets_all_email_branding(sample_email_branding):
     email_branding_1 = sample_email_branding(name=str(uuid4()))
     email_branding_2 = sample_email_branding(name=str(uuid4()))
 
+    # Cannot be parallel - Method gets all email branding
     email_branding = dao_get_email_branding_options()
 
     assert len(email_branding) == 2
@@ -40,28 +42,21 @@ def test_get_email_branding_by_name_gets_correct_email_branding(sample_email_bra
     assert email_branding_from_db == email_branding
 
 
-@pytest.mark.serial
 def test_update_email_branding(notify_db_session, sample_email_branding):
-    updated_name = 'new name'
-    sample_email_branding(name=str(uuid4()))
+    updated_name = str(uuid4())
+    branding = sample_email_branding(name=str(uuid4()))
 
-    stmt = select(EmailBranding)
-    email_branding = notify_db_session.session.scalars(stmt).all()
+    dao_update_email_branding(branding, name=updated_name)
 
-    assert len(email_branding) == 1
-    assert email_branding[0].name != updated_name
+    notify_db_session.session.expire_all()
+    email_branding = notify_db_session.session.get(EmailBranding, branding.id)
 
-    dao_update_email_branding(email_branding[0], name=updated_name)
-
-    email_branding = notify_db_session.session.scalars(stmt).all()
-
-    assert len(email_branding) == 1
-    assert email_branding[0].name == updated_name
+    assert email_branding is not None
+    assert email_branding.name == updated_name
 
 
-@pytest.mark.serial
 def test_email_branding_has_no_domain(notify_db_session, sample_email_branding):
-    sample_email_branding(name=str(uuid4()))
-    stmt = select(EmailBranding)
-    email_branding = notify_db_session.session.scalars(stmt).all()
+    branding = sample_email_branding(name=str(uuid4()))
+
+    email_branding: EmailBranding = notify_db_session.session.get(EmailBranding, branding.id)
     assert not hasattr(email_branding, 'domain')

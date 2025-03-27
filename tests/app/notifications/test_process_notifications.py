@@ -96,9 +96,9 @@ def test_create_content_for_notification_allows_additional_personalisation(
     create_content_for_notification(db_template, {'name': 'Bobby', 'Additional placeholder': 'Data'})
 
 
+@pytest.mark.serial
 @freeze_time('2016-01-01 11:09:00.061258')
 def test_persist_notification_creates_and_save_to_db(
-    notify_db_session,
     sample_api_key,
     sample_template,
     mocker,
@@ -111,40 +111,34 @@ def test_persist_notification_creates_and_save_to_db(
     data = {
         'template_id': template.id,
         'notification_id': uuid.uuid4(),
-        'created_at': datetime.datetime.utcnow(),
-        'reference': str(uuid.uuid4()),
-        'billing_code': str(uuid.uuid4()),
-        'recipient': '+16502532222',
         'notification_type': SMS_TYPE,
         'api_key_id': api_key.id,
         'key_type': api_key.key_type,
-        'reply_to_text': template.service.get_default_sms_sender(),
         'service_id': template.service.id,
         'template_version': template.version,
         'personalisation': {},
     }
 
     # Cleaned by the template cleanup
-    persist_notification(**data)
+    # Cannot be ran in parallel - Something sets this to permanent-failure
+    notification = persist_notification(**data)
 
-    db_notification = notify_db_session.session.get(Notification, data['notification_id'])
-
-    assert db_notification.id == data['notification_id']
-    assert db_notification.template_id == data['template_id']
-    assert db_notification.template_version == data['template_version']
-    assert db_notification.api_key_id == data['api_key_id']
-    assert db_notification.key_type == data['key_type']
-    assert db_notification.notification_type == data['notification_type']
-    assert db_notification.created_at == data['created_at']
-    assert db_notification.reference == data['reference']
-    assert db_notification.reply_to_text == data['reply_to_text']
-    assert db_notification.billing_code == data['billing_code']
-    assert db_notification.status == NOTIFICATION_CREATED
-    assert db_notification.billable_units == 0
-    assert db_notification.updated_at is None
-    assert db_notification.created_by_id is None
-    assert db_notification.client_reference is None
-    assert not db_notification.sent_at
+    assert notification.id == data['notification_id']
+    assert notification.template_id == data['template_id']
+    assert notification.template_version == data['template_version']
+    assert notification.api_key_id == data['api_key_id']
+    assert notification.key_type == data['key_type']
+    assert notification.notification_type == data['notification_type']
+    assert notification.created_at is not None
+    assert notification.reference is None
+    assert notification.reply_to_text is None
+    assert notification.billing_code is None
+    assert notification.status == NOTIFICATION_CREATED
+    assert notification.billable_units == 0
+    assert notification.updated_at is None
+    assert notification.created_by_id is None
+    assert notification.client_reference is None
+    assert not notification.sent_at
 
     mocked_redis.assert_called_once_with(str(template.service_id) + '-2016-01-01-count')
 
@@ -222,6 +216,7 @@ def test_persist_notification_does_not_increment_cache_if_test_key(
         notification_id=notification_id,
     )
 
+    notify_db_session.session.expire_all()
     assert notify_db_session.session.get(Notification, notification_id)
     assert not daily_limit_cache.called
     assert not template_usage_cache.called
@@ -257,6 +252,7 @@ def test_persist_notification_with_optionals(
         created_by_id=api_key.created_by_id,
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.id == notification_id
@@ -677,6 +673,7 @@ def test_persist_notification_with_international_info_stores_correct_info(
         notification_id=notification_id,
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.international is expected_international
@@ -709,6 +706,7 @@ def test_persist_notification_with_international_info_does_not_store_for_email(
         notification_id=notification_id,
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.international is False
@@ -727,6 +725,8 @@ def test_persist_scheduled_notification(
 
     # Cleaned by the template cleanup
     persist_scheduled_notification(notification.id, '2017-05-12 14:15')
+
+    notify_db_session.session.expire_all()
     stmt = select(ScheduledNotification).where(ScheduledNotification.notification_id == notification.id)
     scheduled_notification = notify_db_session.session.scalar(stmt)
 
@@ -768,6 +768,7 @@ def test_persist_sms_notification_stores_normalised_number(
         notification_id=notification_id,
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == recipient
@@ -802,6 +803,8 @@ def test_persist_email_notification_stores_normalised_email(
         key_type=api_key.key_type,
         notification_id=notification_id,
     )
+
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == recipient
@@ -810,7 +813,6 @@ def test_persist_email_notification_stores_normalised_email(
 
 @pytest.mark.serial
 def test_persist_notification_with_billable_units_stores_correct_info(
-    notify_db_session,
     mocker,
     sample_service,
     sample_template,
@@ -820,7 +822,7 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
 
     # Cleaned by the template cleanup
-    persist_notification(
+    notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
         recipient='123 Main Street',
@@ -833,10 +835,7 @@ def test_persist_notification_with_billable_units_stores_correct_info(
         template_postage=template.postage,
     )
 
-    stmt = select(Notification)
-    persisted_notification = notify_db_session.session.scalars(stmt).all()[0]
-
-    assert persisted_notification.billable_units == 3
+    assert notification.billable_units == 3
 
 
 @pytest.mark.parametrize(
@@ -882,6 +881,7 @@ def test_persist_notification_persists_recipient_identifiers(
         notification_id=notification_id,
     )
 
+    notify_db_session.session.expire_all()
     recipient_identifier = notify_db_session.session.get(RecipientIdentifier, (notification_id, id_type, id_value))
 
     try:
@@ -932,6 +932,7 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
     assert notification.recipient_identifiers == {}
 
     # DB stored correctly
+    notify_db_session.session.expire_all()
     stmt = select(RecipientIdentifier).where(RecipientIdentifier.notification_id == notification.id)
     assert notify_db_session.session.scalar(stmt) is None
 

@@ -91,7 +91,7 @@ def test_will_remove_csv_files_for_jobs_older_than_seven_days(mocker, sample_tem
     dont_delete_me_1 = sample_job(template, created_at=seven_days_ago)
     sample_job(template, created_at=just_under_seven_days)
 
-    # requires serial - query intermittently grabs more to remove than expected
+    # Cannot be ran in parallel
     remove_sms_email_csv_files()
 
     assert s3.remove_job_from_s3.call_args_list == [
@@ -139,7 +139,7 @@ def test_will_remove_csv_files_for_jobs_older_than_retention_period(
     job3_to_delete = sample_job(email_template_service_2, created_at=thirty_one_days_ago)
     job4_to_delete = sample_job(sms_template_service_2, created_at=eight_days_ago)
 
-    # Requires serial execution
+    # Cannot be ran in parallel
     remove_sms_email_csv_files()
 
     s3.remove_job_from_s3.assert_has_calls(
@@ -170,6 +170,7 @@ def test_remove_csv_files_filters_by_type(mocker, sample_service, sample_templat
     job_to_delete = sample_job(template=letter_template, created_at=eight_days_ago)
     sample_job(template=sms_template, created_at=eight_days_ago)
 
+    # Cannot be ran in parallel
     remove_letter_csv_files()
 
     assert s3.remove_job_from_s3.call_args_list == [
@@ -223,6 +224,7 @@ def test_update_status_of_notifications_after_timeout(
         )
 
         with pytest.raises(NotificationTechnicalFailureException) as e:
+            # Cannot be ran in parallel
             timeout_notifications()
 
         notify_db_session.session.refresh(not1)
@@ -245,6 +247,7 @@ def test_not_update_status_of_notification_before_timeout(notify_api, sample_tem
             created_at=datetime.utcnow()
             - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') - 10),
         )
+        # Cannot be ran in parallel
         timeout_notifications()
         assert not1.status == 'sending'
 
@@ -260,6 +263,7 @@ def test_should_not_update_status_of_letter_notifications(
     not1 = sample_notification(template=template, status='sending', created_at=created_at)
     not2 = sample_notification(template=template, status='created', created_at=created_at)
 
+    # Cannot be ran in parallel
     timeout_notifications()
 
     assert not1.status == 'sending'
@@ -287,8 +291,9 @@ def test_timeout_notifications_sends_status_update_to_service(
         - timedelta(seconds=current_app.config.get('SENDING_NOTIFICATIONS_TIMEOUT_PERIOD') + 10),
     )
 
-    # serial-only method
+    # Cannot be ran in parallel
     timeout_notifications()
+
     notify_db_session.session.refresh(notification)
     encrypted_data = create_delivery_status_callback_data(notification, callback_api)
 
@@ -476,7 +481,7 @@ def test_alert_if_letter_notifications_still_sending(sample_template, mocker, sa
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
-    # Requires serial worker or refactor
+    # Cannot be ran in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     mock_create_ticket.assert_called_once_with(
@@ -495,7 +500,7 @@ def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_t
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
-    # Requires serial worker or refactor
+    # Cannot be ran in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
     assert not mock_create_ticket.called
 
@@ -511,7 +516,7 @@ def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
-    # Requires serial worker or refactor
+    # Cannot be ran in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     mock_create_ticket.assert_called_once_with(
@@ -531,6 +536,7 @@ def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offse
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
+    # Brittle in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     mock_create_ticket.assert_called_once_with(
@@ -550,6 +556,7 @@ def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
+    # Brittle in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     assert not mock_create_ticket.called
@@ -567,6 +574,7 @@ def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_let
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
+    # Brittle in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     mock_create_ticket.assert_called_once_with(
@@ -588,6 +596,7 @@ def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_lett
 
     mock_create_ticket = mocker.patch('app.celery.nightly_tasks.zendesk_client.create_ticket')
 
+    # Brittle in parallel - query uses <=
     raise_alert_if_letter_notifications_still_sending()
 
     mock_create_ticket.assert_called_once_with(

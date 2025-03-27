@@ -268,7 +268,7 @@ def test_should_get_jobs_seven_days_old(sample_template, sample_job):
     sample_job(template, created_at=nine_days_ago, archived=True)
     sample_job(template, created_at=nine_days_one_second_ago, archived=True)
 
-    # serial - Fails intermittently
+    # Brittle in parallel - query uses <
     jobs = dao_get_jobs_older_than_data_retention(notification_types=[template.template_type])
 
     assert len(jobs) == 1
@@ -338,7 +338,7 @@ def test_should_get_jobs_seven_days_old_filters_type(sample_service, sample_temp
     sample_job(sms_template, created_at=eight_days_ago)
     sample_job(email_template, created_at=eight_days_ago)
 
-    # serial - Fails intermittently
+    # Brittle in parallel - query uses <
     jobs = dao_get_jobs_older_than_data_retention(notification_types=[EMAIL_TYPE, SMS_TYPE])
 
     assert len(jobs) == 2
@@ -356,7 +356,7 @@ def test_should_get_jobs_seven_days_old_by_scheduled_for_date(sample_service, sa
     sample_job(letter_template, created_at=eight_days_ago, scheduled_for=eight_days_ago)
     job_to_remain = sample_job(letter_template, created_at=eight_days_ago, scheduled_for=six_days_ago)
 
-    # serial - Fails intermittently
+    # Brittle in parallel - query uses <
     jobs = dao_get_jobs_older_than_data_retention(notification_types=[LETTER_TYPE])
 
     assert len(jobs) == 2

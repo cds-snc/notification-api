@@ -13,6 +13,7 @@ def test_get_all_complaints_returns_complaints_for_multiple_services(client, sam
     complaint_2 = sample_complaint()
     assert complaint_1.service_id != complaint_2.service_id
 
+    # Cannot be ran in parallel - Endpoint returns all complaints
     response = client.get('/complaint', headers=[create_admin_authorization_header()])
 
     assert response.status_code == 200
@@ -21,6 +22,7 @@ def test_get_all_complaints_returns_complaints_for_multiple_services(client, sam
 
 @pytest.mark.serial
 def test_get_all_complaints_returns_empty_complaints_list(client):
+    # Cannot be ran in parallel - Endpoint returns all complaints
     response = client.get('/complaint', headers=[create_admin_authorization_header()])
 
     assert response.status_code == 200

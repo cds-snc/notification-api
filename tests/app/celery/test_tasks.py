@@ -458,7 +458,6 @@ def test_process_row_when_sender_id_is_provided(mocker, fake_uuid):
     )
 
 
-@pytest.mark.serial
 def test_should_send_template_to_correct_sms_task_and_persist(
     notify_db_session,
     sample_service,
@@ -481,6 +480,7 @@ def test_should_send_template_to_correct_sms_task_and_persist(
         encryption.encrypt(notification),
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == '+1 650 253 2222'
@@ -530,7 +530,6 @@ def test_should_put_save_sms_task_in_research_mode_queue_if_research_mode_servic
     assert mocked_deliver_sms.called
 
 
-@pytest.mark.serial
 def test_should_save_sms_if_restricted_service_and_valid_number(
     notify_db_session,
     mocker,
@@ -555,6 +554,7 @@ def test_should_save_sms_if_restricted_service_and_valid_number(
         encrypt_notification,
     )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == '+16502532222'
@@ -728,7 +728,6 @@ def test_should_put_save_email_task_in_research_mode_queue_if_research_mode_serv
     )
 
 
-@pytest.mark.serial
 def test_should_save_sms_template_to_and_persist_with_job_id(
     notify_db_session,
     sample_template,
@@ -744,12 +743,13 @@ def test_should_save_sms_template_to_and_persist_with_job_id(
 
     notification_id = uuid4()
     now = datetime.utcnow()
-    # serial - Fails intermittently
+
     save_sms(
         job.service.id,
         notification_id,
         encryption.encrypt(notification),
     )
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == '+1 650 253 2222'
@@ -798,7 +798,6 @@ def test_should_not_save_sms_if_team_key_and_recipient_not_in_team(
     assert provider_tasks.deliver_sms.apply_async.called is False
 
 
-@pytest.mark.serial
 def test_should_use_email_template_and_persist(
     notify_db_session,
     sample_template,
@@ -818,7 +817,6 @@ def test_should_use_email_template_and_persist(
         # Cleaned by sample_template
         notification = _notification_json(template, 'my_email@my_email.com', {'name': 'Jo'}, row_number=1)
 
-    # persist_notification in save_email intermittently fails when ran in parallel
     with freeze_time('2016-01-01 11:10:00.00000'):
         save_email(
             template.service_id,
@@ -826,6 +824,7 @@ def test_should_use_email_template_and_persist(
             encryption.encrypt(notification),
         )
 
+    notify_db_session.session.expire_all()
     persisted_notification = notify_db_session.session.get(Notification, notification_id)
 
     assert persisted_notification.to == 'my_email@my_email.com'

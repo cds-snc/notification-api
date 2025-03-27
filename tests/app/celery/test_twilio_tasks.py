@@ -113,6 +113,7 @@ def test_update_twilio_status_exception(mocker, sample_notification):
     )
     mock_logger = mocker.patch('app.celery.twilio_tasks.current_app.logger.error')
 
+    # Cannot be ran in parallel - Looks for all Twilio notifications that haven't received updates within a time frame
     update_twilio_status()
 
     mock_logger.assert_called_once_with(

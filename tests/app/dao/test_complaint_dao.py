@@ -24,13 +24,14 @@ def test_fetch_paginated_complaints(mocker, sample_template, sample_notification
     sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 1, 2))
     sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 1, 3))
 
-    # Requires serial testing
+    # Cannot be ran in parallel - Grabs all complaints
     res = fetch_paginated_complaints(page=1)
 
     assert len(res.items) == 2
     assert res.items[0].created_at == datetime(2018, 1, 3)
     assert res.items[1].created_at == datetime(2018, 1, 2)
 
+    # Cannot be ran in parallel - Grabs all complaints
     res = fetch_paginated_complaints(page=2)
 
     assert len(res.items) == 1

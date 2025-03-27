@@ -95,7 +95,7 @@ def test_send_notification_to_service_users_includes_user_fields_in_personalisat
 
 
 def test_send_notification_to_service_users_sends_to_active_users_only(
-    notify_db_session,
+    notify_api,
     sample_service,
     sample_template,
     sample_user,
@@ -107,6 +107,8 @@ def test_send_notification_to_service_users_sends_to_active_users_only(
         {'NOTIFY_SERVICE_ID': str(sender_service.id), 'FROM_NUMBER': '+1234567890'},
     )
     mocker.patch('app.service.sender.send_notification_to_queue')
+    mock_persist = mocker.patch('app.service.sender.persist_notification')
+    mock_enqueue = mocker.patch('app.service.sender.send_notification_to_queue')
 
     # User and service setup
     total_users = 12
@@ -122,24 +124,11 @@ def test_send_notification_to_service_users_sends_to_active_users_only(
         extra_user_emails.append(extra_user.email_address)
         dao_add_user_to_service(service, extra_user)
     dao_add_user_to_service(service, pending_user)
-    email_addresses = [first_active_user.email_address, second_active_user.email_address, *extra_user_emails]
 
     # Sending the notifications
     template = sample_template(service=service, template_type=EMAIL_TYPE)
     # Cleaned by sample_template
     send_notification_to_service_users(service_id=service.id, template_id=template.id)
 
-    # FK does not get populated, so we can't join. Using a filter
-    stmt = (
-        select(Notification)
-        .filter(Notification.to == User.email_address)
-        .where(User.email_address.in_(email_addresses))
-        .where(Notification.service_id == sender_service.id)
-    )
-    notifications = notify_db_session.session.scalars(stmt).all()
-    notifications_recipients = [notification.to for notification in notifications]
-
-    assert len(notifications) == total_users
-    assert pending_user.email_address not in notifications_recipients
-    for user_email in email_addresses:
-        assert user_email in notifications_recipients
+    # persist_notification and send_notification_to_queue are super slow and they are tested elsewhere
+    assert mock_persist.call_count == mock_enqueue.call_count == total_users

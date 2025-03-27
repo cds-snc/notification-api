@@ -321,7 +321,10 @@ class TestLambdaHandler:
         assert response == {'statusCode': 200}
 
     @staticmethod
-    def test_should_not_delete_existing_stats_from_bigquery_table_if_table_does_not_exist(mock_bigquery_client) -> None:
+    def test_should_not_delete_existing_stats_from_bigquery_table_if_table_does_not_exist(
+        mock_ssm_client,
+        mock_bigquery_client,
+    ) -> None:
         mock_bigquery_client.get_table.side_effect = NotFound('foo')
 
         with pytest.raises(NotFound):

@@ -70,7 +70,7 @@ def test_should_update_scheduled_jobs_and_put_on_queue(notify_db_session, mocker
     template = sample_template()
     job = sample_job(template, job_status=JOB_STATUS_SCHEDULED, scheduled_for=one_minute_in_the_past)
 
-    # Does not work with multiple workers
+    # Cannot be ran in parallel - Query uses <
     run_scheduled_jobs()
 
     notify_db_session.session.refresh(job)
@@ -149,7 +149,7 @@ def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_templa
     )
     sample_notification(template=template, job=job)
     with pytest.raises(expected_exception=JobIncompleteError) as e:
-        # Requires serial worker execution
+        # Cannot be ran in parallel - Query uses <
         check_job_status()
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
@@ -173,7 +173,7 @@ def test_check_job_status_task_raises_job_incomplete_error_when_scheduled_job_is
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
-        # Requires serial worker execution
+        # Cannot be ran in parallel - Query uses <
         check_job_status()
     assert e.value.message == "Job(s) ['{}'] have not completed.".format(str(job.id))
 
@@ -203,7 +203,7 @@ def test_check_job_status_task_raises_job_incomplete_error_for_multiple_jobs(moc
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
-        # Requires serial worker execution
+        # Cannot be ran in parallel - Query uses <
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) in e.value.message
@@ -233,7 +233,7 @@ def test_check_job_status_task_only_sends_old_tasks(mocker, sample_template, sam
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
-        # Requires serial worker execution
+        # Cannot be ran in parallel - Query uses <
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) not in e.value.message
@@ -264,7 +264,7 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template, sampl
         job_status=JOB_STATUS_IN_PROGRESS,
     )
     with pytest.raises(expected_exception=JobIncompleteError) as e:
-        # Requires serial worker execution
+        # Cannot be ran in parallel - Query uses <
         check_job_status()
     assert str(job.id) in e.value.message
     assert str(job_2.id) not in e.value.message
@@ -349,7 +349,7 @@ def test_check_job_status_task_does_not_raise_error(
         job_status=JOB_STATUS_FINISHED,
     )
 
-    # Requires serial worker execution
+    # Cannot be ran in parallel - Query uses <
     check_job_status()
 
 
