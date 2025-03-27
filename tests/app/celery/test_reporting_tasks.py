@@ -713,6 +713,6 @@ def test_generate_nightly_billing_csv_report(mocker, sample_service, sample_temp
     generate_nightly_billing_csv_report(process_day_string)
     mock_boto.client.return_value.put_object.assert_called_once_with(
         Body=expected_csv,
-        Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'],
+        Bucket=current_app.config['NIGHTLY_STATS_BUCKET_NAME'],
         Key=f'{process_day_string}.billing.csv',
     )

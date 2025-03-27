@@ -148,8 +148,8 @@ class Config(object):
     AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', 'https://s3-fips.us-gov-west-1.amazonaws.com')
     AWS_PINPOINT_APP_ID = os.getenv('AWS_PINPOINT_APP_ID', 'df55c01206b742d2946ef226410af94f')
     AWS_SQS_URL = os.getenv('AWS_SQS_URL', '')
-    DAILY_STATS_BUCKET_NAME = os.getenv(
-        'DAILY_STATS_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-va-gov-daily-stats'
+    NIGHTLY_STATS_BUCKET_NAME = os.getenv(
+        'NIGHTLY_STATS_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-va-gov-nightly-stats'
     )
     CSV_UPLOAD_BUCKET_NAME = os.getenv(
         'CSV_UPLOAD_BUCKET_NAME', f'{env_name_map[NOTIFY_ENVIRONMENT]}-notifications-csv-upload'

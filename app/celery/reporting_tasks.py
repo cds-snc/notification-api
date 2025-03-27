@@ -98,7 +98,7 @@ def generate_nightly_billing_csv_report(process_day_string: str):
 
     csv_key = f'{process_day_string}.billing.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
-    client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'], Key=csv_key)
+    client.put_object(Body=buff.getvalue(), Bucket=current_app.config['NIGHTLY_STATS_BUCKET_NAME'], Key=csv_key)
     buff.close()
 
     current_app.logger.info(
@@ -179,7 +179,7 @@ def generate_daily_notification_status_csv_report(process_day_string):
 
     csv_key = f'{process_day_string}.stats.csv'
     client = boto3.client('s3', endpoint_url=current_app.config['AWS_S3_ENDPOINT_URL'])
-    client.put_object(Body=buff.getvalue(), Bucket=current_app.config['DAILY_STATS_BUCKET_NAME'], Key=csv_key)
+    client.put_object(Body=buff.getvalue(), Bucket=current_app.config['NIGHTLY_STATS_BUCKET_NAME'], Key=csv_key)
     buff.close()
 
     current_app.logger.info(

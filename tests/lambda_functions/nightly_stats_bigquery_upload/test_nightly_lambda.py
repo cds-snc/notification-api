@@ -6,6 +6,7 @@ from unittest import mock
 
 import boto3
 import pytest
+from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials
 from google.cloud.bigquery import Client
 from google.cloud.exceptions import NotFound
@@ -184,6 +185,11 @@ def mock_credentials(mocker):
     mock_service_account.Credentials.from_service_account_info.return_value = mocker.Mock(Credentials)
 
 
+@pytest.fixture
+def mock_logger(mocker):
+    return mocker.patch('lambda_functions.nightly_stats_bigquery_upload.nightly_stats_bigquery_upload_lambda.logger')
+
+
 class TestParameterAccess:
     @staticmethod
     def test_read_service_account_info_from_ssm(mock_ssm_client) -> None:
@@ -236,6 +242,15 @@ class TestBigQueryAccess:
         )
 
     @staticmethod
+    def test_delete_existing_rows_for_date_raises_error_if_exception(mock_bigquery_client, mock_logger) -> None:
+        mock_bigquery_client.query_and_wait.side_effect = TooManyRequests('test')
+
+        with pytest.raises(TooManyRequests):
+            nightly_lambda.delete_existing_rows_for_date(mock_bigquery_client, BQ_TABLE_ID, '2021-06-28')
+
+        mock_logger.exception.assert_called_once()
+
+    @staticmethod
     @pytest.mark.parametrize(
         'bq_table_id, example_nightly_bytes',
         [
@@ -251,6 +266,15 @@ class TestBigQueryAccess:
 
         assert kwargs['destination'] == bq_table_id
         assert kwargs['file_obj'].getvalue() == example_nightly_bytes
+
+    @staticmethod
+    def test_add_updated_rows_for_date_raises_exception(mock_bigquery_client, mock_logger) -> None:
+        mock_bigquery_client.load_table_from_file.side_effect = TooManyRequests('test')
+
+        with pytest.raises(TooManyRequests):
+            nightly_lambda.add_updated_rows_for_date(mock_bigquery_client, nightly_lambda.TABLE_ID_STATS, b'foo')
+
+        mock_logger.exception.assert_called_once()
 
     @staticmethod
     def test_get_schema() -> None:

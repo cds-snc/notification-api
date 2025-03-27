@@ -6,6 +6,7 @@ import urllib
 from typing import Dict
 
 import boto3
+from google.api_core.exceptions import TooManyRequests
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from google.cloud.exceptions import NotFound
@@ -54,11 +55,19 @@ def delete_existing_rows_for_date(
     dml_statement = f'DELETE FROM `{table_id}` WHERE date = @date'  # nosec
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ScalarQueryParameter('date', 'STRING', date),
+            bigquery.ScalarQueryParameter('date', 'DATE', date),
         ]
     )
 
-    bigquery_client.query_and_wait(dml_statement, job_config=job_config)
+    try:
+        bigquery_client.query_and_wait(dml_statement, job_config=job_config)
+    except TooManyRequests:
+        logger.exception(
+            'TooManyRequests error when deleting existing rows for date %s. '
+            'Setting reserved concurrency to 2 fixed this issue previously.',
+            date,
+        )
+        raise
 
 
 def _get_schema(table_id: str) -> list[bigquery.SchemaField]:
@@ -106,9 +115,15 @@ def add_updated_rows_for_date(
         skip_leading_rows=1,
     )
 
-    bigquery_client.load_table_from_file(
-        file_obj=six.BytesIO(nightly_stats), destination=table_id, job_config=job_config
-    ).result()
+    try:
+        bigquery_client.load_table_from_file(
+            file_obj=six.BytesIO(nightly_stats), destination=table_id, job_config=job_config
+        ).result()
+    except TooManyRequests:
+        logger.exception(
+            'TooManyRequests error when adding rows. Setting reserved concurrency to 2 fixed this issue previously.'
+        )
+        raise
 
 
 def lambda_handler(
@@ -149,13 +164,13 @@ def lambda_handler(
         raise
     logger.debug('. . . table exists')
 
-    logger.debug('deleting existing rows for data_type %s for date %s . . .', data_type, date)
-    delete_existing_rows_for_date(bigquery_client, table_id, date)
-    logger.debug('. . . deleted existing rows data_type %s for date %s', data_type, date)
-
     logger.debug('reading nightly stats from s3 for %s and date %s . . .', data_type, date)
     nightly_stats = read_nightly_stats_from_s3(bucket_name, object_key)
     logger.debug('. . . nightly stats read from s3 for %s and date %s', data_type, date)
+
+    logger.debug('deleting existing rows for data_type %s for date %s . . .', data_type, date)
+    delete_existing_rows_for_date(bigquery_client, table_id, date)
+    logger.debug('. . . deleted existing rows data_type %s for date %s', data_type, date)
 
     logger.debug('adding updated %s rows for date %s . . .', data_type, date)
     add_updated_rows_for_date(bigquery_client, table_id, nightly_stats)
