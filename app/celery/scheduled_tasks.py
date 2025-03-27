@@ -16,6 +16,7 @@ from app import (
     sms_priority,
     zendesk_client,
 )
+from app.aws.s3 import upload_report_to_s3
 from app.celery.tasks import (
     job_complete,
     process_job,
@@ -39,6 +40,7 @@ from app.dao.notifications_dao import (
     set_scheduled_notification_to_processed,
 )
 from app.dao.provider_details_dao import dao_toggle_sms_provider, get_current_provider
+from app.dao.reports_dao import update_report
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
 from app.models import (
     EMAIL_TYPE,
@@ -46,6 +48,8 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     SMS_TYPE,
     Job,
+    Report,
+    ReportStatus,
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
@@ -54,6 +58,8 @@ from celery import Task
 # https://stackoverflow.com/questions/63714223/correct-type-annotation-for-a-celery-task
 save_smss = cast(Task, save_smss)
 save_emails = cast(Task, save_emails)
+
+DAYS_BEFORE_REPORTS_EXPIRE = 3
 
 
 @notify_celery.task(name="run-scheduled-jobs")
@@ -385,3 +391,44 @@ def beat_inbox_sms_priority():
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.PRIORITY_DATABASE)
         current_app.logger.info(f"Batch saving with Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_priority.poll()
+
+
+@notify_celery.task(name="generate-reports")
+@statsd(namespace="tasks")
+def generate_reports():
+    # query for reports that have been requested but haven't been generated yet
+    requested_reports = Report.query.filter(Report.status.in_([ReportStatus.REQUESTED.value])).order_by(Report.requested_at).all()
+
+    try:
+        for report in requested_reports:
+            # mark the report as generating
+            report.status = ReportStatus.GENERATING.value
+            update_report(report)
+
+            generate_report(report)
+
+            # mark the report as ready
+            report.status = ReportStatus.READY.value
+            update_report(report)
+
+            current_app.logger.info(f"Report ID {str(report.id)} has been generated")
+
+    except SQLAlchemyError:
+        current_app.logger.exception("Failed to generate reports complete")
+        raise
+
+
+def generate_report(report: Report):
+    current_app.logger.exception(f"Generating report for Report ID {report.id}")
+    try:
+        # save a fake file to s3
+        test_data = "test data"  # probably needs to be encoded differently
+        url = upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=test_data)
+        report.url = url
+        report.generated_at = datetime.utcnow()
+        report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
+    except Exception as e:
+        current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
+        report.status = ReportStatus.ERROR.value
+        update_report(report)
+        return
