@@ -393,42 +393,38 @@ def beat_inbox_sms_priority():
         receipt_id_sms, list_of_sms_notifications = sms_priority.poll()
 
 
-@notify_celery.task(name="generate-reports")
+@notify_celery.task(name="run-generate-reports")
 @statsd(namespace="tasks")
-def generate_reports():
+def run_generate_reports():
+    current_app.logger.error("starting run-generate-reports")
+
     # query for reports that have been requested but haven't been generated yet
     requested_reports = Report.query.filter(Report.status.in_([ReportStatus.REQUESTED.value])).order_by(Report.requested_at).all()
 
-    try:
-        for report in requested_reports:
-            # mark the report as generating
-            report.status = ReportStatus.GENERATING.value
-            update_report(report)
-
-            generate_report(report)
-
-            # mark the report as ready
-            report.status = ReportStatus.READY.value
-            update_report(report)
-
-            current_app.logger.info(f"Report ID {str(report.id)} has been generated")
-
-    except SQLAlchemyError:
-        current_app.logger.exception("Failed to generate reports complete")
-        raise
+    for report in requested_reports:
+        current_app.logger.info(f"calling generate_report for Report ID {report.id}")
+        generate_report(report)
 
 
 def generate_report(report: Report):
-    current_app.logger.exception(f"Generating report for Report ID {report.id}")
+    current_app.logger.info(f"Generating report for Report ID {report.id}")
+    test_data = b"test data"
     try:
-        # save a fake file to s3
-        test_data = "test data"  # probably needs to be encoded differently
+        # mark the report as generating
+        report.status = ReportStatus.GENERATING.value
+        update_report(report)
+
         url = upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=test_data)
         report.url = url
         report.generated_at = datetime.utcnow()
         report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
+
+        # mark the report as ready
+        report.status = ReportStatus.READY.value
+        update_report(report)
+        current_app.logger.info(f"Report ID {str(report.id)} has been generated")
     except Exception as e:
         current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
         report.status = ReportStatus.ERROR.value
         update_report(report)
-        return
+        raise

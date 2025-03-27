@@ -874,9 +874,3 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
     current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
-
-
-@notify_celery.task(name="generate-reports")
-@statsd(namespace="tasks")
-def generate_reports(service_id: str):
-    pass
