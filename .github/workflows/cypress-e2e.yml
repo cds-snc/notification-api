@@ -65,8 +65,8 @@ jobs:
     - name: Setup .env
       run: |
         echo 'NOTIFICATION_QUEUE_PREFIX=api-pr-notification-canada-ca' > .env
-        echo 'AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}' >> .env
-        echo 'AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}' >> .env
+        echo 'AWS_ACCESS_KEY_ID=${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}' >> .env
+        echo 'AWS_SECRET_ACCESS_KEY=${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}' >> .env
         echo 'AWS_REGION=ca-central-1' >> .env
         echo 'ASSET_DOMAIN=example.com' >> .env
         echo 'ASSET_UPLOAD_BUCKET_NAME=not-a-real-secret' >> .env
