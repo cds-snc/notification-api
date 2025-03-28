@@ -62,12 +62,6 @@ jobs:
         printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
         cp version.py "${{ github.workspace }}/app/"
 
-    - name: Copy site-packages in workspace
-      working-directory: ${{ github.workspace }}
-      shell: bash
-      run: |
-        mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.10/site-packages "${{ github.workspace }}/env/"
-
     - name: Setup .env
       run: |
         echo 'NOTIFICATION_QUEUE_PREFIX=api-pr-notification-canada-ca' > .env
