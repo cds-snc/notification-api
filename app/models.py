@@ -2685,6 +2685,7 @@ class ReportStatus(Enum):
     REQUESTED = "requested"
     GENERATING = "generating"
     READY = "ready"
+    ERROR = "error"
 
 
 class ReportType(Enum):
