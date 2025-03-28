@@ -88,7 +88,6 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.schemas import notification_with_personalisation_schema
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -943,7 +942,7 @@ def create_report_in_s3(report: Report):
         include_jobs=False,
         format_for_csv=True,
     )
-    notifications = notification_with_personalisation_schema.dump(pagination.items, many=True)
+    notifications = [notification.serialize_for_csv() for notification in pagination.items]
     # todo: make this work if there are multiple pages
     file_data = build_csv_file(notifications)
     url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
