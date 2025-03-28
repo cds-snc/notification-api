@@ -16,8 +16,8 @@ from app import (
     sms_priority,
     zendesk_client,
 )
-from app.aws.s3 import upload_report_to_s3
 from app.celery.tasks import (
+    generate_report,
     job_complete,
     process_job,
     save_emails,
@@ -40,7 +40,6 @@ from app.dao.notifications_dao import (
     set_scheduled_notification_to_processed,
 )
 from app.dao.provider_details_dao import dao_toggle_sms_provider, get_current_provider
-from app.dao.reports_dao import update_report
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
 from app.models import (
     EMAIL_TYPE,
@@ -58,8 +57,6 @@ from celery import Task
 # https://stackoverflow.com/questions/63714223/correct-type-annotation-for-a-celery-task
 save_smss = cast(Task, save_smss)
 save_emails = cast(Task, save_emails)
-
-DAYS_BEFORE_REPORTS_EXPIRE = 3
 
 
 @notify_celery.task(name="run-scheduled-jobs")
@@ -403,28 +400,4 @@ def run_generate_reports():
 
     for report in requested_reports:
         current_app.logger.info(f"calling generate_report for Report ID {report.id}")
-        generate_report(report)
-
-
-def generate_report(report: Report):
-    current_app.logger.info(f"Generating report for Report ID {report.id}")
-    test_data = b"test data"
-    try:
-        # mark the report as generating
-        report.status = ReportStatus.GENERATING.value
-        update_report(report)
-
-        url = upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=test_data)
-        report.url = url
-        report.generated_at = datetime.utcnow()
-        report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
-
-        # mark the report as ready
-        report.status = ReportStatus.READY.value
-        update_report(report)
-        current_app.logger.info(f"Report ID {str(report.id)} has been generated")
-    except Exception as e:
-        current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
-        report.status = ReportStatus.ERROR.value
-        update_report(report)
-        raise
+        generate_report.apply_async([report.id], queue=QueueNames.BULK_DATABASE)

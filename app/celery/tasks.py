@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
+from io import StringIO
 from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -50,9 +51,11 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
     get_latest_sent_notification_for_job,
     get_notification_by_id,
+    get_notifications_for_service,
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
 )
+from app.dao.reports_dao import update_report
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -76,6 +79,8 @@ from app.models import (
     SMS_TYPE,
     Job,
     Notification,
+    Report,
+    ReportStatus,
     Service,
     Template,
 )
@@ -83,6 +88,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.schemas import notification_with_personalisation_schema
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -92,6 +98,10 @@ from app.v2.errors import (
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
+
+DAYS_BEFORE_REPORTS_EXPIRE = 3
+LIMIT_DAYS = 7
+PAGE_SIZE = 5000
 
 
 def update_in_progress_jobs():
@@ -874,3 +884,95 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
     current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
+
+
+@notify_celery.task(name="generate-report")
+@statsd(namespace="tasks")
+def generate_report(report_id):
+    current_app.logger.info(f"Generating report for Report ID {report_id}")
+    # test_data = b"test data"
+    try:
+        report = Report.query.filter(Report.id.in_([report_id])).one()
+
+        # mark the report as generating
+        report.status = ReportStatus.GENERATING.value
+        update_report(report)
+        # generate the report
+        url = create_report_in_s3(report)
+        # url = upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=test_data)
+        report.url = url
+        report.generated_at = datetime.utcnow()
+        report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
+
+        # mark the report as ready
+        report.status = ReportStatus.READY.value
+        update_report(report)
+        current_app.logger.info(f"Report ID {str(report.id)} has been generated")
+    except Exception as e:
+        current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
+        report.status = ReportStatus.ERROR.value
+        update_report(report)
+        raise
+
+
+fieldnames = [
+    "Recipient",
+    "Template",
+    "Type",
+    "Sent by",
+    "Sent by email",
+    "Job",
+    "Status",
+    "Time",
+]
+
+
+def _l(x):
+    """Mock translation function for now"""
+    return x
+
+
+def create_report_in_s3(report: Report):
+    """Creates a report in S3 and returns the URL"""
+    pagination = get_notifications_for_service(
+        report.service_id,
+        page=1,
+        page_size=PAGE_SIZE,
+        filter_dict={"template_type": report.report_type},
+        limit_days=LIMIT_DAYS,
+        include_jobs=False,
+        format_for_csv=True,
+    )
+    notifications = notification_with_personalisation_schema.dump(pagination.items, many=True)
+    # todo: make this work if there are multiple pages
+    file_data = build_csv_file(notifications)
+    url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
+    return url
+
+
+def notification_to_csv(notification, lang="en"):
+    values = [
+        notification["recipient"],
+        notification["template_name"],
+        notification["template_type"] if lang == "en" else _l(notification["template_type"]),
+        notification["created_by_name"] or "",
+        notification["created_by_email_address"] or "",
+        notification["job_name"] or "",
+        notification["status"] if lang == "en" else _l(notification["status"]),
+        notification["created_at"],
+    ]
+    return ",".join(values) + "\n"
+
+
+def build_csv_file(notifications, lang="en"):
+    """Builds a CSV file from the notifications data and returns a binary string"""
+    csv_file = StringIO()
+    csv_file.write("\ufeff")  # Add BOM for UTF-8
+    csv_file.write(",".join([_l(n) for n in fieldnames]) + "\n")
+
+    for notification in notifications:
+        csv_file.write(notification_to_csv(notification))
+
+    string = csv_file.getvalue()
+    binary_string = string.encode("utf-8")
+    return binary_string

@@ -157,4 +157,5 @@ def upload_report_to_s3(service_id, report_id, file_data):
         bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
         file_location=location,
     )
-    return report_id
+    url = f"https://{current_app.config['REPORTS_BUCKET_NAME']}.s3.{current_app.config["AWS_REGION"]}.amazonaws.com/{location}"
+    return url
