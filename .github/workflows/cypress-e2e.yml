@@ -133,7 +133,7 @@ jobs:
     - name: Configure frontend environment
       working-directory: frontend
       run: |
-        cp ${{ github.workspace }}/.env frontend/.env
+        cp ${{ github.workspace }}/.env .env
 
     - name: Build and start frontend
       working-directory: frontend
