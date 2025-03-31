@@ -39,7 +39,7 @@ def get_csv_file_data(serialized_notifications: list[Any], lang="en") -> bytes:
     csv_file.write(",".join([_l(n) for n in CSV_FIELDNAMES]) + "\n")
 
     for notification in serialized_notifications:
-        csv_file.write(serialized_notification_to_csv(notification))
+        csv_file.write(serialized_notification_to_csv(notification, lang=lang))
 
     string = csv_file.getvalue()
     encoded_string = string.encode("utf-8")
