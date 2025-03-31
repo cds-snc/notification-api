@@ -46,6 +46,8 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
+    Report,
+    ReportStatus,
 )
 from app.v2.errors import JobIncompleteError
 
@@ -624,3 +626,43 @@ def test_mark_jobs_complete(
 
     mark_jobs_complete()
     assert job.job_status == expected_status
+
+
+def test_run_generate_reports(mocker, notify_db_session, sample_user, sample_service):
+    mock_logger = mocker.patch("app.celery.scheduled_tasks.current_app.logger.info")
+    mock_error_logger = mocker.patch("app.celery.scheduled_tasks.current_app.logger.error")
+    mock_generate_report = mocker.patch("app.celery.scheduled_tasks.generate_report.apply_async")
+
+    # Create some reports in REQUESTED status
+    report1 = Report(
+        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+    )
+    report2 = Report(
+        report_type="sms", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+    )
+
+    # Create a report with a different status
+    report3 = Report(
+        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.GENERATING.value
+    )
+
+    db.session.add_all([report1, report2, report3])
+    db.session.commit()
+
+    # Run the task
+    scheduled_tasks.run_generate_reports()
+
+    # Check logging
+    mock_error_logger.assert_called_once_with("starting run-generate-reports")
+    assert mock_logger.call_count == 2
+    mock_logger.assert_any_call(f"calling generate_report for Report ID {report1.id}")
+    mock_logger.assert_any_call(f"calling generate_report for Report ID {report2.id}")
+
+    # Check that generate_report was called for the requested reports
+    assert mock_generate_report.call_count == 2
+    mock_generate_report.assert_any_call([report1.id], queue=QueueNames.BULK_DATABASE)
+    mock_generate_report.assert_any_call([report2.id], queue=QueueNames.BULK_DATABASE)
+
+    # Verify it wasn't called for the report that wasn't in REQUESTED status
+    for call_args in mock_generate_report.call_args_list:
+        assert report3.id not in call_args[0][0]
