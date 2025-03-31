@@ -16,6 +16,7 @@ from app.aws.s3 import (
     remove_jobs_from_s3,
     remove_transformed_dvla_file,
     upload_job_to_s3,
+    upload_report_to_s3,
 )
 
 
@@ -242,3 +243,24 @@ def test_remove_jobs_from_s3(notify_api, mocker):
             call.Bucket().delete_objects(Delete={"Objects": [{"Key": "service-foo-notify/j5.csv"}]}),
         ]
     )
+
+
+def test_upload_report_to_s3(notify_api, mocker):
+    utils_mock = mocker.patch("app.aws.s3.utils_s3upload")
+    service_id = uuid.uuid4()
+    report_id = uuid.uuid4()
+    csv_data = b"foo"
+    file_location = f"service-{service_id}/{report_id}.csv"
+    url = upload_report_to_s3(service_id, report_id, csv_data)
+
+    utils_mock.assert_called_once_with(
+        filedata=csv_data,
+        region=notify_api.config["AWS_REGION"],
+        bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+        file_location=file_location,
+    )
+    expected_url = (
+        f"https://{current_app.config['REPORTS_BUCKET_NAME']}.s3.{current_app.config["AWS_REGION"]}.amazonaws.com/{file_location}"
+    )
+
+    assert url == expected_url
