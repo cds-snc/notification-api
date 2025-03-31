@@ -149,7 +149,7 @@ def get_report_location(service_id, report_id):
     return REPORTS_FILE_LOCATION_STRUCTURE.format(service_id, report_id)
 
 
-def upload_report_to_s3(service_id, report_id, file_data):
+def upload_report_to_s3(service_id: str, report_id: str, file_data: bytes) -> str:
     location = get_report_location(service_id, report_id)
     utils_s3upload(
         filedata=file_data,
@@ -157,5 +157,7 @@ def upload_report_to_s3(service_id, report_id, file_data):
         bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
         file_location=location,
     )
+    # todo: generate a presigned url
+    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
     url = f"https://{current_app.config['REPORTS_BUCKET_NAME']}.s3.{current_app.config["AWS_REGION"]}.amazonaws.com/{location}"
     return url

@@ -1,7 +1,6 @@
 import json
 from collections import namedtuple
 from datetime import datetime, timedelta
-from io import StringIO
 from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -88,6 +87,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.report.utils import get_csv_file_data
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -887,9 +887,8 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
 
 @notify_celery.task(name="generate-report")
 @statsd(namespace="tasks")
-def generate_report(report_id):
+def generate_report(report_id: str):
     current_app.logger.info(f"Generating report for Report ID {report_id}")
-    # test_data = b"test data"
     try:
         report = Report.query.filter(Report.id.in_([report_id])).one()
 
@@ -898,7 +897,6 @@ def generate_report(report_id):
         update_report(report)
         # generate the report
         url = create_report_in_s3(report)
-        # url = upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=test_data)
         report.url = url
         report.generated_at = datetime.utcnow()
         report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
@@ -914,24 +912,7 @@ def generate_report(report_id):
         raise
 
 
-fieldnames = [
-    "Recipient",
-    "Template",
-    "Type",
-    "Sent by",
-    "Sent by email",
-    "Job",
-    "Status",
-    "Time",
-]
-
-
-def _l(x):
-    """Mock translation function for now"""
-    return x
-
-
-def create_report_in_s3(report: Report):
+def create_report_in_s3(report: Report) -> str:
     """Creates a report in S3 and returns the URL"""
     pagination = get_notifications_for_service(
         report.service_id,
@@ -942,36 +923,8 @@ def create_report_in_s3(report: Report):
         include_jobs=False,
         format_for_csv=True,
     )
-    notifications = [notification.serialize_for_csv() for notification in pagination.items]
+    serialized_notifications = [notification.serialize_for_csv() for notification in pagination.items]
     # todo: make this work if there are multiple pages
-    file_data = build_csv_file(notifications)
+    file_data = get_csv_file_data(serialized_notifications)
     url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
     return url
-
-
-def notification_to_csv(notification, lang="en"):
-    values = [
-        notification["recipient"],
-        notification["template_name"],
-        notification["template_type"] if lang == "en" else _l(notification["template_type"]),
-        notification["created_by_name"] or "",
-        notification["created_by_email_address"] or "",
-        notification["job_name"] or "",
-        notification["status"] if lang == "en" else _l(notification["status"]),
-        notification["created_at"],
-    ]
-    return ",".join(values) + "\n"
-
-
-def build_csv_file(notifications, lang="en"):
-    """Builds a CSV file from the notifications data and returns a binary string"""
-    csv_file = StringIO()
-    csv_file.write("\ufeff")  # Add BOM for UTF-8
-    csv_file.write(",".join([_l(n) for n in fieldnames]) + "\n")
-
-    for notification in notifications:
-        csv_file.write(notification_to_csv(notification))
-
-    string = csv_file.getvalue()
-    binary_string = string.encode("utf-8")
-    return binary_string
