@@ -39,25 +39,11 @@ def get_reports_for_service(service_id: str, limit_days: int) -> List[Report]:
     return query.order_by(Report.requested_at.desc()).all()
 
 
+def get_report_by_id(report_id) -> Report:
+    return Report.query.filter_by(id=report_id).one()
+
+
 @transactional
-def update_report(report: Report) -> Report:
-    """
-    Update an existing report in the database.
-    Args:
-        report: A Report object with updated data
-    Returns:
-        The updated Report object
-    Raises:
-        Exception: If the report with the given ID doesn't exist
-    """
-    existing_report = Report.query.get(report.id)
-    if not existing_report:
-        raise Exception(f"Report with ID {report.id} not found")
-
-    # Update the existing report's attributes
-    for key, value in report.__dict__.items():
-        if key != "_sa_instance_state" and key != "id":
-            setattr(existing_report, key, value)
-
+def update_report(report: Report):
+    db.session.add(report)
     db.session.commit()
-    return existing_report

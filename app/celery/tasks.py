@@ -54,7 +54,7 @@ from app.dao.notifications_dao import (
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
 )
-from app.dao.reports_dao import update_report
+from app.dao.reports_dao import get_report_by_id, update_report
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -890,7 +890,7 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
 def generate_report(report_id: str):
     current_app.logger.info(f"Generating report for Report ID {report_id}")
     try:
-        report = Report.query.filter(Report.id.in_([report_id])).one()
+        report = get_report_by_id(report_id)
 
         # mark the report as generating
         report.status = ReportStatus.GENERATING.value
