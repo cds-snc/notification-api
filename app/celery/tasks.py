@@ -920,7 +920,7 @@ def create_report_in_s3(report: Report) -> str:
         page_size=PAGE_SIZE,
         filter_dict={"template_type": report.report_type},
         limit_days=LIMIT_DAYS,
-        include_jobs=False,
+        include_jobs=True,
         format_for_csv=True,
     )
     serialized_notifications = [notification.serialize_for_csv() for notification in pagination.items]
