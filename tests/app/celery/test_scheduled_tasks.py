@@ -660,8 +660,8 @@ def test_run_generate_reports(mocker, notify_db_session, sample_user, sample_ser
 
     # Check that generate_report was called for the requested reports
     assert mock_generate_report.call_count == 2
-    mock_generate_report.assert_any_call([report1.id], queue=QueueNames.BULK_DATABASE)
-    mock_generate_report.assert_any_call([report2.id], queue=QueueNames.BULK_DATABASE)
+    mock_generate_report.assert_any_call([report1.id], queue=QueueNames.REPORTING)
+    mock_generate_report.assert_any_call([report2.id], queue=QueueNames.REPORTING)
 
     # Verify it wasn't called for the report that wasn't in REQUESTED status
     for call_args in mock_generate_report.call_args_list:
