@@ -13,7 +13,7 @@ down_revision = '0477_add_created_by_ids'
 
 
 def upgrade():
-    op.add_column('reports', sa.Column('language', sa.String(length=2), nullable=False))
+    op.add_column('reports', sa.Column('language', sa.String(length=2), nullable=True))
 
 def downgrade():
     op.drop_column('reports', 'language')
