@@ -1,7 +1,7 @@
 import pytest
 import botocore
 
-from app.celery.exceptions import NonRetryableException
+from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
 from app.exceptions import InvalidProviderException
 
@@ -197,3 +197,29 @@ def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoin
     aws_pinpoint_client.statsd_client.incr.assert_called_with(
         f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
     )
+
+
+@pytest.mark.parametrize('code', AwsPinpointClient._retryable_v1_codes)
+def test_send_sms_post_message_request_raises_retryable_exception(mocker, aws_pinpoint_client, code):
+    # These are retryable but expected
+    mocker.patch.object(
+        aws_pinpoint_client,
+        '_post_message_request',
+        side_effect=AwsPinpointException(f'Message StatusCode: {code}, StatusMessage:Too many requests.'),
+    )
+    # Ensure it is converted to RetryableException for exception handling in _handle_delivery_failure
+    with pytest.raises(RetryableException):
+        aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
+
+
+@pytest.mark.parametrize('code', ('123', '418'))
+def test_send_sms_post_message_request_raises_aws_exception(mocker, aws_pinpoint_client, code):
+    # These are retryable so we can figure out why the thing exploded
+    mocker.patch.object(
+        aws_pinpoint_client,
+        '_post_message_request',
+        side_effect=AwsPinpointException(f"Message StatusCode: {code}, StatusMessage:I'm a teapot"),
+    )
+    # Ensure it is converted to AwsPinpointException for exception handling in _handle_delivery_failure
+    with pytest.raises(AwsPinpointException):
+        aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)

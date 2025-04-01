@@ -5,8 +5,9 @@ from typing import Tuple
 
 import boto3
 import botocore
+import botocore.exceptions
 
-from app.celery.exceptions import NonRetryableException
+from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms import (
     SmsClient,
     SmsClientResponseException,
@@ -55,6 +56,8 @@ class AwsPinpointClient(SmsClient):
         'MAX_PRICE_EXCEEDED': (NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
         'OPTED_OUT': (NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
     }
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#available-retry-modes
+    _retryable_v1_codes = ('429', '500', '502', '503', '504', '509')
 
     def __init__(self):
         self.name = 'pinpoint'
@@ -102,7 +105,13 @@ class AwsPinpointClient(SmsClient):
             response = self._post_message_request(recipient_number, content, aws_phone_number)
         except (botocore.exceptions.ClientError, Exception) as e:
             self.statsd_client.incr('clients.pinpoint.error')
-            raise AwsPinpointException(str(e))
+            msg = str(e)
+            if any(code in msg for code in AwsPinpointClient._retryable_v1_codes):
+                self.logger.warning('Encountered a Retryable exception: %s - %s', type(e).__class__.__name__, msg)
+                raise RetryableException from e
+            else:
+                self.logger.exception('Encountered an unexpected exception sending Pinpoint SMS')
+                raise AwsPinpointException(str(e))
         else:
             self._validate_response(response['MessageResponse']['Result'][recipient_number])
             aws_reference = response['MessageResponse']['Result'][recipient_number]['MessageId']
