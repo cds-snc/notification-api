@@ -384,7 +384,7 @@ class Config(object):
         "run-generate-reports": {
             "task": "run-generate-reports",
             "schedule": crontab(),
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.REPORTING},
         },
         "delete-verify-codes": {
             "task": "delete-verify-codes",

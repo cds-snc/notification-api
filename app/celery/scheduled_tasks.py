@@ -400,4 +400,4 @@ def run_generate_reports():
 
     for report in requested_reports:
         current_app.logger.info(f"calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id], queue=QueueNames.BULK_DATABASE)
+        generate_report.apply_async([report.id], queue=QueueNames.REPORTING)
