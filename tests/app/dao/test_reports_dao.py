@@ -15,6 +15,7 @@ def test_create_report(sample_service, notify_db_session):
         report_type=ReportType.SMS.value,
         service_id=sample_service.id,
         status=ReportStatus.REQUESTED.value,
+        language="en",
     )
 
     # Create the report
@@ -45,6 +46,7 @@ def sample_reports(sample_service):
                 status=ReportStatus.REQUESTED.value,
                 url=None,
                 job_id=None,
+                language="en",
             )
         )
 
@@ -59,6 +61,7 @@ def sample_reports(sample_service):
             status=ReportStatus.READY.value,
             url="https://test-bucket.s3.amazonaws.com/test-report.csv",
             job_id=None,
+            language="en",
         )
     )
 
