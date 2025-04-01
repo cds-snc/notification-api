@@ -1,0 +1,17 @@
+##################################################################
+## This file lists commits that should be ignored by git blame. ##
+## e.g. Formatting commits, non-functional changes, etc.        ##
+##################################################################
+
+# Run black on codebase (#1303) https://github.com/cds-snc/notification-api/pull/1303
+bebd806cad9581101e5cc1d52db2613c1baa1fa9
+# Add Ruff formatter: https://github.com/cds-snc/notification-api/commit/5764ae6d65d98e4a876870cc8b3c22ba9981f031
+5764ae6d65d98e4a876870cc8b3c22ba9981f031
+# Revert Ruff formatter changes: https://github.com/cds-snc/notification-api/commit/f4759d2e69b44fe05cf872d2528ce41065620a86
+f4759d2e69b44fe05cf872d2528ce41065620a86
+# Attempt adding ruff Formatter again: # Add Ruff formatter: https://github.com/cds-snc/notification-api/commit/b87a3875300a92b331b9a49b1d828f9ea9666955
+b87a3875300a92b331b9a49b1d828f9ea9666955
+# Revert ruff changes: # Add Ruff formatter: https://github.com/cds-snc/notification-api/commit/22538570c817bd71cb5461f89fd21b3ace24086a
+22538570c817bd71cb5461f89fd21b3ace24086a
+# Final successful attempt to get Ruff into the repo: https://github.com/cds-snc/notification-api/commit/7bd75f5f473ee99c9e209d0c6080484256de5973
+7bd75f5f473ee99c9e209d0c6080484256de5973

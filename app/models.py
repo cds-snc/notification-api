@@ -68,6 +68,8 @@ SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 DEFAULT_SMS_ANNUAL_LIMIT = 100000
 DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
 
+NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
@@ -287,6 +289,12 @@ class EmailBranding(BaseModel):
     organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
     alt_text_en = db.Column(db.String(), nullable=True)
     alt_text_fr = db.Column(db.String(), nullable=True)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    updated_by = db.relationship("User", foreign_keys=[updated_by_id], lazy="select")
 
     def serialize(self) -> dict:
         serialized = {
@@ -299,6 +307,10 @@ class EmailBranding(BaseModel):
             "organisation_id": str(self.organisation_id) if self.organisation_id else "",
             "alt_text_en": self.alt_text_en,
             "alt_text_fr": self.alt_text_fr,
+            "created_by_id": str(self.created_by_id),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "updated_by_id": str(self.updated_by_id),
         }
 
         return serialized
@@ -1065,8 +1077,12 @@ class TemplateCategory(BaseModel):
     sms_process_type = db.Column(db.String(200), nullable=False)
     email_process_type = db.Column(db.String(200), nullable=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    updated_by = db.relationship("User", foreign_keys=[updated_by_id], lazy="select")
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def serialize(self):
@@ -1079,7 +1095,9 @@ class TemplateCategory(BaseModel):
             "sms_process_type": self.sms_process_type,
             "email_process_type": self.email_process_type,
             "hidden": self.hidden,
+            "created_by_id": str(self.created_by_id),
             "created_at": self.created_at,
+            "updated_by_id": str(self.updated_by_id),
             "updated_at": self.updated_at,
             "sms_sending_vehicle": self.sms_sending_vehicle,
         }
@@ -2661,3 +2679,68 @@ class AnnualLimitsData(BaseModel):
         db.Index("ix_service_id_notification_type", "service_id", "notification_type"),
         db.Index("ix_service_id_notification_type_time", "time_period", "service_id", "notification_type"),
     )
+
+
+class ReportStatus(Enum):
+    REQUESTED = "requested"
+    GENERATING = "generating"
+    READY = "ready"
+
+
+class ReportType(Enum):
+    SMS = "sms"
+    EMAIL = "email"
+    JOB = "job"
+
+
+class Report(BaseModel):
+    __tablename__ = "reports"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_type = db.Column(db.String(255), nullable=False)  # email, sms, job, other types in future
+    requested_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=False,
+        default=datetime.datetime.utcnow,
+    )
+    completed_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=True,
+        default=datetime.datetime.utcnow,
+    )
+    expires_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=True,
+        onupdate=datetime.datetime.utcnow,
+    )
+    requesting_user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
+    )  # only set if report is requested by a user
+    service_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("services.id"),
+        unique=False,
+        index=True,
+        nullable=False,
+    )
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), nullable=True)  # only set if report is for a bulk job
+    url = db.Column(db.String(255), nullable=True)  # url to download the report from s3
+    status = db.Column(db.String(255), nullable=False)
+
+    def serialize(self):
+        return {
+            "id": str(self.id),
+            "report_type": self.report_type,
+            "service_id": str(self.service_id),
+            "status": self.status,
+            "requested_at": self.requested_at.strftime(DATETIME_FORMAT),
+            "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
+            "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
+            "url": self.url,
+        }

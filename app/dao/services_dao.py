@@ -42,6 +42,7 @@ from app.models import (
     ServicePermission,
     ServiceSmsSender,
     Template,
+    TemplateCategory,
     TemplateHistory,
     TemplateRedacted,
     User,
@@ -403,6 +404,8 @@ def delete_service_and_all_associated_db_objects(service):
     list(map(db.session.delete, verify_codes))
     db.session.commit()
     users = [x for x in service.users]
+    for user in users:
+        _delete_commit(TemplateCategory.query.filter_by(created_by_id=user.id))
     map(service.users.remove, users)
     [service.users.remove(x) for x in users]
     _delete_commit(Service.get_history_model().query.filter_by(id=service.id))

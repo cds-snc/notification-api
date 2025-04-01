@@ -211,6 +211,7 @@ def create_template(
             "created_at": datetime.utcnow(),
             "updated_at": datetime.utcnow(),
             "sms_sending_vehicle": "long_code",
+            "created_by_id": create_user().id,
         }
         template_category = TemplateCategory(**data)
         template_category = dao_create_template_category(template_category)
@@ -306,6 +307,7 @@ def create_notification(
         "reference": reference,
         "created_at": created_at,
         "sent_at": sent_at,
+        "updated_at": updated_at,
         "billable_units": billable_units,
         "personalisation": personalisation,
         "notification_type": template.template_type,
@@ -313,7 +315,6 @@ def create_notification(
         "api_key_id": api_key and api_key.id,
         "key_type": api_key.key_type if api_key else key_type,
         "sent_by": sent_by,
-        "updated_at": updated_at,
         "client_reference": client_reference,
         "job_row_number": job_row_number,
         "rate_multiplier": rate_multiplier,
@@ -529,12 +530,19 @@ def create_service_callback_api(
     return service_callback_api
 
 
-def create_email_branding(colour="blue", logo="test_x2.png", name="test_org_1", text="DisplayName", organisation_id=None):
+def create_email_branding(
+    colour="blue",
+    logo="test_x2.png",
+    name="test_org_1",
+    text="DisplayName",
+    organisation_id=None,
+):
     data = {
         "colour": colour,
         "logo": logo,
         "name": name,
         "text": text,
+        "created_by_id": create_user().id,
     }
     if organisation_id:
         data["organisation_id"] = organisation_id

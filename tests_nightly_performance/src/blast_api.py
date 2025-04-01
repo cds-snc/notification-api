@@ -10,8 +10,8 @@ BULK_SIZE = 2000
 
 
 class NotifyApiUser(HttpUser):
-
     wait_time = constant_pacing(60)  # 60 seconds between each task
+    host = Config.HOST
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
@@ -47,8 +47,8 @@ class NotifyApiUser(HttpUser):
                     "file": "Q29udGVudCBvZiBBdHRhY2hlZCBmaWxl",
                     "filename": "attached_file.txt",
                     "sending_method": "attach",
-                }
-            }
+                },
+            },
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
@@ -63,7 +63,7 @@ class NotifyApiUser(HttpUser):
                     "filename": "attached_file.txt",
                     "sending_method": "link",
                 }
-            }
+            },
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
@@ -72,6 +72,6 @@ class NotifyApiUser(HttpUser):
         json = {
             "name": f"Email send rate test {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, 2)])
+            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, 2)]),
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)

@@ -110,6 +110,10 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
 class TemplateCategorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.TemplateCategory
+        exclude = ("created_by", "updated_by")
+
+    created_by_id = field_for(models.TemplateCategory, "created_by_id", required=True)
+    updated_by_id = field_for(models.TemplateCategory, "updated_by_id", required=False)
 
     @validates("name_en")
     def validate_name_en(self, value):
@@ -824,6 +828,30 @@ class UnarchivedTemplateSchema(BaseSchema):
             raise ValidationError("Template has been deleted", "template")
 
 
+class ReportSchema(BaseSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.UUID()
+    report_type = fields.String()
+    service_id = fields.UUID()
+    status = fields.String()
+    requested_at = FlexibleDateTime()
+    completed_at = FlexibleDateTime()
+    expires_at = FlexibleDateTime()
+    url = fields.String()
+
+    @validates("report_type")
+    def validate_report_type(self, value):
+        if value not in [rt.value for rt in models.ReportType]:
+            raise ValidationError(f"Invalid report type: {value}")
+
+    @validates("status")
+    def validate_status(self, value):
+        if value not in [rs.value for rs in models.ReportStatus]:
+            raise ValidationError(f"Invalid report status: {value}")
+
+
 # should not be used on its own for dumping - only for loading
 create_user_schema = UserSchema()
 user_update_schema_load_json = UserUpdateAttributeSchema(load_json=True, partial=True)
@@ -856,3 +884,4 @@ provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
+report_schema = ReportSchema()
