@@ -6,6 +6,9 @@ fileignoreconfig:
 - filename: cd/application-deployment/prod/prod.env
   checksum: edf1959fa227b09e2eb8a41624e16e29459b1afef4cd33969c167d993f79095a
 - filename: cd/application-deployment/staging/staging.env
+  checksum: 975bc9274cead1a9f9dd7cb67634e706d7b1656a0ce90264cfcd245669f42efd
+- filename: poetry.lock
+  checksum: a63333f982e390159d27520740f7162038d11c6e2e52cc8afb7bb1cc3ced2f09
   checksum: 33ad3a9c0b05edc092f163a8cca7290de41d4bdaa3ac625ee3bc73a8eb07fa03
 - filename: app/celery/reporting_tasks.py
   checksum: 2374dafe0993f493addc7ea8276342371584cf98d1a60c152a419981f85ea05a
