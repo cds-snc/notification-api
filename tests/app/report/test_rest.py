@@ -5,7 +5,7 @@ from app.models import ReportStatus, ReportType
 
 def test_create_report_succeeds_with_valid_data(admin_request, sample_service, sample_user):
     """Test that creating a report with valid data succeeds"""
-    data = {"report_type": ReportType.EMAIL.value, "requesting_user_id": str(sample_user.id)}
+    data = {"report_type": ReportType.EMAIL.value, "requesting_user_id": str(sample_user.id), "language": "en"}
 
     response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
 
@@ -23,7 +23,7 @@ def test_create_report_with_invalid_report_type(admin_request, sample_service):
     response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=400)
 
     assert response["result"] == "error"
-    assert "Invalid report type" in response["message"]
+    assert "Invalid report type" in str(response["message"])
 
 
 def test_create_report_for_nonexistent_service(admin_request):
