@@ -634,15 +634,27 @@ def test_run_generate_reports(mocker, notify_db_session, sample_user, sample_ser
 
     # Create some reports in REQUESTED status
     report1 = Report(
-        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+        report_type="email",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.REQUESTED.value,
+        language="en",
     )
     report2 = Report(
-        report_type="sms", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+        report_type="sms",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.REQUESTED.value,
+        language="en",
     )
 
     # Create a report with a different status
     report3 = Report(
-        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.GENERATING.value
+        report_type="email",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.GENERATING.value,
+        language="en",
     )
 
     db.session.add_all([report1, report2, report3])
