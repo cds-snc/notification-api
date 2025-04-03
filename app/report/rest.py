@@ -6,7 +6,7 @@ from marshmallow import ValidationError
 from app.dao.reports_dao import create_report, get_reports_for_service
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors
-from app.models import Report, ReportStatus, ReportType
+from app.models import Report, ReportStatus
 from app.schema_validation import validate
 from app.schemas import report_schema
 
@@ -23,11 +23,6 @@ def create_service_report(service_id):
     # Validate basic required fields
     validate(data, {"report_type": {"type": "string", "required": True}})
 
-    # Validate report type is one of the allowed types
-    report_type = data.get("report_type")
-    if report_type not in [rt.value for rt in ReportType]:
-        return jsonify(result="error", message=f"Invalid report type: {report_type}"), 400
-
     # Check service exists
     dao_fetch_service_by_id(service_id)
 
@@ -35,10 +30,11 @@ def create_service_report(service_id):
         # Validate the report data against the schema
         report_data = {
             "id": str(uuid.uuid4()),
-            "report_type": report_type,
+            "report_type": data.get("report_type"),
             "service_id": str(service_id),
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
+            "language": data.get("language"),
         }
 
         # Validate against the schema

@@ -630,20 +630,31 @@ def test_mark_jobs_complete(
 
 def test_run_generate_reports(mocker, notify_db_session, sample_user, sample_service):
     mock_logger = mocker.patch("app.celery.scheduled_tasks.current_app.logger.info")
-    mock_error_logger = mocker.patch("app.celery.scheduled_tasks.current_app.logger.error")
     mock_generate_report = mocker.patch("app.celery.scheduled_tasks.generate_report.apply_async")
 
     # Create some reports in REQUESTED status
     report1 = Report(
-        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+        report_type="email",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.REQUESTED.value,
+        language="en",
     )
     report2 = Report(
-        report_type="sms", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.REQUESTED.value
+        report_type="sms",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.REQUESTED.value,
+        language="en",
     )
 
     # Create a report with a different status
     report3 = Report(
-        report_type="email", service_id=sample_service.id, requesting_user_id=sample_user.id, status=ReportStatus.GENERATING.value
+        report_type="email",
+        service_id=sample_service.id,
+        requesting_user_id=sample_user.id,
+        status=ReportStatus.GENERATING.value,
+        language="en",
     )
 
     db.session.add_all([report1, report2, report3])
@@ -653,8 +664,8 @@ def test_run_generate_reports(mocker, notify_db_session, sample_user, sample_ser
     scheduled_tasks.run_generate_reports()
 
     # Check logging
-    mock_error_logger.assert_called_once_with("starting run-generate-reports")
-    assert mock_logger.call_count == 2
+    assert mock_logger.call_count == 3
+    mock_logger.assert_any_call("starting run-generate-reports")
     mock_logger.assert_any_call(f"calling generate_report for Report ID {report1.id}")
     mock_logger.assert_any_call(f"calling generate_report for Report ID {report2.id}")
 
