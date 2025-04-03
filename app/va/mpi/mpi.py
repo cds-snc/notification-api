@@ -149,10 +149,12 @@ class MpiClient:
             )
 
             if e.response.status_code in [429, 500, 502, 503, 504]:
+                self.logger.warning(message)
                 exception = MpiRetryableException(message)
                 exception.failure_reason = failure_reason
                 raise exception from e
             else:
+                self.logger.exception(message)
                 exception = MpiNonRetryableException(message)
                 exception.failure_reason = failure_reason
                 raise exception from e
