@@ -39,14 +39,14 @@ TEMPLATE_HISTORY_UPDATE = """
 NOW = datetime.now(timezone.utc)
 
 def upgrade():
-    heartbeat_service_insert = f"""INSERT INTO services (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, organisation_type, organisation_id, email_from, created_by_id, version)
-                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20_000, 20_000, 5_000_000, 5_000_000, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
+    heartbeat_service_insert = f"""INSERT INTO services (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, organisation_id, email_from, created_by_id, version)
+                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
                         '{NOTIFY_USER_ID}', 1)
                     """
     op.execute(heartbeat_service_insert)
     
-    heartbeat_service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, organisation_type, organisation_id, email_from, created_by_id, version)
-                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20_000, 20_000, 5_000_000, 5_000_000, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
+    heartbeat_service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, organisation_id, email_from, created_by_id, version)
+                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
                         '{NOTIFY_USER_ID}', 1)
 
                      """
