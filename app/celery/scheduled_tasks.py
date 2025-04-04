@@ -393,7 +393,7 @@ def beat_inbox_sms_priority():
 @notify_celery.task(name="run-generate-reports")
 @statsd(namespace="tasks")
 def run_generate_reports():
-    current_app.logger.info("starting run-generate-reports")
+    current_app.logger.error("starting run-generate-reports")
 
     # query for reports that have been requested but haven't been generated yet
     requested_reports = Report.query.filter(Report.status.in_([ReportStatus.REQUESTED.value])).order_by(Report.requested_at).all()
