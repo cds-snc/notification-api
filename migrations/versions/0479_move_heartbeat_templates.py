@@ -44,16 +44,41 @@ def upgrade():
                         '{NOTIFY_USER_ID}', 1)
                     """
     op.execute(heartbeat_service_insert)
-    
+
     heartbeat_service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, organisation_id, email_from, created_by_id, version)
                         VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
                         '{NOTIFY_USER_ID}', 1)
-
                      """
     op.execute(heartbeat_service_history_insert)
     
-    user_to_service_insert = """INSERT INTO user_to_service (user_id, service_id) VALUES ('{}', '{}')"""
-    op.execute(user_to_service_insert.format(NOTIFY_USER_ID, NOTIFY_HEARTBEAT_SERVICE_ID))
+    for send_type in ('sms', 'email'):
+        heartbeat_service_permissions_insert = f"""INSERT INTO service_permissions (service_id, permission, created_at) VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', '{send_type}', '{NOW}')"""
+        op.execute(heartbeat_service_permissions_insert)
+
+    # Copy the service permissions from the existing Notify service to the new Heartbeat service.
+    perms_insert = f"""
+        INSERT INTO permissions (id, service_id, user_id, permission, created_at)
+            SELECT uuid_in(md5(random()::text)::cstring), '{NOTIFY_HEARTBEAT_SERVICE_ID}', user_id, permission, '{NOW}'
+              FROM permissions
+             WHERE service_id = '{NOTIFY_SERVICE_ID}'
+    """
+    op.execute(perms_insert)
+
+    # The annual billing is required for new services. Let's copy the annual billing
+    # data from existing Notify service to the new heartbeat service.
+    annual_billing_insert = f"""
+        INSERT INTO annual_billing 
+        (id, service_id, financial_year_start, free_sms_fragment_limit, created_at, updated_at) 
+         SELECT uuid_in(md5(random()::text)::cstring), '{NOTIFY_HEARTBEAT_SERVICE_ID}', financial_year_start, free_sms_fragment_limit, created_at, updated_at 
+           FROM annual_billing
+          WHERE service_id = '{NOTIFY_SERVICE_ID}'
+          ORDER BY financial_year_start DESC
+          LIMIT 1
+    """
+    op.execute(annual_billing_insert)
+    
+    user_to_service_insert = f"""INSERT INTO user_to_service (user_id, service_id) VALUES ('{NOTIFY_USER_ID}', '{NOTIFY_HEARTBEAT_SERVICE_ID}')"""
+    op.execute(user_to_service_insert)
 
     for template_id in TEMPLATE_IDS:
         op.execute(
@@ -72,11 +97,8 @@ def upgrade():
 
 
 def downgrade():
-    heartbeat_service_delete = f"""DELETE FROM services WHERE id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
-    op.execute(heartbeat_service_delete)
-
-    heartbeat_service_history_delete = f"""DELETE FROM services_history WHERE id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
-    op.execute(heartbeat_service_history_delete)
+    annual_billing_delete = f"""DELETE FROM annual_billing WHERE service_id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(annual_billing_delete)
 
     user_to_service_delete = """DELETE FROM user_to_service WHERE user_id = '{}' AND service_id = '{}'"""
     op.execute(user_to_service_delete.format(NOTIFY_USER_ID, NOTIFY_HEARTBEAT_SERVICE_ID))
@@ -95,3 +117,15 @@ def downgrade():
                 template_id
             )
         )
+
+    heartbeat_permissions_delete = f"""DELETE FROM permissions WHERE service_id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(heartbeat_permissions_delete)
+
+    heartbeat_service_permissions_delete = f"""DELETE FROM service_permissions WHERE service_id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(heartbeat_service_permissions_delete)
+
+    heartbeat_service_delete = f"""DELETE FROM services WHERE id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(heartbeat_service_delete)
+
+    heartbeat_service_history_delete = f"""DELETE FROM services_history WHERE id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(heartbeat_service_history_delete)
