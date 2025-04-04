@@ -11,7 +11,6 @@ from notifications_utils.s3 import s3upload as utils_s3upload
 from app.models import Job
 
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
-REPORTS_FILE_LOCATION_STRUCTURE = "service-{}/{}.csv"
 
 
 def get_s3_file(bucket_name, file_location):
@@ -143,21 +142,3 @@ def get_list_of_files_by_suffix(bucket_name, subfolder="", suffix="", last_modif
             if key.lower().endswith(suffix.lower()):
                 if not last_modified or obj["LastModified"] >= last_modified:
                     yield key
-
-
-def get_report_location(service_id, report_id):
-    return REPORTS_FILE_LOCATION_STRUCTURE.format(service_id, report_id)
-
-
-def upload_report_to_s3(service_id: str, report_id: str, file_data: bytes) -> str:
-    location = get_report_location(service_id, report_id)
-    utils_s3upload(
-        filedata=file_data,
-        region=current_app.config["AWS_REGION"],
-        bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
-        file_location=location,
-    )
-    # todo: generate a presigned url
-    # https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
-    url = f"https://{current_app.config['REPORTS_BUCKET_NAME']}.s3.{current_app.config["AWS_REGION"]}.amazonaws.com/{location}"
-    return url

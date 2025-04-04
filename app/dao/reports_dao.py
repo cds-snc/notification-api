@@ -37,13 +37,3 @@ def get_reports_for_service(service_id: str, limit_days: int) -> List[Report]:
         query = query.filter(Report.requested_at >= date_threshold)
 
     return query.order_by(Report.requested_at.desc()).all()
-
-
-def get_report_by_id(report_id) -> Report:
-    return Report.query.filter_by(id=report_id).one()
-
-
-@transactional
-def update_report(report: Report):
-    db.session.add(report)
-    db.session.commit()

@@ -281,7 +281,6 @@ class Config(object):
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
-    REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "notification-canada-ca-production-reports")
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb
@@ -380,11 +379,6 @@ class Config(object):
             "task": "run-scheduled-jobs",
             "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
-        },
-        "run-generate-reports": {
-            "task": "run-generate-reports",
-            "schedule": crontab(),
-            "options": {"queue": QueueNames.REPORTING},
         },
         "delete-verify-codes": {
             "task": "delete-verify-codes",
