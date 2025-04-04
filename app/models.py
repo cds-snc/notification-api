@@ -2728,6 +2728,7 @@ class Report(BaseModel):
     requesting_user_id = db.Column(
         UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
     )  # only set if report is requested by a user
+    requesting_user = db.relationship("User")
     service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
@@ -2747,6 +2748,7 @@ class Report(BaseModel):
             "service_id": str(self.service_id),
             "status": self.status,
             "requested_at": self.requested_at.strftime(DATETIME_FORMAT),
+            "requesting_user_id": str(self.requesting_user_id),
             "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
             "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
             "url": self.url,

@@ -842,6 +842,8 @@ class ReportSchema(BaseSchema):
     expires_at = FlexibleDateTime()
     url = fields.String()
     language = fields.String()
+    # requesting_user_name = fields.String(dump_only=True)
+    user = fields.Nested(UserSchema, only=["id", "name"], dump_only=True)
 
     @validates("report_type")
     def validate_report_type(self, value):
@@ -857,6 +859,14 @@ class ReportSchema(BaseSchema):
     def validate_language(self, value):
         if value not in [rs.value for rs in models.ReportLanguage]:
             raise ValidationError(f"Invalid report language: {value}")
+
+    # @pre_dump
+    # def add_requesting_user_name(self, in_data, **kwargs):
+    #     if in_data.requesting_user:
+    #         in_data.requesting_user_name = in_data.requesting_user.name
+    #     else:
+    #         in_data.requesting_user_name = None
+    #     return in_data
 
 
 # should not be used on its own for dumping - only for loading
