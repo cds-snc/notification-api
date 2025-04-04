@@ -833,7 +833,6 @@ class ReportSchema(BaseSchema):
         unknown = EXCLUDE
 
     id = fields.UUID()
-    requesting_user_id = fields.UUID()
     report_type = fields.String()
     service_id = fields.UUID()
     status = fields.String()

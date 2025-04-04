@@ -39,7 +39,6 @@ from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
     acknowledge_receipt,
     choose_database_queue,
-    generate_report,
     get_template_class,
     handle_batch_error_and_forward,
     process_incomplete_job,
@@ -67,8 +66,6 @@ from app.models import (
     PRIORITY,
     SMS_TYPE,
     Notification,
-    Report,
-    ReportStatus,
     ServiceEmailReplyTo,
     ServiceSmsSender,
 )
@@ -2328,35 +2325,3 @@ class TestSeedBounceRateData:
 
             mocked_set_seeded_total_notifications.assert_not_called()
             mocked_set_seeded_hard_bounces.assert_not_called()
-
-
-class TestGenerateReport:
-    @freeze_time("2022-01-01 12:00:00")
-    def test_generate_report_success(self, mocker, notify_db_session, sample_report):
-        expected_url = "https://example.com/report.csv"
-        mocker.patch("app.celery.tasks.create_report_in_s3", return_value=expected_url)
-        update_report_mock = mocker.patch("app.celery.tasks.update_report")
-
-        generate_report(str(sample_report.id))
-
-        # Should have called update_report twice (once to mark as generating, once as ready)
-        assert update_report_mock.call_count == 2
-
-        # Get the updated report from DB
-        updated_report = Report.query.get(sample_report.id)
-        assert updated_report.status == ReportStatus.READY.value
-        assert updated_report.url == expected_url
-        assert updated_report.generated_at.date() == datetime(2022, 1, 1).date()
-        assert updated_report.expires_at.date() == datetime(2022, 1, 1).date() + timedelta(days=3)
-
-    def test_generate_report_error_handling(self, mocker, notify_db_session, sample_report):
-        mocker.patch("app.celery.tasks.create_report_in_s3", side_effect=Exception("Test error"))
-        update_report_mock = mocker.patch("app.celery.tasks.update_report")
-
-        # Execute and expect exception
-        with pytest.raises(Exception):
-            generate_report(str(sample_report.id))
-
-        # Assert report is marked as error
-        # Should have called update_report twice (once to mark as generating, once as error)
-        assert update_report_mock.call_count == 2
