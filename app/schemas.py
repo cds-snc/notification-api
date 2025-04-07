@@ -841,7 +841,6 @@ class ReportSchema(BaseSchema):
     completed_at = FlexibleDateTime()
     expires_at = FlexibleDateTime()
     url = fields.String()
-    language = fields.String()
 
     @validates("report_type")
     def validate_report_type(self, value):
@@ -852,11 +851,6 @@ class ReportSchema(BaseSchema):
     def validate_status(self, value):
         if value not in [rs.value for rs in models.ReportStatus]:
             raise ValidationError(f"Invalid report status: {value}")
-
-    @validates("language")
-    def validate_language(self, value):
-        if value not in [rs.value for rs in models.ReportLanguage]:
-            raise ValidationError(f"Invalid report language: {value}")
 
 
 # should not be used on its own for dumping - only for loading
