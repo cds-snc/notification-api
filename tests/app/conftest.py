@@ -1748,7 +1748,6 @@ def sample_report(
     sample_user,
     report_type="email",
     status=ReportStatus.REQUESTED.value,
-    language="en",
 ):
     report = Report(
         service_id=sample_service.id,
@@ -1756,6 +1755,5 @@ def sample_report(
         requesting_user_id=sample_user.id,
         report_type=report_type,
         status=status,
-        language=language,
     )
     return create_report(report)
