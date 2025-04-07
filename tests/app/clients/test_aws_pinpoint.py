@@ -12,7 +12,7 @@ TEST_RECIPIENT_NUMBER = '+100000000'
 TEST_REFERENCE = 'test notification id'
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def aws_pinpoint_client(notify_api, mocker):
     with notify_api.app_context():
         aws_pinpoint_client = AwsPinpointClient()
@@ -28,65 +28,46 @@ def aws_pinpoint_client(notify_api, mocker):
         return aws_pinpoint_client
 
 
-@pytest.fixture(scope='function')
-def boto_mock(aws_pinpoint_client, mocker):
-    boto_mock = mocker.patch.object(aws_pinpoint_client, '_client', create=True)
-    return boto_mock
+@pytest.fixture
+def pinpoint_client_mock(aws_pinpoint_client, mocker):
+    pinpoint_client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_client', create=True)
+    return pinpoint_client_mock
 
 
-def test_send_sms_successful_returns_aws_pinpoint_response_messageid(aws_pinpoint_client, boto_mock):
-    boto_mock.send_messages.return_value = {
-        'MessageResponse': {
-            'ApplicationId': TEST_ID,
-            'RequestId': 'request-id',
-            'Result': {
-                TEST_RECIPIENT_NUMBER: {
-                    'DeliveryStatus': 'SUCCESSFUL',
-                    'MessageId': TEST_MESSAGE_ID,
-                    'StatusCode': 200,
-                    'StatusMessage': f'MessageId: {TEST_MESSAGE_ID}',
-                }
-            },
+@pytest.mark.parametrize('sender', (None, '+12222222222'))
+@pytest.mark.parametrize('PINPOINT_SMS_VOICE_V2', ('False', 'True'))
+def test_send_sms_successful_returns_aws_pinpoint_response_messageid(
+    PINPOINT_SMS_VOICE_V2, sender, mocker, aws_pinpoint_client, monkeypatch
+):
+    monkeypatch.setenv('PINPOINT_SMS_VOICE_V2', PINPOINT_SMS_VOICE_V2)
+
+    if PINPOINT_SMS_VOICE_V2 == 'True':
+        client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_sms_voice_v2_client', create=True)
+        client_mock.send_text_message.return_value = {'MessageId': TEST_MESSAGE_ID}
+    else:
+        client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_client', create=True)
+        client_mock.send_messages.return_value = {
+            'MessageResponse': {
+                'ApplicationId': TEST_ID,
+                'RequestId': 'request-id',
+                'Result': {
+                    TEST_RECIPIENT_NUMBER: {
+                        'DeliveryStatus': 'SUCCESSFUL',
+                        'MessageId': TEST_MESSAGE_ID,
+                        'StatusCode': 200,
+                        'StatusMessage': f'MessageId: {TEST_MESSAGE_ID}',
+                    }
+                },
+            }
         }
-    }
 
-    response = aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
-
+    response = aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=sender)
     assert response == TEST_MESSAGE_ID
 
 
-def test_send_sms_with_service_sender_number(aws_pinpoint_client, boto_mock):
-    test_sender = '+12222222222'
-
-    boto_mock.send_messages.return_value = {
-        'MessageResponse': {
-            'ApplicationId': TEST_ID,
-            'RequestId': 'request-id',
-            'Result': {
-                TEST_RECIPIENT_NUMBER: {
-                    'DeliveryStatus': 'SUCCESSFUL',
-                    'MessageId': TEST_MESSAGE_ID,
-                    'StatusCode': 200,
-                    'StatusMessage': f'MessageId: {TEST_MESSAGE_ID}',
-                }
-            },
-        }
-    }
-
-    aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=test_sender)
-
-    message_request_payload = {
-        'Addresses': {TEST_RECIPIENT_NUMBER: {'ChannelType': 'SMS'}},
-        'MessageConfiguration': {
-            'SMSMessage': {'Body': TEST_CONTENT, 'MessageType': 'TRANSACTIONAL', 'OriginationNumber': test_sender}
-        },
-    }
-
-    boto_mock.send_messages.assert_called_with(ApplicationId=TEST_ID, MessageRequest=message_request_payload)
-
-
-def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
-    invalid_recipient_number = '+1000'
+@pytest.mark.parametrize('PINPOINT_SMS_VOICE_V2', ('False', 'True'))
+def test_send_sms_throws_aws_pinpoint_exception(PINPOINT_SMS_VOICE_V2, aws_pinpoint_client, mocker, monkeypatch):
+    monkeypatch.setenv('PINPOINT_SMS_VOICE_V2', PINPOINT_SMS_VOICE_V2)
 
     error_response = {
         'Error': {
@@ -98,10 +79,15 @@ def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
         }
     }
 
-    boto_mock.send_messages.side_effect = botocore.exceptions.ClientError(error_response, 'exception')
+    if PINPOINT_SMS_VOICE_V2 == 'True':
+        client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_sms_voice_v2_client', create=True)
+        client_mock.send_text_message.side_effect = botocore.exceptions.ClientError(error_response, 'exception')
+    else:
+        client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_client', create=True)
+        client_mock.send_messages.side_effect = botocore.exceptions.ClientError(error_response, 'exception')
 
     with pytest.raises(AwsPinpointException) as exception:
-        aws_pinpoint_client.send_sms(invalid_recipient_number, TEST_CONTENT, TEST_REFERENCE)
+        aws_pinpoint_client.send_sms('+1000', TEST_CONTENT, TEST_REFERENCE)
 
     assert 'BadRequestException' in str(exception.value)
     aws_pinpoint_client.statsd_client.incr.assert_called_with('clients.pinpoint.error')
@@ -109,11 +95,15 @@ def test_send_sms_throws_aws_pinpoint_exception(aws_pinpoint_client, boto_mock):
 
 @pytest.mark.parametrize('delivery_status', ['TEMPORARY_FAILURE', 'THROTTLED', 'TIMEOUT', 'UNKNOWN_FAILURE'])
 def test_send_sms_returns_result_with_aws_pinpoint_error_delivery_status(
-    aws_pinpoint_client, boto_mock, delivery_status
+    aws_pinpoint_client, pinpoint_client_mock, delivery_status
 ):
+    """
+    This test is only applicable to the Pinpoint client (not V2).  The V2 client response does not contain
+    this verbose response.
+    """
     opted_out_number = '+12222222222'
 
-    boto_mock.send_messages.return_value = {
+    pinpoint_client_mock.send_messages.return_value = {
         'MessageResponse': {
             'ApplicationId': TEST_ID,
             'RequestId': 'request-id',
@@ -136,20 +126,17 @@ def test_send_sms_returns_result_with_aws_pinpoint_error_delivery_status(
     )
 
 
-@pytest.mark.parametrize(
-    'delivery_status',
-    [
-        'DUPLICATE',
-        'OPT_OUT',
-        'PERMANENT_FAILURE',
-    ],
-)
+@pytest.mark.parametrize('delivery_status', ['DUPLICATE', 'OPT_OUT', 'PERMANENT_FAILURE'])
 def test_send_sms_returns_result_with_non_retryable_error_delivery_status(
-    aws_pinpoint_client, boto_mock, delivery_status
+    aws_pinpoint_client, pinpoint_client_mock, delivery_status
 ):
+    """
+    This test is only applicable to the Pinpoint client (not V2).  The V2 client response does not contain
+    this verbose response.
+    """
     opted_out_number = '+12222222222'
 
-    boto_mock.send_messages.return_value = {
+    pinpoint_client_mock.send_messages.return_value = {
         'MessageResponse': {
             'ApplicationId': TEST_ID,
             'RequestId': 'request-id',
@@ -172,11 +159,15 @@ def test_send_sms_returns_result_with_non_retryable_error_delivery_status(
     )
 
 
-def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoint_client, boto_mock):
+def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoint_client, pinpoint_client_mock):
+    """
+    This test is only applicable to the Pinpoint client (not V2).  The V2 client response does not contain
+    this verbose response.
+    """
     delivery_status = 'PERMANENT_FAILURE'
     invalid_number = '+12223334444'
 
-    boto_mock.send_messages.return_value = {
+    pinpoint_client_mock.send_messages.return_value = {
         'MessageResponse': {
             'ApplicationId': TEST_ID,
             'RequestId': 'request-id',

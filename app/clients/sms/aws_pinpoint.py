@@ -27,6 +27,7 @@ from app.constants import (
     STATUS_REASON_UNDELIVERABLE,
 )
 from app.exceptions import InvalidProviderException
+from app.feature_flags import FeatureFlag, is_feature_enabled
 
 
 class AwsPinpointException(SmsClientResponseException):
@@ -70,7 +71,8 @@ class AwsPinpointClient(SmsClient):
         origination_number,
         statsd_client,
     ):
-        self._client = boto3.client('pinpoint', region_name=aws_region)
+        self._pinpoint_client = boto3.client('pinpoint', region_name=aws_region)
+        self._pinpoint_sms_voice_v2_client = boto3.client('pinpoint-sms-voice-v2', region_name=aws_region)
         self.aws_pinpoint_app_id = aws_pinpoint_app_id
         self.aws_region = aws_region
         self.origination_number = origination_number
@@ -113,8 +115,12 @@ class AwsPinpointClient(SmsClient):
                 self.logger.exception('Encountered an unexpected exception sending Pinpoint SMS')
                 raise AwsPinpointException(str(e))
         else:
-            self._validate_response(response['MessageResponse']['Result'][recipient_number])
-            aws_reference = response['MessageResponse']['Result'][recipient_number]['MessageId']
+            if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2):
+                # The V2 response doesn't contain additional fields to validate.
+                aws_reference = response['MessageId']
+            else:
+                self._validate_response(response['MessageResponse']['Result'][recipient_number])
+                aws_reference = response['MessageResponse']['Result'][recipient_number]['MessageId']
             elapsed_time = monotonic() - start_time
             self.logger.info(
                 'AWS Pinpoint SMS request using %s finished in %s for notificationId:%s and reference:%s',
@@ -133,16 +139,33 @@ class AwsPinpointClient(SmsClient):
         content,
         aws_phone_number,
     ):
-        message_request_payload = {
-            'Addresses': {recipient_number: {'ChannelType': 'SMS'}},
-            'MessageConfiguration': {
-                'SMSMessage': {'Body': content, 'MessageType': 'TRANSACTIONAL', 'OriginationNumber': aws_phone_number}
-            },
-        }
+        if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2):
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/send_text_message.html  # noqa
+            self.logger.debug('Sending an SMS notification with the PinpointSMSVoiceV2 client')
 
-        return self._client.send_messages(
-            ApplicationId=self.aws_pinpoint_app_id, MessageRequest=message_request_payload
-        )
+            return self._pinpoint_sms_voice_v2_client.send_text_message(
+                DestinationPhoneNumber=recipient_number,
+                OriginationIdentity=aws_phone_number,
+                MessageBody=content,
+            )
+        else:
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint/client/send_messages.html#send-messages  # noqa
+            self.logger.debug('Sending an SMS notification with the Pinpoint client')
+
+            message_request_payload = {
+                'Addresses': {recipient_number: {'ChannelType': 'SMS'}},
+                'MessageConfiguration': {
+                    'SMSMessage': {
+                        'Body': content,
+                        'MessageType': 'TRANSACTIONAL',
+                        'OriginationNumber': aws_phone_number,
+                    }
+                },
+            }
+
+            return self._pinpoint_client.send_messages(
+                ApplicationId=self.aws_pinpoint_app_id, MessageRequest=message_request_payload
+            )
 
     def _validate_response(
         self,
