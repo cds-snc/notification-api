@@ -27,8 +27,6 @@ jobs:
         run: |
           # Build images, start containers, and run tests.
           docker compose -f ci/docker-compose-ci.yml up --build --abort-on-container-exit
-          # Tear down containers after tests complete
-          docker compose -f ci/docker-compose-ci.yml down
 
   code-scan:
     runs-on: ${{ vars.RUNS_ON }}
