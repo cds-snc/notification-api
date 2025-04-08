@@ -4,12 +4,14 @@ from unittest.mock import Mock, call
 
 import pytest
 import pytz
+from botocore.exceptions import ClientError
 from flask import current_app
 from freezegun import freeze_time
 from tests.app.conftest import datetime_in_past
 
 from app.aws.s3 import (
     filter_s3_bucket_objects_within_date_range,
+    generate_presigned_url,
     get_list_of_files_by_suffix,
     get_s3_bucket_objects,
     get_s3_file,
@@ -247,11 +249,12 @@ def test_remove_jobs_from_s3(notify_api, mocker):
 
 def test_upload_report_to_s3(notify_api, mocker):
     utils_mock = mocker.patch("app.aws.s3.utils_s3upload")
+    presigned_url_mock = mocker.patch("app.aws.s3.generate_presigned_url")
     service_id = uuid.uuid4()
     report_id = uuid.uuid4()
     csv_data = b"foo"
     file_location = f"service-{service_id}/{report_id}.csv"
-    url = upload_report_to_s3(service_id, report_id, csv_data)
+    upload_report_to_s3(service_id, report_id, csv_data)
 
     utils_mock.assert_called_once_with(
         filedata=csv_data,
@@ -259,8 +262,49 @@ def test_upload_report_to_s3(notify_api, mocker):
         bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
         file_location=file_location,
     )
-    expected_url = (
-        f"https://{current_app.config['REPORTS_BUCKET_NAME']}.s3.{current_app.config["AWS_REGION"]}.amazonaws.com/{file_location}"
+    presigned_url_mock.assert_called_once_with(
+        bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+        object_key=file_location,
+        expiration=259200,  # 3 days
     )
 
-    assert url == expected_url
+
+def test_generate_presigned_url_success(notify_api, mocker):
+    s3_client_mock = mocker.patch("app.aws.s3.client")
+    s3_client_mock.return_value.generate_presigned_url.return_value = "https://example.com/presigned-url"
+
+    bucket_name = "test-bucket"
+    object_key = "test-object"
+    expiration = 3600
+
+    url = generate_presigned_url(bucket_name, object_key, expiration)
+
+    s3_client_mock.assert_called_once_with("s3", notify_api.config["AWS_REGION"])
+    s3_client_mock.return_value.generate_presigned_url.assert_called_once_with(
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": object_key},
+        ExpiresIn=expiration,
+    )
+    assert url == "https://example.com/presigned-url"
+
+
+def test_generate_presigned_url_error(notify_api, mocker):
+    s3_client_mock = mocker.patch("app.aws.s3.client")
+    s3_client_mock.return_value.generate_presigned_url.side_effect = ClientError(
+        error_response={"Error": {"Code": "403", "Message": "Forbidden"}},
+        operation_name="GeneratePresignedUrl",
+    )
+
+    bucket_name = "test-bucket"
+    object_key = "test-object"
+    expiration = 3600
+
+    url = generate_presigned_url(bucket_name, object_key, expiration)
+
+    s3_client_mock.assert_called_once_with("s3", notify_api.config["AWS_REGION"])
+    s3_client_mock.return_value.generate_presigned_url.assert_called_once_with(
+        "get_object",
+        Params={"Bucket": bucket_name, "Key": object_key},
+        ExpiresIn=expiration,
+    )
+    assert not url
