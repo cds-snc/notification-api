@@ -307,4 +307,4 @@ def test_generate_presigned_url_error(notify_api, mocker):
         Params={"Bucket": bucket_name, "Key": object_key},
         ExpiresIn=expiration,
     )
-    assert url is None
+    assert not url

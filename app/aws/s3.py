@@ -186,6 +186,6 @@ def generate_presigned_url(bucket_name: str, object_key: str, expiration: int = 
         )
     except botocore.exceptions.ClientError as e:
         current_app.logger.error(e)
-        return None
+        return ""
 
     return response
