@@ -72,19 +72,17 @@ if NOTIFY_ENVIRONMENT != 'test' and not os.path.isdir(CA_PATH):
     sys.exit('The VA CA certificate directory is missing.  Is the lambda layer in use?')
 
 if NOTIFY_ENVIRONMENT == 'test':
-    jwt_cert_paths = ('tests/lambda_functions/va_profile/cert.pem',)
+    jwt_cert_path = 'tests/lambda_functions/va_profile/cert.pem'
 elif NOTIFY_ENVIRONMENT == 'prod':
-    jwt_cert_paths = ('/opt/jwt/Profile_prod_public.pem',)
+    jwt_cert_path = '/opt/jwt/Profile_prod_public.pem'
 else:
-    jwt_cert_paths = ('/opt/jwt/Profile_nonprod_public.pem', '/opt/jwt/Profile_2025_nonprod_public.pem')
+    jwt_cert_path = '/opt/jwt/Profile_2025_nonprod_public.pem'
 
 # Load VA Profile's public certificate used to verify JWT signatures for POST requests.
 # In deployment environments, the certificate should be available via a lambda layer.
-va_profile_public_certs = []
 try:
-    for cert_path in jwt_cert_paths:
-        with open(cert_path, 'rb') as f:
-            va_profile_public_certs.append(load_pem_x509_certificate(f.read()).public_key())
+    with open(jwt_cert_path, 'rb') as f:
+        va_profile_public_cert = load_pem_x509_certificate(f.read()).public_key()
 except (OSError, ValueError) as e:
     logger.exception(e)
     sys.exit('The JWT public certificate is missing or invalid.  Cannot authenticate POST requests.')
@@ -228,7 +226,7 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
     logger.info('POST request received.')
     logger.debug('POST event: %s', event)
 
-    global integration_testing_public_cert
+    global va_profile_public_cert, integration_testing_public_cert
 
     headers = event.get('headers', {})
     is_integration_test = 'integration_test' in event.get('queryStringParameters', {})
@@ -244,7 +242,7 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
     # Authenticate the POST request by verifying the JWT signature.
     if not jwt_is_valid(
         headers.get('Authorization', headers.get('authorization', '')),
-        [integration_testing_public_cert] if is_integration_test else va_profile_public_certs,
+        integration_testing_public_cert if is_integration_test else va_profile_public_cert,
     ):
         logger.info('Authentication failed.  Returning 401.')
         return {'statusCode': 401}
@@ -447,13 +445,13 @@ def va_profile_opt_in_out_lambda_handler(  # noqa: C901
 
 def jwt_is_valid(
     auth_header_value: str,
-    public_keys: list[Certificate],
+    public_key: Certificate,
 ) -> bool:
     """
     The POST request should have sent an asymmetrically signed JWT.  Attempt to verify the signature.
     """
 
-    assert public_keys
+    assert public_key
     if not auth_header_value:
         return False
 
@@ -473,17 +471,14 @@ def jwt_is_valid(
         'require': ['exp', 'iat'],
         'verify_exp': 'verify_signature',
     }
-    for i, public_key in enumerate(public_keys):
-        try:
-            # This returns the claims as a dictionary, but we aren't using them.  Require the
-            # Issued at Time (iat) claim to ensure the JWT varies with each request.  Otherwise,
-            # an attacker could replay the static Bearer value.
-            jwt.decode(token, public_key, algorithms=['RS256'], options=options)
-            # Blank if the key is less than 35 characters
-            logger.debug('Used key: %s', i)
-            return True
-        except (jwt.exceptions.InvalidTokenError, TypeError):
-            logger.exception('Failed to validate key: %s', i)
+    try:
+        # This returns the claims as a dictionary, but we aren't using them.  Require the
+        # Issued at Time (iat) claim to ensure the JWT varies with each request.  Otherwise,
+        # an attacker could replay the static Bearer value.
+        jwt.decode(token, public_key, algorithms=['RS256'], options=options)
+        return True
+    except (jwt.exceptions.InvalidTokenError, TypeError):
+        logger.exception('Failed to validate key')
 
     return False
 

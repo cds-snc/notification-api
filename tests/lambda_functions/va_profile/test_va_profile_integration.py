@@ -286,7 +286,7 @@ def test_jwt_is_valid(jwt_encoded, public_key):
     Test the helper function used to determine if the JWT has a valid signature.
     """
 
-    assert jwt_is_valid(f'Bearer {jwt_encoded}', [public_key])
+    assert jwt_is_valid(f'Bearer {jwt_encoded}', public_key)
 
 
 @pytest.mark.parametrize(
