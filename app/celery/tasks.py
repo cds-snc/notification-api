@@ -914,17 +914,33 @@ def generate_report(report_id: str):
 
 def create_report_in_s3(report: Report) -> str:
     """Creates a report in S3 and returns the URL"""
-    pagination = get_notifications_for_service(
-        report.service_id,
-        page=1,
-        page_size=PAGE_SIZE,
-        filter_dict={"template_type": report.report_type},
-        limit_days=LIMIT_DAYS,
-        include_jobs=True,
-        format_for_csv=True,
-    )
-    serialized_notifications = [notification.serialize_for_csv() for notification in pagination.items]
-    # todo: make this work if there are multiple pages
+    page = 1
+    all_notifications = []
+
+    # Continue fetching pages until we get a page with fewer items than PAGE_SIZE
+    # which indicates we've reached the last page
+    while True:
+        pagination = get_notifications_for_service(
+            report.service_id,
+            page=page,
+            page_size=PAGE_SIZE,
+            filter_dict={"template_type": report.report_type},
+            limit_days=LIMIT_DAYS,
+            include_jobs=True,
+            format_for_csv=True,
+        )
+
+        page_items = pagination.items
+        all_notifications.extend(page_items)
+
+        # If we got fewer items than PAGE_SIZE or exactly 0 items, we've reached the last page
+        if len(page_items) < PAGE_SIZE:
+            break
+
+        # Move to the next page
+        page += 1
+
+    serialized_notifications = [notification.serialize_for_csv() for notification in all_notifications]
     file_data = get_csv_file_data(serialized_notifications)
     url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
     return url
