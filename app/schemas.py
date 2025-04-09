@@ -842,6 +842,15 @@ class ReportSchema(BaseSchema):
     expires_at = FlexibleDateTime()
     url = fields.String()
 
+    requesting_user = fields.Nested(
+        UserSchema,
+        only=[
+            "id",
+            "name",
+        ],
+        dump_only=True,
+    )
+
     @validates("report_type")
     def validate_report_type(self, value):
         if value not in [rt.value for rt in models.ReportType]:
