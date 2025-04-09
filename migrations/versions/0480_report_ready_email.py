@@ -17,7 +17,7 @@ down_revision = "0479_update_reports_url"
 report_download_template_id = current_app.config.get("REPORT_DOWNLOAD_TEMPLATE_ID")
 template_ids = [report_download_template_id]
 
-report_download_content = "\n".join(
+report_download_content =report_download_content = "\n".join(
     [
         "(la version française suit)",
         "",

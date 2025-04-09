@@ -1,12 +1,16 @@
 from io import StringIO
 from typing import Any
 
+from flask import current_app
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
 
 from app import db
 from app.aws.s3 import stream_to_s3
-from app.models import Job, Notification, Template, User
+from app.config import QueueNames
+from app.dao.templates_dao import dao_get_template_by_id
+from app.models import KEY_TYPE_NORMAL, Job, Notification, Service, Template, User
+from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 
 CSV_FIELDNAMES = [
     "Recipient",
@@ -145,3 +149,41 @@ def generate_csv_from_notifications(service_id, notification_type, days_limit=7,
     query = build_notifications_query(service_id, notification_type, days_limit)
     copy_command = compile_query_for_copy(query)
     stream_query_to_s3(copy_command, s3_bucket, s3_key)
+
+
+def send_requested_report_ready(report) -> None:
+    """
+    We are sending a notification to the user to inform them that their requested
+    report is ready.
+    """
+    template = dao_get_template_by_id(current_app.config["REPORT_DOWNLOAD_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    report_service = Service.query.get(report.service_id)
+
+    if template.template_type == "email":
+        report_name_en = f"{report.requested_at.date()}-emails-{report_service.name}"
+        report_name_fr = f"{report.requested_at.date()}-courriels-{report_service.name}"
+    else:
+        report_name_en = f"{report.requested_at.date()}-sms-{report_service.name}"
+        report_name_fr = f"{report.requested_at.date()}-sms-{report_service.name}"
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=report.requesting_user.email_address,
+        service=service,
+        personalisation={
+            "name": report.requesting_user.name,
+            "report_name": report_name_en,
+            "report_name_fr": report_name_fr,
+            "service_name": report_service.name,
+            "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports",
+            "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports?lang=fr",
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
