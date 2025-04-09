@@ -90,6 +90,7 @@ from app.notifications.process_notifications import (
 from app.report.utils import get_csv_file_data
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
+from app.user.rest import send_requested_report_ready
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
@@ -904,6 +905,10 @@ def generate_report(report_id: str):
         # mark the report as ready
         report.status = ReportStatus.READY.value
         update_report(report)
+        # send an email to the requesting user
+        send_requested_report_ready(
+            report.requesting_user.name, report.requesting_user.email_address, report.name, report.service_id
+        )
         current_app.logger.info(f"Report ID {str(report.id)} has been generated")
     except Exception as e:
         current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")

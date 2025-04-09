@@ -926,3 +926,35 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
+
+
+def send_requested_report_ready(user_name, user_email, report_name, report_service_id):
+    """
+    We are sending a notification to the user to inform them that their requested
+    report is ready.
+    """
+    template = dao_get_template_by_id(current_app.config["REPORT_READY_TEMPLATE_ID"])
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+    report_service = Service.query.get(report_service_id)
+
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=user_email,
+        service=service,
+        personalisation={
+            "name": user_name,
+            "report_name": report_name,
+            "service_name": report_service.name,
+            "report_url_en": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports",
+            "report_url_fr": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports?lang=fr",
+        },
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+    return jsonify({}), 204
