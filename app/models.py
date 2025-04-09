@@ -2685,6 +2685,7 @@ class ReportStatus(Enum):
     REQUESTED = "requested"
     GENERATING = "generating"
     READY = "ready"
+    ERROR = "error"
 
 
 class ReportType(Enum):
@@ -2730,8 +2731,9 @@ class Report(BaseModel):
         nullable=False,
     )
     job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), nullable=True)  # only set if report is for a bulk job
-    url = db.Column(db.String(255), nullable=True)  # url to download the report from s3
+    url = db.Column(db.String(2000), nullable=True)  # url to download the report from s3
     status = db.Column(db.String(255), nullable=False)
+    language = db.Column(db.String(2), nullable=True)
 
     def serialize(self):
         return {
