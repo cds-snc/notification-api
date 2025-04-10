@@ -100,7 +100,7 @@ from app.v2.errors import (
 
 DAYS_BEFORE_REPORTS_EXPIRE = 3
 LIMIT_DAYS = 7
-PAGE_SIZE = 2
+PAGE_SIZE = 5000
 
 
 def update_in_progress_jobs():
