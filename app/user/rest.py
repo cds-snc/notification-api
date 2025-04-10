@@ -928,26 +928,30 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     return jsonify({}), 204
 
 
-def send_requested_report_ready(user_name, user_email, report_name, report_service_id):
+def send_requested_report_ready(report):
     """
     We are sending a notification to the user to inform them that their requested
     report is ready.
     """
-    template = dao_get_template_by_id(current_app.config["REPORT_READY_TEMPLATE_ID"])
+    template = dao_get_template_by_id(current_app.config["REPORT_DOWNLOAD_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
-    report_service = Service.query.get(report_service_id)
+    report_service = Service.query.get(report.service_id)
+
+    report_name_en = f"{report.requested_at}-emails-{report_service.name}"
+    report_name_fr = f"{report.requested_at}-courriels-{report_service.name}"
 
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
-        recipient=user_email,
+        recipient=report.requesting_user.email_address,
         service=service,
         personalisation={
-            "name": user_name,
-            "report_name": report_name,
+            "name": report.requesting_user.name,
+            "report_name_en": report_name_en,
+            "report_name_fr": report_name_fr,
             "service_name": report_service.name,
-            "report_url_en": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports",
-            "report_url_fr": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports?lang=fr",
+            "hyperlink_to_page_en": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports",
+            "hyperlink_to_page_fr": f"{Config.ADMIN_BASE_URL}/services/{report_service.id}/reports?lang=fr",
         },
         notification_type=template.template_type,
         api_key_id=None,

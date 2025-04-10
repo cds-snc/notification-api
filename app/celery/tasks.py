@@ -906,9 +906,10 @@ def generate_report(report_id: str):
         report.status = ReportStatus.READY.value
         update_report(report)
         # send an email to the requesting user
-        send_requested_report_ready(
-            report.requesting_user.name, report.requesting_user.email_address, report.name, report.service_id
-        )
+        try:
+            send_requested_report_ready(report)
+        except Exception:
+            current_app.logger.exception("Failed to send email to user for Report ID {}".format(report.id))
         current_app.logger.info(f"Report ID {str(report.id)} has been generated")
     except Exception as e:
         current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
