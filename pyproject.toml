@@ -70,7 +70,7 @@ tldextract = "3.5.0"
 typing-extensions = "4.12.2"
 unidecode = "1.3.8"
 # Putting upgrade on hold due to new version introducing breaking changes
-Werkzeug = "3.0.4"
+Werkzeug = "3.0.6"
 # Pinned dependencies
 idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
 
