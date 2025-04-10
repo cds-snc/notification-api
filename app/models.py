@@ -2723,6 +2723,7 @@ class Report(BaseModel):
     requesting_user_id = db.Column(
         UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
     )  # only set if report is requested by a user
+    requesting_user = db.relationship("User")
     service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
