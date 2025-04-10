@@ -17,7 +17,6 @@ from app import (
     zendesk_client,
 )
 from app.celery.tasks import (
-    generate_report,
     job_complete,
     process_job,
     save_emails,
@@ -47,8 +46,6 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     SMS_TYPE,
     Job,
-    Report,
-    ReportStatus,
 )
 from app.notifications.process_notifications import send_notification_to_queue
 from app.v2.errors import JobIncompleteError
@@ -388,16 +385,3 @@ def beat_inbox_sms_priority():
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.PRIORITY_DATABASE)
         current_app.logger.info(f"Batch saving with Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_priority.poll()
-
-
-@notify_celery.task(name="run-generate-reports")
-@statsd(namespace="tasks")
-def run_generate_reports():
-    current_app.logger.info("starting run-generate-reports")
-
-    # query for reports that have been requested but haven't been generated yet
-    requested_reports = Report.query.filter(Report.status.in_([ReportStatus.REQUESTED.value])).order_by(Report.requested_at).all()
-
-    for report in requested_reports:
-        current_app.logger.info(f"calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id], queue=QueueNames.REPORTING)

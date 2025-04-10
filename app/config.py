@@ -381,11 +381,6 @@ class Config(object):
             "schedule": crontab(),
             "options": {"queue": QueueNames.PERIODIC},
         },
-        "run-generate-reports": {
-            "task": "run-generate-reports",
-            "schedule": crontab(),
-            "options": {"queue": QueueNames.REPORTING},
-        },
         "delete-verify-codes": {
             "task": "delete-verify-codes",
             "schedule": timedelta(minutes=63),
