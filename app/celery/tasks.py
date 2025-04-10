@@ -100,7 +100,7 @@ from app.v2.errors import (
 
 DAYS_BEFORE_REPORTS_EXPIRE = 3
 LIMIT_DAYS = 7
-PAGE_SIZE = 5000
+PAGE_SIZE = 2
 
 
 def update_in_progress_jobs():
@@ -933,8 +933,8 @@ def create_report_in_s3(report: Report) -> str:
         page_items = pagination.items
         all_notifications.extend(page_items)
 
-        # If we got fewer items than PAGE_SIZE or exactly 0 items, we've reached the last page
-        if len(page_items) < PAGE_SIZE:
+        # If there is no next page, we are done
+        if not pagination.has_next:
             break
 
         # Move to the next page

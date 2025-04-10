@@ -2363,15 +2363,23 @@ class TestGenerateReport:
         assert update_report_mock.call_count == 2
 
 
-def test_create_report_in_s3_pagination(notify_db, mocker, notify_db_session, sample_report, sample_service):
+@pytest.mark.parametrize(
+    "page_size, n_notifications",
+    [
+        (2, 6),
+        (2, 5),
+    ],
+)
+def test_create_report_in_s3_pagination(
+    notify_db, mocker, notify_db_session, sample_report, sample_service, page_size, n_notifications
+):
     """
     Test that create_report_in_s3 properly paginates through all notifications
     when fetching data for a report.
     """
-
     sample_template = create_sample_email_template(notify_db, notify_db_session, service=sample_service)
 
-    for i in range(8):
+    for i in range(n_notifications):
         notification = create_notification(
             sample_template,
             to_field=f"recipient{i}@example.com",
@@ -2381,7 +2389,7 @@ def test_create_report_in_s3_pagination(notify_db, mocker, notify_db_session, sa
         save_notification(notification)
 
     # Patch the PAGE_SIZE constant to a smaller value for testing
-    page_size_patch = patch("app.celery.tasks.PAGE_SIZE", 3)
+    page_size_patch = patch("app.celery.tasks.PAGE_SIZE", page_size)
 
     # Mock the s3 upload function to avoid actual S3 operations
     mock_upload = mocker.patch("app.celery.tasks.s3.upload_report_to_s3", return_value="https://example.com/report.csv")
@@ -2403,9 +2411,9 @@ def test_create_report_in_s3_pagination(notify_db, mocker, notify_db_session, sa
         serialized_notifications = mock_get_csv_file_data.call_args[0][0]
 
         # Verify that all 8 notifications were passed to get_csv_file_data
-        assert len(serialized_notifications) == 8
+        assert len(serialized_notifications) == n_notifications
 
         # Check that we have notifications from all pages by verifying unique recipients
         recipients = {notification["recipient"] for notification in serialized_notifications}
-        expected_recipients = {f"recipient{i}@example.com" for i in range(8)}
+        expected_recipients = {f"recipient{i}@example.com" for i in range(n_notifications)}
         assert recipients == expected_recipients
