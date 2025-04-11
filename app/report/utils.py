@@ -53,9 +53,17 @@ def get_csv_file_data(serialized_notifications: list[Any], lang="en") -> bytes:
     return encoded_string
 
 
-def generate_csv_from_notifications(service_id, notification_type, days_limit=7, s3_bucket=None, s3_key=None):
+def build_notifications_query(service_id, notification_type, days_limit=7):
     """
-    Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
+    Builds and returns an SQLAlchemy query for notifications with the specified parameters.
+
+    Args:
+        service_id: The ID of the service to query
+        notification_type: The type of notifications to include
+        days_limit: Number of days to look back in history
+
+    Returns:
+        SQLAlchemy query object for notifications
     """
     # Create aliases for the tables to make the query more readable
     n = aliased(Notification)
@@ -64,7 +72,7 @@ def generate_csv_from_notifications(service_id, notification_type, days_limit=7,
     u = aliased(User)
 
     # Build the query using SQLAlchemy
-    query = (
+    return (
         db.session.query(
             n.to.label("Recipient"),
             t.name.label("Template"),
@@ -86,19 +94,54 @@ def generate_csv_from_notifications(service_id, notification_type, days_limit=7,
         .order_by(n.created_at.desc())
     )
 
-    # Use COPY TO with the SQLAlchemy query
+
+def compile_query_for_copy(query):
+    """
+    Compiles an SQLAlchemy query into a PostgreSQL COPY command string.
+
+    Args:
+        query: An SQLAlchemy query object
+
+    Returns:
+        String containing the compiled COPY command
+    """
+    compiled_query = query.statement.compile(dialect=db.engine.dialect, compile_kwargs={"literal_binds": True})
+    return f"COPY ({compiled_query}) TO STDOUT WITH CSV HEADER"
+
+
+def stream_query_to_s3(copy_command, s3_bucket, s3_key):
+    """
+    Executes a database COPY command and streams the results to S3.
+
+    Args:
+        copy_command: The PostgreSQL COPY command to execute
+        s3_bucket: The S3 bucket name
+        s3_key: The S3 object key
+    """
     conn = db.engine.raw_connection()
     try:
         cursor = conn.cursor()
-        # Compile the query to a string
-        compiled_query = f"COPY ({query.statement.compile(dialect=db.engine.dialect, compile_kwargs={'literal_binds': True})}) TO STDOUT WITH CSV HEADER"
-
-        # Stream the data directly to S3
         stream_to_s3(
             bucket_name=s3_bucket,
             object_key=s3_key,
-            copy_command=compiled_query,
+            copy_command=copy_command,
             cursor=cursor,
         )
     finally:
         conn.close()
+
+
+def generate_csv_from_notifications(service_id, notification_type, days_limit=7, s3_bucket=None, s3_key=None):
+    """
+    Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
+
+    Args:
+        service_id: The ID of the service to query
+        notification_type: The type of notifications to include
+        days_limit: Number of days to look back in history (default: 7)
+        s3_bucket: The S3 bucket name to store the CSV (required)
+        s3_key: The S3 object key for the CSV (required)
+    """
+    query = build_notifications_query(service_id, notification_type, days_limit)
+    copy_command = compile_query_for_copy(query)
+    stream_query_to_s3(copy_command, s3_bucket, s3_key)
