@@ -135,6 +135,11 @@ jobs:
       run: |
         cp ${{ github.workspace }}/.env .env
 
+    - name: Make version file
+      run: |
+        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
+        cp version.py "${{ github.workspace }}/app/"
+
     - name: Build and start frontend
       working-directory: frontend
       run: |
