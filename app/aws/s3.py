@@ -11,6 +11,8 @@ from notifications_utils.s3 import s3upload as utils_s3upload
 from app.models import Job
 
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
+REPORTS_FILE_LOCATION_STRUCTURE = "service-{}/{}.csv"
+THREE_DAYS_IN_SECONDS = 3 * 24 * 60 * 60
 
 
 def get_s3_file(bucket_name, file_location):
@@ -142,3 +144,48 @@ def get_list_of_files_by_suffix(bucket_name, subfolder="", suffix="", last_modif
             if key.lower().endswith(suffix.lower()):
                 if not last_modified or obj["LastModified"] >= last_modified:
                     yield key
+
+
+def get_report_location(service_id, report_id):
+    return REPORTS_FILE_LOCATION_STRUCTURE.format(service_id, report_id)
+
+
+def upload_report_to_s3(service_id: str, report_id: str, file_data: bytes) -> str:
+    object_key = get_report_location(service_id, report_id)
+    utils_s3upload(
+        filedata=file_data,
+        region=current_app.config["AWS_REGION"],
+        bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+        file_location=object_key,
+    )
+    url = generate_presigned_url(
+        bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+        object_key=object_key,
+        expiration=THREE_DAYS_IN_SECONDS,
+    )
+    return url
+
+
+def generate_presigned_url(bucket_name: str, object_key: str, expiration: int = 3600) -> str:
+    """
+    Generate a presigned URL to share an S3 object
+
+    :param bucket_name: string
+    :param object_key: string
+    :param expiration: Time in seconds for the presigned URL to remain valid
+    :return: Presigned URL as string. If error, returns None.
+
+    Docs: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ShareObjectPreSignedURL.html
+    """
+    s3_client = client("s3", current_app.config["AWS_REGION"])
+    try:
+        response = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket_name, "Key": object_key},
+            ExpiresIn=expiration,
+        )
+    except botocore.exceptions.ClientError as e:
+        current_app.logger.error(e)
+        return ""
+
+    return response

@@ -1,6 +1,6 @@
 import json
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -50,9 +50,11 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
     get_latest_sent_notification_for_job,
     get_notification_by_id,
+    get_notifications_for_service,
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
 )
+from app.dao.reports_dao import get_report_by_id, update_report
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -76,6 +78,8 @@ from app.models import (
     SMS_TYPE,
     Job,
     Notification,
+    Report,
+    ReportStatus,
     Service,
     Template,
 )
@@ -83,6 +87,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.report.utils import get_csv_file_data
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -92,6 +97,10 @@ from app.v2.errors import (
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
+
+DAYS_BEFORE_REPORTS_EXPIRE = 3
+LIMIT_DAYS = 7
+PAGE_SIZE = 5000
 
 
 def update_in_progress_jobs():
@@ -874,3 +883,64 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
     current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
+
+
+@notify_celery.task(name="generate-report")
+@statsd(namespace="tasks")
+def generate_report(report_id: str):
+    current_app.logger.info(f"Generating report for Report ID {report_id}")
+    try:
+        report = get_report_by_id(report_id)
+
+        # mark the report as generating
+        report.status = ReportStatus.GENERATING.value
+        update_report(report)
+        # generate the report
+        url = create_report_in_s3(report)
+        report.url = url
+        report.generated_at = datetime.utcnow()
+        report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
+
+        # mark the report as ready
+        report.status = ReportStatus.READY.value
+        update_report(report)
+        current_app.logger.info(f"Report ID {str(report.id)} has been generated")
+    except Exception as e:
+        current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
+        report.status = ReportStatus.ERROR.value
+        update_report(report)
+        raise
+
+
+def create_report_in_s3(report: Report) -> str:
+    """Creates a report in S3 and returns the URL"""
+    page = 1
+    all_notifications = []
+
+    # Continue fetching pages until we get a page with fewer items than PAGE_SIZE
+    # which indicates we've reached the last page
+    while True:
+        pagination = get_notifications_for_service(
+            report.service_id,
+            page=page,
+            page_size=PAGE_SIZE,
+            filter_dict={"template_type": report.report_type},
+            limit_days=LIMIT_DAYS,
+            include_jobs=True,
+            format_for_csv=True,
+        )
+
+        page_items = pagination.items
+        all_notifications.extend(page_items)
+
+        # If there is no next page, we are done
+        if not pagination.has_next:
+            break
+
+        # Move to the next page
+        page += 1
+
+    serialized_notifications = [notification.serialize_for_csv() for notification in all_notifications]
+    file_data = get_csv_file_data(serialized_notifications)
+    url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
+    return url
