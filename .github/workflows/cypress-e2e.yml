@@ -98,16 +98,16 @@ jobs:
         poetry run flask db upgrade
         poetry run make run &
 
-    - name: Write the cypress.env.json file
-      working-directory: frontend
-      run: |
-        echo '${{ secrets.CYPRESS_ENV_JSON }}' > tests_cypress/cypress.env.json 
-
     - name: Checkout frontend repository
       uses: actions/checkout@v3
       with:
         repository: cds-snc/notification-admin
         path: frontend
+
+    - name: Write the cypress.env.json file
+      working-directory: frontend
+      run: |
+        echo '${{ secrets.CYPRESS_ENV_JSON }}' > tests_cypress/cypress.env.json 
 
     - uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
