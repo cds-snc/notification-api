@@ -8,7 +8,7 @@ from notifications_utils.recipients import (
     InvalidEmailError,
     InvalidPhoneError,
     validate_email_address,
-    validate_phone_number,
+    ValidatedPhoneNumber,
 )
 from uuid import UUID
 
@@ -25,7 +25,7 @@ def validate_uuid(instance):
 @format_checker.checks('phone_number', raises=InvalidPhoneError)
 def validate_schema_phone_number(instance):
     if isinstance(instance, str):
-        validate_phone_number(instance, international=True)
+        ValidatedPhoneNumber(instance)
     return True
 
 

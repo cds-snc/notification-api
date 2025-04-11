@@ -6,6 +6,8 @@ import pytest
 from freezegun import freeze_time
 from flask import current_app
 
+from notifications_utils.recipients import InvalidPhoneError
+
 import app
 from app.constants import EMAIL_TYPE, LETTER_TYPE, SERVICE_PERMISSION_TYPES, SMS_TYPE
 from app.feature_flags import FeatureFlag
@@ -410,6 +412,20 @@ def test_rejects_api_calls_with_no_recipient():
         validate_and_format_recipient(None, 'key_type', 'service', SMS_TYPE)
     assert e.value.status_code == 400
     assert e.value.message == "Recipient can't be empty"
+
+
+@pytest.mark.parametrize('key_type', ['test', 'normal'])
+def test_validate_and_format_recipient_raises_with_invalid_country_code(
+    key_type,
+    sample_service,
+):
+    """Should raise InvalidPhoneError when number with country code in non-geographic region is used."""
+    service = sample_service(
+        service_name=f'sample service full permissions {uuid4()}', service_permissions=SERVICE_PERMISSION_TYPES
+    )
+    with pytest.raises(InvalidPhoneError) as e:
+        validate_and_format_recipient('+80888888888', key_type, service, SMS_TYPE)
+    assert str(e.value) == 'Not a valid country prefix'
 
 
 @pytest.mark.parametrize('notification_type', [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE])

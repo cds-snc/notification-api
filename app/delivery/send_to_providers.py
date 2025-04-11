@@ -3,7 +3,7 @@ from typing import Dict, Union
 
 from flask import current_app
 
-from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
+from notifications_utils.recipients import ValidatedPhoneNumber, validate_and_format_email_address
 from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
 
@@ -82,7 +82,7 @@ def send_sms_to_provider(
         try:
             # Send a SMS message using the "to" attribute to specify the recipient.
             reference = client.send_sms(
-                to=validate_and_format_phone_number(notification.to, international=notification.international),
+                to=ValidatedPhoneNumber(notification.to).formatted,
                 content=str(template),
                 reference=str(notification.id),
                 sender=notification.reply_to_text,

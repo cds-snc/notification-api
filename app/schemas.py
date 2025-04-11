@@ -39,9 +39,8 @@ from marshmallow_sqlalchemy import field_for
 from notifications_utils.recipients import (
     validate_email_address,
     InvalidEmailError,
-    validate_phone_number,
     InvalidPhoneError,
-    validate_and_format_phone_number,
+    ValidatedPhoneNumber,
 )
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -185,7 +184,7 @@ class UserSchema(BaseSchema):
     ):
         try:
             if value is not None:
-                validate_phone_number(value, international=True)
+                ValidatedPhoneNumber(value)
         except InvalidPhoneError as error:
             raise ValidationError('Invalid phone number: {}'.format(error))
 
@@ -240,7 +239,7 @@ class UserUpdateAttributeSchema(BaseSchema):
     ):
         try:
             if value is not None:
-                validate_phone_number(value, international=True)
+                ValidatedPhoneNumber(value)
         except InvalidPhoneError as error:
             raise ValidationError('Invalid phone number: {}'.format(error))
 
@@ -672,7 +671,7 @@ class SmsNotificationSchema(NotificationSchema):
         **kwargs,
     ):
         try:
-            validate_phone_number(value, international=True)
+            ValidatedPhoneNumber(value)
         except InvalidPhoneError as error:
             raise ValidationError('Invalid phone number: {}'.format(error))
 
@@ -682,7 +681,7 @@ class SmsNotificationSchema(NotificationSchema):
         item,
         **kwargs,
     ):
-        item['to'] = validate_and_format_phone_number(item['to'], international=True)
+        item['to'] = ValidatedPhoneNumber(item['to']).formatted
         return item
 
 

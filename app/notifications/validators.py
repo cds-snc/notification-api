@@ -5,9 +5,8 @@ from cachetools import TTLCache, cached
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
-    validate_and_format_phone_number,
+    ValidatedPhoneNumber,
     validate_and_format_email_address,
-    get_international_phone_info,
 )
 from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
 from sqlalchemy.orm.exc import NoResultFound
@@ -160,16 +159,12 @@ def validate_and_format_recipient(
     service_can_send_to_recipient(send_to, key_type, service, allow_whitelisted_recipients)
 
     if notification_type == SMS_TYPE:
-        try:
-            phone_info = get_international_phone_info(send_to)
-        except KeyError:
-            current_app.logger.warn('Service used invalid International Billing Rate prefix: %s', send_to)
-            raise BadRequestError(message='Invalid International Billing Prefix')
+        validated_phone_number = ValidatedPhoneNumber(send_to)
 
-        if phone_info.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
+        if validated_phone_number.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
             raise BadRequestError(message='Cannot send to international mobile numbers')
 
-        return validate_and_format_phone_number(number=send_to, international=phone_info.international)
+        return validated_phone_number.formatted
     elif notification_type == EMAIL_TYPE:
         return validate_and_format_email_address(email_address=send_to)
 

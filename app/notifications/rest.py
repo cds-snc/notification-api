@@ -31,7 +31,7 @@ from app.service.utils import service_allowed_to_send_to
 from app.utils import pagination_links, get_template_instance, get_public_notify_type_text
 
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
-from notifications_utils.recipients import get_international_phone_info
+from notifications_utils.recipients import ValidatedPhoneNumber
 
 notifications = Blueprint('notifications', __name__)
 
@@ -166,9 +166,7 @@ def _service_can_send_internationally(
     service,
     number,
 ):
-    phone_info = get_international_phone_info(number)
-
-    if phone_info.international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
+    if ValidatedPhoneNumber(number).international and not service.has_permissions(INTERNATIONAL_SMS_TYPE):
         raise InvalidRequest({'to': ['Cannot send to international mobile numbers']}, status_code=400)
 
 

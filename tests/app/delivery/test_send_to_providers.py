@@ -3,7 +3,7 @@ from unittest.mock import ANY
 import uuid
 
 from flask import current_app
-from notifications_utils.recipients import validate_and_format_phone_number
+from notifications_utils.recipients import ValidatedPhoneNumber
 import pytest
 from requests import HTTPError
 from sqlalchemy import select
@@ -119,7 +119,7 @@ def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     send_to_providers.send_sms_to_provider(db_notification)
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number('+16502532222'),
+        to=ValidatedPhoneNumber('+16502532222').formatted,
         content=f'{service.name}: Hello Jo\nHere is <em>some HTML</em> & entities',
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER'],
@@ -294,7 +294,7 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(
     content = notify_db_session.session.scalar(stmt).content
 
     mock_sms_client.send_sms.assert_called_once_with(
-        to=validate_and_format_phone_number('+16502532222'),
+        to=ValidatedPhoneNumber('+16502532222').formatted,
         content=content if not prefix else f'{service.name}: {content}',
         reference=str(db_notification.id),
         sender=current_app.config['FROM_NUMBER'],

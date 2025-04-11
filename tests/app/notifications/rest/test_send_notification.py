@@ -83,7 +83,7 @@ def test_should_reject_bad_phone_numbers(
             json_resp = response.get_json()
             assert json_resp['result'] == 'error'
             assert len(json_resp['message'].keys()) == 1
-            assert 'Invalid phone number: Not a valid number' in json_resp['message']['to']
+            assert 'Invalid phone number: Phone numbers must not contain letters' in json_resp['message']['to']
 
 
 @pytest.mark.parametrize('template_type, to', [(SMS_TYPE, '+16502532222'), (EMAIL_TYPE, 'ok@ok.com')])

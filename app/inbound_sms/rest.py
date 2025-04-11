@@ -26,7 +26,7 @@ def post_inbound_sms_for_service(service_id):
 
     if user_number:
         # we use this to normalise to an international phone number - but this may fail if it's an alphanumeric
-        user_number = try_validate_and_format_phone_number(user_number, international=True)
+        user_number = try_validate_and_format_phone_number(user_number)
 
     inbound_data_retention = fetch_service_data_retention_by_notification_type(service_id, 'sms')
     limit_days = inbound_data_retention.days_of_retention if inbound_data_retention else 7

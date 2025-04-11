@@ -10,8 +10,7 @@ from celery import chain
 
 from notifications_utils.clients import redis
 from notifications_utils.recipients import (
-    get_international_phone_info,
-    validate_and_format_phone_number,
+    ValidatedPhoneNumber,
     format_email_address,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
@@ -135,12 +134,11 @@ def persist_notification(
         notification.recipient_identifiers.set(_recipient_identifier)
 
     if notification_type == SMS_TYPE and notification.to:
-        formatted_recipient = validate_and_format_phone_number(recipient, international=True)
-        recipient_info = get_international_phone_info(formatted_recipient)
-        notification.normalised_to = formatted_recipient
-        notification.international = recipient_info.international
-        notification.phone_prefix = recipient_info.country_prefix
-        notification.rate_multiplier = recipient_info.billable_units
+        validated_recipient = ValidatedPhoneNumber(recipient)
+        notification.normalised_to = validated_recipient.formatted
+        notification.international = validated_recipient.international
+        notification.phone_prefix = validated_recipient.country_code
+        notification.rate_multiplier = validated_recipient.billable_units
     elif notification_type == EMAIL_TYPE and notification.to:
         notification.normalised_to = format_email_address(notification.to)
     elif notification_type == LETTER_TYPE:
@@ -381,7 +379,7 @@ def simulated_recipient(
 ):
     if notification_type == SMS_TYPE:
         formatted_simulated_numbers = [
-            validate_and_format_phone_number(number) for number in current_app.config['SIMULATED_SMS_NUMBERS']
+            ValidatedPhoneNumber(number).formatted for number in current_app.config['SIMULATED_SMS_NUMBERS']
         ]
         return to_address in formatted_simulated_numbers
     else:

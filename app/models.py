@@ -22,7 +22,7 @@ from notifications_utils.recipients import (
     InvalidPhoneError,
     try_validate_and_format_phone_number,
     validate_email_address,
-    validate_phone_number,
+    ValidatedPhoneNumber,
 )
 from notifications_utils.template import PlainTextEmailTemplate, SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
@@ -596,7 +596,7 @@ class ServiceWhitelist(db.Model):
 
         try:
             if recipient_type == MOBILE_TYPE:
-                validate_phone_number(recipient, international=True)
+                ValidatedPhoneNumber(recipient)
                 instance.recipient = recipient
             elif recipient_type == EMAIL_TYPE:
                 validate_email_address(recipient)

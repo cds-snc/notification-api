@@ -42,7 +42,7 @@ from app.notifications.process_notifications import (
     send_to_queue_for_recipient_info_based_on_recipient_identifier,
     simulated_recipient,
 )
-from notifications_utils.recipients import validate_and_format_phone_number, validate_and_format_email_address
+from notifications_utils.recipients import ValidatedPhoneNumber, validate_and_format_email_address
 from notifications_utils.template import WithSubjectTemplate
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError
@@ -628,7 +628,7 @@ def test_simulated_recipient(
     if notification_type == EMAIL_TYPE:
         formatted_address = validate_and_format_email_address(to_address)
     else:
-        formatted_address = validate_and_format_phone_number(to_address)
+        formatted_address = ValidatedPhoneNumber(to_address).formatted
 
     is_simulated_address = simulated_recipient(formatted_address, notification_type)
 
@@ -641,7 +641,9 @@ def test_simulated_recipient(
         ('6502532222', False, '1', 1),  # NA
         ('+16502532222', False, '1', 1),  # NA
         ('+79587714230', True, '7', 1),  # Russia
-        ('+360623400400', True, '36', 3),  # Hungary
+        ('+360623400400', True, '36', 1),  # Hungary
+        ('+63253012000', True, '63', 1),  # Philippines
+        ('+1613-238-5335', True, '1', 1),  # Canada
     ],
 )
 def test_persist_notification_with_international_info_stores_correct_info(

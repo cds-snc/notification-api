@@ -316,9 +316,6 @@ def update_notification_status_by_id(
         current_app.logger.info('notification not found for id %s (update to status %s)', notification_id, status)
         return None
 
-    if notification.international and not country_records_delivery(notification.phone_prefix):
-        return None
-
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
 
