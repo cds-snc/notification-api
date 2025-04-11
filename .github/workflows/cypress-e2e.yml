@@ -99,6 +99,7 @@ jobs:
         poetry run make run &
 
     - name: Write the cypress.env.json file
+      working-directory: frontend
       run: |
         echo '${{ secrets.CYPRESS_ENV_JSON }}' > tests_cypress/cypress.env.json 
 
