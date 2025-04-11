@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from io import BytesIO
 from typing import List
 
 import botocore
@@ -205,8 +206,6 @@ def stream_to_s3(bucket_name, object_key, copy_command, cursor):
     config = TransferConfig(multipart_threshold=1024 * 25, max_concurrency=10)
 
     # Create a file-like object using a BytesIO buffer
-    from io import BytesIO
-
     buffer = BytesIO()
 
     # Execute the COPY command and write the output to the buffer
