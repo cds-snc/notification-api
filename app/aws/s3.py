@@ -189,3 +189,91 @@ def generate_presigned_url(bucket_name: str, object_key: str, expiration: int = 
         return ""
 
     return response
+
+
+def upload_report_to_s3_multipart(service_id: str, report_id: str, file_generator) -> str:
+    """
+    Uploads a report to S3 using either regular or multipart uploads based on file size.
+    Takes a generator that yields chunks of the file.
+
+    :param service_id: The service ID
+    :param report_id: The report ID
+    :param file_generator: Generator that yields chunks of file data
+    :return: Presigned URL for the uploaded file
+    """
+    object_key = get_report_location(service_id, report_id)
+    bucket_name = current_app.config["REPORTS_BUCKET_NAME"]
+    region = current_app.config["AWS_REGION"]
+    s3_client = client("s3", region)
+
+    # Buffer smaller files in memory first to determine if multipart is needed
+    # AWS requires each part (except the final one) to be at least 5MB
+    MIN_PART_SIZE = 5 * 1024 * 1024  # 5MB in bytes
+    REGULAR_UPLOAD_THRESHOLD = 10 * 1024 * 1024  # 10MB threshold for regular upload
+
+    # Try reading all content to determine size
+    buffer = []
+    total_size = 0
+
+    for chunk in file_generator:
+        buffer.append(chunk)
+        total_size += len(chunk.encode("utf-8") if isinstance(chunk, str) else chunk)
+
+    # If the total file is small, use regular upload
+    if total_size < REGULAR_UPLOAD_THRESHOLD:
+        current_app.logger.info(f"Using regular upload for small report: {report_id}, size: {total_size} bytes")
+        complete_data = b"".join([chunk.encode("utf-8") if isinstance(chunk, str) else chunk for chunk in buffer])
+
+        # Use regular upload
+        s3_client.put_object(Bucket=bucket_name, Key=object_key, Body=complete_data, ContentType="text/csv")
+    else:
+        current_app.logger.info(f"Using multipart upload for large report: {report_id}, size: {total_size} bytes")
+        # Create multipart upload
+        mpu = s3_client.create_multipart_upload(Bucket=bucket_name, Key=object_key, ContentType="text/csv")
+
+        upload_id = mpu["UploadId"]
+        parts = []
+
+        try:
+            # Process the buffered data into properly sized parts
+            current_part = b""
+            part_number = 1
+
+            # Process initial buffer first
+            for chunk in buffer:
+                chunk_data = chunk.encode("utf-8") if isinstance(chunk, str) else chunk
+                current_part += chunk_data
+
+                # If part is big enough, upload it
+                if len(current_part) >= MIN_PART_SIZE:
+                    part = s3_client.upload_part(
+                        Bucket=bucket_name, Key=object_key, UploadId=upload_id, PartNumber=part_number, Body=current_part
+                    )
+                    parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+                    part_number += 1
+                    current_part = b""
+
+            # Upload the last part even if it's smaller than MIN_PART_SIZE
+            if current_part:
+                part = s3_client.upload_part(
+                    Bucket=bucket_name, Key=object_key, UploadId=upload_id, PartNumber=part_number, Body=current_part
+                )
+                parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+
+            # Complete the multipart upload
+            s3_client.complete_multipart_upload(
+                Bucket=bucket_name, Key=object_key, UploadId=upload_id, MultipartUpload={"Parts": parts}
+            )
+        except Exception as e:
+            # Abort the multipart upload if something goes wrong
+            s3_client.abort_multipart_upload(Bucket=bucket_name, Key=object_key, UploadId=upload_id)
+            current_app.logger.error(f"Failed to upload report: {str(e)}")
+            raise
+
+    # Generate presigned URL
+    url = generate_presigned_url(
+        bucket_name=bucket_name,
+        object_key=object_key,
+        expiration=THREE_DAYS_IN_SECONDS,
+    )
+    return url

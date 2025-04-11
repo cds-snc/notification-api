@@ -32,11 +32,13 @@ def serialized_notification_to_csv(serialized_notification, lang="en"):
     return ",".join(values) + "\n"
 
 
-def get_csv_file_data(serialized_notifications: list[Any], lang="en") -> bytes:
+def get_csv_file_data(serialized_notifications: list[Any], lang="en", with_headers=True) -> bytes:
     """Builds a CSV file from the serialized notifications data and returns a binary string"""
     csv_file = StringIO()
-    csv_file.write("\ufeff")  # Add BOM for UTF-8
-    csv_file.write(",".join([_l(n) for n in CSV_FIELDNAMES]) + "\n")
+    if with_headers:
+        # Write the CSV header
+        csv_file.write("\ufeff")  # Add BOM for UTF-8
+        csv_file.write(",".join([_l(n) for n in CSV_FIELDNAMES]) + "\n")
 
     for notification in serialized_notifications:
         csv_file.write(serialized_notification_to_csv(notification, lang=lang))
