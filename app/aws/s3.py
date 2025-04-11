@@ -15,6 +15,8 @@ from app.models import Job
 FILE_LOCATION_STRUCTURE = "service-{}-notify/{}.csv"
 REPORTS_FILE_LOCATION_STRUCTURE = "service-{}/{}.csv"
 THREE_DAYS_IN_SECONDS = 3 * 24 * 60 * 60
+MULTIPART_THRESHOLD = 1024 * 10  # 10MB
+MAX_CONCURRENCY = 10
 
 
 def get_s3_file(bucket_name, file_location):
@@ -193,7 +195,9 @@ def generate_presigned_url(bucket_name: str, object_key: str, expiration: int = 
     return response
 
 
-def stream_to_s3(bucket_name, object_key, copy_command, cursor):
+def stream_to_s3(
+    bucket_name, object_key, copy_command, cursor, multipart_threshold=MULTIPART_THRESHOLD, max_concurrency=MAX_CONCURRENCY
+):
     """
     Stream data from PostgreSQL COPY command directly to S3.
 
@@ -201,9 +205,11 @@ def stream_to_s3(bucket_name, object_key, copy_command, cursor):
     :param object_key: S3 object key
     :param copy_command: PostgreSQL COPY command
     :param cursor: Database cursor
+    :param multipart_threshold: Size threshold for multipart upload (default: 10MB)
+    :param max_concurrency: Maximum number of concurrent uploads (default: 10)
     """
     s3_client = client("s3", current_app.config["AWS_REGION"])
-    config = TransferConfig(multipart_threshold=1024 * 25, max_concurrency=10)
+    config = TransferConfig(multipart_threshold=multipart_threshold, max_concurrency=max_concurrency)
 
     # Create a file-like object using a BytesIO buffer
     buffer = BytesIO()
