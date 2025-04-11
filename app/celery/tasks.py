@@ -50,7 +50,6 @@ from app.dao.notifications_dao import (
     dao_get_notification_history_by_reference,
     get_latest_sent_notification_for_job,
     get_notification_by_id,
-    get_notifications_for_service,
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
 )
@@ -78,7 +77,6 @@ from app.models import (
     SMS_TYPE,
     Job,
     Notification,
-    Report,
     ReportStatus,
     Service,
     Template,
@@ -87,7 +85,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.report.utils import get_csv_file_data
+from app.report.utils import generate_csv_from_notifications
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -895,8 +893,29 @@ def generate_report(report_id: str):
         # mark the report as generating
         report.status = ReportStatus.GENERATING.value
         update_report(report)
-        # generate the report
-        url = create_report_in_s3(report)
+
+        # generate the report using PostgreSQL COPY TO for streaming
+
+        # Generate the S3 key for the report
+        s3_key = f"reports/{report.service_id}/{report.id}.csv"
+
+        # Stream the report directly to S3
+        generate_csv_from_notifications(
+            service_id=report.service_id,
+            notification_type=report.report_type,
+            days_limit=LIMIT_DAYS,
+            s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
+            s3_key=s3_key,
+        )
+
+        # Generate a presigned URL for the report
+        url = s3.generate_presigned_url(
+            bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+            object_key=s3_key,
+            expiration=DAYS_BEFORE_REPORTS_EXPIRE * 24 * 60 * 60,
+        )
+
+        # update report metadata
         report.url = url
         report.generated_at = datetime.utcnow()
         report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
@@ -910,37 +929,3 @@ def generate_report(report_id: str):
         report.status = ReportStatus.ERROR.value
         update_report(report)
         raise
-
-
-def create_report_in_s3(report: Report) -> str:
-    """Creates a report in S3 and returns the URL"""
-    page = 1
-    all_notifications = []
-
-    # Continue fetching pages until we get a page with fewer items than PAGE_SIZE
-    # which indicates we've reached the last page
-    while True:
-        pagination = get_notifications_for_service(
-            report.service_id,
-            page=page,
-            page_size=PAGE_SIZE,
-            filter_dict={"template_type": report.report_type},
-            limit_days=LIMIT_DAYS,
-            include_jobs=True,
-            format_for_csv=True,
-        )
-
-        page_items = pagination.items
-        all_notifications.extend(page_items)
-
-        # If there is no next page, we are done
-        if not pagination.has_next:
-            break
-
-        # Move to the next page
-        page += 1
-
-    serialized_notifications = [notification.serialize_for_csv() for notification in all_notifications]
-    file_data = get_csv_file_data(serialized_notifications)
-    url = s3.upload_report_to_s3(service_id=report.service_id, report_id=report.id, file_data=file_data)
-    return url

@@ -17,6 +17,7 @@ from app.aws.s3 import (
     get_s3_file,
     remove_jobs_from_s3,
     remove_transformed_dvla_file,
+    stream_to_s3,
     upload_job_to_s3,
     upload_report_to_s3,
 )
@@ -308,3 +309,25 @@ def test_generate_presigned_url_error(notify_api, mocker):
         ExpiresIn=expiration,
     )
     assert not url
+
+
+def test_stream_to_s3(notify_api, mocker):
+    s3_client_mock = mocker.patch("app.aws.s3.client")
+    cursor_mock = Mock()
+    buffer_mock = mocker.patch("app.aws.s3.BytesIO", return_value=Mock())
+    transfer_config_mock = mocker.patch("app.aws.s3.TransferConfig")
+
+    bucket_name = "test-bucket"
+    object_key = "test-object"
+    copy_command = "COPY (SELECT * FROM test_table) TO STDOUT WITH CSV"
+
+    stream_to_s3(bucket_name, object_key, copy_command, cursor_mock)
+
+    cursor_mock.copy_expert.assert_called_once_with(copy_command, buffer_mock.return_value)
+    buffer_mock.return_value.seek.assert_called_once_with(0)
+    s3_client_mock.return_value.upload_fileobj.assert_called_once_with(
+        Fileobj=buffer_mock.return_value,
+        Bucket=bucket_name,
+        Key=object_key,
+        Config=transfer_config_mock.return_value,
+    )

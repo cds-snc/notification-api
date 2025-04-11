@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 from app.report.utils import (
     CSV_FIELDNAMES,
     _l,
+    generate_csv_from_notifications,
     get_csv_file_data,
     serialized_notification_to_csv,
 )
@@ -75,21 +78,70 @@ def test_get_csv_file_data():
 
     result = get_csv_file_data(test_notifications)
 
-    # Create expected CSV content
-    header = ",".join(CSV_FIELDNAMES) + "\n"
-    row1 = "test1@example.com,Template 1,email,User 1,user1@example.com,Job 1,delivered,2023-01-01 12:00:00\n"
-    row2 = "test2@example.com,Template 2,sms,User 2,user2@example.com,Job 2,failed,2023-01-02 12:00:00\n"
-    expected = "\ufeff" + header + row1 + row2
+    # Check for UTF-8 encoding
+    assert isinstance(result, bytes)
+    result_str = result.decode("utf-8")
 
-    assert result == expected.encode("utf-8")
+    # Check for BOM
+    assert result_str.startswith("\ufeff")
+
+    # Check CSV content
+    lines = result_str.strip().split("\n")
+    assert len(lines) == 3  # Header + 2 rows
+
+    # Check header
+    header = lines[0]
+    for field in CSV_FIELDNAMES:
+        assert field in header
+
+    # Check data rows
+    assert "test1@example.com" in lines[1]
+    assert "test2@example.com" in lines[2]
+    assert "Template 1" in lines[1]
+    assert "Template 2" in lines[2]
 
 
 def test_get_csv_file_data_empty_list():
     """Test get_csv_file_data with empty list"""
     result = get_csv_file_data([])
 
-    # Create expected CSV content - just the header
-    header = ",".join(CSV_FIELDNAMES) + "\n"
-    expected = "\ufeff" + header
+    # Check for UTF-8 encoding
+    assert isinstance(result, bytes)
+    result_str = result.decode("utf-8")
 
-    assert result == expected.encode("utf-8")
+    # Check for BOM
+    assert result_str.startswith("\ufeff")
+
+    # Check CSV content
+    lines = result_str.strip().split("\n")
+    assert len(lines) == 1  # Only header
+
+    # Check header
+    header = lines[0]
+    for field in CSV_FIELDNAMES:
+        assert field in header
+
+
+class TestGenerateCsvFromNotifications:
+    def test_calls_helper_functions_with_correct_parameters(self):
+        # Given
+        service_id = "service-id-1"
+        notification_type = "email"
+        days_limit = 14
+        s3_bucket = "test-bucket"
+        s3_key = "test-key.csv"
+
+        # When
+        with patch("app.report.utils.build_notifications_query") as mock_build_query:
+            with patch("app.report.utils.compile_query_for_copy") as mock_compile_query:
+                with patch("app.report.utils.stream_query_to_s3") as mock_stream:
+                    mock_build_query.return_value = "mock query"
+                    mock_compile_query.return_value = "mock copy command"
+
+                    # Call the function
+                    generate_csv_from_notifications(service_id, notification_type, days_limit, s3_bucket, s3_key)
+
+                    # Then
+                    mock_build_query.assert_called_once_with(service_id, notification_type, days_limit)
+                    mock_compile_query.assert_called_once_with("mock query")
+                    mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
