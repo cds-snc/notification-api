@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import ANY, MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 import requests_mock
@@ -13,7 +13,7 @@ from notifications_utils.template import SMSMessageTemplate, WithSubjectTemplate
 from requests import RequestException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from tests.app import load_example_csv
-from tests.app.conftest import create_sample_email_template, create_sample_service, create_sample_template
+from tests.app.conftest import create_sample_service, create_sample_template
 from tests.app.db import (
     create_inbound_sms,
     create_job,
@@ -39,7 +39,6 @@ from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
     acknowledge_receipt,
     choose_database_queue,
-    create_report_in_s3,
     generate_report,
     get_template_class,
     handle_batch_error_and_forward,
@@ -2335,8 +2334,9 @@ class TestGenerateReport:
     @freeze_time("2022-01-01 12:00:00")
     def test_generate_report_success(self, mocker, notify_db_session, sample_report):
         expected_url = "https://example.com/report.csv"
-        mocker.patch("app.celery.tasks.create_report_in_s3", return_value=expected_url)
+        mocker.patch("app.celery.tasks.generate_csv_from_notifications")
         update_report_mock = mocker.patch("app.celery.tasks.update_report")
+        mocker.patch("app.celery.tasks.s3.generate_presigned_url", return_value=expected_url)
 
         generate_report(str(sample_report.id))
 
@@ -2351,7 +2351,7 @@ class TestGenerateReport:
         assert updated_report.expires_at.date() == datetime(2022, 1, 1).date() + timedelta(days=3)
 
     def test_generate_report_error_handling(self, mocker, notify_db_session, sample_report):
-        mocker.patch("app.celery.tasks.create_report_in_s3", side_effect=Exception("Test error"))
+        mocker.patch("app.celery.tasks.generate_csv_from_notifications", side_effect=Exception("Test error"))
         update_report_mock = mocker.patch("app.celery.tasks.update_report")
 
         # Execute and expect exception
@@ -2361,59 +2361,3 @@ class TestGenerateReport:
         # Assert report is marked as error
         # Should have called update_report twice (once to mark as generating, once as error)
         assert update_report_mock.call_count == 2
-
-
-@pytest.mark.parametrize(
-    "page_size, n_notifications",
-    [
-        (2, 6),
-        (2, 5),
-    ],
-)
-def test_create_report_in_s3_pagination(
-    notify_db, mocker, notify_db_session, sample_report, sample_service, page_size, n_notifications
-):
-    """
-    Test that create_report_in_s3 properly paginates through all notifications
-    when fetching data for a report.
-    """
-    sample_template = create_sample_email_template(notify_db, notify_db_session, service=sample_service)
-
-    for i in range(n_notifications):
-        notification = create_notification(
-            sample_template,
-            to_field=f"recipient{i}@example.com",
-            status="delivered",
-            created_at=datetime.utcnow() - timedelta(hours=i),
-        )
-        save_notification(notification)
-
-    # Patch the PAGE_SIZE constant to a smaller value for testing
-    page_size_patch = patch("app.celery.tasks.PAGE_SIZE", page_size)
-
-    # Mock the s3 upload function to avoid actual S3 operations
-    mock_upload = mocker.patch("app.celery.tasks.s3.upload_report_to_s3", return_value="https://example.com/report.csv")
-
-    # Mock the CSV file generation to verify the notifications
-    mock_get_csv_file_data = mocker.patch("app.celery.tasks.get_csv_file_data")
-
-    with page_size_patch:
-        # Verify the result URL matches what we expect
-        assert create_report_in_s3(sample_report) == "https://example.com/report.csv"
-
-        # Verify that s3.upload_report_to_s3 was called with the right parameters
-        mock_upload.assert_called_once_with(service_id=sample_service.id, report_id=sample_report.id, file_data=ANY)
-
-        # Verify that get_csv_file_data was called with a list of serialized notifications
-        mock_get_csv_file_data.assert_called_once()
-
-        # Extract the args passed to get_csv_file_data
-        serialized_notifications = mock_get_csv_file_data.call_args[0][0]
-
-        # Verify that all 8 notifications were passed to get_csv_file_data
-        assert len(serialized_notifications) == n_notifications
-
-        # Check that we have notifications from all pages by verifying unique recipients
-        recipients = {notification["recipient"] for notification in serialized_notifications}
-        expected_recipients = {f"recipient{i}@example.com" for i in range(n_notifications)}
-        assert recipients == expected_recipients
