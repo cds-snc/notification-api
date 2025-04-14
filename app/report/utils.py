@@ -5,22 +5,29 @@ from app import db
 from app.aws.s3 import stream_to_s3
 from app.models import Job, Notification, Template, User
 
-CSV_FIELDNAMES = [
-    "Recipient",
-    "Template",
-    "Type",
-    "Sent by",
-    "Sent by email",
-    "Job",
-    "Status",
-    "Time",
-]
 
+class Translate:
+    def __init__(self, language="en"):
+        """Initialize the Translate class with a language."""
+        self.language = language
+        self.translations = {
+            "fr": {
+                "Recipient": "Destinataire",
+                "Template": "Gabarit",
+                "Type": "Type",
+                "Sent by": "Envoyé par",
+                "Sent by email": "Envoyé par courriel",
+                "Job": "Tâche",
+                "Status": "État",
+                "Sent Time": "Heure d’envoi",
+            }
+        }
 
-def _l(x):
-    """Mock translation function for now"""
-    # translations = {
-    return x
+    def _(self, x):
+        """Translate the given string based on the set language."""
+        if self.language == "fr" and x in self.translations["fr"]:
+            return self.translations["fr"][x]
+        return x
 
 
 def build_notifications_query(service_id, notification_type, language, days_limit=7):
@@ -30,6 +37,7 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     Args:
         service_id: The ID of the service to query
         notification_type: The type of notifications to include
+        language: "en" or "fr"
         days_limit: Number of days to look back in history
 
     Returns:
@@ -41,17 +49,19 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     j = aliased(Job)
     u = aliased(User)
 
+    _ = Translate(language)._
+
     # Build the query using SQLAlchemy
     return (
         db.session.query(
-            n.to.label("Recipient"),
-            t.name.label("Template"),
-            n.notification_type.label("Type"),
-            func.coalesce(u.name, "").label("Sent by"),
-            func.coalesce(u.email_address, "").label("Sent by email"),
-            func.coalesce(j.original_file_name, "").label("Job"),
-            n.status.label("Status"),
-            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label("Time"),
+            n.to.label(_("Recipient")),
+            t.name.label(_("Template")),
+            n.notification_type.label(_("Type")),
+            func.coalesce(u.name, "").label(_("Sent by")),
+            func.coalesce(u.email_address, "").label(_("Sent by email")),
+            func.coalesce(j.original_file_name, "").label(_("Job")),
+            n.status.label(_("Status")),
+            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(_("Sent Time")),
         )
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
