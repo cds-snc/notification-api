@@ -214,10 +214,12 @@ def client_to_use(notification: Notification) -> Client | None:
     """
 
     try:
+        # This is True in all environments - Will need unit tests rebuilt if we intend to use priority again.
         if is_feature_enabled(FeatureFlag.PROVIDER_STRATEGIES_ENABLED):
             provider = provider_service.get_provider(notification)
             return clients.get_client_by_name_and_type(provider.identifier, notification.notification_type)
 
+        # This code is unreachable so long as PROVIDER_STRATEGIES_ENABLED is enabled for all environments
         if is_feature_enabled(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED):
             provider_id = get_provider_id(notification)
 

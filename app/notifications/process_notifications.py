@@ -192,11 +192,10 @@ def send_notification_to_queue(
         # This executes the task list.  Each task calls a function that makes a request to
         # the backend provider.
         chain(*tasks).apply_async()
-    except Exception as e:
-        current_app.logger.critical(
+    except Exception:
+        current_app.logger.exception(
             'apply_async failed in send_notification_to_queue for notification %s.', notification.id
         )
-        current_app.logger.exception(e)
         dao_delete_notification_by_id(notification.id)
         raise
 
@@ -359,12 +358,11 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
         # This executes the task list.  Each task calls a function that makes a request to
         # the backend provider.
         chain(*tasks).apply_async()
-    except Exception as e:
-        current_app.logger.critical(
+    except Exception:
+        current_app.logger.exception(
             'apply_async failed in send_to_queue_for_recipient_info_based_on_recipient_identifier for notification %s.',
             notification.id,
         )
-        current_app.logger.exception(e)
         dao_delete_notification_by_id(notification.id)
         raise
 

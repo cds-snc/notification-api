@@ -83,7 +83,7 @@ def test_should_be_none_if_unrecognised_status_code():
     ],
     ids=['default_endpoint_for_region', 'custom_fips_endpoint'],
 )
-def test_should_use_correct_enpdoint_url_in_boto(endpoint_url, expected):
+def test_should_use_correct_enpdoint_url_in_boto(notify_api, endpoint_url, expected):
     local_aws_ses_client = AwsSesClient()
     local_aws_ses_client.init_app(config.Test.AWS_REGION, None, None, endpoint_url=endpoint_url)
     assert local_aws_ses_client._client._endpoint.host == expected

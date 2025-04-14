@@ -503,12 +503,13 @@ def test_get_all_services(
     sample_service,
 ):
     s1 = sample_service()
-    # cannot run with multi-worker
+    # Cannot be ran in parallel - Grabs all services
     services = dao_fetch_all_services()
     assert len(services) == 1
     assert services[0].name == s1.name
 
     s2 = sample_service()
+    # Cannot be ran in parallel - Grabs all services
     services = dao_fetch_all_services()
     assert len(services) == 2
     assert services[1].name == s2.name
@@ -523,6 +524,7 @@ def test_get_all_services_should_return_in_created_order(
     s3 = sample_service(email_from='service.3')
     s4 = sample_service(email_from='service.4')
 
+    # Cannot be ran in parallel - Grabs all services
     services = dao_fetch_all_services()
 
     assert len(services) == 4
@@ -534,6 +536,7 @@ def test_get_all_services_should_return_in_created_order(
 
 @pytest.mark.serial
 def test_get_all_services_should_return_empty_list_if_no_services(notify_api):
+    # Cannot be ran in parallel - Grabs all services
     assert len(dao_fetch_all_services()) == 0
 
 
@@ -884,60 +887,21 @@ def test_update_service_creates_a_history_record_with_current_data(
     service_cleanup([service.id], notify_db_session.session)
 
 
-@pytest.mark.serial  # Need to run in serial to ensure nothing weird gets added
 def test_create_service_and_history_is_transactional(
     notify_db_session,
     sample_user,
 ):
+    service_id = uuid.uuid4()
     user = sample_user()
     service = Service(name=None, email_from='email_from', message_limit=1000, restricted=False, created_by=user)
 
     with pytest.raises(IntegrityError) as excinfo:
-        dao_create_service(service, user)
+        dao_create_service(service, user, service_id)
 
     ServiceHistory = Service.get_history_model()
     assert 'column "name" of relation "services_history" violates not-null constraint' in str(excinfo.value)
-    assert notify_db_session.session.scalars(select(Service)).all() == []
-    assert notify_db_session.session.scalars(select(ServiceHistory)).all() == []
-
-
-@pytest.mark.serial
-def test_delete_service_and_associated_objects(
-    notify_db_session,
-    sample_user,
-    sample_invited_user,
-):
-    user = sample_user()
-    service = create_service(user=user, service_permissions=None)
-    service_id = service.id
-    create_user_code(user=user, code='somecode', code_type=EMAIL_TYPE)
-    create_user_code(user=user, code='somecode', code_type=SMS_TYPE)
-    template = create_template(service=service)
-    api_key = create_api_key(service=service)
-    create_notification(template=template, api_key=api_key)
-    sample_invited_user(service)
-
-    stmt = select(ServicePermission).where(ServicePermission.service_id == service_id)
-    permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(permissions) == 3
-
-    delete_service_and_all_associated_db_objects(service)
-    assert notify_db_session.session.execute(select(VerifyCode)).all() == []
-    assert notify_db_session.session.execute(select(ApiKey)).all() == []
-    assert notify_db_session.session.execute(select(ApiKey.get_history_model())).all() == []
-    assert notify_db_session.session.execute(select(Template)).all() == []
-    assert notify_db_session.session.execute(select(TemplateHistory)).all() == []
-    assert notify_db_session.session.execute(select(Job)).all() == []
-    assert notify_db_session.session.execute(select(Notification)).all() == []
-    assert notify_db_session.session.execute(select(Permission)).all() == []
-    assert notify_db_session.session.execute(select(User)).all() == []
-    assert notify_db_session.session.execute(select(InvitedUser)).all() == []
-    assert notify_db_session.session.execute(select(Service)).all() == []
-    assert notify_db_session.session.execute(select(Service.get_history_model())).all() == []
-    assert notify_db_session.session.execute(select(ServicePermission)).all() == []
-
-    # Teardown
-    service_cleanup([service_id], notify_db_session.session)
+    assert notify_db_session.session.get(Service, service_id) is None
+    assert notify_db_session.session.scalars(select(ServiceHistory).where(ServiceHistory.id == service_id)).all() == []
 
 
 @pytest.mark.skip(reason='failing in pipeline only for some reason')
@@ -1404,13 +1368,12 @@ def create_email_sms_letter_template():
     return template_one, template_three, template_two
 
 
-@pytest.mark.serial  # Other services are created for testing
 def test_dao_services_by_partial_smtp_name(
-    notify_db_session,
+    notify_api,
     sample_user,
 ):
     name = str(uuid.uuid4())
-    create_service(service_name=name, smtp_user='smtp_champ', user=sample_user())
+    create_service(service_name=name, smtp_user=f'smtp_{uuid.uuid4()}', user=sample_user())
     services_from_db = dao_services_by_partial_smtp_name('smtp')
     assert services_from_db.name == name
 

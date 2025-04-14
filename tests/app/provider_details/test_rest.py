@@ -75,13 +75,11 @@ def test_get_provider_contains_correct_fields(
     assert allowed_keys == set(json_resp[0].keys())
 
 
-@pytest.mark.serial
 class TestUpdate:
     def test_should_be_able_to_update_priority(
         self,
         client,
         sample_provider,
-        restore_provider_details,
     ):
         provider = sample_provider()
 
@@ -100,7 +98,6 @@ class TestUpdate:
         self,
         client,
         sample_provider,
-        restore_provider_details,
     ):
         provider = sample_provider()
 
@@ -120,7 +117,6 @@ class TestUpdate:
         self,
         client,
         sample_provider,
-        restore_provider_details,
         field,
         value,
     ):
@@ -142,7 +138,6 @@ class TestUpdate:
         client,
         sample_provider,
         sample_user,
-        restore_provider_details,
     ):
         user_start = sample_user()
         user_update = sample_user()
@@ -163,7 +158,6 @@ class TestUpdate:
         self,
         client,
         sample_provider,
-        restore_provider_details,
     ):
         provider = sample_provider()
 

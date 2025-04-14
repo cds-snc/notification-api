@@ -132,7 +132,7 @@ def test_should_delete_notifications_by_type_after_seven_days(
 
     # Records from before the 3rd should be deleted.
     with freeze_time(delete_run_time):
-        # Requires serial processing
+        # Cannot be ran in parallel - _delete_notifications uses < date
         delete_notifications_older_than_retention_by_type(notification_type)
 
     sms_stmt = stmt.where(Notification.notification_type == SMS_TYPE)
@@ -211,7 +211,7 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
 
     # Records from before 3rd should be deleted
     with freeze_time(delete_run_time):
-        # Requires serial processing
+        # Cannot be ran in parallel - _delete_notifications uses < date
         delete_notifications_older_than_retention_by_type(notification_type)
 
     stmt = select(Notification).where(Notification.notification_type == notification_type)
@@ -254,7 +254,7 @@ def test_should_not_delete_notification_history(
     notification_id3 = notification3.id
 
     # This should delete notification2 because it is an SMS notification.
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE)
 
     assert notify_db_session.session.get(Notification, notification_id1) is not None
@@ -291,7 +291,7 @@ def test_delete_notifications_for_days_of_retention(
     stmt = select(Notification).where(Notification.service_id.in_((default_service.id, retention_service.id)))
     assert len(notify_db_session.session.scalars(stmt).all()) == 9
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(notification_type)
     assert len(notify_db_session.session.scalars(stmt).all()) == 7
 
@@ -329,7 +329,7 @@ def test_delete_notifications_inserts_notification_history(
     assert len(notifications) == 9
 
     # `notifications` loses state when we make this delete method
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE)
     assert len(notify_db_session.session.scalars(stmt).all()) == 7
 
@@ -363,7 +363,7 @@ def test_delete_notifications_updates_notification_history(
     notify_db_session.session.execute(stmt)
     notify_db_session.session.commit()
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(EMAIL_TYPE)
 
     stmt = select(NotificationHistory).where(NotificationHistory.template_id == template.id)
@@ -395,7 +395,7 @@ def test_delete_notifications_keep_data_for_days_of_retention_is_longer(
     stmt = select(Notification).where(Notification.service_id.in_((default_service.id, retention_service.id)))
     assert len(notify_db_session.session.scalars(stmt).all()) == 9
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE)
     assert len(notify_db_session.session.scalars(stmt).all()) == 8
 
@@ -414,7 +414,7 @@ def test_delete_notifications_with_test_keys(
     template = sample_template()
     sample_notification(template=template, key_type='test', created_at=datetime.utcnow() - timedelta(days=8))
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE)
     stmt = select(Notification).where(Notification.template_id == template.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
@@ -453,7 +453,7 @@ def test_delete_notifications_delete_notification_type_for_default_time_if_no_da
     assert len(notify_db_session.session.scalars(stmt).all()) == 6
 
     # Delete the one email type past retention & validate
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(EMAIL_TYPE)
     assert len(notify_db_session.session.scalars(stmt).all()) == 5
 
@@ -472,7 +472,7 @@ def test_delete_notifications_does_try_to_delete_from_s3_when_letter_has_not_bee
     letter_template = sample_template(template_type=LETTER_TYPE)
 
     sample_notification(template=letter_template, status='sending', reference='LETTER_REF')
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(EMAIL_TYPE, qry_limit=1)
     mock_get_s3.assert_not_called()
 
@@ -500,7 +500,7 @@ def test_should_not_delete_notification_if_history_does_not_exist(
     assert len(notify_db_session.session.scalars(stmt).all()) == 3
 
     # Delete zero notifications
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE)
     assert len(notify_db_session.session.scalars(stmt).all()) == 3
 
@@ -525,7 +525,7 @@ def test_delete_notifications_calls_subquery_multiple_times(
     stmt = select(Notification).where(Notification.service_id == service.id)
     assert len(notify_db_session.session.scalars(stmt).all()) == 3
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     delete_notifications_older_than_retention_by_type(SMS_TYPE, qry_limit=1)
     assert len(notify_db_session.session.scalars(stmt).all()) == 0
 
@@ -542,7 +542,7 @@ def test_delete_notifications_returns_sum_correctly(sample_service, sample_templ
     sample_notification(template=t2, created_at=datetime.now() - timedelta(days=8))
     sample_notification(template=t2, created_at=datetime.now() - timedelta(days=8))
 
-    # Requires serial processing
+    # Cannot be ran in parallel - _delete_notifications uses < date
     ret = delete_notifications_older_than_retention_by_type(SMS_TYPE, qry_limit=1)
     assert ret == 4
 

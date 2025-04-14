@@ -40,8 +40,7 @@ def test_get_platform_stats_validates_the_date(admin_request):
     assert response['errors'][0]['message'] == 'start_date month must be in 1..12'
 
 
-@pytest.mark.serial
-@freeze_time('2018-10-31 14:00')
+@freeze_time('1973-10-31 14:00')
 def test_get_platform_stats_with_real_query(
     admin_request,
     sample_ft_notification_status,
@@ -53,16 +52,17 @@ def test_get_platform_stats_with_real_query(
     service = sample_service()
     sms_template = sample_template(service=service, template_type=SMS_TYPE)
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
-    sample_ft_notification_status(date(2018, 10, 29), sample_job(sms_template), count=10)
-    sample_ft_notification_status(date(2018, 10, 29), sample_job(email_template), count=3)
+    sample_ft_notification_status(date(1973, 10, 29), sample_job(sms_template), count=10)
+    sample_ft_notification_status(date(1973, 10, 29), sample_job(email_template), count=3)
 
-    sample_notification(template=sms_template, created_at=datetime(2018, 10, 31, 11, 0, 0), key_type='test')
-    sample_notification(template=sms_template, created_at=datetime(2018, 10, 31, 12, 0, 0), status='delivered')
-    sample_notification(template=email_template, created_at=datetime(2018, 10, 31, 13, 0, 0), status='delivered')
+    sample_notification(template=sms_template, created_at=datetime(1973, 10, 31, 11, 0, 0), key_type='test')
+    sample_notification(template=sms_template, created_at=datetime(1973, 10, 31, 12, 0, 0), status='delivered')
+    sample_notification(template=email_template, created_at=datetime(1973, 10, 31, 13, 0, 0), status='delivered')
 
     response = admin_request.get(
         'platform_stats.get_platform_stats',
-        start_date=date(2018, 10, 29),
+        start_date=date(1973, 10, 29),
+        end_date=date(1973, 10, 31),
     )
     assert response == {
         'email': {

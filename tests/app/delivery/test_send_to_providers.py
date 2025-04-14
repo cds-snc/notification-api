@@ -56,50 +56,6 @@ def mock_source_email_address(mocker):
     return (source_email_address, mock_compute_function)
 
 
-@pytest.mark.xfail(reason='#1631', run=False)
-@pytest.mark.serial
-def test_should_return_highest_priority_active_provider(
-    client,
-    sample_api_key,
-    sample_template,
-    sample_provider,
-    sample_notification,
-):
-    pd_10 = sample_provider(priority=10)
-    pd_20 = sample_provider(priority=20)
-
-    # Checks like this require serial execution (no workers)
-    providers = provider_details_dao.get_provider_details_by_notification_type(SMS_TYPE)
-
-    assert pd_10 == providers[0]
-    assert pd_20 == providers[1]
-
-    template = sample_template()
-    notification = sample_notification(template=template, api_key=sample_api_key(service=template.service))
-
-    assert send_to_providers.client_to_use(notification).name == pd_10.identifier
-
-    pd_10.priority, pd_20.priority = pd_20.priority, pd_10.priority
-
-    provider_details_dao.dao_update_provider_details(pd_10)
-    provider_details_dao.dao_update_provider_details(pd_20)
-
-    assert send_to_providers.client_to_use(notification).name == pd_20.identifier
-
-    pd_10.priority, pd_20.priority = pd_20.priority, pd_10.priority
-    pd_10.active = False
-
-    provider_details_dao.dao_update_provider_details(pd_10)
-    provider_details_dao.dao_update_provider_details(pd_20)
-
-    assert send_to_providers.client_to_use(notification).name == pd_20.identifier
-
-    pd_10.active = True
-    provider_details_dao.dao_update_provider_details(pd_10)
-
-    assert send_to_providers.client_to_use(notification).name == pd_10.identifier
-
-
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(
     notify_db_session, sample_api_key, sample_notification, sample_service, sample_template, mock_sms_client
 ):
@@ -1208,26 +1164,3 @@ def test_should_raise_exception_if_template_provider_is_inactive(
         send_to_providers.client_to_use(mocked_notification)
 
     mocked_get_client_by_name_and_type.assert_not_called()
-
-
-def test_template_or_service_provider_is_not_used_when_feature_flag_is_off(
-    notify_api,
-    mocker,
-    monkeypatch,
-):
-    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
-    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'False')
-    mocked_client = mocker.Mock(EmailClient)
-
-    mocker.patch('app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client)
-
-    mock_load_provider = mocker.patch('app.delivery.send_to_providers.load_provider')
-
-    mocker.patch(
-        'app.delivery.send_to_providers.get_provider_details_by_notification_type',
-        return_value=[mocker.Mock(ProviderDetails, active=True)],
-    )
-
-    send_to_providers.client_to_use(mocker.Mock(Notification))
-
-    mock_load_provider.assert_not_called()

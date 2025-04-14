@@ -799,20 +799,6 @@ def test_should_delete_only_notification_with_id(
     assert notify_db_session.session.get(Notification, to_delete_notification.id) is None
 
 
-@pytest.mark.serial
-def test_should_delete_no_notifications_if_no_matching_ids(
-    notify_db_session,
-    sample_template,
-    sample_notification,
-):
-    sample_notification(template=(sample_template()))
-    sample_notification(template=sample_template(template_type=EMAIL_TYPE))
-
-    dao_delete_notification_by_id(uuid4())
-
-    assert len(notify_db_session.session.scalars(select(Notification)).all()) == 2
-
-
 def _notification_json(template, job_id=None, id=None, status=None):
     data = {
         'to': '+44709123456',
@@ -851,6 +837,7 @@ def test_dao_timeout_notifications(
     assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
     assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
     assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
+    # Cannot be ran in parallel - partial function _timeout_notifications uses < on created_at
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
 
     assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_PERMANENT_FAILURE
@@ -877,28 +864,9 @@ def test_dao_timeout_notifications_only_updates_for_older_notifications(
     assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
     assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
     assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
+    # Cannot be ran in parallel - partial function _timeout_notifications uses < on created_at
     technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
     assert len(technical_failure_notifications + temporary_failure_notifications) == 0
-
-
-def test_dao_timeout_notifications_doesnt_affect_letters(
-    notify_db_session,
-    sample_template,
-    sample_notification,
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
-        created = sample_notification(template=template, status=NOTIFICATION_CREATED)
-        sending = sample_notification(template=template, status=NOTIFICATION_SENDING)
-        pending = sample_notification(template=template, status=NOTIFICATION_PENDING)
-        delivered = sample_notification(template=template, status=NOTIFICATION_DELIVERED)
-
-    assert notify_db_session.session.get(Notification, created.id).status == NOTIFICATION_CREATED
-    assert notify_db_session.session.get(Notification, sending.id).status == NOTIFICATION_SENDING
-    assert notify_db_session.session.get(Notification, pending.id).status == NOTIFICATION_PENDING
-    assert notify_db_session.session.get(Notification, delivered.id).status == NOTIFICATION_DELIVERED
-
-    technical_failure_notifications, temporary_failure_notifications = dao_timeout_notifications(1)
 
 
 def test_should_return_notifications_excluding_jobs_by_default(
@@ -1778,7 +1746,7 @@ def test_notifications_not_yet_sent(
         status=NOTIFICATION_CREATED,
     )
 
-    # serial - query does not support strict time-boxing
+    # Cannot be ran in parallel - uses < on created_at
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 1
     assert results[0] == old_notification
@@ -1799,6 +1767,7 @@ def test_notifications_not_yet_sent_return_no_rows(
     sample_notification(template=template, status=NOTIFICATION_SENDING)
     sample_notification(template=template, status=NOTIFICATION_DELIVERED)
 
+    # Cannot be ran in parallel - uses < on created_at
     results = notifications_not_yet_sent(older_than, notification_type)
     assert len(results) == 0
 

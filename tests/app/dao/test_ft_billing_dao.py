@@ -44,12 +44,12 @@ ORG_NAME = 'Org for {}'
 
 
 # This take a long time to execute.  Can it be replaced with a bulk insert?
-def set_up_yearly_data(sample_service, sample_template, sample_ft_billing):
+def set_up_yearly_data(sample_service, sample_template, sample_ft_billing, years):
     service = sample_service()
     sms_template = sample_template(service=service, template_type=SMS_TYPE)
     email_template = sample_template(service=service, template_type=EMAIL_TYPE)
     letter_template = sample_template(service=service, template_type=LETTER_TYPE)
-    for year in (2016, 2017):
+    for year in years:
         for month in range(1, 13):
             mon = str(month).zfill(2)
             for day in range(1, monthrange(year, month)[1] + 1):
@@ -577,56 +577,54 @@ def test_fetch_monthly_billing_for_year_adds_data_for_today(
 
 
 # This test assumes the local timezone is EST
-@pytest.mark.serial
 def test_fetch_monthly_billing_for_year_return_financial_year(
     sample_service,
     sample_template,
     sample_ft_billing,
 ):
-    service = set_up_yearly_data(sample_service, sample_template, sample_ft_billing)
+    service = set_up_yearly_data(sample_service, sample_template, sample_ft_billing, (1976, 1977))
 
     # returns 3 rows, per month, returns financial year april to end of march
     # Orders by Month
-    results = fetch_monthly_billing_for_year(service.id, 2016)
+    results = fetch_monthly_billing_for_year(service.id, 1976)
     assert len(results) == 52
 
-    assert str(results[0].month) == '2016-04-01'
+    assert str(results[0].month) == '1976-04-01'
     assert results[0].notification_type == EMAIL_TYPE
     assert results[0].notifications_sent == 30
     assert results[0].billable_units == 30
     assert results[0].rate == Decimal('0')
 
-    assert str(results[1].month) == '2016-04-01'
+    assert str(results[1].month) == '1976-04-01'
     assert results[1].notification_type == LETTER_TYPE
     assert results[1].notifications_sent == 30
     assert results[1].billable_units == 30
     assert results[1].rate == Decimal('0.30')
-    assert str(results[1].month) == '2016-04-01'
+    assert str(results[1].month) == '1976-04-01'
 
     assert results[2].notification_type == LETTER_TYPE
     assert results[2].notifications_sent == 30
     assert results[2].billable_units == 30
     assert results[2].rate == Decimal('0.33')
-    assert str(results[3].month) == '2016-04-01'
+    assert str(results[3].month) == '1976-04-01'
 
     assert results[3].notification_type == SMS_TYPE
     assert results[3].notifications_sent == 30
     assert results[3].billable_units == 30
     assert results[3].rate == Decimal('0.162')
 
-    assert str(results[4].month) == '2016-05-01'
+    assert str(results[4].month) == '1976-05-01'
 
-    assert str(results[47].month) == '2017-03-01'
+    assert str(results[47].month) == '1977-03-01'
 
 
-@pytest.mark.serial
 def test_fetch_billing_totals_for_year(
     sample_service,
     sample_template,
     sample_ft_billing,
 ):
-    service = set_up_yearly_data(sample_service, sample_template, sample_ft_billing)
-    results = fetch_billing_totals_for_year(service.id, 2016)
+    service = set_up_yearly_data(sample_service, sample_template, sample_ft_billing, (1974, 1975))
+    results = fetch_billing_totals_for_year(service.id, 1974)
 
     assert len(results) == 4
     assert results[0].notification_type == EMAIL_TYPE

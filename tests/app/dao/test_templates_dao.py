@@ -30,7 +30,6 @@ from tests.app.db import create_template, create_letter_contact
 from tests.app.conftest import template_cleanup
 
 
-@pytest.mark.serial
 @pytest.mark.parametrize('template_type', [SMS_TYPE, EMAIL_TYPE])
 def test_create_only_one_template(
     notify_db_session,
@@ -52,10 +51,11 @@ def test_create_only_one_template(
     dao_create_template(template)
 
     persisted_template = notify_db_session.session.get(Template, template.id)
-    assert persisted_template == template
-
-    # Teardown
-    template_cleanup(notify_db_session.session, template.id)
+    try:
+        assert persisted_template == template
+    finally:
+        # Teardown because we cannot use a sample here
+        template_cleanup(notify_db_session.session, template.id)
 
 
 @pytest.mark.parametrize(

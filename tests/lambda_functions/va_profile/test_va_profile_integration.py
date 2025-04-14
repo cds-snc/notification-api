@@ -514,6 +514,7 @@ def test_va_profile_opt_in_out_lambda_handler_new_row(
     notify_db_session.session.commit()
 
 
+@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_older_date(
     notify_db_session, jwt_encoded, put_mock, sample_va_profile_local_cache, post_opt_in_confirmation_mock_return
 ):
@@ -522,7 +523,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(
     No database update should occur.
     """
 
-    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False)
+    va_profile_local_cache = sample_va_profile_local_cache('2022-03-07T19:37:59.320Z', False, randint(1000, 100000))
 
     event = create_event(
         'txAuditId',
@@ -534,6 +535,7 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(
         True,
         jwt_encoded,
     )
+    # Cannot be ran in parallel - Race condition with execute and commit where it checks fetchone()
     response = va_profile_opt_in_out_lambda_handler(event, None)
     assert isinstance(response, dict)
     assert response['statusCode'] == 200
@@ -549,7 +551,6 @@ def test_va_profile_opt_in_out_lambda_handler_older_date(
     assert not va_profile_local_cache.allowed, 'This should not have been updated.'
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_newer_date(
     notify_db_session,
     jwt_encoded,
@@ -589,7 +590,6 @@ def test_va_profile_opt_in_out_lambda_handler_newer_date(
     assert va_profile_local_cache.allowed, 'This should have been updated.'
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, put_mock, post_opt_in_confirmation_mock_return):
     """
     Test the VA Profile integration lambda by inspecting the PUT request it initiates to
@@ -618,7 +618,6 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError1(jwt_encoded, put_mock, p
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, put_mock):
     """
     Test the VA Profile integration lambda by inspecting the PUT request is initiates to
@@ -647,7 +646,6 @@ def test_va_profile_opt_in_out_lambda_handler_KeyError2(jwt_encoded, put_mock):
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(jwt_encoded, put_mock):
     """
     The lambda should ignore records in which communicationItemId is not 5.
@@ -666,7 +664,6 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_item_id(jwt_en
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(jwt_encoded, put_mock):
     """
     The lambda should ignore records in which communicationChannelId is not 1.
@@ -685,7 +682,6 @@ def test_va_profile_opt_in_out_lambda_handler_wrong_communication_channel_id(jwt
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-@pytest.mark.serial
 def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(jwt_encoded, put_mock):
     """
     The request txAuditId should match a bios's txAuditId.
@@ -711,7 +707,6 @@ def test_va_profile_opt_in_out_lambda_handler_audit_id_mismatch(jwt_encoded, put
     put_mock.assert_called_once_with('txAuditId', expected_put_body)
 
 
-@pytest.mark.serial
 @pytest.mark.parametrize(
     'mock_date,expected_month',
     [

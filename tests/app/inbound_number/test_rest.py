@@ -56,6 +56,7 @@ class TestSetInboundNumberOff:
 
 @pytest.mark.serial
 def test_get_available_inbound_numbers_returns_empty_list(admin_request):
+    # Cannot be ran in parallel - Grabs all
     result = admin_request.get('inbound_number.get_available_inbound_numbers')
 
     assert result['data'] == []
@@ -66,7 +67,7 @@ def test_get_available_inbound_numbers(
     admin_request,
     sample_inbound_numbers,
 ):
-    # serial method
+    # Cannot be ran in parallel - Grabs all
     result = admin_request.get('inbound_number.get_available_inbound_numbers')
 
     assert len(result['data']) == 1

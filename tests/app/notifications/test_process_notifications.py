@@ -96,8 +96,7 @@ def test_create_content_for_notification_allows_additional_personalisation(
     create_content_for_notification(db_template, {'name': 'Bobby', 'Additional placeholder': 'Data'})
 
 
-@pytest.mark.serial
-@freeze_time('2016-01-01 11:09:00.061258')
+@freeze_time('1972-01-01 11:09:00.061258')
 def test_persist_notification_creates_and_save_to_db(
     sample_api_key,
     sample_template,
@@ -120,7 +119,6 @@ def test_persist_notification_creates_and_save_to_db(
     }
 
     # Cleaned by the template cleanup
-    # Cannot be ran in parallel - Something sets this to permanent-failure
     notification = persist_notification(**data)
 
     assert notification.id == data['notification_id']
@@ -140,7 +138,7 @@ def test_persist_notification_creates_and_save_to_db(
     assert notification.client_reference is None
     assert not notification.sent_at
 
-    mocked_redis.assert_called_once_with(str(template.service_id) + '-2016-01-01-count')
+    mocked_redis.assert_called_once_with(str(template.service_id) + '-1972-01-01-count')
 
 
 def test_persist_notification_throws_exception_when_missing_template(
@@ -222,7 +220,7 @@ def test_persist_notification_does_not_increment_cache_if_test_key(
     assert not template_usage_cache.called
 
 
-@freeze_time('2016-01-01 11:09:00.061258')
+@freeze_time('1972-01-01 11:09:00.061258')
 def test_persist_notification_with_optionals(
     notify_db_session,
     sample_api_key,
@@ -234,7 +232,7 @@ def test_persist_notification_with_optionals(
     service = api_key.service
     mocked_redis = mocker.patch('app.notifications.process_notifications.redis_store.get')
     notification_id = uuid.uuid4()
-    created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
+    created_at = datetime.datetime(1972, 11, 11, 16, 8, 18)
 
     # Cleaned by the template cleanup
     persist_notification(
@@ -257,7 +255,7 @@ def test_persist_notification_with_optionals(
 
     assert persisted_notification.id == notification_id
     assert persisted_notification.created_at == created_at
-    mocked_redis.assert_called_once_with(str(service.id) + '-2016-01-01-count')
+    mocked_redis.assert_called_once_with(str(service.id) + '-1972-01-01-count')
     assert persisted_notification.client_reference == 'ref from client'
     assert persisted_notification.reference is None
     assert persisted_notification.international is False
@@ -267,7 +265,7 @@ def test_persist_notification_with_optionals(
     assert not persisted_notification.reply_to_text
 
 
-@freeze_time('2016-01-01 11:09:00.061258')
+@freeze_time('1972-01-01 11:09:00.061258')
 def test_persist_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
     sample_api_key,
     sample_template,
@@ -295,7 +293,7 @@ def test_persist_notification_doesnt_touch_cache_for_old_keys_that_dont_exist(
     mock_incr.assert_not_called()
 
 
-@freeze_time('2016-01-01 11:09:00.061258')
+@freeze_time('1972-01-01 11:09:00.061258')
 def test_persist_notification_increments_cache_if_key_exists(
     sample_api_key,
     sample_template,
@@ -321,7 +319,7 @@ def test_persist_notification_increments_cache_if_key_exists(
         reference='ref2',
     )
 
-    mock_incr.assert_called_once_with(str(service.id) + '-2016-01-01-count')
+    mock_incr.assert_called_once_with(str(service.id) + '-1972-01-01-count')
 
 
 @pytest.mark.parametrize(
@@ -373,7 +371,7 @@ def test_send_notification_to_queue_with_no_recipient_identifiers(
         id=uuid.uuid4(),
         key_type=key_type,
         notification_type=notification_type,
-        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        created_at=datetime.datetime(1972, 11, 11, 16, 8, 18),
         template=template,
         service_id=service.id,
         reply_to_text=sms_sender.sms_sender,
@@ -553,7 +551,7 @@ def test_send_notification_to_queue_with_recipient_identifiers(
         id=notification_id,
         key_type=key_type,
         notification_type=notification_type,
-        created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        created_at=datetime.datetime(1972, 11, 11, 16, 8, 18),
         template=template,
         recipient_identifiers={
             f'{request_recipient_id_type}': RecipientIdentifier(
@@ -813,7 +811,6 @@ def test_persist_email_notification_stores_normalised_email(
     assert persisted_notification.normalised_to == expected_recipient_normalised
 
 
-@pytest.mark.serial
 def test_persist_notification_with_billable_units_stores_correct_info(
     mocker,
     sample_service,
@@ -823,7 +820,6 @@ def test_persist_notification_with_billable_units_stores_correct_info(
     template = sample_template(service=service, template_type=LETTER_TYPE)
     mocker.patch('app.dao.templates_dao.dao_get_template_by_id', return_value=template)
 
-    # Cleaned by the template cleanup
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,

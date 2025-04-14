@@ -64,6 +64,7 @@ def post_set_inbound_number_off(inbound_number_id):
 
 @inbound_number_blueprint.route('/available', methods=['GET'])
 def get_available_inbound_numbers():
+    """This gathers inbound numbers that have not been assigned to a service."""
     inbound_numbers = [i.serialize() for i in dao_get_available_inbound_numbers()]
 
     return jsonify(data=inbound_numbers if inbound_numbers else [])

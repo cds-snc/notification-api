@@ -339,8 +339,6 @@ def test_get_yearly_billing_usage_summary_from_ft_billing_returns_empty_list_if_
     assert response.get_json() == []
 
 
-# Cannot be ran in parallel - Gathers all
-@pytest.mark.serial
 def test_get_yearly_billing_usage_summary_from_ft_billing(
     notify_db_session,
     client,
@@ -356,11 +354,11 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
     for month in range(1, 13):
         mon = str(month).zfill(2)
 
-        for day in range(1, monthrange(2016, month)[1] + 1):
+        for day in range(1, monthrange(1978, month)[1] + 1):
             d = str(day).zfill(2)
 
             sample_ft_billing(
-                utc_date='2016-{}-{}'.format(mon, d),
+                utc_date='1978-{}-{}'.format(mon, d),
                 notification_type=SMS_TYPE,
                 template=sms_template,
                 service=service,
@@ -368,7 +366,7 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
             )
 
             sample_ft_billing(
-                utc_date='2016-{}-{}'.format(mon, d),
+                utc_date='1978-{}-{}'.format(mon, d),
                 notification_type=SMS_TYPE,
                 template=sms_template,
                 service=service,
@@ -377,7 +375,7 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
             )
 
             sample_ft_billing(
-                utc_date='2016-{}-{}'.format(mon, d),
+                utc_date='1978-{}-{}'.format(mon, d),
                 notification_type=EMAIL_TYPE,
                 template=email_template,
                 service=service,
@@ -386,7 +384,7 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
             )
 
             sample_ft_billing(
-                utc_date='2016-{}-{}'.format(mon, d),
+                utc_date='1978-{}-{}'.format(mon, d),
                 notification_type=LETTER_TYPE,
                 template=letter_template,
                 service=service,
@@ -394,10 +392,10 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(
                 postage='second',
             )
 
-        get_month_start_and_end_date_in_utc(datetime(2016, int(mon), 1))
+        get_month_start_and_end_date_in_utc(datetime(1978, int(mon), 1))
 
     response = client.get(
-        f'/service/{service.id}/billing/ft-yearly-usage-summary?year=2016',
+        f'/service/{service.id}/billing/ft-yearly-usage-summary?year=1978',
         headers=[create_admin_authorization_header()],
     )
 

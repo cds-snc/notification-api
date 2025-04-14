@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from flask import url_for
 
@@ -782,12 +784,12 @@ def test_get_notification_by_id_redacts_icn(client, sample_api_key, sample_templ
     assert response['recipient_identifiers'][0]['id_value'] == '<redacted>'
 
 
-@pytest.mark.serial
 def test_get_notifications_redacts_icn(client, sample_api_key, sample_template, sample_notification):
+    icn_value = str(uuid4())
     notification = sample_notification(
-        template=sample_template(), recipient_identifiers=[{'id_type': IdentifierType.ICN.value, 'id_value': 'icn'}]
+        template=sample_template(), recipient_identifiers=[{'id_type': IdentifierType.ICN.value, 'id_value': icn_value}]
     )
-    assert notification.recipient_identifiers['ICN'].id_value == 'icn'
+    assert notification.recipient_identifiers['ICN'].id_value == icn_value
     auth_header = create_authorization_header(sample_api_key(service=notification.template.service))
 
     response = client.get(

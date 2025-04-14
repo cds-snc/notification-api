@@ -7,7 +7,6 @@ from flask_jwt_extended import create_access_token
 from freezegun import freeze_time
 from sqlalchemy import select
 
-from app.utils import create_uuid
 from app.constants import (
     COMPLAINT_CALLBACK_TYPE,
     DELIVERY_STATUS_CALLBACK_TYPE,
@@ -103,7 +102,6 @@ class TestFetchServiceCallback:
 
 
 class TestFetchServiceCallbacks:
-    @pytest.mark.serial  # Intermittent, drops first service callback
     def test_fetch_service_callbacks_works_with_user_permisisons(
         self,
         client,
@@ -132,7 +130,6 @@ class TestFetchServiceCallbacks:
             [service_callback_api_schema.dump(s) for s in service_callbacks],
         )
 
-    @pytest.mark.serial  # Intermittent
     @freeze_time('1990-12-04 16:00:00.000000')
     def test_fetch_service_callbacks_works_with_platform_admin(
         self,
@@ -176,7 +173,7 @@ class TestCreateServiceCallback:
             'callback_type': DELIVERY_STATUS_CALLBACK_TYPE,
         }
         response = client.post(
-            url_for('service_callback.create_service_callback', service_id=create_uuid()),
+            url_for('service_callback.create_service_callback', service_id=str(uuid4())),
             data=json.dumps(data),
             headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {token}')],
         )
@@ -360,7 +357,7 @@ class TestCreateServiceCallback:
         }
 
         response = client.post(
-            url_for('service_callback.create_service_callback', service_id=create_uuid()),
+            url_for('service_callback.create_service_callback', service_id=str(uuid4())),
             data=json.dumps(data),
             headers=[
                 ('Content-Type', 'application/json'),
@@ -812,7 +809,7 @@ class TestRemoveServiceCallback:
     def test_delete_service_callback_should_return_404_if_callback_does_not_exist(self, client, sample_service):
         service = sample_service()
         response = client.delete(
-            url_for('service_callback.remove_service_callback', service_id=service.id, callback_id=create_uuid()),
+            url_for('service_callback.remove_service_callback', service_id=service.id, callback_id=str(uuid4())),
             headers=[('Authorization', f'Bearer {create_access_token(service.users[0])}')],
         )
         assert response.status_code == 404

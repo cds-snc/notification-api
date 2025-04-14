@@ -20,7 +20,6 @@ from app.dao.provider_details_dao import (
     get_current_provider,
     get_highest_priority_active_provider_by_notification_type,
     get_provider_details_by_identifier,
-    get_provider_details_by_notification_type,
 )
 from app.models import (
     ProviderDetails,
@@ -153,75 +152,6 @@ def set_primary_sms_provider(identifier):
 
     dao_update_provider_details(primary_provider)
     dao_update_provider_details(secondary_provider)
-
-
-@pytest.mark.serial
-@pytest.mark.parametrize(
-    'notification_type, alternate',
-    [
-        (SMS_TYPE, EMAIL_TYPE),
-        (EMAIL_TYPE, SMS_TYPE),
-    ],
-)
-def test_get_provider_details_by_notification_type(
-    sample_provider,
-    notification_type,
-    alternate,
-):
-    provider1 = sample_provider(notification_type=notification_type)
-    provider2 = sample_provider(notification_type=notification_type, active=False)
-    provider3 = sample_provider(notification_type=alternate)
-    provider4 = sample_provider(notification_type=alternate, active=False)
-
-    providers = get_provider_details_by_notification_type(notification_type, False)
-
-    assert all(prov.notification_type == notification_type for prov in providers)
-    assert provider1 in providers
-    assert provider2 in providers
-    assert provider3 not in providers
-    assert provider4 not in providers
-
-
-def test_can_get_sms_international_providers(sample_provider):
-    provider = sample_provider(supports_international=True)
-    assert provider.notification_type == SMS_TYPE
-
-    sms_providers = get_provider_details_by_notification_type(SMS_TYPE, True)
-    assert provider in sms_providers
-
-
-@pytest.mark.xfail(reason='#1631', run=False)
-@pytest.mark.serial
-def test_can_get_sms_providers_in_order_of_priority(restore_provider_details, sample_provider):
-    provider1 = sample_provider(priority=10)
-    provider2 = sample_provider(priority=11)
-
-    providers = get_provider_details_by_notification_type(SMS_TYPE, False)
-    assert providers[0].id == provider1.id
-    assert providers[1].id == provider2.id
-
-
-@pytest.mark.xfail(reason='#1631', run=False)
-@pytest.mark.serial
-def test_can_get_email_providers_in_order_of_priority(setup_provider_details):
-    [prioritised_email_provider, deprioritised_email_provider, _, _, _] = setup_provider_details
-    providers = get_provider_details_by_notification_type(EMAIL_TYPE)
-
-    assert providers[0].id == prioritised_email_provider.id
-    assert providers[0].identifier == prioritised_email_provider.identifier
-    assert providers[1].id == deprioritised_email_provider.id
-    assert providers[1].identifier == deprioritised_email_provider.identifier
-
-
-@pytest.mark.skip(reason="#1436 - This test doesn't have proper teardown.")
-@pytest.mark.serial
-def test_can_get_email_providers(setup_provider_details):
-    email_providers = [provider for provider in setup_provider_details if provider.notification_type == EMAIL_TYPE]
-    providers = get_provider_details_by_notification_type(EMAIL_TYPE)
-
-    for p in email_providers:
-        assert p.notification_type == EMAIL_TYPE
-        assert p in providers
 
 
 def commit_to_db(restore_provider_details, *providers):

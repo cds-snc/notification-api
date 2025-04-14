@@ -16,6 +16,7 @@ def test_get_status_all_ok(client, path):
 
 @pytest.mark.serial
 def test_empty_live_service_and_organisation_counts(admin_request):
+    # Cannot be ran in parallel - gathers all
     assert admin_request.get('status.live_service_and_organisation_counts') == {
         'organisations': 0,
         'services': 0,
@@ -61,6 +62,7 @@ def test_populated_live_service_and_organisation_counts(admin_request, sample_or
     sample_service(service_name=f't_{uuid4()}', restricted=True)
     sample_service(service_name=f'i_{uuid4()}', restricted=False, active=False)
 
+    # Cannot be ran in parallel - gathers all
     assert admin_request.get('status.live_service_and_organisation_counts') == {
         'organisations': 0,  # hardcoded due to being unused
         'services': 4,

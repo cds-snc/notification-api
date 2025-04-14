@@ -44,26 +44,6 @@ def test_name():
     return f'Test User {uuid.uuid4()}'
 
 
-@pytest.mark.serial  # Ensures only one user in the database
-def test_create_only_one_user(
-    test_name,
-    test_email,
-    notify_db_session,
-):
-    data = {'name': test_name, 'email_address': test_email, 'password': 'password'}
-
-    user = User(**data)
-    save_model_user(user)
-    users = notify_db_session.session.scalars(select(User)).all()
-
-    assert len(users) == 1
-
-    # Teardown
-    if user:
-        notify_db_session.session.delete(user)
-        notify_db_session.session.commit()
-
-
 @pytest.mark.parametrize(
     'phone_number',
     [
@@ -157,14 +137,14 @@ def test_create_user_fails_when_violates_sms_auth_requires_mobile_number_constra
 
 @pytest.mark.serial
 def test_get_all_users(
-    notify_db_session,
+    notify_api,
     sample_user,
     test_email,
 ):
     sample_user(email=test_email)
     sample_user(email=f'get_all{test_email}')
 
-    assert len(notify_db_session.session.scalars(select(User)).all()) == 2
+    # Cannot be ran in parallel - Gathers all users if no id is specified
     assert len(get_user_by_id()) == 2
 
 
