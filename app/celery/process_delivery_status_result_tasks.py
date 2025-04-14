@@ -219,12 +219,14 @@ def sms_status_update(
     last_updated_at = notification.updated_at
 
     current_app.logger.info(
-        'Initial %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s',
+        'Initial %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s | service_id: %s | template_id: %s',
         sms_status.provider,
         sms_status.reference,
         notification.id,
         sms_status.status,
         sms_status.status_reason,
+        notification.service_id,
+        notification.template_id,
     )
 
     # Never include a status reason for a delivered notification.
@@ -246,13 +248,15 @@ def sms_status_update(
         raise NonRetryableException('Unable to update notification')
 
     current_app.logger.info(
-        'Final %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s | cost_in_millicents: %s',
+        'Final %s logic | reference: %s | notification_id: %s | status: %s | status_reason: %s | cost_in_millicents: %s | service_id: %s | template_id: %s',
         sms_status.provider,
         sms_status.reference,
         notification.id,
         notification.status,
         notification.status_reason,
         notification.cost_in_millicents,
+        notification.service_id,
+        notification.template_id,
     )
 
     log_notification_total_time(
