@@ -1,6 +1,3 @@
-from io import StringIO
-from typing import Any
-
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
 
@@ -22,38 +19,11 @@ CSV_FIELDNAMES = [
 
 def _l(x):
     """Mock translation function for now"""
+    # translations = {
     return x
 
 
-def serialized_notification_to_csv(serialized_notification, lang="en"):
-    values = [
-        serialized_notification["recipient"],
-        serialized_notification["template_name"],
-        serialized_notification["template_type"] if lang == "en" else _l(serialized_notification["template_type"]),
-        serialized_notification["created_by_name"] or "",
-        serialized_notification["created_by_email_address"] or "",
-        serialized_notification["job_name"] or "",
-        serialized_notification["status"] if lang == "en" else _l(serialized_notification["status"]),
-        serialized_notification["created_at"],
-    ]
-    return ",".join(values) + "\n"
-
-
-def get_csv_file_data(serialized_notifications: list[Any], lang="en") -> bytes:
-    """Builds a CSV file from the serialized notifications data and returns a binary string"""
-    csv_file = StringIO()
-    csv_file.write("\ufeff")  # Add BOM for UTF-8
-    csv_file.write(",".join([_l(n) for n in CSV_FIELDNAMES]) + "\n")
-
-    for notification in serialized_notifications:
-        csv_file.write(serialized_notification_to_csv(notification, lang=lang))
-
-    string = csv_file.getvalue()
-    encoded_string = string.encode("utf-8")
-    return encoded_string
-
-
-def build_notifications_query(service_id, notification_type, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -131,17 +101,18 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
         conn.close()
 
 
-def generate_csv_from_notifications(service_id, notification_type, days_limit=7, s3_bucket=None, s3_key=None):
+def generate_csv_from_notifications(service_id, notification_type, language, days_limit=7, s3_bucket=None, s3_key=None):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
 
     Args:
         service_id: The ID of the service to query
         notification_type: The type of notifications to include
+        language: "en" or "fr"
         days_limit: Number of days to look back in history (default: 7)
         s3_bucket: The S3 bucket name to store the CSV (required)
         s3_key: The S3 object key for the CSV (required)
     """
-    query = build_notifications_query(service_id, notification_type, days_limit)
+    query = build_notifications_query(service_id, notification_type, language, days_limit)
     copy_command = compile_query_for_copy(query)
     stream_query_to_s3(copy_command, s3_bucket, s3_key)
