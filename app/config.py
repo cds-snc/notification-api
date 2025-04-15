@@ -91,6 +91,7 @@ class QueueNames(object):
     # out Notify.
     RESEARCH_MODE = "research-mode-tasks"
     REPORTING = "reporting-tasks"
+    GENERATE_REPORTS = "generate-reports"
 
     # Queue for scheduled notifications.
     JOBS = "job-tasks"
