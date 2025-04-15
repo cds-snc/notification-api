@@ -6,24 +6,17 @@ from app.report.utils import (
 )
 
 
-def test_mock_translate_function():
-    """Test the mock translation function behaves as expected"""
-    _ = Translate(language="en")._
-    assert _("Test") == "Test"
-    assert _("Status") == "Status"
-
-
-def test_translate_default_language():
-    _ = Translate(language="en")._
-    assert _("Recipient") == "Recipient"
-    assert _("Nonexistent") == "Nonexistent"
+def test_translate_en():
+    translate = Translate(language="en").translate
+    assert translate("Recipient") == "Recipient"
+    assert translate("Nonexistent") == "Nonexistent"
 
 
 def test_translate_french_language():
-    translator = Translate(language="fr")
-    assert translator._("Recipient") == "Destinataire"
-    assert translator._("Template") == "Gabarit"
-    assert translator._("Nonexistent") == "Nonexistent"
+    translate = Translate(language="fr").translate
+    assert translate("Recipient") == "Destinataire"
+    assert translate("Template") == "Gabarit"
+    assert translate("Nonexistent") == "Nonexistent"
 
 
 class TestGenerateCsvFromNotifications:

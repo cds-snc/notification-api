@@ -57,7 +57,7 @@ class Translate:
             "fr": FR_TRANSLATIONS,
         }
 
-    def _(self, x):
+    def translate(self, x):
         """Translate the given string based on the set language."""
         if self.language == "fr" and x in self.translations["fr"]:
             return self.translations["fr"][x]
@@ -83,19 +83,19 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     j = aliased(Job)
     u = aliased(User)
 
-    _ = Translate(language)._
+    translate = Translate(language).translate
 
     # Build the query using SQLAlchemy
     return (
         db.session.query(
-            n.to.label(_("Recipient")),
-            t.name.label(_("Template")),
-            n.notification_type.label(_("Type")),
-            func.coalesce(u.name, "").label(_("Sent by")),
-            func.coalesce(u.email_address, "").label(_("Sent by email")),
-            func.coalesce(j.original_file_name, "").label(_("Job")),
-            n.status.label(_("Status")),
-            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(_("Sent Time")),
+            n.to.label(translate("Recipient")),
+            t.name.label(translate("Template")),
+            n.notification_type.label(translate("Type")),
+            func.coalesce(u.name, "").label(translate("Sent by")),
+            func.coalesce(u.email_address, "").label(translate("Sent by email")),
+            func.coalesce(j.original_file_name, "").label(translate("Job")),
+            n.status.label(translate("Status")),
+            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(translate("Sent Time")),
         )
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
