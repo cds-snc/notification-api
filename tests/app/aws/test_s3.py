@@ -324,7 +324,7 @@ def test_stream_to_s3(notify_api, mocker):
     stream_to_s3(bucket_name, object_key, copy_command, cursor_mock)
 
     cursor_mock.copy_expert.assert_called_once_with(copy_command, buffer_mock.return_value)
-    buffer_mock.return_value.seek.assert_called_once_with(0)
+    buffer_mock.return_value.seek.assert_has_calls([call(0, 2), call(0)])
     s3_client_mock.return_value.upload_fileobj.assert_called_once_with(
         Fileobj=buffer_mock.return_value,
         Bucket=bucket_name,
