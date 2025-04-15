@@ -17,15 +17,18 @@ FR_TRANSLATIONS = {
     "Sent Time": "Heure d’envoi",
     # notification types
     "email": "courriel",
-    "sms": "??",
+    "sms": "message texte",  # check this
 }
+
+# EN_TRANSLATIONS = {
+
 
 # email statuses
 EMAIL_STATUSES = {
     "failed": "Failed",
     "technical-failure": "Tech issue",
     "temporary-failure": "Content or inbox issue",
-    # "permanent-failure": _getStatusByBounceSubtype(),
+    # "permanent-failure": _getStatusByBounceSubtype(), # need to look at feedback_subtype here
     "virus-scan-failed": "Attachment has virus",
     "delivered": "Delivered",
     "sending": "In transit",
@@ -35,6 +38,7 @@ EMAIL_STATUSES = {
     "pending-virus-check": "In transit",
     "pii-check-failed": "Exceeds Protected A",
 }
+
 SMS_STATUSES = {
     "failed": "Failed",
     "technical-failure": "Tech issue",
@@ -90,7 +94,10 @@ def build_notifications_query(service_id, notification_type, language, days_limi
         db.session.query(
             n.to.label(translate("Recipient")),
             t.name.label(translate("Template")),
-            n.notification_type.label(translate("Type")),
+            func.case(
+                [(n.notification_type == "email", translate("email")), (n.notification_type == "sms", translate("sms"))],
+                else_=n.notification_type,
+            ).label(translate("Type")),
             func.coalesce(u.name, "").label(translate("Sent by")),
             func.coalesce(u.email_address, "").label(translate("Sent by email")),
             func.coalesce(j.original_file_name, "").label(translate("Job")),
