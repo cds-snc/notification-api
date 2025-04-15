@@ -6,6 +6,7 @@ from app.aws.s3 import stream_to_s3
 from app.models import Job, Notification, Template, User
 
 FR_TRANSLATIONS = {
+    # header labels
     "Recipient": "Destinataire",
     "Template": "Gabarit",
     "Type": "Type",
@@ -14,6 +15,37 @@ FR_TRANSLATIONS = {
     "Job": "Tâche",
     "Status": "État",
     "Sent Time": "Heure d’envoi",
+    # notification types
+    "email": "courriel",
+    "sms": "??",
+}
+
+# email statuses
+EMAIL_STATUSES = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Content or inbox issue",
+    # "permanent-failure": _getStatusByBounceSubtype(),
+    "virus-scan-failed": "Attachment has virus",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "sent": "Delivered",
+    "pending": "In transit",
+    "pending-virus-check": "In transit",
+    "pii-check-failed": "Exceeds Protected A",
+}
+SMS_STATUSES = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    # "provider-failure": _get_sms_status_by_feedback_reason(),
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
 }
 
 
