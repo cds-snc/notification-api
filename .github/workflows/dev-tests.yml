@@ -25,8 +25,28 @@ jobs:
 
       - name: Run tests using docker-compose
         run: |
-          # Build images, start containers, and run tests.
-          docker compose -f ci/docker-compose-ci.yml up --build --abort-on-container-exit
+          # Start DB container
+          docker compose -f ci/docker-compose-ci.yml up -d db
+          # Run test container
+          docker compose -f ci/docker-compose-ci.yml run --rm test
+          # Stop test container (it should already be stopped due to --rm, but just in case)
+          docker compose -f ci/docker-compose-ci.yml stop test
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-gov-west-1
+          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 1800
+
+      - name: Dump and upload schema
+        run: |
+          docker exec ci-db-1 pg_dump -U postgres -s -d notification_api > napi-schema.sql
+          aws s3 cp napi-schema.sql s3://vanotify-environment-variables-dev/notification-api/schemas/napi-schema.sql
+          docker compose -f ci/docker-compose-ci.yml down
 
   code-scan:
     runs-on: ${{ vars.RUNS_ON }}
