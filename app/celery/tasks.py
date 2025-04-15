@@ -903,6 +903,7 @@ def generate_report(report_id: str):
         generate_csv_from_notifications(
             service_id=report.service_id,
             notification_type=report.report_type,
+            language=report.language,
             days_limit=LIMIT_DAYS,
             s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
             s3_key=s3_key,

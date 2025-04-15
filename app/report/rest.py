@@ -41,6 +41,7 @@ def create_service_report(service_id):
             "service_id": str(service_id),
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
+            "language": data.get("language"),
         }
 
         # Validate against the schema

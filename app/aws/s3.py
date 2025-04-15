@@ -214,6 +214,12 @@ def stream_to_s3(
     # Create a file-like object using a BytesIO buffer
     buffer = BytesIO()
 
+    # Add BOM (Byte Order Mark) at the top of the CSV file so FR characters are displayed correctly
+    buffer.write("\ufeff".encode("utf-8"))
+
+    # Reset the buffer's position to the beginning before writing the COPY command output
+    buffer.seek(0, 2)  # Move to the end of the buffer
+
     # Execute the COPY command and write the output to the buffer
     cursor.copy_expert(copy_command, buffer)
 
