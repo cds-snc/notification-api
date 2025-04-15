@@ -19,7 +19,8 @@ def test_task_prerun_logging(mocker, notify_api):
     task_prerun.send(sender=None, task_id=task_id, task=task)
 
     mock_logger.assert_called_once_with(
-        'celery task_prerun task_id: %s | task_name: %s',
+        '%s celery task_prerun task_id: %s | task_name: %s',
+        task.request.hostname,
         task_id,
         task.name,
     )
@@ -35,7 +36,8 @@ def test_task_postrun_logging(mocker, notify_api):
     task_postrun.send(sender=None, task_id=task_id, task=task)
 
     mock_logger.assert_called_once_with(
-        'celery task_postrun task_id: %s | task_name: %s',
+        '%s celery task_postrun task_id: %s | task_name: %s',
+        task.request.hostname,
         task_id,
         task.name,
     )
