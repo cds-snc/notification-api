@@ -6,7 +6,6 @@ from app.aws.s3 import stream_to_s3
 from app.models import Job, Notification, Template, User
 
 FR_TRANSLATIONS = {
-    # header labels
     "Recipient": "Destinataire",
     "Template": "Gabarit",
     "Type": "Type",
