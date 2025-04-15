@@ -34,7 +34,7 @@ class TestGenerateCsvFromNotifications:
         days_limit = 14
         s3_bucket = "test-bucket"
         s3_key = "test-key.csv"
-
+        language = "en"
         # When
         with patch("app.report.utils.build_notifications_query") as mock_build_query:
             with patch("app.report.utils.compile_query_for_copy") as mock_compile_query:
@@ -43,9 +43,9 @@ class TestGenerateCsvFromNotifications:
                     mock_compile_query.return_value = "mock copy command"
 
                     # Call the function
-                    generate_csv_from_notifications(service_id, notification_type, days_limit, s3_bucket, s3_key)
+                    generate_csv_from_notifications(service_id, notification_type, language, days_limit, s3_bucket, s3_key)
 
                     # Then
-                    mock_build_query.assert_called_once_with(service_id, notification_type, days_limit)
+                    mock_build_query.assert_called_once_with(service_id, notification_type, language, days_limit)
                     mock_compile_query.assert_called_once_with("mock query")
                     mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
