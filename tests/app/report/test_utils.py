@@ -1,15 +1,29 @@
 from unittest.mock import patch
 
 from app.report.utils import (
-    _l,
+    Translate,
     generate_csv_from_notifications,
 )
 
 
 def test_mock_translate_function():
     """Test the mock translation function behaves as expected"""
-    assert _l("Test") == "Test"
-    assert _l("Status") == "Status"
+    _ = Translate(language="en")._
+    assert _("Test") == "Test"
+    assert _("Status") == "Status"
+
+
+def test_translate_default_language():
+    _ = Translate(language="en")._
+    assert _("Recipient") == "Recipient"
+    assert _("Nonexistent") == "Nonexistent"
+
+
+def test_translate_french_language():
+    translator = Translate(language="fr")
+    assert translator._("Recipient") == "Destinataire"
+    assert translator._("Template") == "Gabarit"
+    assert translator._("Nonexistent") == "Nonexistent"
 
 
 class TestGenerateCsvFromNotifications:
