@@ -5,22 +5,24 @@ from app import db
 from app.aws.s3 import stream_to_s3
 from app.models import Job, Notification, Template, User
 
+FR_TRANSLATIONS = {
+    "Recipient": "Destinataire",
+    "Template": "Gabarit",
+    "Type": "Type",
+    "Sent by": "Envoyé par",
+    "Sent by email": "Envoyé par courriel",
+    "Job": "Tâche",
+    "Status": "État",
+    "Sent Time": "Heure d’envoi",
+}
+
 
 class Translate:
     def __init__(self, language="en"):
         """Initialize the Translate class with a language."""
         self.language = language
         self.translations = {
-            "fr": {
-                "Recipient": "Destinataire",
-                "Template": "Gabarit",
-                "Type": "Type",
-                "Sent by": "Envoyé par",
-                "Sent by email": "Envoyé par courriel",
-                "Job": "Tâche",
-                "Status": "État",
-                "Sent Time": "Heure d’envoi",
-            }
+            "fr": FR_TRANSLATIONS,
         }
 
     def _(self, x):
