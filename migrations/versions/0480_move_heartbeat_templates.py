@@ -21,7 +21,6 @@ TEMPLATE_ID_SMS_HIGH = current_app.config["HEARTBEAT_TEMPLATE_SMS_HIGH"]
 NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
 NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
 NOTIFY_HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
-CDS_ORGANISATION_ID = "0bf242b4-d37e-4658-bacb-a7ff95bf91cc"
 
 TEMPLATE_IDS = [TEMPLATE_ID_EMAIL_LOW, TEMPLATE_ID_EMAIL_MEDIUM, TEMPLATE_ID_EMAIL_HIGH,
                 TEMPLATE_ID_SMS_LOW, TEMPLATE_ID_SMS_MEDIUM, TEMPLATE_ID_SMS_HIGH]
@@ -39,14 +38,14 @@ TEMPLATE_HISTORY_UPDATE = """
 NOW = datetime.now(timezone.utc)
 
 def upgrade():
-    heartbeat_service_insert = f"""INSERT INTO services (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, organisation_id, email_from, created_by_id, version)
-                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
+    heartbeat_service_insert = f"""INSERT INTO services (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, email_from, created_by_id, version)
+                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', 'gc.notify.heartbeat.notification.gc',
                         '{NOTIFY_USER_ID}', 1)
                     """
     op.execute(heartbeat_service_insert)
 
-    heartbeat_service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, organisation_id, email_from, created_by_id, version)
-                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', '{CDS_ORGANISATION_ID}', 'gc.notify.heartbeat.notification.gc',
+    heartbeat_service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, count_as_live, message_limit, sms_daily_limit, email_annual_limit, sms_annual_limit, restricted, research_mode, prefix_sms, organisation_type, email_from, created_by_id, version)
+                        VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', 'GCNotify Heartbeat', '{NOW}', True, False, 20000, 20000, 5000000, 5000000, False, False, False, 'central', 'gc.notify.heartbeat.notification.gc',
                         '{NOTIFY_USER_ID}', 1)
                      """
     op.execute(heartbeat_service_history_insert)
