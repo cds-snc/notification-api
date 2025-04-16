@@ -2334,8 +2334,9 @@ class TestGenerateReport:
     @freeze_time("2022-01-01 12:00:00")
     def test_generate_report_success(self, mocker, notify_db_session, sample_report):
         expected_url = "https://example.com/report.csv"
-        mocker.patch("app.celery.tasks.create_report_in_s3", return_value=expected_url)
+        mocker.patch("app.celery.tasks.generate_csv_from_notifications")
         update_report_mock = mocker.patch("app.celery.tasks.update_report")
+        mocker.patch("app.celery.tasks.s3.generate_presigned_url", return_value=expected_url)
 
         generate_report(str(sample_report.id))
 
@@ -2350,7 +2351,7 @@ class TestGenerateReport:
         assert updated_report.expires_at.date() == datetime(2022, 1, 1).date() + timedelta(days=3)
 
     def test_generate_report_error_handling(self, mocker, notify_db_session, sample_report):
-        mocker.patch("app.celery.tasks.create_report_in_s3", side_effect=Exception("Test error"))
+        mocker.patch("app.celery.tasks.generate_csv_from_notifications", side_effect=Exception("Test error"))
         update_report_mock = mocker.patch("app.celery.tasks.update_report")
 
         # Execute and expect exception

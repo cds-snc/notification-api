@@ -841,6 +841,7 @@ class ReportSchema(BaseSchema):
     completed_at = FlexibleDateTime()
     expires_at = FlexibleDateTime()
     url = fields.String()
+    language = fields.String()
 
     requesting_user = fields.Nested(
         UserSchema,

@@ -3,6 +3,8 @@ import uuid
 from flask import Blueprint, current_app, jsonify, request
 from marshmallow import ValidationError
 
+from app.celery.tasks import generate_report
+from app.config import QueueNames
 from app.dao.reports_dao import create_report, get_reports_for_service
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors
@@ -39,6 +41,7 @@ def create_service_report(service_id):
             "service_id": str(service_id),
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
+            "language": data.get("language"),
         }
 
         # Validate against the schema
@@ -51,6 +54,10 @@ def create_service_report(service_id):
         created_report = create_report(report)
 
         current_app.logger.info(f"Report {created_report.id} created for service {service_id}")
+
+        # start the report generation process in celery
+        current_app.logger.info(f"Calling generate_report for Report ID {report.id}")
+        generate_report.apply_async([report.id], queue=QueueNames.GENERATE_REPORTS)
 
         return jsonify(data=report_schema.dump(created_report)), 201
 
