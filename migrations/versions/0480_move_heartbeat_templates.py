@@ -1,6 +1,6 @@
 """
-Revision ID: 0479_move_heartbeat_templates
-Revises: 0478_add_report_language
+Revision ID: 0480_move_heartbeat_templates
+Revises: 0479_update_reports_url
 Create Date: 2025-04-02 00:00:00
 """
 from datetime import datetime, timezone
@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from alembic import op
 from flask import current_app
 
-revision = "0479_move_heartbeat_templates"
-down_revision = "0478_add_report_language"
+revision = "0480_move_heartbeat_templates"
+down_revision = "0479_update_reports_url"
 
 TEMPLATE_ID_EMAIL_LOW = current_app.config["HEARTBEAT_TEMPLATE_EMAIL_LOW"]
 TEMPLATE_ID_EMAIL_MEDIUM = current_app.config["HEARTBEAT_TEMPLATE_EMAIL_MEDIUM"]
