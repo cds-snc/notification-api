@@ -101,6 +101,23 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     translate = Translate(language).translate
 
     # Build the query using SQLAlchemy
+    # Map statuses for translation
+    email_status_cases = [(n.status == k, translate(v)) for k, v in EMAIL_STATUSES.items()]
+    sms_status_cases = [(n.status == k, translate(v)) for k, v in SMS_STATUSES.items()]
+
+    if notification_type == "email":
+        status_expr = func.case(email_status_cases, else_=n.status)
+    elif notification_type == "sms":
+        status_expr = func.case(sms_status_cases, else_=n.status)
+    else:
+        status_expr = n.status
+    # Translate the mapped status (for French)
+    if language == "fr":
+        # This will translate the already mapped status string
+        status_expr = func.coalesce(func.nullif(status_expr, ""), "").label(translate("Status"))
+    else:
+        status_expr = status_expr.label(translate("Status"))
+
     return (
         db.session.query(
             n.to.label(translate("Recipient")),
@@ -112,7 +129,7 @@ def build_notifications_query(service_id, notification_type, language, days_limi
             func.coalesce(u.name, "").label(translate("Sent by")),
             func.coalesce(u.email_address, "").label(translate("Sent by email")),
             func.coalesce(j.original_file_name, "").label(translate("Job")),
-            n.status.label(translate("Status")),
+            status_expr,
             func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(translate("Sent Time")),
         )
         .join(t, t.id == n.template_id)
