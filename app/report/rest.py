@@ -41,6 +41,7 @@ def create_service_report(service_id):
             "service_id": str(service_id),
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
+            "language": data.get("language"),
         }
 
         # Validate against the schema
@@ -56,7 +57,7 @@ def create_service_report(service_id):
 
         # start the report generation process in celery
         current_app.logger.info(f"Calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id], queue=QueueNames.REPORTING)
+        generate_report.apply_async([report.id], queue=QueueNames.GENERATE_REPORTS)
 
         return jsonify(data=report_schema.dump(created_report)), 201
 

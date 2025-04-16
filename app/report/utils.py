@@ -1,6 +1,3 @@
-from io import StringIO
-from typing import Any
-
 from flask import current_app
 from sqlalchemy import func, text
 from sqlalchemy.orm import aliased
@@ -12,58 +9,41 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.models import KEY_TYPE_NORMAL, Job, Notification, Service, Template, User
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 
-CSV_FIELDNAMES = [
-    "Recipient",
-    "Template",
-    "Type",
-    "Sent by",
-    "Sent by email",
-    "Job",
-    "Status",
-    "Time",
-]
+FR_TRANSLATIONS = {
+    "Recipient": "Destinataire",
+    "Template": "Gabarit",
+    "Type": "Type",
+    "Sent by": "Envoyé par",
+    "Sent by email": "Envoyé par courriel",
+    "Job": "Tâche",
+    "Status": "État",
+    "Sent Time": "Heure d’envoi",
+}
 
 
-def _l(x):
-    """Mock translation function for now"""
-    return x
+class Translate:
+    def __init__(self, language="en"):
+        """Initialize the Translate class with a language."""
+        self.language = language
+        self.translations = {
+            "fr": FR_TRANSLATIONS,
+        }
+
+    def translate(self, x):
+        """Translate the given string based on the set language."""
+        if self.language == "fr" and x in self.translations["fr"]:
+            return self.translations["fr"][x]
+        return x
 
 
-def serialized_notification_to_csv(serialized_notification, lang="en"):
-    values = [
-        serialized_notification["recipient"],
-        serialized_notification["template_name"],
-        serialized_notification["template_type"] if lang == "en" else _l(serialized_notification["template_type"]),
-        serialized_notification["created_by_name"] or "",
-        serialized_notification["created_by_email_address"] or "",
-        serialized_notification["job_name"] or "",
-        serialized_notification["status"] if lang == "en" else _l(serialized_notification["status"]),
-        serialized_notification["created_at"],
-    ]
-    return ",".join(values) + "\n"
-
-
-def get_csv_file_data(serialized_notifications: list[Any], lang="en") -> bytes:
-    """Builds a CSV file from the serialized notifications data and returns a binary string"""
-    csv_file = StringIO()
-    csv_file.write("\ufeff")  # Add BOM for UTF-8
-    csv_file.write(",".join([_l(n) for n in CSV_FIELDNAMES]) + "\n")
-
-    for notification in serialized_notifications:
-        csv_file.write(serialized_notification_to_csv(notification, lang=lang))
-
-    string = csv_file.getvalue()
-    encoded_string = string.encode("utf-8")
-    return encoded_string
-
-
-def build_notifications_query(service_id, notification_type, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
     Args:
         service_id: The ID of the service to query
         notification_type: The type of notifications to include
+        language: "en" or "fr"
         days_limit: Number of days to look back in history
 
     Returns:
@@ -75,17 +55,19 @@ def build_notifications_query(service_id, notification_type, days_limit=7):
     j = aliased(Job)
     u = aliased(User)
 
+    translate = Translate(language).translate
+
     # Build the query using SQLAlchemy
     return (
         db.session.query(
-            n.to.label("Recipient"),
-            t.name.label("Template"),
-            n.notification_type.label("Type"),
-            func.coalesce(u.name, "").label("Sent by"),
-            func.coalesce(u.email_address, "").label("Sent by email"),
-            func.coalesce(j.original_file_name, "").label("Job"),
-            n.status.label("Status"),
-            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label("Time"),
+            n.to.label(translate("Recipient")),
+            t.name.label(translate("Template")),
+            n.notification_type.label(translate("Type")),
+            func.coalesce(u.name, "").label(translate("Sent by")),
+            func.coalesce(u.email_address, "").label(translate("Sent by email")),
+            func.coalesce(j.original_file_name, "").label(translate("Job")),
+            n.status.label(translate("Status")),
+            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(translate("Sent Time")),
         )
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
@@ -135,18 +117,19 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
         conn.close()
 
 
-def generate_csv_from_notifications(service_id, notification_type, days_limit=7, s3_bucket=None, s3_key=None):
+def generate_csv_from_notifications(service_id, notification_type, language, days_limit=7, s3_bucket=None, s3_key=None):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
 
     Args:
         service_id: The ID of the service to query
         notification_type: The type of notifications to include
+        language: "en" or "fr"
         days_limit: Number of days to look back in history (default: 7)
         s3_bucket: The S3 bucket name to store the CSV (required)
         s3_key: The S3 object key for the CSV (required)
     """
-    query = build_notifications_query(service_id, notification_type, days_limit)
+    query = build_notifications_query(service_id, notification_type, language, days_limit)
     copy_command = compile_query_for_copy(query)
     stream_query_to_s3(copy_command, s3_bucket, s3_key)
 

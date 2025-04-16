@@ -6,12 +6,13 @@ from app.models import ReportStatus, ReportType
 def test_create_report_succeeds_with_valid_data(mocker, admin_request, sample_service, sample_user):
     """Test that creating a report with valid data succeeds"""
     generate_report_mock = mocker.patch("app.report.rest.generate_report.apply_async")
-    data = {"report_type": ReportType.EMAIL.value, "requesting_user_id": str(sample_user.id)}
+    data = {"report_type": ReportType.EMAIL.value, "requesting_user_id": str(sample_user.id), "language": "en"}
 
     response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
 
     assert response["data"]["report_type"] == ReportType.EMAIL.value
     assert response["data"]["service_id"] == str(sample_service.id)
+    assert response["data"]["language"] == "en"
     assert response["data"]["status"] == ReportStatus.REQUESTED.value
     assert "id" in response["data"]
     assert "requested_at" in response["data"]
@@ -20,7 +21,7 @@ def test_create_report_succeeds_with_valid_data(mocker, admin_request, sample_se
     generate_report_mock.assert_called_once()
     assert str(generate_report_mock.call_args[0][0][0]) == response["data"]["id"]
     # check the queue name
-    assert generate_report_mock.call_args[1]["queue"] == "reporting-tasks"
+    assert generate_report_mock.call_args[1]["queue"] == "generate-reports"
 
 
 def test_create_report_with_invalid_report_type(admin_request, sample_service):
