@@ -157,7 +157,7 @@ def send_requested_report_ready(report) -> None:
         service=service,
         personalisation={
             "name": report.requesting_user.name,
-            "report_name": report_name_en,
+            "report_name_en": report_name_en,
             "report_name_fr": report_name_fr,
             "service_name": report_service.name,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports",
