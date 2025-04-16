@@ -30,7 +30,7 @@ from app.constants import (
     SES_PROVIDER,
     SMS_TYPE,
 )
-from app.dao import provider_details_dao, notifications_dao
+from app.dao import notifications_dao
 from app.dao.provider_details_dao import dao_switch_sms_provider_to_provider_with_identifier
 from app.delivery import send_to_providers
 from app.delivery.send_to_providers import load_provider
@@ -44,6 +44,7 @@ from app.models import (
     Template,
     TemplateHistory,
 )
+from app.utils import get_html_email_options, get_logo_url
 from tests.conftest import set_config_values
 
 
@@ -119,6 +120,7 @@ def test_send_email_to_provider_should_compute_source_email_address(
     mock_compute_email_from.assert_called_once_with(db_notification.service, mock_email_client)
 
 
+@pytest.mark.parametrize('name_value', ['Jo', 'John Smith', 'Jane Doe-Smith'])
 def test_should_send_personalised_template_to_correct_email_provider_and_persist(
     notify_db_session,
     sample_api_key,
@@ -127,6 +129,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     mock_email_client,
     notify_api,
     mock_source_email_address,
+    name_value,
 ):
     template = sample_template(
         template_type=EMAIL_TYPE,
@@ -136,7 +139,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     db_notification = sample_notification(
         template=template,
         to_field='jo.smith@example.com',
-        personalisation={'name': 'Jo'},
+        personalisation={'name': name_value},
         api_key=sample_api_key(service=template.service),
     )
 
@@ -146,8 +149,8 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     mock_email_client.send_email.assert_called_once_with(
         source=mock_source_email_address[0],
         to_addresses='jo.smith@example.com',
-        subject='Jo <em>some HTML</em>',
-        body='Hello Jo\nThis is an email from VA with <em>some HTML</em>\n\n',
+        subject=f'{name_value} <em>some HTML</em>',
+        body=f'Hello {name_value}\nThis is an email from VA with <em>some HTML</em>\n\n',
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
@@ -155,6 +158,10 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 
     assert '<!DOCTYPE html' in mock_email_client.send_email.call_args[1]['html_body']
     assert '&lt;em&gt;some HTML&lt;/em&gt;' in mock_email_client.send_email.call_args[1]['html_body']
+    assert (
+        f'Hello {name_value}<br />\nThis is an email from VA with <em>some HTML</em>'
+        in mock_email_client.send_email.call_args[1]['html_body']
+    )
 
     stmt = select(Notification).where(Notification.id == db_notification.id)
     notification = notify_db_session.session.scalars(stmt).one()
@@ -162,7 +169,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert notification.status == NOTIFICATION_SENDING
     assert notification.sent_at <= datetime.utcnow()
     assert notification.sent_by == mock_email_client.get_name()
-    assert notification.personalisation == {'name': 'Jo'}
+    assert notification.personalisation == {'name': name_value}
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notification_is_not_updated(
@@ -487,7 +494,7 @@ def test_get_html_email_renderer_should_return_for_normal_service(
     notify_api,
     sample_notification_model_with_organization,
 ):
-    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization)
+    options = get_html_email_options(sample_notification_model_with_organization)
     assert options['default_banner'] is True
     assert 'brand_colour' not in options.keys()
     assert 'brand_logo' not in options.keys()
@@ -514,7 +521,7 @@ def test_get_html_email_renderer_with_branding_details(
     )
     sample_notification_model_with_organization.service.email_branding = email_branding
 
-    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization)
+    options = get_html_email_options(sample_notification_model_with_organization)
 
     assert options['default_banner'] == default_banner
     assert options['brand_colour'] == '#000000'
@@ -533,7 +540,7 @@ def test_get_html_email_renderer_with_branding_details_and_render_default_banner
 ):
     sample_notification_model_with_organization.service.email_branding = None
 
-    options = send_to_providers.get_html_email_options(sample_notification_model_with_organization)
+    options = get_html_email_options(sample_notification_model_with_organization)
 
     assert {'default_banner': True, 'brand_banner': False}.items() <= options.items()
 
@@ -551,7 +558,7 @@ def test_get_html_email_renderer_prepends_logo_path(
     )
     sample_notification_model_with_organization.service.email_branding = email_branding
 
-    renderer = send_to_providers.get_html_email_options(sample_notification_model_with_organization)
+    renderer = get_html_email_options(sample_notification_model_with_organization)
     domain = 'https://dev-notifications-va-gov-assets.s3.amazonaws.com'
     assert renderer['brand_logo'] == '{}{}'.format(domain, '/justice-league.png')
 
@@ -570,7 +577,7 @@ def test_get_html_email_renderer_handles_email_branding_without_logo(
 
     sample_notification_model_with_organization.service.email_branding = email_branding
 
-    renderer = send_to_providers.get_html_email_options(sample_notification_model_with_organization)
+    renderer = get_html_email_options(sample_notification_model_with_organization)
 
     assert renderer['default_banner'] is False
     assert renderer['brand_banner'] is True
@@ -595,7 +602,7 @@ def test_get_logo_url_works_for_different_environments(
 ):
     logo_file = 'filename.png'
 
-    logo_url = send_to_providers.get_logo_url(base_url, logo_file)
+    logo_url = get_logo_url(base_url, logo_file)
     domain = 'dev-notifications-va-gov-assets.s3.amazonaws.com'
     assert logo_url == 'https://{}/{}'.format(domain, expected_url)
 
@@ -1164,3 +1171,68 @@ def test_should_raise_exception_if_template_provider_is_inactive(
         send_to_providers.client_to_use(mocked_notification)
 
     mocked_get_client_by_name_and_type.assert_not_called()
+
+
+def test_template_or_service_provider_is_not_used_when_feature_flag_is_off(
+    notify_api,
+    mocker,
+    monkeypatch,
+):
+    monkeypatch.setenv(FeatureFlag.PROVIDER_STRATEGIES_ENABLED.value, 'False')
+    monkeypatch.setenv(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED.value, 'False')
+    mocked_client = mocker.Mock(EmailClient)
+
+    mocker.patch('app.delivery.send_to_providers.clients.get_client_by_name_and_type', return_value=mocked_client)
+
+    mock_load_provider = mocker.patch('app.delivery.send_to_providers.load_provider')
+
+    mocker.patch(
+        'app.delivery.send_to_providers.get_provider_details_by_notification_type',
+        return_value=[mocker.Mock(ProviderDetails, active=True)],
+    )
+
+    send_to_providers.client_to_use(mocker.Mock(Notification))
+
+    mock_load_provider.assert_not_called()
+
+
+def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
+    sample_api_key,
+    sample_notification,
+    sample_template,
+    mock_email_client,
+    notify_api,
+    mocker,
+):
+    """
+    Test that emails sent through send_email_to_provider include a GA4 pixel tracking image in the HTML content.
+    """
+    # Set up mocks
+    pixel_url = 'https://test-api.va.gov/vanotify/ga4/open-email-tracking/xx_notification_id_xx'
+    mocker.patch('app.utils.is_feature_enabled', return_value=True)
+    mocker.patch('app.utils.is_gapixel_enabled', return_value=True)
+    mocker.patch('app.googleanalytics.pixels.build_dynamic_ga4_pixel_tracking_url', return_value=pixel_url)
+
+    # Create test data
+    template = sample_template(
+        template_type=EMAIL_TYPE,
+        subject='Test Subject',
+        content='Test Content',
+    )
+
+    db_notification = sample_notification(
+        template=template,
+        to_field='test@example.com',
+        api_key=sample_api_key(service=template.service),
+    )
+    expected_pixel_url = pixel_url.replace('xx_notification_id_xx', str(db_notification.id))
+    # Call the function under test
+    send_to_providers.send_email_to_provider(db_notification)
+
+    # Get the HTML content that was sent to the email client
+    mock_email_client.send_email.assert_called_once()
+    html_body = mock_email_client.send_email.call_args[1]['html_body']
+
+    # Check for the GA4 pixel tracking image in the HTML
+    expected_pixel_img = f'<img id="ga4_open_email_event_url" src="{expected_pixel_url}"'
+    assert expected_pixel_img in html_body, f'GA4 pixel tracking image not found in HTML: {html_body}'

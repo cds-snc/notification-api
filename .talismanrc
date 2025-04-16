@@ -1,4 +1,8 @@
 fileignoreconfig:
+- filename: app/celery/reporting_tasks.py
+  checksum: 2374dafe0993f493addc7ea8276342371584cf98d1a60c152a419981f85ea05a
+- filename: app/feature_flags.py
+  checksum: e6ffbab28f29de186ece73eda6602376e221e42d5bbfd8f25d9958dd3594e9af
 - filename: cd/application-deployment/dev/dev.env
   checksum: 095af3cb69097b02a3f1161a065db9fe7ee8280fed66efa6a47f4e715ba4978c
 - filename: cd/application-deployment/perf/perf.env
@@ -7,12 +11,14 @@ fileignoreconfig:
   checksum: 43088cf568fd761f6b3a55be2525479e57f7e325427616bb220342416a630c3d
 - filename: cd/application-deployment/staging/staging.env
   checksum: 8cc5e0cbdb3066828cfc3bec1333f6ce1adab662a658276755992844fd54184c
-- filename: poetry.lock
-  checksum: 93b9aac800f82240d8b1fa135e47925d7237043a362455d1239fdd1c9d342ba9
-- filename: app/celery/reporting_tasks.py
-  checksum: 2374dafe0993f493addc7ea8276342371584cf98d1a60c152a419981f85ea05a
 - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
   checksum: 4e6e2fabf9630e9e0d26028818f41f34c065e80c223db34d35a1d1068c37a782
-- filename: app/feature_flags.py
-  checksum: e6ffbab28f29de186ece73eda6602376e221e42d5bbfd8f25d9958dd3594e9af
+- filename: poetry.lock
+  checksum: 93b9aac800f82240d8b1fa135e47925d7237043a362455d1239fdd1c9d342ba9
+- filename: tests/app/notifications/test_validators.py
+  checksum: 7e95b0854fdc12ab60e97347f5e6498e99b29b9df3b635487ab89189ed11fabb
+- filename: tests/app/service/test_rest.py
+  checksum: b2126023c505e04dc66e4cc2be876c49daad154acd0c2ac63f03961e2ea8bef2
+- filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_lambda.py
+  checksum: db79656ed019ef873475215ad09a6c3cfedd6079bfafe6ab1e56754fcf50ebe4
 version: "1.0"

@@ -1,4 +1,9 @@
 import uuid
+from datetime import datetime
+
+from flask import current_app
+from sqlalchemy import asc, desc, func, select, update
+
 from app import db
 from app.constants import LETTER_TYPE, SECOND_CLASS
 from app.dao.dao_utils import (
@@ -12,14 +17,29 @@ from app.models import (
     TemplateHistory,
     TemplateRedacted,
 )
-from datetime import datetime
-from flask import current_app
-from sqlalchemy import asc, desc, func, select, update
+from app.utils import generate_html_email_content
 
 
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_create_template(template):
+def dao_create_template(template: Template):
+    """Create a new template and associated records.
+
+    This function persists a template to the database, along with:
+    - generating a UUID if one isn't provided
+    - setting the archived flag to False
+    - creating a TemplateRedacted entry with default values
+    - generating HTML content for email templates
+
+    A template history record is automatically created via the version_class decorator.
+
+    Args:
+        template: The Template object to be created. Should have service, created_by,
+                 name, template_type, and content attributes set.
+
+    Returns:
+        None - The template parameter is modified in place with generated values.
+    """
     template.id = template.id or uuid.uuid4()  # must be set now so version history model can use same id
     template.archived = False
 
@@ -33,15 +53,37 @@ def dao_create_template(template):
         redacted_dict.update({'updated_by_id': template.created_by_id})
 
     template.template_redacted = TemplateRedacted(**redacted_dict)
+    template.content_as_plain_text = None
+
+    # Generate HTML content for email templates if needed
+    template.content_as_html = generate_html_email_content(template)
 
     db.session.add(template)
 
 
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_update_template(template):
+def dao_update_template(template: Template):
+    """Update an existing template and create a history record.
+
+    This function:
+    - Removes the template from its folder if the template is being archived
+    - Regenerates HTML content for email templates if the template is not archived
+    - Creates a new template history record via the version_class decorator
+
+    Args:
+        template: The Template object to be updated with modified attributes.
+                 The template.id must reference an existing template.
+
+    Returns:
+        None - The template parameter is updated in place.
+    """
     if template.archived:
         template.folder = None
+    else:
+        # Generate HTML content for email templates if needed
+        template.content_as_html = generate_html_email_content(template)
+
     db.session.add(template)
 
 

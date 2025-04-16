@@ -24,7 +24,7 @@ from notifications_utils.recipients import (
     validate_email_address,
     ValidatedPhoneNumber,
 )
-from notifications_utils.template import PlainTextEmailTemplate, SMSMessageTemplate
+from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 
 from app import encryption
@@ -912,6 +912,17 @@ class TemplateBase(db.Model):
     ):
         pass
 
+    @property
+    def html(self):
+        if self.content_as_html:
+            return self.content_as_html
+        else:
+            if self.template_type == EMAIL_TYPE:
+                template_object = HTMLEmailTemplate({'content': self.content, 'subject': self.subject})
+                return str(template_object)
+            else:
+                return None
+
     def _as_utils_template(self):
         if self.template_type == EMAIL_TYPE:
             return PlainTextEmailTemplate({'content': self.content, 'subject': self.subject})
@@ -927,7 +938,7 @@ class TemplateBase(db.Model):
             'created_by': self.created_by.email_address,
             'version': self.version,
             'body': self.content,
-            'html': self.content_as_html,
+            'html': self.html,
             'plain_text': self.content_as_plain_text,
             'subject': self.subject if self.template_type != SMS_TYPE else None,
             'name': self.name,

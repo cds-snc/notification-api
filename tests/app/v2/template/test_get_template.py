@@ -20,7 +20,9 @@ def test_get_template_by_id_returns_200(
     tmp_type,
     version,
     sample_template,
+    mocker,
 ):
+    mocker.patch('app.utils.is_feature_enabled', return_value=True)
     api_key = sample_api_key()
     template = sample_template(service=api_key.service, template_type=tmp_type)
     auth_header = create_authorization_header(api_key)
@@ -35,7 +37,17 @@ def test_get_template_by_id_returns_200(
     assert response.status_code == 200
     assert response.headers['Content-type'] == 'application/json'
 
-    json_response = json.loads(response.get_data(as_text=True))
+    json_response = response.get_json()
+
+    html_content = json_response.pop('html')
+    plain_text_content = json_response.pop('plain_text')
+
+    if template.template_type == EMAIL_TYPE:
+        assert html_content == template.content_as_html
+        assert plain_text_content == template.content_as_plain_text
+    else:
+        assert html_content is None
+        assert plain_text_content == template.content_as_plain_text
 
     expected_response = {
         'id': '{}'.format(template.id),
@@ -45,8 +57,6 @@ def test_get_template_by_id_returns_200(
         'version': template.version,
         'created_by': template.created_by.email_address,
         'body': template.content,
-        'html': None,
-        'plain_text': None,
         'subject': template.subject,
         'name': template.name,
         'personalisation': {},
