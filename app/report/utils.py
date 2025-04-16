@@ -34,11 +34,10 @@ FR_TRANSLATIONS = {
 }
 
 EMAIL_STATUSES = {
+    # note: the permanent-failure case is covered in build_notifications_query
     "failed": "Failed",
     "technical-failure": "Tech issue",
     "temporary-failure": "Content or inbox issue",
-    # todo: not implemented yet. look at feedback_subtype here
-    # "permanent-failure": _getStatusByBounceSubtype(),
     "virus-scan-failed": "Attachment has virus",
     "delivered": "Delivered",
     "sending": "In transit",
@@ -50,12 +49,11 @@ EMAIL_STATUSES = {
 }
 
 SMS_STATUSES = {
+    # note: the permanent-failure case is covered in build_notifications_query
     "failed": "Failed",
     "technical-failure": "Tech issue",
     "temporary-failure": "Carrier issue",
     "permanent-failure": "No such number",
-    # todo: not implemented yet. look at feedback_subtype here
-    # "provider-failure": _get_sms_status_by_feedback_reason(),
     "delivered": "Delivered",
     "sending": "In transit",
     "created": "In transit",
@@ -109,6 +107,8 @@ def build_notifications_query(service_id, notification_type, language, days_limi
             j.original_file_name.label("job_name"),
             n.status.label("status"),
             n.created_at.label("created_at"),
+            n.feedback_subtype.label("feedback_subtype"),
+            n.feedback_reason.label("feedback_reason"),
         )
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
@@ -124,11 +124,29 @@ def build_notifications_query(service_id, notification_type, language, days_limi
 
     # Map statuses for translation
     translate = Translate(language).translate
+    # Provider-failure logic for email
+    provider_failure_email = case(
+        [(inner_query.c.feedback_subtype.in_(["suppressed", "on-account-suppression-list"]), "Blocked")], else_="No such address"
+    )
+    # Provider-failure logic for sms
+    provider_failure_sms = case(
+        [
+            (
+                inner_query.c.feedback_reason.in_(["NO_ORIGINATION_IDENTITIES_FOUND", "DESTINATION_COUNTRY_BLOCKED"]),
+                "Can't send to this international number",
+            )
+        ],
+        else_="No such number",
+    )
+
     email_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in EMAIL_STATUSES.items()]
     sms_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in SMS_STATUSES.items()]
+    # Add provider-failure logic
     if notification_type == "email":
+        email_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_email)))
         status_expr = case(email_status_cases, else_=inner_query.c.status)
     elif notification_type == "sms":
+        sms_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_sms)))
         status_expr = case(sms_status_cases, else_=inner_query.c.status)
     else:
         status_expr = inner_query.c.status
