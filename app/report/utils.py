@@ -16,18 +16,29 @@ FR_TRANSLATIONS = {
     "Sent Time": "Heure d’envoi",
     # notification types
     "email": "courriel",
-    "sms": "message texte",  # check this
+    "sms": "sms",
+    # notification statuses
+    "Failed": "Échec",
+    "Tech issue": "Problème technique",
+    "Content or inbox issue": "Problème de contenu ou de boîte de réception",
+    "Attachment has virus": "La pièce jointe contient un virus",
+    "Delivered": "Livraison réussie",
+    "In transit": "Envoi en cours",
+    "Exceeds Protected A": "Niveau supérieur à Protégé A",
+    "Carrier issue": "Problème du fournisseur",
+    "No such number": "Numéro inexistant",
+    "Sent": "Envoyé",
+    "Blocked": "Message bloqué",
+    "No such address": "Adresse inexistante",
+    # "Can't send to this international number": "" # no translation exists for this yet
 }
 
-# EN_TRANSLATIONS = {
-
-
-# email statuses
 EMAIL_STATUSES = {
     "failed": "Failed",
     "technical-failure": "Tech issue",
     "temporary-failure": "Content or inbox issue",
-    # "permanent-failure": _getStatusByBounceSubtype(), # need to look at feedback_subtype here
+    # todo: not implemented yet. look at feedback_subtype here
+    # "permanent-failure": _getStatusByBounceSubtype(),
     "virus-scan-failed": "Attachment has virus",
     "delivered": "Delivered",
     "sending": "In transit",
@@ -43,6 +54,7 @@ SMS_STATUSES = {
     "technical-failure": "Tech issue",
     "temporary-failure": "Carrier issue",
     "permanent-failure": "No such number",
+    # todo: not implemented yet. look at feedback_subtype here
     # "provider-failure": _get_sms_status_by_feedback_reason(),
     "delivered": "Delivered",
     "sending": "In transit",
