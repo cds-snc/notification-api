@@ -30,6 +30,7 @@ We wish to keep dependencies up to date so that we do not need such massive over
   - [ ] Any non-top level dependencies that have to be locked should have a comment added to `pyproject.toml` and have a checkbox to remove that dependency from `pyproject.toml` in the acceptance criteria
   - [ ] Created ticket has the package name in the title
 - [ ] Update dependencies in any "requirements" files still in the repository (ex. requirements.txt, requirements_cli.txt, etc.)
+- [ ] Run the following command to ensure our pre-commit hooks stay up-to-date with the rest our our dependencies. (`pre-commit autoupdate`)
 
 ## Acceptance Criteria
 

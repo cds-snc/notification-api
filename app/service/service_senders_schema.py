@@ -26,7 +26,7 @@ service_sms_sender_request_properties = {
     'provider_id': uuid,
     'rate_limit': {'type': ['integer', 'null'], 'minimum': 1},
     'rate_limit_interval': {'type': ['integer', 'null'], 'minimum': 1},
-    'sms_sender': {'type': 'string'},
+    'sms_sender': {'type': 'string', 'maxLength': 256},
     'sms_sender_specifics': {'type': ['object', 'null']},
 }
 

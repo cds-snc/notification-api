@@ -82,16 +82,17 @@ def test_add_service_sms_sender_returns_201_with_proper_data(admin_request, samp
 
 
 @pytest.mark.parametrize(
-    'include_provider, include_description',
-    [(True, False), (False, True), (False, False)],
-    ids=['no_provider', 'no_description', 'no_provider_nor_description'],
+    'include_provider, include_description, valid_sms_sender',
+    [(True, False, True), (False, True, True), (False, False, True), (True, True, False)],
+    ids=['no_provider', 'no_description', 'no_provider_nor_description', 'sms_sender_too_long'],
 )
-def test_add_service_sms_sender_returns_400_error_when_missing_expected_data(
+def test_add_service_sms_sender_returns_400_error_with_invalid_request_data(
     admin_request,
     sample_provider,
     sample_service,
     include_provider,
     include_description,
+    valid_sms_sender,
 ) -> None:
     service = sample_service()
     provider = sample_provider(display_name='test_provider_name')
@@ -103,7 +104,7 @@ def test_add_service_sms_sender_returns_400_error_when_missing_expected_data(
             'description': 'test description' if include_description else None,
             'is_default': True,
             'provider_id': str(provider.id) if include_provider else None,
-            'sms_sender': '+1234567890',
+            'sms_sender': '+1234567890' if valid_sms_sender else '1' * 257,
         },
         _expected_status=400,
     )

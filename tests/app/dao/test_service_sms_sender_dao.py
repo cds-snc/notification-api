@@ -8,7 +8,7 @@ import uuid
 
 import pytest
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import DataError, SQLAlchemyError
 
 from app.dao.service_sms_sender_dao import (
     archive_sms_sender,
@@ -140,6 +140,7 @@ class TestDaoAddSmsSenderForService:
 
         assert len(service_sms_senders) == 1
 
+        # service_cleanup will handle Teardown
         new_sms_sender = dao_add_sms_sender_for_service(
             service_id=service.id,
             sms_sender='new_sms',
@@ -155,6 +156,25 @@ class TestDaoAddSmsSenderForService:
 
         assert new_sms_sender in service_sms_senders_after_updates
 
+    def test_dao_add_sms_sender_256_char(self, notify_db_session, sample_provider, sample_service) -> None:
+        provider = sample_provider()
+        service = sample_service()
+
+        # service_cleanup will handle Teardown
+        new_sms_sender = dao_add_sms_sender_for_service(
+            service_id=service.id,
+            sms_sender='1' * 256,
+            is_default=False,
+            inbound_number_id=None,
+            provider_id=provider.id,
+            description='test',
+        )
+
+        stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
+        service_sms_senders_after_updates = notify_db_session.session.scalars(stmt).all()
+
+        assert new_sms_sender in service_sms_senders_after_updates
+
     def test_dao_switches_default(self, notify_db_session, sample_provider, sample_service) -> None:
         provider = sample_provider()
         service = sample_service()
@@ -162,6 +182,7 @@ class TestDaoAddSmsSenderForService:
         stmt = select(ServiceSmsSender).where(ServiceSmsSender.service_id == service.id)
         existing_sms_sender = notify_db_session.session.scalars(stmt).one()
 
+        # service_cleanup will handle Teardown
         new_sms_sender = dao_add_sms_sender_for_service(
             service_id=service.id,
             sms_sender='new_sms',
@@ -180,6 +201,25 @@ class TestDaoAddSmsSenderForService:
         new_sms_sender_after_updates = notify_db_session.session.scalars(stmt).one()
 
         assert new_sms_sender_after_updates.is_default
+
+    def test_dao_add_sms_sender_raises_exception_if_sms_sender_too_long(
+        self,
+        notify_db_session,
+        sample_provider,
+        sample_service,
+    ) -> None:
+        provider = sample_provider()
+        service = sample_service()
+
+        with pytest.raises(DataError):
+            dao_add_sms_sender_for_service(
+                service_id=service.id,
+                sms_sender='1' * 257,
+                is_default=False,
+                inbound_number_id=None,
+                provider_id=provider.id,
+                description='test',
+            )
 
     @pytest.mark.parametrize('rate_limit, rate_limit_interval', ([1, None], [None, 1]))
     def test_raises_exception_if_only_one_of_rate_limit_value_and_interval_provided(

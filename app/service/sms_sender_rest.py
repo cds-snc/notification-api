@@ -1,3 +1,5 @@
+from flask import Blueprint, current_app, jsonify, request
+
 from app.authentication.auth import validate_admin_auth
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.service_sms_sender_dao import (
@@ -19,7 +21,6 @@ from app.service.service_senders_schema import (
     add_service_sms_sender_request,
     update_service_sms_sender_request,
 )
-from flask import Blueprint, current_app, jsonify, request
 
 
 def _validate_service_exists():
