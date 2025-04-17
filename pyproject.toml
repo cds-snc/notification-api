@@ -72,7 +72,7 @@ unidecode = "1.3.8"
 # Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug = "3.0.4"
 # Pinned dependencies
-idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
+idna = "3.7" # pinned to align with test moto dependency requirements (for <=2.9)
 
 [tool.poetry.group.test.dependencies]
 coveralls = "3.3.1"
