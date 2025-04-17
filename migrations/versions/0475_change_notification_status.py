@@ -19,4 +19,4 @@ def upgrade():
 
 
 def downgrade():
-    pass
+    op.execute("UPDATE notification_status_types set name = 'pinpoint-failure' where name = 'provider-failure'")
