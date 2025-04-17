@@ -49,7 +49,7 @@ def upgrade():
                         '{NOTIFY_USER_ID}', 1)
                      """
     op.execute(heartbeat_service_history_insert)
-    
+
     for send_type in ('sms', 'email'):
         heartbeat_service_permissions_insert = f"""INSERT INTO service_permissions (service_id, permission, created_at) VALUES ('{NOTIFY_HEARTBEAT_SERVICE_ID}', '{send_type}', '{NOW}')"""
         op.execute(heartbeat_service_permissions_insert)
@@ -75,8 +75,14 @@ def upgrade():
           LIMIT 1
     """
     op.execute(annual_billing_insert)
-    
-    user_to_service_insert = f"""INSERT INTO user_to_service (user_id, service_id) VALUES ('{NOTIFY_USER_ID}', '{NOTIFY_HEARTBEAT_SERVICE_ID}')"""
+
+    user_to_service_insert = f"""
+        INSERT INTO user_to_service 
+            (user_id, service_id)
+            SELECT user_id, '{NOTIFY_HEARTBEAT_SERVICE_ID}'
+              FROM user_to_service
+             WHERE service_id = '{NOTIFY_SERVICE_ID}'
+    """
     op.execute(user_to_service_insert)
 
     for template_id in TEMPLATE_IDS:
@@ -99,8 +105,8 @@ def downgrade():
     annual_billing_delete = f"""DELETE FROM annual_billing WHERE service_id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
     op.execute(annual_billing_delete)
 
-    user_to_service_delete = """DELETE FROM user_to_service WHERE user_id = '{}' AND service_id = '{}'"""
-    op.execute(user_to_service_delete.format(NOTIFY_USER_ID, NOTIFY_HEARTBEAT_SERVICE_ID))
+    user_to_service_delete = f"""DELETE FROM user_to_service WHERE service_id = '{NOTIFY_HEARTBEAT_SERVICE_ID}'"""
+    op.execute(user_to_service_delete)
 
     for template_id in TEMPLATE_IDS:
         op.execute(
