@@ -3,7 +3,7 @@ from sqlalchemy.orm import aliased
 
 from app import db
 from app.aws.s3 import stream_to_s3
-from app.models import EMAIL_STATUSES, SMS_STATUSES, Job, Notification, Template, User
+from app.models import EMAIL_STATUS_FORMATTED, SMS_STATUS_FORMATTED, Job, Notification, Template, User
 
 FR_TRANSLATIONS = {
     "Recipient": "Destinataire",
@@ -111,8 +111,8 @@ def build_notifications_query(service_id, notification_type, language, days_limi
         else_="No such number",
     )
 
-    email_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in EMAIL_STATUSES.items()]
-    sms_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in SMS_STATUSES.items()]
+    email_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in EMAIL_STATUS_FORMATTED.items()]
+    sms_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in SMS_STATUS_FORMATTED.items()]
     # Add provider-failure logic
     if notification_type == "email":
         email_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_email)))
