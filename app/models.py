@@ -73,6 +73,33 @@ NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
+EMAIL_STATUSES = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Content or inbox issue",
+    "virus-scan-failed": "Attachment has virus",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "sent": "Delivered",
+    "pending": "In transit",
+    "pending-virus-check": "In transit",
+    "pii-check-failed": "Exceeds Protected A",
+}
+
+SMS_STATUSES = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
+}
+
+
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))
 
@@ -1905,30 +1932,12 @@ class Notification(BaseModel):
 
         return {
             "email": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Content or inbox issue",
+                **EMAIL_STATUSES,
                 "permanent-failure": _getStatusByBounceSubtype(),
-                "virus-scan-failed": "Attachment has virus",
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "sent": "Delivered",
-                "pending": "In transit",
-                "pending-virus-check": "In transit",
-                "pii-check-failed": "Exceeds Protected A",
             },
             "sms": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Carrier issue",
-                "permanent-failure": "No such number",
+                **SMS_STATUSES,
                 "provider-failure": _get_sms_status_by_feedback_reason(),
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "pending": "In transit",
-                "sent": "Sent",
             },
             "letter": {
                 "technical-failure": "Technical failure",

@@ -3,7 +3,7 @@ from sqlalchemy.orm import aliased
 
 from app import db
 from app.aws.s3 import stream_to_s3
-from app.models import Job, Notification, Template, User
+from app.models import EMAIL_STATUSES, SMS_STATUSES, Job, Notification, Template, User
 
 FR_TRANSLATIONS = {
     "Recipient": "Destinataire",
@@ -31,34 +31,6 @@ FR_TRANSLATIONS = {
     "Blocked": "Message bloqué",
     "No such address": "Adresse inexistante",
     # "Can't send to this international number": "" # no translation exists for this yet
-}
-
-EMAIL_STATUSES = {
-    # note: the permanent-failure case is covered in build_notifications_query
-    "failed": "Failed",
-    "technical-failure": "Tech issue",
-    "temporary-failure": "Content or inbox issue",
-    "virus-scan-failed": "Attachment has virus",
-    "delivered": "Delivered",
-    "sending": "In transit",
-    "created": "In transit",
-    "sent": "Delivered",
-    "pending": "In transit",
-    "pending-virus-check": "In transit",
-    "pii-check-failed": "Exceeds Protected A",
-}
-
-SMS_STATUSES = {
-    # note: the permanent-failure case is covered in build_notifications_query
-    "failed": "Failed",
-    "technical-failure": "Tech issue",
-    "temporary-failure": "Carrier issue",
-    "permanent-failure": "No such number",
-    "delivered": "Delivered",
-    "sending": "In transit",
-    "created": "In transit",
-    "pending": "In transit",
-    "sent": "Sent",
 }
 
 
