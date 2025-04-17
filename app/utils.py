@@ -21,7 +21,7 @@ from app.constants import (
 )
 from app.feature_flags import is_gapixel_enabled
 from app.googleanalytics.pixels import build_dynamic_ga4_pixel_tracking_url
-from app.feature_flags import is_feature_enabled, FeatureFlag
+from app.models import TemplateBase
 
 local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/New_York'))
 
@@ -184,7 +184,9 @@ def get_logo_url(base_url, logo_file):
     return f'https://{bucket}.{domain}/{logo_file}'
 
 
-def get_html_email_options(template) -> Dict[str, Union[str, bool]]:
+def get_html_email_options(
+    template: TemplateBase, notification_id: str = 'xx_notification_id_xx'
+) -> Dict[str, Union[str, bool]]:
     """
     Generate HTML email options dictionary for email rendering.
 
@@ -198,6 +200,7 @@ def get_html_email_options(template) -> Dict[str, Union[str, bool]]:
     Args:
         template: The template object that contains a reference to the service
                 with branding configuration
+        notification_id: The ID of the notification (default is a placeholder)
 
     Returns:
         Dict[str, Union[str, bool]]: A dictionary containing HTML email options including:
@@ -211,7 +214,7 @@ def get_html_email_options(template) -> Dict[str, Union[str, bool]]:
     """
     options_dict = {}
     if is_gapixel_enabled(current_app):
-        options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url('xx_notification_id_xx')
+        options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification_id)
 
     service = template.service
     if service.email_branding is None:
@@ -249,8 +252,8 @@ def generate_html_email_content(template) -> Optional[str]:
              None otherwise
     """
 
-    # Only generate HTML content for email templates when the feature flag is enabled
-    if template.template_type == EMAIL_TYPE and is_feature_enabled(FeatureFlag.STORE_TEMPLATE_CONTENT):
+    content = None
+    if template.template_type == EMAIL_TYPE:
         template_object = HTMLEmailTemplate(
             {
                 'content': template.content,
@@ -258,6 +261,6 @@ def generate_html_email_content(template) -> Optional[str]:
             },
             **get_html_email_options(template),
         )
-        return str(template_object)
+        content = str(template_object)
 
-    return None
+    return content

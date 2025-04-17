@@ -103,70 +103,112 @@ def test_create_template(
     template_cleanup(notify_db_session.session, db_template.id)
 
 
-@pytest.mark.parametrize(
-    'template_type, should_have_html',
-    [
-        (EMAIL_TYPE, True),
-        (SMS_TYPE, False),
-    ],
-)
-def test_create_template_sets_content_as_html_for_email_only(
+def test_create_email_template_with_html_enabled(
     notify_db_session: SQLAlchemy,
-    sample_service: Callable[..., Any | Service],
     sample_template: Callable[..., Any],
-    template_type: Literal['email'] | Literal['sms'] | Literal['letter'],
-    should_have_html: bool,
     mocker: MockerFixture,
 ):
+    """Test creating an email template with HTML content generation enabled."""
     # Mock generate_html_email_content to return a fixed string for testing
     mock_html_content = '<p>Template with HTML content</p>'
     mock_generate = mocker.patch(
         'app.dao.templates_dao.generate_html_email_content',
-        return_value=mock_html_content if should_have_html else None,
+        return_value=mock_html_content,
     )
-    mocker.patch('app.utils.is_feature_enabled', return_value=True)
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=True)
 
-    service = sample_service()
     template = sample_template(
-        template_type=template_type,
+        template_type=EMAIL_TYPE,
         content='Template with content',
-        service=service,
+    )
+
+    mock_generate.assert_called_once_with(template)
+    assert template.content_as_html == mock_html_content
+
+
+def test_create_email_template_with_html_disabled(
+    notify_db_session: SQLAlchemy,
+    sample_template: Callable[..., Any],
+    mocker: MockerFixture,
+):
+    """Test creating an email template with HTML content generation disabled."""
+    mock_generate = mocker.patch(
+        'app.dao.templates_dao.generate_html_email_content',
+        return_value=None,
+    )
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=False)
+
+    template = sample_template(
+        template_type=EMAIL_TYPE,
+        content='Template with content',
     )
     persisted_template = notify_db_session.session.get(Template, template.id)
-    try:
-        # Assert generate_html_email_content was called appropriately
-        if template_type == EMAIL_TYPE:
-            mock_generate.assert_called_once_with(template)
-            assert persisted_template.content_as_html == mock_html_content
-        else:
-            mock_generate.assert_called_once_with(template)
-            assert persisted_template.content_as_html is None
-    finally:
-        template_cleanup(notify_db_session.session, template.id)
+    # Assert generate_html_email_content was called but HTML content is not set
+    mock_generate.assert_not_called()
+    assert persisted_template.content_as_html is None
 
 
-@pytest.mark.parametrize(
-    'template_type, should_have_html',
-    [
-        (EMAIL_TYPE, True),
-        (SMS_TYPE, False),
-    ],
-)
-def test_update_template_updates_content_as_html(
+@pytest.mark.parametrize('feature_enabled', [True, False])
+def test_create_sms_template_content_as_html_always_none(
+    notify_db_session: SQLAlchemy,
+    sample_template: Callable[..., Any],
+    mocker: MockerFixture,
+    feature_enabled: bool,
+):
+    """Test creating an SMS template always has content_as_html set to None regardless of feature flag status."""
+    mock_generate = mocker.patch(
+        'app.dao.templates_dao.generate_html_email_content',
+        return_value=None,
+    )
+    # Set feature flag based on parameter
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=feature_enabled)
+
+    template = sample_template(
+        template_type=SMS_TYPE,
+        content='Template with content',
+    )
+    # Assert generate_html_email_content was called but HTML content is not set for SMS
+    mock_generate.assert_not_called()
+    assert template.content_as_html is None
+
+
+def test_update_email_template_updates_content_as_html(
+    notify_db_session: SQLAlchemy,
+    sample_template: Callable[..., Any],
+    mocker: MockerFixture,
+):
+    # Mock generate_html_email_content to return a fixed string for testing
+    mock_html_content = '<p>Updated HTML content</p>'
+    mock_generate = mocker.patch(
+        'app.dao.templates_dao.generate_html_email_content',
+        return_value=mock_html_content,
+    )
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=True)
+    template = sample_template(template_type=EMAIL_TYPE)
+
+    # Update the template content
+    template.content = 'Updated content'
+    dao_update_template(template)
+    updated_template = notify_db_session.session.get(Template, template.id)
+
+    # Assert generate_html_email_content was called appropriately
+    mock_generate.assert_called_with(template)
+    assert updated_template.content_as_html == mock_html_content
+
+
+def test_update_email_template_without_html_feature(
     notify_db_session: SQLAlchemy,
     sample_service: Callable[..., Any | Service],
     sample_template: Callable[..., Any],
-    template_type: Literal['email'] | Literal['sms'] | Literal['letter'],
-    should_have_html: bool,
     mocker: MockerFixture,
 ):
-    template = sample_template(template_type=template_type)
-    # Mock generate_html_email_content to return a fixed string for testing
-    mock_html_content = '<p>Updated HTML content</p>'
-    mocker.patch(
+    # Mock generate_html_email_content to return None when feature is disabled
+    mock_generate = mocker.patch(
         'app.dao.templates_dao.generate_html_email_content',
-        return_value=mock_html_content if should_have_html else None,
+        return_value=None,
     )
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=False)
+    template = sample_template(template_type=EMAIL_TYPE)
 
     # Update the template content
     template.content = 'Updated content'
@@ -175,10 +217,35 @@ def test_update_template_updates_content_as_html(
 
     try:
         # Assert generate_html_email_content was called appropriately
-        if template_type == EMAIL_TYPE:
-            assert updated_template.content_as_html == mock_html_content
-        else:
-            assert updated_template.content_as_html is None
+        mock_generate.assert_not_called()
+        assert updated_template.content_as_html is None
+    finally:
+        template_cleanup(notify_db_session.session, template.id)
+
+
+def test_update_sms_template_does_not_update_html_content(
+    notify_db_session: SQLAlchemy,
+    sample_service: Callable[..., Any | Service],
+    sample_template: Callable[..., Any],
+    mocker: MockerFixture,
+):
+    # Mock generate_html_email_content to verify it's called but returns None for SMS
+    mock_generate = mocker.patch(
+        'app.dao.templates_dao.generate_html_email_content',
+        return_value=None,
+    )
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=True)
+    template = sample_template(template_type=SMS_TYPE)
+
+    # Update the template content
+    template.content = 'Updated content'
+    dao_update_template(template)
+    updated_template = notify_db_session.session.get(Template, template.id)
+
+    try:
+        # Assert generate_html_email_content was called but HTML content is None for SMS
+        mock_generate.assert_not_called()
+        assert updated_template.content_as_html is None
     finally:
         template_cleanup(notify_db_session.session, template.id)
 
@@ -253,16 +320,9 @@ def test_update_template(
 def test_update_template_in_a_folder_to_archived(
     notify_db_session: SQLAlchemy,
     sample_service: Callable[..., Any | Service],
+    sample_template: Callable[..., Any],
 ):
     service = sample_service()
-    template_data = {
-        'name': 'Sample Template',
-        'template_type': SMS_TYPE,
-        'content': 'Template content',
-        'service': service,
-        'created_by': service.created_by,
-    }
-    template = Template(**template_data)
 
     template_folder_data = {
         'name': 'My Folder',
@@ -270,20 +330,22 @@ def test_update_template_in_a_folder_to_archived(
     }
     template_folder = TemplateFolder(**template_folder_data)
 
-    template.folder = template_folder
-    dao_create_template(template)
+    # Create template with folder
+    template = sample_template(service=service, folder=template_folder)
 
+    # Verify initial state
+    assert template.folder == template_folder
+
+    # Archive the template
     template.archived = True
     dao_update_template(template)
 
+    # Verify template folder still exists but template no longer has folder relationship
     template_folder = notify_db_session.session.get(TemplateFolder, template_folder.id)
     archived_template = notify_db_session.session.get(Template, template.id)
 
     assert template_folder
     assert not archived_template.folder
-
-    # Teardown
-    template_cleanup(notify_db_session.session, template.id)
 
 
 def test_dao_update_template_reply_to_none_to_some(
@@ -510,19 +572,38 @@ def test_get_all_templates_for_service_is_alphabetised(
 def test_get_all_returns_empty_list_if_no_templates(
     notify_db_session: SQLAlchemy,
     sample_service: Callable[..., Any | Service],
+    sample_template: Callable[..., Any],
 ):
-    service = sample_service()
-    assert notify_db_session.session.scalar(select(Template).where(Template.service_id == service.id)) is None
-    assert len(dao_get_all_templates_for_service(service.id)) == 0
+    template = sample_template()  # This creates a template with a service
+
+    # Create a different service with no templates
+    service_with_no_templates = sample_service()
+
+    try:
+        # Verify the service with templates has at least one template
+        assert len(dao_get_all_templates_for_service(template.service_id)) > 0
+
+        # Verify the service with no templates returns an empty list
+        assert (
+            notify_db_session.session.scalar(
+                select(Template).where(Template.service_id == service_with_no_templates.id)
+            )
+            is None
+        )
+        assert len(dao_get_all_templates_for_service(service_with_no_templates.id)) == 0
+    finally:
+        # Teardown
+        template_cleanup(notify_db_session.session, template.id)
 
 
 def test_get_all_templates_ignores_archived_templates(
     notify_db_session: SQLAlchemy,
     sample_service: Callable[..., Any | Service],
+    sample_template: Callable[..., Any],
 ):
     service = sample_service()
-    normal_template = create_template(template_name=str(uuid4()), service=service, archived=False)
-    archived_template = create_template(template_name=str(uuid4()), service=service)
+    normal_template = sample_template(service=service)
+    archived_template = sample_template(service=service)
 
     # sample_template fixture uses dao, which forces archived = False at creation.
     archived_template.archived = True
@@ -530,12 +611,14 @@ def test_get_all_templates_ignores_archived_templates(
 
     templates = dao_get_all_templates_for_service(service.id)
 
-    assert len(templates) == 1
-    assert templates[0] == normal_template
+    try:
+        assert len(templates) == 1
+        assert templates[0] == normal_template
 
-    # Teardown
-    template_cleanup(notify_db_session.session, normal_template.id)
-    template_cleanup(notify_db_session.session, archived_template.id)
+    finally:
+        # Teardown
+        template_cleanup(notify_db_session.session, normal_template.id)
+        template_cleanup(notify_db_session.session, archived_template.id)
 
 
 def test_get_all_templates_ignores_hidden_templates(

@@ -6,6 +6,7 @@ import html
 import itertools
 import uuid
 
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from flask import current_app, url_for
 
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint, and_, select
@@ -913,15 +914,17 @@ class TemplateBase(db.Model):
         pass
 
     @property
-    def html(self):
-        if self.content_as_html:
-            return self.content_as_html
-        else:
-            if self.template_type == EMAIL_TYPE:
-                template_object = HTMLEmailTemplate({'content': self.content, 'subject': self.subject})
-                return str(template_object)
+    def html(self) -> str:
+        content = None
+        if is_feature_enabled(FeatureFlag.STORE_TEMPLATE_CONTENT):
+            if self.content_as_html:
+                content = self.content_as_html
             else:
-                return None
+                if self.template_type == EMAIL_TYPE:
+                    template_object = HTMLEmailTemplate({'content': self.content, 'subject': self.subject})
+                    content = str(template_object)
+
+        return content
 
     def _as_utils_template(self):
         if self.template_type == EMAIL_TYPE:

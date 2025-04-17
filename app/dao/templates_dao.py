@@ -5,13 +5,14 @@ from flask import current_app
 from sqlalchemy import asc, desc, func, select, update
 
 from app import db
-from app.constants import LETTER_TYPE, SECOND_CLASS
+from app.constants import EMAIL_TYPE, LETTER_TYPE, SECOND_CLASS
 from app.dao.dao_utils import (
     transactional,
     version_class,
     VersionOptions,
 )
 from app.dao.users_dao import get_user_by_id
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     Template,
     TemplateHistory,
@@ -55,8 +56,9 @@ def dao_create_template(template: Template):
     template.template_redacted = TemplateRedacted(**redacted_dict)
     template.content_as_plain_text = None
 
-    # Generate HTML content for email templates if needed
-    template.content_as_html = generate_html_email_content(template)
+    if template.template_type == EMAIL_TYPE and is_feature_enabled(FeatureFlag.STORE_TEMPLATE_CONTENT):
+        template.content_as_html = generate_html_email_content(template)
+        template.content_as_plain_text = None
 
     db.session.add(template)
 
@@ -80,8 +82,7 @@ def dao_update_template(template: Template):
     """
     if template.archived:
         template.folder = None
-    else:
-        # Generate HTML content for email templates if needed
+    if template.template_type == EMAIL_TYPE and is_feature_enabled(FeatureFlag.STORE_TEMPLATE_CONTENT):
         template.content_as_html = generate_html_email_content(template)
 
     db.session.add(template)

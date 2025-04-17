@@ -1,12 +1,14 @@
 fileignoreconfig:
 - filename: app/celery/reporting_tasks.py
   checksum: 2374dafe0993f493addc7ea8276342371584cf98d1a60c152a419981f85ea05a
+- filename: app/delivery/send_to_providers.py
+  checksum: 0d0602d29851e4b485e231a1c101fdf3c7845951efd82bd966885d80204504d5
 - filename: app/feature_flags.py
   checksum: e6ffbab28f29de186ece73eda6602376e221e42d5bbfd8f25d9958dd3594e9af
 - filename: cd/application-deployment/dev/dev.env
-  checksum: 095af3cb69097b02a3f1161a065db9fe7ee8280fed66efa6a47f4e715ba4978c
+  checksum: 250b2934c210f9cce3d7e037212102f3a46ad22469223f1480680f53c09ec5c9
 - filename: cd/application-deployment/perf/perf.env
-  checksum: 8c7dceed2b3a04e9ba4ba1fffc8eae7306a39213eaebbe25e3fdbe006d2a60b1
+  checksum: 2cb54644e1e90931e7444fc3a6fd21305fe0e845c1be44a383e9d396615f558b
 - filename: cd/application-deployment/prod/prod.env
   checksum: 43088cf568fd761f6b3a55be2525479e57f7e325427616bb220342416a630c3d
 - filename: cd/application-deployment/staging/staging.env
@@ -15,6 +17,8 @@ fileignoreconfig:
   checksum: 4e6e2fabf9630e9e0d26028818f41f34c065e80c223db34d35a1d1068c37a782
 - filename: poetry.lock
   checksum: 93b9aac800f82240d8b1fa135e47925d7237043a362455d1239fdd1c9d342ba9
+- filename: tests/app/delivery/test_send_to_providers.py
+  checksum: 7db1b20912c3f7a5cb366eb143cace80bfb406ca1af844e11022747e7311aea5
 - filename: tests/app/notifications/test_validators.py
   checksum: 7e95b0854fdc12ab60e97347f5e6498e99b29b9df3b635487ab89189ed11fabb
 - filename: tests/app/service/test_rest.py

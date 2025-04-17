@@ -13,7 +13,7 @@ def build_dynamic_ga4_pixel_tracking_url(notification_id: str) -> str:
 
     url = (
         f'{current_app.config["PUBLIC_DOMAIN"]}'
-        f'{current_app.config["NOTIFICATION_API_GA4_GET_ENDPOINT"]}/{str(notification_id)}'
+        f'{current_app.config["NOTIFICATION_API_GA4_GET_ENDPOINT"]}/{notification_id}'
     )
     current_app.logger.debug('Generated Google Analytics 4 pixel URL: %s', url)
     return url

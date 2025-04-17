@@ -14,6 +14,7 @@ valid_version_params = [None, 1]
     ],
 )
 @pytest.mark.parametrize('version', valid_version_params)
+@pytest.mark.parametrize('store_template_content', [True, False])
 def test_get_template_by_id_returns_200(
     client,
     sample_api_key,
@@ -21,8 +22,10 @@ def test_get_template_by_id_returns_200(
     version,
     sample_template,
     mocker,
+    store_template_content,
 ):
-    mocker.patch('app.utils.is_feature_enabled', return_value=True)
+    mocker.patch('app.models.is_feature_enabled', return_value=store_template_content)
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_template_content)
     api_key = sample_api_key()
     template = sample_template(service=api_key.service, template_type=tmp_type)
     auth_header = create_authorization_header(api_key)
@@ -42,12 +45,12 @@ def test_get_template_by_id_returns_200(
     html_content = json_response.pop('html')
     plain_text_content = json_response.pop('plain_text')
 
-    if template.template_type == EMAIL_TYPE:
+    if template.template_type == EMAIL_TYPE and store_template_content:
         assert html_content == template.content_as_html
         assert plain_text_content == template.content_as_plain_text
     else:
         assert html_content is None
-        assert plain_text_content == template.content_as_plain_text
+        assert plain_text_content is None
 
     expected_response = {
         'id': '{}'.format(template.id),

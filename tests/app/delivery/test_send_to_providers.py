@@ -1196,6 +1196,7 @@ def test_template_or_service_provider_is_not_used_when_feature_flag_is_off(
     mock_load_provider.assert_not_called()
 
 
+@pytest.mark.parametrize('store_template_content_ff', [True, False])
 def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
     sample_api_key,
     sample_notification,
@@ -1203,14 +1204,16 @@ def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
     mock_email_client,
     notify_api,
     mocker,
+    store_template_content_ff,
 ):
     """
-    Test that emails sent through send_email_to_provider include a GA4 pixel tracking image in the HTML content.
+    Test that emails sent through send_email_to_provider include a GA4 pixel tracking image in the HTML content
+    when the feature flag is enabled.
     """
     # Set up mocks
     pixel_url = 'https://test-api.va.gov/vanotify/ga4/open-email-tracking/xx_notification_id_xx'
-    mocker.patch('app.utils.is_feature_enabled', return_value=True)
-    mocker.patch('app.utils.is_gapixel_enabled', return_value=True)
+
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_template_content_ff)
     mocker.patch('app.googleanalytics.pixels.build_dynamic_ga4_pixel_tracking_url', return_value=pixel_url)
 
     # Create test data
@@ -1225,14 +1228,60 @@ def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
         to_field='test@example.com',
         api_key=sample_api_key(service=template.service),
     )
-    expected_pixel_url = pixel_url.replace('xx_notification_id_xx', str(db_notification.id))
-    # Call the function under test
+
     send_to_providers.send_email_to_provider(db_notification)
 
-    # Get the HTML content that was sent to the email client
     mock_email_client.send_email.assert_called_once()
     html_body = mock_email_client.send_email.call_args[1]['html_body']
 
-    # Check for the GA4 pixel tracking image in the HTML
+    # Check for the GA4 pixel tracking image in the HTML content, regardless of the STORE_TEMPLATE_CONTENT feature flag
+    expected_pixel_url = pixel_url.replace('xx_notification_id_xx', str(db_notification.id))
     expected_pixel_img = f'<img id="ga4_open_email_event_url" src="{expected_pixel_url}"'
-    assert expected_pixel_img in html_body, f'GA4 pixel tracking image not found in HTML: {html_body}'
+    assert expected_pixel_img in html_body, (
+        f'GA4 pixel tracking image not found in HTML when feature enabled: {html_body}'
+    )
+
+
+@pytest.mark.parametrize('store_content_flag', [True, False])
+def test_send_email_to_provider_html_body_is_always_string_type(
+    sample_api_key,
+    sample_notification,
+    sample_template,
+    mock_email_client,
+    mocker,
+    store_content_flag,
+):
+    """
+    Test that ensures the html_body parameter passed to send_email is always a string,
+    regardless of the template content or feature flags.
+    """
+    # Set up feature flag
+    mocker.patch('app.delivery.send_to_providers.is_feature_enabled', return_value=store_content_flag)
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_content_flag)
+    mocker.patch('app.models.is_feature_enabled', return_value=store_content_flag)
+    template = sample_template(
+        template_type=EMAIL_TYPE,
+        subject='Test Subject',
+        content='Test Content with ((placeholder))',
+    )
+
+    # Create notification with complex personalisation
+    db_notification = sample_notification(
+        template=template,
+        to_field='test@example.com',
+        personalisation={'placeholder': 'value with special chars: <>&"\''},
+        api_key=sample_api_key(service=template.service),
+    )
+
+    # Call the function under test
+    send_to_providers.send_email_to_provider(db_notification)
+
+    # Verify the call
+    mock_email_client.send_email.assert_called_once()
+    html_body = mock_email_client.send_email.call_args[1]['html_body']
+
+    # Check that html_body is actually a string
+    assert isinstance(html_body, str), f'html_body should be a string, got {type(html_body)} instead'
+
+    # Ensure html_body has content (not empty)
+    assert html_body, 'html_body should not be empty'

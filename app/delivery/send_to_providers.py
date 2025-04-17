@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import current_app
 
 from notifications_utils.recipients import ValidatedPhoneNumber, validate_and_format_email_address
-from notifications_utils.template import PlainTextEmailTemplate, SMSMessageTemplate
+from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate, SMSMessageTemplate
 
 
 from app import attachment_store, clients, statsd_client, provider_service
@@ -34,7 +34,7 @@ from app.models import (
     ProviderDetails,
 )
 from app.service.utils import compute_source_email_address
-from app.utils import create_uuid
+from app.utils import create_uuid, get_html_email_options
 
 
 def send_sms_to_provider(
@@ -138,16 +138,24 @@ def send_email_to_provider(notification: Notification):
     template_dict = dao_get_template_by_id(notification.template_id, notification.template_version).__dict__
     plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
 
-    html_content = notification.template.html
-    if html_content:
-        html_content = html_content.replace('xx_notification_id_xx', str(notification.id))
-        for key, value in personalisation_data.items():
-            # Escape the key to prevent regex injection
-            key = re.escape(key)
-            # Match the placeholder in HTML. The regex captures the placeholder and any surrounding whitespace.
-            # The span tag is dictated by the Field class in the utils template.
-            regex = rf"<span class='placeholder'>\s*\(\(\s*{key}\s*\)\)\s*</span>"
-            html_content = re.sub(regex, str(value), html_content)
+    if is_feature_enabled(FeatureFlag.STORE_TEMPLATE_CONTENT):
+        html_content = notification.template.html or ''
+        if html_content:
+            html_content = html_content.replace('xx_notification_id_xx', str(notification.id))
+            for key, value in personalisation_data.items():
+                # Escape the key to prevent regex injection
+                key = re.escape(key)
+                # Match the placeholder in HTML. The regex captures the placeholder and any surrounding whitespace.
+                # The span tag is dictated by the Field class in the utils template.
+                regex = rf"<span class='placeholder'>\s*\(\(\s*{key}\s*\)\)\s*</span>"
+                html_content = re.sub(regex, str(value), html_content)
+    else:
+        html_email = HTMLEmailTemplate(
+            template_dict,
+            values=personalisation_data,
+            **get_html_email_options(notification.template, str(notification.id)),
+        )
+        html_content = str(html_email)
 
     if service.research_mode or notification.key_type == KEY_TYPE_TEST:
         notification.reference = create_uuid()
