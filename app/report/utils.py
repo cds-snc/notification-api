@@ -172,7 +172,10 @@ def build_notifications_query(service_id, notification_type, language, days_limi
         func.coalesce(inner_query.c.user_email, "").label(translate("Sent by email")),
         func.coalesce(inner_query.c.job_name, "").label(translate("Job")),
         status_expr,
-        func.to_char(inner_query.c.created_at, "YYYY-MM-DD HH24:MI:SS").label(translate("Sent Time")),
+        # Explicitly cast created_at to UTC, then to America/Toronto
+        func.to_char(
+            func.timezone("America/Toronto", func.timezone("UTC", inner_query.c.created_at)), "YYYY-MM-DD HH24:MI:SS"
+        ).label(translate("Sent Time")),
     )
 
 
