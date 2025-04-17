@@ -73,6 +73,33 @@ NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
 
+EMAIL_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Content or inbox issue",
+    "virus-scan-failed": "Attachment has virus",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "sent": "Delivered",
+    "pending": "In transit",
+    "pending-virus-check": "In transit",
+    "pii-check-failed": "Exceeds Protected A",
+}
+
+SMS_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
+}
+
+
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))
 
@@ -1885,6 +1912,7 @@ class Notification(BaseModel):
     def formatted_status(self):
         def _getStatusByBounceSubtype():
             """Return the status of a notification based on the bounce sub type"""
+            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
             if self.feedback_subtype:
                 return {
                     "suppressed": "Blocked",
@@ -1895,6 +1923,7 @@ class Notification(BaseModel):
 
         def _get_sms_status_by_feedback_reason():
             """Return the status of a notification based on the feedback reason"""
+            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
             if self.feedback_reason:
                 return {
                     "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
@@ -1905,30 +1934,12 @@ class Notification(BaseModel):
 
         return {
             "email": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Content or inbox issue",
+                **EMAIL_STATUS_FORMATTED,
                 "permanent-failure": _getStatusByBounceSubtype(),
-                "virus-scan-failed": "Attachment has virus",
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "sent": "Delivered",
-                "pending": "In transit",
-                "pending-virus-check": "In transit",
-                "pii-check-failed": "Exceeds Protected A",
             },
             "sms": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Carrier issue",
-                "permanent-failure": "No such number",
+                **SMS_STATUS_FORMATTED,
                 "provider-failure": _get_sms_status_by_feedback_reason(),
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "pending": "In transit",
-                "sent": "Sent",
             },
             "letter": {
                 "technical-failure": "Technical failure",
