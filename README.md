@@ -501,12 +501,6 @@ The instructions below are for running locally.  The scans also are implemented 
 make check-vulnerabiltiies
 ```
 
-[Safety](https://pyup.io/safety/) checks python dependencies for known security vulnerabilities.
-
-```bash
-make check-dependencies
-```
-
 ---
 
 ## Using our Endpoints

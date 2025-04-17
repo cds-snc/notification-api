@@ -27,18 +27,9 @@ install-bandit:
 check-vulnerabilities: install-bandit ## Scan code for vulnerabilities and issues
 	bandit -c pyproject.toml -r app/ -l
 
-install-safety:
-	pip install safety
-
-check-dependencies: install-safety ## Scan dependencies for security vulnerabilities
-	# 12 Dec 2023: 51668 is fixed with >= 2.0.0b1 of SQLAlchemy. Ongoing refactor to upgrade.
-
-	safety check -r poetry.lock --full-report -i 51668
-
 .PHONY:
 	help \
 	generate-version-file \
 	test \
 	clean \
-	check-vulnerabilities \
-	check-dependencies
+	check-vulnerabilities
