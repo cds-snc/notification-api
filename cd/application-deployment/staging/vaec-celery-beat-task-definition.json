@@ -92,10 +92,6 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/redis/url"
-        },
-        {
-          "name": "VA_ONSITE_SECRET",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/onsite/notification-priv"
         }
       ],
       "command": [

@@ -88,10 +88,6 @@
           "value": "True"
         },
         {
-          "name": "VA_ONSITE_URL",
-          "value": "https://staging-api.va.gov"
-        },
-        {
           "name": "VA_PROFILE_URL",
           "value": "https://qa.vaprofile.va.gov"
         },
@@ -220,10 +216,6 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/redis/url"
-        },
-        {
-          "name": "VA_ONSITE_SECRET",
-          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/onsite/notification-priv"
         }
       ],
       "command": [

@@ -16,7 +16,6 @@ from sqlalchemy import delete, select
 
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
 from app.celery.provider_tasks import deliver_email, deliver_sms
 from app.constants import (
     EMAIL_TYPE,
@@ -942,7 +941,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             IdentifierType.VA_PROFILE_ID.value,
             EMAIL_TYPE,
             [
-                send_va_onsite_notification_task,
                 lookup_contact_info,
                 deliver_email,
             ],
@@ -951,7 +949,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             IdentifierType.VA_PROFILE_ID.value,
             SMS_TYPE,
             [
-                send_va_onsite_notification_task,
                 lookup_contact_info,
                 deliver_sms,
             ],
@@ -961,7 +958,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             EMAIL_TYPE,
             [
                 lookup_va_profile_id,
-                send_va_onsite_notification_task,
                 lookup_contact_info,
                 deliver_email,
             ],
@@ -971,7 +967,6 @@ def test_persist_notification_should_not_persist_recipient_identifier_if_none_pr
             SMS_TYPE,
             [
                 lookup_va_profile_id,
-                send_va_onsite_notification_task,
                 lookup_contact_info,
                 deliver_sms,
             ],

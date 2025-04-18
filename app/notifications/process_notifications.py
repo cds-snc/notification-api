@@ -19,7 +19,6 @@ from app import redis_store
 from app.celery import provider_tasks
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.celery.onsite_notification_tasks import send_va_onsite_notification_task
 from app.config import QueueNames
 from app.constants import (
     EMAIL_TYPE,
@@ -335,20 +334,11 @@ def send_to_queue_for_recipient_info_based_on_recipient_identifier(
     This is the execution path for sending notifications with recipient identifiers.
     """
 
-    if id_type == IdentifierType.VA_PROFILE_ID.value:
-        tasks = [
-            send_va_onsite_notification_task.s(id_value, str(notification.template.id), onsite_enabled).set(
-                queue=QueueNames.NOTIFY
-            ),
-        ]
-
-    else:
-        tasks = [
+    tasks = []
+    if id_type != IdentifierType.VA_PROFILE_ID.value:
+        tasks.append(
             lookup_va_profile_id.si(notification_id=notification.id).set(queue=QueueNames.LOOKUP_VA_PROFILE_ID),
-            send_va_onsite_notification_task.s(str(notification.template.id), onsite_enabled).set(
-                queue=QueueNames.NOTIFY
-            ),
-        ]
+        )
 
     tasks.append(lookup_contact_info.si(notification_id=notification.id).set(queue=QueueNames.LOOKUP_CONTACT_INFO))
     deliver_task, deliver_queue = _get_delivery_task(notification)
