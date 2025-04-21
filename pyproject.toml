@@ -55,7 +55,7 @@ twilio = "*"
 Unidecode = "*"
 validatesns = "*"
 Werkzeug = "*"
-notification-utils = {git = "https://github.com/department-of-veterans-affairs/notification-utils.git"}
+notification-utils = {git = "https://github.com/department-of-veterans-affairs/notification-utils.git", branch="188-bugfix-spaces-in-links"}
 
 [tool.poetry.group.test]
 optional = true
