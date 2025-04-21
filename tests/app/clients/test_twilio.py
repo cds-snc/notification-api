@@ -8,7 +8,7 @@ from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
 from twilio.base.exceptions import TwilioRestException
 from urllib.parse import parse_qsl
 
-from app import twilio_sms_client
+from app import twilio_sms_client, redis_store
 from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms import SmsStatusRecord
 from app.clients.sms.twilio import get_twilio_responses, TwilioSMSClient, TwilioStatus

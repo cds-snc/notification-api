@@ -1,6 +1,7 @@
 import pytest
 import botocore
 
+from app import redis_store
 from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
 from app.exceptions import InvalidProviderException
@@ -63,6 +64,33 @@ def test_send_sms_successful_returns_aws_pinpoint_response_messageid(
 
     response = aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=sender)
     assert response == TEST_MESSAGE_ID
+
+
+@pytest.mark.parametrize(
+    'store_value, logger_calls',
+    [(False, 1), ('anything', 1), (1, 1), (0, 1), (None, 2)],
+    ids=['boolean_check', 'found_in_redis', 'value_is_1', 'value_is_zero', 'not_in_redis'],
+)
+def test_send_sms_does_not_log_if_sms_replay(mocker, aws_pinpoint_client, store_value, logger_calls):
+    """We use this log for tracking accurate metrics, it is critical"""
+    client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_client', create=True)
+    mocker.patch('app.redis_store.get', return_value=store_value)
+    client_mock.send_messages.return_value = {
+        'MessageResponse': {
+            'ApplicationId': TEST_ID,
+            'RequestId': 'request-id',
+            'Result': {
+                TEST_RECIPIENT_NUMBER: {
+                    'DeliveryStatus': 'SUCCESSFUL',
+                    'MessageId': TEST_MESSAGE_ID,
+                    'StatusCode': 200,
+                    'StatusMessage': f'MessageId: {TEST_MESSAGE_ID}',
+                }
+            },
+        }
+    }
+    aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
+    assert aws_pinpoint_client.logger.info.call_count == logger_calls
 
 
 @pytest.mark.parametrize('PINPOINT_SMS_VOICE_V2', ('False', 'True'))

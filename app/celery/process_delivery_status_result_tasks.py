@@ -30,6 +30,7 @@ from app.dao.notifications_dao import (
 )
 from app.dao.service_callback_dao import dao_get_callback_include_payload_status
 from app.models import Notification
+from app.utils import get_redis_retry_key
 
 
 # Create SQS Queue for Process Deliver Status.
@@ -481,7 +482,7 @@ def sms_attempt_retry(
         sms_status.status_reason,
     )
 
-    notification_retry_id = f'notification-carrier-sms-retry-count-{notification.id}'
+    notification_retry_id = get_redis_retry_key(notification.id)
     retry_count_redis_ttl = int(CARRIER_SMS_MAX_RETRY_WINDOW.total_seconds())
 
     try:

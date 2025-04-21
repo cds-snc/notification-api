@@ -196,6 +196,7 @@ class TwilioSMSClient(SmsClient):
         Return: a string containing the Twilio message.sid
         """
         start_time = monotonic()
+        # Avoid circular imports
         from app.dao.service_sms_sender_dao import (
             dao_get_service_sms_sender_by_service_id_and_number,
             dao_get_service_sms_sender_by_id,

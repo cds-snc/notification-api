@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Union
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from flask import current_app, url_for
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
@@ -264,3 +264,15 @@ def generate_html_email_content(template) -> Optional[str]:
         content = str(template_object)
 
     return content
+
+
+def get_redis_retry_key(notification_id: str | UUID) -> str:
+    """This key is referenced in multiple places so warranted a function.
+
+    Args:
+        notification_id (str | UUID): Notification object's id
+
+    Returns:
+        str: redis key for this notification
+    """
+    return f'notification-carrier-sms-retry-count-{notification_id}'
