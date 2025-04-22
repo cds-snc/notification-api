@@ -1,9 +1,9 @@
-from sqlalchemy import func, text
+from sqlalchemy import case, func, text
 from sqlalchemy.orm import aliased
 
 from app import db
 from app.aws.s3 import stream_to_s3
-from app.models import Job, Notification, Template, User
+from app.models import EMAIL_STATUS_FORMATTED, SMS_STATUS_FORMATTED, Job, Notification, Template, User
 
 FR_TRANSLATIONS = {
     "Recipient": "Destinataire",
@@ -14,6 +14,23 @@ FR_TRANSLATIONS = {
     "Job": "Tâche",
     "Status": "État",
     "Sent Time": "Heure d’envoi",
+    # notification types
+    "email": "courriel",
+    "sms": "sms",
+    # notification statuses
+    "Failed": "Échec",
+    "Tech issue": "Problème technique",
+    "Content or inbox issue": "Problème de contenu ou de boîte de réception",
+    "Attachment has virus": "La pièce jointe contient un virus",
+    "Delivered": "Livraison réussie",
+    "In transit": "Envoi en cours",
+    "Exceeds Protected A": "Niveau supérieur à Protégé A",
+    "Carrier issue": "Problème du fournisseur",
+    "No such number": "Numéro inexistant",
+    "Sent": "Envoyé",
+    "Blocked": "Message bloqué",
+    "No such address": "Adresse inexistante",
+    # "Can't send to this international number": "" # no translation exists for this yet
 }
 
 
@@ -51,19 +68,19 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     j = aliased(Job)
     u = aliased(User)
 
-    translate = Translate(language).translate
-
-    # Build the query using SQLAlchemy
-    return (
+    # Build the inner subquery (returns enum values, cast as text for notification_type)
+    inner_query = (
         db.session.query(
-            n.to.label(translate("Recipient")),
-            t.name.label(translate("Template")),
-            n.notification_type.label(translate("Type")),
-            func.coalesce(u.name, "").label(translate("Sent by")),
-            func.coalesce(u.email_address, "").label(translate("Sent by email")),
-            func.coalesce(j.original_file_name, "").label(translate("Job")),
-            n.status.label(translate("Status")),
-            func.to_char(n.created_at, "YYYY-MM-DD HH24:MI:SS").label(translate("Sent Time")),
+            n.to.label("to"),
+            t.name.label("template_name"),
+            n.notification_type.cast(db.String).label("notification_type"),
+            u.name.label("user_name"),
+            u.email_address.label("user_email"),
+            j.original_file_name.label("job_name"),
+            n.status.label("status"),
+            n.created_at.label("created_at"),
+            n.feedback_subtype.label("feedback_subtype"),
+            n.feedback_reason.label("feedback_reason"),
         )
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
@@ -74,6 +91,63 @@ def build_notifications_query(service_id, notification_type, language, days_limi
             n.created_at > func.now() - text(f"interval '{days_limit} days'"),
         )
         .order_by(n.created_at.desc())
+        .subquery()
+    )
+
+    # Map statuses for translation
+    translate = Translate(language).translate
+    # Provider-failure logic for email
+    provider_failure_email = case(
+        [(inner_query.c.feedback_subtype.in_(["suppressed", "on-account-suppression-list"]), "Blocked")], else_="No such address"
+    )
+    # Provider-failure logic for sms
+    provider_failure_sms = case(
+        [
+            (
+                inner_query.c.feedback_reason.in_(["NO_ORIGINATION_IDENTITIES_FOUND", "DESTINATION_COUNTRY_BLOCKED"]),
+                "Can't send to this international number",
+            )
+        ],
+        else_="No such number",
+    )
+
+    email_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in EMAIL_STATUS_FORMATTED.items()]
+    sms_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in SMS_STATUS_FORMATTED.items()]
+    # Add provider-failure logic
+    if notification_type == "email":
+        email_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_email)))
+        status_expr = case(email_status_cases, else_=inner_query.c.status)
+    elif notification_type == "sms":
+        sms_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_sms)))
+        status_expr = case(sms_status_cases, else_=inner_query.c.status)
+    else:
+        status_expr = inner_query.c.status
+    if language == "fr":
+        status_expr = func.coalesce(func.nullif(status_expr, ""), "").label(translate("Status"))
+    else:
+        status_expr = status_expr.label(translate("Status"))
+
+    # Outer query: translate notification_type for display
+    notification_type_translated = case(
+        [
+            (inner_query.c.notification_type == "email", translate("email")),
+            (inner_query.c.notification_type == "sms", translate("sms")),
+        ],
+        else_=inner_query.c.notification_type,
+    ).label(translate("Type"))
+
+    return db.session.query(
+        inner_query.c.to.label(translate("Recipient")),
+        inner_query.c.template_name.label(translate("Template")),
+        notification_type_translated,
+        func.coalesce(inner_query.c.user_name, "").label(translate("Sent by")),
+        func.coalesce(inner_query.c.user_email, "").label(translate("Sent by email")),
+        func.coalesce(inner_query.c.job_name, "").label(translate("Job")),
+        status_expr,
+        # Explicitly cast created_at to UTC, then to America/Toronto
+        func.to_char(
+            func.timezone("America/Toronto", func.timezone("UTC", inner_query.c.created_at)), "YYYY-MM-DD HH24:MI:SS"
+        ).label(translate("Sent Time")),
     )
 
 
