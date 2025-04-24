@@ -64,7 +64,7 @@ def test_expire_api_key_should_update_the_api_key_and_create_history_record(noti
 
 def test_last_used_should_update_the_api_key_and_not_create_history_record(notify_api, sample_api_key):
     last_used = datetime.utcnow()
-    update_last_used_api_key(api_key_id=sample_api_key.id, last_used=last_used)
+    update_last_used_api_key(sample_api_key.id, last_used)
     all_api_keys = get_model_api_keys(service_id=sample_api_key.service_id)
     assert len(all_api_keys) == 1
     assert all_api_keys[0].last_used_timestamp == last_used

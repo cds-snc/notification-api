@@ -1,6 +1,6 @@
 import json
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import islice
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
@@ -53,6 +53,7 @@ from app.dao.notifications_dao import (
     total_hard_bounces_grouped_by_hour,
     total_notifications_grouped_by_hour,
 )
+from app.dao.reports_dao import get_report_by_id, update_report
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_inbound_api_dao import get_service_inbound_api_for_service
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -76,6 +77,7 @@ from app.models import (
     SMS_TYPE,
     Job,
     Notification,
+    ReportStatus,
     Service,
     Template,
 )
@@ -83,6 +85,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.report.utils import generate_csv_from_notifications
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -92,6 +95,10 @@ from app.v2.errors import (
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
+
+DAYS_BEFORE_REPORTS_EXPIRE = 3
+LIMIT_DAYS = 7
+PAGE_SIZE = 5000
 
 
 def update_in_progress_jobs():
@@ -874,3 +881,52 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
         bounce_rate_client.set_hard_bounce_seeded(service_id, bounce_data_dict)
 
     current_app.logger.info(f"Seeded hard bounce data for service {service_id} in Redis")
+
+
+@notify_celery.task(name="generate-report")
+@statsd(namespace="tasks")
+def generate_report(report_id: str):
+    current_app.logger.info(f"Generating report for Report ID {report_id}")
+    try:
+        report = get_report_by_id(report_id)
+
+        # mark the report as generating
+        report.status = ReportStatus.GENERATING.value
+        update_report(report)
+
+        # generate the report using PostgreSQL COPY TO for streaming
+
+        # Generate the S3 key for the report
+        s3_key = f"reports/{report.service_id}/{report.id}.csv"
+
+        # Stream the report directly to S3
+        generate_csv_from_notifications(
+            service_id=report.service_id,
+            notification_type=report.report_type,
+            language=report.language,
+            days_limit=LIMIT_DAYS,
+            s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
+            s3_key=s3_key,
+        )
+
+        # Generate a presigned URL for the report
+        url = s3.generate_presigned_url(
+            bucket_name=current_app.config["REPORTS_BUCKET_NAME"],
+            object_key=s3_key,
+            expiration=DAYS_BEFORE_REPORTS_EXPIRE * 24 * 60 * 60,
+        )
+
+        # update report metadata
+        report.url = url
+        report.generated_at = datetime.utcnow()
+        report.expires_at = datetime.utcnow() + timedelta(days=DAYS_BEFORE_REPORTS_EXPIRE)
+
+        # mark the report as ready
+        report.status = ReportStatus.READY.value
+        update_report(report)
+        current_app.logger.info(f"Report ID {str(report.id)} has been generated")
+    except Exception as e:
+        current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
+        report.status = ReportStatus.ERROR.value
+        update_report(report)
+        raise
