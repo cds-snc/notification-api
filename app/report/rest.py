@@ -41,14 +41,21 @@ def create_service_report(service_id):
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
             "language": data.get("language"),
-            # "notification_status_list": data.get("notification_status_list"),
+            "notification_status_list": data.get("notification_status_list"),
         }
 
         # Validate against the schema
         report_schema.load(report_data)
 
         # Create the report object
-        report = Report(**report_data)
+        report = Report(
+            id=report_data["id"],
+            report_type=report_data["report_type"],
+            service_id=report_data["service_id"],
+            status=report_data["status"],
+            requesting_user_id=report_data["requesting_user_id"],
+            language=report_data["language"],
+        )
 
         # Save the report to the database
         created_report = create_report(report)
@@ -57,7 +64,7 @@ def create_service_report(service_id):
 
         # start the report generation process in celery
         current_app.logger.info(f"Calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id], queue=QueueNames.GENERATE_REPORTS)
+        generate_report.apply_async([report.id, report_data["notification_status_list"]], queue=QueueNames.GENERATE_REPORTS)
 
         return jsonify(data=report_schema.dump(created_report)), 201
 
