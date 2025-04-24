@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 
-from flask import current_app, json
+from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -86,7 +86,7 @@ def process_ses_results(self, response):
 
     try:
         # Queue complaint callbacks, filtering them out of the original list then get the ref_ids of the remaining receipts
-        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(json.loads(response["Messages"]))
+        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(response["Messages"])
 
         # If the batch of receipts were all complaints, we can return early after handling them
         if not ses_messages:
