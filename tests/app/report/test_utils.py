@@ -7,6 +7,7 @@ from app.report.utils import (
     Translate,
     build_notifications_query,
     generate_csv_from_notifications,
+    send_requested_report_ready,
 )
 from tests.app.conftest import create_sample_email_template, create_sample_notification, create_sample_service
 
@@ -47,6 +48,17 @@ class TestGenerateCsvFromNotifications:
                     mock_build_query.assert_called_once_with(service_id, notification_type, language, days_limit)
                     mock_compile_query.assert_called_once_with("mock query")
                     mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
+
+
+class TestEmails:
+    def test_send_email_notification2(self, mocker, sample_template, sample_report, sample_service, sample_notification):
+        send_notification_mock = mocker.patch("app.report.utils.send_notification_to_queue")
+        mocker.patch("app.report.utils.dao_get_template_by_id", return_value=sample_template)
+        service_query_mock = mocker.patch("app.report.utils.Service.query")
+        service_query_mock.get.side_effect = lambda service_id: sample_service
+        mocker.patch("app.report.utils.persist_notification", return_value=sample_notification)
+        send_requested_report_ready(sample_report)
+        send_notification_mock.assert_called_once_with(sample_notification, False, queue="notify-internal-tasks")
 
 
 class TestNotificationReportIntegration:
