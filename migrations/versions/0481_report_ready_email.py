@@ -1,7 +1,7 @@
 """Add report download template
 
-Revision ID: 0480_report_ready_email
-Revises: 0479_update_reports_url
+Revision ID: 0481_report_ready_email
+Revises: 0480_move_heartbeat_templates
 Create Date: 2025-04-09 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0480_report_ready_email"
-down_revision = "0479_update_reports_url"
+revision = "0481_report_ready_email"
+down_revision = "0480_move_heartbeat_templates"
 
 report_download_template_id = current_app.config.get("REPORT_DOWNLOAD_TEMPLATE_ID")
 template_ids = [report_download_template_id]
