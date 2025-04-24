@@ -34,7 +34,6 @@ def create_service_report(service_id):
     dao_fetch_service_by_id(service_id)
 
     try:
-        # Validate the report data against the schema
         report_data = {
             "id": str(uuid.uuid4()),
             "report_type": report_type,
@@ -42,6 +41,7 @@ def create_service_report(service_id):
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
             "language": data.get("language"),
+            # "notification_status_list": data.get("notification_status_list"),
         }
 
         # Validate against the schema
@@ -70,8 +70,8 @@ def create_service_report(service_id):
 def get_service_reports(service_id):
     """Get reports for a service with optional limit_days parameter"""
 
-    # Get optional days parameter, default to 30 if not provided
-    limit_days = request.args.get("limit_days", type=int, default=30)
+    # Get optional days parameter, default to 7 if not provided
+    limit_days = request.args.get("limit_days", type=int, default=7)
 
     # Check service exists
     dao_fetch_service_by_id(service_id)
