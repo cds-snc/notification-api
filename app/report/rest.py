@@ -61,10 +61,10 @@ def create_service_report(service_id):
         created_report = create_report(report)
 
         current_app.logger.info(f"Report {created_report.id} created for service {service_id}")
-
+        notification_statuses = report_data["notification_statuses"] if report_data["notification_statuses"] else []
         # start the report generation process in celery
         current_app.logger.info(f"Calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id, report_data["notification_statuses"]], queue=QueueNames.GENERATE_REPORTS)
+        generate_report.apply_async([report.id, notification_statuses], queue=QueueNames.GENERATE_REPORTS)
 
         return jsonify(data=report_schema.dump(created_report)), 201
 

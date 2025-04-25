@@ -842,7 +842,7 @@ class ReportSchema(BaseSchema):
     expires_at = FlexibleDateTime()
     url = fields.String()
     language = fields.String()
-    notification_statuses = fields.List(fields.String())
+    notification_statuses = fields.List(fields.String(), required=False, allow_none=True)
 
     requesting_user = fields.Nested(
         UserSchema,
@@ -865,6 +865,8 @@ class ReportSchema(BaseSchema):
 
     @validates("notification_statuses")
     def validate_notification_statuses(self, values):
+        if not values:
+            return
         valid_statuses = list(EMAIL_STATUS_FORMATTED.keys()) + list(SMS_STATUS_FORMATTED.keys())
 
         for value in values:
