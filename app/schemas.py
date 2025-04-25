@@ -842,7 +842,7 @@ class ReportSchema(BaseSchema):
     expires_at = FlexibleDateTime()
     url = fields.String()
     language = fields.String()
-    notification_status_list = fields.List(fields.String())
+    notification_statuses = fields.List(fields.String())
 
     requesting_user = fields.Nested(
         UserSchema,
@@ -863,8 +863,8 @@ class ReportSchema(BaseSchema):
         if value not in [rs.value for rs in models.ReportStatus]:
             raise ValidationError(f"Invalid report status: {value}")
 
-    @validates("notification_status_list")
-    def validate_notification_status_list(self, values):
+    @validates("notification_statuses")
+    def validate_notification_statuses(self, values):
         valid_statuses = list(EMAIL_STATUS_FORMATTED.keys()) + list(SMS_STATUS_FORMATTED.keys())
 
         for value in values:
