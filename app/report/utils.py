@@ -210,7 +210,13 @@ def generate_csv_from_notifications(
         s3_bucket: The S3 bucket name to store the CSV (required)
         s3_key: The S3 object key for the CSV (required)
     """
-    query = build_notifications_query(service_id, notification_type, language, notification_statuses, days_limit)
+    query = build_notifications_query(
+        service_id=service_id,
+        notification_type=notification_type,
+        language=language,
+        notification_statuses=notification_statuses,
+        days_limit=days_limit,
+    )
     copy_command = compile_query_for_copy(query)
     stream_query_to_s3(copy_command, s3_bucket, s3_key)
 

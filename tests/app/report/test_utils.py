@@ -49,7 +49,11 @@ class TestGenerateCsvFromNotifications:
 
                     # Then
                     mock_build_query.assert_called_once_with(
-                        service_id, notification_type, language, notification_statuses, days_limit
+                        service_id=service_id,
+                        notification_type=notification_type,
+                        language=language,
+                        notification_statuses=notification_statuses,
+                        days_limit=days_limit,
                     )
                     mock_compile_query.assert_called_once_with("mock query")
                     mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
@@ -62,12 +66,17 @@ class TestGenerateCsvFromNotifications:
         notification_statuses = ["delivered", "failed"]
 
         # When
-        query = build_notifications_query(service_id, notification_type, language, notification_statuses)
+        query = build_notifications_query(
+            service_id=service_id,
+            notification_type=notification_type,
+            language=language,
+            notification_statuses=notification_statuses,
+        )
 
         # Then
         # Convert query to string to check the SQL
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
-        assert "notification.status IN ('delivered', 'failed')" in sql_str
+        assert "notification_status IN ('delivered', 'failed')" in sql_str
 
     def test_build_notifications_query_with_empty_status_filter(self):
         # Given
@@ -77,7 +86,12 @@ class TestGenerateCsvFromNotifications:
         notification_statuses = []
 
         # When
-        query = build_notifications_query(service_id, notification_type, language, notification_statuses)
+        query = build_notifications_query(
+            service_id=service_id,
+            notification_type=notification_type,
+            language=language,
+            notification_statuses=notification_statuses,
+        )
 
         # Then
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
@@ -127,7 +141,7 @@ class TestNotificationReportIntegration:
 
         def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key):
             # Actually run the query and write CSV to the buffer
-            query = build_notifications_query(str(service.id), "email", "en", 7)
+            query = build_notifications_query(service_id=str(service.id), notification_type="email", language="en", days_limit=7)
             result = query.all()
             fieldnames = [col["name"] for col in query.column_descriptions]
             writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
@@ -178,7 +192,12 @@ class TestNotificationReportIntegration:
         csv_buffer = io.StringIO()
 
         def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key):
-            query = build_notifications_query(str(service.id), "email", "en", notification_statuses=["delivered", "failed"])
+            query = build_notifications_query(
+                service_id=str(service.id),
+                notification_type="email",
+                language="en",
+                notification_statuses=["delivered", "failed"],
+            )
             result = query.all()
             fieldnames = [col["name"] for col in query.column_descriptions]
             writer = csv.DictWriter(csv_buffer, fieldnames=fieldnames)
