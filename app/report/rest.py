@@ -42,6 +42,7 @@ def create_service_report(service_id):
             "requesting_user_id": data.get("requesting_user_id"),
             "language": data.get("language"),
             "notification_statuses": data.get("notification_statuses"),
+            "job_id": data.get("job_id"),
         }
 
         # Validate against the schema
@@ -55,6 +56,7 @@ def create_service_report(service_id):
             status=report_data["status"],
             requesting_user_id=report_data["requesting_user_id"],
             language=report_data["language"],
+            job_id=report_data["job_id"],
         )
 
         # Save the report to the database

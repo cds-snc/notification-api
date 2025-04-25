@@ -843,6 +843,7 @@ class ReportSchema(BaseSchema):
     url = fields.String()
     language = fields.String()
     notification_statuses = fields.List(fields.String(), required=False, allow_none=True)
+    job_id = fields.UUID(required=False, allow_none=True)
 
     requesting_user = fields.Nested(
         UserSchema,

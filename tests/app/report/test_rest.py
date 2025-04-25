@@ -5,22 +5,128 @@ from app.models import ReportStatus, ReportType
 
 def test_create_report_succeeds_with_valid_data(mocker, admin_request, sample_service, sample_user):
     """Test that creating a report with valid data succeeds"""
+    # Mock the generate_report Celery task to avoid actual task execution
     generate_report_mock = mocker.patch("app.report.rest.generate_report.apply_async")
+
+    # Use actual database operations instead of mocking create_report
     data = {"report_type": ReportType.EMAIL.value, "requesting_user_id": str(sample_user.id), "language": "en"}
 
+    # Call the endpoint which will create a real report in the database
     response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
 
+    # Verify response contains expected data
     assert response["data"]["report_type"] == ReportType.EMAIL.value
     assert response["data"]["service_id"] == str(sample_service.id)
     assert response["data"]["language"] == "en"
     assert response["data"]["status"] == ReportStatus.REQUESTED.value
-    assert "id" in response["data"]
-    assert "requested_at" in response["data"]
 
-    # assert generate_report_mock called once with the correct report ID
+    # Extract the report ID from the response
+    report_id = response["data"]["id"]
+
+    # Verify generate_report was called with correct parameters
     generate_report_mock.assert_called_once()
-    assert str(generate_report_mock.call_args[0][0][0]) == response["data"]["id"]
-    # check the queue name
+    assert str(generate_report_mock.call_args[0][0][0]) == report_id
+    assert generate_report_mock.call_args[0][0][1] == []  # Empty notification_statuses
+    assert generate_report_mock.call_args[1]["queue"] == "generate-reports"
+
+
+def test_create_report_succeeds_with_notification_statuses(mocker, admin_request, sample_service, sample_user):
+    """Test that creating a report with notification_statuses passes the data to generate_report task"""
+    # Mock the generate_report Celery task to avoid actual task execution
+    generate_report_mock = mocker.patch("app.report.rest.generate_report.apply_async")
+
+    notification_statuses = ["delivered", "sending"]
+    data = {
+        "report_type": ReportType.EMAIL.value,
+        "requesting_user_id": str(sample_user.id),
+        "notification_statuses": notification_statuses,
+        "language": "en",
+    }
+
+    # Call the endpoint which will create a real report in the database
+    response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
+
+    # Verify response contains expected data
+    assert response["data"]["report_type"] == ReportType.EMAIL.value
+    assert str(response["data"]["service_id"]) == str(sample_service.id)
+    assert response["data"]["language"] == "en"
+    assert response["data"]["status"] == ReportStatus.REQUESTED.value
+
+    # Extract the report ID from the response
+    report_id = response["data"]["id"]
+
+    # Verify generate_report was called with notification_statuses
+    generate_report_mock.assert_called_once()
+    assert str(generate_report_mock.call_args[0][0][0]) == report_id
+    assert generate_report_mock.call_args[0][0][1] == notification_statuses
+    assert generate_report_mock.call_args[1]["queue"] == "generate-reports"
+
+
+def test_create_report_succeeds_with_job_id(mocker, admin_request, sample_service, sample_user, sample_job):
+    """Test that creating a report with job_id passes the data to generate_report task"""
+    # Mock the generate_report Celery task to avoid actual task execution
+    generate_report_mock = mocker.patch("app.report.rest.generate_report.apply_async")
+
+    data = {
+        "report_type": ReportType.SMS.value,
+        "requesting_user_id": str(sample_user.id),
+        "job_id": str(sample_job.id),
+        "language": "en",
+    }
+
+    # Call the endpoint which will create a real report in the database
+    response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
+
+    # Verify response contains expected data
+    assert response["data"]["report_type"] == ReportType.SMS.value
+    assert str(response["data"]["service_id"]) == str(sample_service.id)
+    assert response["data"]["job_id"] == str(sample_job.id)
+    assert response["data"]["language"] == "en"
+    assert response["data"]["status"] == ReportStatus.REQUESTED.value
+
+    # Extract the report ID from the response
+    report_id = response["data"]["id"]
+
+    # Verify generate_report was called with empty notification_statuses
+    generate_report_mock.assert_called_once()
+    assert str(generate_report_mock.call_args[0][0][0]) == report_id
+    assert generate_report_mock.call_args[0][0][1] == []  # Empty notification_statuses
+    assert generate_report_mock.call_args[1]["queue"] == "generate-reports"
+
+
+def test_create_report_succeeds_with_both_notification_statuses_and_job_id(
+    mocker, admin_request, sample_service, sample_user, sample_job
+):
+    """Test that creating a report with both notification_statuses and job_id passes both parameters correctly"""
+    # Mock the generate_report Celery task to avoid actual task execution
+    generate_report_mock = mocker.patch("app.report.rest.generate_report.apply_async")
+
+    notification_statuses = ["delivered", "failed"]
+    data = {
+        "report_type": ReportType.EMAIL.value,
+        "requesting_user_id": str(sample_user.id),
+        "job_id": str(sample_job.id),
+        "notification_statuses": notification_statuses,
+        "language": "en",
+    }
+
+    # Call the endpoint which will create a real report in the database
+    response = admin_request.post("report.create_service_report", service_id=sample_service.id, _data=data, _expected_status=201)
+
+    # Verify response contains expected data
+    assert response["data"]["report_type"] == ReportType.EMAIL.value
+    assert response["data"]["service_id"] == str(sample_service.id)
+    assert response["data"]["job_id"] == str(sample_job.id)
+    assert response["data"]["language"] == "en"
+    assert response["data"]["status"] == ReportStatus.REQUESTED.value
+
+    # Extract the report ID from the response
+    report_id = response["data"]["id"]
+
+    # Verify generate_report was called with notification_statuses
+    generate_report_mock.assert_called_once()
+    assert str(generate_report_mock.call_args[0][0][0]) == report_id
+    assert generate_report_mock.call_args[0][0][1] == notification_statuses
     assert generate_report_mock.call_args[1]["queue"] == "generate-reports"
 
 

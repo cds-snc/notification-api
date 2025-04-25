@@ -905,6 +905,7 @@ def generate_report(report_id: str, notification_statuses=[]):
             notification_type=report.report_type,
             language=report.language,
             notification_statuses=notification_statuses,
+            job_id=report.job_id,
             days_limit=LIMIT_DAYS,
             s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
             s3_key=s3_key,
