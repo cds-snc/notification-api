@@ -76,7 +76,21 @@ class TestGenerateCsvFromNotifications:
         # Then
         # Convert query to string to check the SQL
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
-        assert "notification_status IN ('delivered', 'failed')" in sql_str
+        assert "notification_status IN (" in sql_str
+        substituted_statuses = [
+            "provider-failure",
+            "validation-failed",
+            "returned-letter",
+            "technical-failure",
+            "delivered",
+            "failed",
+            "pii-check-failed",
+            "temporary-failure",
+            "permanent-failure",
+            "virus-scan-failed",
+        ]
+        for status in substituted_statuses:
+            assert status in sql_str
 
     def test_build_notifications_query_with_empty_status_filter(self):
         # Given

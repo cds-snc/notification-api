@@ -80,7 +80,8 @@ def build_notifications_query(service_id, notification_type, language, notificat
     ]
 
     if notification_statuses:
-        query_filters.append(n.status.in_(notification_statuses))
+        statuses = Notification.substitute_status(notification_statuses)
+        query_filters.append(n.status.in_(statuses))
 
     inner_query = (
         db.session.query(
