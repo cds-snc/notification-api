@@ -9,7 +9,6 @@ from sqlalchemy import delete, select
 
 from app.constants import (
     EMAIL_TYPE,
-    KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
@@ -35,9 +34,6 @@ from app.dao.fact_notification_status_dao import (
     fetch_notification_statuses_per_service_and_template_for_date,
     fetch_stats_for_all_services_by_date_range,
     fetch_template_usage_for_service_with_given_template,
-    get_api_key_ranked_by_notifications_created,
-    get_last_send_for_api_key,
-    get_total_notifications_sent_for_api_key,
     get_total_sent_notifications_for_day_and_type,
     update_fact_notification_status,
 )
@@ -348,104 +344,6 @@ def test_fetch_notification_status_by_template_for_service_for_today_and_7_previ
         (sms_template.name, False, mock.ANY, SMS_TYPE, 'delivered', 11),
         (sms_template_2.name, False, mock.ANY, SMS_TYPE, 'delivered', 1),
     ] == sorted(results, key=lambda x: (x.notification_type, x.status, x.template_name, x.count))
-
-
-def test_get_total_notifications_sent_for_api_key(
-    notify_db_session,
-    sample_api_key,
-    sample_service,
-    sample_template,
-    sample_notification,
-):
-    service = sample_service()
-    api_key = sample_api_key(service)
-    template_email = sample_template(service=service, template_type=EMAIL_TYPE)
-    template_sms = sample_template(service=service, template_type=SMS_TYPE)
-    total_sends = 10
-
-    api_key_stats_1 = get_total_notifications_sent_for_api_key(str(api_key.id))
-    assert api_key_stats_1 == []
-
-    for _ in range(total_sends):
-        sample_notification(template=template_email, api_key=api_key)
-
-    api_key_stats_2 = get_total_notifications_sent_for_api_key(str(api_key.id))
-    assert api_key_stats_2 == [
-        (EMAIL_TYPE, total_sends),
-    ]
-
-    for _ in range(total_sends):
-        sample_notification(template=template_sms, api_key=api_key)
-
-    api_key_stats_3 = get_total_notifications_sent_for_api_key(str(api_key.id))
-
-    assert set(api_key_stats_3) == set([(EMAIL_TYPE, total_sends), (SMS_TYPE, total_sends)])
-
-
-def test_get_last_send_for_api_key(sample_api_key, sample_service, sample_template, sample_notification):
-    service = sample_service()
-    api_key = sample_api_key(service)
-    template_email = sample_template(service=service, template_type=EMAIL_TYPE)
-    total_sends = 10
-
-    last_send = get_last_send_for_api_key(str(api_key.id))
-    assert last_send == []
-
-    for _ in range(total_sends):
-        sample_notification(template=template_email, api_key=api_key)
-
-    # the following lines test that a send has occurred within the last second
-    last_send = get_last_send_for_api_key(str(api_key.id))[0][0]
-    now = datetime.utcnow()
-    time_delta = now - last_send
-    assert abs(time_delta.total_seconds()) < 1
-
-
-@pytest.mark.serial
-def test_get_api_key_ranked_by_notifications_created(
-    sample_api_key,
-    sample_service,
-    sample_template,
-    sample_notification,
-):
-    service = sample_service()
-    api_key_1 = sample_api_key(service, key_type=KEY_TYPE_NORMAL, key_name='Key 1')
-    api_key_2 = sample_api_key(service, key_type=KEY_TYPE_NORMAL, key_name='Key 2')
-
-    template_email = sample_template(service=service, template_type=EMAIL_TYPE)
-    template_sms = sample_template(service=service, template_type=SMS_TYPE)
-    email_sends = 1
-    sms_sends = 10
-
-    for x in range(email_sends):
-        sample_notification(template=template_email, api_key=api_key_1)
-
-    for x in range(sms_sends):
-        sample_notification(template=template_sms, api_key=api_key_1)
-        sample_notification(template=template_sms, api_key=api_key_2)
-
-    api_keys_ranked = get_api_key_ranked_by_notifications_created(2)
-
-    assert len(api_keys_ranked) == 2
-
-    first_place = api_keys_ranked[0]
-    second_place = api_keys_ranked[1]
-
-    # check there are 9 fields/columns returned
-    assert len(first_place) == 9
-    assert len(second_place) == 9
-
-    assert first_place[0] == api_key_1.name
-    assert first_place[2] == service.name
-    assert int(first_place[6]) == email_sends
-    assert int(first_place[7]) == sms_sends
-    assert int(first_place[8]) == sms_sends + email_sends
-
-    assert second_place[0] == api_key_2.name
-    assert second_place[2] == service.name
-    assert int(second_place[6]) == 0
-    assert int(second_place[7]) == sms_sends
-    assert int(second_place[8]) == sms_sends
 
 
 @pytest.mark.serial

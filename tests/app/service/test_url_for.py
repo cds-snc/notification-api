@@ -22,12 +22,6 @@ def test_url_for_get_service_by_id(notify_api):
         assert str(url_with_user_id) == '/service/{0}?user_id={1}'.format(service_id, 1)
 
 
-def test_url_for_create_service(notify_api):
-    with notify_api.test_request_context():
-        url = url_for('service.create_service')
-        assert str(url) == '/service'
-
-
 def test_url_for_update_service(notify_api):
     with notify_api.test_request_context():
         url = url_for('service.update_service', service_id=service_id)

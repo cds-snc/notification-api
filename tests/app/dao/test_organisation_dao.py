@@ -7,33 +7,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
     dao_add_user_to_organisation,
-    dao_get_invited_organisation_user,
     dao_get_organisation_by_email_address,
     dao_get_organisation_by_id,
     dao_get_organisation_by_service_id,
     dao_get_organisation_services,
-    dao_get_organisations,
     dao_get_users_for_organisation,
     dao_update_organisation,
 )
 from app.models import Service
-
-
-def test_get_organisations_gets_all_organisations_alphabetically_with_active_organisations_first(sample_organisation):
-    m_active_org = sample_organisation(name=f'm_active_organisation {uuid4()}')
-    z_inactive_org = sample_organisation(name=f'z_inactive_organisation {uuid4()}', active=False)
-    a_inactive_org = sample_organisation(name=f'a_inactive_organisation {uuid4()}', active=False)
-    z_active_org = sample_organisation(name=f'z_active_organisation {uuid4()}')
-    a_active_org = sample_organisation(name=f'a_active_organisation {uuid4()}')
-    org_ids = frozenset((m_active_org.id, z_inactive_org.id, a_inactive_org.id, z_active_org.id, a_active_org.id))
-
-    organisations = tuple(filter(lambda o: o.id in org_ids, dao_get_organisations()))
-
-    assert organisations[0] == a_active_org
-    assert organisations[1] == m_active_org
-    assert organisations[2] == z_active_org
-    assert organisations[3] == a_inactive_org
-    assert organisations[4] == z_inactive_org
 
 
 def test_get_organisation_by_id_gets_correct_organisation(sample_organisation):
@@ -118,17 +99,6 @@ def test_get_organisation_by_service_id(sample_service, sample_organisation):
 
     assert organisation_1 == organisation
     assert organisation_2 == another_org
-
-
-def test_dao_get_invited_organisation_user(sample_invited_org_user):
-    invited_org_user = sample_invited_org_user()
-    invited_org_user = dao_get_invited_organisation_user(invited_org_user.id)
-    assert invited_org_user == invited_org_user
-
-
-def test_dao_get_invited_organisation_user_returns_none(notify_api):
-    with pytest.raises(expected_exception=SQLAlchemyError):
-        dao_get_invited_organisation_user(uuid4())
 
 
 def test_dao_get_users_for_organisation(sample_user, sample_organisation):

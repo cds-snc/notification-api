@@ -1,7 +1,6 @@
 import uuid
 
-
-from tests import create_admin_authorization_header, unwrap_function
+from tests import create_admin_authorization_header
 
 
 def test_archive_only_allows_post(client):

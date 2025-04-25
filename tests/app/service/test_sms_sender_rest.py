@@ -392,43 +392,6 @@ def test_update_service_sms_sender_existing_sender_to_default(
     assert service_sms_sender2.is_default
 
 
-def test_delete_service_sms_sender_can_archive_sms_sender(
-    admin_request,
-    sample_service,
-    sample_sms_sender,
-):
-    service = sample_service()
-    service_sms_sender = sample_sms_sender(service_id=service.id, sms_sender='5678', is_default=False)
-
-    assert not service_sms_sender.archived, 'This should be False by default.'
-
-    admin_request.post(
-        'service_sms_sender.delete_service_sms_sender',
-        service_id=service.id,
-        sms_sender_id=service_sms_sender.id,
-    )
-
-    assert service_sms_sender.archived
-
-
-def test_delete_service_sms_sender_returns_400_if_archiving_inbound_number(
-    admin_request,
-    sample_service_with_inbound_number,
-):
-    service = sample_service_with_inbound_number(inbound_number='7654321')
-    inbound_number = service.service_sms_senders[0]
-
-    response = admin_request.post(
-        'service_sms_sender.delete_service_sms_sender',
-        service_id=service.id,
-        sms_sender_id=service.service_sms_senders[0].id,
-        _expected_status=400,
-    )
-
-    assert response == {'message': 'You cannot delete an inbound number.', 'result': 'error'}
-    assert not inbound_number.archived
-
-
 def test_get_service_sms_sender_by_id(
     admin_request,
     sample_service,

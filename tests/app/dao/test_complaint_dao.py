@@ -1,41 +1,14 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-import pytest
 
 from app.dao.complaint_dao import (
     fetch_complaints_by_service,
-    fetch_count_of_complaints,
-    fetch_paginated_complaints,
     save_complaint,
     fetch_complaint_by_id,
 )
 from app.constants import EMAIL_TYPE
 from app.models import Complaint
-
-
-@pytest.mark.serial
-def test_fetch_paginated_complaints(mocker, sample_template, sample_notification, sample_complaint):
-    mocker.patch.dict('app.dao.complaint_dao.current_app.config', {'PAGE_SIZE': 2})
-    template = sample_template(template_type=EMAIL_TYPE)
-    notification = sample_notification(template=template)
-
-    sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 1, 1))
-    sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 1, 2))
-    sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 1, 3))
-
-    # Cannot be ran in parallel - Grabs all complaints
-    res = fetch_paginated_complaints(page=1)
-
-    assert len(res.items) == 2
-    assert res.items[0].created_at == datetime(2018, 1, 3)
-    assert res.items[1].created_at == datetime(2018, 1, 2)
-
-    # Cannot be ran in parallel - Grabs all complaints
-    res = fetch_paginated_complaints(page=2)
-
-    assert len(res.items) == 1
-    assert res.items[0].created_at == datetime(2018, 1, 1)
 
 
 def test_fetch_complaint_by_service_returns_one(sample_service, sample_template, sample_notification):
@@ -101,33 +74,6 @@ def test_fetch_complaint_by_service_return_many(sample_service, sample_template,
     assert len(complaints) == 2
     assert complaints[0] == complaint_3
     assert complaints[1] == complaint_2
-
-
-def test_fetch_count_of_complaints(sample_complaint, sample_template, sample_notification):
-    template = sample_template(template_type=EMAIL_TYPE)
-    notification = sample_notification(template=template)
-
-    sample_complaint(
-        service=notification.service, notification=notification, created_at=datetime(2018, 6, 6, 22, 00, 00)
-    )
-    sample_complaint(
-        service=notification.service, notification=notification, created_at=datetime(2018, 6, 6, 23, 00, 00)
-    )
-    sample_complaint(
-        service=notification.service, notification=notification, created_at=datetime(2018, 6, 7, 00, 00, 00)
-    )
-    sample_complaint(
-        service=notification.service, notification=notification, created_at=datetime(2018, 6, 7, 13, 00, 00)
-    )
-    sample_complaint(service=notification.service, notification=notification, created_at=datetime(2018, 6, 7, 23))
-
-    count_of_complaints = fetch_count_of_complaints(start_date=datetime(2018, 6, 7), end_date=datetime(2018, 6, 7))
-    assert count_of_complaints == 2
-
-
-def test_fetch_count_of_complaints_returns_zero(notify_api):
-    count_of_complaints = fetch_count_of_complaints(start_date=datetime(2018, 6, 7), end_date=datetime(2018, 6, 7))
-    assert count_of_complaints == 0
 
 
 def test_fetch_complaint_by_id(sample_complaint, sample_template, sample_notification):

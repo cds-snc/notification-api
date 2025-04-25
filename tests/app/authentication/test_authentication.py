@@ -111,44 +111,53 @@ def test_admin_auth_should_not_allow_request_with_no_iat(client):
     assert exc.value.short_message == 'Invalid token: signature, api token is not valid'
 
 
-def test_should_not_allow_invalid_secret(client, sample_user_service_api_key):
+def test_should_not_allow_invalid_secret(client, sample_notification, sample_user_service_api_key):
     _, service, _ = sample_user_service_api_key
 
-    token = create_jwt_token(  # nosec
-        secret='not-so-secret', client_id=str(service.id)
-    )
+    token = create_jwt_token(secret='not-so-secret', client_id=str(service.id))
 
-    response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+    notification = sample_notification()
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
 
     assert response.status_code == 403
     data = json.loads(response.get_data())
-    assert data['message'] == 'Invalid token: signature, api token not found'
+    assert data['errors'][0]['message'] == 'Invalid token: signature, api token not found'
 
 
 @pytest.mark.parametrize('scheme', ['bearer', 'Bearer'])
-def test_should_allow_valid_token(client, sample_user_service_api_key, scheme):
+def test_should_allow_valid_token(client, sample_notification, sample_template, sample_user_service_api_key, scheme):
     _, _, api_key = sample_user_service_api_key
+
     token = __create_token(api_key.service_id)
-    response = client.get('/notifications', headers={'Authorization': '{} {}'.format(scheme, token)})
+    template = sample_template(service=api_key.service)
+    notification = sample_notification(template=template, api_key=api_key)
+
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'{scheme} {token}'})
     assert response.status_code == 200
 
 
-def test_should_not_allow_service_id_that_is_not_uuid(client, sample_user_service_api_key):
+def test_should_not_allow_service_id_that_is_not_uuid(client, sample_notification, sample_user_service_api_key):
     _, service, _ = sample_user_service_api_key
 
     token = create_jwt_token(secret=get_unsigned_secrets(service.id)[0], client_id=str('not-a-valid-uuid'))
+    notification = sample_notification()
 
-    response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
 
     assert response.status_code == 403
-    assert response.get_json()['message'] == 'Invalid token: service id is not the right data type'
+    assert response.get_json()['errors'][0]['message'] == 'Invalid token: service id is not the right data type'
 
 
-def test_should_allow_valid_token_for_request_with_path_params_for_public_url(client, sample_user_service_api_key):
+def test_should_allow_valid_token_for_request_with_path_params_for_public_url(
+    client, sample_notification, sample_template, sample_user_service_api_key
+):
     _, service, _ = sample_user_service_api_key
 
     token = __create_token(service.id)
-    response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+    template = sample_template(service=service)
+    notification = sample_notification(template=template)
+
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200
 
 
@@ -158,20 +167,28 @@ def test_should_allow_valid_token_for_request_with_path_params_for_admin_url(cli
     assert response.status_code == 200
 
 
-def test_should_allow_valid_token_when_service_has_multiple_keys(client, sample_api_key, sample_user_service_api_key):
+def test_should_allow_valid_token_when_service_has_multiple_keys(
+    client,
+    sample_api_key,
+    sample_notification,
+    sample_template,
+    sample_user_service_api_key,
+):
     _, service, api_key1 = sample_user_service_api_key
     api_key2 = sample_api_key(service)
 
     assert api_key1.service == api_key2.service, 'The api keys should both be associated with the same service.'
 
     token = __create_token(service.id)
-    response = client.get('/notifications', headers={'Authorization': f'Bearer {token}'})
+    template = sample_template(service=service)
+    notification = sample_notification(template=template)
 
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200
 
 
 def test_authentication_passes_when_service_has_multiple_keys_some_expired(
-    client, sample_api_key, sample_user_service_api_key
+    client, sample_api_key, sample_user_service_api_key, sample_notification, sample_template
 ):
     _, service, api_key = sample_user_service_api_key
     expired_api_key = sample_api_key(service, expired=True)
@@ -179,9 +196,10 @@ def test_authentication_passes_when_service_has_multiple_keys_some_expired(
     assert api_key.service == expired_api_key.service, 'The api keys should both be associated with the same service.'
 
     token = create_jwt_token(secret=api_key.secret, client_id=str(service.id))
+    template = sample_template(service=service)
+    notification = sample_notification(template=template)
 
-    response = client.get('/notifications', headers={'Authorization': f'Bearer {token}'})
-
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
     assert response.status_code == 200
 
 
@@ -232,17 +250,21 @@ def test_authentication_returns_error_when_admin_client_secret_is_invalid(client
     current_app.config['ADMIN_CLIENT_SECRET'] = api_secret
 
 
-def test_authentication_returns_error_when_service_doesnt_exit(client, sample_user_service_api_key):
+def test_authentication_returns_error_when_service_doesnt_exit(
+    client, sample_user_service_api_key, sample_notification, sample_template
+):
     _, service, api_key = sample_user_service_api_key
 
     # Use the UUIDs of sample_api_key, but assign them to the wrong parameters.
     token = create_jwt_token(secret=str(service.id), client_id=str(api_key.id))
 
-    response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+    template = sample_template(service=service)
+    notification = sample_notification(template=template)
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == 'Invalid token: service not found'
+    assert error_message['errors'][0]['message'] == 'Invalid token: service not found'
 
 
 def test_authentication_returns_error_when_service_inactive(
@@ -250,6 +272,8 @@ def test_authentication_returns_error_when_service_inactive(
     sample_api_key,
     sample_user,
     sample_service,
+    sample_notification,
+    sample_template,
 ):
     user = sample_user()
     service = sample_service(user=user, active=False)
@@ -260,11 +284,13 @@ def test_authentication_returns_error_when_service_inactive(
 
     token = create_jwt_token(secret=str(api_key.secret), client_id=str(service.id))
 
-    response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+    template = sample_template(service=service)
+    notification = sample_notification(template=template)
+    response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
 
     assert response.status_code == 403
     error_message = json.loads(response.get_data())
-    assert error_message['message'] == 'Invalid token: service is archived'
+    assert error_message['errors'][0]['message'] == 'Invalid token: service is archived'
 
 
 def test_authentication_returns_error_when_service_has_no_secrets(client, sample_user_service_api_key, fake_uuid):
@@ -279,13 +305,18 @@ def test_authentication_returns_error_when_service_has_no_secrets(client, sample
     assert exc.value.service_id == service.id
 
 
-def test_should_attach_the_current_api_key_to_current_app(notify_api, sample_user_service_api_key):
+def test_should_attach_the_current_api_key_to_current_app(
+    notify_api, sample_user_service_api_key, sample_template, sample_notification
+):
     _, service, api_key = sample_user_service_api_key
 
     with notify_api.test_request_context(), notify_api.test_client() as client:
         token = create_jwt_token(secret=api_key.secret, client_id=str(service.id))
 
-        response = client.get('/notifications', headers={'Authorization': 'Bearer {}'.format(token)})
+        template = sample_template(service=service)
+        notification = sample_notification(template=template)
+        response = client.get(f'/v2/notifications/{notification.id}', headers={'Authorization': f'Bearer {token}'})
+
         assert response.status_code == 200
 
         # api_user is a ServiceDataApiKey instance assigned globally after a service is authenticated.

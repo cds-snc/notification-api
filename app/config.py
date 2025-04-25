@@ -216,7 +216,7 @@ class Config(object):
             'is_secure': os.getenv('BROKER_SSL_ENABLED', 'True') == 'True',
         },
         'worker_enable_remote_control': False,
-        'worker_prefetch_multiplier': 16,
+        'worker_prefetch_multiplier': 8,
         'enable_utc': True,
         'timezone': os.getenv('TIMEZONE', 'America/New_York'),
         'accept_content': ['json', 'pickle'],

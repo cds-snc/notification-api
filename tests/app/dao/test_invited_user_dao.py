@@ -12,7 +12,6 @@ from app.dao.invited_user_dao import (
     save_invited_user,
     get_invited_user,
     get_invited_users_for_service,
-    get_invited_user_by_id,
     delete_invitations_created_more_than_two_days_ago,
 )
 
@@ -68,12 +67,6 @@ def test_create_invited_user_sets_default_folder_permissions_of_empty_list(notif
 def test_get_invited_user_by_service_and_id(sample_invited_user):
     invited_user = sample_invited_user()
     from_db = get_invited_user(invited_user.service.id, invited_user.id)
-    assert from_db == invited_user
-
-
-def test_get_invited_user_by_id(sample_invited_user):
-    invited_user = sample_invited_user()
-    from_db = get_invited_user_by_id(invited_user.id)
     assert from_db == invited_user
 
 

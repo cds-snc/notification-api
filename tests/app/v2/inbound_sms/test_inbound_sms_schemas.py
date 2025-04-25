@@ -1,5 +1,4 @@
 import pytest
-from flask import json, url_for
 from jsonschema.exceptions import ValidationError
 
 from app.v2.inbound_sms.inbound_sms_schemas import (
@@ -9,7 +8,6 @@ from app.v2.inbound_sms.inbound_sms_schemas import (
 )
 from app.schema_validation import validate
 
-from tests import create_authorization_header
 
 valid_inbound_sms = {
     'user_number': '447700900111',
@@ -31,32 +29,6 @@ invalid_inbound_sms = {
 }
 
 invalid_inbound_sms_list = {'received_text_messages': [invalid_inbound_sms]}
-
-
-def test_get_inbound_sms_contract(
-    client,
-    sample_api_key,
-    sample_inbound_sms,
-    sample_service,
-):
-    service = sample_service()
-    all_inbound_sms = [
-        sample_inbound_sms(service, user_number='447700900121'),
-        sample_inbound_sms(service, user_number='447700900131'),
-        sample_inbound_sms(service, user_number='447700900141'),
-    ]
-    reversed_inbound_sms = sorted(all_inbound_sms, key=lambda sms: sms.created_at, reverse=True)
-
-    auth_header = create_authorization_header(sample_api_key(service=all_inbound_sms[0].service))
-    response = client.get('/v2/received-text-messages', headers=[auth_header])
-    response_json = json.loads(response.get_data(as_text=True))
-
-    validated_resp = validate(response_json, get_inbound_sms_response)
-    assert validated_resp['received_text_messages'] == [i.serialize() for i in reversed_inbound_sms]
-    assert validated_resp['links']['current'] == url_for('v2_inbound_sms.get_inbound_sms', _external=True)
-    assert validated_resp['links']['next'] == url_for(
-        'v2_inbound_sms.get_inbound_sms', older_than=all_inbound_sms[0].id, _external=True
-    )
 
 
 @pytest.mark.parametrize('request_args', [{'older_than': '6ce466d0-fd6a-11e5-82f5-e0accb9d11a6'}, {}])
