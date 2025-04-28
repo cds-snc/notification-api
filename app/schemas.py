@@ -26,7 +26,7 @@ from notifications_utils.recipients import (
 
 from app import db, marshmallow, models
 from app.dao.permissions_dao import permission_dao
-from app.models import ServicePermission
+from app.models import EMAIL_STATUS_FORMATTED, SMS_STATUS_FORMATTED, ServicePermission
 from app.utils import get_template_instance
 
 
@@ -842,6 +842,7 @@ class ReportSchema(BaseSchema):
     expires_at = FlexibleDateTime()
     url = fields.String()
     language = fields.String()
+    notification_statuses = fields.List(fields.String(), required=False, allow_none=True)
 
     requesting_user = fields.Nested(
         UserSchema,
@@ -861,6 +862,16 @@ class ReportSchema(BaseSchema):
     def validate_status(self, value):
         if value not in [rs.value for rs in models.ReportStatus]:
             raise ValidationError(f"Invalid report status: {value}")
+
+    @validates("notification_statuses")
+    def validate_notification_statuses(self, values):
+        if not values:
+            return
+        valid_statuses = list(EMAIL_STATUS_FORMATTED.keys()) + list(SMS_STATUS_FORMATTED.keys())
+
+        for value in values:
+            if value not in valid_statuses:
+                raise ValidationError(f"Invalid report type: {value}")
 
 
 # should not be used on its own for dumping - only for loading
