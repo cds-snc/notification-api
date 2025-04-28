@@ -93,7 +93,7 @@ def test_process_ses_results_in_complaint(sample_email_template, mocker):
 
 
 def test_remove_emails_from_complaint():
-    test_json = json.loads(ses_complaint_callback()["Messages"])[0]
+    test_json = ses_complaint_callback()["Messages"][0]
     remove_emails_from_complaint(test_json)
     assert "recipient1@example.com" not in json.dumps(test_json)
 
