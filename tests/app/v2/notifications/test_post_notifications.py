@@ -38,6 +38,7 @@ from app.v2.notifications.notification_schemas import (
 from app.v2.notifications.post_notifications import _seed_bounce_data
 from tests import create_authorization_header
 from tests.app.conftest import (
+    create_sample_job,
     create_sample_notification,
     create_sample_template,
     document_download_response,
@@ -945,7 +946,7 @@ class TestRestrictedServices:
         ],
     )
     def test_team_keys_only_send_to_team_members_bulk_endpoint(
-        self, notify_db_session, client, mocker, notification_type, to_key, to_a, to_b, response_code
+        self, notify_db, notify_db_session, client, mocker, notification_type, to_key, to_a, to_b, response_code
     ):
         service = create_service(
             restricted=True,
@@ -956,8 +957,8 @@ class TestRestrictedServices:
         service.users = [user_1, user_2]
         template = create_template(service=service, template_type=notification_type)
         create_api_key(service=service, key_type="team")
-        job_id = str(uuid.uuid4())
-        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job_id)
+        job = create_sample_job(notify_db=notify_db, notify_db_session=notify_db_session)
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job)
 
         data = {
             "name": "job_name",
@@ -1607,7 +1608,6 @@ class TestSMSMessageCounter:
     ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
-        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
 
         def __send_sms():
@@ -1640,7 +1640,8 @@ class TestSMSMessageCounter:
             "template_id": str(template.id),
             "rows": [["phone number"], ["+16132532222"], ["+16132532223"], ["+16132532224"]],
         }
-
+        job = create_sample_job(notify_db=notify_db, notify_db_session=notify_db_session, service=service, template=template)
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job)
         response = __send_sms()
 
         assert response.status_code == 201
@@ -1653,7 +1654,6 @@ class TestSMSMessageCounter:
     def test_API_BULK_post_sms_with_mixed_numbers(self, notify_api, client, notify_db, notify_db_session, mocker, key_type):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
-        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
 
         def __send_sms():
@@ -1681,6 +1681,9 @@ class TestSMSMessageCounter:
         # Create a service, Set limit to 10 fragments
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        job = create_sample_job(notify_db=notify_db, notify_db_session=notify_db_session, service=service, template=template)
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job)
+
         data = {
             "name": "Bulk send name",
             "template_id": str(template.id),
@@ -1834,7 +1837,6 @@ class TestEmailsAndLimitsForSMSFragments:
     def test_API_BULK_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
-        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
@@ -1861,6 +1863,8 @@ class TestEmailsAndLimitsForSMSFragments:
 
         # Create 7 notifications in the db
         template = create_sample_template(notify_db, notify_db_session, content="Hello", service=service, template_type="sms")
+        job = create_sample_job(notify_db=notify_db, notify_db_session=notify_db_session, service=service, template=template)
+        mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job)
         for x in range(7):
             create_sample_notification(notify_db, notify_db_session, service=service)
 
@@ -2539,6 +2543,7 @@ class TestBulkSend:
                 "service": str(sample_email_template.service_id),
                 "service_name": {"name": sample_email_template.service.name},
                 "template": str(sample_email_template.id),
+                "template_type": str(sample_email_template.template_type),
                 "template_version": sample_email_template.version,
                 "updated_at": None,
                 "sender_id": str(reply_to_email.id) if use_sender_id else None,
