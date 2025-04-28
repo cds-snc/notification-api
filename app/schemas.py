@@ -499,6 +499,11 @@ class JobSchema(BaseSchema):
     )
     sender_id = fields.UUID(required=False, allow_none=True)
 
+    template_type = fields.Method("get_template_type", dump_only=True)
+
+    def get_template_type(self, job):
+        return job.template.template_type if job.template else None
+
     @validates("scheduled_for")
     def validate_scheduled_for(self, value):
         _validate_datetime_not_in_past(value)
@@ -843,6 +848,7 @@ class ReportSchema(BaseSchema):
     url = fields.String()
     language = fields.String()
     notification_statuses = fields.List(fields.String(), required=False, allow_none=True)
+    job_id = fields.UUID(required=False, allow_none=True)
 
     requesting_user = fields.Nested(
         UserSchema,
