@@ -53,7 +53,7 @@ class Translate:
         return x
 
 
-def build_notifications_query(service_id, notification_type, language, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, notification_statuses=[], days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -62,7 +62,7 @@ def build_notifications_query(service_id, notification_type, language, days_limi
         notification_type: The type of notifications to include
         language: "en" or "fr"
         days_limit: Number of days to look back in history
-
+        notification_statuses: List of notification statuses to filter by
     Returns:
         SQLAlchemy query object for notifications
     """
@@ -73,6 +73,16 @@ def build_notifications_query(service_id, notification_type, language, days_limi
     u = aliased(User)
 
     # Build the inner subquery (returns enum values, cast as text for notification_type)
+    query_filters = [
+        n.service_id == service_id,
+        n.notification_type == notification_type,
+        n.created_at > func.now() - text(f"interval '{days_limit} days'"),
+    ]
+
+    if notification_statuses:
+        statuses = Notification.substitute_status(notification_statuses)
+        query_filters.append(n.status.in_(statuses))
+
     inner_query = (
         db.session.query(
             n.to.label("to"),
@@ -89,11 +99,7 @@ def build_notifications_query(service_id, notification_type, language, days_limi
         .join(t, t.id == n.template_id)
         .outerjoin(j, j.id == n.job_id)
         .outerjoin(u, u.id == n.created_by_id)
-        .filter(
-            n.service_id == service_id,
-            n.notification_type == notification_type,
-            n.created_at > func.now() - text(f"interval '{days_limit} days'"),
-        )
+        .filter(*query_filters)
         .order_by(n.created_at.desc())
         .subquery()
     )
@@ -191,7 +197,9 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
         conn.close()
 
 
-def generate_csv_from_notifications(service_id, notification_type, language, days_limit=7, s3_bucket=None, s3_key=None):
+def generate_csv_from_notifications(
+    service_id, notification_type, language, notification_statuses=[], days_limit=7, s3_bucket=None, s3_key=None
+):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
 
@@ -203,7 +211,13 @@ def generate_csv_from_notifications(service_id, notification_type, language, day
         s3_bucket: The S3 bucket name to store the CSV (required)
         s3_key: The S3 object key for the CSV (required)
     """
-    query = build_notifications_query(service_id, notification_type, language, days_limit)
+    query = build_notifications_query(
+        service_id=service_id,
+        notification_type=notification_type,
+        language=language,
+        notification_statuses=notification_statuses,
+        days_limit=days_limit,
+    )
     copy_command = compile_query_for_copy(query)
     stream_query_to_s3(copy_command, s3_bucket, s3_key)
 

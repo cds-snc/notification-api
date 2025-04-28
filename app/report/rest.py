@@ -34,7 +34,6 @@ def create_service_report(service_id):
     dao_fetch_service_by_id(service_id)
 
     try:
-        # Validate the report data against the schema
         report_data = {
             "id": str(uuid.uuid4()),
             "report_type": report_type,
@@ -42,22 +41,30 @@ def create_service_report(service_id):
             "status": ReportStatus.REQUESTED.value,
             "requesting_user_id": data.get("requesting_user_id"),
             "language": data.get("language"),
+            "notification_statuses": data.get("notification_statuses"),
         }
 
         # Validate against the schema
         report_schema.load(report_data)
 
         # Create the report object
-        report = Report(**report_data)
+        report = Report(
+            id=report_data["id"],
+            report_type=report_data["report_type"],
+            service_id=report_data["service_id"],
+            status=report_data["status"],
+            requesting_user_id=report_data["requesting_user_id"],
+            language=report_data["language"],
+        )
 
         # Save the report to the database
         created_report = create_report(report)
 
         current_app.logger.info(f"Report {created_report.id} created for service {service_id}")
-
+        notification_statuses = report_data["notification_statuses"] if report_data["notification_statuses"] else []
         # start the report generation process in celery
         current_app.logger.info(f"Calling generate_report for Report ID {report.id}")
-        generate_report.apply_async([report.id], queue=QueueNames.GENERATE_REPORTS)
+        generate_report.apply_async([report.id, notification_statuses], queue=QueueNames.GENERATE_REPORTS)
 
         return jsonify(data=report_schema.dump(created_report)), 201
 
@@ -70,8 +77,8 @@ def create_service_report(service_id):
 def get_service_reports(service_id):
     """Get reports for a service with optional limit_days parameter"""
 
-    # Get optional days parameter, default to 30 if not provided
-    limit_days = request.args.get("limit_days", type=int, default=30)
+    # Get optional days parameter, default to 7 if not provided
+    limit_days = request.args.get("limit_days", type=int, default=7)
 
     # Check service exists
     dao_fetch_service_by_id(service_id)

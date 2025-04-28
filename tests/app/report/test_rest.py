@@ -56,8 +56,8 @@ def test_get_service_reports_returns_reports_with_default_limit(admin_request, s
     response = admin_request.get("report.get_service_reports", service_id=sample_service.id)
 
     assert response["data"]
-    # Verify the default limit of 30 days was used
-    mock_get_reports.assert_called_once_with(sample_service.id, 30)
+    # Verify the default limit of 7 days was used
+    mock_get_reports.assert_called_once_with(sample_service.id, 7)
 
 
 def test_get_service_reports_with_custom_days_limit(admin_request, sample_service, mocker):
