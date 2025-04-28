@@ -1,4 +1,5 @@
 from flask import current_app
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import case, func, text
 from sqlalchemy.orm import aliased
 
@@ -8,7 +9,6 @@ from app.config import QueueNames
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import EMAIL_STATUS_FORMATTED, KEY_TYPE_NORMAL, SMS_STATUS_FORMATTED, Job, Notification, Service, Template, User
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
-from app.utils import convert_utc_to_local_timezone
 
 FR_TRANSLATIONS = {
     "Recipient": "Destinataire",
