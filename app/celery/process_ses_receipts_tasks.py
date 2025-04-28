@@ -225,7 +225,7 @@ def process_ses_results(self, response):
 
     except Exception:
         current_app.logger.exception(
-            f"Error processing SES results for receipt batch messageId {response['messageId']}: notification references {ref_ids.join(", ")} "
+            f"Error processing SES results for receipt batch messageId {response['MessageId']}: notification references {", ".join(ref_ids)}"
         )
 
         end_time = time.time()
