@@ -1,4 +1,5 @@
 from flask import current_app
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import case, func, text
 from sqlalchemy.orm import aliased
 
@@ -236,12 +237,20 @@ def send_requested_report_ready(report) -> None:
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
     report_service = Service.query.get(report.service_id)
 
-    if template.template_type == "email":
-        report_name_en = f"{report.requested_at.date()}-emails-{report_service.name}"
-        report_name_fr = f"{report.requested_at.date()}-courriels-{report_service.name}"
-    else:
-        report_name_en = f"{report.requested_at.date()}-sms-{report_service.name}"
-        report_name_fr = f"{report.requested_at.date()}-sms-{report_service.name}"
+    # Convert UTC time to Eastern Time (America/Toronto) and format with timezone indicator
+    local_time = convert_utc_to_local_timezone(report.requested_at)
+
+    # Determine if it's EDT or EST
+    timezone_name = "EDT" if local_time.dst() else "EST"
+    if report.language == "fr":
+        timezone_name = "HAE" if local_time.dst() else "HNE"
+
+    # Format the datetime with timezone indicator
+    formatted_datetime = local_time.strftime("%Y-%m-%d %H.%M.%S")
+
+    # Create report names with proper formatting
+    lang_indicator = f"[{report.language}]" if report.language else "[en]"
+    report_name = f"{formatted_datetime} {timezone_name} {lang_indicator}"
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -250,8 +259,8 @@ def send_requested_report_ready(report) -> None:
         service=service,
         personalisation={
             "name": report.requesting_user.name,
-            "report_name_en": report_name_en,
-            "report_name_fr": report_name_fr,
+            "report_name_en": report_name,
+            "report_name_fr": report_name,
             "service_name": report_service.name,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports?lang=fr",
