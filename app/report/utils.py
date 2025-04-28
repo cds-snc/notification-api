@@ -54,7 +54,7 @@ class Translate:
         return x
 
 
-def build_notifications_query(service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, notification_statuses=[], days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -64,7 +64,6 @@ def build_notifications_query(service_id, notification_type, language, notificat
         language: "en" or "fr"
         days_limit: Number of days to look back in history
         notification_statuses: List of notification statuses to filter by
-        job_id: Optional filter by specific job ID
     Returns:
         SQLAlchemy query object for notifications
     """
@@ -84,9 +83,6 @@ def build_notifications_query(service_id, notification_type, language, notificat
     if notification_statuses:
         statuses = Notification.substitute_status(notification_statuses)
         query_filters.append(n.status.in_(statuses))
-
-    if job_id:
-        query_filters.append(n.job_id == job_id)
 
     inner_query = (
         db.session.query(
@@ -203,7 +199,7 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
 
 
 def generate_csv_from_notifications(
-    service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7, s3_bucket=None, s3_key=None
+    service_id, notification_type, language, notification_statuses=[], days_limit=7, s3_bucket=None, s3_key=None
 ):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
@@ -221,7 +217,6 @@ def generate_csv_from_notifications(
         notification_type=notification_type,
         language=language,
         notification_statuses=notification_statuses,
-        job_id=job_id,
         days_limit=days_limit,
     )
     copy_command = compile_query_for_copy(query)
