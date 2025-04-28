@@ -20,6 +20,15 @@ from celery.exceptions import Retry
 
 
 def handle_complaints_and_extract_ref_ids(messages):
+    """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
+       and returning the remaining messages for further processing.
+
+    Args:
+        messages (List): List of SES messages received from the SQS receipt buffer queue.
+
+    Returns:
+        Tuple: A tuple containing a list of notification reference IDs and a reduced list of SES messages not containing any complaint receipts.
+    """
     ref_ids = []
     complaint_free_messages = []
 
@@ -35,6 +44,18 @@ def handle_complaints_and_extract_ref_ids(messages):
 
 
 def prepare_updates_and_retries(ses_messages, notifications):
+    """Prepares a list of updates and retries for the notifications based on the SES receipts received.
+
+    Args:
+        ses_messages (List): The SES receipts received from the SQS queue. Should not contain any complaint receipts.
+        notifications (List): A list of notifications fetched by referenceId which currently exist in the DB and can be updated.
+
+    Returns:
+        Tuple: A tuple containing:
+        - updates (List): A list of dictionaries containing the notification to update, the new status, and the provider response.
+        - retries (List): A list of SES messages that need to be retried.
+        - notification_receipt_pairs (List): A list of tuples with the notifications mapped to their receipts update limits in Redis faster.
+    """
     retries, updates, notification_receipt_pairs = [], [], []
     # Since the ses_message order and order of notifications from the DB may not be in sync,
     # lets map notifications to their references for faster lookup
@@ -137,10 +158,10 @@ def process_ses_results(self, response):
                     f"Notifications not found for SES references: {retry_ids}. Max retries exceeded. Giving up."
                 )
 
-        # Store FF_ANNUAL_LIMIT instead repeatidly fetching it from config
+        # Fetch once instead of repeatedly
         ff_annual_limit = current_app.config["FF_ANNUAL_LIMIT"]
 
-        # Update annual limits
+        # Update annual limits based on the notifications which were updated from this batch of receipts excluding retries.
         for notification, aws_response_dict in notification_receipt_pairs:
             service_id = notification.service_id
             new_status = aws_response_dict["notification_status"]
@@ -203,18 +224,10 @@ def process_ses_results(self, response):
         raise
 
     except Exception:
-        # TODO: Figure out this logging in a batch context
+        current_app.logger.exception(
+            f"Error processing SES results for receipt batch messageId {response['messageId']}: notification references {ref_ids.join(", ")} "
+        )
 
-        # notifcation_msg = "Notification ID: {}".format(notification.id) if notification else "No notification"
-        # notification_status_msg = (
-        #     "Notification status: {}".format(notification_status) if notification_status else "No notification status"
-        # )
-        # ref_msg = "Reference ID: {}".format(ref_ids) if ref_ids else "No reference"
-
-        # current_app.logger.exception(
-        #     "Error processing SES results: {} [{}, {}, {}]".format(type(e), notifcation_msg, notification_status_msg, ref_msg)
-        # )
-        # TODO: remove this after benchmarking
         end_time = time.time()
         current_app.logger.info(f"process_ses_results took {end_time - start_time} seconds")
         self.retry(queue=QueueNames.RETRY, args=[updates])
