@@ -61,13 +61,12 @@ def generate_ses_notification_callbacks(references, with_complaints=False):
                 "feedbackId": "ses_feedback_id",
             }
         messages.append(ses_message_body)
-
     return {
         "Type": "Notification",
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Messages": json.dumps(messages),
+        "Messages": json.loads(json.dumps(messages)),
         "Timestamp": "2017-11-17T12:14:03.710Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",
@@ -120,7 +119,7 @@ def ses_notification_callback(reference):
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Messages": json.dumps([ses_message_body]),
+        "Messages": [ses_message_body],
         "Timestamp": "2017-11-17T12:14:03.710Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",
@@ -191,7 +190,9 @@ def ses_complaint_callback():
         "Type": "Notification",
         "Timestamp": "2018-06-05T14:00:15.952Z",
         "Subject": None,
-        "Messages": '[{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}]',  # noqa
+        "Messages": json.loads(
+            '[{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}]'
+        ),  # noqa
         "SigningCertUrl": "https://sns.pem",
     }
 
@@ -435,7 +436,7 @@ def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
         "MessageId": "36e67c28-1234-1234-1234-2ea0172aa4a7",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Messages": json.dumps([ses_message_body]),
+        "Messages": [ses_message_body],
         "Timestamp": "2017-11-17T12:14:05.149Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",  # noqa
