@@ -44,7 +44,7 @@ jobs:
 
       - name: Dump and upload schema
         run: |
-          docker exec ci-db-1 pg_dump -U postgres -s -d notification_api > napi-schema.sql
+          docker exec ci-db-1 pg_dump -U postgres -d notification_api > napi-schema.sql
           aws s3 cp napi-schema.sql s3://vanotify-environment-variables-dev/notification-api/schemas/napi-schema.sql
           docker compose -f ci/docker-compose-ci.yml down
 
