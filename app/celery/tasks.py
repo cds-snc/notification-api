@@ -85,7 +85,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
-from app.report.utils import generate_csv_from_notifications
+from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
@@ -924,6 +924,11 @@ def generate_report(report_id: str):
         # mark the report as ready
         report.status = ReportStatus.READY.value
         update_report(report)
+        # send an email to the requesting user
+        try:
+            send_requested_report_ready(report)
+        except Exception:
+            current_app.logger.exception("Failed to send email to user for Report ID {}".format(report.id))
         current_app.logger.info(f"Report ID {str(report.id)} has been generated")
     except Exception as e:
         current_app.logger.exception(f"Failed to generate report for Report ID {report.id}: {str(e)}")
