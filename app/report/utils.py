@@ -8,6 +8,7 @@ from app.config import QueueNames
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import EMAIL_STATUS_FORMATTED, KEY_TYPE_NORMAL, SMS_STATUS_FORMATTED, Job, Notification, Service, Template, User
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
+from app.utils import convert_utc_to_local_timezone
 
 FR_TRANSLATIONS = {
     "Recipient": "Destinataire",
@@ -53,7 +54,7 @@ class Translate:
         return x
 
 
-def build_notifications_query(service_id, notification_type, language, notification_statuses=[], days_limit=7):
+def build_notifications_query(service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -63,6 +64,7 @@ def build_notifications_query(service_id, notification_type, language, notificat
         language: "en" or "fr"
         days_limit: Number of days to look back in history
         notification_statuses: List of notification statuses to filter by
+        job_id: Optional filter by specific job ID
     Returns:
         SQLAlchemy query object for notifications
     """
@@ -82,6 +84,9 @@ def build_notifications_query(service_id, notification_type, language, notificat
     if notification_statuses:
         statuses = Notification.substitute_status(notification_statuses)
         query_filters.append(n.status.in_(statuses))
+
+    if job_id:
+        query_filters.append(n.job_id == job_id)
 
     inner_query = (
         db.session.query(
@@ -198,7 +203,7 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
 
 
 def generate_csv_from_notifications(
-    service_id, notification_type, language, notification_statuses=[], days_limit=7, s3_bucket=None, s3_key=None
+    service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7, s3_bucket=None, s3_key=None
 ):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
@@ -216,6 +221,7 @@ def generate_csv_from_notifications(
         notification_type=notification_type,
         language=language,
         notification_statuses=notification_statuses,
+        job_id=job_id,
         days_limit=days_limit,
     )
     copy_command = compile_query_for_copy(query)
@@ -231,12 +237,20 @@ def send_requested_report_ready(report) -> None:
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
     report_service = Service.query.get(report.service_id)
 
-    if template.template_type == "email":
-        report_name_en = f"{report.requested_at.date()}-emails-{report_service.name}"
-        report_name_fr = f"{report.requested_at.date()}-courriels-{report_service.name}"
-    else:
-        report_name_en = f"{report.requested_at.date()}-sms-{report_service.name}"
-        report_name_fr = f"{report.requested_at.date()}-sms-{report_service.name}"
+    # Convert UTC time to Eastern Time (America/Toronto) and format with timezone indicator
+    local_time = convert_utc_to_local_timezone(report.requested_at)
+
+    # Determine if it's EDT or EST
+    timezone_name = "EDT" if local_time.dst() else "EST"
+    if report.language == "fr":
+        timezone_name = "HAE" if local_time.dst() else "HNE"
+
+    # Format the datetime with timezone indicator
+    formatted_datetime = local_time.strftime("%Y-%m-%d %H.%M.%S")
+
+    # Create report names with proper formatting
+    lang_indicator = f"[{report.language}]" if report.language else "[en]"
+    report_name = f"{formatted_datetime} {timezone_name} {lang_indicator}"
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -245,8 +259,8 @@ def send_requested_report_ready(report) -> None:
         service=service,
         personalisation={
             "name": report.requesting_user.name,
-            "report_name_en": report_name_en,
-            "report_name_fr": report_name_fr,
+            "report_name_en": report_name,
+            "report_name_fr": report_name,
             "service_name": report_service.name,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{report_service.id}/reports?lang=fr",
