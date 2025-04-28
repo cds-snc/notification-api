@@ -35,6 +35,7 @@ class TestGenerateCsvFromNotifications:
         s3_key = "test-key.csv"
         language = "en"
         notification_statuses = ["delivered", "failed"]
+        job_id = "job-id-1"
         # When
         with patch("app.report.utils.build_notifications_query") as mock_build_query:
             with patch("app.report.utils.compile_query_for_copy") as mock_compile_query:
@@ -44,7 +45,7 @@ class TestGenerateCsvFromNotifications:
 
                     # Call the function
                     generate_csv_from_notifications(
-                        service_id, notification_type, language, notification_statuses, days_limit, s3_bucket, s3_key
+                        service_id, notification_type, language, notification_statuses, job_id, days_limit, s3_bucket, s3_key
                     )
 
                     # Then
@@ -53,6 +54,7 @@ class TestGenerateCsvFromNotifications:
                         notification_type=notification_type,
                         language=language,
                         notification_statuses=notification_statuses,
+                        job_id=job_id,
                         days_limit=days_limit,
                     )
                     mock_compile_query.assert_called_once_with("mock query")
@@ -110,6 +112,26 @@ class TestGenerateCsvFromNotifications:
         # Then
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
         assert "notification.status IN" not in sql_str  # No status filter should be applied
+
+    def test_build_notifications_query_with_job_id_filter(self):
+        # Given
+        service_id = "service-id-1"
+        notification_type = "email"
+        language = "en"
+        job_id = "job-id-1"
+
+        # When
+        query = build_notifications_query(
+            service_id=service_id,
+            notification_type=notification_type,
+            language=language,
+            job_id=job_id,
+        )
+
+        # Then
+        # Convert query to string to check the SQL
+        sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
+        assert f".job_id = '{job_id}'" in sql_str
 
 
 class TestEmails:
@@ -170,6 +192,7 @@ class TestNotificationReportIntegration:
                 "email",
                 "en",
                 days_limit=7,
+                job_id=None,
                 s3_bucket="test-bucket",
                 s3_key="test-key.csv",
             )
@@ -226,6 +249,7 @@ class TestNotificationReportIntegration:
                 "email",
                 "en",
                 notification_statuses=["delivered", "failed"],
+                job_id=None,
                 days_limit=7,
                 s3_bucket="test-bucket",
                 s3_key="test-key.csv",
