@@ -23,6 +23,29 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
+      # Caching requires 3 steps here
+      # 1. Set up Docker Buildx - according to https://docs.docker.com/build/cache/backends/gha/,
+      #    the standard Docker driver is not supported for caching. Setting up buildx is necessary.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          version: latest  # Ensure we get version >= 0.21.0 for new cache service
+        
+      # 2. Set up GitHub Actions Runtime
+      #    This is required to set up the runtime and expose ${ACTIONS_RESULTS_URL}, which is used by buildx.
+      #    Referenced here: https://docs.docker.com/build/cache/backends/gha/#authentication
+      - name: Set up GitHub Actions Runtime
+        uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3.1.0 -- pinned to avoid breaking changes
+
+      # 3. Compose build (with cache)
+      #    This is the actual build step that uses the cache.
+      - name: Compose build (with cache)
+        run: |
+          docker compose \
+            -f ci/docker-compose-ci.yml \
+            build --builder "${BUILDX_BUILDER}"
+
       - name: Run tests using docker-compose
         run: |
           # Start DB container

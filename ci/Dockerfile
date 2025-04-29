@@ -15,10 +15,10 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 COPY certs/* /usr/local/share/ca-certificates/
 
 # Copy necessary files for dependency installation and build steps
-COPY .git Makefile scripts/import-va-certs.sh poetry.lock pyproject.toml /
+COPY Makefile scripts/import-va-certs.sh poetry.lock pyproject.toml /
 
 # Install system build dependencies and other packages
-RUN apk add --no-cache bash build-base git postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev \
+RUN apk add --no-cache bash build-base postgresql-dev g++ make libffi-dev libmagic libcurl python3-dev openssl-dev \
     curl-dev wget openssl && \
     # Import extra VA certs and generate a version file
     bash import-va-certs.sh && make generate-version-file
