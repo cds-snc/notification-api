@@ -8,14 +8,12 @@ from botocore.exceptions import ClientError
 from flask import current_app, g
 from celery import chain
 
-from notifications_utils.clients import redis
 from notifications_utils.recipients import (
     ValidatedPhoneNumber,
     format_email_address,
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
-from app import redis_store
 from app.celery import provider_tasks
 from app.celery.contact_information_tasks import lookup_contact_info
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
@@ -146,9 +144,6 @@ def persist_notification(
     if not simulated:
         # Persist the Notification in the database.
         dao_create_notification(notification)
-        if key_type != KEY_TYPE_TEST:
-            if redis_store.get(redis.daily_limit_cache_key(service_id)):
-                redis_store.incr(redis.daily_limit_cache_key(service_id))
 
         current_app.logger.info('%s %s created at %s', notification_type, notification_id, notification_created_at)
 

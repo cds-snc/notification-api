@@ -88,14 +88,14 @@ def post_notification(notification_type):  # noqa: C901
         if not authenticated_service.has_permissions(SCHEDULE_NOTIFICATIONS):
             raise BadRequestError(message='Cannot schedule notifications (this feature is invite-only)')
 
-    check_rate_limiting(authenticated_service, api_user)
-
     template, template_with_content = validate_template(
         form['template_id'],
         strip_keys_from_personalisation_if_send_attach(form.get('personalisation', {})),
         authenticated_service,
         notification_type,
     )
+
+    check_rate_limiting(authenticated_service, api_user)
 
     onsite_enabled = template.onsite_notification
 

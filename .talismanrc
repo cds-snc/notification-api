@@ -13,16 +13,20 @@ fileignoreconfig:
   checksum: 43088cf568fd761f6b3a55be2525479e57f7e325427616bb220342416a630c3d
 - filename: cd/application-deployment/staging/staging.env
   checksum: 8cc5e0cbdb3066828cfc3bec1333f6ce1adab662a658276755992844fd54184c
+- filename: ci/.local.env
+  checksum: ebe3d5ba30e83d3be41fbd43b54755f58855ff8a20d2e172847575efb95fe3e7
 - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
   checksum: 4e6e2fabf9630e9e0d26028818f41f34c065e80c223db34d35a1d1068c37a782
 - filename: poetry.lock
   checksum: 5369b357fbab76c1aca03f779132c86d3894fcf8c1e2dbe26ba4de30a418f531
+- filename: app/notifications/validators.py
+  checksum: 7c3f9574dd8096863b53927723fccc75f8c0a27c06a2da09b277fbc8af7ba9ef
 - filename: tests/app/authentication/test_authentication.py
   checksum: f7091cd49ae042cb1a189d81e905c7595a822e5a6742624ed37a0ed7e1e05bb5
 - filename: tests/app/delivery/test_send_to_providers.py
   checksum: 7db1b20912c3f7a5cb366eb143cace80bfb406ca1af844e11022747e7311aea5
 - filename: tests/app/notifications/test_validators.py
-  checksum: 7e95b0854fdc12ab60e97347f5e6498e99b29b9df3b635487ab89189ed11fabb
+  checksum: 9dab7e3890137b515bf84f9ea587d79dbd5e63568ff9a72c3a404f7738c0b329
 - filename: tests/app/service/test_rest.py
   checksum: b2126023c505e04dc66e4cc2be876c49daad154acd0c2ac63f03961e2ea8bef2
 - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_lambda.py

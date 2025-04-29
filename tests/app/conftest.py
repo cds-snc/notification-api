@@ -134,15 +134,6 @@ def rmock():
         yield rmock
 
 
-@pytest.fixture(autouse=True)
-def redis_mock(mocker, request):
-    # use @pytest.mark.no_mock_redis in any function that tests redis
-    if 'no_mock_redis' in request.keywords:
-        return
-    # Redis lookup in tests take 5 seconds to timeout
-    mocker.patch('app.notifications.process_notifications.redis_store.get', return_value=False)
-
-
 @pytest.fixture
 def set_user_as_admin(notify_db_session):
     def _wrapper(user: User) -> User:

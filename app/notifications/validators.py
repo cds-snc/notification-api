@@ -11,6 +11,7 @@ from notifications_utils.recipients import (
 from notifications_utils.clients.redis import rate_limit_cache_key, daily_limit_cache_key
 from sqlalchemy.orm.exc import NoResultFound
 
+from app import redis_store
 from app.constants import (
     INTERNATIONAL_SMS_TYPE,
     SMS_TYPE,
@@ -23,51 +24,90 @@ from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.dao.templates_dao import dao_get_number_of_templates_by_service_id_and_name
 from app.feature_flags import is_feature_enabled, FeatureFlag
+from app.models import ApiKey, Service
 from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
-from app import redis_store
 from app.notifications.process_notifications import create_content_for_notification
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 
 
 def check_service_over_api_rate_limit(
-    service,
-    api_key,
+    service: Service,
+    api_key: ApiKey,
 ):
+    """Check if the service has exceeded its API rate limit.
+
+    Args:
+        service (Service): The service object to check against.
+        api_key (ApiKey): The API key object to check against.
+
+    Raises:
+        RateLimitError: If the service has exceeded its API rate limit.
+    """
     if current_app.config['API_RATE_LIMIT_ENABLED'] and current_app.config['REDIS_ENABLED']:
         cache_key = rate_limit_cache_key(service.id, api_key.key_type)
         rate_limit = service.rate_limit
         interval = 60
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
-            current_app.logger.info(f'service {service.id} has been rate limited for throughput')
+            current_app.logger.info('service %s (%s) has been rate limited for throughput', service.id, service.name)
             raise RateLimitError(rate_limit, interval, key_type=api_key.key_type)
 
 
 def check_service_over_daily_message_limit(
-    key_type,
-    service,
+    key_type: str,
+    service: Service,
 ):
+    """
+    Check if the service has exceeded its daily message limit.
+    Log when the service is nearing the limit (>= 75%).
+    If the service has exceeded the limit, raise a TooManyRequestsError.
+
+    Args:
+        key_type (str): The type of API key used (normal, team, or test).
+        service (Service): The service object to check against.
+
+    Raises:
+        TooManyRequestsError: If the service has exceeded its daily message limit.
+    """
+    # Enforce daily message limit only when configured
+    # and the service is not using a test key.
     if (
         current_app.config['API_MESSAGE_LIMIT_ENABLED']
-        and key_type != KEY_TYPE_TEST
         and current_app.config['REDIS_ENABLED']
+        and key_type != KEY_TYPE_TEST
     ):
         cache_key = daily_limit_cache_key(service.id)
         service_stats = redis_store.get(cache_key)
+
         if not service_stats:
             service_stats = services_dao.fetch_todays_total_message_count(service.id)
             redis_store.set(cache_key, service_stats, ex=3600)
-        if round((int(service_stats) / service.message_limit), 1) * 100 > 75:
-            current_app.logger.info(
-                f'service {service.id} nearing daily limit {(int(service_stats) / service.message_limit * 100):.1f}%'
-            )
 
+        # log if the service has exceeded the limit or is getting close (>= 75%)
+        # raise error if the service has exceeded the limit
         if int(service_stats) >= service.message_limit:
             current_app.logger.info(
-                f'service {service.id} has been rate limited for daily use sent'
-                f'{int(service_stats)} limit {service.message_limit}'
+                'service %s (%s) has been rate limited for daily use sent %s limit %s',
+                service.id,
+                service.name,
+                int(service_stats),
+                service.message_limit,
             )
             raise TooManyRequestsError(service.message_limit)
+
+        elif round((int(service_stats) / service.message_limit), 2) * 100 > 75:
+            # only log if sent over 75% of the limit, and not already over daily limit
+            current_app.logger.info(
+                'service %s (%s) nearing daily limit %.1f%% of %s message limit',
+                service.id,
+                service.name,
+                round((int(service_stats) / service.message_limit), 2) * 100,
+                service.message_limit,
+            )
+
+        # increment the service stats in redis
+        if service_stats:
+            redis_store.incr(cache_key)
 
 
 def check_sms_sender_over_rate_limit(

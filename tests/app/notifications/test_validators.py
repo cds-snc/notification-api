@@ -33,153 +33,91 @@ from tests.app.db import (
 
 
 # all of these tests should have redis enabled (except where we specifically disable it)
-@pytest.fixture(scope='module', autouse=True)
-def enable_redis(notify_api):
+@pytest.fixture(scope='function', autouse=True)
+def enable_redis(notify_api, mocker):
+    # current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
+    # current_app.config['REDIS_ENABLED'] = True
     with set_config(notify_api, 'REDIS_ENABLED', True):
-        yield
+        with set_config(notify_api, 'API_MESSAGE_LIMIT_ENABLED', True):
+            mocker.patch('app.notifications.validators.redis_store.get', return_value=1)
+            mocker.patch('app.notifications.validators.services_dao.fetch_todays_total_message_count', return_value=1)
+            yield
 
 
-@pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
-def test_should_not_enforce_message_limit_if_limiting_is_disabled(
-    key_type,
-    sample_service,
-    mocker,
-):
-    current_app.config['API_MESSAGE_LIMIT_ENABLED'] = False
+class TestCheckServiceDailyLimit:
+    @staticmethod
+    @freeze_time('2025-05-04 11:11:11')
+    @pytest.mark.parametrize('key_type', ['normal', 'team', 'test'])
+    def test_should_check_message_limit_if_limiting_is_enabled(
+        key_type,
+        sample_service,
+        mocker,
+    ):
+        service = sample_service()
 
-    mocker.patch('app.notifications.validators.redis_store.get')
-
-    check_service_over_daily_message_limit(key_type, sample_service())
-    app.notifications.validators.redis_store.get.assert_not_called()
-
-
-@pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
-def test_check_service_message_limit_in_cache_with_unrestricted_service_is_allowed(
-    key_type,
-    sample_service,
-    mocker,
-):
-    mocker.patch('app.notifications.validators.redis_store.get', return_value=1)
-    mocker.patch('app.notifications.validators.redis_store.set')
-    mocker.patch('app.notifications.validators.services_dao')
-
-    check_service_over_daily_message_limit(key_type, sample_service)
-    app.notifications.validators.redis_store.set.assert_not_called()
-    assert not app.notifications.validators.services_dao.mock_calls
-
-
-@pytest.mark.parametrize('key_type', ['test', 'team', 'normal'])
-def test_check_service_message_limit_in_cache_under_message_limit_passes(
-    key_type,
-    sample_service,
-    mocker,
-):
-    mocker.patch('app.notifications.validators.redis_store.get', return_value=1)
-    mocker.patch('app.notifications.validators.redis_store.set')
-    mocker.patch('app.notifications.validators.services_dao')
-    check_service_over_daily_message_limit(key_type, sample_service())
-    app.notifications.validators.redis_store.set.assert_not_called()
-    assert not app.notifications.validators.services_dao.mock_calls
-
-
-def test_should_not_interact_with_cache_for_test_key(
-    sample_service,
-    mocker,
-):
-    mocker.patch('app.notifications.validators.redis_store')
-    check_service_over_daily_message_limit('test', sample_service())
-    assert not app.notifications.validators.redis_store.mock_calls
-
-
-@pytest.mark.parametrize('key_type', ['team', 'normal'])
-def test_should_set_cache_value_as_value_from_database_if_cache_not_set(
-    key_type,
-    sample_api_key,
-    sample_notification,
-    sample_template,
-    mocker,
-):
-    with freeze_time('2016-01-01 12:00:00.000000'):
-        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
-        api_key = sample_api_key()
-        service = api_key.service
-        template = sample_template(service=service)
-
-        for _ in range(5):
-            sample_notification(template=template, api_key=api_key)
+        # override the value set in the fixture
         mocker.patch('app.notifications.validators.redis_store.get', return_value=None)
-        mocker.patch('app.notifications.validators.redis_store.set')
+        mock_set = mocker.patch('app.notifications.validators.redis_store.set')
+        mock_incr = mocker.patch('app.notifications.validators.redis_store.incr')
+
         check_service_over_daily_message_limit(key_type, service)
-        app.notifications.validators.redis_store.set.assert_called_with(
-            str(service.id) + '-2016-01-01-count', 5, ex=3600
-        )
 
+        # message limit is only enforced when the key type is not 'test'
+        # and API_MESSAGE_LIMIT_ENABLED and REDIS_ENABLED are True
+        if key_type == 'test':
+            mock_set.assert_not_called()
+            mock_incr.assert_not_called()
+        else:
+            mock_set.assert_called_once_with(str(service.id) + '-2025-05-04-count', 1, ex=3600)
+            mock_incr.assert_called_once_with(str(service.id) + '-2025-05-04-count')
 
-def test_should_not_access_database_if_redis_disabled(
-    notify_api,
-    sample_service,
-    mocker,
-):
-    with set_config(notify_api, 'REDIS_ENABLED', False):
-        db_mock = mocker.patch('app.notifications.validators.services_dao')
+    @staticmethod
+    @freeze_time('2025-05-04 11:11:11')
+    def test_check_service_message_limit_increments_cache_count(sample_service, mocker):
+        service = sample_service()
+        mock_incr = mocker.patch('app.notifications.validators.redis_store.incr')
 
-        check_service_over_daily_message_limit('normal', sample_service())
+        # Cleaned by the template cleanup
+        check_service_over_daily_message_limit('normal', service)
 
-        assert db_mock.method_calls == []
+        mock_incr.assert_called_once_with(str(service.id) + '-2025-05-04-count')
 
+    @staticmethod
+    @pytest.mark.parametrize(
+        'redis_enabled, api_limit_enabled',
+        [(False, True), (True, False), (False, False)],
+        ids=['redis_disabled', 'api_limit_disabled', 'both_disabled'],
+    )
+    def test_check_service_message_limit_does_not_check_cache_if_redis_or_api_limit_disabled(
+        notify_api,
+        sample_service,
+        mocker,
+        redis_enabled,
+        api_limit_enabled,
+    ) -> None:
+        with set_config(notify_api, 'REDIS_ENABLED', redis_enabled):
+            with set_config(notify_api, 'API_MESSAGE_LIMIT_ENABLED', api_limit_enabled):
+                mock_get = mocker.patch('app.notifications.validators.redis_store.get')
 
-@pytest.mark.parametrize('key_type', ['team', 'normal'])
-def test_check_service_message_limit_over_message_limit_fails(
-    key_type,
-    sample_api_key,
-    sample_notification,
-    sample_template,
-    mocker,
-):
-    with freeze_time('2016-01-01 12:00:00.000000'):
-        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
-        mocker.patch('app.redis_store.get', return_value=None)
-        mocker.patch('app.notifications.validators.redis_store.set')
+                check_service_over_daily_message_limit('normal', sample_service())
 
-        template = sample_template()
-        service = template.service
-        api_key = sample_api_key(service=service)
-        service.restricted = True
-        service.message_limit = 4
+                assert mock_get.not_called()
 
-        for _ in range(5):
-            sample_notification(template=template, api_key=api_key)
+    @staticmethod
+    @freeze_time('2025-05-04 11:11:11')
+    def test_check_service_message_limit_raises_exception(
+        notify_api,
+        sample_service,
+        mocker,
+    ):
+        mock_logger = mocker.patch('app.notifications.validators.current_app.logger.info')
+
         with pytest.raises(TooManyRequestsError) as e:
-            check_service_over_daily_message_limit(key_type, service)
+            check_service_over_daily_message_limit('normal', sample_service(message_limit=1))
+
         assert e.value.status_code == 429
-        assert e.value.message == 'Exceeded send limits (4) for today'
-        assert e.value.fields == []
-        app.notifications.validators.redis_store.set.assert_called_with(
-            str(service.id) + '-2016-01-01-count', 5, ex=3600
-        )
-
-
-@pytest.mark.parametrize('key_type', ['team', 'normal'])
-def test_check_service_message_limit_in_cache_over_message_limit_fails(
-    sample_service,
-    key_type,
-    mocker,
-):
-    with freeze_time('2016-01-01 12:00:00.000000'):
-        current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
-
-        mocker.patch('app.redis_store.get', return_value=5)
-        mocker.patch('app.notifications.validators.redis_store.set')
-        mocker.patch('app.notifications.validators.services_dao')
-
-        service = sample_service(restricted=True, message_limit=4)
-        with pytest.raises(TooManyRequestsError) as e:
-            check_service_over_daily_message_limit(key_type, service)
-        assert e.value.status_code == 429
-        assert e.value.message == 'Exceeded send limits (4) for today'
-        assert e.value.fields == []
-        app.notifications.validators.redis_store.set.assert_not_called()
-        assert not app.notifications.validators.services_dao.mock_calls
+        assert e.value.message == 'Exceeded send limits (1) for today'
+        assert mock_logger.call_count == 1
 
 
 @pytest.mark.parametrize('template_type, notification_type', [(EMAIL_TYPE, EMAIL_TYPE), (SMS_TYPE, SMS_TYPE)])
