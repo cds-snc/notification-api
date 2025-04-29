@@ -107,7 +107,7 @@ def build_notifications_query(service_id, notification_type, language, notificat
         .outerjoin(j, j.id == n.job_id)
         .outerjoin(u, u.id == n.created_by_id)
         .filter(*query_filters)
-        .order_by(n.job_row_number.asc() if job_id else n.created_at.desc())
+        .order_by(n.created_at.asc() if job_id else n.created_at.desc())
         .subquery()
     )
 
