@@ -17,6 +17,7 @@ FR_TRANSLATIONS = {
     "Sent by": "Envoyé par",
     "Sent by email": "Envoyé par courriel",
     "Job": "Tâche",
+    "Row number": "Numéro de ligne",
     "Status": "État",
     "Sent Time": "Heure d’envoi",
     # notification types
@@ -96,6 +97,7 @@ def build_notifications_query(service_id, notification_type, language, notificat
             u.name.label("user_name"),
             u.email_address.label("user_email"),
             j.original_file_name.label("job_name"),
+            n.job_row_number.label("job_row_number"),
             n.status.label("status"),
             n.created_at.label("created_at"),
             n.feedback_subtype.label("feedback_subtype"),
@@ -105,7 +107,7 @@ def build_notifications_query(service_id, notification_type, language, notificat
         .outerjoin(j, j.id == n.job_id)
         .outerjoin(u, u.id == n.created_by_id)
         .filter(*query_filters)
-        .order_by(n.created_at.desc())
+        .order_by(n.job_row_number.asc() if job_id else n.created_at.desc())
         .subquery()
     )
 
@@ -151,19 +153,37 @@ def build_notifications_query(service_id, notification_type, language, notificat
         else_=inner_query.c.notification_type,
     ).label(translate("Type"))
 
-    return db.session.query(
+    # Create a list of columns for the outer query
+    query_columns = [
         inner_query.c.to.label(translate("Recipient")),
         inner_query.c.template_name.label(translate("Template")),
         notification_type_translated,
-        func.coalesce(inner_query.c.user_name, "").label(translate("Sent by")),
-        func.coalesce(inner_query.c.user_email, "").label(translate("Sent by email")),
-        func.coalesce(inner_query.c.job_name, "").label(translate("Job")),
-        status_expr,
-        # Explicitly cast created_at to UTC, then to America/Toronto
-        func.to_char(
-            func.timezone("America/Toronto", func.timezone("UTC", inner_query.c.created_at)), "YYYY-MM-DD HH24:MI:SS"
-        ).label(translate("Sent Time")),
+    ]
+
+    # Only include "Sent by" and "Sent by email" columns if job_id is None
+    if job_id is None:
+        query_columns.extend(
+            [
+                func.coalesce(inner_query.c.user_name, "").label(translate("Sent by")),
+                func.coalesce(inner_query.c.user_email, "").label(translate("Sent by email")),
+            ]
+        )
+    else:
+        query_columns.insert(0, (inner_query.c.job_row_number + 1).label(translate("Row number")))
+
+    # Add the remaining columns
+    query_columns.extend(
+        [
+            func.coalesce(inner_query.c.job_name, "").label(translate("Job")),
+            status_expr,
+            # Explicitly cast created_at to UTC, then to America/Toronto
+            func.to_char(
+                func.timezone("America/Toronto", func.timezone("UTC", inner_query.c.created_at)), "YYYY-MM-DD HH24:MI:SS"
+            ).label(translate("Sent Time")),
+        ]
     )
+
+    return db.session.query(*query_columns)
 
 
 def compile_query_for_copy(query):
