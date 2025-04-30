@@ -105,6 +105,26 @@ class TestCreateInboundNumber:
             _expected_status=400,
         )
 
+    def test_rejects_duplicate_number(self, sample_inbound_number, admin_request):
+        """
+        The number must be unique.
+        """
+
+        sample_inbound_number(number='some-number')
+
+        response = admin_request.post(
+            'inbound_number.create_inbound_number',
+            _data={
+                'number': 'some-number',
+                'provider': 'some-provider',
+                'self_managed': False,
+            },
+            _expected_status=400,
+        )
+
+        assert response['errors'][0]['error'] == 'IntegrityError'
+        assert 'duplicate key value violates unique constraint' in response['errors'][0]['message']
+
     @pytest.mark.parametrize(
         'post_data',
         [
@@ -148,29 +168,53 @@ class TestCreateInboundNumber:
 
 
 class TestUpdateInboundNumber:
+    @pytest.fixture(autouse=True)
+    def setup(self, sample_inbound_number):
+        sample_inbound_number(number='some-number')
+        self.inbound_number = sample_inbound_number(number='other-number')
+        assert not self.inbound_number.self_managed
+
     def test_rejects_invalid_request(self, admin_request):
-        admin_request.post(
+        response = admin_request.post(
             'inbound_number.update_inbound_number',
             _data={'some_attribute_that_does_not_exist': 'blah'},
             _expected_status=400,
-            inbound_number_id=uuid.uuid4(),
+            inbound_number_id=self.inbound_number.id,
         )
+
+        assert response['errors'][0]['error'] == 'ValidationError'
+        assert 'Additional properties are not allowed' in response['errors'][0]['message']
 
     def test_rejects_missing_url_endpoint(self, admin_request):
         """
         url_endpoint is required because self_managed is True.
         """
 
-        admin_request.post(
-            'inbound_number.create_inbound_number',
-            _data={
-                'number': 'some-number',
-                'provider': 'some-provider',
-                'self_managed': True,
-            },
+        response = admin_request.post(
+            'inbound_number.update_inbound_number',
+            _data={'self_managed': True},
             _expected_status=400,
-            inbound_number_id=uuid.uuid4(),
+            inbound_number_id=self.inbound_number.id,
         )
+
+        assert response['errors'][0]['error'] == 'ValidationError'
+        assert 'url_endpoint is a required property' in response['errors'][0]['message']
+
+    def test_rejects_duplicate_number(self, admin_request):
+        """
+        The number must be unique.
+        """
+
+        response = admin_request.post(
+            'inbound_number.update_inbound_number',
+            _data={'number': 'some-number'},
+            _expected_status=400,
+            inbound_number_id=self.inbound_number.id,
+        )
+
+        print(response)
+        assert response['errors'][0]['error'] == 'IntegrityError'
+        assert 'duplicate key value violates unique constraint' in response['errors'][0]['message']
 
     @pytest.mark.parametrize(
         'update_data',
@@ -182,20 +226,17 @@ class TestUpdateInboundNumber:
             },
             # url_endpoint is not required because self_managed is not present.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
                 'service_id': 'some-service-id',
             },
             # url_endpoint is not required because self_managed is False.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
                 'service_id': 'some-service-id',
                 'self_managed': False,
             },
             # url_endpoint is required because self_managed is True.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
                 'service_id': 'some-service-id',
                 'url_endpoint': 'https://example.foo',
@@ -203,24 +244,20 @@ class TestUpdateInboundNumber:
             },
         ],
     )
-    def test_updates_inbound_number(self, admin_request, mocker, update_data):
+    def test_updates_inbound_number(self, admin_request, sample_service, update_data):
         """
         The request should be valid because it has all the required attributes.
         """
 
-        inbound_number_id = uuid.uuid4()
-        updated_inbound_number = InboundNumber()
-
-        dao_update_inbound_number = mocker.patch(
-            'app.inbound_number.rest.dao_update_inbound_number', return_value=updated_inbound_number
-        )
+        if 'service_id' in update_data:
+            service = sample_service()
+            update_data['service_id'] = str(service.id)
 
         response = admin_request.post(
             'inbound_number.update_inbound_number',
             _data=update_data,
             _expected_status=200,
-            inbound_number_id=inbound_number_id,
+            inbound_number_id=self.inbound_number.id,
         )
 
-        dao_update_inbound_number.assert_called_with(inbound_number_id, **update_data)
-        assert response['data'] == updated_inbound_number.serialize()
+        assert response['data'] == self.inbound_number.serialize()

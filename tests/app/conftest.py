@@ -2060,7 +2060,7 @@ def admin_request(client):
                 headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             )
 
-            assert resp.status_code == _expected_status
+            assert resp.status_code == _expected_status, resp.json
             return resp.json if resp.get_data() else None
 
         @staticmethod

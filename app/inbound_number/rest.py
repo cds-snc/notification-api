@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from sqlalchemy.exc import IntegrityError
 
 from app.dao.inbound_numbers_dao import (
     dao_create_inbound_number,
@@ -34,7 +35,19 @@ def create_inbound_number():
     validate(data, post_create_inbound_number_schema)
 
     inbound_number = InboundNumber(**data)
-    dao_create_inbound_number(inbound_number)
+
+    try:
+        dao_create_inbound_number(inbound_number)
+    except IntegrityError as e:
+        # This is the path for a non-unique number.
+        error_data = [
+            {
+                'error': 'IntegrityError',
+                'message': e._message(),
+            }
+        ]
+        return jsonify(errors=error_data), 400
+
     return jsonify(data=inbound_number.serialize()), 201
 
 
@@ -45,7 +58,18 @@ def update_inbound_number(inbound_number_id):
 
     validate(data, post_update_inbound_number_schema)
 
-    inbound_number = dao_update_inbound_number(inbound_number_id, **data)
+    try:
+        inbound_number = dao_update_inbound_number(inbound_number_id, **data)
+    except IntegrityError as e:
+        # This is the path for a non-unique number.
+        error_data = [
+            {
+                'error': 'IntegrityError',
+                'message': e._message(),
+            }
+        ]
+        return jsonify(errors=error_data), 400
+
     return jsonify(data=inbound_number.serialize()), 200
 
 
