@@ -20,6 +20,7 @@ from app.dao.login_event_dao import save_login_event
 from app.dao.notifications_dao import dao_create_notification
 from app.dao.organisation_dao import dao_create_organisation
 from app.dao.provider_rates_dao import create_provider_rates
+from app.dao.reports_dao import create_report
 from app.dao.services_dao import dao_add_user_to_service, dao_create_service
 from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template
@@ -48,6 +49,8 @@ from app.models import (
     ProviderDetails,
     ProviderDetailsHistory,
     ProviderRates,
+    Report,
+    ReportStatus,
     ScheduledNotification,
     Service,
     ServiceEmailReplyTo,
@@ -289,6 +292,7 @@ def sample_template_category_with_templates(notify_db, notify_db_session, sample
 
 @pytest.fixture(scope="function")
 def populate_generic_categories(notify_db_session):
+    user = create_user()
     generic_categories = [
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_LOW"],
@@ -297,6 +301,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "low",
             "email_process_type": "low",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_MEDIUM"],
@@ -305,6 +310,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "normal",
             "email_process_type": "normal",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
         {
             "id": current_app.config["DEFAULT_TEMPLATE_CATEGORY_HIGH"],
@@ -313,6 +319,7 @@ def populate_generic_categories(notify_db_session):
             "sms_process_type": "high",
             "email_process_type": "high",
             "hidden": True,
+            "created_by_id": str(user.id),
         },
     ]
     for category in generic_categories:
@@ -406,6 +413,7 @@ def create_template_category(
     sms_process_type="normal",
     email_process_type="normal",
     hidden=False,
+    created_by_id=None,
 ):
     data = {
         "name_en": name_en,
@@ -416,6 +424,11 @@ def create_template_category(
         "email_process_type": email_process_type,
         "hidden": hidden,
     }
+
+    if not created_by_id:
+        user = create_user()
+        data.update({"created_by_id": str(user.id)})
+
     template_category = TemplateCategory(**data)
     dao_create_template_category(template_category)
 
@@ -1725,3 +1738,22 @@ def document_download_response(override={}):
 
 def random_sized_content(chars=string.ascii_uppercase + string.digits, size=10):
     return "".join(random.choice(chars) for _ in range(size))
+
+
+@pytest.fixture(scope="function")
+def sample_report(
+    notify_db,
+    notify_db_session,
+    sample_service,
+    sample_user,
+    report_type="email",
+    status=ReportStatus.REQUESTED.value,
+):
+    report = Report(
+        service_id=sample_service.id,
+        requested_at=datetime.utcnow(),
+        requesting_user_id=sample_user.id,
+        report_type=report_type,
+        status=status,
+    )
+    return create_report(report)

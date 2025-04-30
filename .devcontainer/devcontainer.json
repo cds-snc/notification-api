@@ -10,18 +10,23 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
+				"ruff.lint.ignore": ["F401"],
+				"ruff.organizeImports": false,
 				"[python]": {
-					"editor.formatOnSave": true
-				},
-				"python.formatting.blackPath": "/usr/local/bin/black",
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
-				"python.linting.pylintPath": "/usr/local/bin/pylint",
-				"python.pythonPath": "/usr/local/bin/python"
+					"editor.defaultFormatter": "charliermarsh.ruff",
+					"ruff.lint.run": "onSave",
+					"editor.formatOnSave": false,
+					"editor.codeActionsOnSave": {
+						"source.fixAll": "explicit"
+					},
+					"ruff.configurationPreference": "filesystemFirst"
+				}
 			},
 			"extensions": [
-				"bungcip.better-toml",
+				"tamasfe.even-better-toml",
+				"charliermarsh.ruff",
 				"donjayamanne.python-extension-pack",
+				"-ms-python.autopep8",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
 				"GitHub.copilot",
@@ -37,13 +42,13 @@
 				"ms-vsliveshare.vsliveshare",
 				"mtxr.sqltools",
 				"mtxr.sqltools-driver-pg",
-				"pmbenjamin.vscode-snyk",
 				"timonwong.shellcheck",
 				"usernamehw.errorlens",
 				"visualstudioexptteam.vscodeintellicode",
 				"wenfangdu.jump",
 				"wholroyd.jinja",
-				"yzhang.markdown-all-in-one"
+				"yzhang.markdown-all-in-one",
+				"charliermarsh.ruff"
 			]
 		}
 	},

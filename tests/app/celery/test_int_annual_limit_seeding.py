@@ -2,11 +2,6 @@ import uuid
 from datetime import datetime
 
 from freezegun import freeze_time
-
-from app import annual_limit_client
-from app.aws.mocks import sns_success_callback
-from app.celery.process_sns_receipts_tasks import process_sns_results
-from app.celery.reporting_tasks import create_nightly_notification_status_for_day
 from tests.app.db import (
     create_notification,
     create_service,
@@ -16,9 +11,17 @@ from tests.app.db import (
 )
 from tests.conftest import set_config
 
+from app import annual_limit_client
+from app.aws.mocks import sns_success_callback
+from app.celery.process_sns_receipts_tasks import process_sns_results
+from app.celery.reporting_tasks import create_nightly_notification_status_for_day
+
 
 def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_template, notify_api, mocker):
-    """This integration-style test verifies the annual limit seeding and notification counting flows across multiple days, testing the flow between the process_sns_receipts task, which is responsible for seeded and incrementing notification counts in Redis, and the create_nightly_notification_status_for_day task, which is responsible for clearing the counts for the current day in Redis
+    """
+    This integration-style test verifies the annual limit seeding and notification counting flows across multiple days, testing the flow
+    between the process_sns_receipts task, which is responsible for seeded and incrementing notification counts in Redis, and the
+    create_nightly_notification_status_for_day task, which is responsible for clearing the counts for the current day in Redis
 
     1. Seed the Redis annual limit keys with notification counts and set the seeded_at key for 25 services
     2. On day 1, each service sends email and sms notifications, with 1 delivered and 1 failed.
@@ -58,7 +61,7 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             assert annual_limit_client.get_annual_limit_status(service.id, "seeded_at") == "2019-04-01"
 
         # Moving onto day 2 - Testing the seeding process
-        with freeze_time("2019-04-02T010:00"):
+        with freeze_time("2019-04-02T010:00"), set_config(notify_api, "REDIS_ENABLED", True):
             # Insert delivered and failed notifications into the db so we can test that
             # the seeding process in process_sns_results collects notification counts correctly
             for service in services:
@@ -83,17 +86,19 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
                 process_sns_results(sns_success_callback(reference=f"{service.name}-ref"))
 
                 expected_counts = {
-                    "sms_failed": 1,
-                    "sms_delivered": 2,
-                    "email_failed": 1,
-                    "email_delivered": 1,
+                    "sms_failed_today": 1,
+                    "sms_delivered_today": 2,
+                    "email_failed_today": 1,
+                    "email_delivered_today": 1,
+                    "total_email_fiscal_year_to_yesterday": 2,
+                    "total_sms_fiscal_year_to_yesterday": 2,
                 }
                 # Verify the counts are as expected and that seeded_at was set in redis
                 assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
                 assert annual_limit_client.was_seeded_today(service.id)
 
         # Day 2, some time passes - testing notification count increments when seeding has occurred
-        with freeze_time("2019-04-02T14:00"):
+        with freeze_time("2019-04-02T14:00"), set_config(notify_api, "REDIS_ENABLED", True):
             service = services[0]
             save_notification(
                 create_notification(
@@ -106,10 +111,12 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             )
 
             expected_counts = {
-                "sms_failed": 1,
-                "sms_delivered": 3,
-                "email_failed": 1,
-                "email_delivered": 1,
+                "sms_failed_today": 1,
+                "sms_delivered_today": 3,
+                "email_failed_today": 1,
+                "email_delivered_today": 1,
+                "total_email_fiscal_year_to_yesterday": 2,
+                "total_sms_fiscal_year_to_yesterday": 2,
             }
 
             # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day

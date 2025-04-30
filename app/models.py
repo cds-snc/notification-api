@@ -68,7 +68,36 @@ SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE
 DEFAULT_SMS_ANNUAL_LIMIT = 100000
 DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
 
+NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
+
+
+EMAIL_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Content or inbox issue",
+    "virus-scan-failed": "Attachment has virus",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "sent": "Delivered",
+    "pending": "In transit",
+    "pending-virus-check": "In transit",
+    "pii-check-failed": "Exceeds Protected A",
+}
+
+SMS_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    "delivered": "Delivered",
+    "sending": "In transit",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
+}
 
 
 def filter_null_value_fields(obj):
@@ -287,6 +316,12 @@ class EmailBranding(BaseModel):
     organisation = db.relationship("Organisation", back_populates="email_branding", foreign_keys=[organisation_id])
     alt_text_en = db.Column(db.String(), nullable=True)
     alt_text_fr = db.Column(db.String(), nullable=True)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+    updated_by = db.relationship("User", foreign_keys=[updated_by_id], lazy="select")
 
     def serialize(self) -> dict:
         serialized = {
@@ -299,6 +334,10 @@ class EmailBranding(BaseModel):
             "organisation_id": str(self.organisation_id) if self.organisation_id else "",
             "alt_text_en": self.alt_text_en,
             "alt_text_fr": self.alt_text_fr,
+            "created_by_id": str(self.created_by_id),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "updated_by_id": str(self.updated_by_id),
         }
 
         return serialized
@@ -644,6 +683,13 @@ class Service(BaseModel, Versioned):
             "restricted": self.restricted,
             "research_mode": self.research_mode,
         }
+
+    def get_users_with_permission(self, permission):
+        from app.dao.permissions_dao import permission_dao
+
+        if permission:
+            return permission_dao.get_team_members_with_permission(self.id, permission)
+        return []
 
 
 class AnnualBilling(BaseModel):
@@ -1058,8 +1104,12 @@ class TemplateCategory(BaseModel):
     sms_process_type = db.Column(db.String(200), nullable=False)
     email_process_type = db.Column(db.String(200), nullable=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
+    updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    updated_by = db.relationship("User", foreign_keys=[updated_by_id], lazy="select")
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
     sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def serialize(self):
@@ -1072,7 +1122,9 @@ class TemplateCategory(BaseModel):
             "sms_process_type": self.sms_process_type,
             "email_process_type": self.email_process_type,
             "hidden": self.hidden,
+            "created_by_id": str(self.created_by_id),
             "created_at": self.created_at,
+            "updated_by_id": str(self.updated_by_id),
             "updated_at": self.updated_at,
             "sms_sending_vehicle": self.sms_sending_vehicle,
         }
@@ -1548,6 +1600,7 @@ NOTIFICATION_FAILED = "failed"
 NOTIFICATION_TECHNICAL_FAILURE = "technical-failure"
 NOTIFICATION_TEMPORARY_FAILURE = "temporary-failure"
 NOTIFICATION_PERMANENT_FAILURE = "permanent-failure"
+NOTIFICATION_PROVIDER_FAILURE = "provider-failure"
 NOTIFICATION_PENDING_VIRUS_CHECK = "pending-virus-check"
 NOTIFICATION_VALIDATION_FAILED = "validation-failed"
 NOTIFICATION_VIRUS_SCAN_FAILED = "virus-scan-failed"
@@ -1558,6 +1611,7 @@ NOTIFICATION_STATUS_TYPES_FAILED = [
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PROVIDER_FAILURE,
     NOTIFICATION_VALIDATION_FAILED,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_RETURNED_LETTER,
@@ -1605,6 +1659,7 @@ NOTIFICATION_STATUS_TYPES = [
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_PROVIDER_FAILURE,
     NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_VALIDATION_FAILED,
     NOTIFICATION_VIRUS_SCAN_FAILED,
@@ -1739,6 +1794,7 @@ class Notification(BaseModel):
     feedback_subtype = db.Column(db.String, nullable=True)
     ses_feedback_id = db.Column(db.String, nullable=True)
     ses_feedback_date = db.Column(db.DateTime, nullable=True)
+    feedback_reason = db.Column(db.String, nullable=True)
 
     # SMS columns
     sms_total_message_price = db.Column(db.Numeric(), nullable=True)
@@ -1856,6 +1912,7 @@ class Notification(BaseModel):
     def formatted_status(self):
         def _getStatusByBounceSubtype():
             """Return the status of a notification based on the bounce sub type"""
+            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
             if self.feedback_subtype:
                 return {
                     "suppressed": "Blocked",
@@ -1864,31 +1921,25 @@ class Notification(BaseModel):
             else:
                 return "No such address"
 
+        def _get_sms_status_by_feedback_reason():
+            """Return the status of a notification based on the feedback reason"""
+            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
+            if self.feedback_reason:
+                return {
+                    "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
+                    "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number",
+                }.get(self.feedback_reason, "No such number")
+            else:
+                return "No such number"
+
         return {
             "email": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Content or inbox issue",
+                **EMAIL_STATUS_FORMATTED,
                 "permanent-failure": _getStatusByBounceSubtype(),
-                "virus-scan-failed": "Attachment has virus",
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "sent": "Delivered",
-                "pending": "In transit",
-                "pending-virus-check": "In transit",
-                "pii-check-failed": "Exceeds Protected A",
             },
             "sms": {
-                "failed": "Failed",
-                "technical-failure": "Tech issue",
-                "temporary-failure": "Carrier issue",
-                "permanent-failure": "No such number",
-                "delivered": "Delivered",
-                "sending": "In transit",
-                "created": "In transit",
-                "pending": "In transit",
-                "sent": "Sent",
+                **SMS_STATUS_FORMATTED,
+                "provider-failure": _get_sms_status_by_feedback_reason(),
             },
             "letter": {
                 "technical-failure": "Technical failure",
@@ -2639,3 +2690,71 @@ class AnnualLimitsData(BaseModel):
         db.Index("ix_service_id_notification_type", "service_id", "notification_type"),
         db.Index("ix_service_id_notification_type_time", "time_period", "service_id", "notification_type"),
     )
+
+
+class ReportStatus(Enum):
+    REQUESTED = "requested"
+    GENERATING = "generating"
+    READY = "ready"
+    ERROR = "error"
+
+
+class ReportType(Enum):
+    SMS = "sms"
+    EMAIL = "email"
+    JOB = "job"
+
+
+class Report(BaseModel):
+    __tablename__ = "reports"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_type = db.Column(db.String(255), nullable=False)  # email, sms, job, other types in future
+    requested_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=False,
+        default=datetime.datetime.utcnow,
+    )
+    completed_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=True,
+        default=datetime.datetime.utcnow,
+    )
+    expires_at = db.Column(
+        db.DateTime,
+        index=False,
+        unique=False,
+        nullable=True,
+        onupdate=datetime.datetime.utcnow,
+    )
+    requesting_user_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
+    )  # only set if report is requested by a user
+    requesting_user = db.relationship("User")
+    service_id = db.Column(
+        UUID(as_uuid=True),
+        db.ForeignKey("services.id"),
+        unique=False,
+        index=True,
+        nullable=False,
+    )
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey("jobs.id"), nullable=True)  # only set if report is for a bulk job
+    url = db.Column(db.String(2000), nullable=True)  # url to download the report from s3
+    status = db.Column(db.String(255), nullable=False)
+    language = db.Column(db.String(2), nullable=True)
+
+    def serialize(self):
+        return {
+            "id": str(self.id),
+            "report_type": self.report_type,
+            "service_id": str(self.service_id),
+            "status": self.status,
+            "requested_at": self.requested_at.strftime(DATETIME_FORMAT),
+            "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
+            "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
+            "url": self.url,
+        }

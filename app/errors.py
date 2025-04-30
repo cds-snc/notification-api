@@ -41,7 +41,86 @@ class InvalidRequest(Exception):
         return str(self.to_dict())
 
 
-def register_errors(blueprint):
+class CannotRemoveUserError(InvalidRequest):
+    message = "Cannot remove user from team"
+
+    def __init__(self, fields=[], message=None, status_code=400):
+        # Call parent class __init__ with message and status_code
+        super().__init__(message=message if message else self.message, status_code=status_code)
+        self.fields = fields
+
+
+class DuplicateEntityError(InvalidRequest):
+    """Generic error for handling unique constraint errors. This error should be subclassed to provide more specific error messages depending on the entity
+       and their unique fields.
+
+    Args:
+        entity (str): The name of the entity that was saved/updated and triggered an IntegrityError. E.g. Template Category, Email Branding, Service, etc.
+        fields (list): List of fields associated with the DB entity that must be unique.
+    """
+
+    entity: str = "Entity"
+
+    def __init__(self, fields=[], entity=None, status_code=400):
+        self.entity = entity if entity else self.entity
+        self.fields = fields
+        message = "{} already exists, {}"
+
+        num_fields = len(fields)
+        if num_fields > 0:
+            formatted_fields = ""
+            if num_fields == 1:
+                # e.g. "name must be unique"
+                formatted_fields = f"{fields[0]} must be unique."
+            elif num_fields >= 2:
+                # e.g. "name_en and name_fr must be unique" or "name_en, name_fr, and phone_number must be unique"
+                formatted_fields = f"{', '.join(fields[:-1])} and {fields[-1]} must be unique."
+            message = message.format(self.entity, formatted_fields)
+        else:
+            # Default fallback when no specific entity or required unique fields are present "Entity already exists."
+            message = message.format(self.entity, "").replace(",", ".").strip()
+
+        super().__init__(message=message, status_code=status_code)
+
+
+class CannotSaveDuplicateEmailBrandingError(DuplicateEntityError):
+    entity = "Email branding"
+    fields = ["name"]
+
+    def __init__(self, status_code=400):
+        super().__init__(fields=self.fields, entity=self.entity, status_code=status_code)
+
+
+class CannotSaveDuplicateTemplateCategoryError(DuplicateEntityError):
+    entity = "Template category"
+    fields = ["name_en", "name_fr"]
+
+    def __init__(self, status_code=400):
+        super().__init__(fields=self.fields, entity=self.entity, status_code=status_code)
+
+
+def register_errors(blueprint):  # noqa: C901
+    @blueprint.errorhandler(CannotSaveDuplicateEmailBrandingError)
+    def cannot_save_duplicate_email_branding_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
+    @blueprint.errorhandler(CannotSaveDuplicateTemplateCategoryError)
+    def cannot_save_duplicate_template_category_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
+    @blueprint.errorhandler(CannotRemoveUserError)
+    def cannot_remove_user_error(error):
+        response = jsonify(error.to_dict())
+        response.status_code = error.status_code
+        current_app.logger.info(error.message)
+        return response
+
     @blueprint.errorhandler(InvalidEmailError)
     def invalid_format(error):
         # Please not that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone,

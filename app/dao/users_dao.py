@@ -104,7 +104,7 @@ def verify_within_time(user, age=timedelta(seconds=30)):
     return query.count()
 
 
-def get_user_by_id(user_id=None):
+def get_user_by_id(user_id=None) -> User:
     if user_id:
         return User.query.filter_by(id=user_id).one()
     return User.query.filter_by().all()

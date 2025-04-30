@@ -26,7 +26,7 @@ from notifications_utils.recipients import (
 
 from app import db, marshmallow, models
 from app.dao.permissions_dao import permission_dao
-from app.models import ServicePermission
+from app.models import EMAIL_STATUS_FORMATTED, SMS_STATUS_FORMATTED, ServicePermission
 from app.utils import get_template_instance
 
 
@@ -110,6 +110,10 @@ class BaseSchema(marshmallow.SQLAlchemyAutoSchema):  # type: ignore
 class TemplateCategorySchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.TemplateCategory
+        exclude = ("created_by", "updated_by")
+
+    created_by_id = field_for(models.TemplateCategory, "created_by_id", required=True)
+    updated_by_id = field_for(models.TemplateCategory, "updated_by_id", required=False)
 
     @validates("name_en")
     def validate_name_en(self, value):
@@ -495,6 +499,11 @@ class JobSchema(BaseSchema):
     )
     sender_id = fields.UUID(required=False, allow_none=True)
 
+    template_type = fields.Method("get_template_type", dump_only=True)
+
+    def get_template_type(self, job):
+        return job.template.template_type if job.template else None
+
     @validates("scheduled_for")
     def validate_scheduled_for(self, value):
         _validate_datetime_not_in_past(value)
@@ -824,6 +833,53 @@ class UnarchivedTemplateSchema(BaseSchema):
             raise ValidationError("Template has been deleted", "template")
 
 
+class ReportSchema(BaseSchema):
+    class Meta:
+        unknown = EXCLUDE
+
+    id = fields.UUID()
+    requesting_user_id = fields.UUID()
+    report_type = fields.String()
+    service_id = fields.UUID()
+    status = fields.String()
+    requested_at = FlexibleDateTime()
+    completed_at = FlexibleDateTime()
+    expires_at = FlexibleDateTime()
+    url = fields.String()
+    language = fields.String()
+    notification_statuses = fields.List(fields.String(), required=False, allow_none=True)
+    job_id = fields.UUID(required=False, allow_none=True)
+
+    requesting_user = fields.Nested(
+        UserSchema,
+        only=[
+            "id",
+            "name",
+        ],
+        dump_only=True,
+    )
+
+    @validates("report_type")
+    def validate_report_type(self, value):
+        if value not in [rt.value for rt in models.ReportType]:
+            raise ValidationError(f"Invalid report type: {value}")
+
+    @validates("status")
+    def validate_status(self, value):
+        if value not in [rs.value for rs in models.ReportStatus]:
+            raise ValidationError(f"Invalid report status: {value}")
+
+    @validates("notification_statuses")
+    def validate_notification_statuses(self, values):
+        if not values:
+            return
+        valid_statuses = list(EMAIL_STATUS_FORMATTED.keys()) + list(SMS_STATUS_FORMATTED.keys())
+
+        for value in values:
+            if value not in valid_statuses:
+                raise ValidationError(f"Invalid report type: {value}")
+
+
 # should not be used on its own for dumping - only for loading
 create_user_schema = UserSchema()
 user_update_schema_load_json = UserUpdateAttributeSchema(load_json=True, partial=True)
@@ -856,3 +912,4 @@ provider_details_schema = ProviderDetailsSchema()
 provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
+report_schema = ReportSchema()

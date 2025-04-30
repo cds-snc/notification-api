@@ -61,11 +61,6 @@ class QueueNames(object):
 
     NORMAL = "normal-tasks"
 
-    # A queue meant for database tasks but it seems to be the default for sending
-    # notifications in some occasion. Need to investigate the purpose of this one
-    # further.
-    DATABASE = "database-tasks"
-
     # database operations for high priority notifications
     PRIORITY_DATABASE = "-priority-database-tasks.fifo"
 
@@ -96,6 +91,7 @@ class QueueNames(object):
     # out Notify.
     RESEARCH_MODE = "research-mode-tasks"
     REPORTING = "reporting-tasks"
+    GENERATE_REPORTS = "generate-reports"
 
     # Queue for scheduled notifications.
     JOBS = "job-tasks"
@@ -104,16 +100,9 @@ class QueueNames(object):
     RETRY = "retry-tasks"
 
     NOTIFY = "notify-internal-tasks"
-    PROCESS_FTP = "process-ftp-tasks"
     CREATE_LETTERS_PDF = "create-letters-pdf-tasks"
     CALLBACKS = "service-callbacks"
     CALLBACKS_RETRY = "service-callbacks-retry"
-
-    # Queue for letters, unused by CDS at this time as we don't use these.
-    LETTERS = "letter-tasks"
-
-    # Queue for antivirus/malware tasks
-    ANTIVIRUS = "antivirus-tasks"
 
     # Queue for delivery receipts such as emails sent through AWS SES.
     DELIVERY_RECEIPTS = "delivery-receipts"
@@ -142,7 +131,6 @@ class QueueNames(object):
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
             QueueNames.BULK,
-            QueueNames.DATABASE,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
@@ -221,7 +209,7 @@ class Config(object):
     FRESH_DESK_PRODUCT_ID = os.getenv("FRESH_DESK_PRODUCT_ID")
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
-    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -294,6 +282,7 @@ class Config(object):
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
+    REPORTS_BUCKET_NAME = os.getenv("REPORTS_BUCKET_NAME", "notification-canada-ca-production-reports")
 
     # be careful increasing this size without being sure that we won't see slowness in pysftp
     MAX_LETTER_PDF_ZIP_FILESIZE = 40 * 1024 * 1024  # 40mb
@@ -337,6 +326,7 @@ class Config(object):
     NEAR_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "9aa60ad7-2d7f-46f0-8cbe-2bac3d4d77d8"
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
+    REPORT_DOWNLOAD_TEMPLATE_ID = "8b5c14e1-2c78-4b87-9797-5b8cc8d9a86c"
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
@@ -753,6 +743,7 @@ class Test(Development):
 
 
 class Production(Config):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
     # CSV_UPLOAD_BUCKET_NAME = 'live-notifications-csv-upload'
@@ -770,14 +761,17 @@ class Production(Config):
 
 
 class Staging(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
 
 
 class Scratch(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "scratch"
 
 
 class Dev(Production):
+    FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "dev"
 
 

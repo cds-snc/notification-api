@@ -1,4 +1,3 @@
-import base64
 import csv
 import functools
 import uuid
@@ -22,8 +21,6 @@ from app import (
     email_bulk_publish,
     email_normal_publish,
     email_priority_publish,
-    notify_celery,
-    redis_store,
     signer_notification,
     sms_bulk_publish,
     sms_normal_publish,
@@ -31,18 +28,17 @@ from app import (
     statsd_client,
 )
 from app.aws.s3 import upload_job_to_s3
-from app.celery.letters_pdf_tasks import create_letters_pdf, process_virus_scan_passed
+from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.research_mode_tasks import create_fake_letter_response_file
 from app.celery.tasks import process_job, seed_bounce_rate_in_redis
 from app.clients.document_download import DocumentDownloadError
-from app.config import QueueNames, TaskNames
+from app.config import QueueNames
 from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import NotificationDictToSign
-from app.letters.utils import upload_letter_pdf
 from app.models import (
     BULK,
     EMAIL_TYPE,
@@ -54,7 +50,6 @@ from app.models import (
     NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
-    NOTIFICATION_PENDING_VIRUS_CHECK,
     NOTIFICATION_SENDING,
     PRIORITY,
     SMS_TYPE,
@@ -597,42 +592,7 @@ def process_letter_notification(*, letter_data, api_key, template, reply_to_text
 
 
 def process_precompiled_letter_notifications(*, letter_data, api_key, template, reply_to_text):
-    try:
-        status = NOTIFICATION_PENDING_VIRUS_CHECK
-        letter_content = base64.b64decode(letter_data["content"])
-    except ValueError:
-        raise BadRequestError(
-            message="Cannot decode letter content (invalid base64 encoding)",
-            status_code=400,
-        )
-
-    notification = create_letter_notification(
-        letter_data=letter_data,
-        template=template,
-        api_key=api_key,
-        status=status,
-        reply_to_text=reply_to_text,
-    )
-
-    filename = upload_letter_pdf(notification, letter_content, precompiled=True)
-
-    current_app.logger.info("Calling task scan-file for {}".format(filename))
-
-    # call task to add the filename to anti virus queue
-    if current_app.config["ANTIVIRUS_ENABLED"]:
-        notify_celery.send_task(
-            name=TaskNames.SCAN_FILE,
-            kwargs={"filename": filename},
-            queue=QueueNames.ANTIVIRUS,
-        )
-    else:
-        # stub out antivirus in dev
-        process_virus_scan_passed.apply_async(
-            kwargs={"filename": filename},
-            queue=QueueNames.LETTERS,
-        )
-
-    return notification
+    pass
 
 
 def validate_sender_id(template, reply_to_id):
@@ -686,7 +646,7 @@ def get_reply_to_text(notification_type, form, template, form_field=None):
 
 
 def strip_keys_from_personalisation_if_send_attach(personalisation):
-    return {k: v for (k, v) in personalisation.items() if not (type(v) is dict and v.get("sending_method") == "attach")}
+    return {k: v for (k, v) in personalisation.items() if not (isinstance(v, dict) and v.get("sending_method") == "attach")}
 
 
 def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages):

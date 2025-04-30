@@ -20,7 +20,7 @@ CELERY_NAMESPACE = "celery"
 def xray_before_task_publish(
     sender=None, headers=None, exchange=None, routing_key=None, properties=None, declare=None, retry_policy=None, **kwargs
 ):
-    logger.info(f"xray-celery: before publish: sender={sender}, headers={headers}, kwargs={kwargs}")
+    logger.debug(f"xray-celery: before publish: sender={sender}, headers={headers}, kwargs={kwargs}")
     headers = headers if headers else {}
     task_id = headers.get("id")
     current_segment = xray_recorder.current_segment()
@@ -41,7 +41,7 @@ def xray_before_task_publish(
 
 
 def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=None, **kwargs):
-    logger.info(
+    logger.debug(
         f"xray-celery: after publish: headers={headers}, body={body}, exchange={exchange}, routing_key={routing_key}, kwargs={kwargs}"
     )
     if xray_recorder.current_subsegment():
@@ -51,7 +51,7 @@ def xray_after_task_publish(headers=None, body=None, exchange=None, routing_key=
 
 
 def xray_task_prerun(task_id=None, task=None, args=None, **kwargs):
-    logger.info(f"xray-celery: prerun: task_id={task_id}, task={task}, kwargs={kwargs}")
+    logger.debug(f"xray-celery: prerun: task_id={task_id}, task={task}, kwargs={kwargs}")
     xray_header = construct_xray_header(task.request)
     segment = xray_recorder.begin_segment(name=task.name, traceid=xray_header.root, parent_id=xray_header.parent)
     segment.save_origin_trace_header(xray_header)
@@ -61,7 +61,7 @@ def xray_task_prerun(task_id=None, task=None, args=None, **kwargs):
 
 
 def xray_task_postrun(task_id=None, task=None, args=None, **kwargs):
-    logger.info(f"xray-celery: postrun: kwargs={kwargs}")
+    logger.debug(f"xray-celery: postrun: kwargs={kwargs}")
     xray_recorder.end_segment()
 
 

@@ -20,29 +20,37 @@ jobs:
     steps:
     - name: Install libcurl
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
+
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
     - name: Set up Python 3.12
       uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
         python-version: '3.12'
+
     - name: Upgrade pip
       run: python -m pip install --upgrade pip
-    - uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c # v3.3.3
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+
     - name: Install poetry
       env:
         POETRY_VERSION: "1.7.1"
-      run: pip install poetry==${POETRY_VERSION} && poetry --version
+      run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
     - name: Check poetry.lock aligns with pyproject.toml
       run: poetry check --lock
+
     - name: Install requirements
       run: poetry install --with test
+
     - name: Run tests
       run: poetry run make test
+
     - name: Upload pytest logs on failure
       if: ${{ failure() }}
       uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -50,32 +58,38 @@ jobs:
         name: pytest-logs
         path: |
           pytest*.log
+
     - name: Get python version
       run: |
         python_version=$(python  -V | cut -d' ' -f2)
         echo "python_version=${python_version}" >> $GITHUB_ENV
+
     - name: Make version file
       run: |
         printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
         cp version.py "${{ github.workspace }}/app/"
+
     - name: Copy site-packages in workspace
       working-directory: ${{ github.workspace }}
       shell: bash
       run: |
         mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.12/site-packages "${{ github.workspace }}/env/"
+
     - name: Install development .env file
       working-directory: ${{ github.workspace }}
       shell: bash
       run: |
         cp -f .env.example .env
+
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@53.1.2
+      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.0
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'
         flask-mod: 'application'
         flask-prop: 'application'
         base-url: 'https://api.staging.notification.cdssandbox.xyz'
+
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |

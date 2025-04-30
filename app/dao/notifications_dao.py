@@ -17,7 +17,7 @@ from notifications_utils.timezones import (
 )
 from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import functions, literal_column
 from sqlalchemy.sql.expression import case
@@ -203,6 +203,7 @@ def _update_notification_status(
     status,
     provider_response=None,
     bounce_response=None,
+    feedback_reason=None,
     sms_total_message_price=None,
     sms_total_carrier_fee=None,
     sms_iso_country_code=None,
@@ -219,6 +220,8 @@ def _update_notification_status(
         notification.feedback_subtype = bounce_response.get("feedback_subtype")
         notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
         notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+    if feedback_reason:
+        notification.feedback_reason = feedback_reason
 
     notification.sms_total_message_price = sms_total_message_price
     notification.sms_total_carrier_fee = sms_total_carrier_fee
@@ -233,7 +236,7 @@ def _update_notification_status(
 
 @statsd(namespace="dao")
 @transactional
-def update_notification_status_by_id(notification_id, status, sent_by=None):
+def update_notification_status_by_id(notification_id, status, sent_by=None, feedback_reason=None):
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
@@ -254,7 +257,7 @@ def update_notification_status_by_id(notification_id, status, sent_by=None):
         return None
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
-    return _update_notification_status(notification=notification, status=status)
+    return _update_notification_status(notification=notification, status=status, feedback_reason=feedback_reason)
 
 
 @statsd(namespace="dao")
@@ -341,6 +344,7 @@ def get_notifications_for_service(
     older_than=None,
     client_reference=None,
     include_one_off=True,
+    format_for_csv=False,
 ):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
@@ -372,6 +376,17 @@ def get_notifications_for_service(
     query = _filter_query(query, filter_dict)
     if personalisation:
         query = query.options(joinedload("template"))
+    else:
+        # this field is not used and it can contain a lot of data
+        query = query.options(defer("_personalisation"))
+
+    if format_for_csv:
+        # do an explicit join on the template, job, and created_by tables so that we won't
+        # do a separate query for each notification to get the template, job, and created_by
+        # when the csv data is being generated
+        query = query.options(
+            joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by)
+        )
 
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 
