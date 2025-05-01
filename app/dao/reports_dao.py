@@ -46,7 +46,7 @@ def get_report_by_id(report_id) -> Report:
     return Report.query.filter_by(id=report_id).one()
 
 
-def get_report_totals(service_id: str, limit_days: int) -> ReportTotals:
+def get_report_totals_dao(service_id: str, limit_days: int) -> ReportTotals:
     """
     Get counts of reports for a service grouped by status.
 

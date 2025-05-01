@@ -5,12 +5,14 @@ from marshmallow import ValidationError
 
 from app.celery.tasks import generate_report
 from app.config import QueueNames
-from app.dao.reports_dao import create_report, get_reports_for_service
+from app.dao.reports_dao import create_report, get_report_totals_dao, get_reports_for_service
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.errors import InvalidRequest, register_errors
 from app.models import Report, ReportStatus, ReportType
 from app.schema_validation import validate
 from app.schemas import report_schema
+
+DEFAULT_LIMIT_DAYS = 7
 
 report_blueprint = Blueprint("report", __name__, url_prefix="/service/<uuid:service_id>/report")
 register_errors(report_blueprint)
@@ -80,7 +82,7 @@ def get_service_reports(service_id):
     """Get reports for a service with optional limit_days parameter"""
 
     # Get optional days parameter, default to 7 if not provided
-    limit_days = request.args.get("limit_days", type=int, default=7)
+    limit_days = request.args.get("limit_days", type=int, default=DEFAULT_LIMIT_DAYS)
 
     # Check service exists
     dao_fetch_service_by_id(service_id)
@@ -93,5 +95,8 @@ def get_service_reports(service_id):
 
 @report_blueprint.route("/totals", methods=["GET"])
 def get_report_totals(service_id):
-    report_totals = get_report_totals(service_id)
-    return jsonify(report_totals), 200
+    # Get optional days parameter, default to 7 if not provided
+    limit_days = request.args.get("limit_days", type=int, default=DEFAULT_LIMIT_DAYS)
+
+    report_totals = get_report_totals_dao(service_id, limit_days=limit_days)
+    return jsonify(data=report_totals), 200
