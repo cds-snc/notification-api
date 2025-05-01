@@ -31,15 +31,16 @@ def handle_complaints_and_extract_ref_ids(messages):
     """
     ref_ids = []
     complaint_free_messages = []
-
+    current_app.logger.info(f"[batch-celery] - Received: {len(messages)} receipts from Lambda.. beginning processing")
     for message in messages:
         notification_type = message["notificationType"]
         if notification_type == "Complaint":
+            current_app.logger.info(f"[batch-celery] - Handling complaint: {message}")
             _check_and_queue_complaint_callback_task(*handle_complaint(message))
         else:
             ref_ids.append(message["mail"]["messageId"])
             complaint_free_messages.append(message)
-
+    current_app.logger.info(f"[batch-celery] - Complaints handled, processing: {len(complaint_free_messages)} remaining receipts")
     return ref_ids, complaint_free_messages
 
 
@@ -139,6 +140,8 @@ def process_ses_results(self, response):
             return
 
         updates, retries, notification_receipt_pairs = prepare_updates_and_retries(ses_messages, notifications)
+        current_app.logger.info(f"[batch-celery] - Receipts to update: {len(updates)}")
+        current_app.logger.info(f"[batch-celery] - Receipts to retry: {len(retries)}")
 
         # Update notifications
         notifications_dao._update_notification_statuses(updates)
@@ -152,6 +155,7 @@ def process_ses_results(self, response):
                     f"RETRY {self.request.retries}: notifications not found for SES references {retry_ids}. "
                     f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
                 )
+                current_app.logger.info(f"[batch-celery] - Queuing retries for ids: {retry_ids} receipts")
                 self.retry(queue=QueueNames.RETRY, args=[retries])
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
@@ -213,14 +217,14 @@ def process_ses_results(self, response):
 
         # TODO: remove this after benchmarking
         end_time = time.time()
-        current_app.logger.info(f"process_ses_results took {end_time - start_time} seconds")
+        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
 
         return True
 
     except Retry:
         # TODO: remove this after benchmarking
         end_time = time.time()
-        current_app.logger.info(f"process_ses_results took {end_time - start_time} seconds")
+        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         raise
 
     except Exception:
@@ -229,5 +233,5 @@ def process_ses_results(self, response):
         )
 
         end_time = time.time()
-        current_app.logger.info(f"process_ses_results took {end_time - start_time} seconds")
+        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         self.retry(queue=QueueNames.RETRY, args=[updates])
