@@ -419,8 +419,11 @@ def init_app(app):
 
     @app.errorhandler(404)
     def page_not_found(e):
-        msg = e.description or 'Not found'
-        return jsonify(result='error', message=msg), 404
+        return jsonify(result='error', message=str(e)), 404
+
+    @app.errorhandler(409)
+    def handle_conflict(error):
+        return jsonify(message=str(error.description)), 409
 
     @app.errorhandler(Exception)
     def exception(error):

@@ -1,9 +1,14 @@
+from typing import Any, Dict, Tuple
+from uuid import UUID
+
 from app.constants import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
 from app.authentication.auth import AuthError, create_validator_for_user_in_service_or_admin
 from flask import (
     Blueprint,
     jsonify,
     request,
+    abort,
+    Response,
 )
 from flask_jwt_extended import current_user
 from sqlalchemy.exc import SQLAlchemyError
@@ -32,28 +37,38 @@ register_errors(service_callback_blueprint)
 
 
 @service_callback_blueprint.route('', methods=['GET'])
-def fetch_service_callbacks(service_id):
+def fetch_service_callbacks(service_id: UUID) -> Tuple[Response, int]:
     service_callbacks = get_service_callbacks(service_id)
     return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True)), 200
 
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['GET'])
 def fetch_service_callback(
-    service_id,
-    callback_id,
-):
+    service_id: UUID,
+    callback_id: UUID,
+) -> Tuple[Response, int]:
     service_callback = query_service_callback(service_id, callback_id)
-
     return jsonify(data=service_callback_api_schema.dump(service_callback)), 200
 
 
+def check_existing_callback(service_id: UUID, callback_channel: str) -> None:
+    """Check if a service already has a callback of the specified channel type."""
+    existing_callbacks = get_service_callbacks(service_id)
+    for callback in existing_callbacks:
+        if callback.callback_channel == callback_channel:
+            abort(409, f'A {callback_channel} callback already exists for this service')
+
+
 @service_callback_blueprint.route('', methods=['POST'])
-def create_service_callback(service_id):
+def create_service_callback(service_id: UUID) -> Tuple[Response, int]:
     data = request.get_json()
     data['service_id'] = service_id
     data['updated_by_id'] = current_user.id
     validate(data, create_service_callback_api_request_schema)
     require_admin_for_queue_callback(data)
+
+    # Check for existing callback of the same type
+    check_existing_callback(service_id, data['callback_channel'])
 
     new_service_callback = service_callback_api_schema.load(data)
 
@@ -67,9 +82,9 @@ def create_service_callback(service_id):
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['POST'])
 def update_service_callback(
-    service_id,
-    callback_id,
-):
+    service_id: UUID,
+    callback_id: UUID,
+) -> Tuple[Response, int]:
     data = request.get_json()
     data['service_id'] = service_id
     data['updated_by_id'] = current_user.id
@@ -89,19 +104,18 @@ def update_service_callback(
 
 @service_callback_blueprint.route('/<uuid:callback_id>', methods=['DELETE'])
 def remove_service_callback(
-    service_id,
-    callback_id,
-):
+    service_id: UUID,
+    callback_id: UUID,
+) -> Tuple[Response, int]:
     callback = query_service_callback(service_id, callback_id)
-
     delete_service_callback_api(callback)
     return '', 204
 
 
 def handle_sql_error(
-    e,
-    table_name,
-):
+    e: SQLAlchemyError,
+    table_name: str,
+) -> Tuple[Response, int]:
     if (
         hasattr(e, 'orig')
         and hasattr(e.orig, 'pgerror')
@@ -127,7 +141,7 @@ def handle_sql_error(
         raise e
 
 
-def require_admin_for_queue_callback(data):
+def require_admin_for_queue_callback(data: Dict[str, Any]) -> None:
     if (
         'callback_channel' in data
         and data['callback_channel'] == QUEUE_CHANNEL_TYPE

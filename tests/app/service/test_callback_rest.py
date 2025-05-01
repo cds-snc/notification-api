@@ -426,6 +426,76 @@ class TestCreateServiceCallback:
         assert resp_json['errors'][0]['error'] == 'ValidationError'
         assert resp_json['errors'][0]['message'] == expected_response
 
+    def test_create_service_callback_returns_409_when_webhook_callback_already_exists(self, client, sample_service):
+        service = sample_service()
+        user = service.users[0]
+
+        # Create first webhook callback
+        data = {
+            'url': 'https://some.service/delivery-receipt-endpoint',
+            'bearer_token': 'some-unique-string',
+            'callback_type': DELIVERY_STATUS_CALLBACK_TYPE,
+            'notification_statuses': ['failed'],
+            'callback_channel': WEBHOOK_CHANNEL_TYPE,
+        }
+
+        # The sample_service() fixture cleanup will remove the webhook callback
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {create_access_token(user)}')],
+        )
+
+        assert response.status_code == 201
+
+        # Try to create second webhook callback
+        new_data = data.copy()
+        new_data['url'] = 'https://another.service/delivery-receipt-endpoint'
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=service.id),
+            data=json.dumps(new_data),
+            headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {create_access_token(user)}')],
+        )
+
+        assert response.status_code == 409
+        assert response.json['message'] == 'A webhook callback already exists for this service'
+        # The sample_service() fixture cleanup will remove any created callbacks
+
+    def test_create_service_callback_returns_409_when_queue_callback_already_exists(
+        self, client, sample_service, sample_user
+    ):
+        service = sample_service()
+        user = sample_user(email=f'foo{uuid4()}@bar.com', platform_admin=True)
+
+        # Create first queue callback
+        data = {
+            'url': 'https://some.service/delivery-receipt-endpoint',
+            'callback_type': DELIVERY_STATUS_CALLBACK_TYPE,
+            'notification_statuses': ['failed'],
+            'callback_channel': QUEUE_CHANNEL_TYPE,
+        }
+
+        # The sample_service() fixture cleanup will remove the queue callback
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {create_access_token(user)}')],
+        )
+
+        assert response.status_code == 201
+
+        # Try to create second queue callback
+        data['url'] = 'https://another.service/delivery-receipt-endpoint'
+        response = client.post(
+            url_for('service_callback.create_service_callback', service_id=service.id),
+            data=json.dumps(data),
+            headers=[('Content-Type', 'application/json'), ('Authorization', f'Bearer {create_access_token(user)}')],
+        )
+
+        assert response.status_code == 409
+        assert response.json['message'] == 'A queue callback already exists for this service'
+        # The sample_service() fixture cleanup will remove any created callbacks
+
 
 class TestUpdateServiceCallback:
     def test_update_service_callback_updates_url(
