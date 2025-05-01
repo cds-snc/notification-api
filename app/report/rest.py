@@ -89,3 +89,9 @@ def get_service_reports(service_id):
 
     # Serialize all reports using the schema
     return jsonify(data=report_schema.dump(reports, many=True)), 200
+
+
+@report_blueprint.route("/totals", methods=["GET"])
+def get_report_totals(service_id):
+    report_totals = get_report_totals(service_id)
+    return jsonify(report_totals), 200

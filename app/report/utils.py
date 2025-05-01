@@ -1,3 +1,5 @@
+from typing import TypedDict
+
 from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import case, func, text
@@ -38,6 +40,17 @@ FR_TRANSLATIONS = {
     "No such address": "Adresse inexistante",
     # "Can't send to this international number": "" # no translation exists for this yet
 }
+
+
+class ReportTotals(TypedDict):
+    """Type definition for report status totals.
+    Example: {"ready": 11, "expired": 2, "error": 0, "preparing": 1}
+    """
+
+    ready: int
+    expired: int
+    error: int
+    preparing: int
 
 
 class Translate:
