@@ -51,12 +51,14 @@ def fetch_service_callback(
     return jsonify(data=service_callback_api_schema.dump(service_callback)), 200
 
 
-def check_existing_callback(service_id: UUID, callback_channel: str) -> None:
-    """Check if a service already has a callback of the specified channel type."""
+def check_existing_callback(service_id: UUID, callback_channel: str, callback_type: str) -> None:
+    """Check if a service already has a callback of the specified channel type or callback type."""
     existing_callbacks = get_service_callbacks(service_id)
     for callback in existing_callbacks:
         if callback.callback_channel == callback_channel:
             abort(409, f'A {callback_channel} callback already exists for this service')
+        if callback.callback_type == callback_type:
+            abort(409, f'A {callback_type} callback already exists for this service')
 
 
 @service_callback_blueprint.route('', methods=['POST'])
@@ -68,7 +70,7 @@ def create_service_callback(service_id: UUID) -> Tuple[Response, int]:
     require_admin_for_queue_callback(data)
 
     # Check for existing callback of the same type
-    check_existing_callback(service_id, data['callback_channel'])
+    check_existing_callback(service_id, data['callback_channel'], data['callback_type'])
 
     new_service_callback = service_callback_api_schema.load(data)
 
