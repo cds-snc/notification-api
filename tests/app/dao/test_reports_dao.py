@@ -4,8 +4,9 @@ import uuid
 import pytest
 from freezegun import freeze_time
 
-from app.dao.reports_dao import create_report, get_reports_for_service
-from app.models import Report, ReportStatus, ReportType
+from app.dao.reports_dao import create_report, get_report_totals_dao, get_reports_for_service
+from app.models import Report, ReportStatus, ReportType, Service
+from app.report.utils import ReportTotals
 
 
 def test_create_report(sample_service, notify_db_session):
@@ -119,3 +120,138 @@ def test_get_reports_for_service_sorting(sample_service, sample_reports, notify_
     assert result[0].id == expected_order[0].id
     assert result[1].id == expected_order[1].id
     assert result[2].id == expected_order[2].id
+
+
+@freeze_time("2024-05-10 15:00:00")
+def test_get_report_totals_dao_no_reports(sample_service, notify_db_session):
+    """Test get_report_totals_dao when there are no reports for the service."""
+    totals = get_report_totals_dao(sample_service.id, limit_days=7)
+    assert totals == ReportTotals(ready=0, expired=0, error=0, generating=0)
+
+
+@freeze_time("2024-05-10 15:00:00")
+def test_get_report_totals_dao_all_statuses(sample_service: Service, notify_db_session):
+    """Test get_report_totals_dao with reports in various states."""
+    now = datetime.datetime.utcnow()
+    one_day = datetime.timedelta(days=1)
+    ten_days = datetime.timedelta(days=10)
+
+    # Ready (not expired)
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.READY.value,
+            requested_at=now - one_day,
+            expires_at=now + one_day,
+        )
+    )
+    # Ready (expired)
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.READY.value,
+            requested_at=now - one_day,
+            expires_at=now - one_day,
+        )
+    )
+    # Error
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.ERROR.value,
+            requested_at=now - one_day,
+        )
+    )
+    # Generating
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.GENERATING.value,
+            requested_at=now - one_day,
+        )
+    )
+    # Requested
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.REQUESTED.value,
+            requested_at=now - one_day,
+        )
+    )
+    # Old report (outside limit_days)
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.READY.value,
+            requested_at=now - ten_days,
+            expires_at=now + one_day,  # Not expired, but outside date range
+        )
+    )
+
+    totals = get_report_totals_dao(sample_service.id, limit_days=7)
+    assert totals == ReportTotals(ready=1, expired=1, error=1, generating=2)
+
+
+@freeze_time("2024-05-10 15:00:00")
+def test_get_report_totals_dao_no_limit(sample_service: Service, notify_db_session):
+    """Test get_report_totals_dao with limit_days=None includes all reports."""
+    now = datetime.datetime.utcnow()
+    one_day = datetime.timedelta(days=1)
+    hundred_days = datetime.timedelta(days=100)
+
+    # Recent ready report
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.READY.value,
+            requested_at=now - one_day,
+            expires_at=now + one_day,
+        )
+    )
+    # Old ready report
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.READY.value,
+            requested_at=now - hundred_days,
+            expires_at=now + one_day,  # Still not expired
+        )
+    )
+
+    totals = get_report_totals_dao(sample_service.id, limit_days=None)
+    assert totals == ReportTotals(ready=2, expired=0, error=0, generating=0)
+
+
+@freeze_time("2024-05-10 15:00:00")
+def test_get_report_totals_dao_only_generating(sample_service: Service, notify_db_session):
+    """Test get_report_totals_dao with only generating/requested reports."""
+    now = datetime.datetime.utcnow()
+    one_day = datetime.timedelta(days=1)
+
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.GENERATING.value,
+            requested_at=now - one_day,
+        )
+    )
+    create_report(
+        Report(
+            service_id=sample_service.id,
+            report_type=ReportType.SMS.value,
+            status=ReportStatus.REQUESTED.value,
+            requested_at=now - one_day,
+        )
+    )
+
+    totals = get_report_totals_dao(sample_service.id, limit_days=7)
+    assert totals == ReportTotals(ready=0, expired=0, error=0, generating=2)
