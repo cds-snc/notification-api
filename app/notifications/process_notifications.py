@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
-from app import redis_store
+from app import models, redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -295,7 +295,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         )
 
 
-def persist_notifications(notifications: List[VerifiedNotification]) -> List[Notification]:
+def persist_notifications(verifiedNotifications: List[VerifiedNotification]) -> List[Notification]:
     """
     Persist Notifications takes a list of json objects and creates a list of Notifications
     that gets bulk inserted into the DB.
@@ -303,32 +303,35 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
 
     lofnotifications = []
 
-    for notification in notifications:
-        notification_created_at = notification.get("created_at") or datetime.utcnow()
-        notification_id = notification.get("notification_id", uuid.uuid4())
-        notification_recipient = notification.get("recipient") or notification.get("to")
-        service_id = notification.get("service").id if notification.get("service") else None  # type: ignore
+    for verifiedNotification in verifiedNotifications:
+        notification_created_at = verifiedNotification.created_at or datetime.utcnow()
+        notification_id = verifiedNotification.notification_id or uuid.uuid4()
+        notification_recipient = verifiedNotification.recipient or verifiedNotification.to
+        service_id = verifiedNotification.service.id if verifiedNotification.service else None  # type: ignore
         # todo: potential bug. notification_obj is being created using some keys that don't exist on notification
         # reference, created_by_id, status, billable_units aren't keys on notification at this point
         notification_obj = Notification(
             id=notification_id,
-            template_id=notification.get("template_id"),
-            template_version=notification.get("template_version"),
+            template_id=verifiedNotification.template_id,
+            template_version=verifiedNotification.template_version,
             to=notification_recipient,
             service_id=service_id,
-            personalisation=notification.get("personalisation"),
-            notification_type=notification.get("notification_type"),
-            api_key_id=notification.get("api_key_id"),
-            key_type=notification.get("key_type"),
+            personalisation=verifiedNotification.personalisation,
+            notification_type=verifiedNotification.notification_type,
+            api_key_id=verifiedNotification.api_key_id,
+            key_type=verifiedNotification.key_type,
             created_at=notification_created_at,
-            job_id=notification.get("job_id"),
-            job_row_number=notification.get("job_row_number"),
-            client_reference=notification.get("client_reference"),
-            reference=notification.get("reference"),  # type: ignore
-            created_by_id=notification.get("created_by_id"),  # type: ignore
-            status=notification.get("status"),  # type: ignore
-            reply_to_text=notification.get("reply_to_text"),
-            billable_units=notification.get("billable_units"),  # type: ignore
+            job_id=verifiedNotification.job_id,
+            job_row_number=verifiedNotification.job_row_number,
+            client_reference=verifiedNotification.client_reference,
+            # REVIEW: We can remove these ones if possible, as these will be set later in the process:
+            #   reference: this is the provider's reference and will be set on sending time
+            #   created_by_id: this is the user who created the notification and will be set on sending time, used by one off or admin UI uploads
+            # reference=verifiedNotification.reference,  # type: ignore
+            # created_by_id=verifiedNotification.created_by_id,  # type: ignore
+            # billable_units=verifiedNotification.billable_units,  # type: ignore
+            status=NOTIFICATION_CREATED,  # type: ignore
+            reply_to_text=verifiedNotification.reply_to_text,
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         service = dao_fetch_service_by_id(service_id, use_cache=True)
@@ -336,29 +339,32 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             notification=notification_obj, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
         )
 
-        if notification.get("notification_type") == SMS_TYPE:
-            formatted_recipient = validate_and_format_phone_number(notification_recipient, international=True)
-            recipient_info = get_international_phone_info(formatted_recipient)
-            notification_obj.normalised_to = formatted_recipient
-            notification_obj.international = recipient_info.international
-            notification_obj.phone_prefix = recipient_info.country_prefix
-            notification_obj.rate_multiplier = recipient_info.billable_units
-        elif notification.get("notification_type") == EMAIL_TYPE:
-            notification_obj.normalised_to = format_email_address(notification_recipient)
-        elif notification.get("notification_type") == LETTER_TYPE:
-            notification_obj.postage = notification.get("postage") or notification.get("template_postage")  # type: ignore
+        match verifiedNotification.notification_type:
+            case models.SMS_TYPE:
+                formatted_recipient = validate_and_format_phone_number(notification_recipient, international=True)
+                recipient_info = get_international_phone_info(formatted_recipient)
+                notification_obj.normalised_to = formatted_recipient
+                notification_obj.international = recipient_info.international
+                notification_obj.phone_prefix = recipient_info.country_prefix
+                notification_obj.rate_multiplier = recipient_info.billable_units
+            case models.EMAIL_TYPE:
+                notification_obj.normalised_to = format_email_address(notification_recipient)
+            # case models.LETTER_TYPE:
+            #     notification_obj.postage = verifiedNotification.postage  # or verifiedNotification.template_postage
+            case _:
+                current_app.logger.debug(f"Notification type {verifiedNotification.notification_type} not handled")
 
         lofnotifications.append(notification_obj)
-        if notification.get("key_type") != KEY_TYPE_TEST:
-            service_id = notification.get("service").id  # type: ignore
+        if verifiedNotification.key_type != KEY_TYPE_TEST:
+            service_id = verifiedNotification.service.id  # type: ignore
             if redis_store.get(redis.daily_limit_cache_key(service_id)):
                 redis_store.incr(redis.daily_limit_cache_key(service_id))
 
         current_app.logger.info(
             "{} {} created at {}".format(
-                notification.get("notification_type"),
-                notification.get("notification_id"),
-                notification.get("notification_created_at"),  # type: ignore
+                verifiedNotification.notification_type,
+                verifiedNotification.notification_id,
+                verifiedNotification.created_at,
             )
         )
     bulk_insert_notifications(lofnotifications)
