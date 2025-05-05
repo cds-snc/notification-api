@@ -27,6 +27,6 @@ sentry_sdk.init(
     release=__git_commit__,
 )
 
-application = Flask('app')
+application = Flask('app', static_folder=None)
 application.wsgi_app = ProxyFix(application.wsgi_app)
 create_app(application)

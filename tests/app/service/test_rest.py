@@ -10,7 +10,6 @@ from freezegun import freeze_time
 from sqlalchemy import select, delete
 
 from app.constants import (
-    DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS,
     DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS,
     EMAIL_TYPE,
     INBOUND_SMS_TYPE,
@@ -213,103 +212,6 @@ def test_get_service_by_id_returns_go_live_user_and_go_live_at(admin_request, sa
     json_resp = admin_request.get('service.get_service_by_id', service_id=service.id)
     assert json_resp['data']['go_live_user'] == str(user.id)
     assert json_resp['data']['go_live_at'] == str(now)
-
-
-def test_should_not_create_service_with_missing_user_id_field(notify_api, fake_uuid):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            data = {
-                'email_from': 'service',
-                'name': f'created service {uuid4()}',
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'created_by': str(fake_uuid),
-            }
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 400
-            assert json_resp['result'] == 'error'
-            assert 'Missing data for required field.' in json_resp['message']['user_id']
-
-
-def test_should_error_if_created_by_missing(notify_api, sample_user):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            data = {
-                'email_from': 'service',
-                'name': f'created service {uuid4()}',
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'user_id': str(sample_user().id),
-            }
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 400
-            assert json_resp['result'] == 'error'
-            assert 'Missing data for required field.' in json_resp['message']['created_by']
-
-
-def test_should_not_create_service_with_missing_if_user_id_is_not_in_database(notify_api, fake_uuid):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            data = {
-                'email_from': 'service',
-                'user_id': fake_uuid,
-                'name': f'created service {uuid4()}',
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'created_by': str(fake_uuid),
-            }
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 404
-            assert json_resp['result'] == 'error'
-            assert json_resp['message'] == 'No result found'
-
-
-def test_should_not_create_service_if_missing_data(notify_api, sample_user):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            data = {'user_id': str(sample_user().id)}
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 400
-            assert json_resp['result'] == 'error'
-            assert 'Missing data for required field.' in json_resp['message']['name']
-            assert 'Missing data for required field.' in json_resp['message']['message_limit']
-            assert 'Missing data for required field.' in json_resp['message']['restricted']
-
-
-def test_should_not_create_service_with_duplicate_name(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            s1 = sample_service()
-            data = {
-                'name': s1.name,
-                'user_id': str(s1.users[0].id),
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'email_from': 'sample.service2',
-                'created_by': str(s1.users[0].id),
-            }
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert json_resp['result'] == 'error'
-            assert "Duplicate service name '{}'".format(s1.name) in json_resp['message']['name']
 
 
 def test_update_service(
@@ -744,63 +646,6 @@ def test_update_service_should_404_if_id_is_invalid(notify_api):
                 headers=[('Content-Type', 'application/json'), auth_header],
             )
             assert resp.status_code == 404
-
-
-def test_get_users_by_service(notify_api, sample_service):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            service = sample_service()
-            user_on_service = service.users[0]
-            auth_header = create_admin_authorization_header()
-
-            resp = client.get(
-                '/service/{}/users'.format(service.id), headers=[('Content-Type', 'application/json'), auth_header]
-            )
-
-            assert resp.status_code == 200
-            result = resp.json
-            assert len(result['data']) == 1
-            assert result['data'][0]['name'] == user_on_service.name
-            assert result['data'][0]['email_address'] == user_on_service.email_address
-            assert result['data'][0]['mobile_number'] == user_on_service.mobile_number
-
-
-def test_default_permissions_are_added_for_user_service(notify_api, sample_user):
-    with notify_api.test_request_context():
-        with notify_api.test_client() as client:
-            user = sample_user()
-            data = {
-                'name': f'created service {uuid4()}',
-                'user_id': str(user.id),
-                'message_limit': 1000,
-                'restricted': False,
-                'active': False,
-                'email_from': 'created.service',
-                'created_by': str(user.id),
-            }
-            auth_header = create_admin_authorization_header()
-            headers = [('Content-Type', 'application/json'), auth_header]
-            resp = client.post('/service', data=json.dumps(data), headers=headers)
-            json_resp = resp.json
-            assert resp.status_code == 201
-            assert json_resp['data']['id']
-            service_0_id = json_resp['data']['id']
-            assert json_resp['data']['name'] == data['name']
-            assert json_resp['data']['email_from'] == 'created.service'
-
-            auth_header_fetch = create_admin_authorization_header()
-
-            resp = client.get(
-                '/service/{}?user_id={}'.format(json_resp['data']['id'], user.id), headers=[auth_header_fetch]
-            )
-            assert resp.status_code == 200
-            header = create_admin_authorization_header()
-            response = client.get(url_for('user.get_user', user_id=user.id), headers=[header])
-            assert response.status_code == 200
-            json_resp = response.get_json()
-            service_permissions = json_resp['data']['permissions'][service_0_id]
-
-            assert sorted(DEFAULT_SERVICE_MANAGEMENT_PERMISSIONS) == sorted(service_permissions)
 
 
 # This test is just here verify get_service_and_api_key_history that is a temp solution

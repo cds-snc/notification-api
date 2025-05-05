@@ -32,7 +32,6 @@ from app.constants import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
-    NOTIFICATION_RETURNED_LETTER,
     SMS_TYPE,
 )
 from app.dao.daily_sorted_letter_dao import dao_create_or_update_daily_sorted_letter
@@ -561,18 +560,3 @@ def process_incomplete_job(job_id):
             process_row(row, template, job, job.service)
 
     job_complete(job, resumed=True)
-
-
-@notify_celery.task(name='process-returned-letters-list')
-@statsd(namespace='tasks')
-def process_returned_letters_list(notification_references):
-    updated, updated_history = dao_update_notifications_by_reference(
-        notification_references, {'status': NOTIFICATION_RETURNED_LETTER}
-    )
-
-    current_app.logger.info(
-        'Updated %s letter notifications (%s history notifications, from %s references) to returned-letter',
-        updated,
-        updated_history,
-        len(notification_references),
-    )

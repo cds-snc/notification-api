@@ -1,6 +1,4 @@
-from app.billing.rest import update_free_sms_fragment_limit_data
-from app.dao.annual_billing_dao import dao_get_free_sms_fragment_limit_for_year
-from app.dao.date_util import get_current_financial_year_start_year, get_month_start_and_end_date_in_utc
+from app.dao.date_util import get_month_start_and_end_date_in_utc
 from app.models import (
     EMAIL_TYPE,
     FactBilling,
@@ -12,9 +10,6 @@ from datetime import datetime, timedelta
 from freezegun import freeze_time
 from sqlalchemy import delete, func, select
 from tests import create_admin_authorization_header
-from tests.app.db import (
-    create_annual_billing,
-)
 
 
 APR_2016_MONTH_START = datetime(2016, 3, 31, 23, 00, 00)
@@ -22,15 +17,6 @@ APR_2016_MONTH_END = datetime(2016, 4, 30, 22, 59, 59, 99999)
 
 IN_MAY_2016 = datetime(2016, 5, 10, 23, 00, 00)
 IN_JUN_2016 = datetime(2016, 6, 3, 23, 00, 00)
-
-
-def test_update_free_sms_fragment_limit_data(client, sample_service):
-    service = sample_service()
-    current_year = get_current_financial_year_start_year()
-    create_annual_billing(service.id, free_sms_fragment_limit=250000, financial_year_start=current_year - 1)
-    update_free_sms_fragment_limit_data(service.id, 9999, current_year)
-    annual_billing = dao_get_free_sms_fragment_limit_for_year(service.id, current_year)
-    assert annual_billing.free_sms_fragment_limit == 9999
 
 
 @freeze_time('1990-04-21 14:00')

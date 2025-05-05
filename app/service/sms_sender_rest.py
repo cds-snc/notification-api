@@ -3,7 +3,6 @@ from flask import Blueprint, current_app, jsonify, request
 from app.authentication.auth import validate_admin_auth
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.service_sms_sender_dao import (
-    archive_sms_sender,
     dao_add_sms_sender_for_service,
     dao_get_service_sms_sender_by_id,
     dao_get_sms_senders_by_service_id,
@@ -78,12 +77,3 @@ def update_service_sms_sender(
         service_id=service_id, service_sms_sender_id=sms_sender_id, **form
     )
     return jsonify(updated_sms_sender.serialize()), 200
-
-
-@service_sms_sender_blueprint.route('/<uuid:sms_sender_id>/archive', methods=['POST'])
-def delete_service_sms_sender(
-    service_id,
-    sms_sender_id,
-):
-    sms_sender = archive_sms_sender(service_id, sms_sender_id)
-    return jsonify(data=sms_sender.serialize()), 200

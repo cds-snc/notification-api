@@ -49,7 +49,7 @@ jobs:
       - name: Run tests using docker-compose
         run: |
           # Start DB container
-          docker compose -f ci/docker-compose-ci.yml up -d db
+          docker compose -f ci/docker-compose-ci.yml up -d db redis
           # Run test container
           docker compose -f ci/docker-compose-ci.yml run --rm test
           # Stop test container (it should already be stopped due to --rm, but just in case)

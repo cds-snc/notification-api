@@ -7,14 +7,9 @@ from uuid import UUID
 from botocore.exceptions import ClientError
 from flask import current_app
 from notifications_utils.international_billing_rates import INTERNATIONAL_BILLING_RATES
-from notifications_utils.recipients import (
-    validate_and_format_email_address,
-    InvalidEmailError,
-    try_validate_and_format_phone_number,
-)
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
-from sqlalchemy import and_, asc, delete, desc, func, or_, select, update, literal_column
+from sqlalchemy import and_, delete, desc, func, or_, select, update, literal_column
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.engine.row import Row
 from sqlalchemy.orm import joinedload
@@ -43,7 +38,6 @@ from app.constants import (
     STATUS_REASON_UNDELIVERABLE,
 )
 from app.dao.dao_utils import transactional
-from app.errors import InvalidRequest
 from app.letters.utils import LETTERS_PDF_FILE_LOCATION_STRUCTURE
 from app.models import (
     Notification,
@@ -53,7 +47,7 @@ from app.models import (
     Service,
 )
 from app.utils import create_uuid, get_local_timezone_midnight_in_utc
-from app.utils import midnight_n_days_ago, escape_special_characters
+from app.utils import midnight_n_days_ago
 
 # No response from the provider yet, or the response is that they have not done anything (pending)
 UNSENT_STATUSES = (
@@ -118,29 +112,6 @@ _TEMPORARY_FAILURE_UPDATES = (
 )
 
 _PERMANENT_FAILURE_UPDATES = (NOTIFICATION_DELIVERED,)
-
-
-@statsd(namespace='dao')
-def dao_get_last_template_usage(
-    template_id,
-    template_type,
-    service_id,
-):
-    # By adding the service_id to the filter the performance of the query is greatly improved.
-    # Using a max(Notification.created_at) is better than order by and limit one.
-    # But the effort to change the endpoint to return a datetime only is more than the gain.
-    stmt = (
-        select(Notification)
-        .where(
-            Notification.template_id == template_id,
-            Notification.key_type != KEY_TYPE_TEST,
-            Notification.notification_type == template_type,
-            Notification.service_id == service_id,
-        )
-        .order_by(desc(Notification.created_at))
-    )
-
-    return db.session.scalar(stmt)
 
 
 @statsd(namespace='dao')
@@ -540,27 +511,6 @@ def get_notification_for_job(
     )
 
     return db.session.scalars(stmt).one()
-
-
-@statsd(namespace='dao')
-def get_notifications_for_job(
-    service_id,
-    job_id,
-    filter_dict=None,
-    page=1,
-    page_size=None,
-):
-    if page_size is None:
-        page_size = current_app.config['PAGE_SIZE']
-    stmt = select(Notification).where(Notification.service_id == service_id, Notification.job_id == job_id)
-
-    stmt = _filter_query(stmt, filter_dict)
-    stmt = stmt.order_by(asc(Notification.job_row_number))
-    return db.paginate(
-        stmt,
-        page=page,
-        per_page=page_size,
-    )
 
 
 @statsd(namespace='dao')
@@ -986,48 +936,6 @@ def dao_update_notifications_by_reference(
         updated_history_count = db.session.execute(stmt, execution_options={'synchronize_session': False}).rowcount
 
     return updated_count, updated_history_count
-
-
-@statsd(namespace='dao')
-def dao_get_notifications_by_to_field(
-    service_id,
-    search_term,
-    notification_type=None,
-    statuses=None,
-):
-    if notification_type is None:
-        notification_type = guess_notification_type(search_term)
-
-    if notification_type == SMS_TYPE:
-        normalised = try_validate_and_format_phone_number(search_term)
-
-        for character in '() -':
-            normalised = normalised.replace(character, '')
-
-        normalised = normalised.lstrip('+0')
-    elif notification_type == EMAIL_TYPE:
-        try:
-            normalised = validate_and_format_email_address(search_term)
-        except InvalidEmailError:
-            normalised = search_term.lower()
-    else:
-        raise InvalidRequest('Only email and SMS can use search by recipient', 400)
-
-    normalised = escape_special_characters(normalised)
-
-    filters = [
-        Notification.service_id == service_id,
-        Notification.normalised_to.like(f'%{normalised}%'),
-        Notification.key_type != KEY_TYPE_TEST,
-    ]
-
-    if statuses:
-        filters.append(Notification.status.in_(statuses))
-    if notification_type:
-        filters.append(Notification.notification_type == notification_type)
-
-    stmt = select(Notification).where(*filters).order_by(desc(Notification.created_at))
-    return db.session.scalars(stmt).all()
 
 
 @statsd(namespace='dao')

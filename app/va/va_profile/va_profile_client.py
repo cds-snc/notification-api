@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Optional
 import iso8601
 import requests
 
-from app.constants import HTTP_TIMEOUT
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import (
     NoContactInfoException,

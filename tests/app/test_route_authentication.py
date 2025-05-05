@@ -31,19 +31,11 @@ def test_all_routes_have_authentication(client, mocker):
         '/',
         '/_status',
         '/_status/live-service-and-organisation-counts',
-        '/auth/authorize',
-        '/auth/callback',
-        '/auth/login',
-        '/auth/logout',
         '/ga4/open-email-tracking/<notification_id>',
         '/internal/<generic>',
         '/internal/sleep',
         '/internal/502',
-        '/notifications/govdelivery',
-        '/auth/redeem-token',
-        '/auth/token',
         '/platform-stats/monthly',
-        '/auth/my-services/<uuid:user_id>',
     )
 
     for route in routes_without_authentication:

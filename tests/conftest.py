@@ -27,7 +27,7 @@ def pytest_sessionstart(session):
     """
     global application
 
-    app = Flask('test')
+    app = Flask('test', static_folder=None)
     application = create_app(app)
 
     # deattach server-error error handlers - error_handler_spec looks like:

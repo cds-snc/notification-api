@@ -11,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import DataError, SQLAlchemyError
 
 from app.dao.service_sms_sender_dao import (
-    archive_sms_sender,
     dao_add_sms_sender_for_service,
     dao_get_service_sms_sender_by_id,
     dao_get_service_sms_sender_by_service_id_and_number,
@@ -19,7 +18,6 @@ from app.dao.service_sms_sender_dao import (
     dao_update_service_sms_sender,
     _validate_rate_limit,
 )
-from app.exceptions import ArchiveValidationError
 from app.models import InboundNumber, ServiceSmsSender
 from app.service.exceptions import (
     SmsSenderDefaultValidationException,
@@ -527,76 +525,6 @@ class TestDaoUpdateServiceUpdateSmsSender:
 
         expected_msg = f'Inbound number: {inbound_number.id} is not available.'
         assert expected_msg in str(e.value)
-
-
-def test_archive_sms_sender(sample_provider, sample_service) -> None:
-    provider = sample_provider()
-    service = sample_service()
-    second_sms_sender = dao_add_sms_sender_for_service(
-        service_id=service.id,
-        sms_sender='second',
-        is_default=False,
-        provider_id=provider.id,
-        description='test',
-    )
-
-    archive_sms_sender(service_id=service.id, sms_sender_id=second_sms_sender.id)
-
-    assert second_sms_sender.archived
-    assert second_sms_sender.updated_at is not None
-
-
-def test_archive_sms_sender_does_not_archive_a_sender_for_a_different_service(
-    sample_provider,
-    sample_service,
-) -> None:
-    provider = sample_provider()
-    service = sample_service(service_name=f'{str(uuid.uuid4())}First service')
-    sms_sender = dao_add_sms_sender_for_service(
-        service_id=sample_service().id,
-        sms_sender='second',
-        is_default=False,
-        provider_id=provider.id,
-        description='test',
-    )
-
-    with pytest.raises(SQLAlchemyError):
-        archive_sms_sender(service.id, sms_sender.id)
-
-    assert not sms_sender.archived
-
-
-def test_archive_sms_sender_raises_an_error_if_attempting_to_archive_a_default(sample_service):
-    service = sample_service()
-    sms_sender = service.service_sms_senders[0]
-
-    with pytest.raises(ArchiveValidationError) as e:
-        archive_sms_sender(service_id=service.id, sms_sender_id=sms_sender.id)
-
-    assert 'You cannot delete a default sms sender.' in str(e.value)
-
-
-@pytest.mark.parametrize('is_default', [True, False])
-def test_archive_sms_sender_raises_an_error_if_attempting_to_archive_an_inbound_number(
-    notify_db_session,
-    sample_provider,
-    sample_service_with_inbound_number,
-    is_default,
-) -> None:
-    provider = sample_provider()
-    service = sample_service_with_inbound_number()
-    dao_add_sms_sender_for_service(service.id, 'second', is_default=True, provider_id=provider.id, description='test')
-
-    inbound_number = next(x for x in service.service_sms_senders if x.inbound_number_id)
-
-    # regardless of whether inbound number is default or not, can't delete it
-    dao_update_service_sms_sender(service.id, inbound_number.id, is_default=is_default)
-
-    with pytest.raises(ArchiveValidationError) as e:
-        archive_sms_sender(service_id=service.id, sms_sender_id=inbound_number.id)
-
-    assert 'You cannot delete an inbound number.' in str(e.value)
-    assert not inbound_number.archived
 
 
 class TestGetSmsSenderByServiceIdAndNumber:

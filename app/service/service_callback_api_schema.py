@@ -1,5 +1,5 @@
 from app.constants import NOTIFICATION_STATUS_TYPES_COMPLETED, CALLBACK_CHANNEL_TYPES, SERVICE_CALLBACK_TYPES
-from app.schema_validation.definitions import uuid, https_url
+from app.schema_validation.definitions import https_url
 
 create_service_callback_api_request_schema = {
     '$schema': 'http://json-schema.org/draft-04/schema#',

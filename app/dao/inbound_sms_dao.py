@@ -1,7 +1,6 @@
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import and_, delete, desc, func, select
-from sqlalchemy.orm import aliased
+from sqlalchemy import delete, desc, select
 
 from app import db
 from app.dao.dao_utils import transactional
@@ -54,19 +53,6 @@ def dao_get_paginated_inbound_sms_for_service_for_public_api(
 
     stmt = select(InboundSms).where(*filters).order_by(desc(InboundSms.created_at))
     return db.paginate(stmt, per_page=page_size).items
-
-
-def dao_count_inbound_sms_for_service(
-    service_id,
-    limit_days,
-):
-    stmt = (
-        select(func.count())
-        .select_from(InboundSms)
-        .where(InboundSms.service_id == service_id, InboundSms.created_at >= midnight_n_days_ago(limit_days))
-    )
-
-    return db.session.scalar(stmt)
 
 
 def _delete_inbound_sms(
@@ -137,49 +123,3 @@ def dao_get_inbound_sms_by_id(
     stmt = select(InboundSms).where(InboundSms.id == inbound_id, InboundSms.service_id == service_id)
 
     return db.session.scalars(stmt).one()
-
-
-def dao_get_paginated_most_recent_inbound_sms_by_user_number_for_service(
-    service_id,
-    page,
-    limit_days,
-):
-    """
-    This query starts from inbound_sms and joins on to itself to find the most recent row for each user_number.
-
-    Equivalent sql:
-
-    SELECT t1.*
-    FROM inbound_sms t1
-    LEFT OUTER JOIN inbound_sms AS t2 ON (
-        -- identifying
-        t1.user_number = t2.user_number AND
-        t1.service_id = t2.service_id AND
-        -- ordering
-        t1.created_at < t2.created_at
-    )
-    WHERE t2.id IS NULL AND t1.service_id = :service_id
-    ORDER BY t1.created_at DESC;
-    LIMIT 50 OFFSET :page
-    """
-
-    t2 = aliased(InboundSms)
-    stmt = (
-        select(InboundSms)
-        .outerjoin(
-            t2,
-            and_(
-                InboundSms.user_number == t2.user_number,
-                InboundSms.service_id == t2.service_id,
-                InboundSms.created_at < t2.created_at,
-            ),
-        )
-        .where(
-            t2.id.is_(None),
-            InboundSms.service_id == service_id,
-            InboundSms.created_at >= midnight_n_days_ago(limit_days),
-        )
-        .order_by(InboundSms.created_at.desc())
-    )
-
-    return db.paginate(stmt, page=page, per_page=current_app.config['PAGE_SIZE'])

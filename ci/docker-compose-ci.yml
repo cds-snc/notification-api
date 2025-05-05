@@ -24,6 +24,7 @@ services:
       - .local.env
     depends_on:
       - db
+      - redis
     volumes:
       - ../tests:/app/tests  # Bind mount: host's tests folder to container's /app/tests
     command: ["make test"]
@@ -38,3 +39,8 @@ services:
     environment:
       - POSTGRES_DB=notification_api
       - POSTGRES_PASSWORD=LocalPassword
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"

@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 from freezegun import freeze_time
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.constants import (
@@ -22,8 +22,6 @@ from app.constants import (
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
-    NOTIFICATION_STATUS_TYPES,
-    NOTIFICATION_STATUS_TYPES_FAILED,
     NOTIFICATION_TEMPORARY_FAILURE,
     SMS_TYPE,
     STATUS_REASON_UNDELIVERABLE,
@@ -33,8 +31,6 @@ from app.dao.notifications_dao import (
     dao_created_scheduled_notification,
     dao_delete_notification_by_id,
     dao_get_last_notification_added_for_job_id,
-    dao_get_last_template_usage,
-    dao_get_notifications_by_to_field,
     dao_get_scheduled_notifications,
     dao_update_sms_notification_delivery_status,
     dao_timeout_notifications,
@@ -46,7 +42,6 @@ from app.dao.notifications_dao import (
     get_notification_by_id,
     get_notification_for_job,
     get_notification_with_personalisation,
-    get_notifications_for_job,
     get_notifications_for_service,
     is_delivery_slow_for_provider,
     set_scheduled_notification_to_processed,
@@ -68,13 +63,11 @@ from app.va.identifier import IdentifierType
 
 
 def test_should_have_decorated_notifications_dao_functions():
-    assert dao_get_last_template_usage.__wrapped__.__name__ == 'dao_get_last_template_usage'  # noqa
     assert dao_create_notification.__wrapped__.__name__ == 'dao_create_notification'  # noqa
     assert update_notification_status_by_id.__wrapped__.__name__ == 'update_notification_status_by_id'  # noqa
     assert dao_update_notification.__wrapped__.__name__ == 'dao_update_notification'  # noqa
     assert update_notification_status_by_reference.__wrapped__.__name__ == 'update_notification_status_by_reference'  # noqa
     assert get_notification_for_job.__wrapped__.__name__ == 'get_notification_for_job'  # noqa
-    assert get_notifications_for_job.__wrapped__.__name__ == 'get_notifications_for_job'  # noqa
     assert get_notification_with_personalisation.__wrapped__.__name__ == 'get_notification_with_personalisation'  # noqa
     assert get_notifications_for_service.__wrapped__.__name__ == 'get_notifications_for_service'  # noqa
     assert get_notification_by_id.__wrapped__.__name__ == 'get_notification_by_id'  # noqa
@@ -623,46 +616,6 @@ def test_get_notification_for_job(
     assert notification == notification_from_db
 
 
-def test_get_all_notifications_for_job(
-    sample_template,
-    sample_job,
-    sample_notification,
-):
-    template = sample_template()
-    job = sample_job(template)
-    for _ in range(0, 5):
-        try:
-            sample_notification(template=template, job=job)
-        except IntegrityError:
-            pass
-
-    notifications_from_db = get_notifications_for_job(job.service.id, job.id).items
-    assert len(notifications_from_db) == 5
-
-
-def test_get_all_notifications_for_job_by_status(
-    sample_template,
-    sample_job,
-    sample_notification,
-):
-    template = sample_template()
-    job = sample_job(template)
-    notifications = partial(get_notifications_for_job, job.service.id, job.id)
-
-    for status in NOTIFICATION_STATUS_TYPES:
-        sample_notification(template=template, job=job, status=status)
-
-    assert len(notifications().items) == len(NOTIFICATION_STATUS_TYPES)
-
-    for status in NOTIFICATION_STATUS_TYPES:
-        if status == 'failed':
-            assert len(notifications(filter_dict={'status': status}).items) == len(NOTIFICATION_STATUS_TYPES_FAILED)
-        else:
-            assert len(notifications(filter_dict={'status': status}).items) == 1
-
-    assert len(notifications(filter_dict={'status': NOTIFICATION_STATUS_TYPES[:3]}).items) == 3
-
-
 def test_update_notification_sets_status(
     notify_db_session,
     sample_template,
@@ -1197,198 +1150,6 @@ def test_delivery_is_delivery_slow_for_provider_filters_out_notifications_it_sho
     )
 
 
-def test_dao_get_notifications_by_to_field(sample_template, sample_notification):
-    recipient_to_search_for = {'to_field': '+16502532222', 'normalised_to': '+16502532222'}
-
-    template = sample_template()
-    notification1 = sample_notification(template=template, **recipient_to_search_for)
-    sample_notification(template=template, key_type=KEY_TYPE_TEST, **recipient_to_search_for)
-    sample_notification(template=template, to_field='jack@gmail.com', normalised_to='jack@gmail.com')
-    sample_notification(template=template, to_field='jane@gmail.com', normalised_to='jane@gmail.com')
-
-    results = dao_get_notifications_by_to_field(
-        notification1.service_id, recipient_to_search_for['to_field'], notification_type=SMS_TYPE
-    )
-
-    assert len(results) == 1
-    assert notification1.id == results[0].id
-
-
-@pytest.mark.parametrize('search_term', ['JACK', 'JACK@gmail.com', 'jack@gmail.com'])
-def test_dao_get_notifications_by_to_field_search_is_not_case_sensitive(
-    sample_template, search_term, sample_notification
-):
-    template = sample_template(template_type=EMAIL_TYPE)
-    notification = sample_notification(template=template, to_field='jack@gmail.com', normalised_to='jack@gmail.com')
-    results = dao_get_notifications_by_to_field(notification.service_id, search_term, notification_type=EMAIL_TYPE)
-    notification_ids = [notification.id for notification in results]
-
-    assert len(results) == 1
-    assert notification.id in notification_ids
-
-
-def test_dao_get_notifications_by_to_field_matches_partial_emails(sample_template, sample_notification):
-    template = sample_template(template_type=EMAIL_TYPE)
-    notification_1 = sample_notification(template=template, to_field='jack@gmail.com', normalised_to='jack@gmail.com')
-    notification_2 = sample_notification(
-        template=template, to_field='jacque@gmail.com', normalised_to='jacque@gmail.com'
-    )
-    results = dao_get_notifications_by_to_field(notification_1.service_id, 'ack', notification_type=EMAIL_TYPE)
-    notification_ids = [notification.id for notification in results]
-
-    assert len(results) == 1
-    assert notification_1.id in notification_ids
-    assert notification_2.id not in notification_ids
-
-
-@pytest.mark.parametrize(
-    'search_term, expected_result_count',
-    [
-        ('foobar', 1),
-        ('foo', 2),
-        ('bar', 2),
-        ('foo%', 1),
-        ('%%bar', 1),
-        ('%_', 1),
-        ('%', 2),
-        ('_', 1),
-        ('/', 1),
-        ('\\', 1),
-        ('baz\\baz', 1),
-        ('%foo', 0),
-        ('%_%', 0),
-        ('example.com', 5),
-    ],
-)
-def test_dao_get_notifications_by_to_field_escapes(
-    sample_template, search_term, expected_result_count, sample_notification
-):
-    template = sample_template(template_type=EMAIL_TYPE)
-
-    for email_address in {
-        'foo%_@example.com',
-        '%%bar@example.com',
-        'foobar@example.com',
-        '/@example.com',
-        'baz\\baz@example.com',
-    }:
-        sample_notification(
-            template=template,
-            to_field=email_address,
-            normalised_to=email_address,
-        )
-
-    assert (
-        len(
-            dao_get_notifications_by_to_field(
-                template.service_id,
-                search_term,
-                notification_type=EMAIL_TYPE,
-            )
-        )
-        == expected_result_count
-    )
-
-
-@pytest.mark.parametrize(
-    'search_term',
-    [
-        '100',
-        '09001',
-        '077009001',
-        '07700 9001',
-        '(0)7700 9001',
-        '4477009001',
-        '+4477009001',
-        pytest.param('+44077009001', marks=pytest.mark.skip(reason='No easy way to normalise this')),
-        pytest.param('+44(0)77009001', marks=pytest.mark.skip(reason='No easy way to normalise this')),
-    ],
-)
-def test_dao_get_notifications_by_to_field_matches_partial_phone_numbers(
-    sample_template, search_term, sample_notification
-):
-    template = sample_template()
-    assert template.template_type == SMS_TYPE, 'This should be the default value.'
-
-    notification_1 = sample_notification(
-        template=template,
-        to_field='+447700900100',
-        normalised_to='1447700900100',
-    )
-    assert notification_1.notification_type == SMS_TYPE
-
-    notification_2 = sample_notification(
-        template=template,
-        to_field='+447700900200',
-        normalised_to='1447700900200',
-    )
-    assert notification_2.notification_type == SMS_TYPE
-
-    results = dao_get_notifications_by_to_field(notification_1.service_id, search_term, notification_type=SMS_TYPE)
-    notification_ids = [notification.id for notification in results]
-
-    assert len(results) == 1
-    assert notification_1.id in notification_ids
-    assert notification_2.id not in notification_ids
-
-
-@pytest.mark.parametrize('to', ['not@email', '123'])
-def test_dao_get_notifications_by_to_field_accepts_invalid_phone_numbers_and_email_addresses(
-    sample_template, to, sample_notification
-):
-    notification = sample_notification(
-        template=sample_template(), to_field='test@example.com', normalised_to='test@example.com'
-    )
-    results = dao_get_notifications_by_to_field(notification.service_id, to, notification_type=EMAIL_TYPE)
-    assert len(results) == 0
-
-
-def test_dao_get_notifications_by_to_field_search_ignores_spaces(sample_template, sample_notification):
-    template = sample_template()
-    notification1 = sample_notification(template=template, to_field='+16502532222', normalised_to='+16502532222')
-    notification2 = sample_notification(template=template, to_field='+1 650 253 2222', normalised_to='+16502532222')
-    notification3 = sample_notification(template=template, to_field=' +1650253 2 222', normalised_to='+16502532222')
-    sample_notification(template=template, to_field='jaCK@gmail.com', normalised_to='jack@gmail.com')
-
-    results = dao_get_notifications_by_to_field(notification1.service_id, '+16502532222', notification_type=SMS_TYPE)
-    notification_ids = [notification.id for notification in results]
-
-    assert len(results) == 3
-    assert notification1.id in notification_ids
-    assert notification2.id in notification_ids
-    assert notification3.id in notification_ids
-
-
-@pytest.mark.parametrize('phone_search', ('650', '502', '+16502532222'))
-@pytest.mark.parametrize(
-    'email_search',
-    (
-        'example',
-        'eXaMpLe',
-    ),
-)
-def test_dao_get_notifications_by_to_field_only_searches_one_notification_type(
-    phone_search, email_search, sample_service, sample_template, sample_notification
-):
-    service = sample_service()
-    sms_template = sample_template(service=service)
-    email_template = sample_template(service=service, template_type=EMAIL_TYPE)
-    sms = sample_notification(template=sms_template, to_field='6502532222', normalised_to='+16502532222')
-    email = sample_notification(template=email_template, to_field='165@example.com', normalised_to='165@example.com')
-    results = dao_get_notifications_by_to_field(service.id, phone_search, notification_type=SMS_TYPE)
-    assert len(results) == 1
-    assert results[0].id == sms.id
-    results = dao_get_notifications_by_to_field(service.id, phone_search)  # should assume SMS
-    assert len(results) == 1
-    assert results[0].id == sms.id
-    results = dao_get_notifications_by_to_field(service.id, '165', notification_type=EMAIL_TYPE)
-    assert len(results) == 1
-    assert results[0].id == email.id
-    results = dao_get_notifications_by_to_field(service.id, email_search)  # should assume email
-    assert len(results) == 1
-    assert results[0].id == email.id
-
-
 def test_dao_created_scheduled_notification(
     notify_db_session,
     sample_template,
@@ -1435,81 +1196,6 @@ def test_set_scheduled_notification_to_processed(sample_template, sample_notific
     set_scheduled_notification_to_processed(notification_1.id)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
-
-
-def test_dao_get_notifications_by_to_field_filters_status(sample_template, sample_notification):
-    template = sample_template()
-    notification = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
-    )
-    sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='temporary-failure'
-    )
-
-    notifications = dao_get_notifications_by_to_field(
-        notification.service_id, '+16502532222', statuses=[NOTIFICATION_DELIVERED], notification_type=SMS_TYPE
-    )
-
-    assert len(notifications) == 1
-    assert notification.id == notifications[0].id
-
-
-def test_dao_get_notifications_by_to_field_filters_multiple_statuses(sample_template, sample_notification):
-    template = sample_template()
-    notification1 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
-    )
-    notification2 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_SENDING
-    )
-
-    notifications = dao_get_notifications_by_to_field(
-        notification1.service_id,
-        '+16502532222',
-        statuses=[NOTIFICATION_DELIVERED, NOTIFICATION_SENDING],
-        notification_type=SMS_TYPE,
-    )
-    notification_ids = [notification.id for notification in notifications]
-
-    assert len(notifications) == 2
-    assert notification1.id in notification_ids
-    assert notification2.id in notification_ids
-
-
-def test_dao_get_notifications_by_to_field_returns_all_if_no_status_filter(sample_template, sample_notification):
-    template = sample_template()
-    notification1 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status=NOTIFICATION_DELIVERED
-    )
-    notification2 = sample_notification(
-        template=template, to_field='+16502532222', normalised_to='+16502532222', status='temporary-failure'
-    )
-
-    notifications = dao_get_notifications_by_to_field(
-        notification1.service_id, '+16502532222', notification_type=SMS_TYPE
-    )
-    notification_ids = [notification.id for notification in notifications]
-
-    assert len(notifications) == 2
-    assert notification1.id in notification_ids
-    assert notification2.id in notification_ids
-
-
-@freeze_time('2016-01-01 11:10:00')
-def test_dao_get_notifications_by_to_field_orders_by_created_at_desc(sample_template, sample_notification):
-    template = sample_template()
-    notification = partial(
-        sample_notification, template=template, to_field='+16502532222', normalised_to='+16502532222'
-    )
-
-    notification_a_minute_ago = notification(created_at=datetime.utcnow() - timedelta(minutes=1))
-    notification = notification(created_at=datetime.utcnow())
-
-    notifications = dao_get_notifications_by_to_field(template.service_id, '+16502532222', notification_type=SMS_TYPE)
-
-    assert len(notifications) == 2
-    assert notifications[0].id == notification.id
-    assert notifications[1].id == notification_a_minute_ago.id
 
 
 def test_dao_get_last_notification_added_for_job_id_valid_job_id(sample_template, sample_notification, sample_job):

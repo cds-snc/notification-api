@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import pytest
 from requests.exceptions import ConnectTimeout, ReadTimeout
 
@@ -10,7 +8,6 @@ from app.celery.send_va_profile_notification_status_tasks import (
 )
 from app.constants import EMAIL_TYPE, SMS_TYPE
 from app.feature_flags import FeatureFlag
-from app.models import Notification
 
 
 class TestSendNotificationStatusToVAProfile:

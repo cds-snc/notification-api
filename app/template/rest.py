@@ -1,28 +1,20 @@
-import base64
 from datetime import datetime
-from io import BytesIO
 
-import botocore
-from pypdf.errors import PdfReadError
 from flask import (
     Blueprint,
-    current_app,
     jsonify,
     request,
 )
 from flask_jwt_extended import current_user
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
-from notifications_utils.pdf import extract_page_from_pdf
 from notifications_utils.template import SMSMessageTemplate
-from requests import post as requests_post
 from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.template import HTMLEmailTemplate
 
-from app.authentication.auth import requires_admin_auth_or_user_in_service, requires_user_in_service_or_admin
+from app.authentication.auth import requires_admin_auth_or_user_in_service
 from app.communication_item import validate_communication_items
-from app.constants import HTTP_TIMEOUT, LETTER_TYPE, SECOND_CLASS, SMS_TYPE
+from app.constants import LETTER_TYPE, SECOND_CLASS, SMS_TYPE
 from app.dao.fact_notification_status_dao import fetch_template_usage_for_service_with_given_template
-from app.dao.notifications_dao import get_notification_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import (
@@ -34,18 +26,16 @@ from app.dao.templates_dao import (
     dao_get_template_versions,
     dao_update_template_reply_to,
     dao_get_template_by_id,
-    get_precompiled_letter_template,
 )
 from app.errors import InvalidRequest, register_errors
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.letters.utils import get_letter_pdf
 from app.models import Template
 from app.notifications.validators import service_has_permission, check_reply_to, template_name_already_exists_on_service
 from app.provider_details import validate_providers
 from app.schema_validation import validate
 from app.schemas import template_schema, template_history_schema
 from app.template.template_schemas import post_create_template_schema, template_stats_request
-from app.utils import get_template_instance, get_public_notify_type_text
+from app.utils import get_public_notify_type_text
 
 template_blueprint = Blueprint('template', __name__, url_prefix='/service/<uuid:service_id>/template')
 
@@ -179,15 +169,6 @@ def update_template(
     return jsonify(data=template_schema.dump(update_dict)), 200
 
 
-@template_blueprint.route('/precompiled', methods=['GET'])
-@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
-def get_precompiled_template_for_service(service_id):
-    template = get_precompiled_letter_template(service_id)
-    template_dict = template_schema.dump(template)
-
-    return jsonify(template_dict), 200
-
-
 @template_blueprint.route('', methods=['GET'])
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_all_templates_for_service(service_id):
@@ -207,27 +188,6 @@ def get_template_by_id_and_service_id(
     return jsonify(data=data)
 
 
-@template_blueprint.route('/<uuid:template_id>/preview', methods=['GET'])
-@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
-def preview_template_by_id_and_service_id(
-    service_id,
-    template_id,
-):
-    fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template)
-    template_object = get_template_instance(data, request.args.to_dict())
-
-    if template_object.missing_data:
-        raise InvalidRequest(
-            {'template': ['Missing personalisation: {}'.format(', '.join(template_object.missing_data))]},
-            status_code=400,
-        )
-
-    data['subject'], data['content'] = template_object.subject, str(template_object)
-
-    return jsonify(data)
-
-
 @template_blueprint.route('/<template_id>/preview-html', methods=['GET'])
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_html_template(
@@ -239,16 +199,6 @@ def get_html_template(
     html_email = HTMLEmailTemplate(template_dict, values={}, preview_mode=True)
 
     return jsonify(previewContent=str(html_email))
-
-
-@template_blueprint.route('/preview', methods=['POST'])
-@requires_user_in_service_or_admin(required_permission='manage_templates')
-def generate_html_preview_for_content(service_id):
-    data = request.get_json()
-
-    html_email = HTMLEmailTemplate({'content': data['content'], 'subject': ''}, values={}, preview_mode=True)
-
-    return str(html_email), 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 
 @template_blueprint.route('/generate-preview', methods=['POST'])
@@ -329,89 +279,6 @@ def redact_template(
     return 'null', 200
 
 
-@template_blueprint.route('/preview/<uuid:notification_id>/<file_type>', methods=['GET'])
-@requires_admin_auth_or_user_in_service(required_permission='manage_templates')
-def preview_letter_template_by_notification_id(
-    service_id,
-    notification_id,
-    file_type,
-):
-    if file_type not in ('pdf', 'png'):
-        raise InvalidRequest({'content': ['file_type must be pdf or png']}, status_code=400)
-
-    page = request.args.get('page')
-
-    notification = get_notification_by_id(notification_id)
-
-    template = dao_get_template_by_id(notification.template_id)
-
-    if template.is_precompiled_letter:
-        try:
-            pdf_file = get_letter_pdf(notification)
-
-        except botocore.exceptions.ClientError as e:
-            raise InvalidRequest(
-                'Error extracting requested page from PDF file for notification_id {} type {} {}'.format(
-                    notification_id, type(e), e
-                ),
-                status_code=500,
-            )
-
-        content = base64.b64encode(pdf_file).decode('utf-8')
-        overlay = request.args.get('overlay')
-        page_number = page if page else '1'
-
-        if overlay:
-            path = '/precompiled/overlay.{}'.format(file_type)
-            query_string = '?page_number={}'.format(page_number) if file_type == 'png' else ''
-            content = pdf_file
-        elif file_type == 'png':
-            query_string = '?hide_notify=true' if page_number == '1' else ''
-            path = '/precompiled-preview.png'
-        else:
-            path = None
-
-        if file_type == 'png':
-            try:
-                pdf_page = extract_page_from_pdf(BytesIO(pdf_file), int(page_number) - 1)
-                content = pdf_page if overlay else base64.b64encode(pdf_page).decode('utf-8')
-            except PdfReadError as e:
-                raise InvalidRequest(
-                    'Error extracting requested page from PDF file for notification_id {} type {} {}'.format(
-                        notification_id, type(e), e
-                    ),
-                    status_code=500,
-                )
-
-        if path:
-            url = current_app.config['TEMPLATE_PREVIEW_API_HOST'] + path + query_string
-            response_content = _get_png_preview_or_overlaid_pdf(url, content, notification.id, json=False)
-        else:
-            response_content = content
-    else:
-        template_for_letter_print = {
-            'id': str(notification.template_id),
-            'subject': template.subject,
-            'content': template.content,
-            'version': str(template.version),
-        }
-
-        data = {
-            'letter_contact_block': notification.reply_to_text,
-            'template': template_for_letter_print,
-            'values': notification.personalisation,
-            'date': notification.created_at.isoformat(),
-            'filename': None,
-        }
-
-        url = '{}/preview.{}{}'.format(
-            current_app.config['TEMPLATE_PREVIEW_API_HOST'], file_type, '?page={}'.format(page) if page else ''
-        )
-        response_content = _get_png_preview_or_overlaid_pdf(url, data, notification.id, json=True)
-
-    return jsonify({'content': response_content})
-
-
 @template_blueprint.route('/<uuid:template_id>/stats', methods=['GET'])
 @requires_admin_auth_or_user_in_service(required_permission='manage_templates')
 def get_specific_template_usage_stats(
@@ -441,35 +308,3 @@ def get_specific_template_usage_stats(
         stats[i.status] = i.count
 
     return jsonify(data=stats), 200
-
-
-def _get_png_preview_or_overlaid_pdf(
-    url,
-    data,
-    notification_id,
-    json=True,
-):
-    if json:
-        resp = requests_post(
-            url,
-            json=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
-            timeout=HTTP_TIMEOUT,
-        )
-    else:
-        resp = requests_post(
-            url,
-            data=data,
-            headers={'Authorization': 'Token {}'.format(current_app.config['TEMPLATE_PREVIEW_API_KEY'])},
-            timeout=HTTP_TIMEOUT,
-        )
-
-    if resp.status_code != 200:
-        raise InvalidRequest(
-            'Error generating preview letter for {} Status code: {} {}'.format(
-                notification_id, resp.status_code, resp.content
-            ),
-            status_code=500,
-        )
-
-    return base64.b64encode(resp.content).decode('utf-8')

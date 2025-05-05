@@ -5,7 +5,6 @@ from sqlalchemy import desc, select, update
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.exceptions import ArchiveValidationError
 from app.models import ProviderDetails, ServiceSmsSender, InboundNumber
 from app.service.exceptions import (
     SmsSenderDefaultValidationException,
@@ -238,28 +237,6 @@ def _validate_rate_limit(
         # when adding a new sender ensure both rate limit and rate limit interval are provided, or neither
         if (rate_limit is None) != (rate_limit_interval is None):
             raise SmsSenderRateLimitIntegrityException('Provide both rate_limit and rate_limit_interval, or neither.')
-
-
-@transactional
-def archive_sms_sender(
-    service_id,
-    sms_sender_id,
-):
-    stmt = select(ServiceSmsSender).where(
-        ServiceSmsSender.id == sms_sender_id, ServiceSmsSender.service_id == service_id
-    )
-
-    sms_sender_to_archive = db.session.scalars(stmt).one()
-
-    if sms_sender_to_archive.inbound_number_id:
-        raise ArchiveValidationError('You cannot delete an inbound number.')
-    if sms_sender_to_archive.is_default:
-        raise ArchiveValidationError('You cannot delete a default sms sender.')
-
-    sms_sender_to_archive.archived = True
-
-    db.session.add(sms_sender_to_archive)
-    return sms_sender_to_archive
 
 
 def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender]:

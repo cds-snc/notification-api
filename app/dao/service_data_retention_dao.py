@@ -1,8 +1,7 @@
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import ServiceDataRetention
-from datetime import datetime
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 
 def fetch_service_data_retention_by_id(
@@ -50,18 +49,3 @@ def insert_service_data_retention(
 
     db.session.add(new_data_retention)
     return new_data_retention
-
-
-@transactional
-def update_service_data_retention(
-    service_data_retention_id,
-    service_id,
-    days_of_retention,
-):
-    stmt = (
-        update(ServiceDataRetention)
-        .where(ServiceDataRetention.id == service_data_retention_id, ServiceDataRetention.service_id == service_id)
-        .values(days_of_retention=days_of_retention, updated_at=datetime.utcnow())
-    )
-
-    return db.session.execute(stmt).rowcount

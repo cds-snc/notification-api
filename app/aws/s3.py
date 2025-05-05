@@ -57,14 +57,6 @@ def get_job_from_s3(
     return obj.get()['Body'].read().decode('utf-8')
 
 
-def get_job_metadata_from_s3(
-    service_id,
-    job_id,
-):
-    obj = get_s3_object(*get_job_location(service_id, job_id))
-    return obj.get()['Metadata']
-
-
 def remove_job_from_s3(
     service_id,
     job_id,

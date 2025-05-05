@@ -24,13 +24,11 @@ from app.constants import (
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
-    fetch_monthly_template_usage_for_service,
     fetch_notification_status_for_day,
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_notification_status_totals_for_all_services,
-    fetch_notification_statuses_for_job,
     fetch_notification_statuses_per_service_and_template_for_date,
     fetch_stats_for_all_services_by_date_range,
     fetch_template_usage_for_service_with_given_template,
@@ -479,19 +477,6 @@ def set_up_data(
     return service_1, service_2
 
 
-def test_fetch_notification_statuses_for_job(sample_template, sample_job, sample_ft_notification_status):
-    template = sample_template()
-    j1 = sample_job(template)
-    j2 = sample_job(template)
-
-    sample_ft_notification_status(date(2018, 10, 1), job=j1, notification_status='created', count=1)
-    sample_ft_notification_status(date(2018, 10, 1), job=j1, notification_status='delivered', count=2)
-    sample_ft_notification_status(date(2018, 10, 2), job=j1, notification_status='created', count=4)
-    sample_ft_notification_status(date(2018, 10, 1), job=j2, notification_status='created', count=8)
-
-    assert {x.status: x.count for x in fetch_notification_statuses_for_job(j1.id)} == {'created': 5, 'delivered': 2}
-
-
 @pytest.mark.serial
 @freeze_time('2011-10-31 14:00')
 def test_fetch_stats_for_all_services_by_date_range(
@@ -540,68 +525,6 @@ def test_fetch_stats_for_all_services_by_date_range(
     assert results[4].notification_type is None
     assert results[4].status is None
     assert results[4].count is None
-
-
-@freeze_time('2018-03-30 14:00')
-def test_fetch_monthly_template_usage_for_service(
-    sample_service,
-    sample_template,
-    sample_notification,
-    sample_job,
-    sample_ft_notification_status,
-):
-    service = sample_service()
-
-    # The names of the templates are chosen to guarantee sorted order, which is used below.
-    template_one = sample_template(service=service, template_type=SMS_TYPE, name=f'a {uuid4()}')
-    template_two = sample_template(service=service, template_type=EMAIL_TYPE, name=f'b {uuid4()}')
-    template_three = sample_template(service=service, template_type=LETTER_TYPE, name=f'c {uuid4()}')
-
-    job_one = sample_job(template_one)
-    job_two = sample_job(template_two)
-    job_three = sample_job(template_three)
-
-    sample_ft_notification_status(utc_date=date(2017, 12, 10), job=job_two, count=3)
-    sample_ft_notification_status(utc_date=date(2017, 12, 10), job=job_one, count=6)
-    sample_ft_notification_status(utc_date=date(2018, 1, 1), job=job_one, count=4)
-    sample_ft_notification_status(utc_date=date(2018, 3, 1), job=job_three, count=5)
-
-    sample_notification(template=template_three, created_at=datetime.utcnow() - timedelta(days=1))
-    sample_notification(template=template_three, created_at=datetime.utcnow())
-    results = fetch_monthly_template_usage_for_service(datetime(2017, 4, 1), datetime(2018, 3, 31), service.id)
-
-    assert len(results) == 4
-
-    assert results[0].template_id == template_one.id
-    assert results[0].name == template_one.name
-    assert results[0].is_precompiled_letter is False
-    assert results[0].template_type == template_one.template_type
-    assert results[0].month == 12
-    assert results[0].year == 2017
-    assert results[0].count == 6
-    assert results[1].template_id == template_two.id
-    assert results[1].name == template_two.name
-    assert results[1].is_precompiled_letter is False
-    assert results[1].template_type == template_two.template_type
-    assert results[1].month == 12
-    assert results[1].year == 2017
-    assert results[1].count == 3
-
-    assert results[2].template_id == template_one.id
-    assert results[2].name == template_one.name
-    assert results[2].is_precompiled_letter is False
-    assert results[2].template_type == template_one.template_type
-    assert results[2].month == 1
-    assert results[2].year == 2018
-    assert results[2].count == 4
-
-    assert results[3].template_id == template_three.id
-    assert results[3].name == template_three.name
-    assert results[3].is_precompiled_letter is False
-    assert results[3].template_type == template_three.template_type
-    assert results[3].month == 3
-    assert results[3].year == 2018
-    assert results[3].count == 6
 
 
 @pytest.mark.serial
@@ -656,96 +579,6 @@ def test_fetch_delivered_notification_stats_by_month(
 def test_fetch_delivered_notification_stats_by_month_empty(client):
     # Method ignores freezetime and finds records from multi-workers due to the query
     assert fetch_delivered_notification_stats_by_month() == []
-
-
-@freeze_time('2018-03-30 14:00')
-def test_fetch_monthly_template_usage_for_service_does_join_to_notifications_if_today_is_not_in_date_range(
-    sample_service,
-    sample_template,
-    sample_notification,
-    sample_job,
-    sample_ft_notification_status,
-):
-    service = sample_service()
-
-    # The names of the templates are chosen to guarantee sorted order, which is used below.
-    template_one = sample_template(service=service, template_type=SMS_TYPE, name=f'a {uuid4()}')
-    template_two = sample_template(service=service, template_type=EMAIL_TYPE, name=f'b {uuid4()}')
-
-    job_one = sample_job(template_one)
-    job_two = sample_job(template_two)
-
-    sample_ft_notification_status(utc_date=date(2018, 2, 1), job=job_two, count=15)
-    sample_ft_notification_status(utc_date=date(2018, 2, 2), job=job_one, count=20)
-    sample_ft_notification_status(utc_date=date(2018, 3, 1), job=job_one, count=3)
-
-    sample_notification(template=template_one, created_at=datetime.utcnow())
-
-    results = fetch_monthly_template_usage_for_service(
-        datetime(2018, 1, 1), datetime(2018, 2, 20), template_one.service_id
-    )
-
-    assert len(results) == 2
-
-    assert results[0].template_id == template_one.id
-    assert results[0].name == template_one.name
-    assert results[0].is_precompiled_letter == template_one.is_precompiled_letter
-    assert results[0].template_type == template_one.template_type
-    assert results[0].month == 2
-    assert results[0].year == 2018
-    assert results[0].count == 20
-    assert results[1].template_id == template_two.id
-    assert results[1].name == template_two.name
-    assert results[1].is_precompiled_letter == template_two.is_precompiled_letter
-    assert results[1].template_type == template_two.template_type
-    assert results[1].month == 2
-    assert results[1].year == 2018
-    assert results[1].count == 15
-
-
-@freeze_time('2018-03-30 14:00')
-def test_fetch_monthly_template_usage_for_service_does_not_include_cancelled_status(
-    sample_template,
-    sample_notification,
-    sample_job,
-    sample_ft_notification_status,
-):
-    template = sample_template()
-    job = sample_job(template)
-
-    sample_ft_notification_status(utc_date=date(2018, 3, 1), job=job, notification_status='cancelled', count=15)
-    sample_notification(template=template, created_at=datetime.utcnow(), status='cancelled')
-    sample_notification(template=template, created_at=datetime.utcnow(), status='cancelled', status_reason='foo')
-
-    results = fetch_monthly_template_usage_for_service(datetime(2018, 1, 1), datetime(2018, 3, 31), template.service_id)
-
-    assert len(results) == 0
-
-
-@freeze_time('2018-03-30 14:00')
-def test_fetch_monthly_template_usage_for_service_does_not_include_test_notifications(
-    sample_template,
-    sample_notification,
-    sample_job,
-    sample_ft_notification_status,
-):
-    template = sample_template()
-    job = sample_job(template)
-
-    sample_ft_notification_status(
-        utc_date=date(2018, 3, 1), job=job, notification_status='delivered', key_type='test', count=15
-    )
-
-    sample_notification(
-        template=template,
-        created_at=datetime.utcnow(),
-        status='delivered',
-        key_type='test',
-    )
-
-    results = fetch_monthly_template_usage_for_service(datetime(2018, 1, 1), datetime(2018, 3, 31), template.service_id)
-
-    assert len(results) == 0
 
 
 @pytest.mark.serial

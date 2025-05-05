@@ -58,7 +58,7 @@ def test_user_update_schema_accepts_valid_attribute_pairs(user_attribute, user_v
     update_dict = {user_attribute: user_value}
     from app.schemas import user_update_schema_load_json
 
-    data = user_update_schema_load_json.load(update_dict)
+    user_update_schema_load_json.load(update_dict)
 
 
 @pytest.mark.parametrize(
@@ -71,7 +71,7 @@ def test_user_update_schema_rejects_invalid_attribute_pairs(user_attribute, user
     update_dict = {user_attribute: user_value}
 
     with pytest.raises(ValidationError):
-        data, errors = user_update_schema_load_json.load(update_dict)
+        user_update_schema_load_json.load(update_dict)
 
 
 @pytest.mark.parametrize(

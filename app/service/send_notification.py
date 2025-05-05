@@ -18,7 +18,6 @@ from app.constants import (
     NOTIFICATION_DELIVERED,
 )
 from app.v2.errors import BadRequestError
-from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
 

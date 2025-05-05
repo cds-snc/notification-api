@@ -11,7 +11,7 @@ def app_for_test(mocker):
     from app.v2.errors import BadRequestError, TooManyRequestsError, JobIncompleteError
     from app import init_app
 
-    app = flask.Flask(__name__)
+    app = flask.Flask(__name__, static_folder=None)
     app.config['TESTING'] = True
     init_app(app)
     from app import statsd_client

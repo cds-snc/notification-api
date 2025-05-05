@@ -1,7 +1,6 @@
 import pytest
 import botocore
 
-from app import redis_store
 from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
 from app.exceptions import InvalidProviderException

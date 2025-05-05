@@ -11,10 +11,6 @@ from app.notifications.receive_notifications import (
     NoSuitableServiceForInboundSms,
     create_inbound_sms_object,
     fetch_potential_service,
-    format_mmg_datetime,
-    format_mmg_message,
-    strip_leading_forty_four,
-    unescape_string,
 )
 
 
@@ -33,111 +29,6 @@ def test_check_permissions_for_inbound_sms(
 ):
     service = sample_service(service_permissions=permissions)
     assert service.has_permissions([INBOUND_SMS_TYPE, SMS_TYPE]) is expected_response
-
-
-@pytest.mark.parametrize(
-    'message, expected_output',
-    [
-        ('abc', 'abc'),
-        ('', ''),
-        ('lots+of+words', 'lots of words'),
-        ('%F0%9F%93%A9+%F0%9F%93%A9+%F0%9F%93%A9', '📩 📩 📩'),
-        ('x+%2B+y', 'x + y'),
-    ],
-)
-def test_format_mmg_message(message, expected_output):
-    assert format_mmg_message(message) == expected_output
-
-
-@pytest.mark.parametrize(
-    'raw, expected',
-    [
-        (
-            '😬',
-            '😬',
-        ),
-        (
-            '1\\n2',
-            '1\n2',
-        ),
-        (
-            "\\'\"\\'",
-            "'\"'",
-        ),
-        (
-            """
-
-        """,
-            """
-
-        """,
-        ),
-        (
-            '\x79 \\x79 \\\\x79',  # we should never see the middle one
-            'y y \\x79',
-        ),
-    ],
-)
-def test_unescape_string(raw, expected):
-    assert unescape_string(raw) == expected
-
-
-@pytest.mark.parametrize(
-    'provider_date, expected_output',
-    [
-        ('2017-01-21+11%3A56%3A11', datetime(2017, 1, 21, 16, 56, 11)),
-        ('2017-05-21+11%3A56%3A11', datetime(2017, 5, 21, 15, 56, 11)),
-    ],
-)
-# This test assumes the local timezone is EST
-def test_format_mmg_datetime(provider_date, expected_output):
-    assert format_mmg_datetime(provider_date) == expected_output
-
-
-# This test assumes the local timezone is EST
-def test_create_inbound_mmg_sms_object(
-    sample_service,
-    sample_inbound_sms,
-):
-    service = sample_service()
-    data = {
-        'Message': 'hello+there+%F0%9F%93%A9',
-        'Number': '+15551234566',
-        'MSISDN': '447700900001',
-        'DateReceived': '2017-01-02+03%3A04%3A05',
-        'ID': 'bar',
-    }
-    inbound_sms = sample_inbound_sms(
-        service=service,
-        content=format_mmg_message(data['Message']),
-        notify_number=data['Number'],
-        user_number=data['MSISDN'],
-        provider_reference=data['ID'],
-        provider_date=format_mmg_datetime(data['DateReceived']),
-        provider='mmg',
-    )
-
-    assert inbound_sms.service_id == service.id
-    assert inbound_sms.notify_number == '+15551234566'
-    assert inbound_sms.user_number == '447700900001'
-    assert inbound_sms.provider_date == datetime(2017, 1, 2, 8, 4, 5)
-    assert inbound_sms.provider_reference == 'bar'
-    assert inbound_sms._content != 'hello there 📩'
-    assert inbound_sms.content == 'hello there 📩'
-    assert inbound_sms.provider == 'mmg'
-
-
-@pytest.mark.parametrize(
-    'number, expected',
-    [
-        ('447123123123', '07123123123'),
-        ('447123123144', '07123123144'),
-        ('07123123123', '07123123123'),
-        ('447444444444', '07444444444'),
-    ],
-)
-def test_strip_leading_country_code(number, expected):
-    assert strip_leading_forty_four(number) == expected
 
 
 @freeze_time('2017-01-01T16:00:00')
@@ -197,32 +88,6 @@ def test_create_inbound_sms_object_logs_invalid_from_number(
     mock_logger.assert_called_with(
         f'Inbound SMS service_id: {service.id} ({service.name}), Invalid from_number received: {invalid_from_number}'
     )
-
-
-def test_create_inbound_sms_object_works_with_alphanumeric_sender(
-    sample_inbound_sms,
-    sample_service,
-):
-    service = sample_service()
-    data = {
-        'Message': 'hello',
-        'Number': '+15551234567',
-        'MSISDN': 'ALPHANUM3R1C',
-        'DateReceived': '2017-01-02+03%3A04%3A05',
-        'ID': 'bar',
-    }
-
-    inbound_sms = sample_inbound_sms(
-        service=service,
-        content=format_mmg_message(data['Message']),
-        notify_number='+15551234567',
-        user_number='ALPHANUM3R1C',
-        provider_reference='foo',
-        provider_date=None,
-        provider='mmg',
-    )
-
-    assert inbound_sms.user_number == 'ALPHANUM3R1C'
 
 
 class TestFetchPotentialService:

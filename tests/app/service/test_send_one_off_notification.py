@@ -5,14 +5,11 @@ import pytest
 from notifications_utils.recipients import InvalidPhoneError
 from sqlalchemy import delete
 
-from app.dao.service_whitelist_dao import dao_add_and_commit_whitelisted_contacts
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
-    MOBILE_TYPE,
     SMS_TYPE,
     Notification,
-    ServiceWhitelist,
 )
 from app.service.send_notification import send_one_off_notification
 from app.v2.errors import BadRequestError, TooManyRequestsError
@@ -153,41 +150,6 @@ def test_send_one_off_notification_raises_if_invalid_recipient(
 
     with pytest.raises(InvalidPhoneError):
         send_one_off_notification(service.id, post_data)
-
-
-@pytest.mark.parametrize(
-    'recipient',
-    [
-        '6502532228',  # not in team or whitelist
-        '+16502532229',  # in whitelist
-        '6502532229',  # in whitelist in different format
-    ],
-)
-def test_send_one_off_notification_raises_if_cant_send_to_recipient(
-    notify_db_session,
-    sample_service,
-    sample_template,
-    recipient,
-):
-    service = sample_service(restricted=True)
-    template = sample_template(service=service)
-    dao_add_and_commit_whitelisted_contacts(
-        [
-            ServiceWhitelist.from_string(service.id, MOBILE_TYPE, '+16502532229'),
-        ]
-    )
-
-    post_data = {'template_id': str(template.id), 'to': recipient, 'created_by': str(service.created_by_id)}
-
-    with pytest.raises(BadRequestError) as e:
-        send_one_off_notification(service.id, post_data)
-
-    assert 'service is in trial mode' in e.value.message
-
-    # Teardown
-    stmt = delete(ServiceWhitelist).where(ServiceWhitelist.service_id == service.id)
-    notify_db_session.session.execute(stmt)
-    notify_db_session.session.commit()
 
 
 def test_send_one_off_notification_raises_if_over_limit(

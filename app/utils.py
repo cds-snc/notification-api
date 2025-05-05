@@ -7,7 +7,6 @@ from flask import current_app, url_for
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate, WithSubjectTemplate, get_html_email_body
 from notifications_utils.url_safe_token import generate_token
 import pytz
-from sqlalchemy import func
 
 from app.constants import (
     BRANDING_BOTH,
@@ -111,21 +110,6 @@ def get_midnight_for_day_before(date):
     return get_local_timezone_midnight_in_utc(day_before)
 
 
-def get_local_timezone_month_from_utc_column(column):
-    """
-    Where queries need to count notifications by month it needs to be
-    the month in BST (British Summer Time).
-    The database stores all timestamps as UTC without the timezone.
-     - First set the timezone on created_at to UTC
-     - then convert the timezone to BST (or America/New_York)
-     - lastly truncate the datetime to month with which we can group
-       queries
-    """
-    return func.date_trunc(
-        'month', func.timezone(os.getenv('TIMEZONE', 'America/New_York'), func.timezone('UTC', column))
-    )
-
-
 def get_public_notify_type_text(
     notify_type,
     plural=False,
@@ -154,14 +138,6 @@ def escape_special_characters(string):
     for special_character in ('\\', '_', '%', '/'):
         string = string.replace(special_character, r'\{}'.format(special_character))
     return string
-
-
-def update_dct_to_str(update_dct):
-    str = '\n'
-    for key in update_dct:
-        str += '- {}'.format(key.replace('_', ' '))
-        str += '\n'
-    return str
 
 
 def create_uuid() -> str:

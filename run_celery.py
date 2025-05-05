@@ -11,6 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-application = Flask('delivery')
+application = Flask('delivery', static_folder=None)
 create_app(application)
 application.app_context().push()

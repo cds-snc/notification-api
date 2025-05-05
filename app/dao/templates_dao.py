@@ -1,17 +1,15 @@
 import uuid
 from datetime import datetime
 
-from flask import current_app
 from sqlalchemy import asc, desc, func, select, update
 
 from app import db
-from app.constants import EMAIL_TYPE, LETTER_TYPE, SECOND_CLASS
+from app.constants import EMAIL_TYPE
 from app.dao.dao_utils import (
     transactional,
     version_class,
     VersionOptions,
 )
-from app.dao.users_dao import get_user_by_id
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import (
     Template,
@@ -239,29 +237,3 @@ def dao_get_template_versions(
     )
 
     return db.session.scalars(stmt).all()
-
-
-def get_precompiled_letter_template(service_id):
-    stmt = select(Template).where(
-        Template.service_id == service_id, Template.template_type == LETTER_TYPE, Template.hidden.is_(True)
-    )
-
-    template = db.session.scalar(stmt)
-
-    if template is not None:
-        return template
-
-    template = Template(
-        name='Pre-compiled PDF',
-        created_by=get_user_by_id(current_app.config['NOTIFY_USER_ID']),
-        service_id=service_id,
-        template_type=LETTER_TYPE,
-        hidden=True,
-        subject='Pre-compiled PDF',
-        content='',
-        postage=SECOND_CLASS,
-    )
-
-    dao_create_template(template)
-
-    return template

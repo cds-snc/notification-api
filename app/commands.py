@@ -23,7 +23,6 @@ from app.celery.nightly_tasks import send_total_sent_notifications_to_performanc
 from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
 from app.constants import NOTIFICATION_CREATED, KEY_TYPE_TEST, SMS_TYPE
-from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.fact_billing_dao import (
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
@@ -41,7 +40,7 @@ from app.dao.services_dao import (
     dao_update_service,
 )
 from app.dao.templates_dao import dao_get_template_by_id
-from app.dao.users_dao import delete_model_user, delete_user_verify_codes, get_user_by_email
+from app.dao.users_dao import delete_model_user, delete_user_verify_codes
 from app.models import (
     PROVIDERS,
     Notification,
@@ -195,37 +194,6 @@ def backfill_processing_time(
             )
         )
         send_processing_time_for_start_and_end(process_start_date, process_end_date)
-
-
-@notify_command(name='populate-annual-billing')
-@click.option(
-    '-y', '--year', required=True, type=int, help="""The year to populate the annual billing data for, i.e. 2019"""
-)
-def populate_annual_billing(year):
-    """
-    add annual_billing for given year.
-    """
-    sql = """
-        Select id from services where active = true
-        except
-        select service_id
-        from annual_billing
-        where financial_year_start = :year
-    """
-    services_without_annual_billing = db.session.execute(sql, {'year': year})
-    for row in services_without_annual_billing:
-        latest_annual_billing = """
-            Select free_sms_fragment_limit
-            from annual_billing
-            where service_id = :service_id
-            order by financial_year_start desc limit 1
-        """
-        free_allowance_rows = db.session.execute(latest_annual_billing, {'service_id': row.id})
-        free_allowance = [x[0] for x in free_allowance_rows]
-        print('create free limit of {} for service: {}'.format(free_allowance[0], row.id))
-        dao_create_or_update_annual_billing_for_year(
-            service_id=row.id, free_sms_fragment_limit=free_allowance[0], financial_year_start=int(year)
-        )
 
 
 @notify_command(name='list-routes')
@@ -505,65 +473,6 @@ def migrate_data_to_ft_notification_status(
     print('Total inserted/updated records = {}'.format(total_updated))
 
 
-@notify_command(name='bulk-invite-user-to-service')
-@click.option(
-    '-f',
-    '--file_name',
-    required=True,
-    help='Full path of the file containing a list of email address for people to invite to a service',
-)
-@click.option('-s', '--service_id', required=True, help='The id of the service that the invite is for')
-@click.option('-u', '--user_id', required=True, help='The id of the user that the invite is from')
-@click.option(
-    '-a',
-    '--auth_type',
-    required=False,
-    help='The authentication type for the user, sms_auth or email_auth. Defaults to sms_auth if not provided',
-)
-@click.option('-p', '--permissions', required=True, help='Comma separated list of permissions.')
-def bulk_invite_user_to_service(
-    file_name,
-    service_id,
-    user_id,
-    auth_type,
-    permissions,
-):
-    #  permissions
-    #  manage_users | manage_templates | manage_settings
-    #  send messages ==> send_texts | send_emails | send_letters
-    #  Access API keys manage_api_keys
-    #  platform_admin
-    #  view_activity
-    # "send_texts,send_emails,send_letters,view_activity"
-    from app.invite.rest import create_invited_user
-
-    file = open(file_name)
-    for email_address in file:
-        data = {
-            'service': service_id,
-            'email_address': email_address.strip(),
-            'from_user': user_id,
-            'permissions': permissions,
-            'auth_type': auth_type,
-            'invite_link_host': current_app.config['ADMIN_BASE_URL'],
-        }
-        with current_app.test_request_context(
-            path='/service/{}/invite/'.format(service_id),
-            method='POST',
-            data=json.dumps(data),
-            headers={'Content-Type': 'application/json'},
-        ):
-            try:
-                response = create_invited_user(service_id)
-                if response[1] != 201:
-                    print('*** ERROR occurred for email address: {}'.format(email_address.strip()))
-                print(response[0].get_data(as_text=True))
-            except Exception as e:
-                print('*** ERROR occurred for email address: {}. \n{}'.format(email_address.strip(), e))
-
-    file.close()
-
-
 @notify_command(name='populate-notification-postage')
 @click.option(
     '-s', '--start_date', default=datetime(2017, 2, 1), help='start date inclusive', type=click_dt(format='%Y-%m-%d')
@@ -816,45 +725,6 @@ def populate_service_volume_intentions(file_name):
             service.volume_letter = columns[3]
             dao_update_service(service)
     print('populate-service-volume-intentions complete')
-
-
-@notify_command(name='populate-go-live')
-@click.option('-f', '--file_name', required=True, help='CSV file containing live service data')
-def populate_go_live(file_name):
-    # 0 - count, 1- Link, 2- Service ID, 3- DEPT, 4- Service Name, 5- Main contact,
-    # 6- Contact detail, 7-MOU, 8- LIVE date, 9- SMS, 10 - Email, 11 - Letters, 12 -CRM, 13 - Blue badge
-    import csv
-
-    print('Populate go live user and date')
-    with open(file_name, 'r') as f:
-        rows = csv.reader(
-            f,
-            quoting=csv.QUOTE_MINIMAL,
-            skipinitialspace=True,
-        )
-        print(next(rows))  # ignore header row
-        for index, row in enumerate(rows):
-            print(index, row)
-            service_id = row[2]
-            go_live_email = row[6]
-            go_live_date = datetime.strptime(row[8], '%d/%m/%Y') + timedelta(hours=12)
-            print(service_id, go_live_email, go_live_date)
-            try:
-                if go_live_email:
-                    go_live_user = get_user_by_email(go_live_email)
-                else:
-                    go_live_user = None
-            except NoResultFound:
-                print('No user found for email address: ', go_live_email)
-                continue
-            try:
-                service = dao_fetch_service_by_id(service_id)
-            except NoResultFound:
-                print('No service found for: ', service_id)
-                continue
-            service.go_live_user = go_live_user
-            service.go_live_at = go_live_date
-            dao_update_service(service)
 
 
 @notify_command(name='fix-billable-units')

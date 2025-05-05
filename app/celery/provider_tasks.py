@@ -177,7 +177,7 @@ def deliver_email(
         _handle_delivery_failure(task, notification, 'deliver_email', e, notification_id, EMAIL_TYPE)
 
 
-def _handle_delivery_failure(
+def _handle_delivery_failure(  # noqa: C901 - too complex (11 > 10)
     celery_task: Task,
     notification: Notification | None,
     method_name: str,

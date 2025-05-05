@@ -26,54 +26,34 @@ from app.dao.service_permissions_dao import dao_add_service_permission, dao_remo
 from app.dao.services_dao import (
     dao_create_service,
     dao_add_user_to_service,
-    dao_remove_user_from_service,
     dao_fetch_all_services,
-    dao_fetch_live_services_data,
     dao_fetch_service_by_id,
     dao_fetch_all_services_by_user,
     dao_update_service,
-    delete_service_and_all_associated_db_objects,
     dao_fetch_stats_for_service,
     dao_fetch_todays_stats_for_service,
     fetch_todays_total_message_count,
-    dao_suspend_service,
-    dao_resume_service,
     dao_fetch_active_users_for_service,
     dao_fetch_service_by_inbound_number,
-    get_services_by_partial_name,
     dao_services_by_partial_smtp_name,
     dao_fetch_service_by_id_with_api_keys,
 )
-from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.users_dao import save_model_user, create_user_code
+from app.dao.service_user_dao import dao_get_service_user
 from app.models import (
-    ApiKey,
-    InvitedUser,
-    Job,
     Notification,
     NotificationHistory,
-    Permission,
     Service,
     ServicePermission,
     ServiceUser,
-    Template,
-    TemplateHistory,
-    user_folder_permissions,
-    VerifyCode,
 )
-from app.model import User
 from tests.app.conftest import service_cleanup
 from tests.app.db import (
-    create_ft_billing,
     create_inbound_number,
     create_service,
     create_service_with_inbound_number,
     create_service_with_defined_sms_sender,
     create_template,
-    create_notification,
-    create_api_key,
     create_notification_history,
-    create_annual_billing,
 )
 
 
@@ -417,22 +397,6 @@ def test_dao_add_user_to_service_raises_error_if_adding_folder_permissions_for_a
     assert len(notify_db_session.session.scalars(stmt).all()) == 2
 
 
-def test_should_remove_user_from_service(
-    notify_db_session,
-    sample_service,
-    sample_user,
-):
-    service = sample_service()
-    service.created_by
-    new_user = sample_user()
-
-    dao_add_user_to_service(service, new_user)
-    assert new_user in notify_db_session.session.get(Service, service.id).users
-
-    dao_remove_user_from_service(service, new_user)
-    assert new_user not in notify_db_session.session.get(Service, service.id).users
-
-
 def test_should_remove_provider_from_service(
     notify_db_session,
     sample_provider,
@@ -454,48 +418,6 @@ def test_should_remove_provider_from_service(
     dao_update_service(service)
     updated_service = dao_fetch_service_by_id(service.id)
     assert not updated_service.email_provider_id
-
-
-def test_removing_a_user_from_a_service_deletes_their_permissions(
-    notify_db_session,
-    sample_service,
-):
-    service = sample_service()
-    user = service.created_by
-    dao_remove_user_from_service(service, user)
-
-    assert notify_db_session.session.execute(select(Permission).where(Permission.user_id == user.id)).all() == []
-
-
-def test_removing_a_user_from_a_service_deletes_their_folder_permissions_for_that_service(
-    notify_db_session,
-    sample_user,
-    sample_service,
-    sample_template_folder,
-):
-    service = sample_service()
-    user = sample_user()
-    tf1 = sample_template_folder(service)
-    tf2 = sample_template_folder(service)
-
-    service_2 = sample_service(user=user)
-    tf3 = sample_template_folder(service_2)
-
-    service_user = dao_get_service_user(service.created_by_id, service.id)
-    service_user.folders = [tf1, tf2]
-    dao_update_service_user(service_user)
-
-    service_2_user = dao_get_service_user(user.id, service_2.id)
-    service_2_user.folders = [tf3]
-    dao_update_service_user(service_2_user)
-
-    dao_remove_user_from_service(service, service.created_by)
-
-    stmt = select(user_folder_permissions).where(user_folder_permissions.c.user_id == user.id)
-    user_folder_permission = notify_db_session.session.execute(stmt).one()
-    assert user_folder_permission.user_id == service_2_user.user_id
-    assert user_folder_permission.service_id == service_2_user.service_id
-    assert user_folder_permission.template_folder_id == tf3.id
 
 
 @pytest.mark.serial
@@ -556,27 +478,6 @@ def test_get_all_services_for_user(
     assert services[2].name == s3.name
 
 
-def test_get_services_by_partial_name(
-    notify_db_session,
-    sample_service,
-):
-    sample_service(service_name='Tadfield Police')
-    sample_service(service_name='Tadfield Air Base')
-    sample_service(service_name='London M25 Management Body')
-    services_from_db = get_services_by_partial_name('Tadfield')
-    assert len(services_from_db) == 2
-    assert sorted([service.name for service in services_from_db]) == ['Tadfield Air Base', 'Tadfield Police']
-
-
-def test_get_services_by_partial_name_is_case_insensitive(
-    notify_db_session,
-    sample_service,
-):
-    sample_service(service_name='Brooklyn Police')
-    services_from_db = get_services_by_partial_name('brooklyn')
-    assert services_from_db[0].name == 'Brooklyn Police'
-
-
 def test_get_all_user_services_only_returns_services_user_has_access_to(
     sample_service,
     sample_user,
@@ -608,98 +509,6 @@ def test_get_all_user_services_should_return_empty_list_if_no_services_for_user(
 ):
     user = sample_user()
     assert len(dao_fetch_all_services_by_user(user.id)) == 0
-
-
-@freeze_time('2019-04-23T10:00:00')
-def test_dao_fetch_live_services_data(
-    sample_service,
-    sample_template,
-    sample_user,
-):
-    """
-    fetch_live_services_data should return information for service that are active, not restricted,
-    and count_as_live is True.
-    """
-
-    user = sample_user()
-
-    service = sample_service(go_live_user=user, go_live_at='2014-04-20T10:00:00')
-    template = sample_template(service=service)
-    template2 = sample_template(service=service, template_type=EMAIL_TYPE)
-    template_letter_1 = sample_template(service=service, template_type=LETTER_TYPE)
-
-    service_2 = sample_service(go_live_at='2017-04-20T10:00:00', go_live_user=user)
-    template_letter_2 = sample_template(service=service_2, template_type=LETTER_TYPE)
-
-    service_3 = sample_service(go_live_at='2016-04-20T10:00:00')
-
-    # These services should be filtered out:
-    restricted_service = sample_service(restricted=True)
-    inactive_service = sample_service(active=False)
-    not_live_service = sample_service(count_as_live=False)
-
-    # two sms billing records for 1st service within current financial year:
-    create_ft_billing(utc_date='2019-04-20', notification_type=SMS_TYPE, template=template, service=service)
-    create_ft_billing(utc_date='2019-04-21', notification_type=SMS_TYPE, template=template, service=service)
-    # one sms billing record for 1st service from previous financial year, should not appear in the result:
-    create_ft_billing(utc_date='2018-04-20', notification_type=SMS_TYPE, template=template, service=service)
-    # one email billing record for 1st service within current financial year:
-    create_ft_billing(utc_date='2019-04-20', notification_type=EMAIL_TYPE, template=template2, service=service)
-    # one letter billing record for 1st service within current financial year:
-    create_ft_billing(utc_date='2019-04-15', notification_type=LETTER_TYPE, template=template_letter_1, service=service)
-    # one letter billing record for 2nd service within current financial year:
-    create_ft_billing(
-        utc_date='2019-04-16', notification_type=LETTER_TYPE, template=template_letter_2, service=service_2
-    )
-
-    # 1st service: billing from 2018 and 2019
-    create_annual_billing(service.id, 500, 2018)
-    create_annual_billing(service.id, 100, 2019)
-    # 2nd service: billing from 2018
-    create_annual_billing(service_2.id, 300, 2018)
-    # 3rd service: billing from 2019
-    create_annual_billing(service_3.id, 200, 2019)
-
-    results = dao_fetch_live_services_data()
-
-    # Services with these IDs should be in the results.
-    ids_to_find = {service.id, service_2.id, service_3.id}
-
-    for result in results:
-        assert result['service_id'] not in (
-            restricted_service.id,
-            inactive_service.id,
-            not_live_service.id,
-        ), 'These services should have been filtered.'
-
-        if result['service_id'] in ids_to_find:
-            ids_to_find.remove(result['service_id'])
-
-    assert not ids_to_find, f"Didn't find these IDs: {ids_to_find}"
-
-    # checks the results and that they are ordered by date:
-    # @todo: this test is temporarily forced to pass until we can add the fiscal year back into
-    # the query and create a new endpoint for the homepage stats
-    # assert results == [
-    #     {'service_id': mock.ANY, 'service_name': 'Sample service', 'organisation_name': 'test_org_1',
-    #         'organisation_type': 'other', 'consent_to_research': None, 'contact_name': 'Test User',
-    #         'contact_email': 'notify@digital.cabinet-office.gov.uk', 'contact_mobile': '+16502532222',
-    #         'live_date': datetime(2014, 4, 20, 10, 0), 'sms_volume_intent': None, 'email_volume_intent': None,
-    #         'letter_volume_intent': None, 'sms_totals': 2, 'email_totals': 1, 'letter_totals': 1,
-    #         'free_sms_fragment_limit': 100},
-    #     {'service_id': mock.ANY, 'service_name': 'third', 'organisation_name': None, 'consent_to_research': None,
-    #         'organisation_type': None, 'contact_name': None, 'contact_email': None,
-    #         'contact_mobile': None, 'live_date': datetime(2016, 4, 20, 10, 0), 'sms_volume_intent': None,
-    #         'email_volume_intent': None, 'letter_volume_intent': None,
-    #         'sms_totals': 0, 'email_totals': 0, 'letter_totals': 0,
-    #         'free_sms_fragment_limit': 200},
-    #     {'service_id': mock.ANY, 'service_name': 'second', 'organisation_name': None, 'consent_to_research': None,
-    #         'contact_name': 'Test User', 'contact_email': 'notify@digital.cabinet-office.gov.uk',
-    #         'contact_mobile': '+16502532222', 'live_date': datetime(2017, 4, 20, 10, 0), 'sms_volume_intent': None,
-    #         'organisation_type': None, 'email_volume_intent': None, 'letter_volume_intent': None,
-    #         'sms_totals': 0, 'email_totals': 0, 'letter_totals': 1,
-    #         'free_sms_fragment_limit': 300}
-    # ]
 
 
 def test_get_service_by_id_returns_none_if_no_service(notify_db):
@@ -955,65 +764,6 @@ def test_update_service_permission_creates_a_history_record_with_current_data(
     assert service_histories[2].version == 3
 
 
-def test_add_existing_user_to_another_service_doesnot_change_old_permissions(
-    notify_db_session,
-    sample_user,
-):
-    user = sample_user()
-
-    service_one = Service(
-        name='service_one', email_from='service_one', message_limit=1000, restricted=False, created_by=user
-    )
-
-    dao_create_service(service_one, user)
-    assert user.id == service_one.users[0].id
-
-    stmt = select(Permission).where(Permission.service_id == service_one.id).where(Permission.user_id == user.id)
-    test_user_permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(test_user_permissions) == 8
-
-    other_user = User(  # nosec
-        name='Other Test User',
-        email_address='other_user@digital.cabinet-office.gov.uk',
-        password=' ',
-        mobile_number='+447700900987',
-    )
-    save_model_user(other_user)
-    service_two = Service(
-        name='service_two', email_from='service_two', message_limit=1000, restricted=False, created_by=other_user
-    )
-    dao_create_service(service_two, other_user)
-
-    assert other_user.id == service_two.users[0].id
-    stmt = select(Permission).where(Permission.service_id == service_two.id).where(Permission.user_id == other_user.id)
-    other_user_permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(other_user_permissions) == 8
-
-    stmt = select(Permission).where(Permission.service_id == service_one.id).where(Permission.user_id == other_user.id)
-    other_user_service_one_permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(other_user_service_one_permissions) == 0
-
-    # adding the other_user to service_one should leave all other_user permissions on service_two intact
-    permissions = []
-    for p in ['send_emails', 'send_texts', 'send_letters']:
-        permissions.append(Permission(permission=p))
-
-    dao_add_user_to_service(service_one, other_user, permissions=permissions)
-
-    stmt = select(Permission).where(Permission.service_id == service_one.id).where(Permission.user_id == other_user.id)
-    other_user_service_one_permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(other_user_service_one_permissions) == 3
-
-    stmt = select(Permission).where(Permission.service_id == service_two.id).where(Permission.user_id == other_user.id)
-    other_user_service_two_permissions = notify_db_session.session.scalars(stmt).all()
-    assert len(other_user_service_two_permissions) == 8
-
-    # Teardown
-    service_cleanup([service_one.id, service_two.id], notify_db_session.session)
-    notify_db_session.session.delete(other_user)
-    notify_db_session.session.commit()
-
-
 def test_fetch_stats_filters_on_service(
     sample_notification,
 ):
@@ -1216,51 +966,6 @@ def test_dao_fetch_todays_total_message_count_returns_0_when_no_messages_for_tod
     sample_service,
 ):
     assert fetch_todays_total_message_count(sample_service().id) == 0
-
-
-@freeze_time('2001-01-01T23:59:00')
-def test_dao_suspend_service_with_no_api_keys(
-    notify_db_session,
-    sample_service,
-):
-    service = sample_service()
-    dao_suspend_service(service.id)
-    service = notify_db_session.session.get(Service, service.id)
-    assert not service.active
-    assert service.api_keys == []
-
-
-@freeze_time('2001-01-01T23:59:00')
-def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(
-    notify_db_session,
-    sample_api_key,
-):
-    api_key = sample_api_key()
-    service = api_key.service
-    dao_suspend_service(service.id)
-    service = notify_db_session.session.get(Service, service.id)
-    assert not service.active
-
-    api_key = notify_db_session.session.get(ApiKey, api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
-
-
-@freeze_time('2001-01-01T23:59:00')
-def test_dao_resume_service_marks_service_as_active_and_api_keys_are_still_revoked(
-    notify_db_session,
-    sample_api_key,
-):
-    api_key = sample_api_key()
-    service = api_key.service
-    dao_suspend_service(service.id)
-    service = notify_db_session.session.get(Service, service.id)
-    assert not service.active
-
-    dao_resume_service(service.id)
-    assert notify_db_session.session.get(Service, service.id).active
-
-    api_key = notify_db_session.session.get(ApiKey, api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
 
 
 def test_dao_fetch_active_users_for_service_returns_active_only(

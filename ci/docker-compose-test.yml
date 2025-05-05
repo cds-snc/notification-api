@@ -1,4 +1,3 @@
-version: "3"
 services:
   test:
     build:
@@ -22,6 +21,7 @@ services:
       - .local.env
     depends_on:
       - db
+      - redis
     command: make test
 
   db:
@@ -34,3 +34,8 @@ services:
     environment:
       - POSTGRES_DB=notification_api
       - POSTGRES_PASSWORD=LocalPassword
+
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"

@@ -108,15 +108,3 @@ def create_empty_monthly_notification_status_stats_dict(year):
         }
         for start in utc_month_starts
     }
-
-
-def add_monthly_notification_status_stats(
-    data,
-    stats,
-):
-    for row in stats:
-        month = row.month.strftime('%Y-%m')
-
-        data[month][row.notification_type][row.notification_status] += row.count
-
-    return data

@@ -1,4 +1,4 @@
-from app.dao.login_event_dao import save_login_event, list_login_events
+from app.dao.login_event_dao import save_login_event
 from app.models import LoginEvent
 
 
@@ -13,13 +13,3 @@ def test_save_login_event_should_create_new_login_event(notify_db_session, sampl
     finally:
         notify_db_session.session.delete(login_event)
         notify_db_session.session.commit()
-
-
-def test_list_login_events(sample_user, sample_login_event):
-    # Create 2 login events for the same user.
-    user = sample_user()
-    sample_login_event(user)
-    sample_login_event(user)
-
-    keys = list_login_events(user.id)
-    assert len(keys) == 2

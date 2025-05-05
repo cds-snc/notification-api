@@ -8,7 +8,6 @@ from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_midnight_for_day_before,
     midnight_n_days_ago,
-    update_dct_to_str,
 )
 
 
@@ -75,13 +74,3 @@ def test_get_midnight_for_day_before_returns_expected_date(date, expected_date):
 def test_midnight_n_days_ago(current_time, arg, expected_datetime):
     with freeze_time(current_time):
         assert midnight_n_days_ago(arg) == expected_datetime
-
-
-def test_update_dct_to_str():
-    test_dict = {'email_address': 'test@test.com', 'auth_type': 'sms'}
-    result = update_dct_to_str(test_dict)
-    result = ' '.join(result.split())
-    expected = ['- email address', '- auth type']
-    expected = ' '.join(expected).strip()
-
-    assert result == expected

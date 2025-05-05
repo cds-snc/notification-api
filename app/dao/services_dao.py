@@ -8,11 +8,11 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.sql.expression import and_, asc, case
+from sqlalchemy.sql.expression import asc
 
 from app import db
 from app.constants import DEFAULT_SERVICE_NOTIFICATION_PERMISSIONS, KEY_TYPE_TEST
-from app.dao.dao_utils import VersionOptions, get_reader_session, transactional, version_class
+from app.dao.dao_utils import get_reader_session, transactional, version_class
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
@@ -21,13 +21,11 @@ from app.model import User
 from app.models import (
     AnnualBilling,
     ApiKey,
-    FactBilling,
     InboundNumber,
     InvitedUser,
     Job,
     Notification,
     NotificationHistory,
-    Organisation,
     Permission,
     Service,
     ServicePermission,
@@ -50,12 +48,6 @@ def dao_fetch_all_services(only_active=False):
     return db.session.scalars(stmt).unique().all()
 
 
-def get_services_by_partial_name(service_name):
-    service_name = escape_special_characters(service_name)
-    stmt = select(Service).where(Service.name.ilike('%{}%'.format(service_name)))
-    return db.session.scalars(stmt).all()
-
-
 def dao_count_live_services():
     stmt = (
         select(func.count())
@@ -63,95 +55,6 @@ def dao_count_live_services():
         .where(Service.active.is_(True), Service.restricted.is_(False), Service.count_as_live.is_(True))
     )
     return db.session.scalar(stmt)
-
-
-def dao_fetch_live_services_data():
-    # most recent annual billing
-    most_recent_annual_stmt = (
-        select(AnnualBilling.service_id, func.max(AnnualBilling.financial_year_start).label('year'))
-        .group_by(AnnualBilling.service_id)
-        .subquery()
-    )
-    # this year ft billing
-    this_year_ft_stmt = select(FactBilling).subquery()
-    stmt = (
-        select(
-            Service.id.label('service_id'),
-            Service.name.label('service_name'),
-            Organisation.name.label('organisation_name'),
-            Organisation.organisation_type.label('organisation_type'),
-            Service.consent_to_research.label('consent_to_research'),
-            User.name.label('contact_name'),
-            User.email_address.label('contact_email'),
-            User.mobile_number.label('contact_mobile'),
-            Service.go_live_at.label('live_date'),
-            Service.volume_sms.label('sms_volume_intent'),
-            Service.volume_email.label('email_volume_intent'),
-            Service.volume_letter.label('letter_volume_intent'),
-            case(
-                [(this_year_ft_stmt.c.notification_type == 'email', func.sum(this_year_ft_stmt.c.notifications_sent))],
-                else_=0,
-            ).label('email_totals'),
-            case(
-                [(this_year_ft_stmt.c.notification_type == 'sms', func.sum(this_year_ft_stmt.c.notifications_sent))],
-                else_=0,
-            ).label('sms_totals'),
-            case(
-                [(this_year_ft_stmt.c.notification_type == 'letter', func.sum(this_year_ft_stmt.c.notifications_sent))],
-                else_=0,
-            ).label('letter_totals'),
-            AnnualBilling.free_sms_fragment_limit,
-        )
-        .join(Service.annual_billing)
-        .join(
-            most_recent_annual_stmt,
-            and_(
-                Service.id == most_recent_annual_stmt.c.service_id,
-                AnnualBilling.financial_year_start == most_recent_annual_stmt.c.year,
-            ),
-        )
-        .outerjoin(Service.organisation)
-        .outerjoin(this_year_ft_stmt, Service.id == this_year_ft_stmt.c.service_id)
-        .outerjoin(User, Service.go_live_user_id == User.id)
-        .where(
-            Service.count_as_live.is_(True),
-            Service.active.is_(True),
-            Service.restricted.is_(False),
-        )
-        .group_by(
-            Service.id,
-            Organisation.name,
-            Organisation.organisation_type,
-            Service.name,
-            Service.consent_to_research,
-            Service.count_as_live,
-            Service.go_live_user_id,
-            User.name,
-            User.email_address,
-            User.mobile_number,
-            Service.go_live_at,
-            Service.volume_sms,
-            Service.volume_email,
-            Service.volume_letter,
-            this_year_ft_stmt.c.notification_type,
-            AnnualBilling.free_sms_fragment_limit,
-        )
-        .order_by(asc(Service.go_live_at))
-    )
-    data = db.session.execute(stmt).all()
-
-    results = []
-    for row in data:
-        existing_service = next((x for x in results if x['service_id'] == row.service_id), None)
-
-        if existing_service is not None:
-            existing_service['email_totals'] += row.email_totals
-            existing_service['sms_totals'] += row.sms_totals
-            existing_service['letter_totals'] += row.letter_totals
-        else:
-            results.append(row._asdict())
-
-    return results
 
 
 def dao_fetch_service_by_id(
@@ -215,42 +118,6 @@ def dao_fetch_all_services_by_user(
         stmt = stmt.where(Service.active)
 
     return db.session.scalars(stmt).unique().all()
-
-
-@transactional
-@version_class(
-    VersionOptions(ApiKey, must_write_history=False),
-    VersionOptions(Service),
-    VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
-)
-def dao_archive_service(service_id):
-    # TODO - this needs a unit test
-
-    # have to eager load templates and api keys so that we don't flush when we loop through them
-    # to ensure that db.session still contains the models when it comes to creating history objects
-    stmt = (
-        select(Service)
-        .options(
-            joinedload(Service.templates),
-            joinedload(Service.templates).joinedload(Template.template_redacted),
-            joinedload(Service.api_keys),
-        )
-        .where(Service.id == service_id)
-    )
-    service = db.session.scalars(stmt).unique().one()
-
-    time = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S')
-    service.active = False
-    service.name = '_archived_' + time + '_' + service.name
-    service.email_from = '_archived_' + time + '_' + service.email_from
-
-    for template in service.templates:
-        if not template.archived:
-            template.archived = True
-
-    for api_key in service.api_keys:
-        if not api_key.expiry_date:
-            api_key.expiry_date = datetime.utcnow()
 
 
 @transactional
@@ -328,24 +195,6 @@ def dao_add_user_to_service(
         service_user.folders = valid_template_folders
         db.session.add(service_user)
 
-    except:
-        db.session.rollback()
-        raise
-    else:
-        db.session.commit()
-
-
-def dao_remove_user_from_service(
-    service,
-    user,
-):
-    try:
-        from app.dao.permissions_dao import permission_dao
-
-        permission_dao.remove_user_service_permissions(user, service)
-
-        service_user = dao_get_service_user(user.id, service.id)
-        db.session.delete(service_user)
     except:
         db.session.rollback()
         raise
@@ -474,31 +323,6 @@ def dao_fetch_todays_stats_for_all_services(
         stmt = stmt.where(Service.active)
 
     return db.session.execute(stmt).all()
-
-
-@transactional
-@version_class(
-    VersionOptions(ApiKey, must_write_history=False),
-    VersionOptions(Service),
-)
-def dao_suspend_service(service_id):
-    # have to eager load api keys so that we don't flush when we loop through them
-    # to ensure that db.session still contains the models when it comes to creating history objects
-    stmt = select(Service).options(joinedload(Service.api_keys)).where(Service.id == service_id)
-    service = db.session.scalars(stmt).unique().one()
-
-    for api_key in service.api_keys:
-        if not api_key.expiry_date or api_key.expiry_date > datetime.utcnow():
-            api_key.expiry_date = datetime.utcnow()
-
-    service.active = False
-
-
-@transactional
-@version_class(Service)
-def dao_resume_service(service_id):
-    service = db.session.get(Service, service_id)
-    service.active = True
 
 
 def dao_fetch_active_users_for_service(service_id):

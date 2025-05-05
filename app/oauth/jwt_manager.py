@@ -1,3 +1,5 @@
+"""This is required due to flask_jwt_extended. It breaks auth tests all over the place if removed."""
+
 from flask_jwt_extended import JWTManager
 
 from app.dao.users_dao import get_user_by_id

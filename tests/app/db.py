@@ -2,10 +2,7 @@ import json
 import random
 import secrets
 from app import db
-from app.dao.email_branding_dao import dao_create_email_branding
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
-from app.dao.invited_org_user_dao import save_invited_org_user
-from app.dao.invited_user_dao import save_invited_user
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import dao_create_notification, dao_created_scheduled_notification
 from app.dao.organisation_dao import dao_create_organisation
@@ -25,7 +22,6 @@ from app.models import (
     InboundNumber,
     Job,
     Notification,
-    EmailBranding,
     Organisation,
     Permission,
     Rate,
@@ -43,11 +39,9 @@ from app.models import (
     LETTER_TYPE,
     KEY_TYPE_NORMAL,
     AnnualBilling,
-    InvitedOrganisationUser,
     FactBilling,
     FactNotificationStatus,
     Complaint,
-    InvitedUser,
     TemplateFolder,
     Domain,
     NotificationHistory,
@@ -556,19 +550,6 @@ def create_service_callback_api(  # nosec
     return service_callback_api
 
 
-def create_email_branding(colour='blue', logo='test_x2.png', name='test_org_1', text='DisplayName'):
-    data = {
-        'colour': colour,
-        'logo': logo,
-        'name': name,
-        'text': text,
-    }
-    email_branding = EmailBranding(**data)
-    dao_create_email_branding(email_branding)
-
-    return email_branding
-
-
 def create_rate(start_date, value, notification_type):
     rate = Rate(id=uuid4(), valid_from=start_date, rate=value, notification_type=notification_type)
     db.session.add(rate)
@@ -700,16 +681,6 @@ def create_organisation(name='test_org_1', active=True, organisation_type=None, 
         create_domain(domain, organisation.id)
 
     return organisation
-
-
-def create_invited_org_user(organisation, invited_by, email_address='invite@example.com'):
-    invited_org_user = InvitedOrganisationUser(
-        email_address=email_address,
-        invited_by=invited_by,
-        organisation=organisation,
-    )
-    save_invited_org_user(invited_org_user)
-    return invited_org_user
 
 
 def create_daily_sorted_letter(
@@ -1022,26 +993,6 @@ def create_service_data_retention(service, notification_type='sms', days_of_rete
         service_id=service.id, notification_type=notification_type, days_of_retention=days_of_retention
     )
     return data_retention
-
-
-def create_invited_user(service=None, to_email_address=None):
-    if service is None:
-        service = create_service()
-    if to_email_address is None:
-        to_email_address = 'invited_user@digital.gov.uk'
-
-    from_user = service.users[0]
-
-    data = {
-        'service': service,
-        'email_address': to_email_address,
-        'from_user': from_user,
-        'permissions': 'send_messages,manage_service,manage_api_keys',
-        'folder_permissions': [str(uuid4()), str(uuid4())],
-    }
-    invited_user = InvitedUser(**data)
-    save_invited_user(invited_user)
-    return invited_user
 
 
 def create_template_folder(service, name='foo', parent=None):

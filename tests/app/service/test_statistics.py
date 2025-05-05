@@ -1,6 +1,4 @@
 import collections
-from datetime import datetime
-from unittest.mock import Mock
 
 from freezegun import freeze_time
 import pytest
@@ -27,7 +25,6 @@ from app.service.statistics import (
     create_stats_dict,
     create_zeroed_stats_dicts,
     create_empty_monthly_notification_status_stats_dict,
-    add_monthly_notification_status_stats,
 )
 
 StatsRow = collections.namedtuple('row', ('notification_type', 'status', 'count'))
@@ -218,59 +215,3 @@ def test_create_empty_monthly_notification_status_stats_dict(year, expected_year
     assert sorted(output.keys()) == expected_years
     for v in output.values():
         assert v == {SMS_TYPE: {}, EMAIL_TYPE: {}, LETTER_TYPE: {}}
-
-
-@freeze_time('2018-06-01 04:59:59')
-# This test assumes the local timezone is EST
-def test_add_monthly_notification_status_stats():
-    row_data = [
-        {
-            'month': datetime(2018, 4, 1),
-            'notification_type': SMS_TYPE,
-            'notification_status': NOTIFICATION_SENDING,
-            'count': 1,
-        },
-        {
-            'month': datetime(2018, 4, 1),
-            'notification_type': SMS_TYPE,
-            'notification_status': NOTIFICATION_DELIVERED,
-            'count': 2,
-        },
-        {
-            'month': datetime(2018, 4, 1),
-            'notification_type': EMAIL_TYPE,
-            'notification_status': NOTIFICATION_SENDING,
-            'count': 4,
-        },
-        {
-            'month': datetime(2018, 5, 1),
-            'notification_type': SMS_TYPE,
-            'notification_status': NOTIFICATION_SENDING,
-            'count': 8,
-        },
-    ]
-    rows = []
-    for r in row_data:
-        m = Mock(spec=[])
-        for k, v in r.items():
-            setattr(m, k, v)
-        rows.append(m)
-
-    data = create_empty_monthly_notification_status_stats_dict(2018)
-    # this data won't be affected
-    data['2018-05'][EMAIL_TYPE][NOTIFICATION_SENDING] = 32
-
-    # this data will get combined with the 8 from row_data
-    data['2018-05'][SMS_TYPE][NOTIFICATION_SENDING] = 16
-
-    add_monthly_notification_status_stats(data, rows)
-
-    assert data == {
-        '2018-04': {
-            SMS_TYPE: {NOTIFICATION_SENDING: 1, NOTIFICATION_DELIVERED: 2},
-            EMAIL_TYPE: {NOTIFICATION_SENDING: 4},
-            LETTER_TYPE: {},
-        },
-        '2018-05': {SMS_TYPE: {NOTIFICATION_SENDING: 24}, EMAIL_TYPE: {NOTIFICATION_SENDING: 32}, LETTER_TYPE: {}},
-        '2018-06': {SMS_TYPE: {}, EMAIL_TYPE: {}, LETTER_TYPE: {}},
-    }
