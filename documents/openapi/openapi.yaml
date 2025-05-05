@@ -1957,7 +1957,6 @@ components:
       nullable: true
       enum:
         - VA_FLAGSHIP_APP
-        - VETEXT
       description: >-
         Optional mobile application identifier. By default, VA Flagship mobile app will be used.
     V2ErrorMessage:

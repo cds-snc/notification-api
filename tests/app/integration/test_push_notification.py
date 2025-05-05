@@ -9,6 +9,7 @@ from kombu.exceptions import OperationalError
 
 from app.constants import PUSH_TYPE
 from app.feature_flags import FeatureFlag
+from app.mobile_app.mobile_app_types import DEFAULT_MOBILE_APP_TYPE
 from tests.app.factories.feature_flag import mock_feature_flag
 from tests import create_authorization_header
 
@@ -33,13 +34,13 @@ def test_mobile_app_push_notification_delivered(
 
     mocker.patch('app.v2.notifications.rest_push.deliver_push')
     push_request_body = {
-        'mobile_app': 'VETEXT',
+        'mobile_app': DEFAULT_MOBILE_APP_TYPE,
         'template_id': 'some-template-id',
         'recipient_identifier': {'id_type': 'ICN', 'id_value': 'some-icn'},
         'personalisation': {'%FOO%': 'bar'},
     }
 
-    mocker.patch.dict(os.environ, {'VETEXT_SID': '1234', 'VA_FLAGSHIP_APP_SID': '1234'})
+    mocker.patch.dict(os.environ, {f'{DEFAULT_MOBILE_APP_TYPE}_SID': '1234'})
 
     response = client.post(
         url_for('v2_notifications.send_push_notification', service_id=service.id),
@@ -86,8 +87,8 @@ def test_mobile_app_push_notification_failed_validation(
     }
     # Test mobile_app there and not there cases
     if app:
-        push_request_body['mobile_app'] = 'VETEXT'
-        mocker.patch.dict(os.environ, {'VETEXT_SID': '1234', 'VA_FLAGSHIP_APP_SID': '1234'})
+        push_request_body['mobile_app'] = DEFAULT_MOBILE_APP_TYPE
+        mocker.patch.dict(os.environ, {f'{DEFAULT_MOBILE_APP_TYPE}_SID': '1234'})
 
     # Raise the appropriate exception at the correct function
     mocker.patch(f'app.v2.notifications.rest_push.{function}', side_effect=test_exception)
@@ -120,13 +121,13 @@ def test_mobile_app_push_notification_celery_exception(
 
     mocker.patch('app.v2.notifications.rest_push.deliver_push.apply_async', side_effect=test_exception)
     push_request_body = {
-        'mobile_app': 'VETEXT',
+        'mobile_app': DEFAULT_MOBILE_APP_TYPE,
         'template_id': 'some-template-id',
         'recipient_identifier': {'id_type': 'ICN', 'id_value': 'some-icn'},
         'personalisation': {'%FOO%': 'bar'},
     }
 
-    mocker.patch.dict(os.environ, {'VETEXT_SID': '1234', 'VA_FLAGSHIP_APP_SID': '1234'})
+    mocker.patch.dict(os.environ, {f'{DEFAULT_MOBILE_APP_TYPE}_SID': '1234'})
 
     response = client.post(
         url_for('v2_notifications.send_push_notification', service_id=service.id),

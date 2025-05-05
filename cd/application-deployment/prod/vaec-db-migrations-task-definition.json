@@ -42,6 +42,10 @@
         {
           "name": "GITHUB_LOGIN_ENABLED",
           "value": "True"
+        },
+        {
+          "name": "VA_FLAGSHIP_APP_SID",
+          "value": "fake"
         }
       ],
       "secrets": [

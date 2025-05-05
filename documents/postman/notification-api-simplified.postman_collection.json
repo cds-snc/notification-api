@@ -557,7 +557,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"mobile_app\": \"VETEXT\",\n    \"template_id\": \"{{vetext-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"ICN\",\n        \"id_value\": \"{{icn}}\"\n    },\n    \"personalisation\": {\n        \"appointment_date\": \"bar\",\n        \"appointment_time\": \"foo\"\n    }\n}"
+									"raw": "{\n    \"mobile_app\": \"VA_FLAGSHIP_APP\",\n    \"template_id\": \"{{vetext-template-id}}\",\n    \"recipient_identifier\": {\n        \"id_type\": \"ICN\",\n        \"id_value\": \"{{icn}}\"\n    },\n    \"personalisation\": {\n        \"appointment_date\": \"bar\",\n        \"appointment_time\": \"foo\"\n    }\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/push",
@@ -667,7 +667,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"mobile_app\": \"VETEXT\",\n    \"template_id\": \"{{vetext-template-id}}\",\n    \"topic_sid\": \"{{vetext-topic-sid}}\",\n    \"personalisation\": {\n        \"message\": \"The app has been updated!\"\n    }\n}"
+									"raw": "{\n    \"mobile_app\": \"VA_FLAGSHIP_APP\",\n    \"template_id\": \"{{vetext-template-id}}\",\n    \"topic_sid\": \"{{vetext-topic-sid}}\",\n    \"personalisation\": {\n        \"message\": \"The app has been updated!\"\n    }\n}"
 								},
 								"url": {
 									"raw": "{{notification-api-url}}/v2/notifications/push/broadcast",

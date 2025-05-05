@@ -4,7 +4,6 @@ from typing import List
 
 class MobileAppType(str, Enum):
     VA_FLAGSHIP_APP: str = 'VA_FLAGSHIP_APP'
-    VETEXT: str = 'VETEXT'
 
     @staticmethod
     def values() -> List['MobileAppType']:

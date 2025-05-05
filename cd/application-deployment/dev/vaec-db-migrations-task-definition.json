@@ -38,6 +38,10 @@
         {
           "name": "TWILIO_AUTH_TOKEN",
           "value": "fake"
+        },
+        {
+          "name": "VA_FLAGSHIP_APP_SID",
+          "value": "fake"
         }
       ],
       "secrets": [

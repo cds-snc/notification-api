@@ -83,7 +83,7 @@ class TestValidations:
         assert response.status_code == 400
         assert response.headers['Content-type'] == 'application/json'
         resp_json = response.get_json()
-        assert 'mobile_app some_mobile_app is not one of [VA_FLAGSHIP_APP, VETEXT]' in resp_json['errors'][0]['message']
+        assert 'mobile_app some_mobile_app is not one of [VA_FLAGSHIP_APP]' in resp_json['errors'][0]['message']
 
     def test_does_not_accept_extra_fields(
         self,

@@ -81,6 +81,7 @@ def validate_push_payload(schema: dict[str, str]) -> V2PushPayload:
         req_json: dict[str, str] = validate(request.get_json(), schema)
 
         # Validate the application they sent us is valid or use the default
+        # We currenlty only support VA Flagship App, but this is a placeholder for future apps
         if 'mobile_app' in req_json:
             app_sid = mobile_app_registry.get_app(MobileAppType[req_json['mobile_app']]).sid
         else:
@@ -93,6 +94,12 @@ def validate_push_payload(schema: dict[str, str]) -> V2PushPayload:
         error_data = json.loads(e.message)
         error_data['errors'] = error_data['errors'][0]
         raise e
+
+    current_app.logger.info(
+        'Push request validated successfully for %s with SID %s',
+        req_json.get('mobile_app', DEFAULT_MOBILE_APP_TYPE),
+        app_sid,
+    )
 
     # Use get() on optionals - schema validated it is correct
     payload = V2PushPayload(
