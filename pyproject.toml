@@ -6,10 +6,7 @@ authors = [
 ]
 readme = "README.md"
 package-mode = false
-
-# https://peps.python.org/pep-0518/#tool-table
-[tool.static_tests]
-poetry_version = "1.8.4"
+requires-poetry = "2.1.3"
 
 [tool.poetry.dependencies]
 python = "~3.10"
