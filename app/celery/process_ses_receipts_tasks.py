@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime
 
@@ -105,10 +106,10 @@ def prepare_updates_and_retries(ses_messages, notifications):
 @statsd(namespace="tasks")
 def process_ses_results(self, response):
     start_time = time.time()  # TODO : Remove after benchmarking
-
+    receipts = [json.loads(receipt) for receipt in response["Messages"]]
     try:
         # Queue complaint callbacks, filtering them out of the original list then get the ref_ids of the remaining receipts
-        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(response["Messages"])
+        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(receipts)
 
         # If the batch of receipts were all complaints, we can return early after handling them
         if not ses_messages:
@@ -156,7 +157,7 @@ def process_ses_results(self, response):
                     f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
                 )
                 current_app.logger.info(f"[batch-celery] - Queuing retries for ids: {retry_ids} receipts")
-                self.retry(queue=QueueNames.RETRY, args=[retries])
+                self.retry(queue=QueueNames.RETRY, args=retries)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
                     f"Notifications not found for SES references: {retry_ids}. Max retries exceeded. Giving up."
@@ -234,4 +235,4 @@ def process_ses_results(self, response):
 
         end_time = time.time()
         current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
-        self.retry(queue=QueueNames.RETRY, args=[updates])
+        self.retry(queue=QueueNames.RETRY, args=updates)
