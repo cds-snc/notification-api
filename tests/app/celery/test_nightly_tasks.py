@@ -300,7 +300,7 @@ def test_timeout_notifications_sends_status_update_to_service(
     mocked.assert_called_with(
         args=(),
         kwargs={
-            'service_callback_id': callback_id,
+            'service_callback_id': str(callback_id),
             'notification_id': str(notification.id),
             'encrypted_status_update': encrypted_data,
         },

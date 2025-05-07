@@ -1,4 +1,6 @@
 import uuid
+from random import choices
+from string import digits
 
 import pytest
 
@@ -82,7 +84,7 @@ class TestCreateInboundNumber:
         admin_request.post(
             'inbound_number.create_inbound_number',
             _data={
-                'number': 'some-number',
+                'number': ''.join(choices(digits, k=12)),
                 'provider': 'some-provider',
                 'service_id': 'some-service-id',
                 'some_attribute_that_does_not_exist': 'blah',
@@ -98,7 +100,7 @@ class TestCreateInboundNumber:
         admin_request.post(
             'inbound_number.create_inbound_number',
             _data={
-                'number': 'some-number',
+                'number': ''.join(choices(digits, k=12)),
                 'provider': 'some-provider',
                 'self_managed': True,
             },
@@ -110,12 +112,12 @@ class TestCreateInboundNumber:
         The number must be unique.
         """
 
-        sample_inbound_number(number='some-number')
+        inbound_number = sample_inbound_number(number=''.join(choices(digits, k=12)))
 
         response = admin_request.post(
             'inbound_number.create_inbound_number',
             _data={
-                'number': 'some-number',
+                'number': inbound_number.number,
                 'provider': 'some-provider',
                 'self_managed': False,
             },
@@ -130,48 +132,44 @@ class TestCreateInboundNumber:
         [
             # url_endpoint is not required because self_managed is not present.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
             },
             # url_endpoint is not required because self_managed is False.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
                 'self_managed': False,
             },
             # url_endpoint is required because self_managed is True.
             {
-                'number': 'some-number',
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
                 'url_endpoint': 'https://example.foo',
                 'self_managed': True,
             },
         ],
     )
-    def test_creates_inbound_number(self, admin_request, mocker, post_data):
+    def test_creates_inbound_number(self, admin_request, sample_service, post_data):
         """
         The request should be valid because it has all the required attributes.
         """
 
-        dao_create_inbound_number = mocker.patch('app.inbound_number.rest.dao_create_inbound_number')
+        # The number must be unique.
+        post_data['number'] = ''.join(choices(digits, k=12))
 
-        admin_request.post('inbound_number.create_inbound_number', _data=post_data, _expected_status=201)
+        service = sample_service()
+        post_data['service_id'] = str(service.id)
 
-        args, _ = dao_create_inbound_number.call_args
-        (created_inbound_number,) = args
-        assert created_inbound_number.number == 'some-number'
-        assert created_inbound_number.provider == 'some-provider'
-        assert created_inbound_number.service_id == 'some-service-id'
+        response = admin_request.post('inbound_number.create_inbound_number', _data=post_data, _expected_status=201)
+
+        assert response['data']['number'] == post_data['number']
+        assert response['data']['provider'] == post_data['provider']
+        assert response['data']['service']['id'] == post_data['service_id']
 
 
 class TestUpdateInboundNumber:
     @pytest.fixture(autouse=True)
     def setup(self, sample_inbound_number):
-        sample_inbound_number(number='some-number')
-        self.inbound_number = sample_inbound_number(number='other-number')
+        self.inbound_number = sample_inbound_number(number=''.join(choices(digits, k=12)))
+        self.inbound_number2 = sample_inbound_number(number=''.join(choices(digits, k=12)))
         assert not self.inbound_number.self_managed
 
     def test_rejects_invalid_request(self, admin_request):
@@ -207,7 +205,7 @@ class TestUpdateInboundNumber:
 
         response = admin_request.post(
             'inbound_number.update_inbound_number',
-            _data={'number': 'some-number'},
+            _data={'number': self.inbound_number2.number},
             _expected_status=400,
             inbound_number_id=self.inbound_number.id,
         )
@@ -222,23 +220,19 @@ class TestUpdateInboundNumber:
             # A number and provider are not requires for an update.
             {
                 'active': False,
-                'service_id': 'some-service-id',
             },
             # url_endpoint is not required because self_managed is not present.
             {
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
             },
             # url_endpoint is not required because self_managed is False.
             {
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
                 'self_managed': False,
             },
             # url_endpoint is required because self_managed is True.
             {
                 'provider': 'some-provider',
-                'service_id': 'some-service-id',
                 'url_endpoint': 'https://example.foo',
                 'self_managed': True,
             },
@@ -249,9 +243,8 @@ class TestUpdateInboundNumber:
         The request should be valid because it has all the required attributes.
         """
 
-        if 'service_id' in update_data:
-            service = sample_service()
-            update_data['service_id'] = str(service.id)
+        service = sample_service()
+        update_data['service_id'] = str(service.id)
 
         response = admin_request.post(
             'inbound_number.update_inbound_number',

@@ -6,14 +6,14 @@ from app.callback.service_callback_strategy_interface import ServiceCallbackStra
 from flask import current_app
 
 from app.celery.exceptions import NonRetryableException
-from app.models import ServiceCallback
+from app.models import DeliveryStatusCallbackApiData
 from app import statsd_client
 
 
 class QueueCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
     def send_callback(
-        callback: ServiceCallback,
+        callback: DeliveryStatusCallbackApiData,
         payload: dict,
         logging_tags: dict,
     ) -> None:

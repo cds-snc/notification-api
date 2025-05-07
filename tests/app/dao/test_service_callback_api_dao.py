@@ -232,12 +232,9 @@ def test_get_service_callback(
     service_callback = get_service_callback(service_callback.id)
 
     assert service_callback.id is not None
-    assert service_callback.service_id == service.id
-    assert service_callback.updated_by_id == service.users[0].id
+    assert service_callback.service_id == str(service.id)
     assert service_callback.url == 'https://some_service/callback_endpoint'
-    assert service_callback.bearer_token == 'some_unique_string'
-    assert service_callback._bearer_token != 'some_unique_string'
-    assert service_callback.updated_at is None
+    assert encryption.decrypt(service_callback._bearer_token) == 'some_unique_string'
 
     if payload_included:
         assert service_callback.include_provider_payload
@@ -245,18 +242,15 @@ def test_get_service_callback(
         assert not service_callback.include_provider_payload
 
 
-def test_get_service_delivery_status_callback_api_for_service(
-    sample_service,
-):
+def test_get_service_delivery_status_callback_api_for_service(sample_service):
     service = sample_service()
     service_callback_api = create_service_callback_api(service=service)
     result = get_service_delivery_status_callback_api_for_service(service.id, 'delivered')
-    assert result.id == service_callback_api.id
+    assert result.id == str(service_callback_api.id)
     assert result.url == service_callback_api.url
-    assert result.bearer_token == service_callback_api.bearer_token
-    assert result.created_at == service_callback_api.created_at
-    assert result.updated_at == service_callback_api.updated_at
-    assert result.updated_by_id == service_callback_api.updated_by_id
+    assert result._bearer_token == service_callback_api._bearer_token
+    assert result.include_provider_payload == service_callback_api.include_provider_payload
+    assert result.callback_type == service_callback_api.callback_type
 
 
 @pytest.mark.parametrize(
@@ -278,12 +272,11 @@ def test_existing_service_delivery_status_callback_api_by_status(
         result = get_service_delivery_status_callback_api_for_service(
             service.id, notification_status=notification_status
         )
-        assert result.id == service_callback_api.id
+        assert result.id == str(service_callback_api.id)
         assert result.url == service_callback_api.url
-        assert result.bearer_token == service_callback_api.bearer_token
-        assert result.created_at == service_callback_api.created_at
-        assert result.updated_at == service_callback_api.updated_at
-        assert result.updated_by_id == service_callback_api.updated_by_id
+        assert result._bearer_token == service_callback_api._bearer_token
+        assert result.include_provider_payload == service_callback_api.include_provider_payload
+        assert result.callback_type == service_callback_api.callback_type
 
 
 @pytest.mark.parametrize(

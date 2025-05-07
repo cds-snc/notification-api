@@ -256,34 +256,3 @@ def test_login_event_serialization(sample_login_event):
     json = login_event.serialize()
     assert json['data'] == login_event.data
     assert json['created_at']
-
-
-class TestServiceCallback:
-    @pytest.mark.parametrize(
-        ['callback_channel', 'callback_strategy_path'],
-        [
-            (QUEUE_CHANNEL_TYPE, 'app.callback.queue_callback_strategy.QueueCallbackStrategy'),
-            (WEBHOOK_CHANNEL_TYPE, 'app.callback.webhook_callback_strategy.WebhookCallbackStrategy'),
-        ],
-    )
-    def test_service_callback_send_uses_queue_strategy(
-        self,
-        mocker,
-        sample_service,
-        callback_channel,
-        callback_strategy_path,
-    ):
-        service = sample_service()
-        service_callback = ServiceCallback(
-            service_id=service.id,
-            url='https://something.com',
-            bearer_token='some_super_secret',
-            updated_by_id=service.users[0].id,
-            callback_type=COMPLAINT_CALLBACK_TYPE,
-            callback_channel=callback_channel,
-        )
-        mock_callback_strategy = mocker.patch(callback_strategy_path)
-
-        service_callback.send(payload={}, logging_tags={})
-
-        mock_callback_strategy.send_callback.assert_called_with(service_callback, {}, {})

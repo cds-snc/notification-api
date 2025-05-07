@@ -239,11 +239,11 @@ def replay_service_callbacks(
 ):
     # not updated for notification callback_url as it doesn't appear to be used
     print('Start send service callbacks for service: ', service_id)
-    callback_api = get_service_delivery_status_callback_api_for_service(
+    callback_api: DeliveryStatusCallbackApiData | None = get_service_delivery_status_callback_api_for_service(
         service_id=service_id, notification_status=notification_status
     )
-    if not callback_api:
-        print('Callback api was not found for service: {}'.format(service_id))
+    if callback_api is None:
+        print(f'Callback api was not found for service: {service_id}')
         return
 
     errors = []
@@ -275,7 +275,7 @@ def replay_service_callbacks(
             'notification_sent_at': n.sent_at.strftime(DATETIME_FORMAT),
             'notification_type': n.notification_type,
             'service_callback_api_url': callback_api.url,
-            'service_callback_api_bearer_token': callback_api.bearer_token,
+            'service_callback_api_bearer_token': encryption.decrypt(callback_api._bearer_token),
         }
         encrypted_status_update = encryption.encrypt(data)
         send_delivery_status_to_service.apply_async(

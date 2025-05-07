@@ -8,18 +8,18 @@ from flask import current_app
 from requests.api import request
 from requests.exceptions import HTTPError, RequestException
 
-from app import statsd_client
+from app import encryption, statsd_client
 from app.callback.service_callback_strategy_interface import ServiceCallbackStrategyInterface
 from app.celery.exceptions import NonRetryableException, RetryableException
 from app.constants import HTTP_TIMEOUT
 from app.dao.api_key_dao import get_unsigned_secret
-from app.models import ServiceCallback
+from app.models import DeliveryStatusCallbackApiData
 
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
     @staticmethod
     def send_callback(
-        callback: ServiceCallback,
+        callback: DeliveryStatusCallbackApiData,
         payload: dict,
         logging_tags: dict,
     ) -> None:
@@ -31,7 +31,7 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
                 data=json.dumps(payload),
                 headers={
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer {}'.format(callback.bearer_token),
+                    'Authorization': f'Bearer {encryption.decrypt(callback._bearer_token)}',
                 },
                 timeout=HTTP_TIMEOUT,
             )

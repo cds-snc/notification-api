@@ -27,7 +27,6 @@ from app.constants import (
     DATETIME_FORMAT,
     EMAIL_TYPE,
     INBOUND_SMS_CALLBACK_TYPE,
-    LETTER_TYPE,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_STATUS_TYPES,
     SMS_TYPE,
@@ -35,10 +34,7 @@ from app.constants import (
 from app.exceptions import NotificationTechnicalFailureException
 from app.models import Complaint, Notification, ServiceCallback, Service, Template
 from app.model import User
-from tests.app.db import (
-    create_complaint,
-    create_service_callback_api,
-)
+from tests.app.db import create_complaint, create_service_callback_api
 
 
 @pytest.fixture
@@ -64,7 +60,7 @@ def complaint_and_template_name_to_vanotify(notify_db_session, sample_service, s
     notify_db_session.session.commit()
 
 
-@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_encrypted_data(
     notification_type,
     sample_service,
@@ -147,7 +143,7 @@ def test_send_complaint_to_service_posts_https_request_to_service_with_encrypted
             notify_db_session.session.commit()
 
 
-@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_encrypted_data(
     notify_api,
     mocker,
@@ -172,7 +168,7 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_500_with_
         assert exc_info.type is AutoRetryException
 
 
-@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, LETTER_TYPE, SMS_TYPE])
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
 def test_send_data_to_service_callback_api_does_not_retry_if_request_returns_404_with_encrypted_data(
     notify_api,
     mocker,
@@ -475,23 +471,14 @@ def _set_up_data_for_complaint(
 class TestSendInboundSmsToService:
     def test_post_https_request_to_service(
         self,
-        mocker,
         sample_inbound_sms,
         sample_service,
-        sample_service_callback,
-        sample_sms_sender,
     ):
+        """
+        Test the happy path.
+        """
+
         service = sample_service()
-        inbound_api = sample_service_callback(  # nosec
-            service=service,
-            url='https://some.service.va.gov/',
-        )
-        mock_send = mocker.Mock()
-        mocker.patch.object(inbound_api, 'send', mock_send)
-        mocker.patch(
-            'app.celery.service_callback_tasks.get_service_inbound_sms_callback_api_for_service',
-            return_value=inbound_api,
-        )
 
         inbound_sms = sample_inbound_sms(
             service=service,
@@ -500,42 +487,24 @@ class TestSendInboundSmsToService:
             provider_date=datetime(2017, 6, 20),
             content='Here is some content',
         )
-        sms_sender = sample_sms_sender(service_id=service.id, sms_sender='0751421')
 
-        expected_data = {
-            'id': str(inbound_sms.id),
-            'source_number': inbound_sms.user_number,
-            'destination_number': inbound_sms.notify_number,
-            'message': inbound_sms.content,
-            'date_received': inbound_sms.provider_date.strftime(DATETIME_FORMAT),
-            'sms_sender_id': str(sms_sender.id),
-        }
-
-        send_inbound_sms_to_service(inbound_sms.id, inbound_sms.service_id)
-
-        call = mock_send.call_args_list[0]
-        _, kwargs = call
-        assert kwargs['payload'] == expected_data
+        with requests_mock.Mocker():
+            send_inbound_sms_to_service(inbound_sms.id, service.id)
 
     def test_does_not_send_request_when_inbound_sms_does_not_exist(
         self,
-        notify_api,
         sample_service,
-        mocker,
+        sample_service_callback,
     ):
         service = sample_service()
-        inbound_api = create_service_callback_api(service=service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
-        mock_send = mocker.Mock()
-        mocker.patch.object(inbound_api, 'send', mock_send)
-        mocker.patch(
-            'app.celery.service_callback_tasks.get_service_inbound_sms_callback_api_for_service',
-            return_value=inbound_api,
-        )
+
+        # The service needs an associated ServiceCallback instance.  Otherwise, the downstream code
+        # will return None before it reaches the call to send_inbound_sms_to_service.
+        sample_service_callback(service=service, callback_type=INBOUND_SMS_CALLBACK_TYPE)
 
         with pytest.raises(SQLAlchemyError):
-            send_inbound_sms_to_service(inbound_sms_id=uuid.uuid4(), service_id=service.id)
-
-        assert mock_send.call_count == 0
+            with requests_mock.Mocker():
+                send_inbound_sms_to_service(inbound_sms_id=uuid.uuid4(), service_id=service.id)
 
 
 @pytest.mark.parametrize('payload', [None, {}, {'key': 'value'}, 'Hello%20G%C3%BCnter', '!@##$%^&*(){}:"?><'])

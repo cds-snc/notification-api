@@ -17,7 +17,6 @@ from app.constants import (
     QUEUE_CHANNEL_TYPE,
     WEBHOOK_CHANNEL_TYPE,
 )
-from app.dao.service_callback_api_dao import get_service_callback
 from app.dao.services_dao import dao_add_user_to_service
 from app.models import Permission, ServiceCallback
 from app.schemas import service_callback_api_schema
@@ -184,7 +183,9 @@ class TestCreateServiceCallback:
         'callback_type, has_notification_statuses',
         [(DELIVERY_STATUS_CALLBACK_TYPE, True), (INBOUND_SMS_CALLBACK_TYPE, False), (COMPLAINT_CALLBACK_TYPE, False)],
     )
-    def test_create_service_callback(self, client, sample_service, callback_type, has_notification_statuses):
+    def test_create_service_callback(
+        self, client, sample_service, callback_type, has_notification_statuses, notify_db_session
+    ):
         service = sample_service()
         user = service.users[0]
         data = {
@@ -211,13 +212,13 @@ class TestCreateServiceCallback:
         assert resp_json['created_at']
         assert not resp_json['updated_at']
         assert resp_json.get('bearer_token') is None
-        created_service_callback_api = get_service_callback(resp_json['id'])
+        created_service_callback_api = notify_db_session.session.get(ServiceCallback, resp_json['id'])
         assert created_service_callback_api.callback_type == callback_type
         if has_notification_statuses:
             assert created_service_callback_api.notification_statuses == ['failed']
 
     def test_create_service_callback_creates_delivery_status_with_default_statuses_if_no_statuses_passed(
-        self, client, sample_service
+        self, client, sample_service, notify_db_session
     ):
         service = sample_service()
         user = service.users[0]
@@ -235,7 +236,8 @@ class TestCreateServiceCallback:
         )
 
         resp_json = response.json['data']
-        created_service_callback_api = get_service_callback(resp_json['id'])
+        created_service_callback_api = notify_db_session.session.get(ServiceCallback, resp_json['id'])
+
         # Database returns it as a list, but it is declared in code as a tuple
         assert created_service_callback_api.notification_statuses == list(NOTIFICATION_STATUS_TYPES_COMPLETED)
 

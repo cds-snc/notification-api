@@ -9,10 +9,11 @@ from sqlalchemy.orm.exc import NoResultFound
 from notifications_utils.statsd_decorators import statsd
 
 from app import notify_celery, encryption, statsd_client
-from app.callback.webhook_callback_strategy import generate_callback_signature
+from app.callback.queue_callback_strategy import QueueCallbackStrategy
+from app.callback.webhook_callback_strategy import generate_callback_signature, WebhookCallbackStrategy
 from app.celery.exceptions import AutoRetryException, NonRetryableException, RetryableException
 from app.config import QueueNames
-from app.constants import DATETIME_FORMAT, HTTP_TIMEOUT
+from app.constants import DATETIME_FORMAT, HTTP_TIMEOUT, QUEUE_CHANNEL_TYPE, WEBHOOK_CHANNEL_TYPE
 from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
@@ -23,7 +24,27 @@ from app.dao.service_callback_api_dao import (
 )
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_service_id_and_number
 from app.dao.templates_dao import dao_get_template_by_id
-from app.models import Complaint, Notification, NotificationHistory, ServiceCallback, Template
+from app.models import (
+    Complaint,
+    Notification,
+    NotificationHistory,
+    ServiceCallback,
+    DeliveryStatusCallbackApiData,
+    Template,
+)
+
+
+def service_callback_send(
+    service_callback: DeliveryStatusCallbackApiData,
+    payload: dict,
+    logging_tags: dict,
+) -> None:
+    if service_callback.callback_channel == WEBHOOK_CHANNEL_TYPE:
+        WebhookCallbackStrategy.send_callback(service_callback, payload, logging_tags)
+    elif service_callback.callback_channel == QUEUE_CHANNEL_TYPE:
+        QueueCallbackStrategy.send_callback(service_callback, payload, logging_tags)
+    else:
+        raise RuntimeError(f'Unrecognized callback channel: {service_callback.callback_channel}')
 
 
 @notify_celery.task(
@@ -42,7 +63,7 @@ def send_delivery_status_to_service(
     notification_id,
     encrypted_status_update,
 ):
-    service_callback = get_service_callback(service_callback_id)
+    service_callback: DeliveryStatusCallbackApiData = get_service_callback(service_callback_id)
     # create_delivery_status_callback
     status_update = encryption.decrypt(encrypted_status_update)
 
@@ -68,7 +89,7 @@ def send_delivery_status_to_service(
 
     try:
         # calls the webhook / sqs callback to transmit message
-        service_callback.send(payload=payload, logging_tags=logging_tags)
+        service_callback_send(service_callback, payload=payload, logging_tags=logging_tags)
     except RetryableException:
         try:
             current_app.logger.warning(
@@ -106,7 +127,7 @@ def send_complaint_to_service(
     complaint_data,
 ):
     complaint = encryption.decrypt(complaint_data)
-    service_callback = get_service_callback(service_callback_id)
+    service_callback: DeliveryStatusCallbackApiData = get_service_callback(service_callback_id)
 
     payload = {
         'notification_id': complaint['notification_id'],
@@ -117,7 +138,7 @@ def send_complaint_to_service(
     }
     logging_tags = {'notification_id': complaint['notification_id'], 'complaint_id': complaint['complaint_id']}
     try:
-        service_callback.send(payload=payload, logging_tags=logging_tags)
+        service_callback_send(service_callback, payload=payload, logging_tags=logging_tags)
     except RetryableException as e:
         try:
             current_app.logger.warning(
@@ -203,8 +224,10 @@ def send_inbound_sms_to_service(
     inbound_sms_id,
     service_id,
 ):
-    service_callback = get_service_inbound_sms_callback_api_for_service(service_id=service_id)
-    if not service_callback:
+    service_callback: DeliveryStatusCallbackApiData | None = get_service_inbound_sms_callback_api_for_service(
+        service_id=service_id
+    )
+    if service_callback is None:
         current_app.logger.error(
             'could not send inbound sms to service "%s" because it does not have a callback API configured', service_id
         )
@@ -226,7 +249,7 @@ def send_inbound_sms_to_service(
     }
     logging_tags = {'inbound_sms_id': str(inbound_sms_id), 'service_id': str(service_id)}
     try:
-        service_callback.send(payload=payload, logging_tags=logging_tags)
+        service_callback_send(service_callback, payload=payload, logging_tags=logging_tags)
     except RetryableException as e:
         try:
             current_app.logger.warning(
@@ -258,7 +281,7 @@ def send_inbound_sms_to_service(
 
 
 def create_delivery_status_callback_data(
-    notification: Notification, service_callback: ServiceCallback, provider_payload=None
+    notification: Notification, service_callback: DeliveryStatusCallbackApiData, provider_payload=None
 ):
     """Encrypt and return the delivery status message."""
 
@@ -274,7 +297,7 @@ def create_delivery_status_callback_data(
         'notification_sent_at': notification.sent_at.strftime(DATETIME_FORMAT) if notification.sent_at else None,
         'notification_type': notification.notification_type,
         'service_callback_api_url': service_callback.url,
-        'service_callback_api_bearer_token': service_callback.bearer_token,
+        'service_callback_api_bearer_token': encryption.decrypt(service_callback._bearer_token),
         'provider': notification.sent_by,
         'status_reason': notification.status_reason,
     }
@@ -339,11 +362,11 @@ def check_and_queue_service_callback_task(notification: Notification, payload=No
         payload = {}
 
     # queue callback task only if the service_callback_api exists
-    service_callback_api = get_service_delivery_status_callback_api_for_service(
+    service_callback_api: DeliveryStatusCallbackApiData | None = get_service_delivery_status_callback_api_for_service(
         service_id=notification.service_id, notification_status=notification.status
     )
 
-    if service_callback_api:
+    if service_callback_api is not None:
         # build dictionary for notification
         notification_data = create_delivery_status_callback_data(notification, service_callback_api, payload)
         send_delivery_status_to_service.apply_async(

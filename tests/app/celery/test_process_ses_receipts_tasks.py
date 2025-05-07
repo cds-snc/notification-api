@@ -238,7 +238,7 @@ def test_ses_callback_should_call_send_delivery_status_to_service(
     send_mock.assert_called_once_with(
         args=(),
         kwargs={
-            'service_callback_id': service_callback.id,
+            'service_callback_id': str(service_callback.id),
             'notification_id': str(notification.id),
             'encrypted_status_update': encrypted_data,
         },

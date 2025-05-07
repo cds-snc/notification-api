@@ -1,10 +1,12 @@
 from app import db
 from app.models import ServiceCallback
+from cachetools import cached, TTLCache
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import select
 
 
 @statsd(namespace='dao')
+@cached(cache=TTLCache(maxsize=1024, ttl=600))
 def dao_get_callback_include_payload_status(
     service_id,
     service_callback_type,

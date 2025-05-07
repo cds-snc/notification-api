@@ -2,6 +2,7 @@ import json
 import random
 import secrets
 from app import db
+from app.constants import WEBHOOK_CHANNEL_TYPE
 from app.dao.inbound_sms_dao import dao_create_inbound_sms
 from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import dao_create_notification, dao_created_scheduled_notification
@@ -48,7 +49,6 @@ from app.models import (
     RecipientIdentifier,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     DELIVERY_STATUS_CALLBACK_TYPE,
-    WEBHOOK_CHANNEL_TYPE,
 )
 from datetime import datetime, date, timedelta
 from sqlalchemy import select, or_
