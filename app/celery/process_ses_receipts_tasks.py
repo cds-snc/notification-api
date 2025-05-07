@@ -1,6 +1,7 @@
 import json
 import time
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -10,7 +11,7 @@ from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_c
 from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
@@ -20,15 +21,88 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import Retry
 
 
-def handle_complaints_and_extract_ref_ids(messages):
+class SESMail(TypedDict):
+    """Structure of the 'mail' field in SES notification receipts"""
+
+    timestamp: str
+    source: str
+    sourceArn: str
+    sourceIp: str
+    callerIdentity: str
+    sendingAccountId: str
+    messageId: str
+    destination: List[str]
+
+
+class SESDelivery(TypedDict, total=False):
+    """Structure of the 'delivery' field in SES delivery notification receipts"""
+
+    timestamp: str
+    processingTimeMillis: int
+    recipients: List[str]
+    smtpResponse: str
+    remoteMtaIp: str
+    reportingMTA: str
+
+
+class SESBounce(TypedDict, total=False):
+    """Structure of the 'bounce' field in SES bounce notification receipts"""
+
+    bounceType: str
+    bounceSubType: str
+    bouncedRecipients: List[Dict[str, str]]
+    timestamp: str
+    feedbackId: str
+
+
+class SESComplaint(TypedDict, total=False):
+    """Structure of the 'complaint' field in SES complaint notification receipts"""
+
+    complainedRecipients: List[Dict[str, str]]
+    timestamp: str
+    feedbackId: str
+    complaintSubType: str
+
+
+class SESReceipt(TypedDict):
+    """Structure of SES notification receipts"""
+
+    notificationType: str
+    mail: SESMail
+    delivery: Optional[SESDelivery]
+    bounce: Optional[SESBounce]
+    complaint: Optional[SESComplaint]
+
+
+class UpdateItem(TypedDict):
+    """Structure of update items for notification status updates"""
+
+    notification: Notification
+    new_status: str
+    provider_response: Optional[Dict[str, Any]]
+    bounce_response: Optional[Dict[str, Any]]
+
+
+class AWSResponseDict(TypedDict):
+    """Structure of AWS response dictionary from get_aws_responses"""
+
+    notification_status: str
+    success: bool
+    message: str
+    provider_response: Optional[Dict[str, Any]]
+    bounce_response: Optional[Dict[str, Any]]
+
+
+def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[List[str], List[SESReceipt]]:
     """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
        and returning the remaining messages for further processing.
 
     Args:
-        messages (List): List of SES messages received from the SQS receipt buffer queue.
+        messages (List[SESReceipt]): List of SES messages received from the SQS receipt buffer queue.
 
     Returns:
-        Tuple: A tuple containing a list of notification reference IDs and a reduced list of SES messages not containing any complaint receipts.
+        Tuple[List[str], List[SESReceipt]]: A tuple containing a list of notification reference IDs and a reduced list of
+        SES messages not containing any complaint receipts.
     """
     ref_ids = []
     complaint_free_messages = []
@@ -45,18 +119,21 @@ def handle_complaints_and_extract_ref_ids(messages):
     return ref_ids, complaint_free_messages
 
 
-def prepare_updates_and_retries(ses_messages, notifications):
+def prepare_updates_and_retries(
+    ses_messages: List[SESReceipt], notifications: List[Notification]
+) -> Tuple[List[UpdateItem], List[SESReceipt], List[Tuple[Notification, AWSResponseDict]]]:
     """Prepares a list of updates and retries for the notifications based on the SES receipts received.
 
     Args:
-        ses_messages (List): The SES receipts received from the SQS queue. Should not contain any complaint receipts.
-        notifications (List): A list of notifications fetched by referenceId which currently exist in the DB and can be updated.
+        ses_messages (List[SESReceipt]): The SES receipts received from the SQS queue. Should not contain any complaint receipts.
+        notifications (List[Notification]): A list of notifications fetched by referenceId which currently exist in the DB and can be updated.
 
     Returns:
-        Tuple: A tuple containing:
-        - updates (List): A list of dictionaries containing the notification to update, the new status, and the provider response.
-        - retries (List): A list of SES messages that need to be retried.
-        - notification_receipt_pairs (List): A list of tuples with the notifications mapped to their receipts update limits in Redis faster.
+        Tuple[List[UpdateItem], List[SESReceipt], List[Tuple[Notification, AWSResponseDict]]]: A tuple containing:
+        - updates (List[UpdateItem]): A list of dictionaries containing the notification to update, the new status, and the provider response.
+        - retries (List[SESReceipt]): A list of SES messages that need to be retried.
+        - notification_receipt_pairs (List[Tuple[Notification, AWSResponseDict]]): A list of tuples with the notifications mapped to their
+          receipts update limits in Redis faster.
     """
     retries, updates, notification_receipt_pairs = [], [], []
     # Since the ses_message order and order of notifications from the DB may not be in sync,
@@ -104,12 +181,12 @@ def prepare_updates_and_retries(ses_messages, notifications):
     default_retry_delay=300,
 )
 @statsd(namespace="tasks")
-def process_ses_results(self, response):
+def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     start_time = time.time()  # TODO : Remove after benchmarking
     receipts = [json.loads(receipt) for receipt in response["Messages"]]
     try:
         # Queue complaint callbacks, filtering them out of the original list then get the ref_ids of the remaining receipts
-        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(receipts)
+        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(cast(List[SESReceipt], receipts))
 
         # If the batch of receipts were all complaints, we can return early after handling them
         if not ses_messages:
@@ -126,7 +203,7 @@ def process_ses_results(self, response):
                 self.retry(queue=QueueNames.RETRY)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(f"notifications not found for SES references: {", ".join(ref_ids)}. Giving up.")
-            return
+            return None
         except Exception as e:
             try:
                 current_app.logger.warning(
@@ -138,7 +215,7 @@ def process_ses_results(self, response):
                 current_app.logger.warning(
                     f"notification not found for SES reference: {ref_ids}. Error has persisted > number of retries. Giving up."
                 )
-            return
+            return None
 
         updates, retries, notification_receipt_pairs = prepare_updates_and_retries(ses_messages, notifications)
         current_app.logger.info(f"[batch-celery] - Receipts to update: {len(updates)}")
