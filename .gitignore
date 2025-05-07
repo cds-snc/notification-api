@@ -29,8 +29,7 @@ var/
 *.egg
 /cache
 newrelic-layer.zip
-smoketest.sh
-smoketest-prod.sh
+smoketest*.sh
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
