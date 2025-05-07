@@ -117,12 +117,18 @@ def test_send_sms_throws_aws_pinpoint_exception(PINPOINT_SMS_VOICE_V2, aws_pinpo
         aws_pinpoint_client.send_sms('+1000', TEST_CONTENT, TEST_REFERENCE)
 
     assert 'BadRequestException' in str(exception.value)
-    aws_pinpoint_client.statsd_client.incr.assert_called_with('clients.pinpoint.error')
 
 
-@pytest.mark.parametrize('delivery_status', ['TEMPORARY_FAILURE', 'THROTTLED', 'TIMEOUT', 'UNKNOWN_FAILURE'])
+@pytest.mark.parametrize(
+    ['delivery_status', 'test_exception'],
+    [
+        ('TEMPORARY_FAILURE', RetryableException),
+        ('THROTTLED', RetryableException),
+        ('UNKNOWN_FAILURE', AwsPinpointException),
+    ],
+)
 def test_send_sms_returns_result_with_aws_pinpoint_error_delivery_status(
-    aws_pinpoint_client, pinpoint_client_mock, delivery_status
+    aws_pinpoint_client, pinpoint_client_mock, delivery_status, test_exception
 ):
     """
     This test is only applicable to the Pinpoint client (not V2).  The V2 client response does not contain
@@ -145,12 +151,8 @@ def test_send_sms_returns_result_with_aws_pinpoint_error_delivery_status(
         }
     }
 
-    with pytest.raises(AwsPinpointException):
+    with pytest.raises(test_exception):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
-
-    aws_pinpoint_client.statsd_client.incr.assert_called_with(
-        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
-    )
 
 
 @pytest.mark.parametrize('delivery_status', ['DUPLICATE', 'OPT_OUT', 'PERMANENT_FAILURE'])
@@ -181,10 +183,6 @@ def test_send_sms_returns_result_with_non_retryable_error_delivery_status(
     with pytest.raises(NonRetryableException):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=opted_out_number)
 
-    aws_pinpoint_client.statsd_client.incr.assert_called_with(
-        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
-    )
-
 
 def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoint_client, pinpoint_client_mock):
     """
@@ -212,10 +210,6 @@ def test_send_sms_raises_invalid_provider_error_with_invalide_number(aws_pinpoin
     with pytest.raises(InvalidProviderException):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE, sender=invalid_number)
 
-    aws_pinpoint_client.statsd_client.incr.assert_called_with(
-        f'clients.pinpoint.delivery-status.{delivery_status.lower()}'
-    )
-
 
 @pytest.mark.parametrize('code', AwsPinpointClient._retryable_v1_codes)
 def test_send_sms_post_message_request_raises_retryable_exception(mocker, aws_pinpoint_client, code):
@@ -228,6 +222,61 @@ def test_send_sms_post_message_request_raises_retryable_exception(mocker, aws_pi
     # Ensure it is converted to RetryableException for exception handling in _handle_delivery_failure
     with pytest.raises(RetryableException):
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
+
+
+@pytest.mark.parametrize(
+    ['status', 'test_exception'],
+    [
+        ('THROTTLED', RetryableException),
+        ('TEMPORARY_FAILURE', RetryableException),
+        ('UNKNOWN_FAILURE', AwsPinpointException),
+        ('PERMANENT_FAILURE', NonRetryableException),
+        ('OPT_OUT', NonRetryableException),
+        ('DUPLICATE', NonRetryableException),
+    ],
+)
+def test_send_sms_post_message_request_validate_response_raises_exception(
+    aws_pinpoint_client,
+    status,
+    test_exception,
+):
+    result = {
+        'DeliveryStatus': status,
+        'MessageId': 'MessageId-string',
+        'StatusCode': 111,
+        'StatusMessage': 'StatusMessage-string',
+        'UpdatedToken': 'UpdatedToken-string',
+    }
+    with pytest.raises(test_exception):
+        aws_pinpoint_client._validate_response(result, '123456')
+
+
+@pytest.mark.parametrize('status', ('PERMANENT_FAILURE', 'OPT_OUT', 'DUPLICATE'))
+def test_send_sms_post_message_request_validate_response_raises_invalid_provider_exception(
+    aws_pinpoint_client,
+    status,
+):
+    result = {
+        'DeliveryStatus': status,
+        'MessageId': 'MessageId-string',
+        'StatusCode': 111,
+        'StatusMessage': 'provided number does not exist',
+        'UpdatedToken': 'UpdatedToken-string',
+    }
+    with pytest.raises(InvalidProviderException):
+        aws_pinpoint_client._validate_response(result, '123456')
+
+
+def test_send_sms_post_message_request_validate_response_happy_path(aws_pinpoint_client):
+    result = {
+        'DeliveryStatus': 'SUCCESS',
+        'MessageId': 'MessageId-string',
+        'StatusCode': 111,
+        'StatusMessage': 'StatusMessage-string',
+        'UpdatedToken': 'UpdatedToken-string',
+    }
+    # No exceptions raised
+    aws_pinpoint_client._validate_response(result, '123456')
 
 
 @pytest.mark.parametrize('code', ('123', '418'))

@@ -263,3 +263,8 @@ STATUS_REASON_UNDELIVERABLE = 'Undeliverable - Unable to deliver'
 # Carrier
 CARRIER_SMS_MAX_RETRIES = 2
 CARRIER_SMS_MAX_RETRY_WINDOW = timedelta(days=3)
+
+# statsd
+STATSD_RETRYABLE = 'retryable'
+STATSD_SUCCESS = 'success'
+STATSD_FAILURE = 'failure'

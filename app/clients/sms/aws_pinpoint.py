@@ -21,6 +21,9 @@ from app.constants import (
     NOTIFICATION_PERMANENT_FAILURE,
     PINPOINT_PROVIDER,
     SMS_TYPE,
+    STATSD_FAILURE,
+    STATSD_RETRYABLE,
+    STATSD_SUCCESS,
     STATUS_REASON_BLOCKED,
     STATUS_REASON_INVALID_NUMBER,
     STATUS_REASON_RETRYABLE,
@@ -59,6 +62,8 @@ class AwsPinpointClient(SmsClient):
     }
     # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#available-retry-modes
     _retryable_v1_codes = ('429', '500', '502', '503', '504', '509')
+    _retryable_v1_request_statuses = ('THROTTLED', 'TEMPORARY_FAILURE', 'UNKNOWN_FAILURE')
+    _non_retryable_v1_request_statuses = ('PERMANENT_FAILURE', 'OPT_OUT', 'DUPLICATE')
 
     def __init__(self):
         self.name = 'pinpoint'
@@ -115,16 +120,18 @@ class AwsPinpointClient(SmsClient):
             msg = str(e)
             if any(code in msg for code in AwsPinpointClient._retryable_v1_codes):
                 self.logger.warning('Encountered a Retryable exception: %s - %s', type(e).__class__.__name__, msg)
+                self.statsd_client.incr(f'{SMS_TYPE}.{PINPOINT_PROVIDER}_request.{STATSD_RETRYABLE}.{aws_phone_number}')
                 raise RetryableException from e
             else:
                 self.logger.exception('Encountered an unexpected exception sending Pinpoint SMS')
+                self.statsd_client.incr(f'{SMS_TYPE}.{PINPOINT_PROVIDER}_request.{STATSD_FAILURE}.{aws_phone_number}')
                 raise AwsPinpointException(str(e))
         else:
             if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2):
                 # The V2 response doesn't contain additional fields to validate.
                 aws_reference = response['MessageId']
             else:
-                self._validate_response(response['MessageResponse']['Result'][recipient_number])
+                self._validate_response(response['MessageResponse']['Result'][recipient_number], aws_phone_number)
                 aws_reference = response['MessageResponse']['Result'][recipient_number]['MessageId']
             elapsed_time = monotonic() - start_time
             self.logger.info(
@@ -136,6 +143,7 @@ class AwsPinpointClient(SmsClient):
             )
             self.statsd_client.timing('clients.pinpoint.request-time', elapsed_time)
             self.statsd_client.incr('clients.pinpoint.success')
+            self.statsd_client.incr(f'{SMS_TYPE}.{PINPOINT_PROVIDER}_request.{STATSD_SUCCESS}.{aws_phone_number}')
             return aws_reference
 
     def _post_message_request(
@@ -175,6 +183,7 @@ class AwsPinpointClient(SmsClient):
     def _validate_response(
         self,
         result: dict,
+        aws_number: str,
     ) -> None:
         # documentation of possible delivery statuses from Pinpoint can be found here:
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint.html#Pinpoint.Client.send_messages
@@ -184,14 +193,21 @@ class AwsPinpointClient(SmsClient):
 
             error_message = f'StatusCode: {result["StatusCode"]}, StatusMessage:{result["StatusMessage"]}'
 
-            if delivery_status in ['DUPLICATE', 'OPT_OUT', 'PERMANENT_FAILURE']:
+            if delivery_status in self._non_retryable_v1_request_statuses:
+                self.statsd_client.incr(f'{SMS_TYPE}.{PINPOINT_PROVIDER}_request.{STATSD_FAILURE}.{aws_number}')
                 # indicates 'From' number doesn't exist for this Pinpoint account
                 if 'provided number does not exist' in result['StatusMessage']:
                     raise InvalidProviderException(error_message)
 
                 raise NonRetryableException(error_message)
-
-            raise AwsPinpointException(error_message)
+            elif delivery_status in self._retryable_v1_request_statuses:
+                self.statsd_client.incr(f'{SMS_TYPE}.{PINPOINT_PROVIDER}_request.{STATSD_RETRYABLE}.{aws_number}')
+                if delivery_status == 'UNKNOWN_FAILURE':
+                    # Retryable, but we log as an error/exception so it can be fixed, since this is unexpected
+                    self.logger.error('Unexpected pinpoint sms request fail for sender: %s | %s', aws_number, result)
+                    raise AwsPinpointException(error_message)
+                else:
+                    raise RetryableException(error_message)
 
     def _get_status_mapping(self, record_status) -> Tuple[str, str]:
         if record_status not in self._sms_record_status_mapping:
