@@ -156,14 +156,13 @@ def prepare_updates_and_retries(
         # Sometimes we get callbacks from the provider in the "wrong" order. If the notification was already marked
         # as permanent failure, we don't want to overwrite it with a delivered status.
         if not (notification.status == NOTIFICATION_PERMANENT_FAILURE and new_status == NOTIFICATION_DELIVERED):
-            updates.append(
-                {
-                    "notification": notification,
-                    "new_status": new_status,
-                    "provider_response": aws_response_dict.get("provider_response", None),
-                    "bounce_response": aws_response_dict.get("bounce_response", None),
-                }
-            )
+            update: UpdateItem = {
+                "notification": notification,
+                "new_status": new_status,
+                "provider_response": aws_response_dict.get("provider_response", None),
+                "bounce_response": aws_response_dict.get("bounce_response", None),
+            }
+            updates.append(update)
             notification_receipt_pairs.append((notification, aws_response_dict))
 
     return updates, retries, notification_receipt_pairs
@@ -313,3 +312,4 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
         end_time = time.time()
         current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         self.retry(queue=QueueNames.RETRY, args=updates)
+        return None
