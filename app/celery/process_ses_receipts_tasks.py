@@ -1,6 +1,9 @@
+import json
+import time
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
-from flask import current_app, json
+from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -8,7 +11,7 @@ from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_c
 from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.config import QueueNames
 from app.dao import notifications_dao
-from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE
+from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.notifications.notifications_ses_callback import (
     _check_and_queue_complaint_callback_task,
@@ -18,11 +21,200 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import Retry
 
 
-# Celery rate limits are per worker instance and not a global rate limit.
-# https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
-# This queue is consumed by 6 Celery instances with 4 workers in production.
-# The maximum throughput is therefore 6 instances * 4 workers * 30 tasks = 720 tasks / minute
-# if we set rate_limit="30/m" on the Celery task
+class SESMail(TypedDict):
+    """Structure of the 'mail' field in SES notification receipts"""
+
+    timestamp: str
+    source: str
+    sourceArn: str
+    sourceIp: str
+    callerIdentity: str
+    sendingAccountId: str
+    messageId: str
+    destination: List[str]
+
+
+class SESDelivery(TypedDict, total=False):
+    """Structure of the 'delivery' field in SES delivery notification receipts"""
+
+    timestamp: str
+    processingTimeMillis: int
+    recipients: List[str]
+    smtpResponse: str
+    remoteMtaIp: str
+    reportingMTA: str
+
+
+class SESBounce(TypedDict, total=False):
+    """Structure of the 'bounce' field in SES bounce notification receipts"""
+
+    bounceType: str
+    bounceSubType: str
+    bouncedRecipients: List[Dict[str, str]]
+    timestamp: str
+    feedbackId: str
+
+
+class SESComplaint(TypedDict, total=False):
+    """Structure of the 'complaint' field in SES complaint notification receipts"""
+
+    complainedRecipients: List[Dict[str, str]]
+    timestamp: str
+    feedbackId: str
+    complaintSubType: str
+    complaintFeedbackType: str
+
+
+class SESReceipt(TypedDict):
+    """Structure of SES notification receipts"""
+
+    notificationType: str
+    mail: SESMail
+    delivery: Optional[SESDelivery]
+    bounce: Optional[SESBounce]
+    complaint: Optional[SESComplaint]
+
+
+def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[List[str], List[SESReceipt]]:
+    """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
+       and returning the remaining messages for further processing.
+
+    Args:
+        messages (List[SESReceipt]): List of SES messages received from the SQS receipt buffer queue.
+
+    Returns:
+        Tuple[List[str], List[SESReceipt]]: A tuple containing a list of notification reference IDs and a reduced list of
+        SES messages not containing any complaint receipts.
+    """
+    ref_ids = []
+    complaint_free_messages = []
+    current_app.logger.info(f"[batch-celery] - Received: {len(messages)} receipts from Lambda.. beginning processing")
+    for message in messages:
+        notification_type = message["notificationType"]
+        if notification_type == "Complaint":
+            current_app.logger.info(f"[batch-celery] - Handling complaint: {message}")
+            _check_and_queue_complaint_callback_task(*handle_complaint(message))
+        else:
+            ref_ids.append(message["mail"]["messageId"])
+            complaint_free_messages.append(message)
+    current_app.logger.info(f"[batch-celery] - Complaints handled, processing: {len(complaint_free_messages)} remaining receipts")
+    return ref_ids, complaint_free_messages
+
+
+def fetch_notifications(ref_ids: List[str]) -> Optional[List[Notification]]:
+    """Fetch notifications by reference IDs."""
+    try:
+        return notifications_dao.dao_get_notifications_by_references(ref_ids)
+    except NoResultFound:
+        return None
+    except Exception as e:
+        raise e
+
+
+def categorize_receipts(
+    ses_messages: List[SESReceipt], notifications: List[Notification]
+) -> Tuple[List[Tuple[SESReceipt, Notification]], List[SESReceipt]]:
+    """Categorize SES messages into those with and without notifications."""
+    receipts_with_notification = []
+    receipts_with_no_notification = []
+    notification_map = {n.reference: n for n in notifications}
+
+    for message in ses_messages:
+        message_id = message["mail"]["messageId"]
+        notification = notification_map.get(message_id)
+        if notification:
+            receipts_with_notification.append((message, notification))
+        else:
+            receipts_with_no_notification.append(message)
+
+    return receipts_with_notification, receipts_with_no_notification
+
+
+def process_notifications(
+    receipts_with_notification: List[Tuple[SESReceipt, Notification]],
+) -> List[Tuple[SESReceipt, Notification, Dict[str, Any]]]:
+    """Process notifications and update their statuses."""
+    updates = []
+    receipts_with_notification_and_aws_response_dict = []
+    for message, notification in receipts_with_notification:
+        aws_response_dict = get_aws_responses(message)
+        new_status = aws_response_dict["notification_status"]
+
+        if not (notification.status == NOTIFICATION_PERMANENT_FAILURE and new_status == NOTIFICATION_DELIVERED):
+            updates.append(
+                {
+                    "notification": notification,
+                    "new_status": new_status,
+                    "provider_response": aws_response_dict.get("provider_response"),
+                    "bounce_response": aws_response_dict.get("bounce_response"),
+                }
+            )
+        receipts_with_notification_and_aws_response_dict.append((message, notification, aws_response_dict))
+        current_app.logger.info(f"[batch-celery] process_notifications - updates: {len(updates)}")
+    notifications_dao._update_notification_statuses(updates)
+    return receipts_with_notification_and_aws_response_dict
+
+
+def update_annual_limit_and_bounce_rate(
+    receipt: SESReceipt, notification: Notification, aws_response_dict: Dict[str, Any]
+) -> None:
+    ff_annual_limit = current_app.config["FF_ANNUAL_LIMIT"]
+    new_status = aws_response_dict["notification_status"]
+    is_success = aws_response_dict["success"]
+    log_prefix = f"SES callback for notification {notification.id} reference {notification.reference} for service {notification.service_id}: "
+    # Check if we have already seeded the annual limit counts for today, if we have we do not need to increment later on.
+    # We seed AFTER updating the notification status, thus the current notification will already be counted.
+    if ff_annual_limit:
+        seeded_today = None
+        if not annual_limit_client.was_seeded_today(notification.service_id):
+            seeded_today = get_annual_limit_notifications_v2(notification.service_id)
+
+    if not is_success:
+        current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict["message"]}")
+
+        if ff_annual_limit and not seeded_today:
+            annual_limit_client.increment_email_failed(notification.service_id)
+            current_app.logger.info(
+                f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+            )
+    else:
+        current_app.logger.info(
+            f"{log_prefix} Delivery status: {new_status}" "SES callback return status of {} for notification: {}".format(
+                new_status, notification.id
+            )
+        )
+
+        if ff_annual_limit and not seeded_today:
+            annual_limit_client.increment_email_delivered(notification.service_id)
+            current_app.logger.info(
+                f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+            )
+
+    statsd_client.incr("callback.ses.{}".format(new_status))
+
+    if new_status == NOTIFICATION_PERMANENT_FAILURE:
+        bounce_rate_client.set_sliding_hard_bounce(notification.service_id, str(notification.id))
+        current_app.logger.info(
+            f"Setting total hard bounce notifications for service {notification.service_id} with notification {notification.id} in REDIS"
+        )
+
+    if notification.sent_at:
+        statsd_client.timing_with_dates("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
+
+
+def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> None:
+    """Handle retries for receipts without notifications."""
+    retry_ids = ", ".join([msg["mail"]["messageId"] for msg in receipts_with_no_notification])
+    try:
+        current_app.logger.warning(
+            f"RETRY {self.request.retries}: notifications not found for SES references {retry_ids}. "
+            f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
+        )
+        self.retry(queue=QueueNames.RETRY, args=[{"Messages": receipts_with_no_notification}])
+    except self.MaxRetriesExceededError:
+        current_app.logger.warning(f"notifications not found for SES references: {retry_ids}. Giving up.")
+
+
 @notify_celery.task(
     bind=True,
     name="process-ses-result",
@@ -30,120 +222,39 @@ from celery.exceptions import Retry
     default_retry_delay=300,
 )
 @statsd(namespace="tasks")
-def process_ses_results(self, response):  # noqa: C901
-    # initialize these to None so error handling is simpler
-    notification = None
-    reference = None
-    notification_status = None
+def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
+    start_time = time.time()  # TODO : Remove after benchmarking
+    receipts = response["Messages"] if "Messages" in response else [json.loads(response["Message"])]
 
     try:
-        ses_message = json.loads(response["Message"])
-        notification_type = ses_message["notificationType"]
+        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(cast(List[SESReceipt], receipts))
+        if not ses_messages:
+            return True
 
-        try:
-            if notification_type == "Complaint":
-                _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
-                return True
+        notifications = fetch_notifications(ref_ids)
+        if notifications is None:
+            handle_retries(self, ses_messages)
+            return None
 
-            reference = ses_message["mail"]["messageId"]
-            notification = notifications_dao.dao_get_notification_by_reference(reference)
-        except NoResultFound:
-            try:
-                current_app.logger.warning(
-                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
-                    f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
-                )
-                self.retry(queue=QueueNames.RETRY)
-            except self.MaxRetriesExceededError:
-                current_app.logger.warning(f"notification not found for SES reference: {reference}. Giving up.")
-            return
-        except Exception as e:
-            try:
-                current_app.logger.warning(
-                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
-                    f"There was an Error: {e}. Adding task to retry queue"
-                )
-                self.retry(queue=QueueNames.RETRY)
-            except self.MaxRetriesExceededError:
-                current_app.logger.warning(
-                    f"notification not found for SES reference: {reference}. Error has persisted > number of retries. Giving up."
-                )
-            return
+        receipts_with_notification, receipts_with_no_notification = categorize_receipts(ses_messages, notifications)
+        receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
 
-        aws_response_dict = get_aws_responses(ses_message)
-        notification_status = aws_response_dict["notification_status"]
-        # Sometimes we get callback from the providers in the wrong order. If the notification has a
-        # permanent failure status, we don't want to overwrite it with a delivered status.
-        if notification.status == NOTIFICATION_PERMANENT_FAILURE and notification_status == NOTIFICATION_DELIVERED:
-            pass
-        else:
-            notifications_dao._update_notification_status(
-                notification=notification,
-                status=notification_status,
-                provider_response=aws_response_dict.get("provider_response", None),
-                bounce_response=aws_response_dict.get("bounce_response", None),
-            )
+        for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
+            update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
+            _check_and_queue_callback_task(notification)
 
-        service_id = notification.service_id
-        # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
-        # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
-        notifications_to_seed = None
-        # Check if we have already seeded the annual limit counts for today
-        if current_app.config["FF_ANNUAL_LIMIT"]:
-            if not annual_limit_client.was_seeded_today(service_id):
-                notifications_to_seed = get_annual_limit_notifications_v2(service_id)
+        if receipts_with_no_notification:
+            handle_retries(self, receipts_with_no_notification)
 
-        if not aws_response_dict["success"]:
-            current_app.logger.info(
-                "SES delivery failed: notification id {} and reference {} has error found. Status {}".format(
-                    notification.id, reference, aws_response_dict["message"]
-                )
-            )
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
-                    annual_limit_client.increment_email_failed(notification.service_id)
-                current_app.logger.info(
-                    f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
-                )
-        else:
-            current_app.logger.info(
-                "SES callback return status of {} for notification: {}".format(notification_status, notification.id)
-            )
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
-                    annual_limit_client.increment_email_delivered(notification.service_id)
-                current_app.logger.info(
-                    f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
-                )
-
-        statsd_client.incr("callback.ses.{}".format(notification_status))
-
-        if notification_status == NOTIFICATION_PERMANENT_FAILURE:
-            bounce_rate_client.set_sliding_hard_bounce(notification.service_id, str(notification.id))
-            current_app.logger.info(
-                f"Setting total hard bounce notifications for service {notification.service.id} with notification {notification.id} in REDIS"
-            )
-
-        if notification.sent_at:
-            statsd_client.timing_with_dates("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
-
-        _check_and_queue_callback_task(notification)
-
+        end_time = time.time()
+        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         return True
 
     except Retry:
+        end_time = time.time()
+        current_app.logger.info(f"[batch-celery] Retry - process_ses_results took {end_time - start_time} seconds")
         raise
-
-    except Exception as e:
-        notifcation_msg = "Notification ID: {}".format(notification.id) if notification else "No notification"
-        notification_status_msg = (
-            "Notification status: {}".format(notification_status) if notification_status else "No notification status"
-        )
-        ref_msg = "Reference ID: {}".format(reference) if reference else "No reference"
-
-        current_app.logger.exception(
-            "Error processing SES results: {} [{}, {}, {}]".format(type(e), notifcation_msg, notification_status_msg, ref_msg)
-        )
-        self.retry(queue=QueueNames.RETRY)
+    except Exception:
+        current_app.logger.exception(f"Error processing SES results for receipt batch: {response['Messages']}")
+        self.retry(queue=QueueNames.RETRY, args=[{"Messages": receipts}])
+        return None
