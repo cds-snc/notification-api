@@ -129,7 +129,9 @@ def categorize_receipts(
     return receipts_with_notification, receipts_with_no_notification
 
 
-def process_notifications(receipts_with_notification: List[Tuple[SESReceipt, Notification]]) -> List[Dict[str, Any]]:
+def process_notifications(
+    receipts_with_notification: List[Tuple[SESReceipt, Notification]],
+) -> List[Tuple[SESReceipt, Notification, Dict[str, Any]]]:
     """Process notifications and update their statuses."""
     updates = []
     receipts_with_notification_and_aws_response_dict = []
