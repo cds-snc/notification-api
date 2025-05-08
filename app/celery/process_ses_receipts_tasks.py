@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
@@ -223,7 +224,7 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
 @statsd(namespace="tasks")
 def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     start_time = time.time()  # TODO : Remove after benchmarking
-    receipts = response["Messages"]
+    receipts = response["Messages"] if "Messages" in response else [json.loads(response["Message"])]
 
     try:
         ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(cast(List[SESReceipt], receipts))
