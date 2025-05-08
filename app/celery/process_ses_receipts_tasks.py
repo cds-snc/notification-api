@@ -149,6 +149,7 @@ def process_notifications(
                 }
             )
         receipts_with_notification_and_aws_response_dict.append((message, notification, aws_response_dict))
+        current_app.logger.info(f"[batch-celery] process_notifications - updates: {len(updates)}")
     notifications_dao._update_notification_statuses(updates)
     return receipts_with_notification_and_aws_response_dict
 
@@ -237,12 +238,12 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
         receipts_with_notification, receipts_with_no_notification = categorize_receipts(ses_messages, notifications)
         receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
 
-        if receipts_with_no_notification:
-            handle_retries(self, receipts_with_no_notification)
-
         for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
             update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
             _check_and_queue_callback_task(notification)
+
+        if receipts_with_no_notification:
+            handle_retries(self, receipts_with_no_notification)
 
         end_time = time.time()
         current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
@@ -250,7 +251,7 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
 
     except Retry:
         end_time = time.time()
-        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
+        current_app.logger.info(f"[batch-celery] Retry - process_ses_results took {end_time - start_time} seconds")
         raise
     except Exception:
         current_app.logger.exception(f"Error processing SES results for receipt batch: {response['Messages']}")
