@@ -13,7 +13,12 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
-from app.aws.mocks import generate_ses_notification_callbacks, ses_complaint_callback, ses_unknown_bounce_callback
+from app.aws.mocks import (
+    generate_ses_notification_callbacks,
+    ses_complaint_callback,
+    ses_unknown_bounce_callback,
+    unbatched_ses_notification_callback,
+)
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
@@ -44,6 +49,38 @@ from app.notifications.notifications_ses_callback import (
     remove_emails_from_complaint,
 )
 from celery.exceptions import MaxRetriesExceededError
+
+
+def test_process_ses_results_handles_batched_and_unbatched_payloads(notify_api, sample_email_template):
+    # Test with batched payload
+
+    refs = []
+    for i in range(10):
+        ref = f"ref{i}"
+        save_notification(
+            create_notification(
+                sample_email_template,
+                reference=ref,
+                sent_at=datetime.utcnow(),
+                status="sending",
+            )
+        )
+        refs.append(ref)
+
+    batched_payload = generate_ses_notification_callbacks(references=refs)
+    assert process_ses_results(response=batched_payload)
+
+    # Test with unbatched payload
+    save_notification(
+        create_notification(
+            sample_email_template,
+            reference="ref11",
+            sent_at=datetime.utcnow(),
+            status="sending",
+        )
+    )
+    unbatched_payload = unbatched_ses_notification_callback("ref11")
+    assert process_ses_results(response=unbatched_payload)
 
 
 def test_process_ses_results(sample_email_template):

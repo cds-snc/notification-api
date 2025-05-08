@@ -1,3 +1,4 @@
+import json
 import time
 from datetime import datetime
 
@@ -102,8 +103,24 @@ def prepare_updates_and_retries(ses_messages, notifications):
     max_retries=5,
     default_retry_delay=300,
 )
-@statsd(namespace="tasks")
 def process_ses_results(self, response):
+    messages = response.get("Messages", None)
+    message = response.get("Message", None)
+
+    if messages:
+        current_app.logger.info(
+            f"[batch-celery] Received batch of SES receipts, forwarding to batched_process_ses_results: {messages}"
+        )
+        return batched_process_ses_results(self, response)
+    elif message:
+        current_app.logger.info(
+            f"[batch-celery] Received single SES receipt, forwarding to unbatched_process_ses_results: {message}"
+        )
+        return unbatched_process_ses_results(self, response)
+
+
+@statsd(namespace="tasks")
+def batched_process_ses_results(self, response):
     start_time = time.time()  # TODO : Remove after benchmarking
     current_app.logger.info(f"[batch-celery] - Received SES receipts: {response}")
     receipts = response["Messages"]
@@ -236,3 +253,123 @@ def process_ses_results(self, response):
         end_time = time.time()
         current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         self.retry(queue=QueueNames.RETRY, args=[{"Messages": updates}])
+
+
+@statsd(namespace="tasks")
+def unbatched_process_ses_results(self, response):  # noqa: C901
+    # initialize these to None so error handling is simpler
+    notification = None
+    reference = None
+    notification_status = None
+
+    try:
+        ses_message = json.loads(response["Message"])
+        notification_type = ses_message["notificationType"]
+
+        try:
+            if notification_type == "Complaint":
+                _check_and_queue_complaint_callback_task(*handle_complaint(ses_message))
+                return True
+
+            reference = ses_message["mail"]["messageId"]
+            notification = notifications_dao.dao_get_notification_by_reference(reference)
+        except NoResultFound:
+            try:
+                current_app.logger.warning(
+                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
+                    f"Callback may have arrived before notification was persisted to the DB. Adding task to retry queue"
+                )
+                self.retry(queue=QueueNames.RETRY)
+            except self.MaxRetriesExceededError:
+                current_app.logger.warning(f"notification not found for SES reference: {reference}. Giving up.")
+            return
+        except Exception as e:
+            try:
+                current_app.logger.warning(
+                    f"RETRY {self.request.retries}: notification not found for SES reference {reference}. "
+                    f"There was an Error: {e}. Adding task to retry queue"
+                )
+                self.retry(queue=QueueNames.RETRY)
+            except self.MaxRetriesExceededError:
+                current_app.logger.warning(
+                    f"notification not found for SES reference: {reference}. Error has persisted > number of retries. Giving up."
+                )
+            return
+
+        aws_response_dict = get_aws_responses(ses_message)
+        notification_status = aws_response_dict["notification_status"]
+        # Sometimes we get callback from the providers in the wrong order. If the notification has a
+        # permanent failure status, we don't want to overwrite it with a delivered status.
+        if notification.status == NOTIFICATION_PERMANENT_FAILURE and notification_status == NOTIFICATION_DELIVERED:
+            pass
+        else:
+            notifications_dao._update_notification_status(
+                notification=notification,
+                status=notification_status,
+                provider_response=aws_response_dict.get("provider_response", None),
+                bounce_response=aws_response_dict.get("bounce_response", None),
+            )
+
+        service_id = notification.service_id
+        # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
+        # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
+        notifications_to_seed = None
+        # Check if we have already seeded the annual limit counts for today
+        if current_app.config["FF_ANNUAL_LIMIT"]:
+            if not annual_limit_client.was_seeded_today(service_id):
+                notifications_to_seed = get_annual_limit_notifications_v2(service_id)
+
+        if not aws_response_dict["success"]:
+            current_app.logger.info(
+                "SES delivery failed: notification id {} and reference {} has error found. Status {}".format(
+                    notification.id, reference, aws_response_dict["message"]
+                )
+            )
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_email_failed(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
+        else:
+            current_app.logger.info(
+                "SES callback return status of {} for notification: {}".format(notification_status, notification.id)
+            )
+            if current_app.config["FF_ANNUAL_LIMIT"]:
+                # Only increment if we didn't just seed.
+                if notifications_to_seed is None:
+                    annual_limit_client.increment_email_delivered(notification.service_id)
+                current_app.logger.info(
+                    f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                )
+
+        statsd_client.incr("callback.ses.{}".format(notification_status))
+
+        if notification_status == NOTIFICATION_PERMANENT_FAILURE:
+            bounce_rate_client.set_sliding_hard_bounce(notification.service_id, str(notification.id))
+            current_app.logger.info(
+                f"Setting total hard bounce notifications for service {notification.service.id} with notification {notification.id} in REDIS"
+            )
+
+        if notification.sent_at:
+            statsd_client.timing_with_dates("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
+
+        _check_and_queue_callback_task(notification)
+
+        return True
+
+    except Retry:
+        raise
+
+    except Exception as e:
+        notifcation_msg = "Notification ID: {}".format(notification.id) if notification else "No notification"
+        notification_status_msg = (
+            "Notification status: {}".format(notification_status) if notification_status else "No notification status"
+        )
+        ref_msg = "Reference ID: {}".format(reference) if reference else "No reference"
+
+        current_app.logger.exception(
+            "Error processing SES results: {} [{}, {}, {}]".format(type(e), notifcation_msg, notification_status_msg, ref_msg)
+        )
+        self.retry(queue=QueueNames.RETRY)
