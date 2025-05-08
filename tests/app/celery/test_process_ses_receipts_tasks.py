@@ -266,7 +266,7 @@ def test_ses_callback_should_only_enqueue_failed_updates_for_retry(notify_db, no
     mock_retry: Mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
     callbacks = generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3", "ref4", "ref5"])
     ids_to_retry = ["ref4", "ref5"]
-    retry_args = [list(filter(lambda x: x["mail"]["messageId"] in ids_to_retry, callbacks["Messages"]))]
+    retry_args = [{"Messages": list(filter(lambda x: x["mail"]["messageId"] in ids_to_retry, callbacks["Messages"]))}]
 
     create_sample_notification(
         notify_db,
