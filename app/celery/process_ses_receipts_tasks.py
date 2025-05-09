@@ -169,19 +169,19 @@ def update_annual_limit_and_bounce_rate(
         seeded_today = get_annual_limit_notifications_v2(notification.service_id)
 
     # Log appropriate message based on delivery status
-    if not is_success:
-        current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict['message']}")
-    else:
+    if is_success:
         current_app.logger.info(f"{log_prefix} Delivery status: {new_status}")
+    else:
+        current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict['message']}")
 
     # Update annual limit counts if feature flag enabled and not seeded today
     if ff_annual_limit and not seeded_today:
-        if not is_success:
-            counter_type = "email_failed"
-            annual_limit_client.increment_email_failed(notification.service_id)
-        else:
+        if is_success:
             counter_type = "email_delivered"
             annual_limit_client.increment_email_delivered(notification.service_id)
+        else:
+            counter_type = "email_failed"
+            annual_limit_client.increment_email_failed(notification.service_id)
 
         current_app.logger.info(
             f"Incremented {counter_type} count in Redis. Service: {notification.service_id} "
