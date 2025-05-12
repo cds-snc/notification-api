@@ -209,8 +209,10 @@ class TestAnnualLimit:
     def test_sns_callback_should_increment_sms_delivered_when_delivery_receipt_is_delivered(
         self, sample_sms_template_with_html, notify_api, mocker
     ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
+        increment_notifications_delivered = mocker.patch(
+            "app.celery.process_sns_receipts_tasks.increment_notifications_delivered"
+        )
+        increment_notifications_failed = mocker.patch("app.celery.process_sns_receipts_tasks.increment_notifications_failed")
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         notification = save_notification(
@@ -226,8 +228,8 @@ class TestAnnualLimit:
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             assert process_sns_results(sns_success_callback(reference="ref"))
 
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
+            increment_notifications_delivered.assert_called_once_with(service_id=notification.service_id, notification_type="sms")
+            increment_notifications_failed.assert_not_called()
 
     @freeze_time("2019-04-01T5:30")
     def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
