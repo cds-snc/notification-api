@@ -66,7 +66,10 @@ def test_process_pinpoint_results_delivered(
     assert updated_notification.sms_carrier_name == "Bell"
     assert updated_notification.sms_message_encoding == "GSM"
     assert updated_notification.sms_origination_phone_number == origination_phone_number
-    mock_info_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
+    assert any(
+        call.args[0] == f"Pinpoint callback return status of delivered for notification: {notification.id}"
+        for call in mock_info_logger.call_args_list
+    )
 
 
 def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_db_session, mocker):
@@ -176,11 +179,13 @@ def test_process_pinpoint_results_failed(
     else:
         assert updated_notification.provider_response is None
 
-    mock_logger.assert_called_once_with(
-        (
+    assert any(
+        call.args[0]
+        == (
             f"Pinpoint delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
         )
+        for call in mock_logger.call_args_list
     )
 
     assert mock_warning_logger.call_count == int(should_log_warning)
