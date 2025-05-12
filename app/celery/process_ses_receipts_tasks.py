@@ -170,7 +170,7 @@ def update_annual_limit_and_bounce_rate(
             seeded_today = get_annual_limit_notifications_v2(notification.service_id)
 
     if not is_success:
-        current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict['message']}")
+        current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict["message"]}")
 
         if ff_annual_limit and not seeded_today:
             annual_limit_client.increment_email_failed(notification.service_id)
@@ -178,7 +178,11 @@ def update_annual_limit_and_bounce_rate(
                 f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
             )
     else:
-        current_app.logger.info(f"{log_prefix} Delivery status: {new_status}")
+        current_app.logger.info(
+            f"{log_prefix} Delivery status: {new_status}" "SES callback return status of {} for notification: {}".format(
+                new_status, notification.id
+            )
+        )
 
         if ff_annual_limit and not seeded_today:
             annual_limit_client.increment_email_delivered(notification.service_id)
