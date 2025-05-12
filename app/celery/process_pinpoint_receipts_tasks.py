@@ -6,7 +6,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, notify_celery, statsd_client
-from app.annual_limit_utils import increment_notification_delivered, increment_notification_failed
+from app.annual_limit_utils import increment_notifications_delivered, increment_notifications_failed
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import (
@@ -118,7 +118,7 @@ def process_pinpoint_results(self, response):
             )
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                increment_notification_failed(service_id=service_id, notification_type=SMS_TYPE)
+                increment_notifications_failed(service_id=service_id, notification_type=SMS_TYPE)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
                 )
@@ -129,7 +129,7 @@ def process_pinpoint_results(self, response):
 
             # TODO FF_ANNUAL_LIMIT removal
             if current_app.config["FF_ANNUAL_LIMIT"]:
-                increment_notification_delivered(service_id=service_id, notification_type=SMS_TYPE)
+                increment_notifications_delivered(service_id=service_id, notification_type=SMS_TYPE)
                 current_app.logger.info(
                     f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
                 )

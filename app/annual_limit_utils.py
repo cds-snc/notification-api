@@ -44,13 +44,13 @@ def seed_annual_limit_counts(service_id: UUID) -> None:
 @requires_feature("REDIS_ENABLED")
 def get_annual_limit_notifications_v2(service_id: UUID) -> dict:
     if not annual_limit_client.was_seeded_today(service_id):
-        seed_annual_limit_counts(service_id)
+        return seed_annual_limit_counts(service_id)
     else:
         return annual_limit_client.get_all_notification_counts(service_id)
 
 
 @requires_feature("REDIS_ENABLED")
-def increment_notification_failed(service_id: UUID, notification_type) -> None:
+def increment_notifications_failed(service_id: UUID, notification_type) -> None:
     if not annual_limit_client.was_seeded_today(service_id):
         seed_annual_limit_counts(service_id)
     else:
@@ -61,7 +61,7 @@ def increment_notification_failed(service_id: UUID, notification_type) -> None:
 
 
 @requires_feature("REDIS_ENABLED")
-def increment_notification_delivered(service_id: UUID, notification_type) -> None:
+def increment_notifications_delivered(service_id: UUID, notification_type) -> None:
     if not annual_limit_client.was_seeded_today(service_id):
         seed_annual_limit_counts(service_id)
     else:
