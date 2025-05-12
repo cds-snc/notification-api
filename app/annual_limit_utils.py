@@ -16,7 +16,7 @@ from app.models import EMAIL_TYPE, SMS_TYPE
 from app.utils import get_fiscal_year, prepare_notification_counts_for_seeding
 
 
-def seed_annual_limit_counts(service_id: UUID) -> None:
+def seed_annual_limit_counts(service_id: UUID) -> dict:
     """
     Seed the annual limit counts for a service. This is called when the service is created or updated.
     """
