@@ -15,7 +15,6 @@ from flask import Flask
 
 from app.config import configs
 from app.v2.notifications import v2_notification_blueprint
-from app.v2.openapi.api import configure_api
 
 
 def generate_openapi_spec():
@@ -23,23 +22,31 @@ def generate_openapi_spec():
     app = Flask(__name__)
     app.config.from_object(configs["development"])
 
+    # Set SERVER_NAME to build URLs outside of request context
+    app.config["SERVER_NAME"] = "localhost"
+    app.config["PREFERRED_URL_SCHEME"] = "http"
+    app.config["APPLICATION_ROOT"] = "/"
+
     # Register the blueprint
     app.register_blueprint(v2_notification_blueprint)
 
-    # Configure the API
-    api = configure_api(v2_notification_blueprint)
+    # The API is already configured in the blueprint's __init__.py
+    # So we just access the api attribute of the blueprint
+    from app.v2.notifications import api
 
-    # Get the specification
-    spec = api.__schema__
+    # We need to use the application context to get the schema
+    with app.app_context():
+        # Get the specification
+        spec = api.__schema__
 
-    # Save the specification to a file
-    spec_dir = Path(__file__).parent / "openapi"
-    spec_dir.mkdir(exist_ok=True)
+        # Save the specification to a file
+        spec_dir = Path(__file__).parent / "openapi"
+        spec_dir.mkdir(exist_ok=True)
 
-    with open(spec_dir / "openapi.json", "w") as f:
-        json.dump(spec, f, indent=2)
+        with open(spec_dir / "openapi.json", "w") as f:
+            json.dump(spec, f, indent=2)
 
-    print(f"OpenAPI specification saved to {spec_dir / 'openapi.json'}")
+        print(f"OpenAPI specification saved to {spec_dir / 'openapi.json'}")
 
 
 if __name__ == "__main__":

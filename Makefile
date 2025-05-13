@@ -42,7 +42,8 @@ format:
 	ruff format .
 	mypy ./
 
-.PHONY: generate-openapi-spec
+.PHONY: generate-openapi generate-openapi-spec
+generate-openapi: generate-openapi-spec ## Generate OpenAPI spec (alias)
 generate-openapi-spec: ## Generate OpenAPI spec
 	python scripts/generate_openapi_spec.py
 

@@ -1,0 +1,38 @@
+{
+  "swagger": "2.0",
+  "basePath": "/v2/notifications",
+  "paths": {},
+  "info": {
+    "title": "GOV.UK Notify API",
+    "version": "2.0",
+    "description": "The GOV.UK Notify API lets you send emails, text messages and letters."
+  },
+  "produces": [
+    "application/json"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "securityDefinitions": {
+    "apikey": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Authorization"
+    }
+  },
+  "security": [
+    {
+      "apikey": []
+    }
+  ],
+  "tags": [],
+  "responses": {
+    "ParseError": {
+      "description": "When a mask can't be parsed"
+    },
+    "MaskError": {
+      "description": "When any error occurs on mask"
+    }
+  },
+  "host": "localhost"
+}
