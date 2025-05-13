@@ -1,5 +1,10 @@
 """
-Example implementation of how to add OpenAPI decorators to existing routes.
+Example implementation of how to add OpenAPI documentation to existing routes.
+
+This file demonstrates two approaches:
+1. Using Flask-RESTx Resource classes (recommended)
+2. Using custom decorators (legacy)
+
 This is a demonstration file and should not be imported directly.
 """
 
@@ -9,8 +14,7 @@ from app.v2.notifications import models, notifications_namespace, v2_notificatio
 from app.v2.openapi.decorators import api_route, document_response
 
 
-# Example of adding a resource class with RESTx decorators
-@v2_notification_blueprint.route("/example/sms", methods=["POST"])
+# Example 1: Using Flask-RESTx Resource classes (RECOMMENDED APPROACH)
 @notifications_namespace.route("/example/sms")
 class SMSNotificationResource(Resource):
     @notifications_namespace.doc("send_sms_notification")
@@ -27,7 +31,24 @@ class SMSNotificationResource(Resource):
         pass
 
 
-# Example of decorating an existing function without changing it
+@notifications_namespace.route("/example/bulk")
+class BulkNotificationResource(Resource):
+    @notifications_namespace.doc("send_bulk_notifications")
+    @notifications_namespace.expect(models["bulk_request"])
+    @notifications_namespace.response(201, "Bulk notifications created successfully", models["bulk_response"])
+    @notifications_namespace.response(400, "Bad request")
+    @notifications_namespace.response(401, "Authentication error")
+    @notifications_namespace.response(403, "Forbidden")
+    def post(self):
+        """
+        Send bulk notifications.
+        """
+        # Implementation would go here
+        return {"job_id": "example-job-id"}, 201
+
+
+# Example 2: Legacy approach using custom decorators
+# NOTE: This approach is shown for comparison only and should not be used for new endpoints
 @v2_notification_blueprint.route("/example/email", methods=["POST"])
 @document_response
 @api_route(

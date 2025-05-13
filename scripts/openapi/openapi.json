@@ -1,7 +1,154 @@
 {
   "swagger": "2.0",
   "basePath": "/v2/notifications",
-  "paths": {},
+  "paths": {
+    "/notifications/bulk": {
+      "post": {
+        "responses": {
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "401": {
+            "description": "Authentication error"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "201": {
+            "description": "Bulk notifications created successfully",
+            "schema": {
+              "$ref": "#/definitions/BulkResponse"
+            }
+          }
+        },
+        "summary": "Send bulk notifications",
+        "operationId": "send_bulk_notifications",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BulkRequest"
+            }
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/email": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "Forbidden"
+          },
+          "401": {
+            "description": "Authentication error"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "201": {
+            "description": "Email notification created successfully",
+            "schema": {
+              "$ref": "#/definitions/EmailResponse"
+            }
+          }
+        },
+        "summary": "Send an email notification",
+        "operationId": "send_email_notification",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/EmailRequest"
+            }
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/sms": {
+      "post": {
+        "responses": {
+          "403": {
+            "description": "Forbidden"
+          },
+          "401": {
+            "description": "Authentication error"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "201": {
+            "description": "SMS notification created successfully",
+            "schema": {
+              "$ref": "#/definitions/SmsResponse"
+            }
+          }
+        },
+        "summary": "Send an SMS notification",
+        "operationId": "send_sms_notification",
+        "parameters": [
+          {
+            "name": "payload",
+            "required": true,
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/SmsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/notifications/{notification_type}": {
+      "parameters": [
+        {
+          "name": "notification_type",
+          "in": "path",
+          "required": true,
+          "type": "string"
+        }
+      ],
+      "post": {
+        "responses": {
+          "429": {
+            "description": "Rate limit exceeded"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "401": {
+            "description": "Authentication error"
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "201": {
+            "description": "Notification created successfully"
+          }
+        },
+        "summary": "Send a notification",
+        "description": "This is a generic endpoint that handles SMS and email notifications.",
+        "operationId": "send_notification",
+        "tags": [
+          "notifications"
+        ]
+      }
+    }
+  },
   "info": {
     "title": "GOV.UK Notify API",
     "version": "2.0",
@@ -25,7 +172,300 @@
       "apikey": []
     }
   ],
-  "tags": [],
+  "tags": [
+    {
+      "name": "notifications",
+      "description": "Notification operations"
+    }
+  ],
+  "definitions": {
+    "BulkRequest": {
+      "required": [
+        "template_id"
+      ],
+      "properties": {
+        "template_id": {
+          "type": "string",
+          "description": "The ID of the template"
+        },
+        "rows": {
+          "type": "array",
+          "description": "The data for each notification",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "csv": {
+          "type": "string",
+          "description": "The CSV data for the notifications"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the file"
+        },
+        "scheduled_for": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time to send the notification"
+        },
+        "reply_to_id": {
+          "type": "string",
+          "description": "The ID of the reply-to address or phone number"
+        }
+      },
+      "type": "object"
+    },
+    "BulkResponse": {
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/JobResponse"
+        }
+      },
+      "type": "object"
+    },
+    "JobResponse": {
+      "required": [
+        "created_at",
+        "created_by",
+        "id",
+        "job_status",
+        "notification_count",
+        "template"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Job ID"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Job reference"
+        },
+        "original_file_name": {
+          "type": "string",
+          "description": "Original filename"
+        },
+        "template": {
+          "type": "string",
+          "description": "Template ID"
+        },
+        "notification_count": {
+          "type": "integer",
+          "description": "Number of notifications"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation time"
+        },
+        "created_by": {
+          "type": "string",
+          "description": "Creator ID"
+        },
+        "job_status": {
+          "type": "string",
+          "description": "Job status"
+        },
+        "scheduled_for": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the job is scheduled to be processed"
+        }
+      },
+      "type": "object"
+    },
+    "SmsRequest": {
+      "required": [
+        "phone_number",
+        "template_id"
+      ],
+      "properties": {
+        "template_id": {
+          "type": "string",
+          "description": "The ID of the template"
+        },
+        "phone_number": {
+          "type": "string",
+          "description": "The phone number of the recipient"
+        },
+        "reference": {
+          "type": "string",
+          "description": "A reference that identifies the notification"
+        },
+        "personalisation": {
+          "type": "object",
+          "description": "The template variables"
+        },
+        "scheduled_for": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time to send the notification"
+        },
+        "sms_sender_id": {
+          "type": "string",
+          "description": "The ID of the reply-to address or phone number"
+        }
+      },
+      "type": "object"
+    },
+    "SmsResponse": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/NotificationResponseBase"
+        },
+        {
+          "properties": {
+            "content": {
+              "$ref": "#/definitions/SmsContent"
+            }
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "NotificationResponseBase": {
+      "required": [
+        "id",
+        "uri"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Notification ID"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Client reference"
+        },
+        "uri": {
+          "type": "string",
+          "description": "Notification URI"
+        },
+        "template": {
+          "$ref": "#/definitions/TemplateRef"
+        },
+        "scheduled_for": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the notification is scheduled to be sent"
+        }
+      },
+      "type": "object"
+    },
+    "TemplateRef": {
+      "required": [
+        "id",
+        "uri",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Template ID"
+        },
+        "version": {
+          "type": "integer",
+          "description": "Template version"
+        },
+        "uri": {
+          "type": "string",
+          "description": "Template URI"
+        }
+      },
+      "type": "object"
+    },
+    "SmsContent": {
+      "required": [
+        "body",
+        "from_number"
+      ],
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "SMS body"
+        },
+        "from_number": {
+          "type": "string",
+          "description": "Sender phone number"
+        }
+      },
+      "type": "object"
+    },
+    "EmailRequest": {
+      "required": [
+        "email_address",
+        "template_id"
+      ],
+      "properties": {
+        "template_id": {
+          "type": "string",
+          "description": "The ID of the template"
+        },
+        "email_address": {
+          "type": "string",
+          "description": "The email address of the recipient"
+        },
+        "reference": {
+          "type": "string",
+          "description": "A reference that identifies the notification"
+        },
+        "personalisation": {
+          "type": "object",
+          "description": "The template variables"
+        },
+        "scheduled_for": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The time to send the notification"
+        },
+        "email_reply_to_id": {
+          "type": "string",
+          "description": "The ID of the reply-to address or phone number"
+        }
+      },
+      "type": "object"
+    },
+    "EmailResponse": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/NotificationResponseBase"
+        },
+        {
+          "properties": {
+            "content": {
+              "$ref": "#/definitions/EmailContent"
+            }
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "EmailContent": {
+      "required": [
+        "body",
+        "from_email",
+        "subject"
+      ],
+      "properties": {
+        "body": {
+          "type": "string",
+          "description": "Email body"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Email subject"
+        },
+        "from_email": {
+          "type": "string",
+          "description": "Sender email"
+        }
+      },
+      "type": "object"
+    }
+  },
   "responses": {
     "ParseError": {
       "description": "When a mask can't be parsed"

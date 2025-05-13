@@ -5,6 +5,9 @@ def create_models(api):
     """
     Create the request and response models for the API.
 
+    Models are used for request validation and response serialization in the OpenAPI
+    documentation. They are also used by the Flask-RESTx Resource classes for input/output.
+
     Args:
         api: The Flask-RESTx API instance
 
