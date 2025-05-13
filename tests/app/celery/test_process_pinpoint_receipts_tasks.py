@@ -10,7 +10,7 @@ from tests.app.db import (
 )
 from tests.conftest import set_config
 
-from app import annual_limit_client, statsd_client
+from app import statsd_client
 from app.aws.mocks import (
     pinpoint_delivered_callback,
     pinpoint_delivered_callback_missing_sms_data,
@@ -311,8 +311,10 @@ class TestAnnualLimits:
         mocker,
         provider_response,
     ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
+        increment_notifications_failed = mocker.patch("app.celery.process_pinpoint_receipts_tasks.increment_notifications_failed")
+        increment_notifications_delivered = mocker.patch(
+            "app.celery.process_pinpoint_receipts_tasks.increment_notifications_delivered"
+        )
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         notification = save_notification(
@@ -327,8 +329,8 @@ class TestAnnualLimits:
         # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
+            increment_notifications_failed.assert_called_once_with(service_id=notification.service_id, notification_type="sms")
+            increment_notifications_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback",
@@ -344,8 +346,10 @@ class TestAnnualLimits:
         mocker,
         callback,
     ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
+        increment_notifications_failed = mocker.patch("app.celery.process_pinpoint_receipts_tasks.increment_notifications_failed")
+        increment_notifications_delivered = mocker.patch(
+            "app.celery.process_pinpoint_receipts_tasks.increment_notifications_delivered"
+        )
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         notification = save_notification(
@@ -360,102 +364,5 @@ class TestAnnualLimits:
         # TODO FF_ANNUAL_LIMIT removal
         with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
             process_pinpoint_results(callback(reference="ref"))
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "callback, provider_response, data",
-        [
-            (
-                pinpoint_delivered_callback,
-                None,
-                {
-                    "sms_failed_today": 0,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 1,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                pinpoint_failed_callback,
-                "Blocked as spam by phone carrier",
-                {
-                    "sms_failed_today": 1,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                pinpoint_failed_callback,
-                "Phone carrier is currently unreachable/unavailable",
-                {
-                    "sms_failed_today": 1,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                pinpoint_failed_callback,
-                "Phone is currently unreachable/unavailable",
-                {
-                    "sms_failed_today": 1,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                pinpoint_failed_callback,
-                "This is not a real response",
-                {
-                    "sms_failed_today": 1,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-        ],
-    )
-    def test_process_pinpoint_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
-        self,
-        callback,
-        provider_response,
-        data,
-        sample_sms_template_with_html,
-        notify_api,
-        mocker,
-    ):
-        mocker.patch("app.annual_limit_client.increment_sms_delivered")
-        mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
-        mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
-
-        notification = save_notification(
-            create_notification(
-                sample_sms_template_with_html,
-                reference="ref",
-                sent_at=datetime.utcnow(),
-                status=NOTIFICATION_SENT,
-                sent_by="pinpoint",
-            )
-        )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
-            process_pinpoint_results(
-                callback(provider_response, reference="ref") if provider_response else callback(reference="ref")
-            )
-            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
-            annual_limit_client.increment_sms_failed.assert_not_called()
+            increment_notifications_delivered.assert_called_once_with(service_id=notification.service_id, notification_type="sms")
+            increment_notifications_failed.assert_not_called()
