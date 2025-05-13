@@ -11,7 +11,7 @@ from tests.app.db import (
 )
 from tests.conftest import set_config
 
-from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
+from app import bounce_rate_client, signer_complaint, statsd_client
 from app.aws.mocks import ses_complaint_callback, ses_unknown_bounce_callback
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
@@ -444,8 +444,10 @@ class TestAnnualLimits:
     def test_ses_callback_should_increment_email_delivered_when_delivery_receipt_is_delivered(
         self, notify_api, sample_email_template, mocker
     ):
-        mocker.patch("app.annual_limit_client.increment_email_delivered")
-        mocker.patch("app.annual_limit_client.increment_email_failed")
+        increment_notifications_failed = mocker.patch("app.celery.process_ses_receipts_tasks.increment_notifications_failed")
+        increment_notifications_delivered = mocker.patch(
+            "app.celery.process_ses_receipts_tasks.increment_notifications_delivered"
+        )
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         # TODO FF_ANNUAL_LIMIT removal
@@ -453,8 +455,10 @@ class TestAnnualLimits:
             save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
             assert process_ses_results(ses_notification_callback(reference="ref"))
-            annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
-            annual_limit_client.increment_email_failed.assert_not_called()
+            increment_notifications_delivered.assert_called_once_with(
+                service_id=sample_email_template.service_id, notification_type="email"
+            )
+            increment_notifications_failed.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, bounce_type",
@@ -467,8 +471,10 @@ class TestAnnualLimits:
     def test_ses_callback_should_increment_email_failed_when_delivery_receipt_is_failure(
         self, notify_api, sample_email_template, mocker, callback, bounce_type
     ):
-        mocker.patch("app.annual_limit_client.increment_email_failed")
-        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        increment_notifications_failed = mocker.patch("app.celery.process_ses_receipts_tasks.increment_notifications_failed")
+        increment_notifications_delivered = mocker.patch(
+            "app.celery.process_ses_receipts_tasks.increment_notifications_delivered"
+        )
         mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
 
         # TODO FF_ANNUAL_LIMIT removal
@@ -476,72 +482,7 @@ class TestAnnualLimits:
             save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
             assert process_ses_results(callback(reference="ref"))
-            annual_limit_client.increment_email_failed.assert_called_once_with(sample_email_template.service_id)
-            annual_limit_client.increment_email_delivered.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "callback, data",
-        [
-            (
-                ses_notification_callback,
-                {
-                    "sms_failed_today": 0,
-                    "email_failed_today": 0,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 1,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                ses_hard_bounce_callback,
-                {
-                    "sms_failed_today": 0,
-                    "email_failed_today": 1,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-            (
-                ses_soft_bounce_callback,
-                {
-                    "sms_failed_today": 0,
-                    "email_failed_today": 1,
-                    "sms_delivered_today": 0,
-                    "email_delivered_today": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                    "total_email_fiscal_year_to_yesterday": 0,
-                },
-            ),
-        ],
-    )
-    def test_process_ses_results_seeds_annual_limit_notifications_when_not_seeded_today_and_doesnt_increment_when_seeding(
-        self,
-        callback,
-        data,
-        sample_email_template,
-        notify_api,
-        mocker,
-    ):
-        mocker.patch("app.annual_limit_client.increment_email_delivered")
-        mocker.patch("app.annual_limit_client.increment_email_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
-        mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
-
-        notification = save_notification(
-            create_notification(
-                sample_email_template,
-                reference="ref",
-                sent_at=datetime.utcnow(),
-                status="sending",
-                sent_by="ses",
+            increment_notifications_failed.assert_called_once_with(
+                service_id=sample_email_template.service_id, notification_type="email"
             )
-        )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
-            process_ses_results(callback(reference="ref"))
-            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-            annual_limit_client.increment_email_delivered.assert_not_called()
-            annual_limit_client.increment_email_failed.assert_not_called()
+            increment_notifications_delivered.assert_not_called()
