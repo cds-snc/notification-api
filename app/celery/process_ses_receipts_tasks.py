@@ -5,7 +5,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_client
-from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE
@@ -87,11 +87,9 @@ def process_ses_results(self, response):  # noqa: C901
         service_id = notification.service_id
         # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
         # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
-        notifications_to_seed = None
+
         # Check if we have already seeded the annual limit counts for today
-        if current_app.config["FF_ANNUAL_LIMIT"]:
-            if not annual_limit_client.was_seeded_today(service_id):
-                notifications_to_seed = get_annual_limit_notifications_v2(service_id)
+        _, did_we_seed = get_annual_limit_notifications_v3(service_id)
 
         if not aws_response_dict["success"]:
             current_app.logger.info(
@@ -101,7 +99,7 @@ def process_ses_results(self, response):  # noqa: C901
             )
             if current_app.config["FF_ANNUAL_LIMIT"]:
                 # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
+                if not did_we_seed:
                     annual_limit_client.increment_email_failed(notification.service_id)
                 current_app.logger.info(
                     f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
@@ -112,7 +110,7 @@ def process_ses_results(self, response):  # noqa: C901
             )
             if current_app.config["FF_ANNUAL_LIMIT"]:
                 # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
+                if not did_we_seed:
                     annual_limit_client.increment_email_delivered(notification.service_id)
                 current_app.logger.info(
                     f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
