@@ -1,0 +1,403 @@
+openapi: 3.0.3
+info:
+  title: Notifications API
+  description: API for sending SMS and email notifications
+  version: 2.0.0
+
+paths:
+  /v2/notifications/sms:
+    post:
+      summary: Send an SMS notification
+      description: |
+        Send an SMS notification to a recipient phone number using a template.
+        
+        The template can include placeholders which are populated using the personalisation parameter.
+        
+        For test API keys, the phone number doesn't need to be a real one.
+        
+        For team and safelist API keys, the phone number needs to belong to a member of the team or on your safelist.
+        
+        For live API keys, the phone number needs to be a real phone number.
+      operationId: sendSmsNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostSmsRequest'
+      responses:
+        '201':
+          description: SMS notification sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostSmsResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not authorized to use the API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+  
+  /v2/notifications/email:
+    post:
+      summary: Send an email notification
+      description: |
+        Send an email notification to a recipient email address using a template.
+        
+        The template can include placeholders which are populated using the personalisation parameter.
+        
+        For test API keys, the email doesn't need to be a real email address.
+        
+        For team and safelist API keys, the email needs to belong to a member of the team or on your safelist.
+        
+        For live API keys, the email needs to be a real email address.
+      operationId: sendEmailNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostEmailRequest'
+      responses:
+        '201':
+          description: Email notification sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEmailResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not authorized to use the API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+  
+
+  
+  /v2/notifications/bulk:
+    post:
+      summary: Send a batch of notifications
+      description: |
+        Send multiple notifications via CSV or rows array. The CSV must include column headers for the template placeholders.
+        
+        For SMS notifications, the phone numbers are validated and formatted.
+        
+        For email notifications, the email addresses are validated.
+        
+        For test API keys, the recipients don't need to be real.
+        
+        For team and safelist API keys, the recipients need to be on your team or safelist.
+        
+        For live API keys, the recipients need to be real.
+      operationId: sendBulkNotifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBulkRequest'
+      responses:
+        '201':
+          description: Bulk job created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        $ref: '#/components/schemas/UUID'
+                      original_file_name:
+                        type: string
+                      notification_count:
+                        type: integer
+                      template:
+                        $ref: '#/components/schemas/UUID'
+                      job_status:
+                        type: string
+                        enum: ['pending', 'scheduled']
+                      scheduled_for:
+                        type: string
+                        format: date-time
+                        nullable: true
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not authorized to use the API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      example: "123e4567-e89b-12d3-a456-426614174000"
+    
+    PostSmsRequest:
+      type: object
+      required:
+        - template_id
+        - phone_number
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        phone_number:
+          type: string
+          description: The phone number to send the SMS to
+          example: "+447900900123"
+        personalisation:
+          type: object
+          description: The template parameters to use for personalization
+          additionalProperties: true
+          example:
+            name: "John Smith"
+            appointment_date: "2023-01-01"
+        reference:
+          type: string
+          description: A reference that identifies the notification
+          example: "your-reference-123"
+        scheduled_for:
+          type: string
+          format: date-time
+          description: The time to send the notification (must be within 24 hours)
+          example: "2023-01-01T12:00:00Z"
+          nullable: true
+        sms_sender_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the SMS sender to use
+      
+    PostEmailRequest:
+      type: object
+      required:
+        - template_id
+        - email_address
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        email_address:
+          type: string
+          format: email
+          description: The email address to send to
+          example: "john.smith@example.com"
+        personalisation:
+          type: object
+          description: The template parameters to use for personalization
+          additionalProperties: true
+          example:
+            name: "John Smith"
+            application_date: "2023-01-01"
+        reference:
+          type: string
+          description: A reference that identifies the notification
+          example: "your-reference-123"
+        scheduled_for:
+          type: string
+          format: date-time
+          description: The time to send the notification (must be within 24 hours)
+          example: "2023-01-01T12:00:00Z"
+          nullable: true
+        email_reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the email reply-to address to use
+    
+
+    
+    PostBulkRequest:
+      type: object
+      required:
+        - template_id
+        - name
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          description: Name for this batch sending job
+          example: "January Appointment Reminders"
+        reference:
+          type: string
+          description: A reference for this batch
+          example: "batch-reference-123"
+        csv:
+          type: string
+          format: binary
+          description: Base64 encoded CSV data with headers matching the template placeholders
+        rows:
+          type: array
+          description: Alternative to CSV, provide rows directly as arrays
+          items:
+            type: array
+            items:
+              type: string
+          example:
+            - ["phone_number", "name", "appointment_date"]
+            - ["+447900900123", "John Smith", "2023-01-01"]
+            - ["+447900900456", "Jane Doe", "2023-01-02"]
+        scheduled_for:
+          type: string
+          format: date-time
+          description: The time to send the notifications
+          example: "2023-01-01T12:00:00Z"
+          nullable: true
+        reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the reply-to address or phone number to use
+          nullable: true
+    
+    PostSmsResponse:
+      type: object
+      required:
+        - id
+        - content
+        - uri
+        - template
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        content:
+          type: object
+          properties:
+            body:
+              type: string
+              description: The SMS message body
+            from_number:
+              type: string
+              description: The phone number the SMS was sent from
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+    
+    PostEmailResponse:
+      type: object
+      required:
+        - id
+        - content
+        - uri
+        - template
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        content:
+          type: object
+          properties:
+            body:
+              type: string
+              description: The email body
+            subject:
+              type: string
+              description: The email subject
+            from_email:
+              type: string
+              format: email
+              description: The email address the email was sent from
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+    
+
+    
+    ErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+          description: HTTP status code
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Error message
+              message:
+                type: string
+                description: Detailed error message
+
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API Key with format 'Bearer {api_key}'
