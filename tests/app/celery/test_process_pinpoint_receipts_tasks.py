@@ -41,6 +41,7 @@ from celery.exceptions import MaxRetriesExceededError
 def test_process_pinpoint_results_delivered(
     sample_template, notify_db, notify_db_session, callback, expected_response, origination_phone_number, mocker
 ):
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_info_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
     notification = create_sample_notification(
@@ -91,8 +92,9 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
     assert updated_notification.provider_response is None
 
 
-def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, notify_db_session, mocker):
+def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, notify_db, notify_db_session, mocker):
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
     notification = create_sample_notification(
         notify_db,
@@ -105,7 +107,8 @@ def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, n
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-    process_pinpoint_results(pinpoint_delivered_callback_missing_sms_data(reference="ref"))
+    with set_config(notify_api, "REDIS_ENABLED", True):
+        process_pinpoint_results(pinpoint_delivered_callback_missing_sms_data(reference="ref"))
 
     updated_notification = get_notification_by_id(notification.id)
     mock_callback_task.assert_called_once_with(updated_notification)
@@ -150,6 +153,7 @@ def test_process_pinpoint_results_failed(
     should_log_warning,
     should_save_provider_response,
 ):
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
@@ -255,6 +259,7 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
         mock_send_status = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         notification = create_sample_notification(
             notify_db,
