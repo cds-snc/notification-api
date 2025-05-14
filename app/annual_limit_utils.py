@@ -6,6 +6,7 @@ from flask import current_app
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
+    annual_limit_notifications_v2_key,
 )
 from notifications_utils.decorators import requires_feature
 
@@ -71,10 +72,10 @@ def get_annual_limit_notifications_v3(service_id: UUID) -> Tuple[dict, bool]:
     else:
         annual_data = annual_limit_client.get_all_notification_counts(service_id)
         email_fiscal = annual_limit_client._redis_client.get_hash_field(
-            annual_limit_client.annual_limit_notifications_v2_key(service_id), TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY
+            annual_limit_notifications_v2_key(service_id), TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY
         )
         sms_fiscal = annual_limit_client._redis_client.get_hash_field(
-            annual_limit_client.annual_limit_notifications_v2_key(service_id), TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
+            annual_limit_notifications_v2_key(service_id), TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
         )
 
         current_app.logger.info(f"[alimit-debug] service_id: {service_id} email_fiscal: {email_fiscal}")
