@@ -541,7 +541,8 @@ class TestAnnualLimits:
                 sent_by="ses",
             )
         )
-        process_ses_results(callback(reference="ref"))
-        mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-        annual_limit_client.increment_email_delivered.assert_not_called()
-        annual_limit_client.increment_email_failed.assert_not_called()
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            process_ses_results(callback(reference="ref"))
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+            annual_limit_client.increment_email_delivered.assert_not_called()
+            annual_limit_client.increment_email_failed.assert_not_called()

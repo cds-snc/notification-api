@@ -377,8 +377,10 @@ class TestAnnualLimit:
                 sent_by="sns",
             )
         )
-        process_sns_results(callback(provider_response, reference="ref") if provider_response else callback(reference="ref"))
 
-        mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-        annual_limit_client.increment_sms_delivered.assert_not_called()
-        annual_limit_client.increment_sms_failed.assert_not_called()
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            process_sns_results(callback(provider_response, reference="ref") if provider_response else callback(reference="ref"))
+
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+            annual_limit_client.increment_sms_delivered.assert_not_called()
+            annual_limit_client.increment_sms_failed.assert_not_called()
