@@ -79,7 +79,7 @@ def get_annual_limit_notifications_v3(service_id: UUID) -> Tuple[dict, bool]:
         )
 
         current_app.logger.info(f"[alimit-debug] service_id: {service_id} email_fiscal: {email_fiscal}")
-        if email_fiscal is not None and sms_fiscal is not None:
+        if email_fiscal is not None or sms_fiscal is not None:
             current_app.logger.info(f"[alimit-debug] service {service_id} was seeded. annual_data: {annual_data}")
             return (annual_data, False)
         else:
