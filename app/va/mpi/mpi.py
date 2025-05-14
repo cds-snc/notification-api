@@ -3,6 +3,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 from time import monotonic
+from uuid import UUID
 from http.client import responses
 from functools import reduce
 
@@ -111,7 +112,10 @@ class MpiClient:
         else:
             fhir_identifier = transform_to_fhir_format(recipient_identifier)
 
-        response_json = self._make_request(fhir_identifier, notification.id)
+        response_json = self._make_request(fhir_identifier, notification.id, recipient_identifier.id_type)
+
+        # Protect PII that can be logged when errors happen
+        fhir_identifier = '<redacted>' if recipient_identifier.id_type == IdentifierType.ICN.value else fhir_identifier
         self._assert_not_deceased(response_json, fhir_identifier)
         mpi_identifiers = response_json['identifier']
 
@@ -121,10 +125,11 @@ class MpiClient:
 
     def _make_request(
         self,
-        fhir_identifier,
-        notification_id,
+        fhir_identifier: str,
+        notification_id: UUID,
+        id_type: str,
     ):
-        self.logger.info('Querying MPI with %s for notification %s', fhir_identifier, notification_id)
+        self.logger.debug('Querying MPI with %s for notification %s', fhir_identifier, notification_id)
         start_time = monotonic()
         try:
             # Need to make the request with an expanded list of ciphers to make sure we can connect to MPI in Prod
@@ -165,7 +170,11 @@ class MpiClient:
             exception.failure_reason = exception
             raise exception from e
         else:
-            self._validate_response(response.json(), notification_id, fhir_identifier)
+            self._validate_response(
+                response.json(),
+                notification_id,
+                '<redacted>' if id_type == IdentifierType.ICN.value else fhir_identifier,
+            )
             self.statsd_client.incr('clients.mpi.success')
             return response.json()
         finally:

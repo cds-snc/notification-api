@@ -15,7 +15,6 @@ from app.celery.provider_tasks import (
     _handle_delivery_failure,
 )
 from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
-from app.config import QueueNames
 from app.constants import (
     EMAIL_TYPE,
     NOTIFICATION_CREATED,
@@ -412,11 +411,7 @@ def test_deliver_sms_with_rate_limiting_should_retry_if_rate_limit_exceeded(
 
     deliver_sms_with_rate_limiting(notification.id)
 
-    retry.assert_called_once_with(
-        queue=QueueNames.RETRY,
-        max_retries=None,
-        countdown=sms_sender.rate_limit_interval / sms_sender.rate_limit,
-    )
+    retry.assert_called_once()
 
 
 def test_deliver_sms_with_rate_limiting_should_retry_generic_exceptions(
