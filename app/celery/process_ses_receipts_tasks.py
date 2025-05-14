@@ -90,6 +90,7 @@ def process_ses_results(self, response):  # noqa: C901
 
         # Check if we have already seeded the annual limit counts for today
         _, did_we_seed = get_annual_limit_notifications_v3(service_id)
+        current_app.logger.info(f"[alimit-debug] did_we_seed: {did_we_seed}, data: {_}")
 
         if not aws_response_dict["success"]:
             current_app.logger.info(
