@@ -194,7 +194,7 @@ def save_sms(
     template = dao_get_template_by_id(notification['template'], version=notification['template_version'])
 
     if sender_id:
-        reply_to_text = dao_get_service_sms_sender_by_id(service_id, sender_id).sms_sender
+        reply_to_text = dao_get_service_sms_sender_by_id(str(service_id), str(sender_id)).sms_sender
     else:
         reply_to_text = template.get_reply_to_text()
 
@@ -220,7 +220,8 @@ def save_sms(
         )
 
         sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
-            notification.get(service_id), notification.get(reply_to_text)
+            notification.get(service_id),
+            str(notification.get(reply_to_text)),
         )
 
         if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:

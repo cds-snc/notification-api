@@ -40,7 +40,7 @@ def comp_and_pen_batch_process(records: list[dict[str, str]]) -> None:
             current_app.config['COMP_AND_PEN_TEMPLATE_ID'],
             current_app.config['COMP_AND_PEN_SMS_SENDER_ID'],
         )
-        reply_to_text = dao_get_service_sms_sender_by_id(service.id, sms_sender_id).sms_sender
+        reply_to_text = dao_get_service_sms_sender_by_id(str(service.id), str(sms_sender_id)).sms_sender
     except (AttributeError, NoResultFound, ValueError):
         current_app.logger.exception('Unable to send comp and pen notifications due to improper configuration')
         raise

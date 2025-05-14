@@ -28,7 +28,6 @@ from app.models import (
     Complaint,
     Notification,
     NotificationHistory,
-    ServiceCallback,
     DeliveryStatusCallbackApiData,
     Template,
 )
@@ -234,9 +233,7 @@ def send_inbound_sms_to_service(
         return
 
     inbound_sms = dao_get_inbound_sms_by_id(service_id=service_id, inbound_id=inbound_sms_id)
-    sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
-        service_id=service_id, number=inbound_sms.notify_number
-    )
+    sms_sender = dao_get_service_sms_sender_by_service_id_and_number(service_id, str(inbound_sms.notify_number))
 
     payload = {
         'id': str(inbound_sms.id),

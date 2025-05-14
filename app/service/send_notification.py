@@ -110,7 +110,7 @@ def _get_reply_to_text(
                 raise NoResultFound
             elif notification_type == SMS_TYPE:
                 message = 'SMS sender not found'
-                reply_to = dao_get_service_sms_sender_by_id(service.id, sender_id).get_reply_to_text()
+                reply_to = dao_get_service_sms_sender_by_id(str(service.id), str(sender_id)).get_reply_to_text()
         except NoResultFound:
             raise BadRequestError(message=message)
     else:

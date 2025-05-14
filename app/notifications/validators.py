@@ -1,7 +1,6 @@
 import base64
 import binascii
 
-from cachetools import TTLCache, cached
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import (
@@ -118,7 +117,7 @@ def check_sms_sender_over_rate_limit(
         current_app.logger.info('Skipping sms sender rate limit check')
         return
 
-    sms_sender = dao_get_service_sms_sender_by_id(service_id, sms_sender.id)
+    sms_sender = dao_get_service_sms_sender_by_id(str(service_id), str(sms_sender.id))
     if current_app.config['REDIS_ENABLED']:
         current_app.logger.info('Checking sms sender rate limit')
         cache_key = sms_sender.sms_sender
@@ -216,7 +215,7 @@ def validate_template(
     notification_type,
 ):
     try:
-        template = templates_dao.dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service.id)
+        template = templates_dao.dao_get_template_by_id_and_service_id(template_id, service.id)
     except NoResultFound:
         # Putting this in the "message" would be a breaking change for API responses
         current_app.logger.info(
@@ -248,27 +247,26 @@ def validate_template(
     return template, template_with_content
 
 
-def check_reply_to(
-    service_id,
-    reply_to_id,
-    type_,
-):
-    if type_ == SMS_TYPE:
-        return check_service_sms_sender_id(service_id, reply_to_id, type_)
-
-
-@cached(cache=TTLCache(maxsize=1024, ttl=600))
-def check_service_sms_sender_id(
+def get_service_sms_sender_number(
     service_id,
     sms_sender_id,
     notification_type,
 ):
     if sms_sender_id is not None:
         try:
-            return dao_get_service_sms_sender_by_id(service_id, sms_sender_id).sms_sender
+            return dao_get_service_sms_sender_by_id(str(service_id), str(sms_sender_id)).sms_sender
         except NoResultFound:
             message = f'sms_sender_id {sms_sender_id} does not exist in database for service id {service_id}'
             raise BadRequestError(message=message)
+
+
+def check_reply_to(
+    service_id,
+    reply_to_id,
+    type_,
+):
+    if type_ == SMS_TYPE:
+        return get_service_sms_sender_number(service_id, reply_to_id, type_)
 
 
 def check_service_letter_contact_id(

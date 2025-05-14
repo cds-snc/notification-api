@@ -6,7 +6,7 @@ from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.sql.expression import asc
 
@@ -80,14 +80,23 @@ def dao_fetch_service_by_inbound_number(number):
     return db.session.execute(stmt).scalar_one_or_none()
 
 
-@cached(cache=TTLCache(maxsize=1024, ttl=600))
+@cached(TTLCache(maxsize=1024, ttl=600))
 def dao_fetch_service_by_id_with_api_keys(
-    service_id,
+    service_id: str,
     only_active=False,
 ) -> ServiceData:
     with get_reader_session() as session:
         # Constructing the query
-        stmt = select(Service).where(Service.id == service_id).options(joinedload('api_keys'))
+        stmt = (
+            select(Service)
+            .where(Service.id == service_id)
+            .options(
+                joinedload('api_keys'),
+                selectinload('permissions'),
+                selectinload('service_sms_senders'),
+                selectinload('whitelist'),
+            )
+        )
 
         if only_active:
             stmt = stmt.where(Service.active)

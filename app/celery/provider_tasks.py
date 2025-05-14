@@ -112,7 +112,7 @@ def deliver_sms_with_rate_limiting(
         # be the phone number associated with the authenticated service's default SMS sender.  Ergo, the SMS sender
         # returned in the next line should be the correct SMS sender to test for a rate-limiting condition.
         sms_sender = dao_get_service_sms_sender_by_service_id_and_number(
-            notification.service_id, notification.reply_to_text
+            notification.service_id, str(notification.reply_to_text)
         )
 
         check_sms_sender_over_rate_limit(notification.service_id, sms_sender)

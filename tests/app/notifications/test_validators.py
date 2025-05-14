@@ -18,9 +18,9 @@ from app.notifications.validators import (
     service_can_send_to_recipient,
     check_service_over_api_rate_limit,
     validate_and_format_recipient,
-    check_service_sms_sender_id,
     check_service_letter_contact_id,
     check_reply_to,
+    get_service_sms_sender_number,
 )
 
 from app.v2.errors import BadRequestError, TooManyRequestsError, RateLimitError
@@ -367,19 +367,19 @@ def test_validate_and_format_recipient_raises_with_invalid_country_code(
 
 
 @pytest.mark.parametrize('notification_type', [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE])
-def test_check_service_sms_sender_id_where_sms_sender_id_is_none(notification_type):
-    assert check_service_sms_sender_id(None, None, notification_type) is None
+def test_get_service_sms_sender_number_where_sms_sender_id_is_none(notification_type):
+    assert get_service_sms_sender_number(None, None, notification_type) is None
 
 
-def test_check_service_sms_sender_id_where_sms_sender_id_is_found(
+def test_get_service_sms_sender_number_where_sms_sender_id_is_found(
     sample_service,
 ):
     number = randint(1000000, 9999999999)
     service = sample_service(sms_sender=number)
-    assert check_service_sms_sender_id(service.id, service.get_default_sms_sender_id(), SMS_TYPE) == str(number)
+    assert get_service_sms_sender_number(service.id, service.get_default_sms_sender_id(), SMS_TYPE) == str(number)
 
 
-def test_check_service_sms_sender_id_where_service_id_is_not_found(
+def test_get_service_sms_sender_number_where_service_id_is_not_found(
     sample_service,
 ):
     fake_service_id = uuid4()
@@ -388,17 +388,17 @@ def test_check_service_sms_sender_id_where_service_id_is_not_found(
     sms_sender_id = service.get_default_sms_sender_id()
 
     with pytest.raises(BadRequestError) as e:
-        check_service_sms_sender_id(fake_service_id, sms_sender_id, SMS_TYPE)
+        get_service_sms_sender_number(fake_service_id, sms_sender_id, SMS_TYPE)
     assert e.value.status_code == 400
     assert e.value.message == 'sms_sender_id {} does not exist in database for service id {}'.format(
         sms_sender_id, fake_service_id
     )
 
 
-def test_check_service_sms_sender_id_where_sms_sender_is_not_found(sample_service, fake_uuid):
+def test_get_service_sms_sender_number_where_sms_sender_is_not_found(sample_service, fake_uuid):
     service = sample_service()
     with pytest.raises(BadRequestError) as e:
-        check_service_sms_sender_id(service.id, fake_uuid, SMS_TYPE)
+        get_service_sms_sender_number(service.id, fake_uuid, SMS_TYPE)
     assert e.value.status_code == 400
     assert e.value.message == 'sms_sender_id {} does not exist in database for service id {}'.format(
         fake_uuid, service.id

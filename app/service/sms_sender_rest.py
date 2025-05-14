@@ -5,7 +5,7 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.service_sms_sender_dao import (
     dao_add_sms_sender_for_service,
     dao_get_service_sms_sender_by_id,
-    dao_get_sms_senders_by_service_id,
+    dao_get_sms_senders_data_by_service_id,
     dao_update_service_sms_sender,
 )
 from app.errors import register_errors
@@ -47,7 +47,7 @@ register_errors(service_sms_sender_blueprint)
 
 @service_sms_sender_blueprint.route('', methods=['GET'])
 def get_service_sms_senders_for_service(service_id):
-    sms_senders = dao_get_sms_senders_by_service_id(service_id=service_id)
+    sms_senders = dao_get_sms_senders_data_by_service_id(str(service_id))
     return jsonify([sms_sender.serialize() for sms_sender in sms_senders]), 200
 
 
@@ -63,7 +63,7 @@ def get_service_sms_sender_by_id(
     service_id,
     sms_sender_id,
 ):
-    sms_sender = dao_get_service_sms_sender_by_id(service_id=service_id, service_sms_sender_id=sms_sender_id)
+    sms_sender = dao_get_service_sms_sender_by_id(str(service_id), str(sms_sender_id))
     return jsonify(sms_sender.serialize()), 200
 
 
