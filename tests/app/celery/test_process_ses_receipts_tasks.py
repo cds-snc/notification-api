@@ -404,17 +404,18 @@ class TestBounceRates:
         ],
     )
     def test_ses_callback_should_add_redis_key_when_delivery_receipt_is_hard_bounce(
-        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype, notify_api
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
 
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
-        assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-        bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id, str(notification.id))
-        bounce_rate_client.set_sliding_notifications.assert_not_called()
+            bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id, str(notification.id))
+            bounce_rate_client.set_sliding_notifications.assert_not_called()
 
     @pytest.mark.parametrize(
         "bounce_subtype, expected_subtype",
@@ -427,17 +428,19 @@ class TestBounceRates:
         ],
     )
     def test_ses_callback_should_not_add_redis_keys_when_delivery_receipt_is_soft_bounce(
-        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype, notify_api
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
-        assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-        bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
-        bounce_rate_client.set_sliding_notifications.assert_not_called()
+            bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
+            bounce_rate_client.set_sliding_notifications.assert_not_called()
 
 
 class TestAnnualLimits:
