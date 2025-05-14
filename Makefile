@@ -42,6 +42,11 @@ format:
 	ruff format .
 	mypy ./
 
+.PHONY: generate-openapi generate-openapi-spec
+generate-openapi: generate-openapi-spec ## Generate OpenAPI spec in JSON and YAML formats (alias)
+generate-openapi-spec: ## Generate OpenAPI spec in JSON and YAML formats
+	python scripts/generate_openapi_spec.py
+
 .PHONY: smoke-test
 smoke-test:
 	cd tests_smoke && poetry run python smoke_test.py

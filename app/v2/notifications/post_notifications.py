@@ -91,7 +91,7 @@ from app.service.utils import safelisted_members
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
-from app.v2.notifications import v2_notification_blueprint
+from app.v2.notifications import models, notifications_namespace, v2_notification_blueprint
 from app.v2.notifications.create_response import (
     create_post_email_response_from_notification,
     create_post_letter_response_from_notification,
@@ -104,11 +104,25 @@ from app.v2.notifications.notification_schemas import (
     post_precompiled_letter_request,
     post_sms_request,
 )
+from app.v2.openapi.decorators import api_route, document_response
 
 TWENTY_FOUR_HOURS_S = 24 * 60 * 60
 
 
 @v2_notification_blueprint.route("/{}".format(LETTER_TYPE), methods=["POST"])
+@document_response
+@api_route(
+    namespace=notifications_namespace,
+    name="send_precompiled_letter_notification",
+    description="Send a precompiled letter notification",
+    model=None,
+    responses={
+        201: "Letter notification created successfully",
+        400: "Bad request",
+        401: "Authentication error",
+        403: "Forbidden",
+    },
+)
 def post_precompiled_letter_notification():
     if "content" not in (request.get_json() or {}):
         return post_notification(LETTER_TYPE)
@@ -156,6 +170,20 @@ def _seed_bounce_data(epoch_timestamp: int, service_id: str):
 
 # flake8: noqa: C901
 @v2_notification_blueprint.route("/bulk", methods=["POST"])
+@document_response
+@api_route(
+    namespace=notifications_namespace,
+    name="send_bulk_notifications",
+    description="Send bulk notifications",
+    model=models["bulk_request"],
+    responses={
+        201: f"Bulk notifications created successfully (model: {models['bulk_response']})",
+        400: "Bad request",
+        401: "Authentication error",
+        403: "Forbidden",
+        429: "Rate limit exceeded",
+    },
+)
 def post_bulk():
     try:
         request_json = request.get_json()
@@ -268,6 +296,20 @@ def post_bulk():
 
 
 @v2_notification_blueprint.route("/<notification_type>", methods=["POST"])
+@document_response
+@api_route(
+    namespace=notifications_namespace,
+    name="send_notification",
+    description="Send a notification. Use `/sms` for SMS, `/email` for email, or `/letter` for letter notifications.",
+    model=None,  # Will be determined in the handler based on notification_type
+    responses={
+        201: f"Notification created successfully. SMS: {models['sms_response']}, Email: {models['email_response']}",
+        400: "Bad request",
+        401: "Authentication error",
+        403: "Forbidden",
+        429: "Rate limit exceeded",
+    },
+)
 def post_notification(notification_type: NotificationType):
     try:
         request_json = request.get_json()
