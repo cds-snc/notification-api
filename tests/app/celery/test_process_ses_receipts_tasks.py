@@ -45,7 +45,8 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import MaxRetriesExceededError
 
 
-def test_process_ses_results(sample_email_template):
+def test_process_ses_results(sample_email_template, mocker):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     save_notification(
         create_notification(
             sample_email_template,
@@ -149,6 +150,7 @@ def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
 
 def test_ses_callback_should_update_notification_status_when_receiving_new_delivery_receipt(sample_email_template, mocker):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
     assert process_ses_results(ses_hard_bounce_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == "permanent-failure"
@@ -199,6 +201,7 @@ def test_ses_callback_should_give_up_after_max_tries(notify_db, mocker):
 def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     with freeze_time("2001-01-01T12:00:00"):
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
@@ -272,6 +275,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     bounce_subtype,
     provider_response,
 ):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     notification = create_sample_notification(
         notify_db,
@@ -305,6 +309,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
 def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db, notify_db_session, sample_email_template, mocker, bounce_subtype, provider_response
 ):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     notification = create_sample_notification(
         notify_db,
@@ -369,6 +374,7 @@ class TestBounceRates:
     def test_ses_callback_should_update_bounce_info_new_delivery_receipt_hard_bounce(
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
         assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
@@ -388,6 +394,7 @@ class TestBounceRates:
     def test_ses_callback_should_update_bounce_info_new_delivery_receipt_soft_bounce(
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
@@ -404,17 +411,18 @@ class TestBounceRates:
         ],
     )
     def test_ses_callback_should_add_redis_key_when_delivery_receipt_is_hard_bounce(
-        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype, notify_api
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
 
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
-        assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-        bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id, str(notification.id))
-        bounce_rate_client.set_sliding_notifications.assert_not_called()
+            bounce_rate_client.set_sliding_hard_bounce.assert_called_with(notification.service_id, str(notification.id))
+            bounce_rate_client.set_sliding_notifications.assert_not_called()
 
     @pytest.mark.parametrize(
         "bounce_subtype, expected_subtype",
@@ -427,17 +435,19 @@ class TestBounceRates:
         ],
     )
     def test_ses_callback_should_not_add_redis_keys_when_delivery_receipt_is_soft_bounce(
-        self, sample_email_template, mocker, bounce_subtype, expected_subtype
+        self, sample_email_template, mocker, bounce_subtype, expected_subtype, notify_api
     ):
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
-        assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-        bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
-        bounce_rate_client.set_sliding_notifications.assert_not_called()
+            bounce_rate_client.set_sliding_hard_bounce.assert_not_called()
+            bounce_rate_client.set_sliding_notifications.assert_not_called()
 
 
 class TestAnnualLimits:
@@ -538,7 +548,8 @@ class TestAnnualLimits:
                 sent_by="ses",
             )
         )
-        process_ses_results(callback(reference="ref"))
-        mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-        annual_limit_client.increment_email_delivered.assert_not_called()
-        annual_limit_client.increment_email_failed.assert_not_called()
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            process_ses_results(callback(reference="ref"))
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+            annual_limit_client.increment_email_delivered.assert_not_called()
+            annual_limit_client.increment_email_failed.assert_not_called()
