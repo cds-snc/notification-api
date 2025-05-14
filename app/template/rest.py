@@ -2,6 +2,7 @@ from datetime import datetime
 
 from flask import (
     Blueprint,
+    current_app,
     jsonify,
     request,
 )
@@ -259,6 +260,7 @@ def _template_has_not_changed(
         if any(current_data[key] != updated_template[key] for key in keys):
             return False
     except KeyError:
+        current_app.logger.exception('Missing expected template schema field.')
         return False
     return True
 

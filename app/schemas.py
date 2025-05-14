@@ -521,8 +521,6 @@ class NotificationModelSchema(BaseSchema):
 class BaseTemplateSchema(BaseSchema):
     reply_to = fields.Method('get_reply_to', allow_none=True, deserialize='set_reply_to')
     reply_to_text = fields.Method('get_reply_to_text', allow_none=True, deserialize='set_reply_to')
-    provider_id = field_for(models.Template, 'provider_id')
-    communication_item_id = field_for(models.Template, 'communication_item_id')
 
     def set_reply_to(self, obj):
         return str(obj)
@@ -546,6 +544,11 @@ class TemplateSchema(BaseTemplateSchema):
     process_type = field_for(models.Template, 'process_type')
     redact_personalisation = fields.Method('redact', allow_none=True, deserialize='set_redact')
 
+    # These fields corresponds to declared attributes of the model TemplateBase.  Unit tests
+    # fail if these fields are declared above as part of BaseTemplateSchema.
+    communication_item_id = field_for(models.Template, 'communication_item_id')
+    provider_id = field_for(models.Template, 'provider_id')
+
     def set_redact(self, obj):
         return bool(obj)
 
@@ -556,11 +559,7 @@ class TemplateSchema(BaseTemplateSchema):
         return template.redact_personalisation
 
     @validates('communication_item_id')
-    def validate_communication_item_id(
-        self,
-        value,
-        **kwargs,
-    ):
+    def validate_communication_item_id(self, value, **kwargs):
         if value is not None:
             try:
                 get_communication_item(value)
