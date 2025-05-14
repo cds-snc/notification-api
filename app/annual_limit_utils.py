@@ -6,7 +6,6 @@ from flask import current_app
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
-    annual_limit_notifications_v2_key,
 )
 from notifications_utils.decorators import requires_feature
 
@@ -63,6 +62,7 @@ def get_annual_limit_notifications_v2(service_id: UUID) -> dict:
             return data
 
 
+@requires_feature("REDIS_ENABLED")
 def get_annual_limit_notifications_v3(service_id: UUID) -> Tuple[dict, bool]:
     if not annual_limit_client.was_seeded_today(service_id):
         current_app.logger.info(f"[alimit-debug] Service {service_id} was not seeded.")
@@ -70,11 +70,15 @@ def get_annual_limit_notifications_v3(service_id: UUID) -> Tuple[dict, bool]:
         return (data, True)
     else:
         annual_data = annual_limit_client.get_all_notification_counts(service_id)
-        key = f"{annual_limit_notifications_v2_key(service_id)}"
-        email_fiscal = annual_limit_client._redis_client.get_hash_field(key, TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY)
+        email_fiscal = annual_limit_client._redis_client.get_hash_field(
+            annual_limit_client.annual_limit_notifications_v2_key(service_id), TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY
+        )
+        sms_fiscal = annual_limit_client._redis_client.get_hash_field(
+            annual_limit_client.annual_limit_notifications_v2_key(service_id), TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
+        )
 
         current_app.logger.info(f"[alimit-debug] service_id: {service_id} email_fiscal: {email_fiscal}")
-        if email_fiscal is not None:
+        if email_fiscal is not None and sms_fiscal is not None:
             current_app.logger.info(f"[alimit-debug] service {service_id} was seeded. annual_data: {annual_data}")
             return (annual_data, False)
         else:

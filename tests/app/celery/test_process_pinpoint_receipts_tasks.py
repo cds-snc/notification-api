@@ -66,7 +66,7 @@ def test_process_pinpoint_results_delivered(
     assert updated_notification.sms_carrier_name == "Bell"
     assert updated_notification.sms_message_encoding == "GSM"
     assert updated_notification.sms_origination_phone_number == origination_phone_number
-    mock_info_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
+    mock_info_logger.assert_called_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
 
 def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_db_session, mocker):
@@ -176,7 +176,7 @@ def test_process_pinpoint_results_failed(
     else:
         assert updated_notification.provider_response is None
 
-    mock_logger.assert_called_once_with(
+    mock_logger.assert_called_with(
         (
             f"Pinpoint delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
@@ -308,7 +308,7 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         notification = save_notification(
             create_notification(
@@ -341,7 +341,7 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         notification = save_notification(
             create_notification(
@@ -434,7 +434,6 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
         mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
 
         notification = save_notification(
@@ -446,11 +445,8 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
-            process_pinpoint_results(
-                callback(provider_response, reference="ref") if provider_response else callback(reference="ref")
-            )
-            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
-            annual_limit_client.increment_sms_failed.assert_not_called()
+        process_pinpoint_results(callback(provider_response, reference="ref") if provider_response else callback(reference="ref"))
+
+        mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
+        annual_limit_client.increment_sms_failed.assert_not_called()
