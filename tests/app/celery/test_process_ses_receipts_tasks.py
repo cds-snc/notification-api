@@ -201,6 +201,7 @@ def test_ses_callback_should_give_up_after_max_tries(notify_db, mocker):
 def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     with freeze_time("2001-01-01T12:00:00"):
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
@@ -308,6 +309,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
 def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db, notify_db_session, sample_email_template, mocker, bounce_subtype, provider_response
 ):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     notification = create_sample_notification(
         notify_db,

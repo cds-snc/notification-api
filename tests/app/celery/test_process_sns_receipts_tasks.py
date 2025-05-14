@@ -84,6 +84,7 @@ def test_process_sns_results_failed(
     should_log_warning,
     should_save_provider_response,
 ):
+    mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.warning")
 
