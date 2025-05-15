@@ -11,7 +11,9 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app.constants import EMAIL_TYPE, LETTER_TYPE, PINPOINT_PROVIDER, SES_PROVIDER, SMS_TYPE
 from app.dao.templates_dao import (
+    TemplateHistoryData,
     dao_create_template,
+    dao_get_template_by_id,
     dao_get_template_by_id_and_service_id,
     dao_get_all_templates_for_service,
     dao_update_template,
@@ -957,3 +959,63 @@ def test_template_with_provider_id_persists_provider_id(
     assert notify_db_session.session.get(Template, template.id).provider_id == provider.id
     # Teardown
     template_cleanup(notify_db_session.session, template.id)
+
+
+class TestDAOGetTemplateById:
+    def test_dao_get_template_by_id_with_no_version(
+        self,
+        sample_template: Callable[..., Any],
+    ):
+        template = sample_template()
+
+        result = dao_get_template_by_id(template.id)
+
+        assert result == template
+
+    def test_dao_get_template_by_id_with_specific_version(
+        self,
+        sample_template: Callable[..., Any],
+    ):
+        template = sample_template()
+
+        template.content = 'Updated content'
+        # This method has a @version_class which created another version in TemplatesHistory.
+        dao_update_template(template)
+
+        result = dao_get_template_by_id(template.id, version=1)
+
+        assert isinstance(result, TemplateHistoryData)
+        assert result.id == template.id
+        assert result.version == 1
+        assert result.content != 'Updated content'
+
+    def test_dao_get_template_by_id_with_invalid_version_returns_none(
+        self,
+        sample_template: Callable[..., Any],
+    ):
+        template = sample_template()
+
+        result = dao_get_template_by_id(template.id, version=99)
+
+        assert result is None
+
+    def test_dao_get_template_by_id_caching_behavior(
+        self,
+        notify_db_session: SQLAlchemy,
+        sample_template: Callable[..., Any],
+        mocker: MockerFixture,
+    ):
+        # Mock the cache to verify it's being used
+        db_spy = mocker.spy(notify_db_session.session, 'scalars')
+
+        template = sample_template()
+
+        # First call - should hit the database
+        result1 = dao_get_template_by_id(template.id, version=1)
+        assert db_spy.call_count == 1
+
+        # Second call - should use cached result, db call count does not increase
+        result2 = dao_get_template_by_id(template.id, version=1)
+        assert db_spy.call_count == 1
+
+        assert result1.id == result2.id

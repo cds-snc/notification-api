@@ -1,9 +1,9 @@
 import uuid
-from cachetools import cached, TTLCache
+
 from dataclasses import dataclass
 from datetime import datetime
 
-from notifications_utils.recipients import try_validate_and_format_phone_number
+from cachetools import TTLCache, cached
 from sqlalchemy import asc, desc, func, select, update
 
 from app import db
@@ -22,8 +22,39 @@ from app.models import (
 )
 from app.utils import generate_html_email_content
 
+from notifications_utils.recipients import try_validate_and_format_phone_number
 
 template_cache = TTLCache(maxsize=1024, ttl=600)  # Cache for 10 minutes
+
+
+@dataclass
+class TemplateHistoryData:
+    # TemplateHistory attributes
+    id: str
+    name: str
+    template_type: str
+    created_at: datetime
+    updated_at: datetime
+    content: str
+    service_id: str
+    subject: str | None
+    postage: str | None
+    created_by_id: str | None
+    version: int
+    archived: bool
+    process_type: str | None
+    service_letter_contact_id: str | None
+
+    # Additional attributes from TemplateBase
+    content_as_html: str | None = None
+    content_as_plain_text: str | None = None
+    hidden: bool = False
+    onsite_notification: bool = False
+    reply_to_email: str | None = None
+    provider_id: str | None = None
+    communication_item_id: str | None = None
+    redact_personalisation: bool = False
+    get_reply_to_text: str | None = None
 
 
 @dataclass
@@ -277,16 +308,50 @@ def dao_get_number_of_templates_by_service_id_and_name(
     return db.session.scalar(stmt)
 
 
+@cached(cache=TTLCache(maxsize=1024, ttl=600))
+def dao_get_template_history_by_id(template_id: str, version: str) -> TemplateHistoryData | None:
+    stmt = select(TemplateHistory).where(TemplateHistory.id == template_id, TemplateHistory.version == version)
+    template_history_object = db.session.scalars(stmt).first()
+
+    if template_history_object is None:
+        return None
+
+    return TemplateHistoryData(
+        id=template_history_object.id,
+        name=template_history_object.name,
+        template_type=template_history_object.template_type,
+        created_at=template_history_object.created_at,
+        updated_at=template_history_object.updated_at,
+        content=template_history_object.content,
+        service_id=template_history_object.service_id,
+        subject=template_history_object.subject,
+        postage=template_history_object.postage,
+        created_by_id=template_history_object.created_by_id,
+        version=template_history_object.version,
+        archived=template_history_object.archived,
+        process_type=template_history_object.process_type,
+        service_letter_contact_id=template_history_object.service_letter_contact_id,
+        content_as_html=template_history_object.content_as_html,
+        content_as_plain_text=template_history_object.content_as_plain_text,
+        hidden=template_history_object.hidden,
+        onsite_notification=template_history_object.onsite_notification,
+        reply_to_email=template_history_object.reply_to_email,
+        provider_id=template_history_object.provider_id,
+        communication_item_id=template_history_object.communication_item_id,
+        redact_personalisation=getattr(template_history_object, 'redact_personalisation', False),
+        get_reply_to_text=template_history_object.get_reply_to_text,
+    )
+
+
 def dao_get_template_by_id(
     template_id,
     version=None,
-) -> Template:
+) -> Template | TemplateHistoryData:
     if version is None:
         stmt = select(Template).where(Template.id == template_id)
+        return db.session.scalars(stmt).one()
     else:
-        stmt = select(TemplateHistory).where(TemplateHistory.id == template_id, TemplateHistory.version == version)
-
-    return db.session.scalars(stmt).one()
+        return dao_get_template_history_by_id(str(template_id), str(version))
 
 
 def dao_get_all_templates_for_service(

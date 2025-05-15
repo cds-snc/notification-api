@@ -417,6 +417,8 @@ def test_send_notification_to_queue_with_recipient_identifiers(
             'notification_type',
             'created_at',
             'template',
+            'template_id',
+            'template_version',
             'recipient_identifiers',
             'service_id',
             'reply_to_text',
@@ -430,6 +432,8 @@ def test_send_notification_to_queue_with_recipient_identifiers(
         notification_type=notification_type,
         created_at=datetime.datetime(1972, 11, 11, 16, 8, 18),
         template=template,
+        template_id=template.id,
+        template_version=template.version,
         recipient_identifiers={
             f'{request_recipient_id_type}': RecipientIdentifier(
                 notification_id=notification_id, id_type=request_recipient_id_type, id_value=request_recipient_id_value
