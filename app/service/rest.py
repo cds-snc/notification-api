@@ -205,15 +205,13 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
+    data = dao_fetch_live_services_data()
     return jsonify(data=data)
 
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["GET"])
