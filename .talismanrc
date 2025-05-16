@@ -5,8 +5,6 @@ fileignoreconfig:
   checksum: 0d0602d29851e4b485e231a1c101fdf3c7845951efd82bd966885d80204504d5
 - filename: app/feature_flags.py
   checksum: e6ffbab28f29de186ece73eda6602376e221e42d5bbfd8f25d9958dd3594e9af
-- filename: app/notifications/validators.py
-  checksum: 7c3f9574dd8096863b53927723fccc75f8c0a27c06a2da09b277fbc8af7ba9ef
 - filename: app/service/rest.py
   checksum: 5e350e4556b9c78c11e06d98da61a238d5a4f6a8e04cee0c557995007dd2aeaf
 - filename: app/v2/notifications/post_notifications.py
@@ -24,7 +22,9 @@ fileignoreconfig:
 - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
   checksum: 4e6e2fabf9630e9e0d26028818f41f34c065e80c223db34d35a1d1068c37a782
 - filename: poetry.lock
-  checksum: 60a02dc1165c3e23b5170b2be8f71aef767046be0bf8fc0e218e1d7ca0ba2e52
+  checksum: 12c7eba25edd93a17625bffdf468aea9c2d485599516e1ba5b9b34c2b17dc0c4
+- filename: app/notifications/validators.py
+  checksum: 7c3f9574dd8096863b53927723fccc75f8c0a27c06a2da09b277fbc8af7ba9ef
 - filename: tests/app/authentication/test_authentication.py
   checksum: f7091cd49ae042cb1a189d81e905c7595a822e5a6742624ed37a0ed7e1e05bb5
 - filename: tests/app/delivery/test_send_to_providers.py
