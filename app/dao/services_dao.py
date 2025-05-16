@@ -350,11 +350,7 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
         existing_service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).first()
 
         if not existing_service_user:
-            # Add user to service if not already present
-            service.users.append(user)
             permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
-            db.session.add(service)
-
             # Create ServiceUser explicitly
             service_user = ServiceUser(user_id=user.id, service_id=service.id)
             valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
