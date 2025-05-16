@@ -342,20 +342,33 @@ def dao_update_service(service):
 
 
 def dao_add_user_to_service(service, user, permissions=None, folder_permissions=None):
+    from app.dao.permissions_dao import permission_dao
+    from app.models import ServiceUser
+
     permissions = permissions or []
     folder_permissions = folder_permissions or []
 
     try:
-        from app.dao.permissions_dao import permission_dao
+        # Check if user is already part of the service
+        existing_service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).first()
 
-        service.users.append(user)
-        permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
-        db.session.add(service)
+        if not existing_service_user:
+            # Add user to service if not already present
+            service.users.append(user)
+            permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
+            db.session.add(service)
 
-        service_user = dao_get_service_user(user.id, service.id)
-        valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
-        service_user.folders = valid_template_folders
-        db.session.add(service_user)
+            # Create ServiceUser explicitly
+            service_user = ServiceUser(user_id=user.id, service_id=service.id)
+            valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
+            service_user.folders = valid_template_folders
+            db.session.add(service_user)
+        else:
+            # User already exists in service, just update permissions
+            permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
+            valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
+            existing_service_user.folders = valid_template_folders
+            db.session.add(existing_service_user)
 
     except Exception as e:
         db.session.rollback()
