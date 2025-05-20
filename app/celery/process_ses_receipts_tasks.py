@@ -8,7 +8,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_client
-from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
@@ -158,21 +158,19 @@ def process_notifications(
 def update_annual_limit_and_bounce_rate(
     receipt: SESReceipt, notification: Notification, aws_response_dict: Dict[str, Any]
 ) -> None:
-    ff_annual_limit = current_app.config["FF_ANNUAL_LIMIT"]
     new_status = aws_response_dict["notification_status"]
     is_success = aws_response_dict["success"]
     log_prefix = f"SES callback for notification {notification.id} reference {notification.reference} for service {notification.service_id}: "
     # Check if we have already seeded the annual limit counts for today, if we have we do not need to increment later on.
     # We seed AFTER updating the notification status, thus the current notification will already be counted.
-    if ff_annual_limit:
-        seeded_today = None
-        if not annual_limit_client.was_seeded_today(notification.service_id):
-            seeded_today = get_annual_limit_notifications_v2(notification.service_id)
+
+    _, did_we_seed = get_annual_limit_notifications_v3(notification.service_id)
+    current_app.logger.info(f"[alimit-debug] did_we_seed: {did_we_seed}, data: {_}")
 
     if not is_success:
         current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict["message"]}")
 
-        if ff_annual_limit and not seeded_today:
+        if not did_we_seed:
             annual_limit_client.increment_email_failed(notification.service_id)
             current_app.logger.info(
                 f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
@@ -184,7 +182,7 @@ def update_annual_limit_and_bounce_rate(
             )
         )
 
-        if ff_annual_limit and not seeded_today:
+        if not did_we_seed:
             annual_limit_client.increment_email_delivered(notification.service_id)
             current_app.logger.info(
                 f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
