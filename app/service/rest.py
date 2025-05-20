@@ -11,6 +11,7 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
+from psycopg2.errors import UniqueViolation
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -85,7 +86,7 @@ from app.dao.services_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
-from app.errors import CannotRemoveUserError, InvalidRequest, register_errors
+from app.errors import CannotRemoveUserError, InvalidRequest, UserAlreadyInServiceError, register_errors
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -466,8 +467,8 @@ def add_user_to_service(service_id, user_id):
     user = get_user_by_id(user_id=user_id)
 
     if user in service.users:
-        error = "User id: {} already part of service id: {}".format(user_id, service_id)
-        raise InvalidRequest(error, status_code=400)
+        current_app.logger.info("User id: {} already part of service id: {}".format(user_id, service_id))
+        raise UserAlreadyInServiceError(status_code=409)
 
     data = request.get_json()
     validate(data, post_set_permissions_schema)
@@ -475,9 +476,12 @@ def add_user_to_service(service_id, user_id):
     permissions = [Permission(service_id=service_id, user_id=user_id, permission=p["permission"]) for p in data["permissions"]]
     folder_permissions = data.get("folder_permissions", [])
 
-    # try:
-    dao_add_user_to_service(service, user, permissions, folder_permissions)
-    # except UniqueViolation:
+    try:
+        dao_add_user_to_service(service, user, permissions, folder_permissions)
+    except UniqueViolation:
+        current_app.logger.info(f"UniqueViolation: User id: {user_id} already part of service id: {service_id}")
+        raise UserAlreadyInServiceError(status_code=409)
+
     data = service_schema.dump(service)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
