@@ -46,14 +46,31 @@ class TestGetInboundNumbersForService:
 
 
 class TestSetInboundNumberOff:
-    def test_sets_inbound_number_active_flag_off(self, admin_request, mocker):
-        dao_set_inbound_number_active_flag = mocker.patch('app.inbound_number.rest.dao_set_inbound_number_active_flag')
+    def test_sets_inbound_number_active_flag_off(self, notify_db_session, admin_request, sample_inbound_number):
+        """
+        Test that the endpoint sets the active flag of an inbound number to False.
+        """
+        inbound_number = sample_inbound_number()
+        assert inbound_number.active
 
-        inbound_number_id = uuid.uuid4()
         admin_request.post(
-            'inbound_number.post_set_inbound_number_off', _expected_status=204, inbound_number_id=inbound_number_id
+            'inbound_number.post_set_inbound_number_off', _expected_status=204, inbound_number_id=inbound_number.id
         )
-        dao_set_inbound_number_active_flag.assert_called_with(inbound_number_id, active=False)
+        notify_db_session.session.refresh(inbound_number)
+        assert not inbound_number.active
+
+    def test_returns_400_when_inbound_number_does_not_exist(self, admin_request):
+        """
+        Test that the endpoint returns a 400 error when the inbound number does not exist.
+        """
+        non_existent_id = str(uuid.uuid4())
+        error_message = f'Inbound number with id {non_existent_id} does not exist'
+        response = admin_request.post(
+            'inbound_number.post_set_inbound_number_off', _expected_status=400, inbound_number_id=non_existent_id
+        )
+
+        assert response['result'] == 'error'
+        assert response['message'] == error_message
 
 
 @pytest.mark.serial

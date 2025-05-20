@@ -1,3 +1,4 @@
+import uuid
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import IntegrityError
 
@@ -9,7 +10,7 @@ from app.dao.inbound_numbers_dao import (
     dao_set_inbound_number_active_flag,
     dao_update_inbound_number,
 )
-from app.errors import register_errors
+from app.errors import register_errors, InvalidRequest
 from app.inbound_number.inbound_number_schema import (
     post_create_inbound_number_schema,
     post_update_inbound_number_schema,
@@ -81,8 +82,11 @@ def get_inbound_numbers_for_service(service_id):
 
 
 @inbound_number_blueprint.route('/<uuid:inbound_number_id>/off', methods=['POST'])
-def post_set_inbound_number_off(inbound_number_id):
-    dao_set_inbound_number_active_flag(inbound_number_id, active=False)
+def post_set_inbound_number_off(inbound_number_id: uuid.UUID):
+    try:
+        dao_set_inbound_number_active_flag(inbound_number_id, active=False)
+    except ValueError as e:
+        raise InvalidRequest(str(e), status_code=400)
     return jsonify(), 204
 
 

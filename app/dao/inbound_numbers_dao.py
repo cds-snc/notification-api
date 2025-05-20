@@ -1,3 +1,4 @@
+from uuid import UUID
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
@@ -21,10 +22,12 @@ def dao_get_inbound_numbers_for_service(service_id: str) -> List[InboundNumber]:
 
 @transactional
 def dao_set_inbound_number_active_flag(
-    inbound_number_id: str,
+    inbound_number_id: UUID,
     active: bool,
 ) -> None:
     inbound_number = db.session.get(InboundNumber, inbound_number_id)
+    if inbound_number is None:
+        raise ValueError(f'Inbound number with id {inbound_number_id} does not exist')
     inbound_number.active = active
 
     db.session.add(inbound_number)
