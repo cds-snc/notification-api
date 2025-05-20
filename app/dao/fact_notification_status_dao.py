@@ -196,7 +196,12 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
     )
     if filter_heartbeats:
         query = query.filter(
-            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
+            FactNotificationStatus.service_id.notin_(
+                [
+                    current_app.config["NOTIFY_SERVICE_ID"],
+                    current_app.config["HEARTBEAT_SERVICE_ID"],
+                ]
+            ),
         )
     return query.all()
 
