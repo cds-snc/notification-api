@@ -46,7 +46,8 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import MaxRetriesExceededError
 
 
-def test_process_ses_results(sample_email_template):
+def test_process_ses_results(sample_email_template, mocker):
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     refs = []
     for i in range(10):
         ref = f"ref{i}"
