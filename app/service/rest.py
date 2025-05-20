@@ -475,7 +475,9 @@ def add_user_to_service(service_id, user_id):
     permissions = [Permission(service_id=service_id, user_id=user_id, permission=p["permission"]) for p in data["permissions"]]
     folder_permissions = data.get("folder_permissions", [])
 
+    # try:
     dao_add_user_to_service(service, user, permissions, folder_permissions)
+    # except UniqueViolation:
     data = service_schema.dump(service)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
