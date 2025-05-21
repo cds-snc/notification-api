@@ -21,9 +21,20 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import Retry
 
 
-class SESMail(TypedDict):
-    """Structure of the 'mail' field in SES notification receipts"""
+class SESMailHeader(TypedDict):
+    name: str
+    value: str
 
+
+class SESMailCommonHeaders(TypedDict, total=False):
+    # 'from' is a reserved word, so use 'from_' and map as needed in code
+    from_: List[str]  # maps to 'from' in JSON
+    to: List[str]
+    messageId: str
+    subject: str
+
+
+class SESMail(TypedDict, total=False):
     timestamp: str
     source: str
     sourceArn: str
@@ -32,6 +43,10 @@ class SESMail(TypedDict):
     sendingAccountId: str
     messageId: str
     destination: List[str]
+    headersTruncated: bool
+    headers: List[SESMailHeader]
+    commonHeaders: SESMailCommonHeaders
+    tags: Dict[str, List[str]]
 
 
 class SESDelivery(TypedDict, total=False):
@@ -55,24 +70,42 @@ class SESBounce(TypedDict, total=False):
     feedbackId: str
 
 
+class SESComplaintRecipient(TypedDict):
+    emailAddress: str
+
+
 class SESComplaint(TypedDict, total=False):
     """Structure of the 'complaint' field in SES complaint notification receipts"""
 
-    complainedRecipients: List[Dict[str, str]]
+    complainedRecipients: List[SESComplaintRecipient]
     timestamp: str
     feedbackId: str
-    complaintSubType: str
+    userAgent: str
     complaintFeedbackType: str
+    arrivalDate: str
+    complaintSubType: str
 
 
-class SESReceipt(TypedDict):
+class SESReject(TypedDict, total=False):
+    reason: str
+
+
+class SESSend(TypedDict, total=False):
+    # SES send record has no documented fields, but allow for extension
+    pass
+
+
+class SESReceipt(TypedDict, total=False):
     """Structure of SES notification receipts"""
 
-    notificationType: str
+    eventType: str  # e.g., "Complaint", "Delivery", "Send", "Reject"
+    notificationType: str  # sometimes present instead of eventType
     mail: SESMail
     delivery: Optional[SESDelivery]
     bounce: Optional[SESBounce]
     complaint: Optional[SESComplaint]
+    reject: Optional[SESReject]
+    send: Optional[SESSend]
 
 
 def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[List[str], List[SESReceipt]]:
