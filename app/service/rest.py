@@ -467,8 +467,9 @@ def add_user_to_service(service_id, user_id):
     user = get_user_by_id(user_id=user_id)
 
     if user in service.users:
-        current_app.logger.info("User id: {} already part of service id: {}".format(user_id, service_id))
-        raise UserAlreadyInServiceError(status_code=409)
+        message = "User id: {} already part of service id: {}".format(user_id, service_id)
+        current_app.logger.info(message)
+        raise UserAlreadyInServiceError(status_code=409, message=message)
 
     data = request.get_json()
     validate(data, post_set_permissions_schema)
@@ -479,8 +480,9 @@ def add_user_to_service(service_id, user_id):
     try:
         dao_add_user_to_service(service, user, permissions, folder_permissions)
     except UniqueViolation:
-        current_app.logger.info(f"UniqueViolation: User id: {user_id} already part of service id: {service_id}")
-        raise UserAlreadyInServiceError(status_code=409)
+        message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
+        current_app.logger.info(message)
+        raise UserAlreadyInServiceError(status_code=409, message=message)
 
     data = service_schema.dump(service)
 

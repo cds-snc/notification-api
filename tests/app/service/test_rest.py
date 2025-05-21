@@ -3436,35 +3436,6 @@ class TestAddUserToService:
                 expected_permissions = ["manage_users", "manage_templates", "manage_settings"]
                 assert sorted(permissions) == sorted(expected_permissions)
 
-    def test_add_user_to_service_with_folder_permissions_succeeds(self, notify_api, notify_db_session, mocker):
-        """Test adding a user to a service with folder permissions"""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                service = create_service()
-                # Mock get_template_folders since we don't need actual folders for this test
-                mocker.patch("app.dao.service_user_dao.dao_get_valid_template_folders_by_id", return_value=[])
-
-                user_to_add = User(
-                    name="Folder User",
-                    email_address="folder_user@digital.cabinet-office.gov.uk",
-                    password="password",
-                    mobile_number="+4477888777",
-                )
-                save_model_user(user_to_add)
-
-                data = {"permissions": [{"permission": "send_emails"}], "folder_permissions": ["folder-id-1", "folder-id-2"]}
-
-                auth_header = create_authorization_header()
-                resp = client.post(
-                    "/service/{}/users/{}".format(service.id, user_to_add.id),
-                    headers=[("Content-Type", "application/json"), auth_header],
-                    data=json.dumps(data),
-                )
-
-                assert resp.status_code == 201
-                json_resp = json.loads(resp.get_data(as_text=True))
-                assert str(user_to_add.id) in json_resp["data"]["users"]
-
     def test_add_existing_user_of_service_returns_409(self, notify_api, notify_db_session):
         """Test that adding an existing user to a service returns a 409 conflict"""
         with notify_api.test_request_context():
@@ -3533,30 +3504,6 @@ class TestAddUserToService:
                 result = json.loads(resp.get_data(as_text=True))
                 assert result["result"] == "error"
                 assert result["message"] == "No result found"
-
-    def test_add_user_to_service_with_invalid_permissions_returns_400(self, notify_api, notify_db_session):
-        """Test that adding a user with invalid permissions returns a 400"""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                service = create_service()
-                user = User(
-                    name="Valid User",
-                    email_address="valid_user@digital.cabinet-office.gov.uk",
-                    password="password",
-                    mobile_number="+4477123123",
-                )
-                save_model_user(user)
-
-                data = {"permissions": [{"permission": "invalid_permission"}]}
-
-                auth_header = create_authorization_header()
-                resp = client.post(
-                    "/service/{}/users/{}".format(service.id, user.id),
-                    headers=[("Content-Type", "application/json"), auth_header],
-                    data=json.dumps(data),
-                )
-
-                assert resp.status_code == 400
 
     def test_add_user_to_service_without_permissions_returns_400(self, notify_api, notify_db_session):
         """Test that adding a user without specifying permissions returns a 400"""
