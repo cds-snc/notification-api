@@ -1,6 +1,9 @@
 name: Deploy to Env - API
 run-name: "Deploy API to ${{ inputs.environment }}"
 
+permissions:
+  actions: write
+
 on:
   workflow_dispatch:
     inputs:
