@@ -3367,7 +3367,7 @@ class TestAddUserToService:
                 # Create a user who is not part of the service
                 user_to_add = User(
                     name="New User",
-                    email_address="new_user@digital.cabinet-office.gov.uk",
+                    email_address="new_user@cds-snc.ca",
                     password="password",
                     mobile_number="+4477123456",
                 )
@@ -3399,7 +3399,7 @@ class TestAddUserToService:
                 service = create_service()
                 user_to_add = User(
                     name="Manager User",
-                    email_address="manager@digital.cabinet-office.gov.uk",
+                    email_address="manager@cds-snc.ca",
                     password="password",
                     mobile_number="+4477999888",
                 )
@@ -3463,7 +3463,7 @@ class TestAddUserToService:
             with notify_api.test_client() as client:
                 user = User(
                     name="Valid User",
-                    email_address="valid_user@digital.cabinet-office.gov.uk",
+                    email_address="valid_user@cds-snc.ca",
                     password="password",
                     mobile_number="+4477123123",
                 )
@@ -3512,7 +3512,7 @@ class TestAddUserToService:
                 service = create_service()
                 user = User(
                     name="Valid User",
-                    email_address="valid_user@digital.cabinet-office.gov.uk",
+                    email_address="valid_user@cds-snc.ca",
                     password="password",
                     mobile_number="+4477123123",
                 )
