@@ -1,5 +1,7 @@
 name: Datadog image update
 
+permissions: {} # no permissions needed
+
 on:
   workflow_dispatch:
     inputs:
