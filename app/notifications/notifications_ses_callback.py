@@ -197,6 +197,10 @@ def remove_emails_from_bounce(bounce_dict):
 
 def remove_emails_from_complaint(complaint_dict):
     remove_mail_headers(complaint_dict)
+    # If the complaint is because the email address is on the suppression list, there will be no
+    # complainedRecipients in the SES message from which we can get the email address.
+    if complaint_dict["complaint"].get("complaintSubType") == "OnAccountSuppressionList":
+        return None
     complaint_dict["complaint"].pop("complainedRecipients")
     return complaint_dict["mail"].pop("destination")
 

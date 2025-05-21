@@ -122,14 +122,20 @@ def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[L
     ref_ids = []
     complaint_free_messages = []
     current_app.logger.info(f"[batch-celery] - Received: {len(messages)} receipts from Lambda.. beginning processing")
+
     for message in messages:
         notification_type = message["notificationType"]
+
         if notification_type == "Complaint":
-            current_app.logger.info(f"[batch-celery] - Handling complaint: {message}")
-            _check_and_queue_complaint_callback_task(*handle_complaint(message))
+            try:
+                current_app.logger.info(f"[batch-celery] - Handling complaint: {message}")
+                _check_and_queue_complaint_callback_task(*handle_complaint(message))
+            except Exception as e:
+                current_app.logger.exception(f"Error processing complaint receipt: {message} - {e}")
         else:
             ref_ids.append(message["mail"]["messageId"])
             complaint_free_messages.append(message)
+
     current_app.logger.info(f"[batch-celery] - Complaints handled, processing: {len(complaint_free_messages)} remaining receipts")
     return ref_ids, complaint_free_messages
 
@@ -155,6 +161,7 @@ def categorize_receipts(
     for message in ses_messages:
         message_id = message["mail"]["messageId"]
         notification = notification_map.get(message_id)
+
         if notification:
             receipts_with_notification.append((message, notification))
         else:
@@ -169,6 +176,7 @@ def process_notifications(
     """Process notifications and update their statuses."""
     updates = []
     receipts_with_notification_and_aws_response_dict = []
+
     for message, notification in receipts_with_notification:
         aws_response_dict = get_aws_responses(message)
         new_status = aws_response_dict["notification_status"]
@@ -184,6 +192,7 @@ def process_notifications(
             )
         receipts_with_notification_and_aws_response_dict.append((message, notification, aws_response_dict))
         current_app.logger.info(f"[batch-celery] process_notifications - updates: {len(updates)}")
+
     notifications_dao._update_notification_statuses(updates)
     return receipts_with_notification_and_aws_response_dict
 
@@ -263,6 +272,8 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
             return True
 
         notifications = fetch_notifications(ref_ids)
+
+        # When none of the notification from the receipt batch are found, then retry all of them.
         if notifications is None:
             handle_retries(self, ses_messages)
             return None
