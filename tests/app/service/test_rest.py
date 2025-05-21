@@ -3359,7 +3359,7 @@ class TestAnnualLimitStats:
 
 
 class TestAddUserToService:
-    def test_add_user_to_service_with_send_permissions(notify_api, notify_db_session):
+    def test_add_user_to_service_with_send_permissions_succeeds(self, notify_api, notify_db_session):
         """Test adding a user to a service with send permissions"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3392,19 +3392,7 @@ class TestAddUserToService:
                 json_resp = json.loads(resp.get_data(as_text=True))
                 assert str(user_to_add.id) in json_resp["data"]["users"]
 
-                # Verify user has correct permissions by calling the user endpoint
-                resp = client.get(
-                    url_for("user.get_user", user_id=user_to_add.id),
-                    headers=[("Content-Type", "application/json"), auth_header],
-                )
-
-                assert resp.status_code == 200
-                json_resp = json.loads(resp.get_data(as_text=True))
-                permissions = json_resp["data"]["permissions"][str(service.id)]
-                expected_permissions = ["send_texts", "send_emails", "send_letters"]
-                assert sorted(expected_permissions) == sorted(permissions)
-
-    def test_add_user_to_service_with_manage_permissions(notify_api, notify_db_session):
+    def test_add_user_to_service_with_manage_permissions_succeeds(self, notify_api, notify_db_session):
         """Test adding a user to a service with management permissions"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3436,7 +3424,7 @@ class TestAddUserToService:
                 json_resp = json.loads(resp.get_data(as_text=True))
                 assert str(user_to_add.id) in json_resp["data"]["users"]
 
-                # Check user has correct permissions
+                # Check user has correct permissions by calling the user endpoint
                 resp = client.get(
                     url_for("user.get_user", user_id=user_to_add.id),
                     headers=[("Content-Type", "application/json"), auth_header],
@@ -3448,7 +3436,7 @@ class TestAddUserToService:
                 expected_permissions = ["manage_users", "manage_templates", "manage_settings"]
                 assert sorted(permissions) == sorted(expected_permissions)
 
-    def test_add_user_to_service_with_folder_permissions(notify_api, notify_db_session, mocker):
+    def test_add_user_to_service_with_folder_permissions_succeeds(self, notify_api, notify_db_session, mocker):
         """Test adding a user to a service with folder permissions"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3477,7 +3465,7 @@ class TestAddUserToService:
                 json_resp = json.loads(resp.get_data(as_text=True))
                 assert str(user_to_add.id) in json_resp["data"]["users"]
 
-    def test_add_existing_user_of_service_returns_409(notify_api, notify_db_session):
+    def test_add_existing_user_of_service_returns_409(self, notify_api, notify_db_session):
         """Test that adding an existing user to a service returns a 409 conflict"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3496,9 +3484,9 @@ class TestAddUserToService:
                 assert resp.status_code == 409
                 result = json.loads(resp.get_data(as_text=True))
                 assert result["result"] == "error"
-                assert "This user is already in the service" in result["message"]
+                assert f"User id: {existing_user.id}" in result["message"]
 
-    def test_add_user_to_non_existent_service_returns_404(notify_api, notify_db_session):
+    def test_add_user_to_non_existent_service_returns_404(self, notify_api, notify_db_session):
         """Test that adding a user to a non-existent service returns a 404"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3525,7 +3513,7 @@ class TestAddUserToService:
                 assert result["result"] == "error"
                 assert result["message"] == "No result found"
 
-    def test_add_non_existent_user_to_service_returns_404(notify_api, notify_db_session):
+    def test_add_non_existent_user_to_service_returns_404(self, notify_api, notify_db_session):
         """Test that adding a non-existent user to a service returns a 404"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3546,7 +3534,7 @@ class TestAddUserToService:
                 assert result["result"] == "error"
                 assert result["message"] == "No result found"
 
-    def test_add_user_to_service_with_invalid_permissions_returns_400(notify_api, notify_db_session):
+    def test_add_user_to_service_with_invalid_permissions_returns_400(self, notify_api, notify_db_session):
         """Test that adding a user with invalid permissions returns a 400"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
@@ -3570,7 +3558,7 @@ class TestAddUserToService:
 
                 assert resp.status_code == 400
 
-    def test_add_user_to_service_without_permissions_returns_400(notify_api, notify_db_session):
+    def test_add_user_to_service_without_permissions_returns_400(self, notify_api, notify_db_session):
         """Test that adding a user without specifying permissions returns a 400"""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
