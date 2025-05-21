@@ -4064,6 +4064,17 @@ files = [
 ]
 
 [[package]]
+name = "types-psycopg2"
+version = "2.9.21.20250516"
+description = "Typing stubs for psycopg2"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_psycopg2-2.9.21.20250516-py3-none-any.whl", hash = "sha256:2a9212d1e5e507017b31486ce8147634d06b85d652769d7a2d91d53cb4edbd41"},
+    {file = "types_psycopg2-2.9.21.20250516.tar.gz", hash = "sha256:6721018279175cce10b9582202e2a2b4a0da667857ccf82a97691bdb5ecd610f"},
+]
+
+[[package]]
 name = "types-pyopenssl"
 version = "24.1.0.20240722"
 description = "Typing stubs for pyOpenSSL"
@@ -4552,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "f0a017ed297a6866f956ca1284d8e894ce4802749e046b72708a26fb7a23f90f"
+content-hash = "e862114fb35d14098d09c82b73c7d89d32b70b6e0585bdf7df828006f164ed97"
