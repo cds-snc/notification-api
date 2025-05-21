@@ -2,13 +2,14 @@ from flask import Blueprint, jsonify, request
 
 from app.schemas import provider_details_schema, provider_details_history_schema
 from app.dao.provider_details_dao import (
-    get_provider_details_by_id,
     dao_update_provider_details,
     dao_get_provider_stats,
     dao_get_provider_versions,
 )
 from app.dao.users_dao import get_user_by_id
+from app.db import db
 from app.errors import register_errors, InvalidRequest
+from app.models import ProviderDetails
 
 provider_details = Blueprint('provider_details', __name__)
 register_errors(provider_details)
@@ -40,7 +41,8 @@ def get_providers():
 
 @provider_details.route('/<uuid:provider_details_id>', methods=['GET'])
 def get_provider_by_id(provider_details_id):
-    data = provider_details_schema.dump(get_provider_details_by_id(provider_details_id))
+    provider = db.session.get(ProviderDetails, provider_details_id)
+    data = provider_details_schema.dump(provider)
     return jsonify(provider_details=data)
 
 
@@ -62,7 +64,7 @@ def update_provider_details(provider_details_id):
         errors = {key: [message] for key in invalid_keys}
         raise InvalidRequest(errors, status_code=400)
 
-    provider = get_provider_details_by_id(provider_details_id)
+    provider = db.session.get(ProviderDetails, provider_details_id)
 
     # Handle created_by differently due to how history entry is created
     if 'created_by' in req_json:

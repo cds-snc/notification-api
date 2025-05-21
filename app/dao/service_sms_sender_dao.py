@@ -194,10 +194,8 @@ def _validate_provider(provider_id: UUID) -> ProviderDetails:
     Raises:
         SmsSenderProviderValidationException: If the provider doesn't exist.
     """
-    # this causes a circular import, so it's being imported here...
-    from app.dao.provider_details_dao import get_provider_details_by_id
 
-    provider_details = get_provider_details_by_id(provider_id)
+    provider_details = db.session.get(ProviderDetails, provider_id)
 
     if provider_details is None:
         raise SmsSenderProviderValidationException(f'No provider details found for id {provider_id}')

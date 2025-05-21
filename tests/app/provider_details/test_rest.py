@@ -11,7 +11,7 @@ def test_get_provider_details_returns_information_about_providers(client, notify
     mocker.patch('app.provider_details.rest.dao_get_provider_stats', return_value=mocked_provider_stats)
     response = client.get('/provider-details', headers=[create_admin_authorization_header()])
     assert response.status_code == 200
-    json_resp = json.loads(response.get_data(as_text=True))['provider_details']
+    json_resp = response.get_json()['provider_details']
 
     assert len(json_resp) == len(mocked_provider_stats)
 
@@ -36,13 +36,13 @@ def test_get_provider_details_by_id(
 
     # Leaving all these get calls for now, even though we could reference the sample_provider's return
     response = client.get('/provider-details', headers=[create_admin_authorization_header()])
-    json_resp = json.loads(response.get_data(as_text=True))['provider_details']
+    json_resp = response.get_json()['provider_details']
 
     provider_resp = client.get(
         '/provider-details/{}'.format(json_resp[0]['id']), headers=[create_admin_authorization_header()]
     )
 
-    provider = json.loads(provider_resp.get_data(as_text=True))['provider_details']
+    provider = provider_resp.get_json()['provider_details']
     assert provider['identifier'] == json_resp[0]['identifier']
 
 
@@ -58,7 +58,7 @@ def test_get_provider_contains_correct_fields(
 
     sample_provider()
     response = client.get('/provider-details', headers=[create_admin_authorization_header()])
-    json_resp = json.loads(response.get_data(as_text=True))['provider_details']
+    json_resp = response.get_json()['provider_details']
     allowed_keys = {
         'id',
         'created_by_name',
@@ -84,12 +84,12 @@ class TestUpdate:
         provider = sample_provider()
 
         update_resp = client.post(
-            '/provider-details/{}'.format(provider.id),
+            f'/provider-details/{provider.id}',
             headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({'priority': 5}),
         )
         assert update_resp.status_code == 200
-        update_json = json.loads(update_resp.get_data(as_text=True))['provider_details']
+        update_json = update_resp.get_json()['provider_details']
         assert update_json['identifier'] == provider.identifier
         assert update_json['priority'] == 5
         assert provider.priority == 5
@@ -107,7 +107,7 @@ class TestUpdate:
             data=json.dumps({'active': False}),
         )
         assert update_resp_1.status_code == 200
-        update_resp_1 = json.loads(update_resp_1.get_data(as_text=True))['provider_details']
+        update_resp_1 = update_resp_1.get_json()['provider_details']
         assert update_resp_1['identifier'] == provider.identifier
         assert not update_resp_1['active']
         assert not provider.active
@@ -127,7 +127,7 @@ class TestUpdate:
             headers=[('Content-Type', 'application/json'), create_admin_authorization_header()],
             data=json.dumps({field: value}),
         )
-        resp_json = json.loads(resp.get_data(as_text=True))
+        resp_json = resp.get_json()
 
         assert resp_json['message'][field][0] == 'Not permitted to be updated'
         assert resp_json['result'] == 'error'
@@ -149,7 +149,7 @@ class TestUpdate:
             data=json.dumps({'created_by': user_update.id, 'active': False}),
         )
         assert update_resp_1.status_code == 200
-        update_resp_1 = json.loads(update_resp_1.get_data(as_text=True))['provider_details']
+        update_resp_1 = update_resp_1.get_json()['provider_details']
         assert update_resp_1['identifier'] == provider.identifier
         assert not update_resp_1['active']
         assert not provider.active
@@ -167,7 +167,7 @@ class TestUpdate:
             data=json.dumps({'load_balancing_weight': 333}),
         )
         assert update_resp_1.status_code == 200
-        update_resp_1 = json.loads(update_resp_1.get_data(as_text=True))['provider_details']
+        update_resp_1 = update_resp_1.get_json()['provider_details']
         assert update_resp_1['identifier'] == provider.identifier
         assert provider.load_balancing_weight == 333
 
@@ -181,7 +181,7 @@ def test_get_provider_versions_contains_correct_fields(
         '/provider-details/{}/versions'.format(provider.id), headers=[create_admin_authorization_header()]
     )
 
-    json_resp = json.loads(response.get_data(as_text=True))['data']
+    json_resp = response.get_json()['data']
     allowed_keys = {
         'id',
         'created_by',

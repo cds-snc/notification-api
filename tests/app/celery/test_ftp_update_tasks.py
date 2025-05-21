@@ -12,7 +12,6 @@ from app.celery.tasks import (
     process_updates_from_file,
     record_daily_sorted_counts,
     update_letter_notifications_statuses,
-    update_letter_notifications_to_sent_to_dvla,
 )
 from app.constants import LETTER_TYPE, NOTIFICATION_CREATED, NOTIFICATION_DELIVERED, NOTIFICATION_SENDING
 from app.dao.daily_sorted_letter_dao import dao_get_daily_sorted_letter_by_billing_day
@@ -96,30 +95,6 @@ def test_update_letter_notifications_statuses_builds_updates_list(notify_api, mo
     assert updates[1].status == 'Sent'
     assert updates[1].page_count == '2'
     assert updates[1].cost_threshold == 'Sorted'
-
-
-# Downstream code fails to get a provider for letter notifications, which aren't being sent.  Decline to fix.
-@pytest.mark.skip(reason="AttributeError: 'NoneType' object has no attribute 'identifier'")
-def test_update_letter_notifications_to_sent_to_dvla_updates_based_on_notification_references(
-    client,
-    sample_template,
-    sample_notification,
-):
-    template = sample_template(template_type=LETTER_TYPE)
-    first = sample_notification(template=template, reference='first ref')
-    second = sample_notification(template=template, reference='second ref')
-    assert first.reference == 'first ref'
-    assert second.reference == 'second ref'
-
-    dt = datetime.utcnow()
-    with freeze_time(dt):
-        update_letter_notifications_to_sent_to_dvla([first.reference])
-
-    assert first.status == NOTIFICATION_SENDING
-    assert first.sent_by == 'dvla'
-    assert first.sent_at == dt
-    assert first.updated_at == dt
-    assert second.status == NOTIFICATION_CREATED
 
 
 @pytest.mark.parametrize(

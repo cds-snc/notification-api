@@ -28,7 +28,7 @@ fileignoreconfig:
 - filename: tests/app/authentication/test_authentication.py
   checksum: f7091cd49ae042cb1a189d81e905c7595a822e5a6742624ed37a0ed7e1e05bb5
 - filename: tests/app/delivery/test_send_to_providers.py
-  checksum: 7db1b20912c3f7a5cb366eb143cace80bfb406ca1af844e11022747e7311aea5
+  checksum: 760da11876b82b4401f5b5ddec998f3b5756209984e49591c352c49cd7b83d27
 - filename: tests/app/notifications/test_validators.py
   checksum: 9dab7e3890137b515bf84f9ea587d79dbd5e63568ff9a72c3a404f7738c0b329
 - filename: tests/app/service/test_rest.py

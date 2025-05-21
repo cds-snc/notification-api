@@ -19,20 +19,10 @@ from app.constants import (
     SMS_TYPE,
 )
 from app.dao.notifications_dao import dao_update_notification
-from app.dao.provider_details_dao import (  # noqa F401
-    # This function isn't used in this module, but importing it here is still necessary because
-    # a unit test patches it.
-    dao_toggle_sms_provider,
-    get_provider_details_by_id,
-    get_provider_details_by_notification_type,
-)
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import InactiveServiceException, InvalidProviderException, NotificationTechnicalFailureException
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.models import (
-    Notification,
-    ProviderDetails,
-)
+from app.models import Notification, ProviderDetails
 from app.service.utils import compute_source_email_address
 from app.utils import create_uuid, get_html_email_options
 
@@ -60,6 +50,8 @@ def send_sms_to_provider(
 
     # This is an instance of one of the classes defined in app/clients/.
     client = client_to_use(notification)
+    if client is None:
+        raise RuntimeError(f'Could not find a client for notification {notification.id}.')
 
     template_model = dao_get_template_by_id(notification.template_id, notification.template_version)
 
@@ -74,7 +66,6 @@ def send_sms_to_provider(
         notification.reference = create_uuid()
         update_notification_to_sending(notification, client)
         send_sms_response(client.get_name(), str(notification.id), notification.to, notification.reference)
-
     else:
         try:
             # Send a SMS message using the "to" attribute to specify the recipient.
@@ -87,10 +78,10 @@ def send_sms_to_provider(
                 sms_sender_id=sms_sender_id,
                 created_at=notification.created_at,
             )
-        except Exception as e:
+        except Exception:
             notification.billable_units = template.fragment_count
             dao_update_notification(notification)
-            raise e
+            raise
 
         notification.billable_units = template.fragment_count
         notification.reference = reference
@@ -197,21 +188,6 @@ def update_notification_to_sending(
     dao_update_notification(notification)
 
 
-# TODO: remove this when provider strategy implemented
-def should_use_provider(provider):
-    return provider.active
-
-
-def load_provider(provider_id: str) -> ProviderDetails:
-    provider_details = get_provider_details_by_id(provider_id)
-    if provider_details is None:
-        raise InvalidProviderException(f'provider {provider_id} could not be found')
-    elif not provider_details.active:
-        raise InvalidProviderException(f'provider {provider_id} is not active')
-    else:
-        return provider_details
-
-
 def client_to_use(notification: Notification) -> Client | None:
     """Return a subclass of Client to process a notification.
 
@@ -227,39 +203,8 @@ def client_to_use(notification: Notification) -> Client | None:
     """
 
     try:
-        # This is True in all environments - Will need unit tests rebuilt if we intend to use priority again.
-        if is_feature_enabled(FeatureFlag.PROVIDER_STRATEGIES_ENABLED):
-            provider = provider_service.get_provider(notification)
-            return clients.get_client_by_name_and_type(provider.identifier, notification.notification_type)
-
-        # This code is unreachable so long as PROVIDER_STRATEGIES_ENABLED is enabled for all environments
-        if is_feature_enabled(FeatureFlag.TEMPLATE_SERVICE_PROVIDERS_ENABLED):
-            provider_id = get_provider_id(notification)
-
-            if provider_id:
-                return clients.get_client_by_name_and_type(
-                    load_provider(provider_id).identifier, notification.notification_type
-                )
-
-        # This is a list of ProviderDetails instances sorted by their "priority" attribute.
-        active_providers_in_order = [
-            p
-            for p in get_provider_details_by_notification_type(
-                notification.notification_type, notification.international
-            )
-            if should_use_provider(p)
-        ]
-
-        if not active_providers_in_order:
-            current_app.logger.error(
-                '%s %s failed as no active providers', notification.notification_type, notification.id
-            )
-            raise RuntimeError(f'No active {notification.notification_type} providers')
-
-        # This returns an instance of one of the classes defined in app/clients/.
-        return clients.get_client_by_name_and_type(
-            active_providers_in_order[0].identifier, notification.notification_type
-        )
+        provider = provider_service.get_provider(notification)
+        return clients.get_client_by_name_and_type(provider.identifier, notification.notification_type)
     except ValueError:
         current_app.logger.exception("Couldn't retrieve a client for the given provider.")
         raise

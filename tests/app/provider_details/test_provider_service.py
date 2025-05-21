@@ -3,99 +3,12 @@ import pytest
 from app.exceptions import InvalidProviderException
 from app.models import Notification, ProviderDetails, Template, Service
 from app.notifications.notification_type import NotificationType
-from app.provider_details.provider_selection_strategy_interface import ProviderSelectionStrategyInterface
 from app.provider_details.provider_service import ProviderService
 
 
-class ExampleStrategyOne(ProviderSelectionStrategyInterface):
-    @staticmethod
-    def get_label() -> str:
-        return 'EXAMPLE_STRATEGY_ONE'
-
-    @staticmethod
-    def validate(notification_type: NotificationType):
-        pass
-
-    @staticmethod
-    def get_provider(notification: Notification) -> ProviderDetails:
-        pass
-
-
-class ExampleStrategyTwo(ProviderSelectionStrategyInterface):
-    @staticmethod
-    def get_label() -> str:
-        return 'EXAMPLE_STRATEGY_TWO'
-
-    @staticmethod
-    def validate(notification_type: NotificationType):
-        pass
-
-    @staticmethod
-    def get_provider(notification: Notification) -> ProviderDetails:
-        pass
-
-
-@pytest.fixture
-def provider_service():
-    provider_service = ProviderService()
-    provider_service.init_app(
-        email_provider_selection_strategy_label='EXAMPLE_STRATEGY_ONE',
-        sms_provider_selection_strategy_label='EXAMPLE_STRATEGY_TWO',
-    )
-
-    assert provider_service.strategies[NotificationType.EMAIL] == ExampleStrategyOne
-    assert provider_service.strategies[NotificationType.SMS] == ExampleStrategyTwo
-
-    return provider_service
-
-
-class TestInitApp:
-    def test_fails_to_initialise_with_unknown_email_strategy(self):
-        provider_service = ProviderService()
-
-        with pytest.raises(Exception):
-            provider_service.init_app(
-                email_provider_selection_strategy_label='UNKNOWN_EMAIL_STRATEGY',
-                sms_provider_selection_strategy_label='EXAMPLE_STRATEGY_TWO',
-            )
-
-    def test_fails_to_initialise_with_unknown_sms_strategy(self):
-        provider_service = ProviderService()
-
-        with pytest.raises(Exception):
-            provider_service.init_app(
-                email_provider_selection_strategy_label='EXAMPLE_STRATEGY_ONE',
-                sms_provider_selection_strategy_label='UNKNOWN_SMS_STRATEGY',
-            )
-
-
-class TestValidateStrategies:
-    def test_passes_if_all_strategies_valid(self, mocker, provider_service):
-        for _, strategy in provider_service.strategies.items():
-            mocker.patch.object(strategy, 'validate', side_effect=None)
-
-        provider_service.validate_strategies()
-
-        for notification_type, strategy in provider_service.strategies.items():
-            strategy.validate.assert_called_with(notification_type)
-
-    def test_fails_if_email_strategy_is_not_valid(self, mocker, provider_service):
-        email_strategy = provider_service.strategies[NotificationType.EMAIL]
-        mocker.patch.object(email_strategy, 'validate', side_effect=Exception)
-
-        with pytest.raises(Exception):
-            provider_service.validate_strategies()
-
-    def test_fails_if_sms_strategy_is_not_valid(self, mocker, provider_service):
-        sms_strategy = provider_service.strategies[NotificationType.SMS]
-        mocker.patch.object(sms_strategy, 'validate', side_effect=Exception)
-
-        with pytest.raises(Exception):
-            provider_service.validate_strategies()
-
-
 class TestGetProvider:
-    def test_returns_template_provider(self, client, mocker, provider_service):
+    def test_returns_template_provider(self, notify_api, mocker):
+        provider_service = ProviderService()
         template_with_provider = mocker.Mock(Template, provider_id='some-id')
 
         mock_notification = mocker.Mock(Notification, template=template_with_provider)
@@ -109,7 +22,8 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with('some-id')
 
-    def test_raises_exception_if_template_provider_is_inactive(self, client, mocker, provider_service):
+    def test_raises_exception_if_template_provider_is_inactive(self, notify_api, mocker):
+        provider_service = ProviderService()
         template_with_provider = mocker.Mock(Template, provider_id='some-id')
 
         mock_notification = mocker.Mock(Notification, template=template_with_provider)
@@ -124,7 +38,8 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with('some-id')
 
-    def test_raises_exception_if_template_provider_cannot_be_found(self, client, mocker, provider_service):
+    def test_raises_exception_if_template_provider_cannot_be_found(self, notify_api, mocker):
+        provider_service = ProviderService()
         template_with_provider = mocker.Mock(Template, provider_id='some-id')
 
         mock_notification = mocker.Mock(Notification, template=template_with_provider)
@@ -143,8 +58,9 @@ class TestGetProvider:
         [(NotificationType.EMAIL.value, 'email-provider-id'), (NotificationType.SMS.value, 'sms-provider-id')],
     )
     def test_returns_service_provider_for_notification_type_if_no_template_provider(
-        self, client, mocker, provider_service, notification_type, expected_provider_id
+        self, notify_api, mocker, notification_type, expected_provider_id
     ):
+        provider_service = ProviderService()
         template_without_provider = mocker.Mock(Template, provider_id=None)
 
         service_with_providers = mocker.Mock(
@@ -167,29 +83,6 @@ class TestGetProvider:
 
         mock_get_provider_details.assert_called_with(expected_provider_id)
 
-    def test_uses_strategy_for_notification_type_when_no_template_or_service_providers_email(
-        self, client, mocker, provider_service
-    ):
-        """
-        For e-mail notifications that do not have a provider_id associated with the template or
-        the service, ensure the fallback logic executes.
-        """
-
-        template_without_provider = mocker.Mock(Template, provider_id=None)
-        service_without_providers = mocker.Mock(Service, email_provider_id=None, sms_provider_id=None)
-
-        provider = mocker.Mock()
-        mocker.patch.object(ExampleStrategyOne, 'get_provider', return_value=provider)
-
-        notification = mocker.Mock(
-            notification_type=NotificationType.EMAIL,
-            template=template_without_provider,
-            service=service_without_providers,
-        )
-
-        assert provider_service.get_provider(notification) == provider
-        ExampleStrategyOne.get_provider.assert_called_with(notification)
-
     @pytest.mark.parametrize(
         'notification_type, template_provider_id, service_provider_id, expected_id',
         [
@@ -204,7 +97,7 @@ class TestGetProvider:
         ],
     )
     def test_get_template_or_service_provider_id(
-        self, client, mocker, notification_type, template_provider_id, service_provider_id, expected_id
+        self, notify_api, mocker, notification_type, template_provider_id, service_provider_id, expected_id
     ):
         """
         Test the static method ProviderService._get_template_or_service_provider_id.
@@ -218,14 +111,13 @@ class TestGetProvider:
 
         assert ProviderService._get_template_or_service_provider_id(notification) == expected_id
 
-    def test_no_strategy_for_notification_type_when_no_template_or_service_providers_sms(
-        self, client, mocker, provider_service
-    ):
+    def test_no_strategy_for_notification_type_when_no_template_or_service_providers_sms(self, notify_api, mocker):
         """
         For SMS messages, there is no fallback method if neither the notification's template
         nor the notification's service has an associated provider_id.
         """
 
+        provider_service = ProviderService()
         template_without_provider = mocker.Mock(Template, provider_id=None)
         service_without_providers = mocker.Mock(Service, email_provider_id=None, sms_provider_id=None)
 
@@ -241,15 +133,13 @@ class TestGetProvider:
     @pytest.mark.parametrize('notification_type', [NotificationType.EMAIL, NotificationType.SMS])
     def test_raises_exception_when_strategy_cannot_find_suitable_provider(
         self,
-        client,
+        notify_api,
         mocker,
-        provider_service,
         notification_type,
     ):
+        provider_service = ProviderService()
         template_without_provider = mocker.Mock(Template, provider_id=None)
         service_without_providers = mocker.Mock(Service, email_provider_id=None, sms_provider_id=None)
-
-        mocker.patch.object(provider_service.strategies[notification_type], 'get_provider', return_value=None)
 
         notification = mocker.Mock(
             notification_type=notification_type, template=template_without_provider, service=service_without_providers

@@ -46,7 +46,6 @@ from app.dao.notifications_dao import (
     update_notification_status_by_reference,
     dao_get_notification_history_by_reference,
 )
-from app.dao.provider_details_dao import get_current_provider
 from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_id,
     dao_get_service_sms_sender_by_service_id_and_number,
@@ -344,31 +343,6 @@ def save_letter(
         current_app.logger.debug('Letter %s created at %s', saved_notification.id, saved_notification.created_at)
     except SQLAlchemyError as e:
         handle_exception(self, notification, notification_id, e)
-
-
-@notify_celery.task(bind=True, name='update-letter-notifications-to-sent')
-@statsd(namespace='tasks')
-def update_letter_notifications_to_sent_to_dvla(
-    self,
-    notification_references,
-):
-    """
-    The FTP app calls this task to update notifications as sent to DVLA.
-    """
-
-    provider = get_current_provider(LETTER_TYPE)
-
-    updated_count, _ = dao_update_notifications_by_reference(
-        notification_references,
-        {
-            'status': NOTIFICATION_SENDING,
-            'sent_by': provider.identifier,
-            'sent_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
-        },
-    )
-
-    current_app.logger.info('Updated %s letter notifications to sending', updated_count)
 
 
 def handle_exception(

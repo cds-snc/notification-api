@@ -272,6 +272,18 @@ class Organisation(db.Model):
         }
 
 
+@dataclass
+class ProviderDetailsData:
+    """
+    Used for caching a ProviderDetails instance.
+    """
+
+    active: bool
+    display_name: str
+    identifier: str
+    notification_type: str
+
+
 class ProviderDetails(db.Model):
     __tablename__ = 'provider_details'
     NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
@@ -546,12 +558,11 @@ class ServiceSmsSender(db.Model):
         return try_validate_and_format_phone_number(self.sms_sender)
 
     def serialize(self) -> dict[str, bool | int | str | None]:
-        provider_name = None
+        provider = None
         if self.provider_id:
             from app.dao.provider_details_dao import get_provider_details_by_id  # Lazy import to avoid circular import
 
             provider = get_provider_details_by_id(self.provider_id)
-            provider_name = provider.display_name if provider else None
         return {
             'id': str(self.id) if self.id else None,
             'is_default': self.is_default,
@@ -559,7 +570,7 @@ class ServiceSmsSender(db.Model):
             'sms_sender': self.sms_sender,
             'inbound_number_id': str(self.inbound_number_id) if self.inbound_number_id else None,
             'provider_id': str(self.provider_id) if self.provider_id else None,
-            'provider_name': provider_name,
+            'provider_name': getattr(provider, 'display_name', None),
             'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
             'updated_at': self.updated_at.isoformat() + 'Z' if self.updated_at else None,
             'archived': self.archived,
@@ -594,12 +605,11 @@ class ServiceSmsSenderData:
         return try_validate_and_format_phone_number(self.sms_sender)
 
     def serialize(self) -> dict[str, bool | int | str | None]:
-        provider_name = None
+        provider = None
         if self.provider_id:
             from app.dao.provider_details_dao import get_provider_details_by_id  # Lazy import to avoid circular import
 
             provider = get_provider_details_by_id(self.provider_id)
-            provider_name = provider.display_name if provider else None
         return {
             'id': self.id,
             'is_default': self.is_default,
@@ -607,7 +617,7 @@ class ServiceSmsSenderData:
             'sms_sender': self.sms_sender,
             'inbound_number_id': self.inbound_number_id,
             'provider_id': self.provider_id,
-            'provider_name': provider_name,
+            'provider_name': getattr(provider, 'display_name', None),
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             'archived': self.archived,

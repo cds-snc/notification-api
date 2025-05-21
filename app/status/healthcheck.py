@@ -19,8 +19,6 @@ def show_status():
             status='ok',  # This should be considered part of the public API
             git_commit=version.__git_commit__,
             build_time=version.__time__,
-            email_strategy=provider_service.strategies[NotificationType.EMAIL].__name__,
-            sms_strategy=provider_service.strategies[NotificationType.SMS].__name__,
             db_version=get_db_version(),
             redis=redis_check(),
             mobile_apps=mobile_app_registry.get_registered_apps(),

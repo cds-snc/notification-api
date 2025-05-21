@@ -78,6 +78,7 @@ from app.oauth.jwt_manager import jwt  # noqa
 
 from app.provider_details.provider_service import ProviderService  # noqa
 
+# This isn't used in this file, but it's imported elsewhere.
 provider_service = ProviderService()
 
 api_user = LocalProxy(lambda: g.api_user)
@@ -191,11 +192,6 @@ def create_app(application):
             aws_pinpoint_client,
         ],
         email_clients=[aws_ses_client, govdelivery_client],
-    )
-
-    provider_service.init_app(
-        email_provider_selection_strategy_label=application.config['EMAIL_PROVIDER_SELECTION_STRATEGY_LABEL'],
-        sms_provider_selection_strategy_label=application.config['SMS_PROVIDER_SELECTION_STRATEGY_LABEL'],
     )
 
     attachment_store.init_app(

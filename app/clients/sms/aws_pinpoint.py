@@ -66,7 +66,7 @@ class AwsPinpointClient(SmsClient):
     _non_retryable_v1_request_statuses = ('PERMANENT_FAILURE', 'OPT_OUT', 'DUPLICATE')
 
     def __init__(self):
-        self.name = 'pinpoint'
+        self.name = PINPOINT_PROVIDER
 
     def init_app(
         self,
