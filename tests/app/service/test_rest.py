@@ -1442,7 +1442,7 @@ def test_add_existing_user_to_non_existing_service_returns404(notify_api, notify
             assert result["message"] == expected_message
 
 
-def test_add_existing_user_of_service_to_service_returns400(notify_api, notify_db, notify_db_session, sample_service):
+def test_add_existing_user_of_service_to_service_returns409(notify_api, notify_db, notify_db_session, sample_service):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             existing_user_id = sample_service.users[0].id
@@ -1459,7 +1459,7 @@ def test_add_existing_user_of_service_to_service_returns400(notify_api, notify_d
             result = resp.json
             expected_message = "User id: {} already part of service id: {}".format(existing_user_id, sample_service.id)
 
-            assert resp.status_code == 400
+            assert resp.status_code == 409
             assert result["result"] == "error"
             assert result["message"] == expected_message
 
