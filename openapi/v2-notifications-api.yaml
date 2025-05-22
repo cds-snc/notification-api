@@ -9,15 +9,9 @@ paths:
     post:
       summary: Send a text message
       description: |
-        Send an SMS notification to a recipient phone number using a template.
+        Send a text message to a recipient phone number using a template.
         
         The template can include placeholders which are populated using the personalisation parameter.
-        
-        For test API keys, the phone number doesn't need to be a real one.
-        
-        For team and safelist API keys, the phone number needs to belong to a member of the team or on your safelist.
-        
-        For live API keys, the phone number needs to be a real phone number.
       operationId: sendSmsNotification
       requestBody:
         required: true
@@ -59,13 +53,7 @@ paths:
       description: |
         Send an email notification to a recipient email address using a template.
         
-        The template can include placeholders which are populated using the personalisation parameter.
-        
-        For test API keys, the email doesn't need to be a real email address.
-        
-        For team and safelist API keys, the email needs to belong to a member of the team or on your safelist.
-        
-        For live API keys, the email needs to be a real email address.
+        The template can include placeholders which are populated using the personalisation parameter.        
       operationId: sendEmailNotification
       requestBody:
         required: true
