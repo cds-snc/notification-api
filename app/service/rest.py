@@ -11,6 +11,7 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
+from psycopg2.errors import UniqueViolation
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -478,7 +479,7 @@ def add_user_to_service(service_id, user_id):
 
     try:
         dao_add_user_to_service(service, user, permissions, folder_permissions)
-    except UserAlreadyInServiceError:
+    except UniqueViolation:
         message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
         current_app.logger.info(message)
         raise UserAlreadyInServiceError(status_code=409, message=message)
