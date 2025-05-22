@@ -1442,7 +1442,7 @@ def test_add_existing_user_to_non_existing_service_returns404(notify_api, notify
             assert result["message"] == expected_message
 
 
-def test_add_existing_user_of_service_to_service_returns400(notify_api, notify_db, notify_db_session, sample_service):
+def test_add_existing_user_of_service_to_service_returns409(notify_api, notify_db, notify_db_session, sample_service):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             existing_user_id = sample_service.users[0].id
@@ -1459,7 +1459,7 @@ def test_add_existing_user_of_service_to_service_returns400(notify_api, notify_d
             result = resp.json
             expected_message = "User id: {} already part of service id: {}".format(existing_user_id, sample_service.id)
 
-            assert resp.status_code == 400
+            assert resp.status_code == 409
             assert result["result"] == "error"
             assert result["message"] == expected_message
 
@@ -3356,3 +3356,176 @@ class TestAnnualLimitStats:
         }
 
         mock_get_stats.assert_called_once_with((sample_service.id))
+
+
+class TestAddUserToService:
+    def test_add_user_to_service_with_send_permissions_succeeds(self, notify_api, notify_db_session):
+        """Test adding a user to a service with send permissions"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service = create_service()
+                # Create a user who is not part of the service
+                user_to_add = User(
+                    name="New User",
+                    email_address="new_user@cds-snc.ca",
+                    password="password",
+                    mobile_number="+4477123456",
+                )
+                save_model_user(user_to_add)
+
+                data = {
+                    "permissions": [
+                        {"permission": "send_emails"},
+                        {"permission": "send_letters"},
+                        {"permission": "send_texts"},
+                    ]
+                }
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(service.id, user_to_add.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 201
+                json_resp = json.loads(resp.get_data(as_text=True))
+                assert str(user_to_add.id) in json_resp["data"]["users"]
+
+    def test_add_user_to_service_with_manage_permissions_succeeds(self, notify_api, notify_db_session):
+        """Test adding a user to a service with management permissions"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service = create_service()
+                user_to_add = User(
+                    name="Manager User",
+                    email_address="manager@cds-snc.ca",
+                    password="password",
+                    mobile_number="+4477999888",
+                )
+                save_model_user(user_to_add)
+
+                data = {
+                    "permissions": [
+                        {"permission": "manage_users"},
+                        {"permission": "manage_templates"},
+                        {"permission": "manage_settings"},
+                    ]
+                }
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(service.id, user_to_add.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 201
+                json_resp = json.loads(resp.get_data(as_text=True))
+                assert str(user_to_add.id) in json_resp["data"]["users"]
+
+                # Check user has correct permissions by calling the user endpoint
+                resp = client.get(
+                    url_for("user.get_user", user_id=user_to_add.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                )
+
+                assert resp.status_code == 200
+                json_resp = json.loads(resp.get_data(as_text=True))
+                permissions = json_resp["data"]["permissions"][str(service.id)]
+                expected_permissions = ["manage_users", "manage_templates", "manage_settings"]
+                assert sorted(permissions) == sorted(expected_permissions)
+
+    def test_add_existing_user_of_service_returns_409(self, notify_api, notify_db_session):
+        """Test that adding an existing user to a service returns a 409 conflict"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service = create_service()
+                existing_user = service.users[0]
+
+                data = {"permissions": [{"permission": "send_emails"}]}
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(service.id, existing_user.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 409
+                result = json.loads(resp.get_data(as_text=True))
+                assert result["result"] == "error"
+                assert f"User id: {existing_user.id}" in result["message"]
+
+    def test_add_user_to_non_existent_service_returns_404(self, notify_api, notify_db_session):
+        """Test that adding a user to a non-existent service returns a 404"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                user = User(
+                    name="Valid User",
+                    email_address="valid_user@cds-snc.ca",
+                    password="password",
+                    mobile_number="+4477123123",
+                )
+                save_model_user(user)
+
+                fake_service_id = uuid.uuid4()
+                data = {"permissions": [{"permission": "send_emails"}]}
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(fake_service_id, user.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 404
+                result = json.loads(resp.get_data(as_text=True))
+                assert result["result"] == "error"
+                assert result["message"] == "No result found"
+
+    def test_add_non_existent_user_to_service_returns_404(self, notify_api, notify_db_session):
+        """Test that adding a non-existent user to a service returns a 404"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service = create_service()
+                fake_user_id = uuid.uuid4()
+
+                data = {"permissions": [{"permission": "send_emails"}]}
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(service.id, fake_user_id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 404
+                result = json.loads(resp.get_data(as_text=True))
+                assert result["result"] == "error"
+                assert result["message"] == "No result found"
+
+    def test_add_user_to_service_without_permissions_returns_400(self, notify_api, notify_db_session):
+        """Test that adding a user without specifying permissions returns a 400"""
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service = create_service()
+                user = User(
+                    name="Valid User",
+                    email_address="valid_user@cds-snc.ca",
+                    password="password",
+                    mobile_number="+4477123123",
+                )
+                save_model_user(user)
+
+                # Missing permissions in the request
+                data = {}
+
+                auth_header = create_authorization_header()
+                resp = client.post(
+                    "/service/{}/users/{}".format(service.id, user.id),
+                    headers=[("Content-Type", "application/json"), auth_header],
+                    data=json.dumps(data),
+                )
+
+                assert resp.status_code == 400
