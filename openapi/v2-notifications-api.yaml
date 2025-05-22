@@ -7,7 +7,7 @@ info:
 paths:
   /v2/notifications/sms:
     post:
-      summary: Send an SMS notification
+      summary: Send a text message
       description: |
         Send an SMS notification to a recipient phone number using a template.
         
@@ -107,17 +107,9 @@ paths:
     post:
       summary: Send a batch of notifications
       description: |
-        Send multiple notifications via CSV or rows array. The CSV must include column headers for the template placeholders.
+        Send notifications in bulk, up to 50,000 recipients at a time, for a single template. 
         
-        For SMS notifications, the phone numbers are validated and formatted.
-        
-        For email notifications, the email addresses are validated.
-        
-        For test API keys, the recipients don't need to be real.
-        
-        For team and safelist API keys, the recipients need to be on your team or safelist.
-        
-        For live API keys, the recipients need to be real.
+        You can schedule to send notifications up to 4 days in advance.
       operationId: sendBulkNotifications
       requestBody:
         required: true
@@ -188,30 +180,31 @@ components:
       properties:
         template_id:
           $ref: '#/components/schemas/UUID'
+          description: The ID of text message template you want to send.
         phone_number:
           type: string
           description: The phone number to send the SMS to
-          example: "+447900900123"
+          example: "+19021234567"
         personalisation:
           type: object
-          description: The template parameters to use for personalization
+          description: Use if a template has placeholder fields for personalised information such as name or reference number
           additionalProperties: true
           example:
-            name: "John Smith"
+            first_name: "Amala"
             appointment_date: "2023-01-01"
         reference:
           type: string
-          description: A reference that identifies the notification
-          example: "your-reference-123"
+          description: An identifier you can create if necessary. This reference identifies a single notification or a batch of notifications.
+          example: "STRING"
         scheduled_for:
           type: string
           format: date-time
-          description: The time to send the notification (must be within 24 hours)
-          example: "2023-01-01T12:00:00Z"
+          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          example: "2023-01-01T12:00:00"
           nullable: true
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
-          description: The ID of the SMS sender to use
+          description: A unique identifier of the sender of the text message notification
       
     PostEmailRequest:
       type: object
@@ -221,31 +214,31 @@ components:
       properties:
         template_id:
           $ref: '#/components/schemas/UUID'
+          description: The ID of the email template you want to send.
         email_address:
           type: string
           format: email
-          description: The email address to send to
-          example: "john.smith@example.com"
+          description: The email address of the recipient
+          example: "sender@something.com"
         personalisation:
           type: object
-          description: The template parameters to use for personalization
-          additionalProperties: true
+          description: Use if a template has placeholder fields for personalised information such as name or reference number
           example:
-            name: "John Smith"
+            first_name: "Amala"
             application_date: "2023-01-01"
         reference:
           type: string
-          description: A reference that identifies the notification
-          example: "your-reference-123"
+          description: An identifier you can create if necessary. This reference identifies a single notification or a batch of notifications. It must not contain any personal information such as name or postal address.
+          example: "STRING"
         scheduled_for:
           type: string
           format: date-time
-          description: The time to send the notification (must be within 24 hours)
-          example: "2023-01-01T12:00:00Z"
+          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          example: "2023-01-01T12:00:00"
           nullable: true
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
-          description: The ID of the email reply-to address to use
+          description: The ID of an email address specified by you to receive replies from your users.
     
 
     
@@ -259,7 +252,7 @@ components:
           $ref: '#/components/schemas/UUID'
         name:
           type: string
-          description: Name for this batch sending job
+          description: The name of your bulk sending job. Used to identify this bulk of notifications later on.
           example: "January Appointment Reminders"
         reference:
           type: string
@@ -268,23 +261,24 @@ components:
         csv:
           type: string
           format: binary
-          description: Base64 encoded CSV data with headers matching the template placeholders
+          description: If you prefer to pass the content of CSV files instead of rows in the rows argument, you can do so. Pass the full content of your CSV file in a key named csv. Do not include the rows argument.
+          example: "email address,name\nalice@example.com,Alice"
         rows:
           type: array
-          description: Alternative to CSV, provide rows directly as arrays
+          description: An array of arrays. The first line is the header and should include at least email address if you're sending an email template or phone number if you're sending a text message template. The other column headers should match the placeholder fields (personalised variables) of your template. The following lines should be your recipients' details and should match the order of column headers. You can have between 1 and 50,000 recipients.
           items:
             type: array
             items:
               type: string
           example:
-            - ["phone_number", "name", "appointment_date"]
-            - ["+447900900123", "John Smith", "2023-01-01"]
-            - ["+447900900456", "Jane Doe", "2023-01-02"]
+            - ["email address", "name"]
+            - ["alice@example.com", "Alice"]
+            - ["bob@example.com", "Bob"]
         scheduled_for:
           type: string
           format: date-time
-          description: The time to send the notifications
-          example: "2023-01-01T12:00:00Z"
+          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          example: "2023-01-01T12:00:00"
           nullable: true
         reply_to_id:
           $ref: '#/components/schemas/UUID'
