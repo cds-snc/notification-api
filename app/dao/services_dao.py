@@ -7,6 +7,7 @@ from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from psycopg2.errors import UniqueViolation
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
@@ -19,6 +20,7 @@ from app.dao.organisation_dao import dao_get_organisation_by_email_address
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
+from app.errors import UserAlreadyInServiceError
 from app.models import (
     CROWN_ORGANISATION_TYPES,
     EMAIL_TYPE,
@@ -357,6 +359,9 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
         service_user.folders = valid_template_folders
         db.session.add(service_user)
 
+    except UniqueViolation:
+        db.session.rollback()
+        raise UserAlreadyInServiceError
     except Exception as e:
         db.session.rollback()
         raise e
