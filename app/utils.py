@@ -9,8 +9,6 @@ from notifications_utils.url_safe_token import generate_token
 import pytz
 
 from app.constants import (
-    BRANDING_BOTH,
-    BRANDING_ORG_BANNER,
     EMAIL_TYPE,
     LETTER_TYPE,
     PRECOMPILED_LETTER,
@@ -20,7 +18,6 @@ from app.constants import (
 )
 from app.feature_flags import is_gapixel_enabled
 from app.googleanalytics.pixels import build_dynamic_ga4_pixel_tracking_url
-from app.models import TemplateBase
 
 local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/New_York'))
 
@@ -160,59 +157,29 @@ def get_logo_url(base_url, logo_file):
     return f'https://{bucket}.{domain}/{logo_file}'
 
 
-def get_html_email_options(
-    template: TemplateBase, notification_id: str = 'xx_notification_id_xx'
-) -> Dict[str, Union[str, bool]]:
+def get_html_email_options(notification_id: str = 'xx_notification_id_xx') -> Dict[str, Union[str, bool]]:
     """
     Generate HTML email options dictionary for email rendering.
 
     This function creates a dictionary of options that will be used when rendering HTML emails.
     It determines which branding elements to include based on the service's email_branding configuration.
-    If email_branding is None, it will use the default banner.
-    Otherwise, it will include branding elements like colors, logos, and text from the service's email_branding.
+    Currently, it will always use the default banner.
 
     If Google Analytics pixel tracking is enabled, it also adds a tracking URL to the options.
 
     Args:
-        template: The template object that contains a reference to the service
-                with branding configuration
         notification_id: The ID of the notification (default is a placeholder)
 
     Returns:
         Dict[str, Union[str, bool]]: A dictionary containing HTML email options including:
             - default_banner: Whether to use the default banner
             - brand_banner: Whether to use the custom brand banner
-            - brand_colour: The brand color (if available)
-            - brand_logo: URL to the brand logo (if available)
-            - brand_text: The brand text (if available)
-            - brand_name: The brand name (if available)
             - ga4_open_email_event_url: Google Analytics tracking URL (if enabled)
     """
     options_dict = {}
     if is_gapixel_enabled(current_app):
         options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification_id)
-
-    service = template.service
-    if service.email_branding is None:
-        options_dict.update({'default_banner': True, 'brand_banner': False})
-    else:
-        logo_url = (
-            get_logo_url(current_app.config['ADMIN_BASE_URL'], service.email_branding.logo)
-            if service.email_branding.logo
-            else None
-        )
-
-        options_dict.update(
-            {
-                'default_banner': service.email_branding.brand_type == BRANDING_BOTH,
-                'brand_banner': service.email_branding.brand_type == BRANDING_ORG_BANNER,
-                'brand_colour': service.email_branding.colour,
-                'brand_logo': logo_url,
-                'brand_text': service.email_branding.text,
-                'brand_name': service.email_branding.name,
-            }
-        )
-
+    options_dict.update({'default_banner': True, 'brand_banner': False})
     return options_dict
 
 
@@ -235,7 +202,7 @@ def generate_html_email_content(template) -> Optional[str]:
                 'content': template.content,
                 'subject': template.subject,
             },
-            **get_html_email_options(template),
+            **get_html_email_options(),
         )
         content = str(template_object)
 
