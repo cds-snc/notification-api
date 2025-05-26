@@ -414,9 +414,6 @@ components:
               type: string
               enum: ['email', 'sms']
               description: The type of template used for this job (email or sms)
-            notification_count:
-              type: integer
-              description: The number of notifications in the bulk job
             api_key:
               type: object
               nullable: true
@@ -431,6 +428,14 @@ components:
                   type: string
                   enum: ['normal', 'team', 'test']
                   description: The type of API key
+            archived:
+              type: boolean
+              description: Whether the job has been archived
+            sender_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: The ID of the sender used for this job, if applicable
+
 
   securitySchemes:
     apiKey:
