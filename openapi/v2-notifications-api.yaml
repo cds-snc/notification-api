@@ -111,26 +111,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        $ref: '#/components/schemas/UUID'
-                      original_file_name:
-                        type: string
-                      notification_count:
-                        type: integer
-                      template:
-                        $ref: '#/components/schemas/UUID'
-                      job_status:
-                        type: string
-                        enum: ['pending', 'scheduled']
-                      scheduled_for:
-                        type: string
-                        format: date-time
-                        nullable: true
+                $ref: '#/components/schemas/PostBulkResponse'
         '400':
           description: Bad Request
           content:
@@ -356,6 +337,38 @@ components:
               message:
                 type: string
                 description: Detailed error message
+    
+    PostBulkResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required:
+            - id
+            - template
+            - job_status
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the bulk notification job
+            original_file_name:
+              type: string
+              description: The name of the original CSV file if one was provided
+            notification_count:
+              type: integer
+              description: The number of notifications in the bulk job
+            template:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the template used for this notification job
+            job_status:
+              type: string
+              enum: ['pending', 'scheduled']
+              description: The status of the bulk notification job
+            scheduled_for:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job is scheduled to be processed, null if immediate
 
   securitySchemes:
     apiKey:
