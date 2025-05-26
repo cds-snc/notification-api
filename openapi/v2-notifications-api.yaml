@@ -184,12 +184,6 @@ components:
           type: string
           description: An identifier you can create if necessary. This reference identifies a single notification or a batch of notifications.
           example: "STRING"
-        scheduled_for:
-          type: string
-          format: date-time
-          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
-          example: "2023-01-01T12:00:00"
-          nullable: true
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
           description: A unique identifier of the sender of the text message notification
@@ -218,12 +212,6 @@ components:
           type: string
           description: An identifier you can create if necessary. This reference identifies a single notification or a batch of notifications. It must not contain any personal information such as name or postal address.
           example: "STRING"
-        scheduled_for:
-          type: string
-          format: date-time
-          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
-          example: "2023-01-01T12:00:00"
-          nullable: true
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: The ID of an email address specified by you to receive replies from your users.
@@ -308,10 +296,6 @@ components:
             uri:
               type: string
               format: uri
-        scheduled_for:
-          type: string
-          format: date-time
-          nullable: true
     
     PostEmailResponse:
       type: object
@@ -352,10 +336,6 @@ components:
             uri:
               type: string
               format: uri
-        scheduled_for:
-          type: string
-          format: date-time
-          nullable: true
     
 
     
