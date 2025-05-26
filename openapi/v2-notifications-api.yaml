@@ -347,6 +347,7 @@ components:
             - id
             - template
             - job_status
+            - notification_count
           properties:
             id:
               $ref: '#/components/schemas/UUID'
@@ -360,15 +361,76 @@ components:
             template:
               $ref: '#/components/schemas/UUID'
               description: The ID of the template used for this notification job
+            template_version:
+              type: integer
+              description: The version of the template used for this notification job
+            service:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the service that created the job
+            created_by:
+              type: object
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the user who created the job
+                name:
+                  type: string
+                  description: The name of the user who created the job
+            created_at:
+              type: string
+              format: date-time
+              description: When the job was created
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job was last updated
             job_status:
               type: string
-              enum: ['pending', 'scheduled']
+              enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
               description: The status of the bulk notification job
             scheduled_for:
               type: string
               format: date-time
               nullable: true
               description: When the job is scheduled to be processed, null if immediate
+            processing_started:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job started
+            processing_finished:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job finished
+            service_name:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: The name of the service that created the job
+            template_type:
+              type: string
+              enum: ['email', 'sms']
+              description: The type of template used for this job (email or sms)
+            notification_count:
+              type: integer
+              description: The number of notifications in the bulk job
+            api_key:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the API key used to create the job
+                name:
+                  type: string
+                  description: The name of the API key
+                key_type:
+                  type: string
+                  enum: ['normal', 'team', 'test']
+                  description: The type of API key
 
   securitySchemes:
     apiKey:
