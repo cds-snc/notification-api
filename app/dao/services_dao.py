@@ -7,6 +7,7 @@ from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
@@ -41,6 +42,7 @@ from app.models import (
     Service,
     ServicePermission,
     ServiceSmsSender,
+    ServiceUser,
     Template,
     TemplateCategory,
     TemplateHistory,
@@ -348,17 +350,71 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
     try:
         from app.dao.permissions_dao import permission_dao
 
-        service.users.append(user)
-        permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
-        db.session.add(service)
+        # Check if the user is already in the service using no_autoflush
+        with db.session.no_autoflush:  # Prevent autoflush during this check
+            service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).one_or_none()
 
-        service_user = dao_get_service_user(user.id, service.id)
-        valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
-        service_user.folders = valid_template_folders
-        db.session.add(service_user)
+        if service_user:
+            # User is already in the service, just update permissions if needed
+            try:
+                # Convert string permissions to actual permission values if needed
+                permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
+            except Exception as perm_error:
+                db.session.rollback()
+                current_app.logger.error(
+                    f"Error updating permissions for existing user {user.id} on service {service.id}: {str(perm_error)}"
+                )
+                # Try again with a fresh session
+                db.session.close()
+                service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).one()
+                permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
 
+            # Update folder permissions if needed
+            valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
+            service_user.folders = valid_template_folders
+            db.session.add(service_user)
+        else:
+            # User is not in service yet, create the ServiceUser record explicitly
+            service_user = ServiceUser(user_id=user.id, service_id=service.id)
+            db.session.add(service_user)
+
+            try:
+                # Try to flush now to catch any IntegrityError early
+                # before proceeding with permissions
+                db.session.flush()
+            except IntegrityError:
+                # If we get an IntegrityError here, it means another request
+                # has already created the service_user record
+                db.session.rollback()
+                # Fetch the existing service_user
+                service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).one()
+                current_app.logger.info(f"Recovered from IntegrityError - user {user.id} already exists in service {service.id}")
+
+            # At this point we have a valid service_user - either newly created or fetched after IntegrityError
+            try:
+                # Create Permission objects from strings if needed
+                permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
+            except Exception as perm_error:
+                # Log the permission error but continue with folder permissions
+                current_app.logger.error(
+                    f"Error setting permissions for user {user.id} on service {service.id}: {str(perm_error)}"
+                )
+                # Don't re-raise the exception - we'll continue with folder permissions
+
+            # Add folder permissions
+            try:
+                valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
+                service_user.folders = valid_template_folders
+                db.session.add(service_user)
+            except Exception as folder_error:
+                # Log the folder permission error but don't fail the entire operation
+                current_app.logger.error(
+                    f"Error setting folder permissions for user {user.id} on service {service.id}: {str(folder_error)}"
+                )
+                # Don't re-raise the exception
     except Exception as e:
         db.session.rollback()
+        current_app.logger.error(f"Error in dao_add_user_to_service: {str(e)}")
         raise e
     else:
         db.session.commit()
