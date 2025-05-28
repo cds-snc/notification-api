@@ -13,7 +13,12 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
-from app.aws.mocks import generate_ses_notification_callbacks, ses_complaint_callback, ses_unknown_bounce_callback
+from app.aws.mocks import (
+    generate_ses_notification_callbacks,
+    ses_complaint_account_suppression_list_callback_with_missing_complained_recipients,
+    ses_complaint_callback,
+    ses_unknown_bounce_callback,
+)
 from app.celery.process_ses_receipts_tasks import process_ses_results
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
@@ -95,6 +100,12 @@ def test_process_ses_results_in_complaint(sample_email_template, mocker):
 
 def test_remove_emails_from_complaint():
     test_json = ses_complaint_callback()["Messages"][0]
+    remove_emails_from_complaint(test_json)
+    assert "recipient1@example.com" not in json.dumps(test_json)
+
+
+def test_remove_emails_from_complaint_handles_missing_complained_receipients():
+    test_json = ses_complaint_account_suppression_list_callback_with_missing_complained_recipients()["Messages"][0]
     remove_emails_from_complaint(test_json)
     assert "recipient1@example.com" not in json.dumps(test_json)
 
@@ -197,7 +208,7 @@ def test_ses_callback_should_give_up_after_max_tries(notify_db, mocker):
         "app.celery.process_ses_receipts_tasks.process_ses_results.retry",
         side_effect=MaxRetriesExceededError,
     )
-    mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.warning")
+    mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.error")
 
     assert process_ses_results(generate_ses_notification_callbacks(references=["ref"])) is None
     mock_logger.assert_called_with("notifications not found for SES references: ref. Giving up.")

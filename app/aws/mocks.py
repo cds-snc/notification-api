@@ -197,6 +197,24 @@ def ses_complaint_callback():
     }
 
 
+def ses_complaint_account_suppression_list_callback_with_missing_complained_recipients():
+    return {
+        "Signature": "bb",
+        "SignatureVersion": "1",
+        "MessageAttributes": {},
+        "MessageId": "98c6e927-af5d-5f3b-9522-bab736f2cbde",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com",
+        "TopicArn": "arn:ses_notifications",
+        "Type": "Notification",
+        "Timestamp": "2018-06-05T14:00:15.952Z",
+        "Subject": None,
+        "Messages": json.loads(
+            '[{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complaintSubType": "OnAccountSuppressionList", "timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1"}}]'
+        ),  # noqa
+        "SigningCertUrl": "https://sns.pem",
+    }
+
+
 def ses_complaint_callback_with_subtype(subtype):
     """
     https://docs.aws.amazon.com/ses/latest/DeveloperGuide/notification-contents.html#complaint-object

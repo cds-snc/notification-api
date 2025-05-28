@@ -161,7 +161,6 @@ def categorize_receipts(
     for message in ses_messages:
         message_id = message["mail"]["messageId"]
         notification = notification_map.get(message_id)
-
         if notification:
             receipts_with_notification.append((message, notification))
         else:
@@ -252,7 +251,7 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
         )
         self.retry(queue=QueueNames.RETRY, args=[{"Messages": receipts_with_no_notification}])
     except self.MaxRetriesExceededError:
-        current_app.logger.warning(f"notifications not found for SES references: {retry_ids}. Giving up.")
+        current_app.logger.error(f"notifications not found for SES references: {retry_ids}. Giving up.")
 
 
 @notify_celery.task(
@@ -265,6 +264,7 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
 def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     start_time = time.time()  # TODO : Remove after benchmarking
     receipts = response["Messages"] if "Messages" in response else [json.loads(response["Message"])]
+    current_app.logger.info(f"[batch-celery] - Received response from lambda: {response}, total receipts: {len(receipts)}")
 
     try:
         ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(cast(List[SESReceipt], receipts))
@@ -272,20 +272,35 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
             return True
 
         notifications = fetch_notifications(ref_ids)
-
-        # When none of the notification from the receipt batch are found, then retry all of them.
         if notifications is None:
             handle_retries(self, ses_messages)
             return None
 
-        receipts_with_notification, receipts_with_no_notification = categorize_receipts(ses_messages, notifications)
-        receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
+        # When none of the notification from the receipt batch are found, then retry all of them.
+        if not notifications:
+            current_app.logger.info(
+                f"[batch-celery] - No notifications found in the DB for reference ids: {", ".join(ref_ids)} Queuing {len(ref_ids)} receipts for retry"
+            )
+            handle_retries(self, ses_messages)
+            return None
 
+        receipts_with_notification, receipts_with_no_notification = categorize_receipts(ses_messages, notifications)
+        current_app.logger.info(
+            f"[batch-celery] - with notifications: {receipts_with_notification} No notifications: {receipts_with_no_notification}"
+        )
+
+        receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
+        current_app.logger.info(
+            f"[batch-celery] - receipts_with_notification_and_aws_response_dict length: {len(receipts_with_notification_and_aws_response_dict)}"
+        )
+
+        # Process the notifications and update their statuses
         for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
             update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
             _check_and_queue_callback_task(notification)
 
         if receipts_with_no_notification:
+            current_app.logger.info(f"[batch-celery] - Queuing {len(receipts_with_no_notification)} receipts for retry")
             handle_retries(self, receipts_with_no_notification)
 
         end_time = time.time()

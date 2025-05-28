@@ -144,7 +144,8 @@ def get_aws_responses(ses_message):
 
 
 def handle_complaint(ses_message):
-    recipient_email = remove_emails_from_complaint(ses_message)[0]
+    recipient_emails = remove_emails_from_complaint(ses_message)
+    recipient_email = recipient_emails[0] if recipient_emails else None
     current_app.logger.info("Complaint from SES: \n{}".format(json.dumps(ses_message).replace("{", "(").replace("}", ")")))
     try:
         reference = ses_message["mail"]["messageId"]
