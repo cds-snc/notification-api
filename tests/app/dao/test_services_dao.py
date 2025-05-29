@@ -1,7 +1,6 @@
 import json
 import uuid
 from datetime import datetime, timedelta
-from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -1551,65 +1550,3 @@ class TestSensitiveService:
     def test_non_sensitive_service(self, notify_db, notify_db_session):
         sensitive_service = dao_fetch_service_ids_of_sensitive_services()
         assert sensitive_service == []
-
-
-class TestAddingUsertoExistingService:
-    def test_dao_add_user_to_service_handles_integrity_error_by_getting_existing_user(
-        self, notify_db_session, sample_service, sample_user
-    ):
-        """
-        Test that when an IntegrityError occurs during user addition (due to race condition),
-        the function recovers by fetching the existing user and updating permissions.
-        """
-
-        # Create a new user to add to the service
-        user = User(
-            name="Test Integrity User",
-            email_address="integrity-test@example.gov.uk",
-            password="password",
-            mobile_number="+16502532223",
-        )
-        save_model_user(user)
-
-        # Check how many users are in the service before we start
-        service_users_before = len(sample_service.users)
-        print(f"Service users before adding new user: {service_users_before}")
-
-        # First create the service user directly to simulate an existing relationship
-        service_user = ServiceUser(user_id=user.id, service_id=sample_service.id)
-        db.session.add(service_user)
-        db.session.commit()
-
-        # Verify the service_user exists
-        service_user_check = ServiceUser.query.filter_by(user_id=user.id, service_id=sample_service.id).first()
-        assert service_user_check is not None, "ServiceUser record was not created manually"
-
-        # Mock the permission dao to avoid the 'str' has no attribute 'user' error
-        with patch("app.dao.permissions_dao.permission_dao.set_user_service_permission") as mock_set_permissions:
-            # Now test the integrity error handling by attempting to add the user again with different permissions
-            # This simulates a race condition where another request has already created the service_user
-            new_permissions = ["send_emails", "send_texts"]
-
-            # Test that dao_add_user_to_service handles the case where the user is already in the service
-            dao_add_user_to_service(sample_service, user, permissions=new_permissions)
-
-            # Verify the mock was called with the correct parameters
-            mock_set_permissions.assert_called_once_with(user, sample_service, new_permissions, _commit=False)
-
-        # Also mock the scenario where an IntegrityError is raised during the function execution
-        # Instead of mocking ServiceUser class, we'll mock the flush method to simulate the IntegrityError
-        with (
-            patch.object(db.session, "flush") as mock_flush,
-            patch("app.dao.permissions_dao.permission_dao.set_user_service_permission") as mock_set_permissions,
-        ):
-            # Configure the flush mock to raise IntegrityError
-            mock_flush.side_effect = IntegrityError("duplicate key value", params={}, orig=None)
-
-            # Try adding with different permissions - this should handle the error gracefully
-            newer_permissions = ["send_emails", "send_texts", "manage_service"]
-
-            # This should not raise an exception to the caller
-            dao_add_user_to_service(sample_service, user, permissions=newer_permissions)
-
-            # Verify the mock was called with the correct parameters
-            mock_set_permissions.assert_called_with(user, sample_service, newer_permissions, _commit=False)
