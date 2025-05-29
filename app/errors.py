@@ -50,6 +50,15 @@ class CannotRemoveUserError(InvalidRequest):
         self.fields = fields
 
 
+class UserAlreadyInServiceError(InvalidRequest):
+    message = "This user is already in the service"
+
+    def __init__(self, fields=[], message=None, status_code=409):
+        # Call parent class __init__ with message and status_code
+        super().__init__(message=message if message else self.message, status_code=status_code)
+        self.fields = fields
+
+
 class DuplicateEntityError(InvalidRequest):
     """Generic error for handling unique constraint errors. This error should be subclassed to provide more specific error messages depending on the entity
        and their unique fields.
