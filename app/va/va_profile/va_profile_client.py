@@ -84,7 +84,7 @@ class VAProfileClient:
         va_profile_token,
         statsd_client,
     ):
-        self.timeout = 3.05
+        self.timeout = (3.05, 7.0)
         self.logger: Logger = logger
         self.va_profile_url = va_profile_url
         self.ssl_cert_path = ssl_cert_path
