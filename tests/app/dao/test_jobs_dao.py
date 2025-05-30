@@ -14,6 +14,7 @@ from app.dao.jobs_dao import (
     dao_get_jobs_by_service_id,
     dao_get_jobs_older_than_data_retention,
     dao_get_notification_outcomes_for_job,
+    dao_service_has_jobs,
     dao_set_scheduled_jobs_to_pending,
     dao_update_job,
 )
@@ -479,3 +480,15 @@ def test_can_letter_job_be_cancelled_returns_false_and_error_message_if_notifica
     result, errors = can_letter_job_be_cancelled(job)
     assert not result
     assert errors == "We are still processing these letters, please try again in a minute."
+
+
+def test_dao_service_has_jobs_returns_true_when_service_has_jobs(sample_template):
+    create_job(sample_template)
+    result = dao_service_has_jobs(sample_template.service_id)
+    assert result is True
+
+
+def test_dao_service_has_jobs_returns_false_when_service_has_no_jobs():
+    service_with_no_jobs = create_service(service_name="service-with-no-jobs")
+    result = dao_service_has_jobs(service_with_no_jobs.id)
+    assert result is False
