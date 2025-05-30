@@ -231,7 +231,7 @@ def create_job(service_id):
 def get_service_has_jobs(service_id):
     """Check if a service has any jobs in the database."""
     has_jobs = dao_service_has_jobs(service_id)
-    return jsonify(has_jobs=has_jobs), 200
+    return jsonify(data={"has_jobs": has_jobs}), 200
 
 
 def get_paginated_jobs(service_id, limit_days, statuses, page):
