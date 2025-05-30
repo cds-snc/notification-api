@@ -198,6 +198,10 @@ KEY_TYPE_NORMAL = 'normal'
 KEY_TYPE_TEAM = 'team'
 KEY_TYPE_TEST = 'test'
 
+# Bandit thinks these are hardcoded secrets, but they are not.
+SECRET_TYPE_DEFAULT = 'default'  # nosec B105
+SECRET_TYPE_UUID = 'uuid'  # nosec B105
+
 # User auth types
 SMS_AUTH_TYPE = 'sms_auth'
 EMAIL_AUTH_TYPE = 'email_auth'

@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime
+from typing import Callable, Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -12,17 +13,22 @@ from app.models import ApiKey
 
 @transactional
 @version_class(ApiKey)
-def save_model_api_key(api_key: ApiKey) -> None:
+def save_model_api_key(api_key: ApiKey, secret_generator: Optional[Callable[[], str]] = None) -> None:
     """Adds or updates the API key in the database with the provided information.
 
     Args:
         api_key (ApiKey): The API key object containing the information to add or update in the database.
+        secret_generator (Optional[Callable[[], str]]): Optional function to generate the API key secret.
+                                                        If not provided, uses the default token generator.
     """
     if not api_key.id:
         api_key.id = uuid4()  # must be set now so version history model can use same id
 
     if not api_key.secret:
-        api_key.secret = secrets.token_urlsafe(64)
+        if secret_generator:
+            api_key.secret = secret_generator()
+        else:
+            api_key.secret = secrets.token_urlsafe(64)
 
     db.session.add(api_key)
 

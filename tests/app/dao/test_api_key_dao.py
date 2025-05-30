@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta
+import uuid
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.constants import KEY_TYPE_NORMAL
+from app.constants import KEY_TYPE_NORMAL, SECRET_TYPE_DEFAULT
 from app.dao.api_key_dao import (
     get_model_api_key,
     save_model_api_key,
@@ -198,3 +200,81 @@ def test_save_api_key_should_generate_secret_with_expected_format(sample_service
 
     assert api_key.secret is not None
     assert len(api_key.secret) >= 86
+
+
+def test_save_api_key_with_uuid_generator_function_generates_uuid(notify_db_session, sample_service):
+    """Test that when a UUID generator function is passed as parameter, the DAO uses it instead of the default random token generator."""
+    service = sample_service()
+    api_key = ApiKey(
+        service=service, name='test api key with uuid secret', created_by=service.created_by, key_type=KEY_TYPE_NORMAL
+    )
+
+    # Create a mock UUID generator function that returns a predictable UUID
+    test_uuid = str(uuid.uuid4())
+    mock_uuid_generator = Mock(return_value=test_uuid)
+
+    # This should fail until we implement the feature
+    save_model_api_key(api_key, secret_generator=mock_uuid_generator)
+
+    # Verify the generated secret matches the mock return value
+    assert api_key.secret == test_uuid
+    mock_uuid_generator.assert_called_once()
+
+
+def test_save_api_key_with_custom_generator_function_uses_provided_function(notify_db_session, sample_service):
+    """Test that any callable secret generator function can be used, not just UUID generation."""
+    service = sample_service()
+    api_key = ApiKey(
+        service=service, name='test api key with custom secret', created_by=service.created_by, key_type=KEY_TYPE_NORMAL
+    )
+
+    # Create a mock custom generator function that returns a specific value
+    custom_secret = 'custom-test-secret-12345'
+    mock_custom_generator = Mock(return_value=custom_secret)
+
+    save_model_api_key(api_key, secret_generator=mock_custom_generator)
+
+    assert api_key.secret == custom_secret
+    mock_custom_generator.assert_called_once()
+
+
+def test_save_api_key_with_no_generator_function_maintains_default_behavior(notify_db_session, sample_service):
+    """Test that existing behavior remains unchanged when no generator function is provided."""
+    service = sample_service()
+    api_key = ApiKey(
+        service=service, name='test api key default behavior', created_by=service.created_by, key_type=KEY_TYPE_NORMAL
+    )
+
+    # Call without generator function parameter - should use existing behavior
+    save_model_api_key(api_key)
+
+    assert api_key.secret is not None
+    assert len(api_key.secret) >= 86  # Current default generates ~86+ chars
+    with pytest.raises(ValueError):
+        uuid.UUID(api_key.secret)
+
+
+def test_save_api_key_with_default_generator_function_generates_default_token(notify_db_session, sample_service):
+    """Test that when a default generator function is passed as parameter, the DAO uses it to generate a default token."""
+    service = sample_service()
+    api_key = ApiKey(
+        service=service,
+        name='test api key with default secret',
+        created_by=service.created_by,
+        key_type=KEY_TYPE_NORMAL,
+    )
+
+    # Create a default generator function from get_secret_generator
+    from app.service.rest import get_secret_generator
+
+    default_generator = get_secret_generator(SECRET_TYPE_DEFAULT)
+
+    save_model_api_key(api_key, secret_generator=default_generator)
+
+    # Verify the generated secret matches default format (not UUID)
+    assert api_key.secret is not None
+    assert len(api_key.secret) >= 86  # Default token_urlsafe(64) generates ~86+ chars
+
+    # Verify it's not a UUID format
+    with pytest.raises(ValueError):
+        uuid.UUID(api_key.secret)

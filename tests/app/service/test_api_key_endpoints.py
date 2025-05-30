@@ -1,4 +1,5 @@
 import json
+import uuid
 from uuid import uuid4
 
 import pytest
@@ -6,7 +7,7 @@ from flask import url_for
 from sqlalchemy import delete, select, Table
 
 from app import db
-from app.constants import KEY_TYPE_NORMAL
+from app.constants import KEY_TYPE_NORMAL, SECRET_TYPE_DEFAULT, SECRET_TYPE_UUID
 from app.models import ApiKey
 from app.dao.api_key_dao import expire_api_key, get_model_api_keys
 from tests import create_admin_authorization_header
@@ -311,3 +312,114 @@ def test_get_api_keys_with_invalid_is_revoked_param(notify_api, notify_db_sessio
             assert response.status_code == 400
             json_resp = json.loads(response.get_data(as_text=True))
             assert json_resp['message'] == 'Invalid value for include_revoked'
+
+
+def test_create_api_key_with_uuid_secret_type_returns_201(client, notify_db_session, sample_service):
+    """Test end-to-end happy path for requesting UUID-style secret generation through the REST API."""
+    service = sample_service()
+    data = {
+        'secret_type': SECRET_TYPE_UUID,
+        'name': 'Integration Test Key',
+        'created_by': str(service.created_by.id),
+        'key_type': KEY_TYPE_NORMAL,
+    }
+    auth_header = create_admin_authorization_header()
+    response = client.post(
+        url_for('service.create_api_key', service_id=service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    assert response.status_code == 201
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert 'data' in json_resp
+
+    # Verify the returned secret is a valid UUID format
+    try:
+        generated_uuid = uuid.UUID(json_resp['data'])
+        assert str(generated_uuid) == json_resp['data']
+        assert len(json_resp['data']) == 36  # Standard UUID string length
+    except ValueError:
+        pytest.fail(f'Expected UUID format but got: {json_resp["data"]}')
+
+
+def test_create_api_key_with_invalid_secret_type_returns_400(client, sample_service):
+    """Test proper error handling when invalid secret type values are submitted via the API."""
+    service = sample_service()
+    data = {
+        'secret_type': 'invalid_type',
+        'name': 'Test Key',
+        'created_by': str(service.created_by.id),
+        'key_type': KEY_TYPE_NORMAL,
+    }
+    auth_header = create_admin_authorization_header()
+    response = client.post(
+        url_for('service.create_api_key', service_id=service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    # This should fail until we implement the feature
+    assert response.status_code == 400
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert json_resp['result'] == 'error'
+    assert 'Invalid secret type' in json_resp['message'] or 'secret_type' in str(json_resp['message'])
+
+
+def test_create_api_key_without_secret_type_maintains_backward_compatibility(client, notify_db_session, sample_service):
+    """Test that existing API behavior remains unchanged for current consumers."""
+    service = sample_service()
+    data = {
+        'name': 'Backward Compatible Test Key',
+        'created_by': str(service.created_by.id),
+        'key_type': KEY_TYPE_NORMAL,
+    }
+    auth_header = create_admin_authorization_header()
+    response = client.post(
+        url_for('service.create_api_key', service_id=service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    assert response.status_code == 201
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert 'data' in json_resp
+
+    # Verify secret is auto-generated using current random token method
+    secret = json_resp['data']
+    assert secret is not None
+    assert len(secret) >= 86  # Current default generates ~86+ chars
+
+    # Verify it's not a UUID format
+    with pytest.raises(ValueError):
+        uuid.UUID(secret)
+
+
+def test_create_api_key_with_default_secret_type_returns_201(client, notify_db_session, sample_service):
+    """Test end-to-end happy path for requesting default-style secret generation through the REST API."""
+    service = sample_service()
+    data = {
+        'secret_type': SECRET_TYPE_DEFAULT,
+        'name': 'Default Test Key',
+        'created_by': str(service.created_by.id),
+        'key_type': KEY_TYPE_NORMAL,
+    }
+    auth_header = create_admin_authorization_header()
+    response = client.post(
+        url_for('service.create_api_key', service_id=service.id),
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    assert response.status_code == 201
+    json_resp = json.loads(response.get_data(as_text=True))
+    assert 'data' in json_resp
+
+    # Verify the returned secret is in default format (not UUID)
+    secret = json_resp['data']
+    assert secret is not None
+    assert len(secret) >= 86  # Default token_urlsafe(64) generates ~86+ chars
+
+    # Verify it's not a UUID format
+    with pytest.raises(ValueError):
+        uuid.UUID(secret)

@@ -1,7 +1,7 @@
 import itertools
 from datetime import datetime, timedelta
 from typing import Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from flask import current_app, Blueprint, jsonify, request
 from flask.wrappers import Response
@@ -11,6 +11,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.authentication.auth import requires_admin_auth, requires_admin_auth_or_user_in_service
+from app.constants import SECRET_TYPE_DEFAULT, SECRET_TYPE_UUID
 from app.dao.api_key_dao import (
     get_model_api_key,
     save_model_api_key,
@@ -157,6 +158,34 @@ def update_service(service_id):
     return jsonify(data=service_schema.dump(fetched_service)), 200
 
 
+def get_secret_generator(secret_type: str | None):
+    """Get the appropriate secret generator function based on secret type.
+
+    Args:
+        secret_type (str | None): The type of secret to generate. Currently supports 'uuid', 'default', or None.
+
+    Returns:
+        Callable[[], str] | None: Secret generator function or None for default behavior.
+    """
+    if secret_type == SECRET_TYPE_UUID:  # nosec B105
+
+        def uuid_secret_generator():
+            return str(uuid4())
+
+        return uuid_secret_generator
+
+    if secret_type == SECRET_TYPE_DEFAULT:  # nosec B105
+
+        def default_secret_generator():
+            import secrets
+
+            return secrets.token_urlsafe(64)
+
+        return default_secret_generator
+
+    return None
+
+
 @service_blueprint.route('/<uuid:service_id>/api-key', methods=['POST'])
 @requires_admin_auth()
 def create_api_key(service_id: UUID) -> tuple[Response, Literal[201, 400]]:
@@ -178,7 +207,8 @@ def create_api_key(service_id: UUID) -> tuple[Response, Literal[201, 400]]:
     fetched_service = dao_fetch_service_by_id(service_id=service_id)
 
     try:
-        valid_api_key = api_key_schema.load(request.get_json())
+        request_data = request.get_json()
+        valid_api_key = api_key_schema.load(request_data)
     except DataError:
         err_msg += ' DataError, ensure created_by user id is a valid uuid'
         current_app.logger.exception(err_msg)
@@ -187,8 +217,12 @@ def create_api_key(service_id: UUID) -> tuple[Response, Literal[201, 400]]:
     valid_api_key.service = fetched_service
     valid_api_key.expiry_date = datetime.utcnow() + timedelta(days=180)
 
+    # Determine the secret generator function based on secret_type
+    secret_type = request_data.get('secret_type') if request_data else None
+    secret_generator = get_secret_generator(secret_type)
+
     try:
-        save_model_api_key(valid_api_key)
+        save_model_api_key(valid_api_key, secret_generator=secret_generator)
     except IntegrityError:
         err_msg += ' DB IntegrityError, ensure created_by id is valid and key_type is one of [normal, team, test]'
         current_app.logger.exception(err_msg)

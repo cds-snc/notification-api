@@ -12,6 +12,8 @@ from app.constants import (
     EMAIL_TYPE,
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_COMPLETED,
+    SECRET_TYPE_DEFAULT,
+    SECRET_TYPE_UUID,
     SERVICE_PERMISSION_TYPES,
     SMS_TYPE,
 )
@@ -615,12 +617,19 @@ class TemplateHistorySchema(BaseSchema):
 class ApiKeySchema(BaseSchema):
     created_by = field_for(models.ApiKey, 'created_by', required=True)
     key_type = field_for(models.ApiKey, 'key_type', required=True)
+    secret_type = fields.Str(required=False, allow_none=True)
 
     class Meta:
         model = models.ApiKey
         exclude = ('service', '_secret')
         strict = True
         load_instance = True
+
+    @validates('secret_type')
+    def validate_secret_type(self, value, **kwargs):
+        if value is not None and value not in (SECRET_TYPE_UUID, SECRET_TYPE_DEFAULT):
+            raise ValidationError(f"Invalid secret type: must be '{SECRET_TYPE_UUID}' or '{SECRET_TYPE_DEFAULT}'")
+        return value
 
 
 class JobSchema(BaseSchema):
