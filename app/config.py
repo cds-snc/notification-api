@@ -277,8 +277,6 @@ class Config(object):
         "PERSONALISATION_SIZE_LIMIT", 1024 * 50
     )  # 50k bytes limit by default for personalisation data per notification
     API_PAGE_SIZE = 250
-    TEST_MESSAGE_FILENAME = "Test message"
-    ONE_OFF_MESSAGE_FILENAME = "Report"
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
