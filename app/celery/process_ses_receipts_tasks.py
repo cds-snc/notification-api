@@ -99,7 +99,7 @@ class SESReceipt(TypedDict, total=False):
     """Structure of SES notification receipts"""
 
     eventType: str  # e.g., "Complaint", "Delivery", "Send", "Reject"
-    notificationType: str  # sometimes present instead of eventType
+    notificationType: str
     mail: SESMail
     delivery: Optional[SESDelivery]
     bounce: Optional[SESBounce]
@@ -108,7 +108,7 @@ class SESReceipt(TypedDict, total=False):
     send: Optional[SESSend]
 
 
-def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[List[str], List[SESReceipt]]:
+def handle_complaints(receipts: List[SESReceipt]) -> List[SESReceipt]:
     """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
        and returning the remaining messages for further processing.
 
@@ -121,23 +121,20 @@ def handle_complaints_and_extract_ref_ids(messages: List[SESReceipt]) -> Tuple[L
     """
     ref_ids = []
     complaint_free_messages = []
-    current_app.logger.info(f"[batch-celery] - Received: {len(messages)} receipts from Lambda.. beginning processing")
+    current_app.logger.info(f"[batch-celery] - Received: {len(receipts)} receipts from Lambda.. beginning processing")
 
-    for message in messages:
-        notification_type = message["notificationType"]
+    for receipt, notification in receipts:
+        notification_type = receipt["notificationType"]
 
         if notification_type == "Complaint":
-            try:
-                current_app.logger.info(f"[batch-celery] - Handling complaint: {message}")
-                _check_and_queue_complaint_callback_task(*handle_complaint(message))
-            except Exception as e:
-                current_app.logger.exception(f"Error processing complaint receipt: {message} - {e}")
+            current_app.logger.info(f"[batch-celery] - Handling complaint: {receipt}")
+            _check_and_queue_complaint_callback_task(*handle_complaint(receipt, notification))
         else:
-            ref_ids.append(message["mail"]["messageId"])
-            complaint_free_messages.append(message)
+            ref_ids.append(receipt["mail"]["messageId"])
+            complaint_free_messages.append(receipt)
 
     current_app.logger.info(f"[batch-celery] - Complaints handled, processing: {len(complaint_free_messages)} remaining receipts")
-    return ref_ids, complaint_free_messages
+    return complaint_free_messages
 
 
 def fetch_notifications(ref_ids: List[str]) -> Optional[List[Notification]]:
@@ -263,42 +260,48 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
 @statsd(namespace="tasks")
 def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     start_time = time.time()  # TODO : Remove after benchmarking
-    receipts = response["Messages"] if "Messages" in response else [json.loads(response["Message"])]
+    receipts = cast(List[SESReceipt], response["Messages"] if "Messages" in response else [json.loads(response["Message"])])
+    ref_ids = [receipt["mail"]["messageId"] for receipt in receipts]
     current_app.logger.info(f"[batch-celery] - Received response from lambda: {response}, total receipts: {len(receipts)}")
 
     try:
-        ref_ids, ses_messages = handle_complaints_and_extract_ref_ids(cast(List[SESReceipt], receipts))
-        if not ses_messages:
-            return True
-
         notifications = fetch_notifications(ref_ids)
-        if notifications is None:
-            handle_retries(self, ses_messages)
-            return None
 
-        # When none of the notification from the receipt batch are found, then retry all of them.
-        if not notifications:
+        # Retry if no notifications are in the DB yet
+        if notifications is None:
             current_app.logger.info(
                 f"[batch-celery] - No notifications found in the DB for reference ids: {", ".join(ref_ids)} Queuing {len(ref_ids)} receipts for retry"
             )
-            handle_retries(self, ses_messages)
+            handle_retries(self, receipts)
             return None
 
-        receipts_with_notification, receipts_with_no_notification = categorize_receipts(ses_messages, notifications)
+        # Categorize receipts into those with and without notifications
+        receipts_with_notification, receipts_with_no_notification = categorize_receipts(
+            cast(List[SESReceipt], receipts), notifications
+        )
         current_app.logger.info(
             f"[batch-celery] - with notifications: {receipts_with_notification} No notifications: {receipts_with_no_notification}"
         )
 
+        # Process complaints, finish early if all the receipts are complaints
+        # TODO: Technically complaint handling could be parallelized with the non-complaint processing to
+        # further optimize receipt processing, but as of 2025-05-30 & batch saving v1 this is not a priority.
+        ses_messages = handle_complaints(receipts_with_notification)
+        if not ses_messages:
+            return True
+
+        # Update the notification statuses in the DB
         receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
         current_app.logger.info(
             f"[batch-celery] - receipts_with_notification_and_aws_response_dict length: {len(receipts_with_notification_and_aws_response_dict)}"
         )
 
-        # Process the notifications and update their statuses
+        # Update annual limits, bounce rates, and enqueue API callback tasks for successfully updated notifications
         for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
             update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
             _check_and_queue_callback_task(notification)
 
+        # Enqueue retry tasks for receipts that did not yet have a notification in the DB
         if receipts_with_no_notification:
             current_app.logger.info(f"[batch-celery] - Queuing {len(receipts_with_no_notification)} receipts for retry")
             handle_retries(self, receipts_with_no_notification)
