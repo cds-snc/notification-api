@@ -16,6 +16,7 @@ from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
+from app.dao.permissions_dao import permission_dao
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
@@ -296,8 +297,6 @@ def dao_create_service(
     else:
         organisation = dao_get_organisation_by_email_address(user.email_address)
 
-    from app.dao.permissions_dao import permission_dao
-
     service.users.append(user)
     permission_dao.add_default_service_permissions_for_user(user, service)
     service.id = service_id or uuid.uuid4()  # must be set now so version history model can use same id
@@ -346,8 +345,6 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
     folder_permissions = folder_permissions or []
 
     try:
-        from app.dao.permissions_dao import permission_dao
-
         service.users.append(user)
         permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
         db.session.add(service)
