@@ -1613,3 +1613,34 @@ class TestAddingUsertoExistingService:
 
             # Verify the mock was called with the correct parameters
             mock_set_permissions.assert_called_with(user, sample_service, newer_permissions, _commit=False)
+
+    def test_add_user_with_duplicate_permissions_does_not_cause_errors(self, sample_user, sample_service):
+        """
+        Test that adding a user to a service with duplicate permissions doesn't cause errors.
+        This test verifies the fix for the unique constraint violation error:
+        "duplicate key value violates unique constraint 'uix_service_user_permission'"
+        that was occurring when trying to add a user with permissions they already had.
+        """
+
+        # First add the user with some permissions
+        permissions = ["send_emails", "send_texts", "manage_templates"]
+        dao_add_user_to_service(service=sample_service, user=sample_user, permissions=permissions)
+
+        # Get the count of permissions before trying to add duplicate permissions
+        initial_permissions_count = Permission.query.filter_by(service_id=sample_service.id, user_id=sample_user.id).count()
+
+        # Now try to add the same user with the same (duplicate) permissions
+        # This used to fail with UniqueViolation error before the fix
+        dao_add_user_to_service(service=sample_service, user=sample_user, permissions=permissions)
+
+        # Verify the same user is still in the service
+        assert sample_user in sample_service.users
+
+        # Verify we didn't create duplicate permission records
+        final_permissions_count = Permission.query.filter_by(service_id=sample_service.id, user_id=sample_user.id).count()
+        assert final_permissions_count == initial_permissions_count
+
+        # Verify we have all the expected permissions (no more, no less)
+        user_permissions = Permission.query.filter_by(service_id=sample_service.id, user_id=sample_user.id).all()
+        actual_permissions = sorted([p.permission for p in user_permissions])
+        assert actual_permissions == sorted(permissions)
