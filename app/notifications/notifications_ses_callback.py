@@ -151,7 +151,7 @@ def handle_complaint(ses_message, notification):
         ses_message["mail"]["messageId"]
     except KeyError as e:
         current_app.logger.exception("Complaint from SES failed to get reference from message", e)
-        return
+        return None
 
     ses_complaint = ses_message.get("complaint", None)
 
