@@ -185,7 +185,7 @@ def test_ses_callback_should_not_set_status_once_status_is_delivered(
 
 def test_process_ses_results_in_complaint(sample_email_template):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
-    handle_complaint(ses_complaint_callback()["Messages"][0])
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -218,7 +218,7 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
     sample_email_template,
 ):
     notification = create_notification_history(template=sample_email_template, reference="ref1")
-    handle_complaint(ses_complaint_callback()["Messages"][0])
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -238,7 +238,7 @@ def test_account_suppression_list_complaint_updates_notification_status(sample_e
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     assert get_notification_by_id(notification.id).status == "created"
 
-    handle_complaint(json.loads(ses_complaint_callback_with_subtype("OnAccountSuppressionList")["Messages"]))
+    handle_complaint(json.loads(ses_complaint_callback_with_subtype("OnAccountSuppressionList")["Messages"]), notification)
     complaints = Complaint.query.all()
 
     assert len(complaints) == 1
@@ -250,7 +250,7 @@ def test_regular_complaint_does_not_update_notification_status(sample_email_temp
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     status = get_notification_by_id(notification.id).status
 
-    handle_complaint(json.loads(ses_complaint_callback_with_missing_complaint_type()["Messages"]))
+    handle_complaint(json.loads(ses_complaint_callback_with_missing_complaint_type()["Messages"]), notification)
     complaints = Complaint.query.all()
 
     assert len(complaints) == 1

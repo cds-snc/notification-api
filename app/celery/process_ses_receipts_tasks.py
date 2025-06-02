@@ -108,7 +108,7 @@ class SESReceipt(TypedDict, total=False):
     send: Optional[SESSend]
 
 
-def handle_complaints(receipts: List[SESReceipt]) -> List[SESReceipt]:
+def handle_complaints(receipts: List[Tuple[SESReceipt, Notification]]) -> List[SESReceipt]:
     """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
        and returning the remaining messages for further processing.
 
