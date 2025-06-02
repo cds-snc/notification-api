@@ -300,6 +300,7 @@ def test_get_jobs_for_service_is_paginated(notify_db, notify_db_session, sample_
     assert res.items[1].created_at == datetime(2015, 1, 1, 7)
 
 
+@pytest.mark.skip(reason="Test jobs are no longer used")
 @pytest.mark.parametrize(
     "file_name",
     [
