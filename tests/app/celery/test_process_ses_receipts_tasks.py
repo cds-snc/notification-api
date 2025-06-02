@@ -150,6 +150,7 @@ def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
         mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
         notification = save_notification(
             create_notification(
                 sample_template,
@@ -278,6 +279,7 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
 def test_ses_callback_should_only_enqueue_failed_updates_for_retry(notify_db, notify_db_session, sample_email_template, mocker):
     mock_send = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     mock_retry: Mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     callbacks = generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3", "ref4", "ref5"])
     ids_to_retry = ["ref4", "ref5"]
     retry_args = [{"Messages": list(filter(lambda x: x["mail"]["messageId"] in ids_to_retry, callbacks["Messages"]))}]
