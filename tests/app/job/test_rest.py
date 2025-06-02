@@ -8,7 +8,7 @@ from freezegun import freeze_time
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
+from app.models import JOB_STATUS_FINISHED, JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
 from app.notifications.validators import (
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
@@ -20,6 +20,7 @@ from tests.app.db import (
     create_ft_notification_status,
     create_job,
     create_notification,
+    create_service,
     create_service_with_inbound_number,
     create_template,
     save_notification,
@@ -985,3 +986,27 @@ def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin
     assert resp_json["data"][1]["statistics"] == [{"status": "created", "count": 1}]
     assert resp_json["data"][2]["id"] == str(job_1.id)
     assert resp_json["data"][2]["statistics"] == [{"status": "delivered", "count": 6}]
+
+
+def test_get_service_has_jobs_returns_true_when_jobs_exist(client, notify_db_session):
+    service = create_service(service_name="test service")
+    template = create_template(service=service)
+    create_job(template=template, job_status=JOB_STATUS_FINISHED)
+
+    response = client.get(
+        f"/service/{service.id}/job/has_jobs", headers=[("Content-Type", "application/json"), create_authorization_header()]
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["data"]["has_jobs"] is True
+
+
+def test_get_service_has_jobs_returns_false_when_no_jobs_exist(client, notify_db_session):
+    service = create_service(service_name="test service with no jobs")
+
+    response = client.get(
+        f"/service/{service.id}/job/has_jobs", headers=[("Content-Type", "application/json"), create_authorization_header()]
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["data"]["has_jobs"] is False

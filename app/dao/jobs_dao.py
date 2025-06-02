@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Iterable
 
-from flask import current_app
 from notifications_utils.letter_timings import (
     CANCELLABLE_JOB_LETTER_STATUSES,
     letter_can_be_cancelled,
@@ -54,8 +53,6 @@ def dao_get_job_by_service_id_and_job_id(service_id, job_id):
 def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None):
     query_filter = [
         Job.service_id == service_id,
-        Job.original_file_name != current_app.config["TEST_MESSAGE_FILENAME"],
-        Job.original_file_name != current_app.config["ONE_OFF_MESSAGE_FILENAME"],
     ]
     if limit_days is not None:
         query_filter.append(Job.created_at > get_query_date_based_on_retention_period(limit_days))
@@ -87,6 +84,14 @@ def dao_archive_jobs(jobs: Iterable[Job]):
 
 def dao_get_in_progress_jobs():
     return Job.query.filter(Job.job_status == JOB_STATUS_IN_PROGRESS).all()
+
+
+def dao_service_has_jobs(service_id):
+    """
+    Efficient check to see if a service has any jobs in the database.
+    Returns True if the service has at least one job, False otherwise.
+    """
+    return db.session.query(db.session.query(Job).filter(Job.service_id == service_id).exists()).scalar()
 
 
 def dao_set_scheduled_jobs_to_pending():
