@@ -86,6 +86,14 @@ def dao_get_in_progress_jobs():
     return Job.query.filter(Job.job_status == JOB_STATUS_IN_PROGRESS).all()
 
 
+def dao_service_has_jobs(service_id):
+    """
+    Efficient check to see if a service has any jobs in the database.
+    Returns True if the service has at least one job, False otherwise.
+    """
+    return db.session.query(db.session.query(Job).filter(Job.service_id == service_id).exists()).scalar()
+
+
 def dao_set_scheduled_jobs_to_pending():
     """
     Sets all past scheduled jobs to pending, and then returns them for further processing.

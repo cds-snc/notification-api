@@ -17,6 +17,7 @@ from app.dao.jobs_dao import (
     dao_get_job_by_service_id_and_job_id,
     dao_get_jobs_by_service_id,
     dao_get_notification_outcomes_for_job,
+    dao_service_has_jobs,
     dao_update_job,
 )
 from app.dao.notifications_dao import get_notifications_for_job
@@ -224,6 +225,13 @@ def create_job(service_id):
     job_json["statistics"] = []
 
     return jsonify(data=job_json), 201
+
+
+@job_blueprint.route("/has_jobs", methods=["GET"])
+def get_service_has_jobs(service_id):
+    """Check if a service has any jobs in the database."""
+    has_jobs = dao_service_has_jobs(service_id)
+    return jsonify(data={"has_jobs": has_jobs}), 200
 
 
 def get_paginated_jobs(service_id, limit_days, statuses, page):
