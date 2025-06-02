@@ -3,7 +3,6 @@ from unittest import mock
 
 import pytest
 from flask import json
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.aws.mocks import (
     ses_complaint_callback,
@@ -191,24 +190,18 @@ def test_process_ses_results_in_complaint(sample_email_template):
     assert complaints[0].notification_id == notification.id
 
 
-def test_handle_complaint_does_not_raise_exception_if_reference_is_missing(notify_api):
+def test_handle_complaint_does_not_raise_exception_if_reference_is_missing(notify_api, sample_email_template):
     response = json.loads(ses_complaint_callback_malformed_message_id()["Messages"])
-    handle_complaint(response)
+    handle_complaint(response, None)
     complaints = Complaint.query.all()
     assert len(complaints) == 0
-
-
-def test_handle_complaint_does_raise_exception_if_notification_not_found(notify_api):
-    response = ses_complaint_callback()["Messages"][0]
-    with pytest.raises(expected_exception=SQLAlchemyError):
-        handle_complaint(response)
 
 
 def test_process_ses_results_in_complaint_if_notification_history_does_not_exist(
     sample_email_template,
 ):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
-    handle_complaint(ses_complaint_callback()["Messages"][0])
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -227,7 +220,7 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
 def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_type(notify_api, sample_email_template):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     msg = json.loads(ses_complaint_callback_with_missing_complaint_type()["Messages"])
-    handle_complaint(msg)
+    handle_complaint(msg, notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id

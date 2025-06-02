@@ -146,6 +146,13 @@ def handle_complaint(ses_message, notification):
     recipient_emails = remove_emails_from_complaint(ses_message)
     recipient_email = recipient_emails[0] if recipient_emails else None
     current_app.logger.info("Complaint from SES: \n{}".format(json.dumps(ses_message).replace("{", "(").replace("}", ")")))
+
+    try:
+        ses_message["mail"]["messageId"]
+    except KeyError as e:
+        current_app.logger.exception("Complaint from SES failed to get reference from message", e)
+        return
+
     ses_complaint = ses_message.get("complaint", None)
 
     complaint = Complaint(
