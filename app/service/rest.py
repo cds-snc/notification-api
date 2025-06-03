@@ -483,6 +483,16 @@ def add_user_to_service(service_id, user_id):
         message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
         current_app.logger.info(message)
         raise UserAlreadyInServiceError(status_code=409, message=message)
+    except IntegrityError as e:
+        if isinstance(e.orig, UniqueViolation):
+            message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
+            current_app.logger.info(message)
+            raise UserAlreadyInServiceError(status_code=409, message=message)
+        else:
+            raise
+    except Exception as e:
+        current_app.logger.exception(e)
+        raise InvalidRequest("An error occurred while adding user to service", status_code=500)
 
     data = service_schema.dump(service)
 
