@@ -30,7 +30,7 @@ fileignoreconfig:
 - filename: lambda_functions/va_profile/va_profile_opt_in_out_lambda.py
   checksum: 4e6e2fabf9630e9e0d26028818f41f34c065e80c223db34d35a1d1068c37a782
 - filename: poetry.lock
-  checksum: 12c7eba25edd93a17625bffdf468aea9c2d485599516e1ba5b9b34c2b17dc0c4
+  checksum: 0775750d4224181261ffa016720bff09a6976d249e4c90c377df94ce1af117dd
 - filename: tests/app/authentication/test_authentication.py
   checksum: f7091cd49ae042cb1a189d81e905c7595a822e5a6742624ed37a0ed7e1e05bb5
 - filename: tests/app/dao/test_api_key_dao.py
@@ -47,4 +47,6 @@ fileignoreconfig:
   checksum: e2ae9adcb65e9850f773f418c48eff6686ef945bc5606a5a7ecadb2212494419
 - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_lambda.py
   checksum: db79656ed019ef873475215ad09a6c3cfedd6079bfafe6ab1e56754fcf50ebe4
+- filename: app/config.py
+  checksum: e1030af843f467581536ee847dca58bfd86d3121d17be6f34715ee0eef74cb13
 version: "1.0"
