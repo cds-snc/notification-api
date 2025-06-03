@@ -31,6 +31,7 @@ from celery.exceptions import MaxRetriesExceededError
 
 
 def test_process_sns_results_delivered(sample_template, notify_db, notify_db_session, mocker):
+    mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.info")
 
     notification = create_sample_notification(
@@ -175,6 +176,7 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
     with freeze_time("2021-01-01T12:00:00"):
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
+        mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
