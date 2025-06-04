@@ -1,3 +1,5 @@
+import time
+import uuid
 from datetime import datetime
 
 import dateutil
@@ -236,6 +238,7 @@ def get_service_has_jobs(service_id):
 
 
 def get_paginated_jobs(service_id, limit_days, statuses, page):
+    start_time = time.time()
     pagination = dao_get_jobs_by_service_id(
         service_id,
         limit_days=limit_days,
@@ -287,10 +290,13 @@ def get_paginated_jobs(service_id, limit_days, statuses, page):
             # We set this in the first loop so we can just skip it here
             continue
         elif start < cutoff:
-            job_data["statistics"] = old_stats.get(job_id, [])
+            job_data["statistics"] = old_stats.get(uuid.UUID(job_id), [])
         else:
-            job_data["statistics"] = recent_stats.get(job_id, [])
+            job_data["statistics"] = recent_stats.get(uuid.UUID(job_id), [])
         del job_data["_parsed_start"]  # Clean up that temporary field
+
+    end_time = time.time()
+    current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
 
     return {
         "data": data,
