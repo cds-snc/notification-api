@@ -1,6 +1,8 @@
 fileignoreconfig:
 - filename: app/celery/reporting_tasks.py
   checksum: 2374dafe0993f493addc7ea8276342371584cf98d1a60c152a419981f85ea05a
+- filename: app/config.py
+  checksum: e1030af843f467581536ee847dca58bfd86d3121d17be6f34715ee0eef74cb13
 - filename: app/constants.py
   checksum: 0f9db062e443cdbddd1b9fdd68178d1b8574ad5c6f3dc57b1e7f08cce8d50777
 - filename: app/dao/api_key_dao.py
@@ -11,6 +13,10 @@ fileignoreconfig:
   checksum: e6ffbab28f29de186ece73eda6602376e221e42d5bbfd8f25d9958dd3594e9af
 - filename: app/notifications/validators.py
   checksum: 7c3f9574dd8096863b53927723fccc75f8c0a27c06a2da09b277fbc8af7ba9ef
+- filename: app/pii.py
+  checksum: 5b810b67b8b424cdc2b1acf6711aabb43eeeb12edaf57ea508fcb109561198ab
+- filename: app/pii/pii_base.py
+  checksum: 882592c9fd93a8cc32b3f8c3c276cfcbe78f6092a60c091636e5eb4041db56ba
 - filename: app/schemas.py
   checksum: 868535a708972460e9bf565404c81a582e4eecca33047a0e71b18a5d2e6d6ffa
 - filename: app/service/rest.py
@@ -39,14 +45,18 @@ fileignoreconfig:
   checksum: 760da11876b82b4401f5b5ddec998f3b5756209984e49591c352c49cd7b83d27
 - filename: tests/app/notifications/test_validators.py
   checksum: 9dab7e3890137b515bf84f9ea587d79dbd5e63568ff9a72c3a404f7738c0b329
+- filename: tests/app/pii/__init__.py
+  checksum: 978db2bc46b25d931e1ad1cdd813e18ffe26bb051860448e90c798c91b5e2850
+- filename: tests/app/pii/test_pii.py
+  checksum: cdc6a35ced27b61d191c3c94315c0d44382c6268690145cd2a9c8bcc97ed0132
 - filename: tests/app/service/test_api_key_endpoints.py
   checksum: 9419b40ea50f171b2f230617f813158f9559c3c57d607e3da417d7857e9504a9
 - filename: tests/app/service/test_rest.py
   checksum: b2126023c505e04dc66e4cc2be876c49daad154acd0c2ac63f03961e2ea8bef2
 - filename: tests/app/service/test_secret_generator.py
   checksum: e2ae9adcb65e9850f773f418c48eff6686ef945bc5606a5a7ecadb2212494419
+- filename: tests/app/test_pii.py
+  checksum: 5cc9330149731d580db4adf80c59b47b9f50731077c388811ba38ab227e0cec2
 - filename: tests/lambda_functions/nightly_stats_bigquery_upload/test_nightly_lambda.py
   checksum: db79656ed019ef873475215ad09a6c3cfedd6079bfafe6ab1e56754fcf50ebe4
-- filename: app/config.py
-  checksum: e1030af843f467581536ee847dca58bfd86d3121d17be6f34715ee0eef74cb13
 version: "1.0"
