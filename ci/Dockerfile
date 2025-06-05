@@ -14,7 +14,7 @@ WORKDIR /app
 
 # Install poetry and isolate it in it's own venv
 RUN python -m venv ${POETRY_HOME} \
-    && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION}
+    && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
 COPY pyproject.toml poetry.lock /app/
 

@@ -82,7 +82,7 @@ jobs:
         cp -f .env.example .env
 
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.0
+      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.3
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'
@@ -96,4 +96,3 @@ jobs:
         json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|GitHub actions>"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
-        

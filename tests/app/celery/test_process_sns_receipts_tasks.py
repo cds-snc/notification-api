@@ -31,6 +31,7 @@ from celery.exceptions import MaxRetriesExceededError
 
 
 def test_process_sns_results_delivered(sample_template, notify_db, notify_db_session, mocker):
+    mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.info")
 
     notification = create_sample_notification(
@@ -47,7 +48,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
 
-    mock_logger.assert_called_once_with(f"SNS callback return status of delivered for notification: {notification.id}")
+    mock_logger.assert_called_with(f"SNS callback return status of delivered for notification: {notification.id}")
 
 
 @pytest.mark.parametrize(
@@ -84,6 +85,7 @@ def test_process_sns_results_failed(
     should_log_warning,
     should_save_provider_response,
 ):
+    mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.warning")
 
@@ -105,7 +107,7 @@ def test_process_sns_results_failed(
     else:
         assert get_notification_by_id(notification.id).provider_response is None
 
-    mock_logger.assert_called_once_with(
+    mock_logger.assert_called_with(
         (
             f"SNS delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
@@ -174,6 +176,7 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
     with freeze_time("2021-01-01T12:00:00"):
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
+        mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
@@ -206,7 +209,7 @@ class TestAnnualLimit:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         notification = save_notification(
             create_notification(
@@ -272,7 +275,7 @@ class TestAnnualLimit:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
         notification = save_notification(
             create_notification(
@@ -366,7 +369,6 @@ class TestAnnualLimit:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
         mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
 
         notification = save_notification(
@@ -378,9 +380,10 @@ class TestAnnualLimit:
                 sent_by="sns",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
             process_sns_results(callback(provider_response, reference="ref") if provider_response else callback(reference="ref"))
+
             mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
             annual_limit_client.increment_sms_delivered.assert_not_called()
             annual_limit_client.increment_sms_failed.assert_not_called()

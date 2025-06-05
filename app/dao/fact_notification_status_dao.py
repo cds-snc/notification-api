@@ -196,7 +196,12 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
     )
     if filter_heartbeats:
         query = query.filter(
-            FactNotificationStatus.service_id != current_app.config["NOTIFY_SERVICE_ID"],
+            FactNotificationStatus.service_id.notin_(
+                [
+                    current_app.config["NOTIFY_SERVICE_ID"],
+                    current_app.config["HEARTBEAT_SERVICE_ID"],
+                ]
+            ),
         )
     return query.all()
 
@@ -297,6 +302,10 @@ def _timing_notification_table(service_id):
     max_date_from_facts = (
         FactNotificationStatus.query.with_entities(func.max(FactNotificationStatus.bst_date))
         .filter(FactNotificationStatus.service_id == service_id)
+        # We want to get the max date from the facts table which we will then input into the notifications table
+        # We know the notifications table is populated with data for today and the last 6 days, so we are checking
+        # that the max date is within the last 10 days, to ensure we are not scanning the entire table.
+        .filter(FactNotificationStatus.bst_date >= datetime.now(timezone.utc) - timedelta(days=10))
         .scalar()
     )
     date_to_use = max_date_from_facts + timedelta(days=1) if max_date_from_facts else datetime.now(timezone.utc)
@@ -587,6 +596,25 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
     else:
         query = stats.order_by(FactNotificationStatus.notification_type)
     return query.all()
+
+
+def fetch_notification_statuses_for_job_batch(service_id, job_ids):
+    """
+    Returns a list of (job_id, status, count) tuples for the given job_ids.
+    """
+    return (
+        db.session.query(
+            FactNotificationStatus.job_id,
+            FactNotificationStatus.notification_status.label("status"),
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .filter(
+            FactNotificationStatus.service_id == service_id,
+            FactNotificationStatus.job_id.in_(job_ids),
+        )
+        .group_by(FactNotificationStatus.job_id, FactNotificationStatus.notification_status)
+        .all()
+    )
 
 
 def fetch_notification_statuses_for_job(job_id):

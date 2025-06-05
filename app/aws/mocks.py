@@ -12,6 +12,70 @@ def sns_s3_callback(filename, message_id="some-message-id"):
     )
 
 
+def generate_ses_notification_callbacks(references, with_complaints=False):
+    messages = []
+
+    for i, ref in enumerate(references):
+        ses_message_body = {
+            "delivery": {
+                "processingTimeMillis": 2003,
+                "recipients": ["success@simulator.amazonses.com"],
+                "remoteMtaIp": "123.123.123.123",
+                "reportingMTA": "a7-32.smtp-out.eu-west-1.amazonses.com",
+                "smtpResponse": "250 2.6.0 Message received",
+                "timestamp": "2017-11-17T12:14:03.646Z",
+            },
+            "mail": {
+                "commonHeaders": {
+                    "from": ["TEST <TEST@notify.works>"],
+                    "subject": "lambda test",
+                    "to": ["success@simulator.amazonses.com"],
+                },
+                "destination": ["success@simulator.amazonses.com"],
+                "headers": [
+                    {"name": "From", "value": "TEST <TEST@notify.works>"},
+                    {"name": "To", "value": "success@simulator.amazonses.com"},
+                    {"name": "Subject", "value": "lambda test"},
+                    {"name": "MIME-Version", "value": "1.0"},
+                    {
+                        "name": "Content-Type",
+                        "value": 'multipart/alternative; boundary="----=_Part_617203_1627511946.1510920841645"',
+                    },
+                ],
+                "headersTruncated": False,
+                "messageId": ref,
+                "sendingAccountId": "12341234",
+                "source": '"TEST" <TEST@notify.works>',
+                "sourceArn": "arn:aws:ses:eu-west-1:12341234:identity/notify.works",
+                "sourceIp": "0.0.0.1",
+                "timestamp": "2017-11-17T12:14:01.643Z",
+            },
+            "notificationType": "Delivery",
+        }
+        if with_complaints and i % 2 == 1:
+            ses_message_body["notificationType"] = "Complaint"
+            ses_message_body["complaint"] = {
+                "complaintFeedbackType": "abuse",
+                "complainedRecipients": [{"emailAddress": "recipient1@example.com"}],
+                "timestamp": "2018-06-05T13:59:58.000Z",
+                "feedbackId": "ses_feedback_id",
+            }
+        messages.append(ses_message_body)
+    return {
+        "Type": "Notification",
+        "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
+        "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
+        "Subject": None,
+        "Messages": json.loads(json.dumps(messages)),
+        "Timestamp": "2017-11-17T12:14:03.710Z",
+        "SignatureVersion": "1",
+        "Signature": "[REDACTED]",
+        "SigningCertUrl": "https://sns.eu-west-1.amazonaws.com/SimpleNotificationService-[REDACTED].pem",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=[REACTED]",
+        "MessageAttributes": {},
+    }
+
+
 def ses_notification_callback(reference):
     ses_message_body = {
         "delivery": {
@@ -55,7 +119,7 @@ def ses_notification_callback(reference):
         "MessageId": "8e83c020-1234-1234-1234-92a8ee9baa0a",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Message": json.dumps(ses_message_body),
+        "Messages": [ses_message_body],
         "Timestamp": "2017-11-17T12:14:03.710Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",
@@ -88,7 +152,7 @@ def ses_complaint_callback_malformed_message_id():
         "Type": "Notification",
         "Timestamp": "2018-06-05T14:00:15.952Z",
         "Subject": None,
-        "Message": '{"notificationType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","badMessageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
+        "Messages": '{"notificationType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","badMessageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
         "SigningCertUrl": "https://sns.pem",
     }
 
@@ -107,7 +171,7 @@ def ses_complaint_callback_with_missing_complaint_type():
         "Type": "Notification",
         "Timestamp": "2018-06-05T14:00:15.952Z",
         "Subject": None,
-        "Message": '{"notificationType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
+        "Messages": '{"notificationType":"Complaint","complaint":{"complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
         "SigningCertUrl": "https://sns.pem",
     }
 
@@ -126,7 +190,27 @@ def ses_complaint_callback():
         "Type": "Notification",
         "Timestamp": "2018-06-05T14:00:15.952Z",
         "Subject": None,
-        "Message": '{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
+        "Messages": json.loads(
+            '[{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}]'
+        ),  # noqa
+        "SigningCertUrl": "https://sns.pem",
+    }
+
+
+def ses_complaint_account_suppression_list_callback_with_missing_complained_recipients():
+    return {
+        "Signature": "bb",
+        "SignatureVersion": "1",
+        "MessageAttributes": {},
+        "MessageId": "98c6e927-af5d-5f3b-9522-bab736f2cbde",
+        "UnsubscribeUrl": "https://sns.eu-west-1.amazonaws.com",
+        "TopicArn": "arn:ses_notifications",
+        "Type": "Notification",
+        "Timestamp": "2018-06-05T14:00:15.952Z",
+        "Subject": None,
+        "Messages": json.loads(
+            '[{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complaintSubType": "OnAccountSuppressionList", "timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1"}}]'
+        ),  # noqa
         "SigningCertUrl": "https://sns.pem",
     }
 
@@ -145,7 +229,7 @@ def ses_complaint_callback_with_subtype(subtype):
         "Type": "Notification",
         "Timestamp": "2018-06-05T14:00:15.952Z",
         "Subject": None,
-        "Message": '{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id", "complaintSubType":"'
+        "Messages": '{"notificationType":"Complaint","complaint":{"complaintFeedbackType": "abuse", "complainedRecipients":[{"emailAddress":"recipient1@example.com"}],"timestamp":"2018-06-05T13:59:58.000Z","feedbackId":"ses_feedback_id", "complaintSubType":"'
         + subtype
         + '"},"mail":{"timestamp":"2018-06-05T14:00:15.950Z","source":"\\"Some Service\\" <someservicenotifications.service.gov.uk>","sourceArn":"arn:identity/notifications.service.gov.uk","sourceIp":"52.208.24.161","sendingAccountId":"888450439860","messageId":"ref1","destination":["recipient1@example.com"]}}',  # noqa
         "SigningCertUrl": "https://sns.pem",
@@ -370,7 +454,7 @@ def _ses_bounce_callback(reference, bounce_type, bounce_subtype=None):
         "MessageId": "36e67c28-1234-1234-1234-2ea0172aa4a7",
         "TopicArn": "arn:aws:sns:eu-west-1:12341234:ses_notifications",
         "Subject": None,
-        "Message": json.dumps(ses_message_body),
+        "Messages": [ses_message_body],
         "Timestamp": "2017-11-17T12:14:05.149Z",
         "SignatureVersion": "1",
         "Signature": "[REDACTED]",  # noqa

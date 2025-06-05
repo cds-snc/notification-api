@@ -5,7 +5,6 @@ from app.config import QueueNames
 from app.dao.complaint_dao import save_complaint
 from app.dao.notifications_dao import (
     _update_notification_status,
-    dao_get_notification_history_by_reference,
 )
 from app.dao.service_callback_api_dao import (
     get_service_complaint_callback_api_for_service,
@@ -143,15 +142,17 @@ def get_aws_responses(ses_message):
     return base
 
 
-def handle_complaint(ses_message):
-    recipient_email = remove_emails_from_complaint(ses_message)[0]
+def handle_complaint(ses_message, notification):
+    recipient_emails = remove_emails_from_complaint(ses_message)
+    recipient_email = recipient_emails[0] if recipient_emails else None
     current_app.logger.info("Complaint from SES: \n{}".format(json.dumps(ses_message).replace("{", "(").replace("}", ")")))
+
     try:
-        reference = ses_message["mail"]["messageId"]
+        ses_message["mail"]["messageId"]
     except KeyError as e:
         current_app.logger.exception("Complaint from SES failed to get reference from message", e)
-        return
-    notification = dao_get_notification_history_by_reference(reference)
+        return None
+
     ses_complaint = ses_message.get("complaint", None)
 
     complaint = Complaint(
@@ -197,6 +198,10 @@ def remove_emails_from_bounce(bounce_dict):
 
 def remove_emails_from_complaint(complaint_dict):
     remove_mail_headers(complaint_dict)
+    # If the complaint is because the email address is on the suppression list, there will be no
+    # complainedRecipients in the SES message from which we can get the email address.
+    if complaint_dict["complaint"].get("complaintSubType") == "OnAccountSuppressionList":
+        return None
     complaint_dict["complaint"].pop("complainedRecipients")
     return complaint_dict["mail"].pop("destination")
 
