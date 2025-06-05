@@ -598,25 +598,6 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
     return query.all()
 
 
-def fetch_notification_statuses_for_job_batch(service_id, job_ids):
-    """
-    Returns a list of (job_id, status, count) tuples for the given job_ids.
-    """
-    return (
-        db.session.query(
-            FactNotificationStatus.job_id,
-            FactNotificationStatus.notification_status.label("status"),
-            func.sum(FactNotificationStatus.notification_count).label("count"),
-        )
-        .filter(
-            FactNotificationStatus.service_id == service_id,
-            FactNotificationStatus.job_id.in_(job_ids),
-        )
-        .group_by(FactNotificationStatus.job_id, FactNotificationStatus.notification_status)
-        .all()
-    )
-
-
 def fetch_notification_statuses_for_job(job_id):
     return (
         db.session.query(
