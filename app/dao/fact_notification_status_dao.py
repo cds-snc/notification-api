@@ -302,7 +302,9 @@ def _timing_notification_table(service_id):
     max_date_from_facts = (
         FactNotificationStatus.query.with_entities(func.max(FactNotificationStatus.bst_date))
         .filter(FactNotificationStatus.service_id == service_id)
-        # filter by last 10 days
+        # We want to get the max date from the facts table which we will then input into the notifications table
+        # We know the notifications table is populated with data for today and the last 6 days, so we are checking
+        # that the max date is within the last 10 days, to ensure we are not scanning the entire table.
         .filter(FactNotificationStatus.bst_date >= datetime.now(timezone.utc) - timedelta(days=10))
         .scalar()
     )
