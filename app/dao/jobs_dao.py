@@ -31,26 +31,6 @@ from app.models import (
 
 
 @statsd(namespace="dao")
-def dao_get_notification_outcomes_for_job_batch(service_id, job_ids):
-    """
-    Returns a list of (job_id, status, count) tuples for the given job_ids.
-    """
-    return (
-        db.session.query(
-            Notification.job_id,
-            Notification.status,
-            func.count(Notification.id).label("count"),
-        )
-        .filter(
-            Notification.service_id == service_id,
-            Notification.job_id.in_(job_ids),
-        )
-        .group_by(Notification.job_id, Notification.status)
-        .all()
-    )
-
-
-@statsd(namespace="dao")
 def dao_get_notification_outcomes_for_job(service_id, job_id):
     notification = (
         db.session.query(func.count(Notification.status).label("count"), Notification.status)
