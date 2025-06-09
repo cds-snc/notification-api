@@ -253,7 +253,6 @@ def _template_has_not_changed(
         'communication_item_id',
         'reply_to_email',
         'reply_to_text',
-        'onsite_notification',
     )
 
     try:

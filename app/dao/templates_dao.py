@@ -49,7 +49,6 @@ class TemplateHistoryData:
     content_as_html: str | None = None
     content_as_plain_text: str | None = None
     hidden: bool = False
-    onsite_notification: bool = False
     reply_to_email: str | None = None
     provider_id: str | None = None
     communication_item_id: str | None = None
@@ -334,7 +333,6 @@ def dao_get_template_history_by_id(template_id: str, version: str) -> TemplateHi
         content_as_html=template_history_object.content_as_html,
         content_as_plain_text=template_history_object.content_as_plain_text,
         hidden=template_history_object.hidden,
-        onsite_notification=template_history_object.onsite_notification,
         reply_to_email=template_history_object.reply_to_email,
         provider_id=template_history_object.provider_id,
         communication_item_id=template_history_object.communication_item_id,

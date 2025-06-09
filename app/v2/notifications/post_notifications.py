@@ -98,8 +98,6 @@ def post_notification(notification_type):  # noqa: C901
 
     check_rate_limiting(authenticated_service, api_user)
 
-    onsite_enabled = template.onsite_notification
-
     reply_to = get_reply_to_text(notification_type, form, template)
 
     if notification_type == LETTER_TYPE:
@@ -126,7 +124,6 @@ def post_notification(notification_type):  # noqa: C901
                     template=template,
                     service=authenticated_service,
                     reply_to_text=reply_to,
-                    onsite_enabled=onsite_enabled,
                     created_at=created_at,
                 )
             else:
@@ -227,7 +224,6 @@ def process_notification_with_recipient_identifier(
     template,
     service,
     reply_to_text=None,
-    onsite_enabled: bool = False,
     created_at: datetime | None = None,
 ):
     personalisation = process_document_uploads(form.get('personalisation'), service)
@@ -254,7 +250,6 @@ def process_notification_with_recipient_identifier(
         id_type=form['recipient_identifier']['id_type'],
         id_value=form['recipient_identifier']['id_value'],
         communication_item_id=template.communication_item_id,
-        onsite_enabled=onsite_enabled,
     )
 
     return notification

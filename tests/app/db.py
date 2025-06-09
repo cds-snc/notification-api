@@ -223,7 +223,6 @@ def create_template(
     postage=None,
     process_type='normal',
     reply_to_email=None,
-    onsite_notification=False,
     communication_item_id=None,
 ):
     data = {
@@ -238,7 +237,6 @@ def create_template(
         'process_type': process_type,
         'communication_item_id': communication_item_id,
         'reply_to_email': reply_to_email,
-        'onsite_notification': onsite_notification,
     }
     if template_type == LETTER_TYPE:
         data['postage'] = postage or 'second'

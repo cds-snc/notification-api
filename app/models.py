@@ -879,7 +879,6 @@ class TemplateBase(db.Model):
     content_as_plain_text = db.Column(db.Text, nullable=True)
     archived = db.Column(db.Boolean, nullable=False, default=False)
     hidden = db.Column(db.Boolean, nullable=False, default=False)
-    onsite_notification = db.Column(db.Boolean, nullable=False, default=False)
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
     reply_to_email = db.Column(db.String(254), nullable=True)

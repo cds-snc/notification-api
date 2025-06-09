@@ -187,7 +187,6 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
         id_type=recipient_item['id_type'],
         id_value=recipient_item['id_value'],
         communication_item_id=template.communication_item_id,
-        onsite_enabled=False,
     )
 
 
@@ -287,5 +286,4 @@ def test_send_notification_bypass_route_email_with_recipient_item(
         id_type=recipient_item['id_type'],
         id_value=recipient_item['id_value'],
         communication_item_id=template.communication_item_id,
-        onsite_enabled=False,
     )

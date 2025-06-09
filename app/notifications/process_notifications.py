@@ -326,7 +326,7 @@ def _get_delivery_task(
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
-    notification: Notification, id_type: str, id_value: str, communication_item_id: uuid, onsite_enabled: bool = False
+    notification: Notification, id_type: str, id_value: str, communication_item_id: uuid
 ) -> None:
     """
     Create, enqueue, and asynchronously execute a Celery task to send a notification.

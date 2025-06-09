@@ -138,7 +138,6 @@ def send_notification_bypass_route(
             id_type=recipient_item['id_type'],
             id_value=recipient_item['id_value'],
             communication_item_id=template.communication_item_id,
-            onsite_enabled=False,
         )
         current_app.logger.info('send_to_queue_for_recipient took: %s seconds', monotonic() - start_time)
     else:
