@@ -6,7 +6,6 @@ Create Date: 2025-06-09 20:01:02.943393
 
 """
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = '0483_index_jobs'
