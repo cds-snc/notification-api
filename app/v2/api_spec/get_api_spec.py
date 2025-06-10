@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, send_file
 v2_api_spec_blueprint = Blueprint("v2_api_spec", __name__, url_prefix="/v2")
 
 
-@v2_api_spec_blueprint.route("openapi-en", methods=["GET"])
+@v2_api_spec_blueprint.route("/openapi-en", methods=["GET"])
 def get_v2_api_spec_en():
     """
     Returns the English OpenAPI specification for the v2 Notifications API.
