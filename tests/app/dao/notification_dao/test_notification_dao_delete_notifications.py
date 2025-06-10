@@ -182,11 +182,8 @@ def test_should_delete_notification_and_recipient_identifiers_when_bulk_deleting
     sample_api_key,
     sample_notification,
     sample_template,
-    mocker,
     notify_db_session,
 ):
-    mocker.patch('app.notifications.process_notifications.accept_recipient_identifiers_enabled', return_value=True)
-
     api_key = sample_api_key()
     template = sample_template(template_type=notification_type)
     recipient_identifier = [{'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}]

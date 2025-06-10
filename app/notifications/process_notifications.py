@@ -31,7 +31,7 @@ from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_service_id_and_number,
 )
 from app.dao.templates_dao import TemplateHistoryData, dao_get_template_history_by_id
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import Notification, ScheduledNotification, RecipientIdentifier, Template
 from app.dao.notifications_dao import (
     dao_create_notification,
@@ -123,7 +123,7 @@ def persist_notification(
         callback_url=callback_url,
     )
 
-    if accept_recipient_identifiers_enabled() and recipient_identifier:
+    if recipient_identifier:
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
             id_type=recipient_identifier['id_type'],

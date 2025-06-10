@@ -22,7 +22,7 @@ fileignoreconfig:
 - filename: app/service/rest.py
   checksum: 9356f75621f193fa7a57e35d9feb1e203ebc3d064436d5399e93dc12985d24c3
 - filename: app/v2/notifications/post_notifications.py
-  checksum: b52f923d90faa072095d5e4c2925bf588a3649846ac65e8ae36f285823b57965
+  checksum: bf52e118ca20ecd49d5696903fe49621b2e13ecd96847dc5aef8d8989ce82635
 - filename: cd/application-deployment/dev/dev.env
   checksum: 250b2934c210f9cce3d7e037212102f3a46ad22469223f1480680f53c09ec5c9
 - filename: cd/application-deployment/perf/perf.env
@@ -41,6 +41,8 @@ fileignoreconfig:
   checksum: f7091cd49ae042cb1a189d81e905c7595a822e5a6742624ed37a0ed7e1e05bb5
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 9f417a5f8fdb915b1b187ea456c5e72dd3552b178a29b9b2581e8a2b1255fcbd
+- filename: tests/app/notifications/test_process_notifications.py
+  checksum: d1a762e7b3fcd2eaa8f7b45e576811b9b6d8d3b76ebc044c0cd28a2e209d69cb
 - filename: tests/app/delivery/test_send_to_providers.py
   checksum: 760da11876b82b4401f5b5ddec998f3b5756209984e49591c352c49cd7b83d27
 - filename: tests/app/notifications/test_validators.py

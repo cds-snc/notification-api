@@ -18,7 +18,7 @@ from app.constants import (
     UPLOAD_DOCUMENT,
 )
 from app.dao.service_sms_sender_dao import dao_get_default_service_sms_sender_by_service_id
-from app.feature_flags import accept_recipient_identifiers_enabled, is_feature_enabled, FeatureFlag
+from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
@@ -116,19 +116,15 @@ def post_notification(notification_type):  # noqa: C901
         else:
             # This execution path uses a given recipient identifier to lookup the
             # recipient's e-mail address or phone number.
-            if accept_recipient_identifiers_enabled():
-                notification = process_notification_with_recipient_identifier(
-                    form=form,
-                    notification_type=notification_type,
-                    api_key=api_user,
-                    template=template,
-                    service=authenticated_service,
-                    reply_to_text=reply_to,
-                    created_at=created_at,
-                )
-            else:
-                current_app.logger.debug('Sending a notification without contact information is not implemented.')
-                return jsonify(result='error', message='Not Implemented'), 501
+            notification = process_notification_with_recipient_identifier(
+                form=form,
+                notification_type=notification_type,
+                api_key=api_user,
+                template=template,
+                service=authenticated_service,
+                reply_to_text=reply_to,
+                created_at=created_at,
+            )
 
         template_with_content.values = {k: '<redacted>' for k in notification.personalisation}
 

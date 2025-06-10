@@ -1,19 +1,10 @@
-import os
-
 import pytest
 
 from app.feature_flags import (
     FeatureFlag,
     is_feature_enabled,
-    accept_recipient_identifiers_enabled,
     is_gapixel_enabled,
 )
-
-
-@pytest.mark.parametrize('enabled_string, enabled_boolean', [('True', True), ('False', False)])
-def test_accept_recipient_identifiers_flag(mocker, enabled_string, enabled_boolean):
-    mocker.patch.dict(os.environ, {'ACCEPT_RECIPIENT_IDENTIFIERS_ENABLED': enabled_string})
-    assert accept_recipient_identifiers_enabled() == enabled_boolean
 
 
 @pytest.mark.parametrize('gapixel_enabled', ['True', 'False'])

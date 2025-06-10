@@ -74,7 +74,6 @@ def test_post_sms_notification_returns_201(
         data['reference'] = reference
 
     if 'recipient_identifier' in data:
-        mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=True)
         mocker.patch('app.celery.lookup_va_profile_id_task.lookup_va_profile_id.apply_async')
         mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.apply_async')
 
@@ -1316,7 +1315,6 @@ def test_should_process_notification_successfully_with_recipient_identifiers(
     client,
     mocker,
     notify_db_session,
-    enable_accept_recipient_identifiers_enabled_feature_flag,
     expected_type,
     expected_value,
     task,
@@ -1359,7 +1357,6 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
     notify_db_session,
     client,
     mocker,
-    enable_accept_recipient_identifiers_enabled_feature_flag,
     check_recipient_communication_permissions_enabled,
     sample_api_key,
     sample_template,
@@ -1430,28 +1427,6 @@ def test_should_post_notification_successfully_with_recipient_identifier_and_con
             )
         else:
             assert called_task.args[0] == str(notification.id)
-
-
-def test_post_notification_returns_501_when_recipient_identifiers_present_and_feature_flag_disabled(
-    client,
-    mocker,
-    sample_api_key,
-    sample_template,
-):
-    api_key = sample_api_key()
-    template = sample_template(service=api_key.service, template_type=EMAIL_TYPE)
-    mocker.patch('app.v2.notifications.post_notifications.accept_recipient_identifiers_enabled', return_value=False)
-    data = {
-        'template_id': template.id,
-        'recipient_identifier': {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'},
-    }
-    auth_header = create_authorization_header(api_key)
-    response = client.post(
-        path='v2/notifications/email',
-        data=json.dumps(data),
-        headers=[('Content-Type', 'application/json'), auth_header],
-    )
-    assert response.status_code == 501
 
 
 @pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])

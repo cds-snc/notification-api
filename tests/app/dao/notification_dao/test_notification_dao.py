@@ -689,9 +689,7 @@ def test_should_delete_recipient_identifiers_if_notification_deleted(
     notify_db_session,
     sample_api_key,
     sample_template,
-    mocker,
 ):
-    mocker.patch('app.notifications.process_notifications.accept_recipient_identifiers_enabled', return_value=True)
     recipient_identifier = {'id_type': IdentifierType.VA_PROFILE_ID.value, 'id_value': 'foo'}
 
     template = sample_template()
