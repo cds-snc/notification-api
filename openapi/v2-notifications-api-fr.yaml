@@ -1,0 +1,438 @@
+openapi: 3.0.3
+info:
+  title: API de Notifications
+  description: API pour envoyer des notifications SMS et email
+  version: 2.0.0
+
+paths:
+  /v2/notifications/sms:
+    post:
+      summary: Envoyer un message texte
+      description: |
+        Envoyez un message texte à un numéro de téléphone destinataire en utilisant un modèle.
+        
+        Le modèle peut inclure des champs personnalisés qui sont remplis à l'aide du paramètre de personnalisation.
+      operationId: sendSmsNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostSmsRequest'
+      responses:
+        '201':
+          description: Notification SMS envoyée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostSmsResponse'
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Interdit - non autorisé à utiliser la clé API
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Limite de débit dépassée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+  
+  /v2/notifications/email:
+    post:
+      summary: Envoyer une notification email
+      description: |
+        Envoyez une notification email à une adresse email destinataire en utilisant un modèle.
+        
+        Le modèle peut inclure des champs personnalisés qui sont remplis à l'aide du paramètre de personnalisation.
+      operationId: sendEmailNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostEmailRequest'
+      responses:
+        '201':
+          description: Notification email envoyée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostEmailResponse'
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Interdit - non autorisé à utiliser la clé API
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Limite de débit dépassée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+  
+  /v2/notifications/bulk:
+    post:
+      summary: Envoyer un lot de notifications
+      description: |
+        Envoyez des notifications en masse, jusqu'à 50 000 destinataires à la fois, pour un seul modèle.
+        
+        Vous pouvez planifier l'envoi de notifications jusqu'à 4 jours à l'avance.
+      operationId: sendBulkNotifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBulkRequest'
+      responses:
+        '201':
+          description: Lot créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Interdit - non autorisé à utiliser la clé API
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Limite de débit dépassée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      example: "123e4567-e89b-12d3-a456-426614174000"
+    
+    PostSmsRequest:
+      type: object
+      required:
+        - template_id
+        - phone_number
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: L'identifiant du modèle de message texte que vous souhaitez envoyer.
+        phone_number:
+          type: string
+          description: Le numéro de téléphone auquel envoyer le SMS
+          example: "+19021234567"
+        personalisation:
+          type: object
+          description: À utiliser si un modèle contient des champs personnalisés tels que le nom ou le numéro de référence
+          additionalProperties: true
+          example:
+            first_name: "Amala"
+            appointment_date: "2023-01-01"
+        reference:
+          type: string
+          description: Un identifiant que vous pouvez créer si nécessaire. Cette référence identifie une seule notification ou un lot de notifications.
+          example: "CHAÎNE"
+        sms_sender_id:
+          $ref: '#/components/schemas/UUID'
+          description: Un identifiant unique de l'expéditeur de la notification SMS
+      
+    PostEmailRequest:
+      type: object
+      required:
+        - template_id
+        - email_address
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: L'identifiant du modèle d'email que vous souhaitez envoyer.
+        email_address:
+          type: string
+          format: email
+          description: L'adresse email du destinataire
+          example: "sender@something.com"
+        personalisation:
+          type: object
+          description: À utiliser si un modèle contient des champs personnalisés tels que le nom ou le numéro de référence
+          example:
+            first_name: "Amala"
+            application_date: "2023-01-01"
+        reference:
+          type: string
+          description: Un identifiant que vous pouvez créer si nécessaire. Cette référence identifie une seule notification ou un lot de notifications. Elle ne doit pas contenir d'informations personnelles telles que le nom ou l'adresse postale.
+          example: "CHAÎNE"
+        email_reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: L'identifiant d'une adresse email spécifiée par vous pour recevoir les réponses de vos utilisateurs.
+    
+    PostBulkRequest:
+      type: object
+      required:
+        - template_id
+        - name
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          description: Le nom de votre envoi en masse. Utilisé pour identifier ce lot de notifications plus tard.
+          example: "Rappels de rendez-vous de janvier"
+        reference:
+          type: string
+          description: Une référence pour ce lot
+          example: "référence-lot-123"
+        csv:
+          type: string
+          format: binary
+          description: Si vous préférez transmettre le contenu des fichiers CSV au lieu des lignes dans l'argument rows, vous pouvez le faire. Passez le contenu complet de votre fichier CSV dans une clé nommée csv. N'incluez pas l'argument rows.
+          example: "adresse email,nom\nalice@example.com,Alice"
+        rows:
+          type: array
+          description: Un tableau de tableaux. La première ligne est l'en-tête et doit inclure au moins l'adresse email si vous envoyez un modèle d'email ou le numéro de téléphone si vous envoyez un modèle de SMS. Les autres en-têtes de colonnes doivent correspondre aux champs personnalisés de votre modèle. Les lignes suivantes doivent contenir les détails de vos destinataires et doivent correspondre à l'ordre des en-têtes de colonnes. Vous pouvez avoir entre 1 et 50 000 destinataires.
+          items:
+            type: array
+            items:
+              type: string
+          example:
+            - ["adresse email", "nom"]
+            - ["alice@example.com", "Alice"]
+            - ["bob@example.com", "Bob"]
+        scheduled_for:
+          type: string
+          format: date-time
+          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu'à 4 jours à l'avance, au format ISO 8601, heure UTC.
+          example: "2023-01-01T12:00:00"
+          nullable: true
+        reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: L'identifiant de l'adresse de réponse ou du numéro de téléphone à utiliser
+          nullable: true
+    
+    PostSmsResponse:
+      type: object
+      required:
+        - id
+        - content
+        - uri
+        - template
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        content:
+          type: object
+          properties:
+            body:
+              type: string
+              description: Le contenu du message SMS
+            from_number:
+              type: string
+              description: Le numéro de téléphone à partir duquel le SMS a été envoyé
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+    
+    PostEmailResponse:
+      type: object
+      required:
+        - id
+        - content
+        - uri
+        - template
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        content:
+          type: object
+          properties:
+            body:
+              type: string
+              description: Le contenu de l'email
+            subject:
+              type: string
+              description: L'objet de l'email
+            from_email:
+              type: string
+              format: email
+              description: L'adresse email à partir de laquelle l'email a été envoyé
+        uri:
+          type: string
+          format: uri
+        template:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            version:
+              type: integer
+            uri:
+              type: string
+              format: uri
+    
+    ErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+          description: Code de statut HTTP
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Message d'erreur
+              message:
+                type: string
+                description: Message d'erreur détaillé
+    
+    PostBulkResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required:
+            - id
+            - template
+            - job_status
+            - notification_count
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+              description: L'identifiant du lot de notifications
+            original_file_name:
+              type: string
+              description: Le nom du fichier CSV original si fourni
+            notification_count:
+              type: integer
+              description: Le nombre de notifications dans le lot
+            template:
+              $ref: '#/components/schemas/UUID'
+              description: L'identifiant du modèle utilisé pour ce lot de notifications
+            template_version:
+              type: integer
+              description: La version du modèle utilisé pour ce lot de notifications
+            service:
+              $ref: '#/components/schemas/UUID'
+              description: L'identifiant du service ayant créé le lot
+            created_by:
+              type: object
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: L'identifiant de l'utilisateur ayant créé le lot
+                name:
+                  type: string
+                  description: Le nom de l'utilisateur ayant créé le lot
+            created_at:
+              type: string
+              format: date-time
+              description: Date de création du lot
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: Date de dernière mise à jour du lot
+            job_status:
+              type: string
+              enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
+              description: Statut du lot de notifications
+            scheduled_for:
+              type: string
+              format: date-time
+              nullable: true
+              description: Date prévue de traitement du lot, null si immédiat
+            processing_started:
+              type: string
+              format: date-time
+              nullable: true
+              description: Date de début du traitement du lot
+            processing_finished:
+              type: string
+              format: date-time
+              nullable: true
+              description: Date de fin du traitement du lot
+            service_name:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Le nom du service ayant créé le lot
+            template_type:
+              type: string
+              enum: ['email', 'sms']
+              description: Le type de modèle utilisé pour ce lot (email ou sms)
+            api_key:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: L'identifiant de la clé API utilisée pour créer le lot
+                name:
+                  type: string
+                  description: Le nom de la clé API
+                key_type:
+                  type: string
+                  enum: ['normal', 'team', 'test']
+                  description: Le type de clé API
+            archived:
+              type: boolean
+              description: Si le lot a été archivé
+            sender_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: L'identifiant de l'expéditeur utilisé pour ce lot, si applicable
+
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Clé API au format 'Bearer {api_key}'
