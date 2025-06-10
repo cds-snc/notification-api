@@ -17,29 +17,20 @@ def client():
 
 
 def test_get_api_spec_en(client):
-    response = client.get("/v2/api-spec?lang=en")
+    response = client.get("/v2/openapi-en")
     assert response.status_code == 200
     assert response.mimetype == "application/yaml"
     assert b"openapi:" in response.data
 
 
 def test_get_api_spec_fr(client):
-    response = client.get("/v2/api-spec?lang=fr")
+    response = client.get("/v2/openapi-fr")
     assert response.status_code == 200
     assert response.mimetype == "application/yaml"
     assert b"openapi:" in response.data
     assert b"API de Notifications" in response.data
 
 
-def test_get_api_spec_default_lang(client):
-    response = client.get("/v2/api-spec")
-    assert response.status_code == 200
-    assert response.mimetype == "application/yaml"
-    assert b"openapi:" in response.data
-
-
-def test_get_api_spec_invalid_lang(client):
-    response = client.get("/v2/api-spec?lang=es")
-    assert response.status_code == 400
-    assert response.is_json
-    assert response.get_json()["error"] == "Language not supported"
+def test_get_api_spec_en_not_found(client):
+    response = client.get("/v2/openapi-es")
+    assert response.status_code == 404

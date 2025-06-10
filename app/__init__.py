@@ -286,7 +286,7 @@ def register_blueprint(application):
 
 
 def register_v2_blueprints(application):
-    from app.authentication.auth import requires_auth
+    from app.authentication.auth import requires_auth, requires_no_auth
     from app.v2.api_spec.get_api_spec import v2_api_spec_blueprint
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
@@ -311,7 +311,7 @@ def register_v2_blueprints(application):
 
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
-    register_notify_blueprint(application, v2_api_spec_blueprint, requires_auth)
+    register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
 
 
 def init_app(app):
