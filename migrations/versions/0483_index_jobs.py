@@ -18,14 +18,41 @@ def index_exists(name):
     return result.ix_exists
 
 def upgrade():
+    # PostgreSQL requires that CREATE INDEX CONCURRENTLY cannot run within a transaction.
+    # Alembic runs migrations in a transaction by default, so we need to commit the current
+    # transaction before creating indexes concurrently.
+    op.execute("COMMIT")
     if not index_exists("ix_jobs_created_at"):
-        op.create_index(op.f('ix_jobs_created_at'), 'jobs', ['created_at'], unique=False)
+        op.create_index(
+            op.f('ix_jobs_created_at'), 
+            'jobs', 
+            ['created_at'], 
+            unique=False, 
+            postgresql_concurrently=True
+        )
     if not index_exists("ix_jobs_processing_started"):
-        op.create_index(op.f('ix_jobs_processing_started'), 'jobs', ['processing_started'], unique=False)
+        op.create_index(
+            op.f('ix_jobs_processing_started'), 
+            'jobs', 
+            ['processing_started'], 
+            unique=False, 
+            postgresql_concurrently=True
+        )
 
 
 def downgrade():
+    # PostgreSQL requires that DROP INDEX CONCURRENTLY cannot run within a transaction.
+    # Need to commit the current transaction first.
+    op.execute("COMMIT")
     if index_exists("ix_jobs_processing_started"):
-        op.drop_index(op.f('ix_jobs_processing_started'), table_name='jobs')
+        op.drop_index(
+            op.f('ix_jobs_processing_started'), 
+            table_name='jobs', 
+            postgresql_concurrently=True
+        )
     if index_exists("ix_jobs_created_at"):
-        op.drop_index(op.f('ix_jobs_created_at'), table_name='jobs')
+        op.drop_index(
+            op.f('ix_jobs_created_at'), 
+            table_name='jobs', 
+            postgresql_concurrently=True
+        )
