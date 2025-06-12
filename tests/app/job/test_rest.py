@@ -980,12 +980,12 @@ def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin
 
     resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id)
 
-    assert resp_json["data"][0]["id"] == str(job_3.id)
-    assert resp_json["data"][0]["statistics"] == []
-    assert resp_json["data"][1]["id"] == str(job_2.id)
-    assert resp_json["data"][1]["statistics"] == [{"status": "created", "count": 1}]
-    assert resp_json["data"][2]["id"] == str(job_1.id)
-    assert resp_json["data"][2]["statistics"] == [{"status": "delivered", "count": 6}]
+    assert resp_json["data"][2]["id"] == str(job_3.id)
+    assert resp_json["data"][2]["statistics"] == []
+    assert resp_json["data"][0]["id"] == str(job_2.id)
+    assert resp_json["data"][0]["statistics"] == [{"status": "created", "count": 1}]
+    assert resp_json["data"][1]["id"] == str(job_1.id)
+    assert resp_json["data"][1]["statistics"] == [{"status": "delivered", "count": 6}]
 
 
 def test_get_service_has_jobs_returns_true_when_jobs_exist(client, notify_db_session):
