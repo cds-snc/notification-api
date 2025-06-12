@@ -21,6 +21,8 @@ fileignoreconfig:
   checksum: 868535a708972460e9bf565404c81a582e4eecca33047a0e71b18a5d2e6d6ffa
 - filename: app/service/rest.py
   checksum: 9356f75621f193fa7a57e35d9feb1e203ebc3d064436d5399e93dc12985d24c3
+- filename: app/va/va_profile/va_profile_client.py
+  checksum: 262351ffbdd3cd7d9418a0e5e8dce68223cfce9552ee9d35be5978d3fe00cf58
 - filename: app/v2/notifications/post_notifications.py
   checksum: bf52e118ca20ecd49d5696903fe49621b2e13ecd96847dc5aef8d8989ce82635
 - filename: cd/application-deployment/dev/dev.env

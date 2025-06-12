@@ -8,6 +8,7 @@ from requests.auth import HTTPBasicAuth
 from notifications_utils.clients.statsd.statsd_client import StatsdClient
 
 from app.celery.exceptions import NonRetryableException, RetryableException
+from app.utils import statsd_http
 from app.v2.dataclasses import V2PushPayload
 
 
@@ -62,9 +63,10 @@ class VETextClient:
         self.logger.debug('VEText Payload information %s', payload)
         start_time = monotonic()
         try:
-            response = requests.post(
-                f'{self.base_url}/mobile/push/send', auth=self.auth, json=payload, timeout=self.TIMEOUT
-            )
+            with statsd_http('send_push_notification'):
+                response = requests.post(
+                    f'{self.base_url}/mobile/push/send', auth=self.auth, json=payload, timeout=self.TIMEOUT
+                )
 
             self.logger.info('VEText response: %s', response.json() if response.ok else response.status_code)
             self.logger.debug(

@@ -14,6 +14,7 @@ from app.celery.exceptions import NonRetryableException, RetryableException
 from app.constants import HTTP_TIMEOUT
 from app.dao.api_key_dao import get_unsigned_secret
 from app.models import DeliveryStatusCallbackApiData
+from app.utils import statsd_http
 
 
 class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
@@ -25,16 +26,17 @@ class WebhookCallbackStrategy(ServiceCallbackStrategyInterface):
     ) -> None:
         tags = ', '.join([f'{key}: {value}' for key, value in logging_tags.items()])
         try:
-            response = request(
-                method='POST',
-                url=callback.url,
-                data=json.dumps(payload),
-                headers={
-                    'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {encryption.decrypt(callback._bearer_token)}',
-                },
-                timeout=HTTP_TIMEOUT,
-            )
+            with statsd_http('callback.webhook'):
+                response = request(
+                    method='POST',
+                    url=callback.url,
+                    data=json.dumps(payload),
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Bearer {encryption.decrypt(callback._bearer_token)}',
+                    },
+                    timeout=HTTP_TIMEOUT,
+                )
             current_app.logger.info('Callback sent to %s, response %d, %s', callback.url, response.status_code, tags)
             response.raise_for_status()
 

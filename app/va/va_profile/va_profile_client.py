@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 import iso8601
 import requests
 
+from app.utils import statsd_http
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import (
     NoContactInfoException,
@@ -108,7 +109,10 @@ class VAProfileClient:
         data = {'bios': [{'bioPath': 'contactInformation'}, {'bioPath': 'communicationPermissions'}]}
 
         try:
-            response = requests.post(url, json=data, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=self.timeout)
+            with statsd_http('va_profile.v3'):
+                response = requests.post(
+                    url, json=data, cert=(self.ssl_cert_path, self.ssl_key_path), timeout=self.timeout
+                )
             response.raise_for_status()
         except (requests.HTTPError, requests.RequestException, requests.Timeout) as e:
             self._handle_exceptions(va_profile_id.id_value, e)
@@ -378,7 +382,8 @@ class VAProfileClient:
         # make POST request to VA Profile endpoint for notification statuses
         # raise errors if they occur, they will be handled by the calling function
         try:
-            response = requests.post(url, json=notification_data, headers=headers, timeout=self.timeout)
+            with statsd_http('send_va_profile_notification_status'):
+                response = requests.post(url, json=notification_data, headers=headers, timeout=self.timeout)
         except (requests.Timeout, requests.ConnectTimeout, requests.exceptions.SSLError) as e:
             self.logger.warning(
                 'Retryable exception when sending notification status to VA Profile for notification %s | %s',

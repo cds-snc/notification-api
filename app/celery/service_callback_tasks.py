@@ -31,6 +31,7 @@ from app.models import (
     DeliveryStatusCallbackApiData,
     Template,
 )
+from app.utils import statsd_http
 
 
 def service_callback_send(
@@ -411,15 +412,16 @@ def send_delivery_status_from_notification(
         NonRetryableException: If the request should not be retried
     """
     try:
-        response = post(
-            url=callback_url,
-            data=json.dumps(notification_data),
-            headers={
-                'Content-Type': 'application/json',
-                'x-enp-signature': callback_signature,
-            },
-            timeout=HTTP_TIMEOUT,
-        )
+        with statsd_http('send_delivery_status_from_notification'):
+            response = post(
+                url=callback_url,
+                data=json.dumps(notification_data),
+                headers={
+                    'Content-Type': 'application/json',
+                    'x-enp-signature': callback_signature,
+                },
+                timeout=HTTP_TIMEOUT,
+            )
         response.raise_for_status()
     except Timeout as e:
         current_app.logger.warning(

@@ -1,6 +1,8 @@
+from contextlib import contextmanager
 import os
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Union
+from monotonic import monotonic
+from typing import Dict, Generator, Optional, Union
 from uuid import UUID, uuid4
 
 from flask import current_app, url_for
@@ -219,3 +221,53 @@ def get_redis_retry_key(notification_id: str | UUID) -> str:
         str: redis key for this notification
     """
     return f'notification-carrier-sms-retry-count-{notification_id}'
+
+
+@contextmanager
+def statsd_http(namespace: str) -> Generator[None, None, None]:
+    """
+    Context manager for recording HTTP request metrics using StatsD.
+
+    This manager tracks success/failure counts and elapsed time for a given
+    HTTP block identified by namespace. It logs detailed StatsD metrics and
+    timing information on success or exception.
+
+    Equivalent aggregate HTTP stats, without the namespace, are also logged.
+
+    Intention is to limit the contained context to only http/s request calls.
+
+    Args:
+        namespace (str): A specific identifier for the HTTP block, used to scope metrics.
+
+    Raises:
+        Exception: Re-raises any exception that occurs within the managed block.
+    """
+    start_time = monotonic()
+    try:
+        yield
+    except Exception:
+        elapsed_time = monotonic() - start_time
+
+        # namespace scoped http stats
+        current_app.statsd_client.incr(f'http.{namespace}.exception')
+        current_app.statsd_client.timing(f'http.{namespace}.exception.elapsed_time', elapsed_time)
+
+        # aggregate http stats
+        current_app.statsd_client.incr('http.exception')
+        current_app.statsd_client.timing('http.exception.elapsed_time', elapsed_time)
+
+        current_app.logger.warning('http.%s block exception took %.4f seconds', namespace, elapsed_time)
+
+        raise
+    else:
+        elapsed_time = monotonic() - start_time
+
+        # namespace scoped http stats
+        current_app.statsd_client.incr(f'http.{namespace}.success')
+        current_app.statsd_client.timing(f'http.{namespace}.success.elapsed_time', elapsed_time)
+
+        # aggregate http stats
+        current_app.statsd_client.incr('http.success')
+        current_app.statsd_client.timing('http.success.elapsed_time', elapsed_time)
+
+        current_app.logger.debug('http.%s block took %.4f seconds', namespace, elapsed_time)

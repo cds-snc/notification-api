@@ -1,4 +1,5 @@
 from datetime import datetime, date
+from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -8,6 +9,7 @@ from app.utils import (
     get_local_timezone_midnight_in_utc,
     get_midnight_for_day_before,
     midnight_n_days_ago,
+    statsd_http,
 )
 
 
@@ -74,3 +76,40 @@ def test_get_midnight_for_day_before_returns_expected_date(date, expected_date):
 def test_midnight_n_days_ago(current_time, arg, expected_datetime):
     with freeze_time(current_time):
         assert midnight_n_days_ago(arg) == expected_datetime
+
+
+def test_statsd_http_success_logs_stats(mocker):
+    """Ensure statsd_http context manager logs success stats"""
+    mock_app = mocker.Mock()
+    mock_statsd = mocker.Mock()
+    mock_logger = mocker.Mock()
+
+    with patch('app.utils.current_app', mock_app):
+        mock_app.statsd_client = mock_statsd
+        mock_app.logger = mock_logger
+
+        with statsd_http('test'):
+            pass
+
+        mock_statsd.incr.assert_any_call('http.test.success')
+        mock_statsd.incr.assert_any_call('http.success')
+        mock_logger.debug.assert_called()
+
+
+def test_statsd_http_exception_logs_stats_and_reraises(mocker):
+    """The statsd_http context manager should re-raise exceptions and log exception stats"""
+    mock_app = mocker.Mock()
+    mock_statsd = mocker.Mock()
+    mock_logger = mocker.Mock()
+
+    with patch('app.utils.current_app', mock_app):
+        mock_app.statsd_client = mock_statsd
+        mock_app.logger = mock_logger
+
+        with pytest.raises(Exception, match='simulated failure'):
+            with statsd_http('test'):
+                raise Exception('simulated failure')
+
+        mock_statsd.incr.assert_any_call('http.test.exception')
+        mock_statsd.incr.assert_any_call('http.exception')
+        mock_logger.warning.assert_called()

@@ -8,6 +8,7 @@ from http.client import responses
 from functools import reduce
 
 from app.constants import HTTP_TIMEOUT
+from app.utils import statsd_http
 from app.va.identifier import (
     IdentifierType,
     transform_to_fhir_format,
@@ -136,12 +137,13 @@ class MpiClient:
             with requests.session() as s:
                 s.mount(self.base_url, adapter=self.mpi_adapter)
 
-                response = s.get(
-                    f'{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}',
-                    params={'-sender': self.SYSTEM_IDENTIFIER},
-                    cert=(self.ssl_cert_path, self.ssl_key_path),
-                    timeout=self.timeout,
-                )
+                with statsd_http('get_va_profile_id'):
+                    response = s.get(
+                        f'{self.base_url}/psim_webservice/fhir/Patient/{fhir_identifier}',
+                        params={'-sender': self.SYSTEM_IDENTIFIER},
+                        cert=(self.ssl_cert_path, self.ssl_key_path),
+                        timeout=self.timeout,
+                    )
 
                 response.raise_for_status()
         except requests.HTTPError as e:

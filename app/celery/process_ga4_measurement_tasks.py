@@ -8,6 +8,7 @@ from app import notify_celery
 from app.celery.exceptions import AutoRetryException
 from app.dao.dao_utils import get_reader_session
 from app.models import Notification, NotificationHistory, TemplateHistory
+from app.utils import statsd_http
 
 
 def get_ga4_config() -> tuple:
@@ -109,7 +110,8 @@ def post_to_ga4(notification_id: str, event_name, event_source, event_medium) ->
     status = False
     try:
         current_app.logger.info('Posting event to GA4: %s', event_name)
-        response = requests.post(url, json=event_body, headers=headers, timeout=1)
+        with statsd_http('post_to_ga4'):
+            response = requests.post(url, json=event_body, headers=headers, timeout=1)
         current_app.logger.debug('GA4 response: %s', response.status_code)
         response.raise_for_status()
         status = response.status_code == 204

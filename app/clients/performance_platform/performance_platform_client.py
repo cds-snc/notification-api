@@ -5,6 +5,7 @@ from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.constants import HTTP_TIMEOUT
+from app.utils import statsd_http
 
 
 class PerformancePlatformClient:
@@ -29,9 +30,13 @@ class PerformancePlatformClient:
         if self.active:
             bearer_token = self.performance_platform_endpoints[payload['dataType']]
             headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(bearer_token)}
-            resp = requests.post(
-                self.performance_platform_url + payload['dataType'], json=payload, headers=headers, timeout=self.timeout
-            )
+            with statsd_http('send_stats_to_performance_platform'):
+                resp = requests.post(
+                    self.performance_platform_url + payload['dataType'],
+                    json=payload,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
 
             if resp.status_code == 200:
                 current_app.logger.info(
