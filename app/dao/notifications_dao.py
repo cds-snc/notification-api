@@ -372,6 +372,7 @@ def get_notifications_for_service(
     client_reference=None,
     include_one_off=True,
     format_for_csv=False,
+    should_page=True,
 ):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
@@ -414,6 +415,9 @@ def get_notifications_for_service(
         query = query.options(
             joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by)
         )
+
+    if not should_page:
+        return query.order_by(desc(Notification.created_at))
 
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 

@@ -11,6 +11,7 @@ from flask import g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
+from flask_smorest import Api, Blueprint
 from notifications_utils import logging, request_helper
 from notifications_utils.clients.redis.annual_limit import RedisAnnualLimit
 from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
@@ -106,6 +107,14 @@ def create_app(application, config=None):
     request_helper.init_app(application)
     db.init_app(application)
     migrate.init_app(application, db=db)
+
+    # Patch for flask-marshmallow compatibility with Flask-SQLAlchemy 2.3.2.dev
+    if "sqlalchemy" in application.extensions:
+        sa_ext = application.extensions["sqlalchemy"]
+        if hasattr(sa_ext, "db"):
+            # Patch in a .session attribute for flask-marshmallow
+            sa_ext.session = sa_ext.db.session
+
     marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
@@ -149,8 +158,13 @@ def create_app(application, config=None):
     email_normal.init_app(flask_redis, metrics_logger)
     email_priority.init_app(flask_redis, metrics_logger)
 
+    application.config["API_TITLE"] = "Notifications API"
+    application.config["API_VERSION"] = "v2"
+    application.config["OPENAPI_VERSION"] = "3.0.3"
+    api = Api(application)
+
     register_blueprint(application)
-    register_v2_blueprints(application)
+    register_v2_blueprints(application, api)
 
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
@@ -167,6 +181,17 @@ def create_app(application, config=None):
     setup_deprecated_commands(application)
 
     return application
+
+
+def register_smorest_blueprint(api: Api, blueprint: Blueprint, auth_function, prefix=None):
+    if not blueprint._got_registered_once:
+        blueprint.before_request(auth_function)
+        if prefix:
+            api.register_blueprint(blueprint, url_prefix=prefix)
+        else:
+            api.register_blueprint(blueprint)
+    else:
+        api.logger.warning(f"Blueprint {blueprint.name} has already been registered. Skipping re-registration.")
 
 
 def register_notify_blueprint(application, blueprint, auth_function, prefix=None):
@@ -285,17 +310,13 @@ def register_blueprint(application):
     register_notify_blueprint(application, report_blueprint, requires_admin_auth)
 
 
-def register_v2_blueprints(application):
+def register_v2_blueprints(application, api):
     from app.authentication.auth import requires_auth, requires_no_auth
     from app.v2.api_spec.get_api_spec import v2_api_spec_blueprint
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
-    from app.v2.notifications import (  # noqa
-        get_notifications,
-        post_notifications,
-        v2_notification_blueprint,
-    )
+    from app.v2.notifications import get_notifications, post_notifications, v2_notification_blueprint  # noqa
     from app.v2.template import (  # noqa
         get_template,
         post_template,
@@ -303,7 +324,7 @@ def register_v2_blueprints(application):
     )
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
 
-    register_notify_blueprint(application, v2_notification_blueprint, requires_auth)
+    register_smorest_blueprint(api, v2_notification_blueprint, requires_auth)
 
     register_notify_blueprint(application, get_templates, requires_auth)
 

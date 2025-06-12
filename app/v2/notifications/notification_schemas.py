@@ -1,3 +1,5 @@
+from marshmallow import Schema, fields, validate
+
 from app.models import (
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
@@ -10,6 +12,7 @@ from app.schema_validation.definitions import (
     personalisation,
     uuid,
 )
+from app.schemas import NotificationWithTemplateSchema
 
 template = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -32,6 +35,10 @@ notification_by_id = {
     "properties": {"notification_id": uuid},
     "required": ["notification_id"],
 }
+
+
+class UUIDSchema(Schema):
+    notification_id = fields.UUID(required=True, as_string=True)
 
 
 get_notification_response = {
@@ -104,6 +111,20 @@ get_notifications_request = {
     "additionalProperties": False,
 }
 
+
+class GetNotificationsRequestBodySchema(Schema):
+    reference = fields.String(required=False, allow_none=True)
+    status = fields.String(
+        validate=validate.OneOf(
+            NOTIFICATION_STATUS_TYPES + [f"{NOTIFICATION_STATUS_LETTER_ACCEPTED}, {NOTIFICATION_STATUS_LETTER_RECEIVED}"]
+        ),
+        required=False,
+    )
+    template_type = fields.List(fields.String(validate=validate.OneOf(TEMPLATE_TYPES)), required=False)
+    include_jobs = fields.Boolean(required=False, load_default=False)
+    older_than = fields.UUID(required=False, allow_none=True, as_string=True)
+
+
 get_notifications_response = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "GET list of notifications response schema",
@@ -124,6 +145,11 @@ get_notifications_response = {
     "required": ["notifications", "links"],
     "definitions": {"notification": get_notification_response},
 }
+
+
+class GetNotificationsResponseSchema(Schema):
+    notifications = fields.List(fields.Nested(NotificationWithTemplateSchema), required=True)
+
 
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",

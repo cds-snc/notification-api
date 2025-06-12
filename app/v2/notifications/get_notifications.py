@@ -1,6 +1,8 @@
 from io import BytesIO
 
-from flask import current_app, jsonify, request, send_file, url_for
+from flask import send_file
+from flask.views import MethodView
+from flask_smorest import Page, abort
 
 from app import api_user, authenticated_service
 from app.dao import notifications_dao
@@ -12,25 +14,37 @@ from app.models import (
     NOTIFICATION_VIRUS_SCAN_FAILED,
 )
 from app.schema_validation import validate
+from app.schemas import NotificationModelSchema, NotificationWithPersonalisationSchema
 from app.v2.errors import BadRequestError, PDFNotReadyError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import (
-    get_notifications_request,
+    GetNotificationsRequestBodySchema,
+    UUIDSchema,
     notification_by_id,
 )
 
 
-@v2_notification_blueprint.route("/<notification_id>", methods=["GET"])
-def get_notification_by_id(notification_id):
-    _data = {"notification_id": notification_id}
-    validate(_data, notification_by_id)
-    notification = notifications_dao.get_notification_with_personalisation(
-        authenticated_service.id, notification_id, key_type=None
-    )
-    if notification is not None:
-        return jsonify(notification.serialize()), 200
-    else:
-        return jsonify(result="error", message="Notification not found in database"), 404
+@v2_notification_blueprint.route("/<notification_id>", tags=["Notifications"], methods=["GET"])
+class GetNotificationById(MethodView):
+    @v2_notification_blueprint.arguments(UUIDSchema, location="path", description="Notification ID")
+    @v2_notification_blueprint.response(200, NotificationWithPersonalisationSchema)
+    @v2_notification_blueprint.response(422, description="Invalid notification UUID format")
+    def get(self, path_args, **kwargs):
+        """Get a notification by its ID.
+
+        Returns the notification details including personalisation data for
+        the specified notification ID.
+        """
+        # TODO: Both Flask and flask-smorest pass request parameters, but we only want to use the path
+        # args in this case as, in conjunction with the arg schema, it is "pre-validated".
+        notification_id = path_args["notification_id"]
+        notification = notifications_dao.get_notification_with_personalisation(
+            authenticated_service.id, notification_id, key_type=None
+        )
+        if notification is None:
+            abort(404, message="Notification not found in database")
+
+        return notification
 
 
 @v2_notification_blueprint.route("/<notification_id>/pdf", methods=["GET"])
@@ -59,49 +73,35 @@ def get_pdf_for_notification(notification_id):
     return send_file(path_or_file=BytesIO(pdf_data), mimetype="application/pdf")
 
 
-@v2_notification_blueprint.route("", methods=["GET"])
-def get_notifications():
-    _data = request.args.to_dict(flat=False)
+class CursorPage(Page):
+    """A custom page class for cursor-based pagination of notifications returned from
+    an SQLAlchemy query.
+    """
 
-    # flat=False makes everything a list, but we only ever allow one value for "older_than"
-    if "older_than" in _data:
-        _data["older_than"] = _data["older_than"][0]
+    @property
+    def item_count(self):
+        return self.collection.count()
 
-    # and client reference
-    if "reference" in _data:
-        _data["reference"] = _data["reference"][0]
 
-    if "include_jobs" in _data:
-        _data["include_jobs"] = _data["include_jobs"][0]
+@v2_notification_blueprint.route("", tags=["Notifications"], methods=["GET"])
+class GetNotifications(MethodView):
+    @v2_notification_blueprint.arguments(GetNotificationsRequestBodySchema, location="json")
+    @v2_notification_blueprint.response(200, NotificationModelSchema(many=True))
+    @v2_notification_blueprint.paginate(CursorPage)
+    def get(self, args):
+        """Get a list of notifications
 
-    data = validate(_data, get_notifications_request)
+        Returns a paginated list of notifications for the authenticated service.
+        """
+        paginated_notifications = notifications_dao.get_notifications_for_service(
+            str(authenticated_service.id),
+            filter_dict=args,
+            key_type=api_user.key_type,
+            personalisation=True,
+            older_than=args.get("older_than"),
+            client_reference=args.get("reference"),
+            include_jobs=args.get("include_jobs"),
+            should_page=False,  # We're letting smorest handle pagination
+        )
 
-    paginated_notifications = notifications_dao.get_notifications_for_service(
-        str(authenticated_service.id),
-        filter_dict=data,
-        key_type=api_user.key_type,
-        personalisation=True,
-        older_than=data.get("older_than"),
-        client_reference=data.get("reference"),
-        page_size=current_app.config.get("API_PAGE_SIZE"),
-        include_jobs=data.get("include_jobs"),
-    )
-
-    def _build_links(notifications):
-        _links = {
-            "current": url_for(".get_notifications", _external=True, **data),
-        }
-
-        if len(notifications):
-            next_query_params = dict(data, older_than=notifications[-1].id)
-            _links["next"] = url_for(".get_notifications", _external=True, **next_query_params)
-
-        return _links
-
-    return (
-        jsonify(
-            notifications=[notification.serialize() for notification in paginated_notifications.items],
-            links=_build_links(paginated_notifications.items),
-        ),
-        200,
-    )
+        return paginated_notifications
