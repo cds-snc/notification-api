@@ -95,15 +95,6 @@ def create_nightly_notification_status_for_day(process_day):
     """
     process_day = datetime.strptime(process_day, "%Y-%m-%d").date()
     service_ids = [x.id for x in Service.query.all()]
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "staging":
-        performance_test_service_id = "44c1a3f5-6a11-4952-b6f4-94dd46d009f2"
-        was_seeded_today = annual_limit_client.was_seeded_today(performance_test_service_id)
-        notifcation_counts = annual_limit_client.get_all_notification_counts(performance_test_service_id)
-        current_app.logger.info(
-            "Staging Performance Test data in redis START of task: was_seeded_today: {}, notification_counts: {}".format(
-                was_seeded_today, notifcation_counts
-            )
-        )
     chunk_size = 10
     iter_service_ids = iter(service_ids)
     current_app.logger.info("create-nightly-notification-status-for-day STARTED for day {} ".format(process_day))
@@ -143,15 +134,6 @@ def create_nightly_notification_status_for_day(process_day):
                     process_day, chunk, e
                 )
             )
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "staging":
-        performance_test_service_id = "44c1a3f5-6a11-4952-b6f4-94dd46d009f2"
-        was_seeded_today = annual_limit_client.was_seeded_today(performance_test_service_id)
-        notifcation_counts = annual_limit_client.get_all_notification_counts(performance_test_service_id)
-        current_app.logger.info(
-            "Staging Performance Test data in redis START of task: was_seeded_today: {}, notification_counts: {}".format(
-                was_seeded_today, notifcation_counts
-            )
-        )
 
 
 @notify_celery.task(name="insert-quarter-data-for-annual-limits")
