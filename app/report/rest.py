@@ -1,6 +1,7 @@
 import uuid
+from typing import Tuple
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from marshmallow import ValidationError
 
 from app.celery.tasks import generate_report
@@ -76,8 +77,12 @@ def create_service_report(service_id):
 
 
 @report_blueprint.route("", methods=["GET"])
-def get_service_reports(service_id):
-    """Get reports for a service with optional limit_days parameter"""
+def get_service_reports(service_id) -> Tuple[Response, int]:
+    """Get reports for a service with optional limit_days parameter
+
+    Returns:
+        Tuple[Response, int]: JSON response with ServiceReportsResponse format and HTTP status code
+    """
 
     # Get optional days parameter, default to 7 if not provided
     limit_days = request.args.get("limit_days", type=int, default=7)
