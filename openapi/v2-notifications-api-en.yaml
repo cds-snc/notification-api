@@ -132,6 +132,97 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
         - apiKey: []
+  
+  /service/{service_id}/report:
+    get:
+      summary: Get reports for a service
+      description: |
+        Retrieve a list of reports for a specific service, with optional filtering by days.
+        Reports include CSV exports of notifications, email reports, SMS reports, and job reports.
+      operationId: getServiceReports
+      parameters:
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: The ID of the service to get reports for
+        - name: limit_days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 7
+            minimum: 1
+          description: Number of days to look back for reports (default 7)
+      responses:
+        '200':
+          description: Reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
+    post:
+      summary: Create a new report for a service
+      description: |
+        Create a new report for a specific service. The report will be generated asynchronously.
+      operationId: createServiceReport
+      parameters:
+        - name: service_id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: The ID of the service to create a report for
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report creation request accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Report'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - apiKey: []
 
 components:
   schemas:
@@ -443,3 +534,178 @@ components:
       in: header
       name: Authorization
       description: API Key with format 'Bearer {api_key}'
+    Report:
+      type: object
+      required:
+        - id
+        - service_id
+        - report_type
+        - created_at
+        - status
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the service this report is for
+        report_type:
+          type: string
+          enum: ['notification', 'email', 'sms', 'job']
+          description: The type of report
+        created_at:
+          type: string
+          format: date-time
+          description: When the report was created
+        status:
+          type: string
+          enum: ['pending', 'in progress', 'completed', 'failed']
+          description: The status of the report
+        error_message:
+          type: string
+          nullable: true
+          description: Error message if the report generation failed
+        file_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to download the report file, if available
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Additional parameters for the report, such as date range
+        notification_count:
+          type: integer
+          description: The number of notifications in the report
+        csv_file_name:
+          type: string
+          description: The name of the CSV file if the report is in CSV format
+        email_report_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the email report, if applicable
+        sms_report_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the SMS report, if applicable
+        job_report_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the job report, if applicable
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the template used for the notifications in this report
+        template_version:
+          type: integer
+          description: The version of the template used for the notifications in this report
+        service_name:
+          type: string
+          description: The name of the service
+        api_key:
+          type: object
+          nullable: true
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the API key used for the notifications in this report
+            name:
+              type: string
+              description: The name of the API key
+            key_type:
+              type: string
+              enum: ['normal', 'team', 'test']
+              description: The type of API key
+    Report:
+      type: object
+      description: A report generated for a service
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: The unique identifier for the report
+        report_type:
+          type: string
+          enum: ['sms', 'email', 'job']
+          description: The type of report (SMS, email, or job report)
+        service_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the service this report belongs to
+        status:
+          type: string
+          enum: ['requested', 'generating', 'ready', 'error']
+          description: The current status of the report
+        requested_at:
+          type: string
+          format: date-time
+          description: When the report was requested
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the report was completed (null if still processing)
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the report download link expires
+        url:
+          type: string
+          nullable: true
+          description: URL to download the report (null if not ready)
+        language:
+          type: string
+          nullable: true
+          description: Language code for the report (e.g., 'en', 'fr')
+        requesting_user_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: ID of the user who requested the report
+        job_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: ID of the specific job this report covers (null for service-wide reports)
+        notification_statuses:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: List of notification statuses to include in the report
+        requesting_user:
+          type: object
+          nullable: true
+          description: Details of the user who requested the report
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            name:
+              type: string
+      required:
+        - id
+        - report_type
+        - service_id
+        - status
+        - requested_at
+
+    CreateReportRequest:
+      type: object
+      description: Request to create a new report
+      properties:
+        report_type:
+          type: string
+          enum: ['sms', 'email', 'job']
+          description: The type of report to generate
+        requesting_user_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: ID of the user requesting the report
+        language:
+          type: string
+          nullable: true
+          description: Language code for the report
+        notification_statuses:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: List of notification statuses to include in the report
+        job_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: ID of a specific job to generate a report for
+      required:
+        - report_type
