@@ -79,11 +79,7 @@ def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50
 
     if statuses is not None and statuses != [""]:
         query_filter.append(Job.job_status.in_(statuses))
-    return (
-        Job.query.filter(*query_filter)
-        .order_by(Job.processing_started.desc().nulls_last(), Job.created_at.desc())
-        .paginate(page=page, per_page=page_size)
-    )
+    return Job.query.filter(*query_filter).order_by(Job.created_at.desc()).paginate(page=page, per_page=page_size)
 
 
 def dao_get_job_by_id(job_id) -> Job:
