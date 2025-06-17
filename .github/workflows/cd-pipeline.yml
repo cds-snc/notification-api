@@ -13,6 +13,10 @@ name: Continuous Deployment Pipeline
   # environment:
 # is simply using a variable named environment 
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   push:
     branches:

@@ -5,6 +5,10 @@ name: Call Notification API QA Regression Tests
 #   For prod, only a smoke test is run.
 # Changes to which type of testing is done thus must be made in that repository.
 
+permissions:
+  contents: read
+  actions: write
+
 on: 
   workflow_call:
     inputs:

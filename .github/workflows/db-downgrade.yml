@@ -1,4 +1,8 @@
 name: DB Downgrade
+
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

@@ -1,5 +1,9 @@
 name: Biweekly Dependency Ticket Creation
 
+permissions:
+  contents: read
+  issues: write
+
 on:
   schedule:
     - cron: "0 13 * * 1"  # Runs every week on Monday at 09:00 ET (which is 13:00 UTC)

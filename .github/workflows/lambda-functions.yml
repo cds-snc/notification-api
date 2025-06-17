@@ -3,6 +3,9 @@
 
 name: Build and Deploy Lambda Functions
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:

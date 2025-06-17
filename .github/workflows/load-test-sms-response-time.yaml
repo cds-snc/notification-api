@@ -1,5 +1,8 @@
 name: Load test (SMS Response Time)
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:

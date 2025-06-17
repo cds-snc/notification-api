@@ -2,6 +2,7 @@ name: Deploy to Env - API
 run-name: "Deploy API to ${{ inputs.environment }}"
 
 permissions:
+  contents: read
   actions: write
 
 on:

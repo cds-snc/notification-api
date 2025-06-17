@@ -1,5 +1,8 @@
 name: Load test (Email Delivery Time)
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
     inputs:
