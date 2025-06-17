@@ -3,11 +3,12 @@ name: CD Pipeline Pre Tag Summary
 on: 
   workflow_call:
 
+permissions:
+  contents: write
+
 jobs:
   pre-tag-summary:
     runs-on: ${{ vars.RUNS_ON }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Pre Tag Summary

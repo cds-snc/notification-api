@@ -1,5 +1,8 @@
 name: Create Release Notes
 
+permissions:
+  contents: write
+
 on: 
   workflow_call:
     inputs:
@@ -16,8 +19,6 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     outputs:
       releaseUrl: ${{ steps.create_notes.outputs.releaseUrl }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 

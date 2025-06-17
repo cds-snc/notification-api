@@ -3,11 +3,12 @@ name: CD Pipeline PR Labels and Semver bump Summary
 on: 
   workflow_call:
 
+permissions:
+  contents: write
+
 jobs:
   check-pr-sem:
     runs-on: ${{ vars.RUNS_ON }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: PR Label Semver
