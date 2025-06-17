@@ -555,7 +555,7 @@ def create_rate(start_date, value, notification_type):
     return rate
 
 
-def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, expired=False):
+def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, expired=False, with_expiry=True) -> ApiKey:
     id_ = str(uuid4())
 
     name = key_name or f'{key_type} api key {id_}'
@@ -573,6 +573,10 @@ def create_api_key(service, key_type=KEY_TYPE_NORMAL, key_name=None, expired=Fal
     if expired:
         data['expiry_date'] = datetime.utcnow()
         data['revoked'] = True
+
+    # simulate old keys that did not have expiry_date values by default
+    if not with_expiry:
+        data['expiry_date'] = None
 
     api_key = ApiKey(**data)
     db.session.add(api_key)

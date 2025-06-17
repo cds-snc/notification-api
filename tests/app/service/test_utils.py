@@ -1,7 +1,10 @@
 import pytest
+from datetime import datetime, timezone
+from freezegun import freeze_time
 
 from app.clients.email import EmailClient
-from app.service.utils import compute_source_email_address
+from app.errors import InvalidRequest
+from app.service.utils import compute_source_email_address, validate_expiry_date
 from tests.conftest import set_config_values
 
 DEFAULT_EMAIL_FROM_VALUES = {
@@ -52,3 +55,27 @@ def test_should_compute_source_email_address(
             compute_source_email_address(sample_service, mock_email_client)
             == f'"Default Name" <{expected_source_email_address}>'
         )
+
+
+@freeze_time('2025-01-01T11:00:00+00:00')
+class TestValidateExpiryDate:
+    def test_validate_expiry_date_happy_path(self) -> None:
+        """Test that validate_expiry_date returns a datetime object for a valid future date."""
+        assert validate_expiry_date('2025-10-01') == datetime(2025, 10, 1, 0, 0, tzinfo=timezone.utc)
+
+    @pytest.mark.parametrize(
+        'expiry_date',
+        [
+            '2023-10-01',
+            'invalid-date',
+            None,
+        ],
+        ids=[
+            'past-date',
+            'invalid-format',
+            'none',
+        ],
+    )
+    def test_validates_expiry_date_invalid(self, expiry_date) -> None:
+        with pytest.raises(InvalidRequest):
+            validate_expiry_date(expiry_date)

@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from flask import url_for
+from freezegun import freeze_time
 from sqlalchemy import delete, select, Table
 
 from app import db
@@ -423,3 +424,98 @@ def test_create_api_key_with_default_secret_type_returns_201(client, notify_db_s
     # Verify it's not a UUID format
     with pytest.raises(ValueError):
         uuid.UUID(secret)
+
+
+@freeze_time('2025-01-01T11:00:00+00:00')
+class TestApiKeyUpdates:
+    """Tests for updating API keys, including expiry and revocation."""
+
+    update_key_url = 'service.update_api_key_expiry_date'
+
+    @pytest.mark.parametrize('with_expiry', [True, False])
+    def test_update_api_key_expiry_happy_path(self, notify_api, notify_db_session, sample_api_key, with_expiry) -> None:
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                # test with and without expiry_date
+                api_key = sample_api_key(with_expiry=with_expiry)
+
+                payload = {'expiry_date': '2025-01-02'}
+                auth_header = create_admin_authorization_header()
+
+                response = client.post(
+                    url_for(self.update_key_url, service_id=api_key.service_id, api_key_id=api_key.id),
+                    data=json.dumps(payload),
+                    headers=[('Content-Type', 'application/json'), auth_header],
+                )
+
+                assert response.status_code == 200
+                notify_db_session.session.refresh(api_key)
+                assert api_key.expiry_date.strftime('%Y-%m-%d') == payload['expiry_date']
+
+    @pytest.mark.parametrize(
+        'expiry_date',
+        [
+            '2025-01-01',  # Same day
+            '2024-12-31',  # Past date
+        ],
+        ids=[
+            'same_day',
+            'past_date',
+        ],
+    )
+    def test_update_api_key_expiry_invalid_date(
+        self,
+        notify_api,
+        notify_db_session,
+        sample_api_key,
+        expiry_date,
+    ) -> None:
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                api_key = sample_api_key()
+                payload = {'expiry_date': expiry_date}
+                auth_header = create_admin_authorization_header()
+
+                response = client.post(
+                    url_for(self.update_key_url, service_id=api_key.service_id, api_key_id=api_key.id),
+                    data=json.dumps(payload),
+                    headers=[('Content-Type', 'application/json'), auth_header],
+                )
+
+                assert response.status_code == 400
+                json_resp = json.loads(response.get_data(as_text=True))
+                assert 'error' in json_resp['result']
+                assert 'Updated expiry_date cannot be in the past' in json_resp['message']
+
+    def test_update_api_key_expiry_invalid_date_str(self, notify_api, notify_db_session, sample_api_key) -> None:
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                api_key = sample_api_key()
+                payload = {'expiry_date': 'not-a-date'}
+                auth_header = create_admin_authorization_header()
+
+                response = client.post(
+                    url_for(self.update_key_url, service_id=api_key.service_id, api_key_id=api_key.id),
+                    data=json.dumps(payload),
+                    headers=[('Content-Type', 'application/json'), auth_header],
+                )
+
+                assert response.status_code == 400
+                json_resp = json.loads(response.get_data(as_text=True))
+                assert 'ValidationError' in json_resp['errors'][0]['error']
+
+    def test_update_api_key_expiry_not_found(self, notify_api, notify_db_session) -> None:
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                service_id = uuid4()
+                api_key_id = uuid4()
+                payload = {'expiry_date': '2025-12-31'}
+                auth_header = create_admin_authorization_header()
+
+                response = client.post(
+                    url_for(self.update_key_url, service_id=service_id, api_key_id=api_key_id),
+                    data=json.dumps(payload),
+                    headers=[('Content-Type', 'application/json'), auth_header],
+                )
+
+                assert response.status_code == 404

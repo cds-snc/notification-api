@@ -963,12 +963,18 @@ def sample_letter_template(sample_service, sample_template):
 def sample_api_key(notify_db_session, sample_service):
     created_key_ids = []
 
-    def _sample_api_key(service=None, key_type=KEY_TYPE_NORMAL, key_name=None, expired=False):
+    def _sample_api_key(
+        service=None,
+        key_type=KEY_TYPE_NORMAL,
+        key_name=None,
+        expired=False,
+        with_expiry=True,
+    ) -> ApiKey:
         if service is None:
             service = sample_service()
 
         # commits the created key
-        api_key = create_api_key(service, key_type, key_name, expired)
+        api_key = create_api_key(service, key_type, key_name, expired, with_expiry)
         version_api_key(api_key)
         created_key_ids.append(api_key.id)
         return api_key

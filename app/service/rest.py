@@ -18,6 +18,7 @@ from app.dao.api_key_dao import (
     get_model_api_keys,
     get_unsigned_secret,
     expire_api_key,
+    update_api_key_expiry,
 )
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_for_service_for_today_and_7_previous_days,
@@ -36,15 +37,16 @@ from app.models import (
     Service,
     EmailBranding,
 )
+from app.schema_validation import validate
 from app.service import statistics
+from app.service.api_key_schema import update_api_key_expiry_request
 from app.service.sender import send_notification_to_service_users
 from app.schemas import (
     service_schema,
     api_key_schema,
     detailed_service_schema,
 )
-
-CAN_T_BE_EMPTY_ERROR_MESSAGE = "Can't be empty"
+from app.service.utils import validate_expiry_date
 
 service_blueprint = Blueprint('service', __name__)
 
@@ -259,6 +261,50 @@ def revoke_api_key(
         error_message = f'No valid API key found for service {service_id} with id {api_key_id}'
         raise InvalidRequest(error_message, status_code=404)
     return jsonify(), 202
+
+
+@service_blueprint.route('/<uuid:service_id>/api-key/<uuid:api_key_id>', methods=['POST'])
+@requires_admin_auth()
+def update_api_key_expiry_date(
+    service_id: UUID,
+    api_key_id: UUID,
+) -> tuple[Response, Literal[200, 400, 404]]:
+    """Updates the expiry date of the API key for the given service and key id.
+
+    **Note**: The provided expiry_date is expected to be in the body of the request as a string in 'YYYY-MM-DD' format.
+    The expiry_date is assumed to be in UTC timezone, as it is not timezone aware.
+
+    Args:
+        service_id (UUID): The id of the service to which the soon to be updated key belongs
+        api_key_id (UUID): The id of the key to updated
+
+    Returns:
+        tuple[Response, Literal[200, 400, 404]]: 200 Okay
+        - If the requested api key was found and updated.
+
+    Raises:
+        InvalidRequest:
+        400 InvalidRequest
+        - If the expiry_date is invalid format or in the past.
+        404 NoResultsFound
+        - If the service or key is not found.
+        400 ValidationError
+        - If the expiry_date is not provided in the body of the request
+    """
+    request_data = request.get_json()
+    validate(request_data, update_api_key_expiry_request)
+    expiry_date = request_data.get('expiry_date')
+
+    valid_expiry_date = validate_expiry_date(expiry_date)
+
+    try:
+        update_api_key_expiry(service_id=service_id, api_key_id=api_key_id, expiry_date=valid_expiry_date)
+    except NoResultFound:
+        error_message = f'No valid API key found for service {service_id} with id {api_key_id}'
+        raise InvalidRequest(error_message, status_code=404)
+
+    api_key = get_model_api_key(key_id=api_key_id)
+    return jsonify(apiKeys=api_key_schema.dump(api_key, many=False)), 200
 
 
 @service_blueprint.route('/<uuid:service_id>/api-keys', methods=['GET'])

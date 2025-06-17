@@ -1,9 +1,9 @@
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
@@ -35,6 +35,41 @@ def save_model_api_key(api_key: ApiKey, secret_generator: Optional[Callable[[], 
 
 @transactional
 @version_class(ApiKey)
+def update_api_key_expiry(
+    service_id: UUID,
+    api_key_id: UUID,
+    expiry_date: datetime,
+) -> None:
+    """Updates the expiry date of the API key for the given service with the given key id.
+
+    Args:
+        service_id (UUID): The id of the service
+        api_key_id (UUID): The id of the key to update
+        expiry_date (datetime): The new expiry date for the API key
+    """
+    now = datetime.now(timezone.utc)
+
+    stmt = select(ApiKey).where(
+        and_(
+            ApiKey.id == api_key_id,
+            ApiKey.service_id == service_id,
+            ApiKey.revoked.is_(False),
+            or_(
+                # Allow updating expiry date if it's not set or is in the future (not expired)
+                ApiKey.expiry_date.is_(None),
+                ApiKey.expiry_date > now,
+            ),
+        )
+    )
+
+    api_key: ApiKey = db.session.scalars(stmt).one()
+    api_key.expiry_date = expiry_date
+
+    db.session.add(api_key)
+
+
+@transactional
+@version_class(ApiKey)
 def expire_api_key(
     service_id: UUID,
     api_key_id: UUID,
@@ -45,10 +80,10 @@ def expire_api_key(
         service_id (UUID): The id of the service
         api_key_id (UUID): The id of the key to revoke
     """
-    stmt = select(ApiKey).where(ApiKey.id == api_key_id, ApiKey.service_id == service_id)
+    stmt = select(ApiKey).where(ApiKey.id == api_key_id, ApiKey.service_id == service_id, ApiKey.revoked.is_(False))
 
     api_key: ApiKey = db.session.scalars(stmt).one()
-    api_key.expiry_date = datetime.utcnow()
+    api_key.expiry_date = datetime.now(timezone.utc)
     api_key.revoked = True
 
     db.session.add(api_key)

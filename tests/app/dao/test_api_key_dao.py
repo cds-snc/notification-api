@@ -3,6 +3,7 @@ import uuid
 from unittest.mock import Mock
 
 import pytest
+from freezegun import freeze_time
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -14,6 +15,7 @@ from app.dao.api_key_dao import (
     get_unsigned_secrets,
     get_unsigned_secret,
     expire_api_key,
+    update_api_key_expiry,
 )
 from app.models import ApiKey, Service
 
@@ -278,3 +280,28 @@ def test_save_api_key_with_default_generator_function_generates_default_token(no
     # Verify it's not a UUID format
     with pytest.raises(ValueError):
         uuid.UUID(api_key.secret)
+
+
+@freeze_time('2025-01-01T11:00:00+00:00')
+class TestUpdateApiKeyExpiry:
+    @pytest.mark.parametrize('with_expiry_date', [True, False])
+    def test_update_api_key_expiry(self, notify_db_session, sample_api_key, with_expiry_date):
+        api_key = sample_api_key(with_expiry=with_expiry_date)
+        new_expiry_date = datetime.now() + timedelta(days=30)
+
+        update_api_key_expiry(service_id=api_key.service_id, api_key_id=api_key.id, expiry_date=new_expiry_date)
+
+        notify_db_session.session.refresh(api_key)
+        assert str(api_key.expiry_date) == str(new_expiry_date), 'The API key expiry date should be updated.'
+
+    def test_update_api_key_expiry_throws_exception_when_key_not_found(
+        self,
+        notify_db_session,
+        sample_api_key,
+    ):
+        fake_service_id = uuid.uuid4()
+        api_key = sample_api_key()
+        new_expiry_date = datetime.now() + timedelta(days=1)
+
+        with pytest.raises(NoResultFound):
+            update_api_key_expiry(service_id=fake_service_id, api_key_id=api_key.id, expiry_date=new_expiry_date)
