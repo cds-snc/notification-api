@@ -36,8 +36,9 @@ fido2 = "0.9.3"
 #git+https://github.com/mitsuhiko/flask-sqlalchemy.git@500e732dd1b975a56ab06a46bd1a20a21e682262#egg=Flask-SQLAlchemy==2.3.2.dev20190108
 Flask = "2.3.3"
 Flask-Bcrypt = "1.0.1"
-flask-marshmallow = "0.14.0"
+flask-marshmallow = "0.15.0"
 Flask-Migrate = "2.7.0"
+flask-smorest = "<=0.43.0"  # Newer versions require flask 3.0.2
 Flask-SQLAlchemy = { git = "https://github.com/pallets-eco/flask-sqlalchemy.git", rev = "500e732dd1b975a56ab06a46bd1a20a21e682262" }
 gevent = "23.9.1"
 greenlet = "3.1.1"
@@ -50,13 +51,13 @@ iso8601 = "2.1.0"
 itsdangerous = "2.2.0"
 jsonschema = "3.2.0"
 MarkupSafe = "2.1.5"
-marshmallow = "3.22.0"
+marshmallow = "3.26.1"
 marshmallow-sqlalchemy = "0.30.0"
 more-itertools = "8.14.0"
 nanoid = "2.0.0"
 newrelic = "10.3.0"
 notifications-python-client = "6.4.1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.4" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.3" }
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.9"
 pwnedpasswords = "2.0.0"
