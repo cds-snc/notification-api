@@ -248,7 +248,7 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
         )
         self.retry(queue=QueueNames.RETRY, args=[{"Messages": receipts_with_no_notification}])
     except self.MaxRetriesExceededError:
-        current_app.logger.error(f"notifications not found for SES references: {retry_ids}. Giving up.")
+        current_app.logger.warning(f"notifications not found for SES references: {retry_ids}. Giving up.")
 
 
 @notify_celery.task(
