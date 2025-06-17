@@ -2616,7 +2616,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.3"
+version = "53.2.4"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2624,6 +2624,7 @@ files = []
 develop = false
 
 [package.dependencies]
+aws-xray-sdk = "2.14.0"
 awscli = "1.33.35"
 bleach = "6.1.0"
 boto3 = "1.34.153"
@@ -2647,13 +2648,14 @@ PyYAML = "6.0.2"
 requests = "2.32.3"
 smartypants = "2.0.1"
 statsd = "3.3.0"
+types-aws-xray-sdk = "^2.14.0.20250516"
 werkzeug = "3.0.4"
 
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.3"
-resolved_reference = "8305c53edd3ae1e526513cd39c03b45ea98421c7"
+reference = "53.2.4"
+resolved_reference = "79b8b8d8781bf576caf5ce01a86959c4d4e6e197"
 
 [[package]]
 name = "ordered-set"
@@ -4072,6 +4074,17 @@ shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
 [[package]]
+name = "types-aws-xray-sdk"
+version = "2.14.0.20250516"
+description = "Typing stubs for aws-xray-sdk"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_aws_xray_sdk-2.14.0.20250516-py3-none-any.whl", hash = "sha256:62521066148c0b08c3b2a92be4d3b11c2e8e8d3bf2d665248e57308b40fc0e15"},
+    {file = "types_aws_xray_sdk-2.14.0.20250516.tar.gz", hash = "sha256:7d837339671af79d481ac242ff50c3f67151956b06fb916f0707e462f7a05833"},
+]
+
+[[package]]
 name = "types-boto"
 version = "2.49.18.9"
 description = "Typing stubs for boto"
@@ -4628,4 +4641,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "ef7a93350e846eaa4331fb9587a5500a771504d6e71e370937b98715e44574e6"
+content-hash = "6b50abcfd60129a3b1683a02a2c77eae514d91772855e2fcb5d6c0e32990b6f9"

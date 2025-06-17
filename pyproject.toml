@@ -57,7 +57,7 @@ more-itertools = "8.14.0"
 nanoid = "2.0.0"
 newrelic = "10.3.0"
 notifications-python-client = "6.4.1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.3" }
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.4" }
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.9"
 pwnedpasswords = "2.0.0"

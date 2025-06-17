@@ -11,7 +11,7 @@ from flask import g, jsonify, make_response, request  # type: ignore
 from flask_marshmallow import Marshmallow
 from flask_migrate import Migrate
 from flask_redis import FlaskRedis
-from flask_smorest import Api, Blueprint
+from flask_smorest import Api, Blueprint  # type: ignore
 from notifications_utils import logging, request_helper
 from notifications_utils.clients.redis.annual_limit import RedisAnnualLimit
 from notifications_utils.clients.redis.bounce_rate import RedisBounceRate
