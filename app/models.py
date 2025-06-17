@@ -554,9 +554,6 @@ class ServiceSmsSender(db.Model):
     sms_sender_specifics = db.Column(db.JSON(), doc='A placeholder for any service provider we might want to use.')
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
-    def get_reply_to_text(self):
-        return try_validate_and_format_phone_number(self.sms_sender)
-
     def serialize(self) -> dict[str, bool | int | str | None]:
         provider = None
         if self.provider_id:
@@ -600,9 +597,6 @@ class ServiceSmsSenderData:
     sms_sender_specifics: dict | None
     created_at: str | None = None
     updated_at: str | None = None
-
-    def get_reply_to_text(self) -> str:
-        return try_validate_and_format_phone_number(self.sms_sender)
 
     def serialize(self) -> dict[str, bool | int | str | None]:
         provider = None
