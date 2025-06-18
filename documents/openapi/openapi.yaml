@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.2.1
+  version: 1.2.2
   description: |
     <p>This documents the API schemas for consumption by internal VA developers.</p>
     <h1>Authorization header</h1>
@@ -2551,8 +2551,6 @@ components:
           type: boolean
         reply_to:
           $ref: "#/components/schemas/Id"
-        reply_to_text:
-          type: string
         service_letter_contact:
           $ref: "#/components/schemas/Id"
         template_redacted:
