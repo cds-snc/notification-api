@@ -1,6 +1,6 @@
 import os
 
-import yaml
+import yaml  # type: ignore
 from flask import Blueprint, Response, current_app
 
 v2_api_spec_blueprint = Blueprint("v2_api_spec", __name__, url_prefix="/v2")
