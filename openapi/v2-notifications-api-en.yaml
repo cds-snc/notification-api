@@ -10,7 +10,7 @@ paths:
       summary: Send a text message
       description: |
         Send a text message to a recipient phone number using a template.
-        
+
         The template can include placeholders which are populated using the personalisation parameter.
       operationId: sendSmsNotification
       requestBody:
@@ -46,14 +46,14 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
         - apiKey: []
-  
+
   /v2/notifications/email:
     post:
       summary: Send an email notification
       description: |
         Send an email notification to a recipient email address using a template.
-        
-        The template can include placeholders which are populated using the personalisation parameter.        
+
+        The template can include placeholders which are populated using the personalisation parameter.
       operationId: sendEmailNotification
       requestBody:
         required: true
@@ -88,15 +88,15 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
       security:
         - apiKey: []
-  
 
-  
+
+
   /v2/notifications/bulk:
     post:
       summary: Send a batch of notifications
       description: |
-        Send notifications in bulk, up to 50,000 recipients at a time, for a single template. 
-        
+        Send notifications in bulk, up to 50,000 recipients at a time, for a single template.
+
         You can schedule to send notifications up to 4 days in advance.
       operationId: sendBulkNotifications
       requestBody:
@@ -140,7 +140,7 @@ components:
       format: uuid
       pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
       example: "123e4567-e89b-12d3-a456-426614174000"
-    
+
     PostSmsRequest:
       type: object
       required:
@@ -168,7 +168,7 @@ components:
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
           description: A unique identifier of the sender of the text message notification
-      
+
     PostEmailRequest:
       type: object
       required:
@@ -196,9 +196,9 @@ components:
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: The ID of an email address specified by you to receive replies from your users.
-    
 
-    
+
+
     PostBulkRequest:
       type: object
       required:
@@ -241,7 +241,7 @@ components:
           $ref: '#/components/schemas/UUID'
           description: The ID of the reply-to address or phone number to use
           nullable: true
-    
+
     PostSmsResponse:
       type: object
       required:
@@ -277,7 +277,7 @@ components:
             uri:
               type: string
               format: uri
-    
+
     PostEmailResponse:
       type: object
       required:
@@ -317,9 +317,9 @@ components:
             uri:
               type: string
               format: uri
-    
 
-    
+
+
     ErrorResponse:
       type: object
       properties:
@@ -337,7 +337,7 @@ components:
               message:
                 type: string
                 description: Detailed error message
-    
+
     PostBulkResponse:
       type: object
       properties:
