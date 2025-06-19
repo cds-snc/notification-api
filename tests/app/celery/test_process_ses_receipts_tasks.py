@@ -20,7 +20,11 @@ from app.aws.mocks import (
     ses_complaint_callback,
     ses_unknown_bounce_callback,
 )
-from app.celery.process_ses_receipts_tasks import process_ses_results
+from app.celery.process_ses_receipts_tasks import (
+    process_complaint_receipts,
+    process_ses_results,
+    separate_complaint_and_non_complaint_receipts,
+)
 from app.celery.research_mode_tasks import (
     ses_hard_bounce_callback,
     ses_notification_callback,
@@ -706,3 +710,38 @@ def test_process_ses_results_mixed_complaint_and_non_complaint_receipts(sample_e
     mock_handle_complaint.assert_called_once()
     mock_complaint_callback.assert_called_once()
     mock_check_callback.assert_called_once()  # For the delivery receipt
+
+
+def test_complaint_retry_logic():
+    """Test that complaints without notifications are returned for retry."""
+
+    # Create mock complaint receipt
+    complaint_receipt = {
+        "notificationType": "Complaint",
+        "mail": {"messageId": "missing-notification-id"},
+        "complaint": {
+            "complainedRecipients": [{"emailAddress": "test@example.com"}],
+            "timestamp": "2023-01-01T12:00:00.000Z",
+            "feedbackId": "feedback-id",
+        },
+    }
+
+    # Create mock non-complaint receipt
+    delivery_receipt = {"notificationType": "Delivery", "mail": {"messageId": "delivery-notification-id"}}
+
+    receipts = [complaint_receipt, delivery_receipt]
+
+    # Test separation
+    complaint_receipts, non_complaint_receipts = separate_complaint_and_non_complaint_receipts(receipts)
+
+    assert len(complaint_receipts) == 1
+    assert len(non_complaint_receipts) == 1
+    assert complaint_receipts[0]["notificationType"] == "Complaint"
+    assert non_complaint_receipts[0]["notificationType"] == "Delivery"
+
+    # Test processing complaints with no notifications found
+    complaints_to_retry = process_complaint_receipts(complaint_receipts, [])
+
+    # Should return the complaint for retry since no notification was found
+    assert len(complaints_to_retry) == 1
+    assert complaints_to_retry[0]["mail"]["messageId"] == "missing-notification-id"
