@@ -147,6 +147,53 @@ def fetch_notifications(ref_ids: List[str]) -> Optional[List[Notification]]:
         raise e
 
 
+def fetch_notification_from_history(ref_id: str) -> Optional[Notification]:
+    """Fetch a single notification by reference ID from notification_history table."""
+    try:
+        return notifications_dao.dao_get_notification_history_by_reference(ref_id)
+    except NoResultFound:
+        return None
+    except Exception as e:
+        raise e
+
+
+def separate_complaint_and_non_complaint_receipts(
+    receipts: List[SESReceipt],
+) -> Tuple[List[SESReceipt], List[SESReceipt]]:
+    """Separate receipts into complaint and non-complaint types."""
+    complaint_receipts = []
+    non_complaint_receipts = []
+
+    for receipt in receipts:
+        if receipt["notificationType"] == "Complaint":
+            complaint_receipts.append(receipt)
+        else:
+            non_complaint_receipts.append(receipt)
+
+    return complaint_receipts, non_complaint_receipts
+
+
+def process_complaint_receipts(complaint_receipts: List[SESReceipt], notifications: List[Notification]) -> None:
+    """Process complaint receipts, looking up missing notifications in history table."""
+    notification_map = {n.reference: n for n in notifications}
+
+    for receipt in complaint_receipts:
+        message_id = receipt["mail"]["messageId"]
+        notification = notification_map.get(message_id)
+
+        if not notification:
+            # For complaints, try to fetch from notification_history table
+            notification = fetch_notification_from_history(message_id)
+            if notification:
+                current_app.logger.info(f"[batch-celery] - Found complaint notification {message_id} in history table")
+
+        if notification:
+            current_app.logger.info(f"[batch-celery] - Handling complaint: {receipt}")
+            _check_and_queue_complaint_callback_task(*handle_complaint(receipt, notification))
+        else:
+            current_app.logger.warning(f"[batch-celery] - Could not find notification for complaint receipt {message_id}")
+
+
 def categorize_receipts(
     ses_messages: List[SESReceipt], notifications: List[Notification]
 ) -> Tuple[List[Tuple[SESReceipt, Notification]], List[SESReceipt]]:
@@ -265,45 +312,59 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     current_app.logger.info(f"[batch-celery] - Received response from lambda: {response}, total receipts: {len(receipts)}")
 
     try:
-        notifications = fetch_notifications(ref_ids)
+        # Separate complaint and non-complaint receipts early
+        complaint_receipts, non_complaint_receipts = separate_complaint_and_non_complaint_receipts(receipts)
 
-        # Retry if no notifications are in the DB yet
-        if notifications is None:
-            current_app.logger.info(
-                f"[batch-celery] - No notifications found in the DB for reference ids: {", ".join(ref_ids)} Queuing {len(ref_ids)} receipts for retry"
-            )
-            handle_retries(self, receipts)
-            return None
+        # Get reference IDs for non-complaint receipts only
+        non_complaint_ref_ids = [receipt["mail"]["messageId"] for receipt in non_complaint_receipts]
 
-        # Categorize receipts into those with and without notifications
-        receipts_with_notification, receipts_with_no_notification = categorize_receipts(
-            cast(List[SESReceipt], receipts), notifications
-        )
-        current_app.logger.info(
-            f"[batch-celery] - with notifications: {receipts_with_notification} No notifications: {receipts_with_no_notification}"
-        )
+        # Fetch notifications from main table for all receipts (for complaints, we'll check history separately)
+        notifications = fetch_notifications(ref_ids) if ref_ids else []
 
-        # Process complaints, finish early if all the receipts are complaints
-        # TODO: Technically complaint handling could be parallelized with the non-complaint processing to
-        # further optimize receipt processing, but as of 2025-05-30 & batch saving v1 this is not a priority.
-        ses_messages = handle_complaints(receipts_with_notification)
-        if not ses_messages:
+        # Handle complaints with history lookup fallback
+        if complaint_receipts:
+            current_app.logger.info(f"[batch-celery] - Processing {len(complaint_receipts)} complaint receipts")
+            process_complaint_receipts(complaint_receipts, notifications or [])
+
+        # If no non-complaint receipts, we're done
+        if not non_complaint_receipts:
+            current_app.logger.info("[batch-celery] - Only complaint receipts processed, finishing")
+            end_time = time.time()
+            current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
             return True
 
-        # Update the notification statuses in the DB
-        receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
+        # For non-complaint receipts, retry if no notifications are in the DB yet
+        if notifications is None:
+            current_app.logger.info(
+                f"[batch-celery] - No notifications found in the DB for non-complaint reference ids: {", ".join(non_complaint_ref_ids)} Queuing {len(non_complaint_receipts)} receipts for retry"
+            )
+            handle_retries(self, non_complaint_receipts)
+            return None
+
+        # Categorize non-complaint receipts into those with and without notifications
+        receipts_with_notification, receipts_with_no_notification = categorize_receipts(non_complaint_receipts, notifications)
         current_app.logger.info(
-            f"[batch-celery] - receipts_with_notification_and_aws_response_dict length: {len(receipts_with_notification_and_aws_response_dict)}"
+            f"[batch-celery] - Non-complaint receipts with notifications: {len(receipts_with_notification)}, without: {len(receipts_with_no_notification)}"
         )
 
-        # Update annual limits, bounce rates, and enqueue API callback tasks for successfully updated notifications
-        for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
-            update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
-            _check_and_queue_callback_task(notification)
+        # Process non-complaint receipts with notifications
+        if receipts_with_notification:
+            # Update the notification statuses in the DB
+            receipts_with_notification_and_aws_response_dict = process_notifications(receipts_with_notification)
+            current_app.logger.info(
+                f"[batch-celery] - receipts_with_notification_and_aws_response_dict length: {len(receipts_with_notification_and_aws_response_dict)}"
+            )
 
-        # Enqueue retry tasks for receipts that did not yet have a notification in the DB
+            # Update annual limits, bounce rates, and enqueue API callback tasks for successfully updated notifications
+            for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
+                update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
+                _check_and_queue_callback_task(notification)
+
+        # Enqueue retry tasks for non-complaint receipts that did not yet have a notification in the DB
         if receipts_with_no_notification:
-            current_app.logger.info(f"[batch-celery] - Queuing {len(receipts_with_no_notification)} receipts for retry")
+            current_app.logger.info(
+                f"[batch-celery] - Queuing {len(receipts_with_no_notification)} non-complaint receipts for retry"
+            )
             handle_retries(self, receipts_with_no_notification)
 
         end_time = time.time()

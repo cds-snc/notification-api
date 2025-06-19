@@ -7,6 +7,7 @@ from freezegun import freeze_time
 from tests.app.conftest import create_sample_notification
 from tests.app.db import (
     create_notification,
+    create_notification_history,
     create_service_callback_api,
     save_notification,
 )
@@ -610,3 +611,98 @@ class TestAnnualLimits:
             mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
             annual_limit_client.increment_email_delivered.assert_not_called()
             annual_limit_client.increment_email_failed.assert_not_called()
+
+
+def test_process_ses_results_processes_complaint_from_notification_history(sample_email_template, mocker):
+    """Test that complaints are processed even when the notification is only found in notification_history table."""
+    # Create a notification in history but not in main table (simulating old notification that was moved)
+    notification_history = create_notification_history(template=sample_email_template, reference="ref1", status="delivered")
+
+    # Mock the fetch_notification_from_history function to return the history notification
+    mock_history_fetch = mocker.patch(
+        "app.celery.process_ses_receipts_tasks.fetch_notification_from_history", return_value=notification_history
+    )
+
+    # Mock the complaint handling
+    mock_handle_complaint = mocker.patch(
+        "app.celery.process_ses_receipts_tasks.handle_complaint", return_value=(notification_history, {"complaint_data": "test"})
+    )
+    mock_complaint_callback = mocker.patch("app.celery.process_ses_receipts_tasks._check_and_queue_complaint_callback_task")
+
+    # Create a complaint receipt
+    complaint_response = ses_complaint_callback()
+
+    # Process the complaint
+    result = process_ses_results(complaint_response)
+
+    # Verify the complaint was processed using the notification from history
+    assert result is True
+    mock_history_fetch.assert_called_once_with("ref1")
+    mock_handle_complaint.assert_called_once()
+    mock_complaint_callback.assert_called_once()
+
+
+def test_process_ses_results_non_complaints_are_retried_when_not_found(sample_email_template, mocker):
+    """Test that non-complaint receipts are retried when notifications are not found, without checking history."""
+    # Mock retry mechanism
+    mock_retry = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
+
+    # Mock that no notifications are found in main table
+    mocker.patch("app.celery.process_ses_receipts_tasks.fetch_notifications", return_value=None)
+
+    # Mock that history lookup is NOT called for non-complaints
+    mock_history_fetch = mocker.patch("app.celery.process_ses_receipts_tasks.fetch_notification_from_history")
+
+    # Create a non-complaint receipt (delivery receipt)
+    delivery_response = ses_notification_callback(reference="ref1")
+
+    # Process the delivery receipt
+    result = process_ses_results(delivery_response)
+
+    # Verify that:
+    # 1. The function returns None (indicating retry)
+    # 2. Retry was called
+    # 3. History lookup was NOT called for non-complaints
+    assert result is None
+    mock_retry.assert_called_once()
+    mock_history_fetch.assert_not_called()
+
+
+def test_process_ses_results_mixed_complaint_and_non_complaint_receipts(sample_email_template, mocker):
+    """Test processing mixed complaint and non-complaint receipts where some are in history."""
+    # Create a notification in main table for non-complaint
+    save_notification(create_notification(template=sample_email_template, reference="ref_delivery", status="sending"))
+
+    # Create a notification in history for complaint
+    notification_history = create_notification_history(
+        template=sample_email_template, reference="ref_complaint", status="delivered"
+    )
+
+    # Mock functions
+    mock_history_fetch = mocker.patch(
+        "app.celery.process_ses_receipts_tasks.fetch_notification_from_history", return_value=notification_history
+    )
+    mock_handle_complaint = mocker.patch(
+        "app.celery.process_ses_receipts_tasks.handle_complaint", return_value=(notification_history, {"complaint_data": "test"})
+    )
+    mock_complaint_callback = mocker.patch("app.celery.process_ses_receipts_tasks._check_and_queue_complaint_callback_task")
+    mock_check_callback = mocker.patch("app.celery.process_ses_receipts_tasks._check_and_queue_callback_task")
+    mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+
+    # Create mixed receipts: one complaint, one delivery
+    complaint_msg = ses_complaint_callback()["Messages"][0]
+    complaint_msg["mail"]["messageId"] = "ref_complaint"
+
+    delivery_msg = ses_notification_callback(reference="ref_delivery")["Messages"][0]
+
+    mixed_response = {"Messages": [complaint_msg, delivery_msg]}
+
+    # Process both receipts
+    result = process_ses_results(mixed_response)
+
+    # Verify both were processed correctly
+    assert result is True
+    mock_history_fetch.assert_called_once_with("ref_complaint")
+    mock_handle_complaint.assert_called_once()
+    mock_complaint_callback.assert_called_once()
+    mock_check_callback.assert_called_once()  # For the delivery receipt
