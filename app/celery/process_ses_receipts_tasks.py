@@ -108,35 +108,6 @@ class SESReceipt(TypedDict, total=False):
     send: Optional[SESSend]
 
 
-def handle_complaints(receipts: List[Tuple[SESReceipt, Notification]]) -> List[SESReceipt]:
-    """Processes the current batch of notification receipts. Handles complaints, removing them from the batch
-       and returning the remaining messages for further processing.
-
-    Args:
-        messages (List[SESReceipt]): List of SES messages received from the SQS receipt buffer queue.
-
-    Returns:
-        Tuple[List[str], List[SESReceipt]]: A tuple containing a list of notification reference IDs and a reduced list of
-        SES messages not containing any complaint receipts.
-    """
-    ref_ids = []
-    complaint_free_messages = []
-    current_app.logger.info(f"[batch-celery] - Received: {len(receipts)} receipts from Lambda.. beginning processing")
-
-    for receipt, notification in receipts:
-        notification_type = receipt["notificationType"]
-
-        if notification_type == "Complaint":
-            current_app.logger.info(f"[batch-celery] - Handling complaint: {receipt}")
-            _check_and_queue_complaint_callback_task(*handle_complaint(receipt, notification))
-        else:
-            ref_ids.append(receipt["mail"]["messageId"])
-            complaint_free_messages.append(receipt)
-
-    current_app.logger.info(f"[batch-celery] - Complaints handled, processing: {len(complaint_free_messages)} remaining receipts")
-    return complaint_free_messages
-
-
 def fetch_notifications(ref_ids: List[str]) -> Optional[List[Notification]]:
     """Fetch notifications by reference IDs."""
     try:
@@ -316,6 +287,8 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
 )
 @statsd(namespace="tasks")
 def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
+    # TODO: Technically complaint handling could be parallelized with the non-complaint processing to
+    # further optimize receipt processing, but as of 2025-05-30 & batch saving v1 this is not a priority.
     start_time = time.time()  # TODO : Remove after benchmarking
     receipts = cast(List[SESReceipt], response["Messages"] if "Messages" in response else [json.loads(response["Message"])])
     ref_ids = [receipt["mail"]["messageId"] for receipt in receipts]
