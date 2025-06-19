@@ -1,7 +1,6 @@
 import os
 
-import yaml  # type: ignore
-from flask import Blueprint, Response, current_app
+from flask import Blueprint, current_app, send_file
 
 v2_api_spec_blueprint = Blueprint("v2_api_spec", __name__, url_prefix="/v2")
 
@@ -14,12 +13,7 @@ def get_v2_api_spec_en():
     spec_path = os.path.join(current_app.root_path, "openapi/v2-notifications-api-en.yaml")
     spec_path = os.path.abspath(spec_path)
 
-    with open(spec_path, "r") as f:
-        yaml_data = yaml.safe_load(f)
-
-    yaml_string = yaml.dump(yaml_data, default_flow_style=False)
-    response = Response(yaml_string, mimetype="application/yaml")
-    return response
+    return send_file(spec_path, mimetype="application/yaml", as_attachment=False, download_name="v2-notifications-api.yaml")
 
 
 @v2_api_spec_blueprint.route("/openapi-fr", methods=["GET"])
@@ -30,8 +24,4 @@ def get_v2_api_spec_fr():
     spec_path = os.path.join(current_app.root_path, "openapi/v2-notifications-api-fr.yaml")
     spec_path = os.path.abspath(spec_path)
 
-    with open(spec_path, "r") as f:
-        yaml_data = f.read()
-
-    response = Response(yaml_data, mimetype="application/yaml")
-    return response
+    return send_file(spec_path, mimetype="application/yaml", as_attachment=False, download_name="v2-notifications-api.yaml")

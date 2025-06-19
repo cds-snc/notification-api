@@ -28,7 +28,7 @@ app = create_app(application)
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
-apig_wsgi_handler = make_lambda_handler(app, binary_support=True, non_binary_content_type_prefixes=["application/yaml"])
+apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
