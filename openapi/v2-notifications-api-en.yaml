@@ -1144,27 +1144,6 @@ components:
         - active
         - created_at
 
-      type: object
-      properties:
-        name:
-          type: string
-          maxLength: 100
-          description: Template name
-        description:
-          type: string
-          maxLength: 500
-          description: Template description
-        subject:
-          type: string
-          maxLength: 200
-          description: Subject template (for email)
-        body:
-          type: string
-          maxLength: 5000
-          description: Message body template
-        active:
-          type: boolean
-          description: Whether the template is active
 
     Links:
       type: object
