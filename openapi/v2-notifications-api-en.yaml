@@ -77,7 +77,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
+              example:
                 auth_error:
                   summary: Unauthorized access
                   value:
@@ -91,7 +91,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
+              example:
                 notification_not_found:
                   summary: Notification not found
                   value:
@@ -103,7 +103,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
+              example:
                 internal_server_error:
                   summary: Internal server error
                   value:
@@ -283,7 +283,7 @@ paths:
                     status_code: 403
                     errors:
                       - error: "AuthError"
-                        message: "Invalid token: API key not found"
+                        message: "Invalid token: Enter your full API key"
         '429':
           description: Too many requests - rate limiting
           content:
@@ -404,7 +404,7 @@ paths:
                     status_code: 403
                     errors:
                       - error: "AuthError"
-                        message: "Invalid token: API key not found"
+                        message: "Invalid token: Enter your full API key"
         '429':
           description: Too many requests - rate limiting
           content:
@@ -432,7 +432,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
+              example:
                 internal_server_error:
                   summary: Internal server error
                   value:
@@ -475,13 +475,34 @@ paths:
                 errors:
                   - error: "ValidationError"
                     message: "notification_id is not a valid UUID"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
+              example:
                 auth_error:
                   summary: Unauthorized access
                   value:
@@ -495,7 +516,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              examples:
+              example:
                 notification_not_found:
                   summary: Notification not found
                   value:
@@ -513,6 +534,62 @@ paths:
                   value:
                     result: "error"
                     message: "Internal server error"
+      security:
+        - apiKey: []
+
+
+  /v2/templates:
+    get:
+      summary: Get list of templates
+      description: Retrieve a list of templates. Filterable by template type
+      operationId: getTemplates
+      tags:
+        - Templates
+      parameters:
+        - name: type
+          in: query
+          description: Filter by template type
+          required: false
+          schema:
+            type: string
+            enum: [sms, email]
+      responses:
+        '200':
+          description: Successfully retrieved templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                bad_request:
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "Unauthorized, authentication token must be provided"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       security:
         - apiKey: []
 
@@ -555,253 +632,48 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Template not found
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '403':
+          description: Forbidden - authentication or authorization errors
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
                 template_not_found:
                   summary: Template not found
                   value:
                     result: "error"
                     message: "Template not found in database"
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-        - apiKey: []
-
-
-    put:
-      summary: Update template
-      description: Update an existing template
-      operationId: updateTemplate
-      tags:
-        - Templates
-      parameters:
-        - name: template-id
-          in: path
-          description: Unique identifier for the template
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateTemplateRequest'
-      responses:
-        '200':
-          description: Template updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Template'
-        '400':
-          description: Bad request - invalid template data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Template not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Unprocessable entity - validation errors
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-        - apiKey: []
-
-
-    delete:
-      summary: Delete template
-      description: Delete an existing template
-      operationId: deleteTemplate
-      tags:
-        - Templates
-      parameters:
-        - name: template-id
-          in: path
-          description: Unique identifier for the template
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '204':
-          description: Template deleted successfully
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Template not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: Conflict - template is in use
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-        - apiKey: []
-
-
-  /v2/templates:
-    get:
-      summary: Get list of templates
-      description: Retrieve a paginated list of templates with optional filtering
-      operationId: getTemplates
-      tags:
-        - Templates
-      parameters:
-        - name: page
-          in: query
-          description: Page number for pagination
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: type
-          in: query
-          description: Filter by template type
-          required: false
-          schema:
-            type: string
-            enum: [sms, email, letter]
-        - name: active
-          in: query
-          description: Filter by template status
-          required: false
-          schema:
-            type: boolean
-        - name: search
-          in: query
-          description: Search templates by name or description
-          required: false
-          schema:
-            type: string
-            maxLength: 100
-      responses:
-        '200':
-          description: Successfully retrieved templates
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  templates:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Template'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-        '400':
-          description: Bad request - invalid parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-        - apiKey: []
-
-
-    post:
-      summary: Create a new template
-      description: Create a new notification template
-      operationId: createTemplate
-      tags:
-        - Templates
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateTemplateRequest'
-      responses:
-        '201':
-          description: Template created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Template'
-        '400':
-          description: Bad request - invalid template data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '422':
-          description: Unprocessable entity - validation errors
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
         '500':
           description: Internal server error
           content:
@@ -838,19 +710,132 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - not authorized to use the API key
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_rows_or_csv:
+                  summary: Must specify rows or csv
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You should specify either rows or csv"
+                missing_name:
+                  summary: Name is required
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "name is a required property"
+                scheduled_for_wrong_type:
+                  summary: scheduled_for wrong type
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for 42 is not of type string, null"
+                scheduled_for_past:
+                  summary: scheduled_for in the past
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime cannot be in the past"
+                scheduled_for_too_far:
+                  summary: scheduled_for too far in future
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime can only be up to 96 hours in the future"
+                scheduled_for_invalid_format:
+                  summary: scheduled_for invalid format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime format is invalid. It must be a valid ISO8601 date time format, https://en.wikipedia.org/wiki/ISO_8601"
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template not found"
+                template_deleted:
+                  summary: Template deleted
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template has been deleted"
+                service_not_allowed:
+                  summary: Service not allowed to send emails
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Service is not allowed to send emails"
+                missing_column_headers:
+                  summary: Missing column headers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Missing column headers: name"
+                duplicate_column_headers:
+                  summary: Duplicate column headers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Duplicate column headers: name, NAME"
+                too_many_rows:
+                  summary: Too many rows
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Too many rows. Maximum number of rows allowed is 50000"
+                team_safelist_api_key:
+                  summary: Team and safelist API key restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot send to these recipients because you used a team and safelist API key."
+                trial_mode_restriction:
+                  summary: Trial mode restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist."
+                daily_limit_exceeded:
+                  summary: Daily limit exceeded
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You only have 50 remaining messages before you reach your daily limit. You've tried to send 75 messages."
+                row_errors:
+                  summary: Row errors
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Some rows have errors. Row 1 - name: Missing. Row 2 - email address: invalid recipient. Row 3 - name: Missing. Row 4 - name: Missing."
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '429':
-          description: Rate limit exceeded
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1130,11 +1115,13 @@ components:
         body:
           type: string
           description: Message body template
-        variables:
-          type: array
-          items:
-            type: string
-          description: List of variables used in the template
+        personalisation:
+          type: object
+          description: Variables to substitute in the template and optional file attachments
+          additionalProperties:
+            oneOf:
+              - type: string
+                description: Template variable value
         active:
           type: boolean
           description: Whether the template is active
@@ -1157,39 +1144,6 @@ components:
         - active
         - created_at
 
-    CreateTemplateRequest:
-      type: object
-      properties:
-        name:
-          type: string
-          maxLength: 100
-          description: Template name
-        description:
-          type: string
-          maxLength: 500
-          description: Template description
-        type:
-          type: string
-          enum: [sms, email, letter]
-          description: Type of notification this template is for
-        subject:
-          type: string
-          maxLength: 200
-          description: Subject template (for email)
-        body:
-          type: string
-          maxLength: 5000
-          description: Message body template
-        active:
-          type: boolean
-          default: true
-          description: Whether the template is active
-      required:
-        - name
-        - type
-        - body
-
-    UpdateTemplateRequest:
       type: object
       properties:
         name:
@@ -1223,35 +1177,6 @@ components:
           description: The link to the next page
       required:
         - current
-
-    Pagination:
-      type: object
-      properties:
-        page:
-          type: integer
-          description: Current page number
-        limit:
-          type: integer
-          description: Number of items per page
-        total:
-          type: integer
-          description: Total number of items
-        pages:
-          type: integer
-          description: Total number of pages
-        has_next:
-          type: boolean
-          description: Whether there is a next page
-        has_prev:
-          type: boolean
-          description: Whether there is a previous page
-      required:
-        - page
-        - limit
-        - total
-        - pages
-        - has_next
-        - has_prev
 
     Error:
       type: object
