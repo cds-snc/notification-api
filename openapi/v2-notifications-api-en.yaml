@@ -1,16 +1,21 @@
 openapi: 3.0.3
+
 info:
+  version: 1.0.0
   title: Notifications API v2
   description: API for managing notifications and templates
-  version: 2.0.0
+  termsOfService: https://notification.canada.ca/terms
   contact:
-    name: API Support
-    email: support@example.com
+    name: GC Notify Support
+    url: https://notification.canada.ca/contact
+
+externalDocs:
+    description: Find out more about using the GC Notify API
+    url: https://documentation.notification.canada.ca/en/
+
 servers:
-  - url: https://api.example.com
-    description: Production server
-  - url: https://staging-api.example.com
-    description: Staging server
+  - url: https://api.notification.canada.ca/
+    description: GC Notify API server
 
 paths:
   /v2/notifications:
@@ -112,6 +117,101 @@ paths:
       security:
         - apiKey: []
 
+
+  /v2/notifications/{notification-id}:
+    get:
+      summary: Get notification by ID
+      description: Retrieve a specific notification by its ID
+      operationId: getNotificationById
+      tags:
+        - Notifications
+      parameters:
+        - name: notification-id
+          in: path
+          description: Unique identifier for the notification
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          description: Bad request - invalid notification ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "notification_id is not a valid UUID"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                notification_not_found:
+                  summary: Notification not found
+                  value:
+                    result: "error"
+                    message: "Notification not found in database"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
 
   /v2/notifications/email:
     post:
@@ -442,102 +542,6 @@ paths:
         - apiKey: []
 
 
-  /v2/notifications/{notification-id}:
-    get:
-      summary: Get notification by ID
-      description: Retrieve a specific notification by its ID
-      operationId: getNotificationById
-      tags:
-        - Notifications
-      parameters:
-        - name: notification-id
-          in: path
-          description: Unique identifier for the notification
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        '200':
-          description: Notification retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Notification'
-        '400':
-          description: Bad request - invalid notification ID format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                status_code: 400
-                errors:
-                  - error: "ValidationError"
-                    message: "notification_id is not a valid UUID"
-        '403':
-          description: Forbidden - authentication or authorization errors
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                system_clock_error:
-                  summary: System clock not accurate
-                  value:
-                    status_code: 403
-                    errors:
-                      - error: "AuthError"
-                        message: "Error: Your system clock must be accurate to within 30 seconds"
-                invalid_api_key:
-                  summary: Invalid API key
-                  value:
-                    status_code: 403
-                    errors:
-                      - error: "AuthError"
-                        message: "Invalid token: Enter your full API key"
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                auth_error:
-                  summary: Unauthorized access
-                  value:
-                    status_code: 401
-                    errors:
-                      - error: "AuthError"
-                        message: "Unauthorized, authentication token must be provided"
-        '404':
-          description: Notification not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                notification_not_found:
-                  summary: Notification not found
-                  value:
-                    result: "error"
-                    message: "Notification not found in database"
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
-                    message: "Internal server error"
-      security:
-        - apiKey: []
-
-
   /v2/templates:
     get:
       summary: Get list of templates
@@ -692,6 +696,8 @@ paths:
 
         You can schedule to send notifications up to 4 days in advance.
       operationId: sendBulkNotifications
+      tags:
+        - Notifications
       requestBody:
         required: true
         content:
