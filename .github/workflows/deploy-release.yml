@@ -5,6 +5,10 @@
 name: Deploy API Release
 run-name: 'Deploy Release to ${{ inputs.environment }}'
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   workflow_dispatch:
     inputs:
