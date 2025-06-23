@@ -11,4 +11,12 @@ fileignoreconfig:
   checksum: e46cc0b0e7b9afb0a1d30a1142f024091334d15b2292c43b76b7dcb35e64c5ad
 - filename: documents/postman/internal_api_developers/notification-api.postman_collection.json
   checksum: 328646db8be291aaa50e8bf8631ccdc4ffb48a0c4690ee361fa0ddb785cd277f
+- filename: cd/application-deployment/dev/dev.env
+  checksum: a2c37ca9e72e0d5d7bae44b45bee90eb358d4eda4c9e52a8e21f9f118f62dde6
+- filename: cd/application-deployment/perf/perf.env
+  checksum: 2e726a78550a3134c54d1a376e5396ee0a2689f599e8c1f285193dfa88d9befc
+- filename: cd/application-deployment/prod/prod.env
+  checksum: 0c76ecd5fad032d0ca18240195095b586cdc40de38dd24837e2db869341cd64d
+- filename: cd/application-deployment/staging/staging.env
+  checksum: abc1b8f1d1e7c14f79adc45d056285c0d554081095da87b85c5c8e937c55d042
 version: "1.0"
