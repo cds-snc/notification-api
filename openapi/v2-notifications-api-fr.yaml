@@ -2,7 +2,7 @@ openapi: 3.0.3
 
 info:
   version: 1.0.0
-  title: Notifications API v2
+  title: API de Notifications v2
   description: API pour gérer les notifications et les modèles
   termsOfService: https://notification.canada.ca/terms
   contact:
