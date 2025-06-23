@@ -301,10 +301,12 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
         # Get reference IDs for non-complaint receipts only
         non_complaint_ref_ids = [receipt["mail"]["messageId"] for receipt in non_complaint_receipts]
 
-        # Fetch notifications from main table for all receipts (for complaints, we'll check history separately)
+        # Fetch from notifications table for all receipts (for complaints, we'll check notification_history separately)
         notifications = fetch_notifications(ref_ids) if ref_ids else []
 
-        # Handle complaints with history lookup fallback
+        # Handle complaints with history lookup fallback - this is necessary because we sometimes recieve complaints
+        # for notifications that are older than the data retention period for a service (3-7 days). When this happens,
+        # we can't find the notification in the notifications table, so we need to check the notification_history table.
         complaints_to_retry = []
         if complaint_receipts:
             current_app.logger.info(f"[batch-celery] - Processing {len(complaint_receipts)} complaint receipts")
