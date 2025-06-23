@@ -930,10 +930,6 @@ components:
         postage:
           type: string
           nullable: true
-        estimated_delivery:
-          type: string
-          format: date-time
-          nullable: true
 
     NotificationTemplate:
       type: object
@@ -1113,7 +1109,7 @@ components:
           description: Template description
         type:
           type: string
-          enum: [sms, email, letter]
+          enum: [sms, email]
           description: Type of notification this template is for
         subject:
           type: string
