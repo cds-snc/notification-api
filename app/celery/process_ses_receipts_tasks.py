@@ -1,5 +1,4 @@
 import json
-import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, TypedDict, cast
 
@@ -289,7 +288,6 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
 def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
     # TODO: Technically complaint handling could be parallelized with the non-complaint processing to
     # further optimize receipt processing, but as of 2025-05-30 & batch saving v1 this is not a priority.
-    start_time = time.time()  # TODO : Remove after benchmarking
     receipts = cast(List[SESReceipt], response["Messages"] if "Messages" in response else [json.loads(response["Message"])])
     ref_ids = [receipt["mail"]["messageId"] for receipt in receipts]
     current_app.logger.info(f"[batch-celery] - Received response from lambda: {response}, total receipts: {len(receipts)}")
@@ -312,20 +310,8 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
             current_app.logger.info(f"[batch-celery] - Processing {len(complaint_receipts)} complaint receipts")
             complaints_to_retry = process_complaint_receipts(complaint_receipts, notifications or [])
 
-        # If no non-complaint receipts, we might still have complaints to retry
-        if not non_complaint_receipts:
-            if complaints_to_retry:
-                current_app.logger.info(f"[batch-celery] - Queuing {len(complaints_to_retry)} complaint receipts for retry")
-                handle_retries(self, complaints_to_retry)
-                return None
-            else:
-                current_app.logger.info("[batch-celery] - Only complaint receipts processed, finishing")
-                end_time = time.time()
-                current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
-                return True
-
         # For non-complaint receipts, retry if no notifications are in the DB yet
-        if notifications is None:
+        if notifications is None and len(non_complaint_receipts) > 0:
             current_app.logger.info(
                 f"[batch-celery] - No notifications found in the DB for non-complaint reference ids: {", ".join(non_complaint_ref_ids)} Queuing {len(non_complaint_receipts)} receipts for retry"
             )
@@ -359,13 +345,9 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
             )
             handle_retries(self, receipts_to_retry)
 
-        end_time = time.time()
-        current_app.logger.info(f"[batch-celery] - process_ses_results took {end_time - start_time} seconds")
         return True
 
     except Retry:
-        end_time = time.time()
-        current_app.logger.info(f"[batch-celery] Retry - process_ses_results took {end_time - start_time} seconds")
         raise
     except Exception:
         current_app.logger.exception(f"Error processing SES results for receipt batch: {response['Messages']}")
