@@ -175,12 +175,12 @@ def process_complaint_receipts(complaint_receipts: List[SESReceipt], notificatio
 
 
 def categorize_receipts(
-    ses_messages: List[SESReceipt], notifications: List[Notification]
+    ses_messages: List[SESReceipt], notifications: Optional[List[Notification]]
 ) -> Tuple[List[Tuple[SESReceipt, Notification]], List[SESReceipt]]:
     """Categorize SES messages into those with and without notifications."""
     receipts_with_notification = []
     receipts_with_no_notification = []
-    notification_map = {n.reference: n for n in notifications}
+    notification_map = {n.reference: n for n in (notifications or [])}
 
     for message in ses_messages:
         message_id = message["mail"]["messageId"]
