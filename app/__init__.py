@@ -327,14 +327,17 @@ def init_app(app):
     @app.after_request
     def after_request(response):
         ALLOWED_ORIGINS = {
-            "http://localhost:8081",
-            "https://documentation.notification.canada.ca",
-            "https://documentation.staging.notification.cdssandbox.xyz",
-            "https://cds-snc.github.io",
+            "development": {"http://localhost:8081"},
+            "dev": {"https://documentation.dev.notification.cdssandbox.xyz"},
+            "staging": {"https://documentation.staging.notification.cdssandbox.xyz", "https://cds-snc.github.io"},
+            "production": {"https://documentation.notification.canada.ca"},
+            "test": {"http://localhost:8081"},
         }
         origin = request.headers.get("Origin")
-        if origin in ALLOWED_ORIGINS:
+
+        if origin in ALLOWED_ORIGINS[app.config["NOTIFY_ENVIRONMENT"]]:
             response.headers["Access-Control-Allow-Origin"] = origin
+
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
         return response
