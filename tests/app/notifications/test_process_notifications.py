@@ -23,7 +23,7 @@ from app.constants import (
     NOTIFICATION_CREATED,
     SMS_TYPE,
 )
-from app.feature_flags import FeatureFlag
+
 from app.models import (
     Notification,
     ScheduledNotification,
@@ -45,9 +45,6 @@ from notifications_utils.template import WithSubjectTemplate
 from app.utils import get_template_instance
 from app.v2.errors import BadRequestError
 from app.va.identifier import IdentifierType
-
-
-from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def test_create_content_for_notification_passes(
@@ -391,7 +388,6 @@ def test_send_notification_to_queue_with_recipient_identifiers(
     sample_communication_item,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     template = sample_template(
         template_type=notification_type,
@@ -462,7 +458,6 @@ def test_send_notification_to_queue_throws_exception_deletes_notification(
     mocker,
 ):
     notification = sample_notification(api_key=sample_api_key())
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'False')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain', side_effect=Boto3Error('EXPECTED'))
     mocker.patch('app.notifications.process_notifications.dao_get_service_sms_sender_by_service_id_and_number')
     with pytest.raises(Boto3Error):
@@ -848,7 +843,6 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     expected_tasks,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     template = sample_template(template_type=notification_type)
@@ -866,7 +860,6 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
 
 
 def test_send_notification_with_sms_sender_rate_limit_uses_rate_limit_delivery_task(client, mocker):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
 
     MockService = namedtuple('Service', ['id'])

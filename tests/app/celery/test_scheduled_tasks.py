@@ -294,7 +294,7 @@ def test_replay_created_notifications(
     sample_template,
     sample_notification,
 ):
-    mocked = mocker.patch(f'app.celery.provider_tasks.deliver_{notification_type}.apply_async')
+    mocked_chain = mocker.patch('app.notifications.process_notifications.chain')
     older_than = (60 * 60 * 24) + (60 * 15)  # 24 hours 15 minutes
     template = sample_template(template_type=notification_type)
 
@@ -320,10 +320,21 @@ def test_replay_created_notifications(
 
     replay_created_notifications()
 
-    mocked.assert_called_once()
-    args, kwargs = mocked.call_args
-    assert args[1] == {'notification_id': str(old_notification.id), 'sms_sender_id': None}
-    assert kwargs['queue'] == f'send-{notification_type}-tasks'
+    mocked_chain.assert_called_once()
+    args, _ = mocked_chain.call_args
+    # Check that the chain was called with the correct task
+    assert len(args) == 1
+    # The first (and only) task should be the delivery task for the notification type
+    task = args[0]
+    # For SMS with rate_limit=1, it should use deliver_sms_with_rate_limiting
+    # For EMAIL, it should use deliver_email
+    if notification_type == SMS_TYPE:
+        assert task.name == 'deliver_sms_with_rate_limiting'
+    else:
+        assert task.name == f'deliver_{notification_type}'
+
+    # Check that the notification ID is passed correctly
+    assert task.kwargs['notification_id'] == str(old_notification.id)
 
 
 @pytest.mark.serial

@@ -10,7 +10,7 @@ from notifications_utils.recipients import InvalidPhoneError
 
 import app
 from app.constants import EMAIL_TYPE, LETTER_TYPE, SERVICE_PERMISSION_TYPES, SMS_TYPE
-from app.feature_flags import FeatureFlag
+
 from app.notifications.validators import (
     check_service_over_daily_message_limit,
     check_template_is_for_notification_type,
@@ -24,7 +24,6 @@ from app.notifications.validators import (
 )
 
 from app.v2.errors import BadRequestError, TooManyRequestsError, RateLimitError
-from tests.app.factories.feature_flag import mock_feature_flag
 
 from tests.conftest import set_config
 from tests.app.db import (
@@ -458,7 +457,6 @@ class TestSmsSenderRateLimit:
 
         with freeze_time('2016-01-01 12:00:00.000000'):
             service = sample_service()
-            mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
 
             MockServiceSmsSender = namedtuple(
                 'ServiceSmsSender', ['id', 'rate_limit', 'rate_limit_interval', 'sms_sender']
@@ -488,7 +486,6 @@ class TestSmsSenderRateLimit:
 
         with freeze_time('2016-01-01 12:00:00.000000'):
             service = sample_service()
-            mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
             MockServiceSmsSender = namedtuple(
                 'ServiceSmsSender', ['id', 'sms_sender', 'rate_limit', 'rate_limit_interval']
             )

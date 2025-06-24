@@ -53,7 +53,6 @@ from app.dao.service_sms_sender_dao import (
 from app.dao.services_dao import dao_fetch_service_by_id, fetch_todays_total_message_count
 from app.dao.templates_dao import dao_get_template_by_id
 from app.exceptions import DVLAException
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import DailySortedLetter
 from app.notifications.process_notifications import persist_notification
 from app.service.utils import service_allowed_to_send_to
@@ -223,7 +222,7 @@ def save_sms(
             str(notification.get(reply_to_text)),
         )
 
-        if is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) and sms_sender and sms_sender.rate_limit:
+        if sms_sender and sms_sender.rate_limit:
             provider_tasks.deliver_sms_with_rate_limiting.apply_async(
                 args=(),
                 kwargs={'notification_id': str(saved_notification.id)},

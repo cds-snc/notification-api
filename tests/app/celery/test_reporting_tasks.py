@@ -18,9 +18,8 @@ from app.celery.reporting_tasks import (
 )
 from app.constants import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE
 from app.dao.fact_billing_dao import get_rate
-from app.feature_flags import FeatureFlag
+
 from app.models import FactBilling, FactNotificationStatus
-from tests.app.factories.feature_flag import mock_feature_flag
 
 
 def mocker_get_rate(
@@ -102,7 +101,6 @@ def test_create_nightly_notification_status_triggers_tasks_for_days_including_cs
     day_start,
     expected_kwargs,
 ):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     mock_celery = mocker.patch('app.celery.reporting_tasks.create_nightly_notification_status_for_day')
     create_nightly_notification_status(day_start)
 

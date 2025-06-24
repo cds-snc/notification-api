@@ -31,7 +31,6 @@ from app.dao.service_sms_sender_dao import (
     dao_get_service_sms_sender_by_service_id_and_number,
 )
 from app.dao.templates_dao import TemplateHistoryData, dao_get_template_history_by_id
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import Notification, ScheduledNotification, RecipientIdentifier, Template
 from app.dao.notifications_dao import (
     dao_create_notification,
@@ -305,11 +304,7 @@ def _get_delivery_task(
                 notification.service_id, notification.reply_to_text
             )
 
-        if (
-            is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED)
-            and service_sms_sender is not None
-            and service_sms_sender.rate_limit
-        ):
+        if service_sms_sender is not None and service_sms_sender.rate_limit:
             deliver_task = provider_tasks.deliver_sms_with_rate_limiting
         else:
             deliver_task = provider_tasks.deliver_sms

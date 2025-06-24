@@ -33,11 +33,10 @@ from app.constants import (
     LETTER_TYPE,
     SMS_TYPE,
 )
-from app.feature_flags import FeatureFlag
+
 from app.models import Job, Notification, ServiceSmsSender
 
 from tests.app import load_example_csv
-from tests.app.factories.feature_flag import mock_feature_flag
 
 
 class AnyStringWith(str):
@@ -582,7 +581,6 @@ def test_save_sms_should_call_deliver_sms_with_rate_limiting_if_sender_id_provid
     sample_service,
     sample_template,
 ):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     sms_sender = mocker.Mock()
     sms_sender.rate_limit = 1
     sms_sender.sms_sender = '+11111111111'
@@ -1113,7 +1111,6 @@ def test_save_sms_uses_non_default_sms_sender_reply_to_text_if_provided(
     sample_template,
     sample_sms_sender,
 ):
-    mock_feature_flag(mocker, FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED, 'True')
     service = sample_service(sms_sender='07123123123')
     template = sample_template(service=service)
     new_sender = sample_sms_sender(service.id, sms_sender='new-sender', is_default=False)

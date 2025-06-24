@@ -22,7 +22,6 @@ from app.constants import (
 from app.dao import services_dao, templates_dao
 from app.dao.service_sms_sender_dao import dao_get_service_sms_sender_by_id
 from app.dao.templates_dao import dao_get_number_of_templates_by_service_id_and_name
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.models import ApiKey, Service
 from app.service.utils import service_allowed_to_send_to
 from app.v2.errors import TooManyRequestsError, BadRequestError, RateLimitError
@@ -113,7 +112,7 @@ def check_sms_sender_over_rate_limit(
     service_id,
     sms_sender,
 ):
-    if not is_feature_enabled(FeatureFlag.SMS_SENDER_RATE_LIMIT_ENABLED) or sms_sender is None:
+    if sms_sender is None:
         current_app.logger.info('Skipping sms sender rate limit check')
         return
 
