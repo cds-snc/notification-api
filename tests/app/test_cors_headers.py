@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 
@@ -35,15 +36,8 @@ ENV_ORIGINS = [
 
 @pytest.mark.parametrize("env, origin", ENV_ORIGINS)
 def test_cors_headers_set_on_api_request(notify_api, env, origin):
-    # Save the original environment and config
-    original_env = os.environ.get("NOTIFY_ENVIRONMENT")
-    original_config = notify_api.config.get("NOTIFY_ENVIRONMENT")
-
-    try:
-        # Set environment for test
-        os.environ["NOTIFY_ENVIRONMENT"] = env
+    with patch.dict(os.environ, {"NOTIFY_ENVIRONMENT": env}):
         notify_api.config["NOTIFY_ENVIRONMENT"] = env
-
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 allow_headers = "Content-Type,Authorization"
@@ -57,15 +51,6 @@ def test_cors_headers_set_on_api_request(notify_api, env, origin):
                 assert response.headers["Access-Control-Allow-Origin"] == origin
                 assert response.headers["Access-Control-Allow-Headers"] == allow_headers
                 assert response.headers["Access-Control-Allow-Methods"] == allow_methods
-    finally:
-        # Restore original environment and config
-        if original_env is None:
-            if "NOTIFY_ENVIRONMENT" in os.environ:
-                del os.environ["NOTIFY_ENVIRONMENT"]
-        else:
-            os.environ["NOTIFY_ENVIRONMENT"] = original_env
-
-        notify_api.config["NOTIFY_ENVIRONMENT"] = original_config
 
 
 # Original test replaced with parameterized version below
@@ -73,15 +58,8 @@ def test_cors_headers_set_on_api_request(notify_api, env, origin):
 
 @pytest.mark.parametrize("env, origin", ENV_ORIGINS)
 def test_cors_headers_work_with_options_method(notify_api, env, origin):
-    # Save the original environment and config
-    original_env = os.environ.get("NOTIFY_ENVIRONMENT")
-    original_config = notify_api.config.get("NOTIFY_ENVIRONMENT")
-
-    try:
-        # Set environment for test
-        os.environ["NOTIFY_ENVIRONMENT"] = env
+    with patch.dict(os.environ, {"NOTIFY_ENVIRONMENT": env}):
         notify_api.config["NOTIFY_ENVIRONMENT"] = env
-
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 allow_headers = "Content-Type,Authorization"
@@ -95,28 +73,12 @@ def test_cors_headers_work_with_options_method(notify_api, env, origin):
                 assert response.headers["Access-Control-Allow-Origin"] == origin
                 assert response.headers["Access-Control-Allow-Headers"] == allow_headers
                 assert response.headers["Access-Control-Allow-Methods"] == allow_methods
-    finally:
-        # Restore original environment and config
-        if original_env is None:
-            if "NOTIFY_ENVIRONMENT" in os.environ:
-                del os.environ["NOTIFY_ENVIRONMENT"]
-        else:
-            os.environ["NOTIFY_ENVIRONMENT"] = original_env
-
-        notify_api.config["NOTIFY_ENVIRONMENT"] = original_config
 
 
 @pytest.mark.parametrize("env, origin", ENV_ORIGINS)
 def test_cors_headers_with_auth_protected_route(notify_api, sample_service, env, origin):
-    # Save the original environment and config
-    original_env = os.environ.get("NOTIFY_ENVIRONMENT")
-    original_config = notify_api.config.get("NOTIFY_ENVIRONMENT")
-
-    try:
-        # Set environment for test
-        os.environ["NOTIFY_ENVIRONMENT"] = env
+    with patch.dict(os.environ, {"NOTIFY_ENVIRONMENT": env}):
         notify_api.config["NOTIFY_ENVIRONMENT"] = env
-
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 allow_headers = "Content-Type,Authorization"
@@ -131,28 +93,12 @@ def test_cors_headers_with_auth_protected_route(notify_api, sample_service, env,
                 assert response.headers["Access-Control-Allow-Origin"] == origin
                 assert response.headers["Access-Control-Allow-Headers"] == allow_headers
                 assert response.headers["Access-Control-Allow-Methods"] == allow_methods
-    finally:
-        # Restore original environment and config
-        if original_env is None:
-            if "NOTIFY_ENVIRONMENT" in os.environ:
-                del os.environ["NOTIFY_ENVIRONMENT"]
-        else:
-            os.environ["NOTIFY_ENVIRONMENT"] = original_env
-
-        notify_api.config["NOTIFY_ENVIRONMENT"] = original_config
 
 
 @pytest.mark.parametrize("env, origin", ENV_ORIGINS)
 def test_cors_options_with_auth_protected_route(notify_api, sample_service, env, origin):
-    # Save the original environment and config
-    original_env = os.environ.get("NOTIFY_ENVIRONMENT")
-    original_config = notify_api.config.get("NOTIFY_ENVIRONMENT")
-
-    try:
-        # Set environment for test
-        os.environ["NOTIFY_ENVIRONMENT"] = env
+    with patch.dict(os.environ, {"NOTIFY_ENVIRONMENT": env}):
         notify_api.config["NOTIFY_ENVIRONMENT"] = env
-
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 allow_headers = "Content-Type,Authorization"
@@ -166,15 +112,6 @@ def test_cors_options_with_auth_protected_route(notify_api, sample_service, env,
                 assert response.headers["Access-Control-Allow-Origin"] == origin
                 assert response.headers["Access-Control-Allow-Headers"] == allow_headers
                 assert response.headers["Access-Control-Allow-Methods"] == allow_methods
-    finally:
-        # Restore original environment and config
-        if original_env is None:
-            if "NOTIFY_ENVIRONMENT" in os.environ:
-                del os.environ["NOTIFY_ENVIRONMENT"]
-        else:
-            os.environ["NOTIFY_ENVIRONMENT"] = original_env
-
-        notify_api.config["NOTIFY_ENVIRONMENT"] = original_config
 
 
 def test_all_allowed_origins_are_covered_in_tests():
@@ -202,15 +139,8 @@ def test_all_allowed_origins_are_covered_in_tests():
 
 @pytest.mark.parametrize("env", list(ALLOWED_ORIGINS.keys()))
 def test_cors_headers_not_set_for_invalid_origins_parametrized(notify_api, env):
-    # Save the original environment and config
-    original_env = os.environ.get("NOTIFY_ENVIRONMENT")
-    original_config = notify_api.config.get("NOTIFY_ENVIRONMENT")
-
-    try:
-        # Set environment for test
-        os.environ["NOTIFY_ENVIRONMENT"] = env
+    with patch.dict(os.environ, {"NOTIFY_ENVIRONMENT": env}):
         notify_api.config["NOTIFY_ENVIRONMENT"] = env
-
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 response = client.get(
@@ -220,12 +150,3 @@ def test_cors_headers_not_set_for_invalid_origins_parametrized(notify_api, env):
 
                 assert response.status_code == 401
                 assert "Access-Control-Allow-Origin" not in response.headers
-    finally:
-        # Restore original environment and config
-        if original_env is None:
-            if "NOTIFY_ENVIRONMENT" in os.environ:
-                del os.environ["NOTIFY_ENVIRONMENT"]
-        else:
-            os.environ["NOTIFY_ENVIRONMENT"] = original_env
-
-        notify_api.config["NOTIFY_ENVIRONMENT"] = original_config
