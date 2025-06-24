@@ -22,6 +22,7 @@ from app.dao.api_key_dao import (
     save_model_api_key,
 )
 from app.models import KEY_TYPE_NORMAL, ApiKey
+from tests import create_authorization_header
 from tests.conftest import set_config, set_config_values
 
 
@@ -435,3 +436,132 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
                 ],
             )
         assert response.status_code == expected_status
+
+
+class TestSwagger:
+    def test_auth_should_allow_options_request(self, client):
+        request.method = "OPTIONS"
+        request.headers = {}
+
+        # This should not raise an exception since OPTIONS requests bypass authentication
+        requires_auth()
+
+        # Reset request method for other tests
+        request.method = "GET"
+
+    def test_options_request_to_protected_route_should_pass(self, client):
+        """Test that OPTIONS requests can pass through to routes protected by requires_auth."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.options("/v2/notifications")
+
+        # OPTIONS requests should return a successful response
+        assert response.status_code == 200
+        # The preflight response should include Access-Control-Allow headers
+        assert "Access-Control-Allow-Headers" in response.headers
+        assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
+        assert "Authorization" in response.headers["Access-Control-Allow-Headers"]
+        assert "Access-Control-Allow-Methods" in response.headers
+
+    def test_get_request_to_protected_route_should_require_auth(self, client):
+        """Test that GET requests to the same endpoint still require authentication."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.get("/v2/notifications")
+
+        # GET requests without authentication should be rejected
+        assert response.status_code == 401
+        # Should return an error as JSON
+        error_data = json.loads(response.get_data(as_text=True))
+        # assert error_data['result'] == 'error'
+        assert "authentication token must be provided" in error_data["errors"][0]["message"]
+
+    def test_cors_headers_set_on_api_request(self, notify_api):
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                allow_headers = "Content-Type,Authorization"
+                allow_methods = "GET,PUT,POST,DELETE"
+
+                # Making a GET request to healthcheck which should be unrestricted
+                response = client.get(
+                    path="/v2/notifications",
+                    headers=[
+                        ("Origin", "https://documentation.notification.canada.ca"),
+                    ],
+                )
+
+                assert response.status_code == 401
+                assert response.headers["Access-Control-Allow-Origin"] == "https://documentation.notification.canada.ca"
+                assert response.headers["Access-Control-Allow-Headers"] == allow_headers
+                assert response.headers["Access-Control-Allow-Methods"] == allow_methods
+
+    def test_cors_headers_not_set_for_invalid_origins(self, notify_api):
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                # Making a GET request with an unauthorized origin
+                response = client.get(
+                    path="/v2/notifications",
+                    headers=[
+                        ("Origin", "https://malicious-site.com"),
+                    ],
+                )
+
+                assert response.status_code == 401
+                assert "Access-Control-Allow-Origin" not in response.headers
+
+    def test_cors_headers_work_with_options_method(self, notify_api):
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                allow_headers = "Content-Type,Authorization"
+                allow_methods = "GET,PUT,POST,DELETE"
+
+                # Making an OPTIONS request to healthcheck
+                response = client.options(
+                    path="/v2/notifications",
+                    headers=[
+                        ("Origin", "https://documentation.notification.canada.ca"),
+                    ],
+                )
+
+                assert response.status_code == 200
+                assert response.headers["Access-Control-Allow-Origin"] == "https://documentation.notification.canada.ca"
+                assert response.headers["Access-Control-Allow-Headers"] == allow_headers
+                assert response.headers["Access-Control-Allow-Methods"] == allow_methods
+
+    def test_cors_headers_with_auth_protected_route(self, notify_api, sample_service):
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                allow_headers = "Content-Type,Authorization"
+                allow_methods = "GET,PUT,POST,DELETE"
+
+                # Create auth header
+                auth_header = create_authorization_header()
+
+                # Making a GET request to an auth-protected endpoint
+                response = client.get(
+                    path=f"/service/{sample_service.id}",
+                    headers=[("Origin", "https://documentation.notification.canada.ca"), auth_header],
+                )
+
+                assert response.status_code == 200
+                assert response.headers["Access-Control-Allow-Origin"] == "https://documentation.notification.canada.ca"
+                assert response.headers["Access-Control-Allow-Headers"] == allow_headers
+                assert response.headers["Access-Control-Allow-Methods"] == allow_methods
+
+    def test_cors_options_with_auth_protected_route(self, notify_api, sample_service):
+        with notify_api.test_request_context():
+            with notify_api.test_client() as client:
+                allow_headers = "Content-Type,Authorization"
+                allow_methods = "GET,PUT,POST,DELETE"
+
+                # Making an OPTIONS request to an auth-protected endpoint
+                # Note: OPTIONS requests should work without authentication
+                response = client.options(
+                    path="/v2/notifications",
+                    headers=[
+                        ("Origin", "https://documentation.notification.canada.ca"),
+                    ],
+                )
+
+                assert response.status_code == 200
+                assert response.headers["Access-Control-Allow-Origin"] == "https://documentation.notification.canada.ca"
+                assert response.headers["Access-Control-Allow-Headers"] == allow_headers
+                assert response.headers["Access-Control-Allow-Methods"] == allow_methods
