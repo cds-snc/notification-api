@@ -151,6 +151,9 @@ def requires_cypress_auth():
 
 
 def requires_auth():
+    if request.method == "OPTIONS":
+        return  # Allow CORS preflight through
+
     request_helper.check_proxy_header_before_request()
 
     auth_type, auth_token = get_auth_token(request)
