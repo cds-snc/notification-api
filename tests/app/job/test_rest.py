@@ -948,21 +948,23 @@ def test_get_all_notifications_for_job_returns_csv_format(admin_request, sample_
 # This test assumes the local timezone is EST
 def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin_request, sample_template):
     # it's the 10th today, so 3 days should include all of 7th, 8th, 9th, and some of 10th.
-    just_three_days_ago = datetime(2017, 6, 7, 3, 59, 59)
-    not_quite_three_days_ago = just_three_days_ago + timedelta(seconds=1)
+    just_three_days_ago_1 = datetime(2017, 6, 7, 3, 59, 59, 0)
+    just_three_days_ago_2 = datetime(2017, 6, 7, 3, 59, 59, 1)
+    just_three_days_ago_3 = datetime(2017, 6, 7, 3, 59, 59, 2)
+    not_quite_three_days_ago = just_three_days_ago_1 + timedelta(seconds=1)
 
     job_1 = create_job(
         sample_template,
-        created_at=just_three_days_ago,
-        processing_started=just_three_days_ago,
+        created_at=just_three_days_ago_1,
+        processing_started=just_three_days_ago_1,
     )
     job_2 = create_job(
         sample_template,
-        created_at=just_three_days_ago,
+        created_at=just_three_days_ago_2,
         processing_started=not_quite_three_days_ago,
     )
     # is old but hasn't started yet (probably a scheduled job). We don't have any stats for this job yet.
-    job_3 = create_job(sample_template, created_at=just_three_days_ago, processing_started=None)
+    job_3 = create_job(sample_template, created_at=just_three_days_ago_3, processing_started=None)
 
     # some notifications created more than three days ago, some created after the midnight cutoff
     create_ft_notification_status(date(2017, 6, 6), job=job_1, notification_status="delivered", count=2)

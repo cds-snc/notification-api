@@ -184,10 +184,10 @@ def test_get_jobs_for_service_in_processed_at_then_created_at_order(notify_db, n
     from_hour = partial(datetime, 2001, 1, 1)
 
     created_jobs = [
+        create_job(sample_template, created_at=from_hour(4), processing_started=from_hour(4)),
+        create_job(sample_template, created_at=from_hour(3), processing_started=from_hour(3)),
         create_job(sample_template, created_at=from_hour(2), processing_started=None),
         create_job(sample_template, created_at=from_hour(1), processing_started=None),
-        create_job(sample_template, created_at=from_hour(1), processing_started=from_hour(4)),
-        create_job(sample_template, created_at=from_hour(2), processing_started=from_hour(3)),
     ]
 
     jobs = dao_get_jobs_by_service_id(sample_template.service.id).items

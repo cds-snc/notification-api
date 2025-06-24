@@ -286,7 +286,8 @@ def register_blueprint(application):
 
 
 def register_v2_blueprints(application):
-    from app.authentication.auth import requires_auth
+    from app.authentication.auth import requires_auth, requires_no_auth
+    from app.v2.api_spec.get_api_spec import v2_api_spec_blueprint
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
@@ -310,6 +311,8 @@ def register_v2_blueprints(application):
 
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
+    register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
+
 
 def init_app(app):
     @app.before_request
@@ -323,7 +326,16 @@ def init_app(app):
 
     @app.after_request
     def after_request(response):
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        ALLOWED_ORIGINS = {
+            "http://localhost:8081",
+            "https://documentation.notification.canada.ca",
+            "https://documentation.staging.notification.cdssandbox.xyz",
+            "https://documentation.dev.notification.cdssandbox.xyz",
+            "https://cds-snc.github.io",
+        }
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
         return response
