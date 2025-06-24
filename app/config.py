@@ -277,8 +277,6 @@ class Config(object):
         "PERSONALISATION_SIZE_LIMIT", 1024 * 50
     )  # 50k bytes limit by default for personalisation data per notification
     API_PAGE_SIZE = 250
-    TEST_MESSAGE_FILENAME = "Test message"
-    ONE_OFF_MESSAGE_FILENAME = "Report"
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
@@ -292,6 +290,7 @@ class Config(object):
 
     # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
+    HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"

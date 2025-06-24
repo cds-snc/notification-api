@@ -234,6 +234,33 @@ def _update_notification_status(
     return notification
 
 
+@transactional
+def _update_notification_statuses(updates):
+    for update in updates:
+        notification = update.get("notification")
+        bounce_response = update.get("bounce_response")
+        provider_response = update.get("provider_response")
+        feedback_reason = update.get("feedback_reason")
+
+        final_status = _decide_permanent_temporary_failure(current_status=notification.status, status=update.get("new_status"))
+        notification.status = final_status
+        if provider_response:
+            notification.provider_response = update.get("provider_response")
+        if bounce_response:
+            notification.feedback_type = bounce_response.get("feedback_type")
+            notification.feedback_subtype = bounce_response.get("feedback_subtype")
+            notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
+            notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+        if feedback_reason:
+            notification.feedback_reason = feedback_reason
+    update_notification_statuses([update.get("notification") for update in updates])
+
+
+@transactional
+def update_notification_statuses(notifications):
+    db.session.bulk_save_objects(notifications)
+
+
 @statsd(namespace="dao")
 @transactional
 def update_notification_status_by_id(notification_id, status, sent_by=None, feedback_reason=None):
@@ -685,7 +712,11 @@ def dao_get_notification_history_by_reference(reference):
 
 @statsd(namespace="dao")
 def dao_get_notifications_by_references(references):
-    return Notification.query.filter(Notification.reference.in_(references)).all()
+    results = Notification.query.filter(Notification.reference.in_(references)).all()
+
+    if not results:
+        raise NoResultFound(f"No notifications found for reference_ids {", ".join(references)}")
+    return results
 
 
 @statsd(namespace="dao")

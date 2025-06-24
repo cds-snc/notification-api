@@ -2572,7 +2572,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.1"
+version = "53.2.4"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2580,6 +2580,7 @@ files = []
 develop = false
 
 [package.dependencies]
+aws-xray-sdk = "2.14.0"
 awscli = "1.33.35"
 bleach = "6.1.0"
 boto3 = "1.34.153"
@@ -2603,13 +2604,14 @@ PyYAML = "6.0.2"
 requests = "2.32.3"
 smartypants = "2.0.1"
 statsd = "3.3.0"
+types-aws-xray-sdk = "^2.14.0.20250516"
 werkzeug = "3.0.4"
 
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.1"
-resolved_reference = "33c27a5c99c8da74fcedc310e40a4c82cd87e459"
+reference = "53.2.4"
+resolved_reference = "79b8b8d8781bf576caf5ce01a86959c4d4e6e197"
 
 [[package]]
 name = "ordered-set"
@@ -4028,6 +4030,17 @@ shellingham = ">=1.3.0"
 typing-extensions = ">=3.7.4.3"
 
 [[package]]
+name = "types-aws-xray-sdk"
+version = "2.14.0.20250516"
+description = "Typing stubs for aws-xray-sdk"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_aws_xray_sdk-2.14.0.20250516-py3-none-any.whl", hash = "sha256:62521066148c0b08c3b2a92be4d3b11c2e8e8d3bf2d665248e57308b40fc0e15"},
+    {file = "types_aws_xray_sdk-2.14.0.20250516.tar.gz", hash = "sha256:7d837339671af79d481ac242ff50c3f67151956b06fb916f0707e462f7a05833"},
+]
+
+[[package]]
 name = "types-boto"
 version = "2.49.18.9"
 description = "Typing stubs for boto"
@@ -4061,6 +4074,17 @@ python-versions = "*"
 files = [
     {file = "types-mock-4.0.15.2.tar.gz", hash = "sha256:83fe479741adb92210c3c92f006fe058297d5051e93c2cec36f1a9e0bae16e9e"},
     {file = "types_mock-4.0.15.2-py3-none-any.whl", hash = "sha256:39d489b6d9361b75448677680a3087701c0cfab61260363cfc0f646d2bf0a8b2"},
+]
+
+[[package]]
+name = "types-psycopg2"
+version = "2.9.21.20250516"
+description = "Typing stubs for psycopg2"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_psycopg2-2.9.21.20250516-py3-none-any.whl", hash = "sha256:2a9212d1e5e507017b31486ce8147634d06b85d652769d7a2d91d53cb4edbd41"},
+    {file = "types_psycopg2-2.9.21.20250516.tar.gz", hash = "sha256:6721018279175cce10b9582202e2a2b4a0da667857ccf82a97691bdb5ecd610f"},
 ]
 
 [[package]]
@@ -4552,4 +4576,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "cecc425be27521f0086303615fe1614a1cc006dc5e587b700297955dfdb9e990"
+content-hash = "d175ed3a176f7ebb80f788fb07e68e3cb3983ee38fb962965575ebe64c1ea483"

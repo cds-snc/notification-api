@@ -8,7 +8,7 @@ from freezegun import freeze_time
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
+from app.models import JOB_STATUS_FINISHED, JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
 from app.notifications.validators import (
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
@@ -20,6 +20,7 @@ from tests.app.db import (
     create_ft_notification_status,
     create_job,
     create_notification,
+    create_service,
     create_service_with_inbound_number,
     create_template,
     save_notification,
@@ -947,21 +948,23 @@ def test_get_all_notifications_for_job_returns_csv_format(admin_request, sample_
 # This test assumes the local timezone is EST
 def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin_request, sample_template):
     # it's the 10th today, so 3 days should include all of 7th, 8th, 9th, and some of 10th.
-    just_three_days_ago = datetime(2017, 6, 7, 3, 59, 59)
-    not_quite_three_days_ago = just_three_days_ago + timedelta(seconds=1)
+    just_three_days_ago_1 = datetime(2017, 6, 7, 3, 59, 59, 0)
+    just_three_days_ago_2 = datetime(2017, 6, 7, 3, 59, 59, 1)
+    just_three_days_ago_3 = datetime(2017, 6, 7, 3, 59, 59, 2)
+    not_quite_three_days_ago = just_three_days_ago_1 + timedelta(seconds=1)
 
     job_1 = create_job(
         sample_template,
-        created_at=just_three_days_ago,
-        processing_started=just_three_days_ago,
+        created_at=just_three_days_ago_1,
+        processing_started=just_three_days_ago_1,
     )
     job_2 = create_job(
         sample_template,
-        created_at=just_three_days_ago,
+        created_at=just_three_days_ago_2,
         processing_started=not_quite_three_days_ago,
     )
     # is old but hasn't started yet (probably a scheduled job). We don't have any stats for this job yet.
-    job_3 = create_job(sample_template, created_at=just_three_days_ago, processing_started=None)
+    job_3 = create_job(sample_template, created_at=just_three_days_ago_3, processing_started=None)
 
     # some notifications created more than three days ago, some created after the midnight cutoff
     create_ft_notification_status(date(2017, 6, 6), job=job_1, notification_status="delivered", count=2)
@@ -985,3 +988,27 @@ def test_get_jobs_should_retrieve_from_ft_notification_status_for_old_jobs(admin
     assert resp_json["data"][1]["statistics"] == [{"status": "created", "count": 1}]
     assert resp_json["data"][2]["id"] == str(job_1.id)
     assert resp_json["data"][2]["statistics"] == [{"status": "delivered", "count": 6}]
+
+
+def test_get_service_has_jobs_returns_true_when_jobs_exist(client, notify_db_session):
+    service = create_service(service_name="test service")
+    template = create_template(service=service)
+    create_job(template=template, job_status=JOB_STATUS_FINISHED)
+
+    response = client.get(
+        f"/service/{service.id}/job/has_jobs", headers=[("Content-Type", "application/json"), create_authorization_header()]
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["data"]["has_jobs"] is True
+
+
+def test_get_service_has_jobs_returns_false_when_no_jobs_exist(client, notify_db_session):
+    service = create_service(service_name="test service with no jobs")
+
+    response = client.get(
+        f"/service/{service.id}/job/has_jobs", headers=[("Content-Type", "application/json"), create_authorization_header()]
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True))["data"]["has_jobs"] is False

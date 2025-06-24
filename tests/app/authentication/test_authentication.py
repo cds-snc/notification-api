@@ -435,3 +435,40 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
                 ],
             )
         assert response.status_code == expected_status
+
+
+class TestSwagger:
+    def test_auth_should_allow_options_request(self, client):
+        request.method = "OPTIONS"
+        request.headers = {}
+
+        # This should not raise an exception since OPTIONS requests bypass authentication
+        requires_auth()
+
+        # Reset request method for other tests
+        request.method = "GET"
+
+    def test_options_request_to_protected_route_should_pass(self, client):
+        """Test that OPTIONS requests can pass through to routes protected by requires_auth."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.options("/v2/notifications")
+
+        # OPTIONS requests should return a successful response
+        assert response.status_code == 200
+        # The preflight response should include Access-Control-Allow headers
+        assert "Access-Control-Allow-Headers" in response.headers
+        assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
+        assert "Authorization" in response.headers["Access-Control-Allow-Headers"]
+        assert "Access-Control-Allow-Methods" in response.headers
+
+    def test_get_request_to_protected_route_should_require_auth(self, client):
+        """Test that GET requests to the same endpoint still require authentication."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.get("/v2/notifications")
+
+        # GET requests without authentication should be rejected
+        assert response.status_code == 401
+        # Should return an error as JSON
+        error_data = json.loads(response.get_data(as_text=True))
+        # assert error_data['result'] == 'error'
+        assert "authentication token must be provided" in error_data["errors"][0]["message"]

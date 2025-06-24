@@ -1517,7 +1517,7 @@ class Job(BaseModel):
     template_version = db.Column(db.Integer, nullable=False)
     created_at = db.Column(
         db.DateTime,
-        index=False,
+        index=True,
         unique=False,
         nullable=False,
         default=datetime.datetime.utcnow,
@@ -1534,7 +1534,7 @@ class Job(BaseModel):
     notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
     notifications_failed = db.Column(db.Integer, nullable=False, default=0)
 
-    processing_started = db.Column(db.DateTime, index=False, unique=False, nullable=True)
+    processing_started = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
