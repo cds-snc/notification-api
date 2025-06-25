@@ -704,6 +704,49 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PostBulkRequest'
+            examples:
+              basic_bulk_email_rows:
+                summary: Basic bulk email notification using rows
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  rows:
+                    - ["email address", "name"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
+              basic_bulk_email_csv:
+                summary: Basic bulk notification using csv
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  csv: "email address,name\nalice@example.com,Alice\nbob@example.com,Bob"
+              basic_bulk_sms_rows:
+                summary: Basic bulk email notification using rows
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  rows:
+                    - ["phone number", "name"]
+                    - ["123-456-7890", "Alice"]
+                    - ["+112345678901", "Bob"]
+              basic_bulk_sms_csv:
+                summary: Basic bulk notification using csv
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  csv: "phone number,name\n123-456-7890,Alice\n+112345678901,Bob"
+              scheduled_bulk_with_ref:
+                summary: Scheduled bulk notifications with a ref for tracking and reply to address
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  scheduled_for: "2025-06-25T15:15:00"
+                  reference: "january-reminders"
+                  reply_to_id: "12345678-1234-1234-1234-123456789012"
+                  rows:
+                    - ["email address", "name"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
       responses:
         '201':
           description: Bulk job created successfully
@@ -1375,7 +1418,7 @@ components:
       type: apiKey
       in: header
       name: Authorization
-      description: API Key with format 'Bearer {api_key}'
+      description: API Key with format 'ApiKey-v1 {api_key}'
 
 tags:
   - name: Notifications
