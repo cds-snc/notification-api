@@ -326,7 +326,15 @@ def init_app(app):
 
     @app.after_request
     def after_request(response):
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        ALLOWED_ORIGINS = {
+            "https://documentation.notification.canada.ca",
+            "https://documentation.staging.notification.cdssandbox.xyz",
+            "https://documentation.dev.notification.cdssandbox.xyz",
+            "https://cds-snc.github.io",
+        }
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
         return response
