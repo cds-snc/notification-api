@@ -327,7 +327,6 @@ def init_app(app):
     @app.after_request
     def after_request(response):
         ALLOWED_ORIGINS = {
-            "http://localhost:8081",
             "https://documentation.notification.canada.ca",
             "https://documentation.staging.notification.cdssandbox.xyz",
             "https://documentation.dev.notification.cdssandbox.xyz",
