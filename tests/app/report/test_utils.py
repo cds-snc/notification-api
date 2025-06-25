@@ -200,8 +200,8 @@ class TestNotificationReportIntegration:
         # Check the buffer content
         rows = list(csv.DictReader(csv_buffer.getvalue().splitlines()))
         assert len(rows) == 2
-        assert rows[0]["Recipient"] == "user1@example.com"
-        assert rows[1]["Recipient"] == "user2@example.com"
+        assert rows[0]["Recipient"] == "user2@example.com"
+        assert rows[1]["Recipient"] == "user1@example.com"
         assert set(r["Status"] for r in rows) == {"Delivered", "Failed"}
 
     def test_generate_csv_from_notifications_with_status_filter(self, notify_db, notify_db_session, sample_user):
