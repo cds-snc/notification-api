@@ -183,7 +183,9 @@ def build_notifications_query(service_id, notification_type, language, notificat
     )
 
     # Add ordering to the outer query to guarantee CSV row order
-    return db.session.query(*query_columns).order_by(inner_query.c.created_at.asc())
+    return db.session.query(*query_columns).order_by(
+        inner_query.c.created_at.asc() if job_id else inner_query.c.created_at.desc()
+    )
 
 
 def compile_query_for_copy(query):
