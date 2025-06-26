@@ -704,6 +704,49 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PostBulkRequest'
+            examples:
+              basic_bulk_email_rows:
+                summary: Notification groupée par courriel de base utilisant des lignes
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "Rappels de rendez-vous de janvier"
+                  rows:
+                    - ["adresse courriel", "nom"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
+              basic_bulk_email_csv:
+                summary: Notification groupée de base utilisant un fichier CSV
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "Rappels de rendez-vous de janvier"
+                  csv: "adresse courriel,nom\nalice@example.com,Alice\nbob@example.com,Bob"
+              basic_bulk_sms_rows:
+                summary: Notification groupée par SMS de base utilisant des lignes
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "Rappels de rendez-vous de janvier"
+                  rows:
+                    - ["numéro de téléphone", "nom"]
+                    - ["123-456-7890", "Alice"]
+                    - ["+112345678901", "Bob"]
+              basic_bulk_sms_csv:
+                summary: Notification groupée de base par SMS utilisant un fichier CSV
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "Rappels de rendez-vous de janvier"
+                  csv: "numéro de téléphone,nom\n123-456-7890,Alice\n+112345678901,Bob"
+              scheduled_bulk_with_ref:
+                summary: Notifications groupées planifiées avec une référence pour le suivi et une adresse de réponse
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "Rappels de rendez-vous de janvier"
+                  scheduled_for: "2025-06-25T15:15:00"
+                  reference: "rappels-janvier"
+                  reply_to_id: "12345678-1234-1234-1234-123456789012"
+                  rows:
+                    - ["adresse courriel", "nom"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
       responses:
         '201':
           description: Tâche de notification en masse créée avec succès
@@ -1374,7 +1417,7 @@ components:
       type: apiKey
       in: header
       name: Authorization
-      description: Clé API au format 'Bearer {api_key}'
+      description: Clé API au format « ApiKey-v1 {api_key} »
 
 tags:
   - name: Notifications
