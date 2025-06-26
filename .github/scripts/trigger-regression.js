@@ -2,10 +2,11 @@
 // and then logging the conclusion of a job in a nice summary
 
 // Access the environment input from environment variables
-const { ENVIRONMENT } = process.env;
+const { ENVIRONMENT, SMOKE } = process.env;
 
 const inputs = {
   environment: ENVIRONMENT,
+  smoke: SMOKE || 'false',
 };
 
 const triggerAndWait = async ({ github, core }) => {
@@ -13,6 +14,7 @@ const triggerAndWait = async ({ github, core }) => {
   const repo = 'notification-api-qa'; // private repo to contact
   const workflow_id = 'regression.yml'; // Replace with your workflow file name or ID
   const ref = 'main'; // The main branch. THIS IS THE REF of the REGRESSION repo!
+  const isSmokeTest = inputs.smoke === 'true';
   const jobName = `Test in ${ENVIRONMENT}`; // Replace with the name of the job you want
 
   // Create a timestamp for workflow run tracking
@@ -100,18 +102,19 @@ const triggerAndWait = async ({ github, core }) => {
 
   // Set the output for the job summary
   const resultText = conclusion === 'success' ? 'passed' : 'failed';
+  const testType = isSmokeTest ? 'Smoke Test' : 'QA Regression';
   core.setOutput(
     'regression_result',
-    `QA Regression result is ${resultText}; link to this run is ${workflow_url}`,
+    `${testType} result is ${resultText}; link to this run is ${workflow_url}`,
   );
 
   // Append to GITHUB_STEP_SUMMARY
-  const summaryContent = `### Regression Result\nResult: ${resultText}\n[Link to Workflow Run](${workflow_url})`;
+  const summaryContent = `### ${testType} Result\nResult: ${resultText}\n[Link to Workflow Run](${workflow_url})`;
   require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
 
   // Check if the workflow failed and set an appropriate error message
   if (conclusion !== 'success') {
-    const errorMessage = `Regression failed with conclusion: ${conclusion}. See details: ${workflow_url}`;
+    const errorMessage = `${testType} failed with conclusion: ${conclusion}. See details: ${workflow_url}`;
     console.error(errorMessage);
     core.setFailed(errorMessage);
   }
