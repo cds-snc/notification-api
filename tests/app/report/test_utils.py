@@ -1,7 +1,7 @@
 import csv
 import io
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from app.report.utils import (
     Translate,
@@ -40,27 +40,35 @@ class TestGenerateCsvFromNotifications:
         with patch("app.report.utils.build_notifications_query") as mock_build_query:
             with patch("app.report.utils.compile_query_for_copy") as mock_compile_query:
                 with patch("app.report.utils.stream_query_to_s3") as mock_stream:
-                    mock_build_query.return_value = "mock query"
-                    mock_compile_query.return_value = "mock copy command"
+                    with patch("app.report.utils.db.session.query") as mock_earliest_date:
+                        # Mock a query object with .subquery() for correct patching
+                        mock_query_obj = MagicMock()
+                        mock_query_obj.subquery.return_value.c = {"Sent Time": MagicMock()}
+                        mock_build_query.return_value = mock_query_obj
+                        mock_compile_query.return_value = "mock copy command"
+                        mock_scalar = MagicMock(return_value=datetime.now())
+                        mock_earliest_date.return_value.scalar = mock_scalar
 
-                    # Call the function
-                    generate_csv_from_notifications(
-                        service_id, notification_type, language, notification_statuses, job_id, days_limit, s3_bucket, s3_key
-                    )
+                        # Call the function
+                        generate_csv_from_notifications(
+                            service_id, notification_type, language, notification_statuses, job_id, days_limit, s3_bucket, s3_key
+                        )
 
-                    # Then
-                    mock_build_query.assert_called_once_with(
-                        service_id=service_id,
-                        notification_type=notification_type,
-                        language=language,
-                        notification_statuses=notification_statuses,
-                        job_id=job_id,
-                        days_limit=days_limit,
-                    )
-                    mock_compile_query.assert_called_once_with("mock query")
-                    mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
+                        # Then
+                        mock_build_query.assert_called_once_with(
+                            service_id=service_id,
+                            notification_type=notification_type,
+                            language=language,
+                            notification_statuses=notification_statuses,
+                            job_id=job_id,
+                            days_limit=days_limit,
+                        )
+                        mock_compile_query.assert_called_once_with(mock_query_obj)
+                        mock_stream.assert_called_once_with(
+                            "mock copy command", s3_bucket, s3_key, metadata={"earliest_created_at": str(mock_scalar())}
+                        )
 
-    def test_build_notifications_query_with_status_filter(self):
+    def test_build_notifications_query_with_status_filter(self, notify_db, notify_db_session):
         # Given
         service_id = "service-id-1"
         notification_type = "email"
@@ -94,7 +102,7 @@ class TestGenerateCsvFromNotifications:
         for status in substituted_statuses:
             assert status in sql_str
 
-    def test_build_notifications_query_with_empty_status_filter(self):
+    def test_build_notifications_query_with_empty_status_filter(self, notify_db, notify_db_session):
         # Given
         service_id = "service-id-1"
         notification_type = "email"
@@ -113,7 +121,7 @@ class TestGenerateCsvFromNotifications:
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
         assert "notification.status IN" not in sql_str  # No status filter should be applied
 
-    def test_build_notifications_query_with_job_id_filter(self):
+    def test_build_notifications_query_with_job_id_filter(self, notify_db, notify_db_session):
         # Given
         service_id = "service-id-1"
         notification_type = "email"
@@ -175,7 +183,7 @@ class TestNotificationReportIntegration:
         # Patch stream_query_to_s3 to write to a buffer instead of S3
         csv_buffer = io.StringIO()
 
-        def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key):
+        def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key, metadata):
             # Actually run the query and write CSV to the buffer
             query = build_notifications_query(service_id=str(service.id), notification_type="email", language="en", days_limit=7)
             result = query.all()
@@ -228,7 +236,7 @@ class TestNotificationReportIntegration:
 
         csv_buffer = io.StringIO()
 
-        def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key):
+        def fake_stream_query_to_s3(copy_command, s3_bucket, s3_key, metadata):
             query = build_notifications_query(
                 service_id=str(service.id),
                 notification_type="email",

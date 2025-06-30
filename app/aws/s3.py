@@ -196,7 +196,13 @@ def generate_presigned_url(bucket_name: str, object_key: str, expiration: int = 
 
 
 def stream_to_s3(
-    bucket_name, object_key, copy_command, cursor, multipart_threshold=MULTIPART_THRESHOLD, max_concurrency=MAX_CONCURRENCY
+    bucket_name,
+    object_key,
+    copy_command,
+    cursor,
+    metadata=None,
+    multipart_threshold=MULTIPART_THRESHOLD,
+    max_concurrency=MAX_CONCURRENCY,
 ):
     """
     Stream data from PostgreSQL COPY command directly to S3.
@@ -226,10 +232,13 @@ def stream_to_s3(
     # Reset the buffer's position to the beginning
     buffer.seek(0)
 
+    extra_args = {"Metadata": metadata} if metadata else {}
+
     # Upload the buffer to S3
     s3_client.upload_fileobj(
         Fileobj=buffer,
         Bucket=bucket_name,
         Key=object_key,
         Config=config,
+        ExtraArgs=extra_args,
     )

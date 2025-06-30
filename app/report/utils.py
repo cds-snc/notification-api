@@ -202,7 +202,7 @@ def compile_query_for_copy(query):
     return f"COPY ({compiled_query}) TO STDOUT WITH CSV HEADER"
 
 
-def stream_query_to_s3(copy_command, s3_bucket, s3_key):
+def stream_query_to_s3(copy_command, s3_bucket, s3_key, metadata=None):
     """
     Executes a database COPY command and streams the results to S3.
 
@@ -219,6 +219,7 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
             object_key=s3_key,
             copy_command=copy_command,
             cursor=cursor,
+            metadata=metadata,
         )
     finally:
         conn.close()
@@ -246,8 +247,11 @@ def generate_csv_from_notifications(
         job_id=job_id,
         days_limit=days_limit,
     )
+    # Find the earliest created_at date in the query to add as file metadata
+    earliest_date = db.session.query(func.min(query.subquery().c["Sent Time"])).scalar()
+    metadata = {"earliest_created_at": str(earliest_date) if earliest_date else ""}
     copy_command = compile_query_for_copy(query)
-    stream_query_to_s3(copy_command, s3_bucket, s3_key)
+    stream_query_to_s3(copy_command, s3_bucket, s3_key, metadata=metadata)
 
 
 def send_requested_report_ready(report) -> None:

@@ -2697,6 +2697,7 @@ class ReportStatus(Enum):
     GENERATING = "generating"
     READY = "ready"
     ERROR = "error"
+    RETENTION_EXCEEDED = "retention_exceeded"
 
 
 class ReportType(Enum):
