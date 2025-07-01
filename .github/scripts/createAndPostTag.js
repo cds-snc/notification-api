@@ -1,6 +1,6 @@
 // createAndPostTag.js
 const { prData } = require('./prData');
-const { appendSummary, getReleaseVersionValue } = require('./actionUtils');
+const { appendSummary, getLatestVersionFromReleases } = require('./actionUtils');
 
 /**
  * Creates a new git tag in the repository.
@@ -55,8 +55,8 @@ async function createAndPostTag(params) {
   const repo = context.repo.repo;
 
   try {
-    // Retrieve the current release version, this will be used as the previousVersion
-    const previousVersion = await getReleaseVersionValue(github, owner, repo);
+    // Retrieve the current release version from git tags, this will be used as the previousVersion
+    const previousVersion = await getLatestVersionFromReleases(github, owner, repo);
 
     // Retrieve PR data to decide the new version tag
     const { mainBranchSha, newVersion } = await prData({
@@ -67,14 +67,6 @@ async function createAndPostTag(params) {
 
     // Create and push the tag using the SHA from mainBranchSha
     await createTag(github, owner, repo, newVersion, mainBranchSha);
-
-    // Update the RELEASE_VERSION repo variable
-    await github.rest.actions.updateRepoVariable({
-      owner,
-      repo,
-      name: 'RELEASE_VERSION',
-      value: newVersion,
-    });
 
     // Output previous version to the GitHub actions workflow context
     // This will be used by the workflow that sets up the release notes

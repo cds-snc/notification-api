@@ -23,22 +23,27 @@ async function appendSummary(core, summaryContent) {
 }
 
 /**
- * Retrieves the current release version from a repository's actions secrets.
+ * Retrieves the latest version from git tags using the GitHub API.
+ * This eliminates the race condition by not relying on a shared environment variable.
  * @param {Object} github - The GitHub client instance.
  * @param {string} owner - The owner of the GitHub repository.
  * @param {string} repo - The repository name.
- * @returns {Promise<string>} - A promise resolving to the current release version.
+ * @returns {Promise<string>} - A promise resolving to the latest version from git tags.
  */
-async function getReleaseVersionValue(github, owner, repo) {
-  const { data } = await github.rest.actions.getRepoVariable({
-    owner,
-    repo,
-    name: 'RELEASE_VERSION',
-  });
-  return data.value;
+async function getLatestVersionFromReleases(github, owner, repo) {
+  try {
+    const { data: release } = await github.rest.repos.getLatestRelease({ owner, repo });
+    if (/^\d+\.\d+\.\d+$/.test(release.tag_name)) {
+      return release.tag_name;
+    }
+    return '0.0.0';
+  } catch (e) {
+    console.error('Error fetching latest release:', e);
+    return '0.0.0';
+  }
 }
 
 module.exports = {
   appendSummary,
-  getReleaseVersionValue,
+  getLatestVersionFromReleases,
 };

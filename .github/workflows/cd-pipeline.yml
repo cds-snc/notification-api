@@ -45,41 +45,31 @@ jobs:
           echo "Deploying commit SHA ${{ github.sha }}, the latest merge to main"
           echo "Deployment paused for manual approval."
 
-  pre-tag-summary:
-    needs: approval-deploy-perf
-    uses: ./.github/workflows/pre-tag-summary.yml
-    secrets: inherit
-
-  create-and-post-tag:
-    needs: pre-tag-summary
-    uses: ./.github/workflows/create-and-post-tag.yml
-    secrets: inherit
-
   build-push-artifacts:
-    needs: create-and-post-tag
+    needs: approval-deploy-perf
     runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+          ref: ${{ github.sha }}
       - name: Build and Push Artifacts
         uses: ./.github/actions/build-push-artifacts
         with:
-          ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+          ref: ${{ github.sha }}
           aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
           role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
 
   deploy-to-perf:
-    needs: [create-and-post-tag, build-push-artifacts]
+    needs: build-push-artifacts
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
     with:
       environment: perf
-      ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+      ref: ${{ github.sha }}
       lambdaDeploy: true
-
+  
   approval-deploy:
     needs: deploy-to-perf
     environment: 
@@ -89,13 +79,31 @@ jobs:
       - name: Pause for manual approval
         run: echo "Deployment paused for manual approval to staging and production."
 
+  pre-tag-summary:
+    needs: approval-deploy
+    uses: ./.github/workflows/pre-tag-summary.yml
+    secrets: inherit
+
+  create-and-post-tag:
+    needs: pre-tag-summary
+    uses: ./.github/workflows/create-and-post-tag.yml
+    secrets: inherit
+
+  create-release-notes:
+    needs: create-and-post-tag
+    uses: ./.github/workflows/create-release-notes.yml
+    secrets: inherit
+    with:
+      previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
+      newVersion: ${{ needs.create-and-post-tag.outputs.newVersion }}
+
   deploy-to-staging:
     needs: [approval-deploy, create-and-post-tag]
     uses: ./.github/workflows/deploy-release.yml
     secrets: inherit
     with:
       environment: staging
-      ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+      ref: ${{ github.sha }}
       lambdaDeploy: true
 
   deploy-to-prod:
@@ -105,18 +113,11 @@ jobs:
     secrets: inherit
     with:
       environment: prod
-      ref: ${{ needs.create-and-post-tag.outputs.newVersion }}
+      ref: ${{ github.sha }}
       lambdaDeploy: true
 
-  create-release-notes:
-    needs: [create-and-post-tag, deploy-to-prod]
-    uses: ./.github/workflows/create-release-notes.yml
-    secrets: inherit
-    with:
-      previousVersion: ${{ needs.create-and-post-tag.outputs.previousVersion }}
-
   send-slack-notifications:
-    needs: [create-release-notes, create-and-post-tag]
+    needs: [create-release-notes, create-and-post-tag, deploy-to-prod]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

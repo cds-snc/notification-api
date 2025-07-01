@@ -1,5 +1,5 @@
 // createReleaseNotes.js
-const { appendSummary, getReleaseVersionValue } = require('./actionUtils');
+const { appendSummary, getLatestVersionFromReleases } = require('./actionUtils');
 
 /**
  * Formats the current date in a specific string format for use in release titles.
@@ -18,14 +18,14 @@ function formatDate() {
  * @returns {Promise<void>} A promise that resolves when the release has been created.
  */
 async function createReleaseNotes(params) {
-  const { github, context, core } = params;
+  const { github, context, core, newVersion } = params;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const { previousVersion } = process.env;
 
   try {
-    // Retrieve the current version (e.g., from a tag or other mechanism)
-    const currentVersion = await getReleaseVersionValue(github, owner, repo);
+    // Use the newVersion passed in, not getLatestVersionFromTags
+    const currentVersion = newVersion;
 
     // Generate release notes comparing the current version to the previous version
     const releaseNotesResponse = await github.rest.repos.generateReleaseNotes({

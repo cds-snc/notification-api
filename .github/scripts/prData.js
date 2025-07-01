@@ -1,5 +1,5 @@
 // prData.js
-const { getReleaseVersionValue } = require('./actionUtils');
+const { getLatestVersionFromReleases } = require('./actionUtils');
 
 /**
  * Fetches all pull requests associated with a specific commit from a GitHub repository.
@@ -93,7 +93,7 @@ async function prData(params) {
 
   try {
     const pullRequestData = await fetchPullRequests(github, owner, repo, sha);
-    const currentVersion = await getReleaseVersionValue(github, owner, repo);
+    const currentVersion = await getLatestVersionFromReleases(github, owner, repo);
     const mainBranchSha = await fetchMainBranchSha(github, owner, repo, sha);
 
     const labels = pullRequestData.data[0].labels;

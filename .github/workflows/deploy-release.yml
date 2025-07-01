@@ -94,16 +94,6 @@ jobs:
         run: |
           aws s3 cp cd/application-deployment/${{ inputs.environment }}/${{ inputs.environment }}.env s3://vanotify-environment-variables-${{ inputs.environment }}/notification-api/
 
-  run-lambda-deploy:
-    if: ${{ inputs.lambdaDeploy }}
-    needs: [setup-environment]
-    uses: ./.github/workflows/lambda-functions.yml
-    with:
-      environment: ${{ needs.setup-environment.outputs.environment }}
-      ref: ${{ needs.setup-environment.outputs.tag }}
-      lambdaName: 'All'
-    secrets: inherit
-
   run-deployment:
     needs: [setup-environment, upload-env-file]
     uses: ./.github/workflows/deployment.yml
@@ -112,10 +102,19 @@ jobs:
       ref: ${{ needs.setup-environment.outputs.tag }}
     secrets: inherit
 
+  run-lambda-deploy:
+    needs: [setup-environment, run-deployment]
+    if: ${{ inputs.lambdaDeploy }}
+    uses: ./.github/workflows/lambda-functions.yml
+    with:
+      environment: ${{ needs.setup-environment.outputs.environment }}
+      ref: ${{ needs.setup-environment.outputs.tag }}
+      lambdaName: 'All'
+    secrets: inherit
+
   run-qa-suite:
-    needs: [run-deployment]
+    needs: [run-deployment, run-lambda-deploy]
     uses: ./.github/workflows/run-regression.yml
     with:
       environment: ${{ inputs.environment }}
     secrets: inherit
-
