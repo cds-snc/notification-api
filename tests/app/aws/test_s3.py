@@ -316,12 +316,13 @@ def test_stream_to_s3(notify_api, mocker):
     cursor_mock = Mock()
     buffer_mock = mocker.patch("app.aws.s3.BytesIO", return_value=Mock())
     transfer_config_mock = mocker.patch("app.aws.s3.TransferConfig")
+    mock_metadata = {"earliest_created_at": "2023-01-01T00:00:00Z"}
 
     bucket_name = "test-bucket"
     object_key = "test-object"
     copy_command = "COPY (SELECT * FROM test_table) TO STDOUT WITH CSV"
 
-    stream_to_s3(bucket_name, object_key, copy_command, cursor_mock)
+    stream_to_s3(bucket_name, object_key, copy_command, cursor_mock, mock_metadata)
 
     cursor_mock.copy_expert.assert_called_once_with(copy_command, buffer_mock.return_value)
     buffer_mock.return_value.seek.assert_has_calls([call(0, 2), call(0)])
@@ -330,4 +331,5 @@ def test_stream_to_s3(notify_api, mocker):
         Bucket=bucket_name,
         Key=object_key,
         Config=transfer_config_mock.return_value,
+        ExtraArgs={"Metadata": mock_metadata},
     )
