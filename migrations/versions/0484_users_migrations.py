@@ -13,7 +13,7 @@ down_revision = '0483_index_jobs'
 
 
 def upgrade():
-    op.add_column("users", sa.Column("verified_phonenumber", sa.Boolean, server_default='true', nullable=True))
+    op.add_column("users", sa.Column("verified_phonenumber", sa.Boolean, server_default='false', nullable=True))
     op.execute("UPDATE users SET verified_phonenumber = true")
     
 
