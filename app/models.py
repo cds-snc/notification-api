@@ -234,7 +234,6 @@ class User(BaseModel):
             "name": self.name,
             "email_address": self.email_address,
             "mobile_number": self.mobile_number,
-            "verified_phonenumber": self.verified_phonenumber,
         }
 
 
