@@ -13,7 +13,7 @@ from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
 
-@worker_process_shutdown.connect  # type: ignore
+@worker_process_shutdown.connect  # type: igno`re`
 def worker_process_shutdown(sender, signal, pid, exitcode, **kwargs):
     current_app.logger.info("worker shutdown: PID: {} Exitcode: {}".format(pid, exitcode))
 
