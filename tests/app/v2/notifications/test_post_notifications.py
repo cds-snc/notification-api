@@ -916,7 +916,7 @@ class TestRestrictedServices:
         service.users = [user]
         template = create_template(service=service, template_type=notification_type)
         create_api_key(service=service, key_type="team")
-        elasticache_queue = mocker.patch(f"app.{notification_type}_normal_publish.publish")
+        cache_ops = mocker.patch(f"app.{notification_type}_normal_publish.publish")
         data = {
             to_key: to,
             "template_id": template.id,
@@ -932,9 +932,9 @@ class TestRestrictedServices:
         assert response.status_code == response_code
         assert json.loads(response.get_data(as_text=True))
         if response_code == 201:
-            assert elasticache_queue.called
+            assert cache_ops.called
         else:
-            assert elasticache_queue.called is False
+            assert cache_ops.called is False
 
     @pytest.mark.parametrize(
         "notification_type,to_key,to_a, to_b,response_code",
