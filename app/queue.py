@@ -194,16 +194,11 @@ class RedisQueue(Queue):
         return True
 
     def publish(self, message: str):
-        current_app.logger.info(
-            f"Saving to redis."
-        )
-        current_app.logger.info(f"Key: {self._inbox}")
         self._redis_client.rpush(self._inbox, message)
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
-        current_app.logger.info(f"Moved {len(results)} messages to in-flight: {in_flight_key}")
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
