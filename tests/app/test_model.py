@@ -17,12 +17,8 @@ from app.constants import (
     NOTIFICATION_STATUS_LETTER_ACCEPTED,
     NOTIFICATION_STATUS_LETTER_RECEIVED,
     NOTIFICATION_STATUS_TYPES_FAILED,
-    COMPLAINT_CALLBACK_TYPE,
-    QUEUE_CHANNEL_TYPE,
-    WEBHOOK_CHANNEL_TYPE,
 )
 from app.models import (
-    ServiceCallback,
     ServiceWhitelist,
     Notification,
 )

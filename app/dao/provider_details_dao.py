@@ -1,17 +1,10 @@
 from datetime import datetime
 
 from cachetools import cached, TTLCache
-from flask import current_app
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import asc, desc, func, select
 
 from app.dao.dao_utils import transactional
-from app.notifications.notification_type import NotificationType
-from app.provider_details.switch_providers import (
-    provider_is_inactive,
-    provider_is_primary,
-    switch_providers,
-)
 from app.models import FactBilling, ProviderDetails, ProviderDetailsData, ProviderDetailsHistory, SMS_TYPE
 from app.model import User
 from app import db

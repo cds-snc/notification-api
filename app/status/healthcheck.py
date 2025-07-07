@@ -1,9 +1,8 @@
 from flask import Blueprint, jsonify, request
 
-from app import db, mobile_app_registry, version, provider_service
+from app import db, mobile_app_registry, version
 from app.dao.services_dao import dao_count_live_services
 from app.dao.organisation_dao import dao_count_organsations_with_live_services
-from app.notifications.notification_type import NotificationType
 from .redis_check import redis_check
 
 status = Blueprint('status', __name__)

@@ -20,9 +20,9 @@ from app.constants import (
 )
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.templates_dao import dao_get_template_by_id
-from app.exceptions import InactiveServiceException, InvalidProviderException, NotificationTechnicalFailureException
+from app.exceptions import InactiveServiceException, NotificationTechnicalFailureException
 from app.feature_flags import is_feature_enabled, FeatureFlag
-from app.models import Notification, ProviderDetails
+from app.models import Notification
 from app.service.utils import compute_source_email_address
 from app.utils import create_uuid, get_html_email_options
 

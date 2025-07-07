@@ -1,5 +1,5 @@
 from collections import defaultdict, namedtuple
-from datetime import date, datetime
+from datetime import date
 
 from flask import current_app
 from freezegun import freeze_time
@@ -13,7 +13,7 @@ from app.celery.tasks import (
     record_daily_sorted_counts,
     update_letter_notifications_statuses,
 )
-from app.constants import LETTER_TYPE, NOTIFICATION_CREATED, NOTIFICATION_DELIVERED, NOTIFICATION_SENDING
+from app.constants import LETTER_TYPE, NOTIFICATION_DELIVERED, NOTIFICATION_SENDING
 from app.dao.daily_sorted_letter_dao import dao_get_daily_sorted_letter_by_billing_day
 from app.exceptions import DVLAException
 from app.models import DailySortedLetter, NotificationHistory

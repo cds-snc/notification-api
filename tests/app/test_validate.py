@@ -1,5 +1,5 @@
 import pytest
-from app.schema_validation import validate
+from app.schema_validation import validate, _redact_sensitive_data
 from app.v2.notifications.notification_schemas import post_sms_request
 from jsonschema import ValidationError
 
@@ -82,7 +82,7 @@ def test_validate_v2_notifications_icn_redaction(
         ['hello', 'world'],
         'a string',
         12345,
-        {'id_value': 'not id_type'},
+        {'id_value': 'not id_type', 'id_type': 'testType'},
     ],
 )
 def test_validate_v2_notifications_icn_redaction_unexpected_format(
@@ -99,7 +99,15 @@ def test_validate_v2_notifications_icn_redaction_unexpected_format(
         validate({'recipient_identifier': recipient_identifier_value}, post_sms_request)
 
     # Cannot use a variable with loggers and assertions, falsely passes assertions
-    mock_logger.assert_called_once_with('Validation failed for: %s', {'recipient_identifier': '<redacted>'})
+    mock_logger.assert_called_once_with(
+        'Validation failed for: %s',
+        {
+            # If recipient_identifier_value is a dict, redact its 'id_value', but leave 'id_type' as is.
+            'recipient_identifier': {'id_value': '<redacted>', 'id_type': 'testType'}
+            if isinstance(recipient_identifier_value, dict)
+            else '<redacted>'
+        },
+    )
 
 
 def test_validate_v2_notifications_icn_and_personalisation_redaction(
@@ -162,3 +170,45 @@ def test_validate_with_invalid_dict(
     """
     with pytest.raises(ValidationError):
         validate(payload, {})
+
+
+@pytest.mark.parametrize(
+    'payload, expected_output',
+    [
+        (
+            {'recipient_identifier': {'id_type': 'testType', 'id_value': '1234567890'}},
+            {'recipient_identifier': {'id_type': 'testType', 'id_value': '<redacted>'}},
+        ),
+        (
+            {'personalisation': {'key1': 'value1', 'key2': 'value2'}},
+            {'personalisation': {'key1': '<redacted>', 'key2': '<redacted>'}},
+        ),
+        ({'phone_number': '07123456789'}, {'phone_number': '<redacted>'}),
+        ({'email_address': 'test@example.com'}, {'email_address': '<redacted>'}),
+        ({}, {}),
+        (
+            {
+                'recipient_identifier': {'id_type': 'testType', 'id_value': '1234567890'},
+                'personalisation': {'key1': 'value1', 'key2': 'value2'},
+                'phone_number': '07123456789',
+                'email_address': 'test@example.com',
+            },
+            {
+                'recipient_identifier': {'id_type': 'testType', 'id_value': '<redacted>'},
+                'personalisation': {'key1': '<redacted>', 'key2': '<redacted>'},
+                'phone_number': '<redacted>',
+                'email_address': '<redacted>',
+            },
+        ),
+    ],
+    ids=[
+        'redact recipient_identifier',
+        'redact personalisation',
+        'redact phone_number',
+        'redact email_address',
+        'empty dictionary',
+        'all fields',
+    ],
+)
+def test_redact_sensitive_data(payload, expected_output) -> None:
+    assert _redact_sensitive_data(payload) == expected_output

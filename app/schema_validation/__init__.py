@@ -80,7 +80,8 @@ def validate(
     """
     # Ensure that json_to_validate is a dictionary
     if not isinstance(json_to_validate, dict):
-        current_app.logger.info('Validation failed for: %s', json_to_validate)
+        # Log the error, but not the payload itself, as it may contain sensitive information.
+        current_app.logger.info('Validation failed: Payload is not a dictionary.')
         errors = [{'error': 'ValidationError', 'message': 'Payload is not a dictionary.'}]
         error_message = json.dumps({'status_code': 400, 'errors': errors})
         raise ValidationError(error_message)
@@ -88,24 +89,8 @@ def validate(
     validator = Draft7Validator(schema, format_checker=format_checker)
     errors = list(validator.iter_errors(json_to_validate))
     if len(errors) > 0:
-        # Redact "personalisation"
-        if 'personalisation' in json_to_validate:
-            if isinstance(json_to_validate.get('personalisation'), dict):
-                json_to_validate['personalisation'] = {key: '<redacted>' for key in json_to_validate['personalisation']}
-            else:
-                json_to_validate['personalisation'] = '<redacted>'
-
-        # Redact ICN
-        if 'recipient_identifier' in json_to_validate:
-            if (
-                isinstance(json_to_validate.get('recipient_identifier'), dict)  # Short circuit dictionary check
-                and json_to_validate['recipient_identifier'].get('id_type') == 'ICN'
-            ):
-                # Redact ICN, as it is sensitive
-                # # https://depo-platform-documentation.scrollhelp.site/developer-docs/personal-identifiable-information-pii-guidelines#PersonalIdentifiableInformation(PII)guidelines-NotesandpoliciesregardingICNs
-                json_to_validate['recipient_identifier']['id_value'] = '<redacted>'
-            else:
-                json_to_validate['recipient_identifier'] = '<redacted>'
+        json_to_validate = _redact_sensitive_data(json_to_validate)
+        # Log the JSON object with redacted information
         current_app.logger.info('Validation failed for: %s', json_to_validate)
         raise ValidationError(build_error_message(errors))
 
@@ -115,6 +100,45 @@ def validate(
         if len(errors) > 0:
             error_message = json.dumps({'status_code': 400, 'errors': errors})
             raise ValidationError(error_message)
+
+    return json_to_validate
+
+
+def _redact_sensitive_data(
+    json_to_validate: dict[str, int | str | dict[str, int | str]],
+) -> dict[str, int | str | dict[str, int | str]]:
+    """Redact sensitive data from the JSON object.
+
+    Args:
+        json_to_validate (dict[str, int | str | dict[str, int | str]]): The JSON object to redact.
+
+    Returns:
+        (dict[str, int | str | dict[str, int | str]]) : The JSON object with sensitive data redacted.
+    """
+    # Redact "personalisation"
+    if 'personalisation' in json_to_validate:
+        if isinstance(json_to_validate.get('personalisation'), dict):
+            json_to_validate['personalisation'] = {key: '<redacted>' for key in json_to_validate['personalisation']}
+        else:
+            json_to_validate['personalisation'] = '<redacted>'
+
+    # Redact identifier
+    # # https://depo-platform-documentation.scrollhelp.site/research-design/what-is-pii
+    if 'recipient_identifier' in json_to_validate:
+        if isinstance(json_to_validate.get('recipient_identifier'), dict):
+            # Redact identifier, as it may be sensitive
+            # # https://depo-platform-documentation.scrollhelp.site/developer-docs/personal-identifiable-information-pii-guidelines#PersonalIdentifiableInformation(PII)guidelines-NotesandpoliciesregardingICNs
+            json_to_validate['recipient_identifier']['id_value'] = '<redacted>'
+        else:
+            json_to_validate['recipient_identifier'] = '<redacted>'
+
+    # redact phone number
+    if 'phone_number' in json_to_validate and json_to_validate.get('phone_number') is not None:
+        json_to_validate['phone_number'] = '<redacted>'
+
+    # redact email address
+    if 'email_address' in json_to_validate and json_to_validate.get('email_address') is not None:
+        json_to_validate['email_address'] = '<redacted>'
 
     return json_to_validate
 
