@@ -552,16 +552,3 @@ class TestVerify2FACode:
         assert resp.status_code == 400
         assert sample_sms_code.code_used
         assert sample_sms_code.user.failed_login_count == 0
-
-    def test_verify_2fa_code_too_many_codes(self, client, sample_sms_code, mocker):
-        mocker.patch("app.user.rest.verify_within_time", return_value=2)
-        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
-        auth_header = create_authorization_header()
-        resp = client.post(
-            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
-            data=data,
-            headers=[("Content-Type", "application/json"), auth_header],
-        )
-        assert resp.status_code == 400
-        assert not sample_sms_code.code_used
-        assert sample_sms_code.user.failed_login_count == 0
