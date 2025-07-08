@@ -1,6 +1,7 @@
 from unittest.mock import patch
 from uuid import uuid4
 
+import botocore
 from requests import HTTPError, Response
 from requests.exceptions import ConnectTimeout, RequestException
 from app.mobile_app.mobile_app_types import MobileAppType
@@ -14,7 +15,7 @@ from app.celery.provider_tasks import (
     deliver_sms_with_rate_limiting,
     _handle_delivery_failure,
 )
-from app.clients.email.aws_ses import AwsSesClientThrottlingSendRateException
+from app.clients.email.aws_ses import AwsSesClient, AwsSesClientThrottlingSendRateException
 from app.constants import (
     EMAIL_TYPE,
     NOTIFICATION_CREATED,
@@ -360,6 +361,17 @@ def test_should_retry_and_log_exception(mocker, sample_template, sample_notifica
         deliver_email(notification.id)
 
     assert notification.status == 'created'
+
+
+@pytest.mark.parametrize('code', ['Throttling', 'ThrottlingException'])
+def test_should_retry_on_throttle(mocker, code):
+    client = AwsSesClient()
+    client.init_app('asdf', mocker.Mock(), mocker.Mock())
+    e = botocore.exceptions.ClientError(
+        {'Error': {'Code': code, 'Message': 'Maximum sending rate exceeded'}}, 'op name'
+    )
+    with pytest.raises(AwsSesClientThrottlingSendRateException):
+        client._check_error_code(e, '1234')
 
 
 def test_deliver_sms_with_rate_limiting_should_deliver_if_rate_limit_not_exceeded(

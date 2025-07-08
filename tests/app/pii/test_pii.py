@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import patch
 
 from app.pii import PiiEncryption, PiiLevel, Pii
+from app.va.identifier import IdentifierType
 
 
 # Constant test key for consistent encryption/decryption during tests
@@ -27,6 +28,17 @@ class PiiLow(Pii):
     """Test subclass of Pii with LOW level protection."""
 
     _level = PiiLevel.LOW
+
+
+class PiiAlreadyEncrypted(Pii):
+    """Test subclass of Pii is able to instantiate as a secret."""
+
+
+class PiiIcn(Pii):
+    """Test subclass of Pii is able give it's IdentifierType."""
+
+    def get_identifier_type(self) -> IdentifierType:
+        return IdentifierType.ICN
 
 
 @pytest.fixture
@@ -136,11 +148,6 @@ class TestPii:
         pii = PiiHigh('test_value')
         assert str(pii) == 'redacted PiiHigh'
 
-    def test_none_value_handled(self):
-        """Test that None value is handled safely."""
-        pii = PiiLow(None)  # type: ignore
-        assert pii.get_pii() == ''
-
 
 class TestPiiSubclassing:
     """Tests for Pii subclassing behavior."""
@@ -183,24 +190,6 @@ class TestPiiSubclassing:
         assert icn.level == PiiLevel.HIGH
         assert PiiHigh._level == PiiLevel.HIGH
 
-    def test_subclass_handles_none_value(self):
-        """Test that subclasses handle None value correctly."""
-        # Use None as a string value to pass type checking but test None handling in __new__
-        low_pii = PiiLow(None)  # type: ignore
-        moderate_pii = PiiModerate(None)  # type: ignore
-        high_pii = PiiHigh(None)  # type: ignore
-
-        # All should return empty string when decrypting None
-        assert low_pii.get_pii() == ''
-        assert moderate_pii.get_pii() == ''
-        assert high_pii.get_pii() == ''
-
-        # LOW level should still show encrypted value (of empty string)
-        assert 'redacted' not in str(low_pii)
-        # MODERATE and HIGH should show redacted
-        assert str(moderate_pii) == 'redacted PiiModerate'
-        assert str(high_pii) == 'redacted PiiHigh'
-
     def test_repr_matches_str_in_subclasses(self):
         """Test that repr() matches str() in subclasses to prevent accidental exposure."""
         low_pii = PiiLow('John')
@@ -210,3 +199,27 @@ class TestPiiSubclassing:
         assert repr(low_pii) == str(low_pii)
         assert repr(moderate_pii) == str(moderate_pii)
         assert repr(high_pii) == str(high_pii)
+
+    def test_existing_encrypted_value_true(self):
+        """Test that instantiating a class covers turning encrypted values from the DB into Pii Objects"""
+        high_pii = PiiHigh('test')
+        already_encrypted_pii = PiiAlreadyEncrypted(high_pii.get_encrypted_value(), True)
+        assert high_pii.get_encrypted_value() == already_encrypted_pii.get_encrypted_value()
+        assert high_pii.get_pii() == already_encrypted_pii.get_pii()
+
+    def test_existing_encrypted_value_false(self):
+        """Test that instantiating a class covers turning encrypted values from the DB into Pii Objects"""
+        high_pii = PiiHigh('test')
+        already_encrypted_pii = PiiAlreadyEncrypted(high_pii, False)
+        assert high_pii.get_pii() != already_encrypted_pii.get_pii()
+
+    def test_get_identifier_happy_path(self):
+        """Test that identifiers can be obtained if they are there."""
+        pii_icn = PiiIcn('12345')
+        assert pii_icn.get_identifier_type() == IdentifierType.ICN
+
+    def test_get_identifier_no_identifier(self):
+        """Test that identifiers can be obtained if they are there."""
+        pii_high = PiiHigh('potato')
+        with pytest.raises(NotImplementedError):
+            pii_high.get_identifier_type()

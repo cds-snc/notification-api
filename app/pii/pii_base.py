@@ -16,6 +16,8 @@ from enum import Enum
 from typing import ClassVar
 from cryptography.fernet import Fernet
 
+from app.va.identifier import IdentifierType
+
 
 class PiiEncryption:
     """Singleton to manage encryption for PII data."""
@@ -67,6 +69,7 @@ class Pii(str):
     """
 
     _level: ClassVar[PiiLevel] = PiiLevel.HIGH
+    _encrypted_value: str
 
     @property
     def level(self) -> PiiLevel:
@@ -80,12 +83,13 @@ class Pii(str):
         """
         return self.__class__._level
 
-    def __new__(cls, value: str | None) -> 'Pii':
+    def __new__(cls, value: str, is_encrypted: bool = False) -> 'Pii':
         """Create a new Pii instance with encrypted value.
         The class name is used as the suffix after "redacted" in string representations
 
         Args:
-            value (str | None): The PII value to encrypt.
+            value (str): The PII value to encrypt.
+            is_encrypted (bool): If this is already encrypted
 
         Returns:
             Pii: A new Pii instance (of a subclass) with the value encrypted.
@@ -100,18 +104,32 @@ class Pii(str):
                 "and override its '_level' class attribute if needed."
             )
 
-        if value is None:
-            value = ''
-
         # Get encryption singleton
         pii_encryption = PiiEncryption.get_encryption()
 
         # Encrypt the value
-        encrypted = pii_encryption.encrypt(value.encode()).decode()
+        if is_encrypted and len(value) > 50:
+            # Workaround until all existing notification tasks and retries have been drained, then remove the len check
+            encrypted = value
+        else:
+            encrypted = pii_encryption.encrypt(value.encode()).decode()
 
         # Return a new string instance with the encrypted value
         # Using type: ignore since the return type is actually the subclass type, not just 'Pii'
-        return super().__new__(cls, encrypted)  # type: ignore
+        str_class = super().__new__(cls, encrypted)
+        str_class._encrypted_value = encrypted
+        return str_class
+
+    def get_identifier_type(self) -> IdentifierType:
+        raise NotImplementedError(f'Not implemented for Pii class: {self.__class__.__name__}')
+
+    def get_encrypted_value(self) -> str:
+        """Get the encrypted value of this Pii object.
+
+        Returns:
+            str: An encrypted string
+        """
+        return self._encrypted_value
 
     def get_pii(self) -> str:
         """Decrypt and return the PII value.
