@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from flask import Flask
@@ -18,6 +18,7 @@ from app.utils import (
     get_midnight_for_day_before,
     midnight_n_days_ago,
     rate_limit_db_calls,
+    store_dev_verification_data,
     update_dct_to_str,
 )
 from tests.app.db import create_template
@@ -247,3 +248,94 @@ def test_rate_limit_db_calls_blocked(notify_api, mocker):
         assert result is None
         mock_redis.assert_called_once_with("test_prefix:123")
         mock_redis_set.assert_not_called()
+
+
+class TestStoreDevVerificationData:
+    """Tests for store_dev_verification_data function"""
+
+    @pytest.mark.parametrize(
+        "environment,host,should_store,test_description",
+        [
+            # Environment tests
+            ("development", "localhost:3000", True, "stores data in development mode with valid host"),
+            ("production", "localhost:3000", False, "does not store data in production mode"),
+            ("staging", "localhost:3000", False, "does not store data in staging mode"),
+            # Host filtering tests
+            ("development", "staging.notification.canada.ca", False, "does not store when host contains notification.canada.ca"),
+            (
+                "development",
+                "api.notification.canada.ca",
+                False,
+                "does not store when host contains notification.canada.ca subdomain",
+            ),
+            ("development", "notification.canada.ca", False, "does not store when host is exactly notification.canada.ca"),
+            # Combined conditions
+            (
+                "production",
+                "api.notification.canada.ca",
+                False,
+                "does not store when both environment is not dev AND host contains notification.canada.ca",
+            ),
+            # Valid development hosts
+            ("development", "localhost", True, "stores data with localhost"),
+            ("development", "localhost:5000", True, "stores data with localhost:5000"),
+            ("development", "127.0.0.1", True, "stores data with 127.0.0.1"),
+            ("development", "127.0.0.1:8080", True, "stores data with 127.0.0.1:8080"),
+            ("development", "dev.example.com", True, "stores data with dev.example.com"),
+            ("development", "test-environment.com", True, "stores data with test-environment.com"),
+        ],
+    )
+    def test_store_dev_verification_data_conditions(self, notify_api, mocker, environment, host, should_store, test_description):
+        """Test various environment and host conditions for storing verification data"""
+        with notify_api.test_request_context():
+            # Arrange
+            mock_current_app = mocker.patch("app.utils.current_app")
+            mock_request = mocker.patch("app.utils.request")
+            mock_redis_store = mocker.patch("app.utils.redis_store")
+
+            mock_current_app.config = {"NOTIFY_ENVIRONMENT": environment}
+            mock_request.host = host
+            user_id = "test-user-123"
+            data = "test-verification-code"
+
+            # Act
+            store_dev_verification_data("verify_code", user_id, data)
+
+            # Assert
+            if should_store:
+                mock_redis_store.set.assert_called_once_with(
+                    "verify_code_test-user-123", "test-verification-code", ex=timedelta(minutes=1)
+                )
+            else:
+                mock_redis_store.set.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "key_prefix,user_id,data,expected_key",
+        [
+            ("verify_code", "test-user-123", "123456", "verify_code_test-user-123"),
+            ("verify_url", "test-user-123", "https://example.com/verify", "verify_url_test-user-123"),
+            ("verify_code", "550e8400-e29b-41d4-a716-446655440000", "789012", "verify_code_550e8400-e29b-41d4-a716-446655440000"),
+            (
+                "verify_url",
+                "550e8400-e29b-41d4-a716-446655440000",
+                "https://verify.test.com",
+                "verify_url_550e8400-e29b-41d4-a716-446655440000",
+            ),
+        ],
+    )
+    def test_store_dev_verification_data_key_formats(self, notify_api, mocker, key_prefix, user_id, data, expected_key):
+        """Test different key prefixes and user ID formats"""
+        with notify_api.test_request_context():
+            # Arrange
+            mock_current_app = mocker.patch("app.utils.current_app")
+            mock_request = mocker.patch("app.utils.request")
+            mock_redis_store = mocker.patch("app.utils.redis_store")
+
+            mock_current_app.config = {"NOTIFY_ENVIRONMENT": "development"}
+            mock_request.host = "localhost:3000"
+
+            # Act
+            store_dev_verification_data(key_prefix, user_id, data)
+
+            # Assert
+            mock_redis_store.set.assert_called_once_with(expected_key, data, ex=timedelta(minutes=1))
