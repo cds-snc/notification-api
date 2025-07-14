@@ -198,18 +198,12 @@ def validate_service_api_key_auth():  # noqa: C901
         except TokenError:
             continue
 
-        # TODO 2309 - The revoked field is added as a temporary measure until we can implement proper use of the expiry date
         if api_key.revoked:
             raise AuthError('Invalid token: API key revoked', 403, service_id=service.id, api_key_id=api_key.id)
 
-        if api_key.expiry_date is not None and api_key.expiry_date < datetime.utcnow():
-            current_app.logger.warning(
-                'service %s - %s used expired api key %s expired as of %s',
-                service.id,
-                service.name,
-                api_key.id,
-                api_key.expiry_date,
-            )
+        # Check if API key has expired
+        if api_key.expiry_date is not None and api_key.expiry_date <= datetime.utcnow():
+            raise AuthError('Invalid token: API key expired', 403, service_id=service.id, api_key_id=api_key.id)
         elif api_key.expiry_date is None:
             current_app.logger.warning(
                 'service %s - %s used old-style api key %s with no expiry_date',

@@ -65,16 +65,21 @@ def validate_expiry_date(expiry_date: str | None) -> datetime:
         InvalidRequest: If the expiry date is not provided, is in the past, or has an invalid format.
     """
     try:
-        # Convert the expiry date string to a datetime object
-        expiry_date = datetime.fromisoformat(expiry_date).astimezone(timezone.utc)
+        # Parse the date and explicitly set it to UTC (assumes input is intended as UTC date)
+        parsed_date = datetime.fromisoformat(expiry_date)
+        # If the parsed date is naive (no timezone), assume it's UTC
+        if parsed_date.tzinfo is None:
+            validated_expiry_date = parsed_date.replace(tzinfo=timezone.utc)
+        else:
+            validated_expiry_date = parsed_date.astimezone(timezone.utc)
     except TypeError:
         raise InvalidRequest('expiry_date is required. Use YYYY-MM-DD format.', status_code=400)
     except ValueError:
         raise InvalidRequest('Invalid date format. Use YYYY-MM-DD.', status_code=400)
 
-    if expiry_date < datetime.now(timezone.utc):
+    if validated_expiry_date < datetime.now(timezone.utc):
         raise InvalidRequest(
             'Updated expiry_date cannot be in the past. Are you attempting to revoke the key?', status_code=400
         )
 
-    return expiry_date
+    return validated_expiry_date

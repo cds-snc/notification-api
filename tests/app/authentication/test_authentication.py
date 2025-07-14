@@ -7,6 +7,7 @@ tests error with, "Working outside of request context."
 import jwt
 import pytest
 import time
+from datetime import datetime, timedelta
 from app import api_user
 from app.authentication.auth import (
     AuthError,
@@ -206,6 +207,7 @@ def test_authentication_passes_when_service_has_multiple_keys_some_expired(
 def test_authentication_returns_token_expired_when_service_uses_expired_key_and_has_multiple_keys(
     client, sample_api_key, sample_user_service_api_key
 ):
+    """Test that expired keys (via revoked flag) are rejected - maintains backward compatibility"""
     _, service, api_key = sample_user_service_api_key
     expired_api_key = sample_api_key(service, expired=True)
 
@@ -216,6 +218,7 @@ def test_authentication_returns_token_expired_when_service_uses_expired_key_and_
     request.headers = {'Authorization': 'Bearer {}'.format(token)}
     with pytest.raises(AuthError) as exc:
         validate_service_api_key_auth()
+    # Note: This tests the revoked flag, not expiry_date, since expired=True sets both
     assert exc.value.short_message == 'Invalid token: API key revoked'
     assert exc.value.service_id == service.id
     assert exc.value.api_key_id == expired_api_key.id
@@ -336,6 +339,140 @@ def test_should_return_403_when_token_is_expired(client, sample_user_service_api
     assert exc.value.short_message == 'Error: Your system clock must be accurate to within 30 seconds'
     assert exc.value.service_id == service.id
     assert exc.value.api_key_id == api_key.id
+
+
+# New tests for API key expiry validation (Phase 2)
+def test_authentication_rejects_expired_api_key_with_403(notify_db_session, client, sample_api_key, sample_service):
+    """Test that expired API keys are rejected with 403 status and proper error message"""
+    service = sample_service()
+
+    # Create an API key with expiry_date in the past (not using revoked flag)
+    with freeze_time('2024-01-01'):
+        api_key = sample_api_key(service, with_expiry=True)
+
+    # Move to future so the key is expired
+    with freeze_time('2024-07-01'):  # 6 months later
+        token = create_jwt_token(api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        with pytest.raises(AuthError) as exc:
+            validate_service_api_key_auth()
+
+        assert exc.value.code == 403
+        assert exc.value.short_message == 'Invalid token: API key expired'
+        assert exc.value.service_id == service.id
+        assert exc.value.api_key_id == api_key.id
+
+
+def test_authentication_allows_non_expired_api_key(notify_db_session, client, sample_api_key, sample_service):
+    """Test that non-expired API keys are allowed through"""
+    service = sample_service()
+
+    # Create an API key that won't be expired
+    with freeze_time('2024-01-01'):
+        api_key = sample_api_key(service, with_expiry=True)
+
+    # Use the key while it's still valid (within 180 days)
+    with freeze_time('2024-02-01'):  # 1 month later
+        token = create_jwt_token(api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        # Should not raise an exception
+        validate_service_api_key_auth()
+
+
+def test_authentication_with_mixed_expired_and_valid_keys_uses_valid_key(
+    notify_db_session, client, sample_api_key, sample_service
+):
+    """Test that services with mix of expired/valid keys work correctly with valid keys"""
+    service = sample_service()
+
+    # Create an expired key
+    with freeze_time('2023-01-01'):
+        expired_api_key = sample_api_key(service, with_expiry=True)
+
+    # Create a valid key
+    with freeze_time('2024-01-01'):
+        valid_api_key = sample_api_key(service, with_expiry=True)
+
+    # Use the valid key in the future
+    with freeze_time('2024-02-01'):
+        # Try with the expired key first - should fail
+        expired_token = create_jwt_token(expired_api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(expired_token)}
+
+        with pytest.raises(AuthError) as exc:
+            validate_service_api_key_auth()
+        assert exc.value.short_message == 'Invalid token: API key expired'
+        assert exc.value.api_key_id == expired_api_key.id
+
+        # Try with the valid key - should succeed
+        valid_token = create_jwt_token(valid_api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(valid_token)}
+
+        # Should not raise an exception
+        validate_service_api_key_auth()
+
+
+def test_authentication_with_null_expiry_date_allows_request_with_warning(
+    notify_db_session, client, sample_api_key, sample_service, mocker
+):
+    """Test that keys with null expiry_date are allowed but generate warnings"""
+    service = sample_service()
+
+    # Create an API key without expiry date (simulating old keys)
+    api_key = sample_api_key(service, with_expiry=False)
+
+    # Mock the logger to capture the warning
+    mock_logger = mocker.patch('app.authentication.auth.current_app.logger.warning')
+
+    token = create_jwt_token(api_key.secret, client_id=str(service.id))
+    request.headers = {'Authorization': f'Bearer {token}'}
+
+    # Should not raise an exception but should log a warning
+    validate_service_api_key_auth()
+
+    # Check that warning was logged with the expected message
+    mock_logger.assert_called_once_with(
+        'service %s - %s used old-style api key %s with no expiry_date',
+        service.id,
+        service.name,
+        api_key.id,
+    )
+
+
+def test_authentication_edge_case_key_expires_at_exact_moment(
+    notify_db_session, client, sample_api_key, sample_service
+):
+    """Test edge case where key expires at the exact moment of request processing"""
+    service = sample_service()
+
+    # Create an API key that expires at a specific time
+    expiry_time = datetime(2024, 6, 15, 12, 0, 0)  # June 15, 2024 at noon
+
+    # Create the API key and manually set it to expire at the exact time
+    api_key = sample_api_key(service, with_expiry=False)  # Create without default expiry
+    api_key.expiry_date = expiry_time  # Set exact expiry time
+    notify_db_session.session.add(api_key)
+    notify_db_session.session.commit()  # Commit so reader session can see the changes
+
+    # Test exactly at expiry time - should be rejected
+    with freeze_time(expiry_time):
+        token = create_jwt_token(api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        with pytest.raises(AuthError) as exc:
+            validate_service_api_key_auth()
+        assert exc.value.short_message == 'Invalid token: API key expired'
+
+    # Test one second before expiry - should be allowed
+    one_second_before = datetime(2024, 6, 15, 11, 59, 59)
+    with freeze_time(one_second_before):
+        token = create_jwt_token(api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        # Should not raise an exception
+        validate_service_api_key_auth()
 
 
 def __create_token(service_id):
@@ -608,3 +745,36 @@ class TestRequiresAdminAuthOrUserInService:
 
         # Validate no errors
         endpoint_that_requires_permission_for_service()
+
+
+def test_authentication_rejects_expired_api_key_via_expiry_date_not_revoked_flag(
+    notify_db_session, client, sample_api_key, sample_service
+):
+    """Test that API keys with expired expiry_date (but not revoked) are rejected with expiry message"""
+    service = sample_service()
+
+    # Create API key that's already expired by setting past expiry date
+    past_expiry = datetime.utcnow() - timedelta(days=1)
+
+    with freeze_time('2024-01-01'):
+        api_key = sample_api_key(service, with_expiry=True)
+
+    # Move time to make the default expiry invalid, then set past expiry
+    with freeze_time(past_expiry + timedelta(days=2)):  # Move ahead so default expiry is in past
+        # Manually set the expiry date to past and ensure not revoked
+        api_key.expiry_date = past_expiry  # Set to yesterday
+        api_key.revoked = False  # Ensure it's not revoked, just expired
+        notify_db_session.session.add(api_key)
+        notify_db_session.session.flush()
+
+        token = create_jwt_token(api_key.secret, client_id=str(service.id))
+        request.headers = {'Authorization': 'Bearer {}'.format(token)}
+
+        with pytest.raises(AuthError) as exc:
+            validate_service_api_key_auth()
+
+        # Should get expired message, not revoked message
+        assert exc.value.code == 403
+        assert exc.value.short_message == 'Invalid token: API key expired'
+        assert exc.value.service_id == service.id
+        assert exc.value.api_key_id == api_key.id

@@ -1,16 +1,10 @@
 fileignoreconfig:
-- filename: tests/app/conftest.py
-  checksum: 2a7e0177e4db4954cfe6711cf9a38722ab4e6b0d434522453f6c12a9f5a02809
-- filename: tests/app/dao/test_api_key_dao.py
-  checksum: 4afa9a1f5efcfc4e1ce84105393dc700e5763e9d81158d248a6d4f8cb9aec6b6
-- filename: tests/app/db.py
-  checksum: 01cc48ec42c0665091dd0ef8b8ee6430552344f0caa0c1c2b387b6adfdf5d62a
+- filename: app/authentication/auth.py
+  checksum: 8c74859800abb150db8652361cf04861699cdf699e18b6bf562e636e238a968f
 - filename: app/dao/api_key_dao.py
-  checksum: cccbd048518396c884e9c631bd9111dcd239bcbc50b9a572b709e00bb4c4a263
-- filename: tests/app/service/test_api_key_endpoints.py
-  checksum: e46cc0b0e7b9afb0a1d30a1142f024091334d15b2292c43b76b7dcb35e64c5ad
-- filename: documents/postman/internal_api_developers/notification-api.postman_collection.json
-  checksum: 328646db8be291aaa50e8bf8631ccdc4ffb48a0c4690ee361fa0ddb785cd277f
+  checksum: 41f293bd2fec0848acbf931cdb67d0a04e8aa6d0a898b15c1caed7d7d36d33db
+- filename: app/schema_validation/__init__.py
+  checksum: 2ed516f6558f85367a8bd377a0bf32ba39e10cc6c2db38744e8549cb83997519
 - filename: cd/application-deployment/dev/dev.env
   checksum: a2c37ca9e72e0d5d7bae44b45bee90eb358d4eda4c9e52a8e21f9f118f62dde6
 - filename: cd/application-deployment/perf/perf.env
@@ -19,10 +13,20 @@ fileignoreconfig:
   checksum: 0c76ecd5fad032d0ca18240195095b586cdc40de38dd24837e2db869341cd64d
 - filename: cd/application-deployment/staging/staging.env
   checksum: abc1b8f1d1e7c14f79adc45d056285c0d554081095da87b85c5c8e937c55d042
+- filename: documents/postman/internal_api_developers/notification-api.postman_collection.json
+  checksum: 328646db8be291aaa50e8bf8631ccdc4ffb48a0c4690ee361fa0ddb785cd277f
 - filename: poetry.lock
   checksum: d0f4a99bd30ff79ca97ba120b0156295ed58699e26cd1ade9619de70415ef20b
-- filename: app/schema_validation/__init__.py
-  checksum: 2ed516f6558f85367a8bd377a0bf32ba39e10cc6c2db38744e8549cb83997519
+- filename: tests/app/authentication/test_authentication.py
+  checksum: 75ce4ecbb6ef86dd06db54dcf66329b7749ff9024c7d88c218f43033d03deb73
+- filename: tests/app/conftest.py
+  checksum: 2a7e0177e4db4954cfe6711cf9a38722ab4e6b0d434522453f6c12a9f5a02809
+- filename: tests/app/dao/test_api_key_dao.py
+  checksum: 85adfc0462c0354d7078fbc21feeeba1b49a0fefd3463f7a830a9e7812b6caf8
+- filename: tests/app/db.py
+  checksum: 01cc48ec42c0665091dd0ef8b8ee6430552344f0caa0c1c2b387b6adfdf5d62a
+- filename: tests/app/service/test_api_key_endpoints.py
+  checksum: e46cc0b0e7b9afb0a1d30a1142f024091334d15b2292c43b76b7dcb35e64c5ad
 - filename: tests/app/test_validate.py
   checksum: 38948b94d8fdcdf64d3da02ffb50d170838ce783f3a1e3350b7b7bcdcb7cb1ca
 version: "1.0"

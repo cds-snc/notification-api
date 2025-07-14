@@ -305,3 +305,60 @@ class TestUpdateApiKeyExpiry:
 
         with pytest.raises(NoResultFound):
             update_api_key_expiry(service_id=fake_service_id, api_key_id=api_key.id, expiry_date=new_expiry_date)
+
+
+def test_api_key_creation_does_not_set_automatic_expiry(sample_service):
+    """Test that new API keys do not get automatic expiry dates when none is specified"""
+    service = sample_service()
+
+    # Create API key without specifying expiry_date
+    api_key = ApiKey(
+        service=service,
+        name='test key',
+        created_by=service.created_by,
+        key_type=KEY_TYPE_NORMAL,
+    )
+
+    save_model_api_key(api_key)
+
+    # Verify that expiry_date is None (no automatic expiry set)
+    assert api_key.expiry_date is None, f'Expected expiry_date to be None, but got {api_key.expiry_date}'
+
+
+def test_api_key_creation_respects_provided_expiry_date(sample_service):
+    """Test that API key creation respects explicitly provided expiry dates"""
+    service = sample_service()
+    custom_expiry = datetime.utcnow() + timedelta(days=30)
+
+    api_key = ApiKey(
+        service=service,
+        name='test key with custom expiry',
+        created_by=service.created_by,
+        key_type=KEY_TYPE_NORMAL,
+        expiry_date=custom_expiry,
+    )
+
+    save_model_api_key(api_key)
+
+    # Verify that the custom expiry date was preserved
+    assert api_key.expiry_date == custom_expiry, 'Custom expiry date should be preserved'
+
+
+def test_api_key_creation_validates_expiry_date_not_in_past(sample_service):
+    """Test that API key creation with expiry_date in the past is handled appropriately"""
+    service = sample_service()
+    past_expiry = datetime.utcnow() - timedelta(days=1)  # Yesterday
+
+    api_key = ApiKey(
+        service=service,
+        name='test key with past expiry',
+        created_by=service.created_by,
+        key_type=KEY_TYPE_NORMAL,
+        expiry_date=past_expiry,
+    )
+
+    # This should still work - the validation happens at authentication time, not creation time
+    save_model_api_key(api_key)
+
+    assert api_key.expiry_date == past_expiry, 'Past expiry date should be preserved during creation'
+    assert api_key.expiry_date < datetime.utcnow(), 'API key should be expired'
