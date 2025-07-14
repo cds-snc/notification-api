@@ -12,7 +12,7 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store, salesforce_client
+from app import salesforce_client
 from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
@@ -78,7 +78,7 @@ from app.user.users_schema import (
     post_set_permissions_schema,
     post_verify_code_schema,
 )
-from app.utils import get_logo_url, update_dct_to_str, url_with_token
+from app.utils import get_logo_url, store_dev_verification_data, update_dct_to_str, url_with_token
 
 user_blueprint = Blueprint("user", __name__)
 register_errors(user_blueprint)
@@ -340,8 +340,7 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         reply_to = template.service.get_default_reply_to_email_address()
 
     # add secret_code to redis if we are running in development mode
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "development" and "notification.canada.ca" not in request.host:
-        redis_store.set(f"verify_code_{user_to_send_to.id}", secret_code, ex=timedelta(minutes=1))
+    store_dev_verification_data("verify_code", user_to_send_to.id, secret_code)
 
     saved_notification = persist_notification(
         template_id=template.id,
@@ -368,6 +367,11 @@ def send_user_confirm_new_email(user_id):
     template = dao_get_template_by_id(current_app.config["CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
+    confirm_url = _create_confirmation_url(user=user_to_send_to, email_address=email["email"])
+
+    # add link to redis if we are running in development mode
+    store_dev_verification_data("verify_url", user_to_send_to.id, confirm_url)
+
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -375,7 +379,7 @@ def send_user_confirm_new_email(user_id):
         service=service,
         personalisation={
             "name": user_to_send_to.name,
-            "url": _create_confirmation_url(user=user_to_send_to, email_address=email["email"]),
+            "url": confirm_url,
             "feedback_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
         },
         notification_type=template.template_type,
