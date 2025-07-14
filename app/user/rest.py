@@ -12,7 +12,7 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import salesforce_client
+from app import redis_store, salesforce_client
 from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
@@ -338,6 +338,10 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
         reply_to = template.service.get_default_sms_sender()
     elif template.template_type == EMAIL_TYPE:
         reply_to = template.service.get_default_reply_to_email_address()
+
+    # add secret_code to redis if we are running in development mode
+    if current_app.config["NOTIFY_ENVIRONMENT"] == "development" and "notification.canada.ca" not in request.host:
+        redis_store.set(f"verify_code_{user_to_send_to.id}", secret_code, ex=timedelta(minutes=1))
 
     saved_notification = persist_notification(
         template_id=template.id,
