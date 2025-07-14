@@ -1,4 +1,4 @@
-FROM python:3.12-slim@sha256:31a416db24bd8ade7dac5fd5999ba6c234d7fa79d4add8781e95f41b187f4c9a
+FROM python:3.12-slim@sha256:4600f71648e110b005bf7bca92dbb335e549e6b27f2e83fceee5e11b3e1a4d01
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
