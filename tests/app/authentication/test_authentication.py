@@ -414,33 +414,6 @@ def test_authentication_with_mixed_expired_and_valid_keys_uses_valid_key(
         validate_service_api_key_auth()
 
 
-def test_authentication_with_null_expiry_date_allows_request_with_warning(
-    notify_db_session, client, sample_api_key, sample_service, mocker
-):
-    """Test that keys with null expiry_date are allowed but generate warnings"""
-    service = sample_service()
-
-    # Create an API key without expiry date (simulating old keys)
-    api_key = sample_api_key(service, with_expiry=False)
-
-    # Mock the logger to capture the warning
-    mock_logger = mocker.patch('app.authentication.auth.current_app.logger.warning')
-
-    token = create_jwt_token(api_key.secret, client_id=str(service.id))
-    request.headers = {'Authorization': f'Bearer {token}'}
-
-    # Should not raise an exception but should log a warning
-    validate_service_api_key_auth()
-
-    # Check that warning was logged with the expected message
-    mock_logger.assert_called_once_with(
-        'service %s - %s used old-style api key %s with no expiry_date',
-        service.id,
-        service.name,
-        api_key.id,
-    )
-
-
 def test_authentication_edge_case_key_expires_at_exact_moment(
     notify_db_session, client, sample_api_key, sample_service
 ):

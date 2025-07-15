@@ -1,6 +1,6 @@
 fileignoreconfig:
 - filename: app/authentication/auth.py
-  checksum: 8c74859800abb150db8652361cf04861699cdf699e18b6bf562e636e238a968f
+  checksum: 0d31a30774f44280e8cc5268d6219bbb95e3010cf23ec42a0a5bf61e66387512
 - filename: app/dao/api_key_dao.py
   checksum: 41f293bd2fec0848acbf931cdb67d0a04e8aa6d0a898b15c1caed7d7d36d33db
 - filename: app/schema_validation/__init__.py
