@@ -478,3 +478,77 @@ def test_user_verify_email_code_fails_if_code_already_used(admin_request, sample
     assert verify_code.code_used
     assert sample_user.logged_in_at is None
     assert sample_user.current_session_id is None
+
+
+class TestVerify2FACode:
+    @freeze_time("2016-01-01T12:00:00")
+    def test_verify_2fa_code_success(self, client, sample_sms_code):
+        sample_sms_code.user.logged_in_at = datetime.utcnow() - timedelta(days=1)
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 204
+        assert sample_sms_code.code_used
+
+    def test_verify_2fa_code_missing_code(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert not sample_sms_code.code_used
+        # failed_login_count should not increment
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_bad_code(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": "wrongcode"})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 404
+        assert not sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_expired(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        sample_sms_code.expiry_datetime = datetime.utcnow() - timedelta(hours=1)
+        db.session.add(sample_sms_code)
+        db.session.commit()
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert not sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_already_used(self, client, sample_sms_code):
+        sample_sms_code.code_used = True
+        db.session.add(sample_sms_code)
+        db.session.commit()
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
