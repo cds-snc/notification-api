@@ -248,7 +248,7 @@ def verify_user_code(user_id):
     user_to_verify = get_user_by_id(user_id=user_id)
     code = None
 
-    # Only run checks if NOT the auto-verify user
+    # Only run checks if NOT the e2e test user
     email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
     if not (
         current_app.config["NOTIFY_ENVIRONMENT"] == "development"
@@ -267,6 +267,7 @@ def verify_user_code(user_id):
             increment_failed_login_count(user_to_verify)
             raise InvalidRequest("Code not found", status_code=404)
         if datetime.utcnow() > code.expiry_datetime:
+            # sms and email
             increment_failed_login_count(user_to_verify)
             raise InvalidRequest("Code has expired", status_code=400)
         if code.code_used:

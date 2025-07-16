@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable
 
 import pytz
-from flask import current_app, request, url_for
+from flask import current_app, url_for
 from notifications_utils.clients.redis.annual_limit import (
     EMAIL_DELIVERED_TODAY,
     EMAIL_FAILED_TODAY,
@@ -369,16 +369,3 @@ def rate_limit_db_calls(key_prefix: str, period_seconds: int = 60) -> Callable:
         return wrapper
 
     return decorator
-
-
-def store_dev_verification_data(key_prefix, user_id, data):
-    """
-    Store verification data in Redis for development mode access.
-
-    Args:
-        key_prefix (str): The prefix for the Redis key (e.g., 'verify_code', 'verify_url')
-        user_id (uuid): The user's ID
-        data (str): The data to store (code or URL)
-    """
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "development" and "notification.canada.ca" not in request.host:
-        redis_store.set(f"{key_prefix}_{user_id}", data, ex=timedelta(minutes=1))
