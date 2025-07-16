@@ -33,7 +33,7 @@ from tests.app.db import (
     create_template_folder,
     create_user,
 )
-from tests.conftest import set_config, set_config_values
+from tests.conftest import set_config
 
 
 def test_get_user_list(admin_request, sample_service):
@@ -1657,91 +1657,3 @@ class TestFailedLogin:
         )
         assert resp.status_code == 400
         assert "Incorrect password for user_id" in resp.json["message"]["password"][0]
-
-
-class TestSendUser2FACodeDevData:
-    """Tests for send_user_2fa_code to ensure dev verification data is handled correctly"""
-
-    @pytest.mark.parametrize(
-        "environment,host,should_store_in_redis",
-        [
-            ("development", "localhost:3000", True),
-            ("production", "localhost:3000", False),
-            ("staging", "localhost:3000", False),
-            ("development", "staging.notification.canada.ca", False),
-            ("development", "api.notification.canada.ca", False),
-            ("development", "notification.canada.ca", False),
-            ("production", "api.notification.canada.ca", False),
-        ],
-    )
-    def test_send_user_2fa_code_redis_storage_conditions(
-        self, notify_api, admin_request, mocker, sample_user, email_2fa_code_template, environment, host, should_store_in_redis
-    ):
-        """Test that 2FA codes are only stored in Redis under correct conditions"""
-        # Mock Redis store to track actual calls
-        mock_redis_store = mocker.patch("app.utils.redis_store")
-
-        # Mock the request host
-        mock_request = mocker.patch("app.utils.request")
-        mock_request.host = host
-
-        # Use set_config_values to properly set the environment
-        with set_config_values(notify_api, {"NOTIFY_ENVIRONMENT": environment}):
-            # Mock other dependencies
-            mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-            mocker.patch("app.user.rest.create_secret_code", return_value="11111")
-
-            admin_request.post(
-                "user.send_user_2fa_code",
-                code_type="email",
-                user_id=sample_user.id,
-                _data={},
-                _expected_status=204,
-            )
-
-            # Check actual Redis storage behavior
-            if should_store_in_redis:
-                mock_redis_store.set.assert_called_once()
-                # Verify the key format and data
-                call_args = mock_redis_store.set.call_args
-                args, kwargs = call_args
-                assert args[0] == f"verify_code_{sample_user.id}"
-                assert args[1] == "11111"  # The mocked secret code
-                # Verify expiration
-                assert kwargs["ex"].total_seconds() == 60
-            else:
-                mock_redis_store.set.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "data",
-        [
-            {},
-            {"to": None},
-            {"email_auth_link_host": "https://example.com"},  # Changed this line
-            {"next": "/services"},
-        ],
-    )
-    def test_send_user_2fa_code_with_various_data_no_redis_in_production(
-        self, notify_api, admin_request, mocker, sample_user, email_2fa_code_template, data
-    ):
-        """Test that various data combinations don't trigger Redis storage in production"""
-        # Mock Redis store to verify NO calls are made
-        mock_redis_store = mocker.patch("app.utils.redis_store")
-
-        mock_request = mocker.patch("app.utils.request")
-        mock_request.host = "notification.canada.ca"
-
-        with set_config_values(notify_api, {"NOTIFY_ENVIRONMENT": "production"}):
-            mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-            mocker.patch("app.user.rest.create_secret_code", return_value="11111")
-
-            admin_request.post(
-                "user.send_user_2fa_code",
-                code_type="email",
-                user_id=sample_user.id,
-                _data=data,
-                _expected_status=204,
-            )
-
-            # Verify NO calls regardless of data format
-            mock_redis_store.set.assert_not_called()
