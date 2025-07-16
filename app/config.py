@@ -636,6 +636,7 @@ class Config(object):
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
     CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
+    CYPRESS_EMAIL_PREFIX = "notify-ui-tests"
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
