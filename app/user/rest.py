@@ -78,7 +78,7 @@ from app.user.users_schema import (
     post_set_permissions_schema,
     post_verify_code_schema,
 )
-from app.utils import get_logo_url, store_dev_verification_data, update_dct_to_str, url_with_token
+from app.utils import get_logo_url, update_dct_to_str, url_with_token
 
 user_blueprint = Blueprint("user", __name__)
 register_errors(user_blueprint)
@@ -246,31 +246,41 @@ def verify_user_code(user_id):
     validate(data, post_verify_code_schema)
 
     user_to_verify = get_user_by_id(user_id=user_id)
+    code = None
 
-    code = get_user_code(user_to_verify, data["code"], data["code_type"])
+    # Only run checks if NOT the auto-verify user
+    email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
+    if not (
+        current_app.config["NOTIFY_ENVIRONMENT"] == "development"
+        and "notification.canada.ca" not in request.host
+        and user_to_verify.email_address.startswith(email_prefix)
+        and user_to_verify.email_address.endswith("@cds-snc.ca")
+    ):
+        code = get_user_code(user_to_verify, data["code"], data["code_type"])
 
-    if verify_within_time(user_to_verify) >= 2:
-        raise InvalidRequest("Code already sent", status_code=400)
+        if verify_within_time(user_to_verify) >= 2:
+            raise InvalidRequest("Code already sent", status_code=400)
 
-    if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
-        raise InvalidRequest("Code not found", status_code=404)
-    if not code:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime:
-        # sms and email
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has expired", status_code=400)
-    if code.code_used:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has already been used", status_code=400)
+        if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
+            raise InvalidRequest("Code not found", status_code=404)
+        if not code:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code not found", status_code=404)
+        if datetime.utcnow() > code.expiry_datetime:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has expired", status_code=400)
+        if code.code_used:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has already been used", status_code=400)
 
     user_to_verify.current_session_id = str(uuid.uuid4())
     user_to_verify.logged_in_at = datetime.utcnow()
     user_to_verify.failed_login_count = 0
     save_model_user(user_to_verify)
 
-    use_user_code(code.id)
+    # Only mark code as used if it exists
+    if code:
+        use_user_code(code.id)
     return jsonify({}), 204
 
 
@@ -339,9 +349,6 @@ def create_2fa_code(template_id, user_to_send_to, secret_code, recipient, person
     elif template.template_type == EMAIL_TYPE:
         reply_to = template.service.get_default_reply_to_email_address()
 
-    # add secret_code to redis if we are running in development mode
-    store_dev_verification_data("verify_code", user_to_send_to.id, secret_code)
-
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -367,11 +374,6 @@ def send_user_confirm_new_email(user_id):
     template = dao_get_template_by_id(current_app.config["CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    confirm_url = _create_confirmation_url(user=user_to_send_to, email_address=email["email"])
-
-    # add link to redis if we are running in development mode
-    store_dev_verification_data("verify_url", user_to_send_to.id, confirm_url)
-
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -379,7 +381,7 @@ def send_user_confirm_new_email(user_id):
         service=service,
         personalisation={
             "name": user_to_send_to.name,
-            "url": confirm_url,
+            "url": _create_confirmation_url(user=user_to_send_to, email_address=email["email"]),
             "feedback_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
         },
         notification_type=template.template_type,
