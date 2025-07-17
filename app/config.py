@@ -706,15 +706,6 @@ class Development(Config):
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
 
-    # AWS SQS settings override for development
-    BROKER_TRANSPORT_OPTIONS = {
-        "region": AWS_REGION,
-        "polling_interval": 1,  # 1 second
-        "visibility_timeout": 310,
-        "queue_name_prefix": NOTIFICATION_QUEUE_PREFIX,
-        "is_secure": True, # Use secure connection for SQS in development
-    }
-
 
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
@@ -781,6 +772,14 @@ class Scratch(Production):
 class Dev(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "dev"
+    # AWS SQS settings override for development
+    BROKER_TRANSPORT_OPTIONS = {
+        "region": AWS_REGION,
+        "polling_interval": 1,  # 1 second
+        "visibility_timeout": 310,
+        "queue_name_prefix": NOTIFICATION_QUEUE_PREFIX,
+        "is_secure": True,  # Use secure connection for SQS in development
+    }
 
 
 configs = {
