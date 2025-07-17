@@ -115,6 +115,10 @@
         {
           "name": "VETEXT_PASSWORD",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/vetext/password"
+        },
+        {
+          "name": "PII_ENCRYPTION_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/prod/notification-api/pii-encryption-key"
         }
       ],
       "command": [

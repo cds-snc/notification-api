@@ -50,8 +50,12 @@
                     "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/database/uri_read"
                 },
                 {
-                  "name": "SECRET_KEY",
-                  "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
+                    "name": "SECRET_KEY",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/secret-key"
+                },
+                {
+                    "name": "PII_ENCRYPTION_KEY",
+                    "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/pii-encryption-key"
                 }
             ]
         }

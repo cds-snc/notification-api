@@ -200,6 +200,10 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/redis/url"
+        },
+        {
+          "name": "PII_ENCRYPTION_KEY",
+          "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/perf/notification-api/pii-encryption-key"
         }
       ],
       "command": [

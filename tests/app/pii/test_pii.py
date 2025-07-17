@@ -41,14 +41,18 @@ class PiiIcn(Pii):
         return IdentifierType.ICN
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def setup_encryption():
     """Setup encryption with a consistent key for tests.
 
     This fixture resets the PiiEncryption singleton to use a test key
     for consistent encryption/decryption during tests.
     """
-    with patch.object(PiiEncryption, '_key', TEST_KEY), patch.object(PiiEncryption, '_fernet', None):
+    with (
+        patch.object(PiiEncryption, '_key', None),
+        patch.object(PiiEncryption, '_fernet', None),
+        patch.dict(os.environ, {'PII_ENCRYPTION_KEY': TEST_KEY.decode()}),
+    ):
         yield
 
 
@@ -61,25 +65,23 @@ class TestPiiEncryption:
         encryption2 = PiiEncryption()
         assert encryption1 is encryption2
 
-    def test_get_encryption_generates_key_if_not_exists(self, setup_encryption):
-        """Test that get_encryption generates a key if one doesn't exist."""
-        # Reset the key to None for this test
-        with patch.object(PiiEncryption, '_key', None):
-            with patch.dict(os.environ, {}, clear=True):
-                pii_encryption = PiiEncryption.get_encryption()
-                assert pii_encryption is not None
-                assert PiiEncryption._key is not None
+    def test_get_encryption_raises_error_when_key_missing(self):
+        """Test that get_encryption raises ValueError when PII_ENCRYPTION_KEY is not set."""
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            pytest.raises(ValueError, match='PII_ENCRYPTION_KEY environment variable is required'),
+        ):
+            PiiEncryption.get_encryption()
 
     def test_get_encryption_uses_environment_variable(self):
         """Test that get_encryption uses the environment variable if available."""
-        with patch.object(PiiEncryption, '_fernet', None):
-            with patch.object(PiiEncryption, '_key', None):
-                with patch.dict(os.environ, {'PII_ENCRYPTION_KEY': TEST_KEY.decode()}):
-                    pii_encryption = PiiEncryption.get_encryption()
-                    assert pii_encryption is not None
-                    assert PiiEncryption._key == TEST_KEY
+        # The setup_encryption fixture already sets up the environment variable
+        # and resets the singleton state, so we can directly test
+        pii_encryption = PiiEncryption.get_encryption()
+        assert pii_encryption is not None
+        assert PiiEncryption._key == TEST_KEY
 
-    def test_get_encryption_caches_fernet_instance(self, setup_encryption):
+    def test_get_encryption_caches_fernet_instance(self):
         """Test that get_encryption caches the Fernet instance."""
         pii_encryption1 = PiiEncryption.get_encryption()
         pii_encryption2 = PiiEncryption.get_encryption()
@@ -110,13 +112,13 @@ class TestPii:
         with pytest.raises(TypeError, match='Pii base class cannot be instantiated directly'):
             Pii('should_fail')
 
-    def test_initialization_encrypts_value(self, setup_encryption):
+    def test_initialization_encrypts_value(self):
         """Test that initializing a Pii subclass encrypts the value."""
         pii = PiiHigh('test_value')
         assert isinstance(pii, str)
         assert pii != 'test_value', 'Value should be encrypted'
 
-    def test_get_pii_decrypts_value(self, setup_encryption):
+    def test_get_pii_decrypts_value(self):
         """Test that get_pii decrypts the value correctly."""
         pii = PiiHigh('test_value')
         assert pii.get_pii() == 'test_value'
@@ -131,7 +133,7 @@ class TestPii:
         pii = PiiModerate('test_value')
         assert str(pii) == 'redacted PiiModerate'
 
-    def test_str_representation_low_impact(self, setup_encryption):
+    def test_str_representation_low_impact(self):
         """Test that string representation shows encrypted value for LOW impact PII."""
         pii = PiiLow('test_value')
         encrypted_value = str(pii)
@@ -151,13 +153,6 @@ class TestPii:
 
 class TestPiiSubclassing:
     """Tests for Pii subclassing behavior."""
-
-    # Use the module-level setup_encryption fixture with autouse
-    @pytest.fixture(autouse=True)
-    def use_setup_encryption(self, setup_encryption):
-        """Use the module-level setup_encryption fixture for all tests in this class."""
-        # The fixture yields automatically because we're using the module-level fixture
-        pass
 
     def test_firstname_low_level_behavior(self):
         """Test that LOW level shows encrypted value and decrypts correctly."""
