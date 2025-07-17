@@ -13,6 +13,7 @@ from twilio.base.exceptions import TwilioRestException
 from app.celery.exceptions import NonRetryableException, RetryableException
 from app.clients.sms import SmsClient, SmsStatusRecord, UNABLE_TO_TRANSLATE
 from app.constants import (
+    INTERNAL_PROCESSING_LIMIT,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -181,7 +182,7 @@ class TwilioSMSClient(SmsClient):
                 raise NonRetryableException('Twilio rate limit exceeded') from e
         return message
 
-    def send_sms(
+    def send_sms(  # noqa: C901 - too complex (11 > 10)
         self,
         to,
         content,
@@ -230,11 +231,20 @@ class TwilioSMSClient(SmsClient):
                     self.logger.info('Twilio sender has sms_sender_specifics')
 
             # Log how long it spent in our system before we sent it
-            self.logger.info(
-                'Total time spent to send %s notification: %s seconds',
-                SMS_TYPE,
-                (datetime.utcnow() - created_at).total_seconds(),
-            )
+            total_time = (datetime.utcnow() - created_at).total_seconds()
+            if total_time >= INTERNAL_PROCESSING_LIMIT:
+                self.logger.warning(
+                    'Exceeded maximum total time (%s) to send %s notification: %s seconds',
+                    INTERNAL_PROCESSING_LIMIT,
+                    SMS_TYPE,
+                    total_time,
+                )
+            else:
+                self.logger.info(
+                    'Total time spent to send %s notification: %s seconds',
+                    SMS_TYPE,
+                    total_time,
+                )
 
             if messaging_service_sid is None:
                 # Make a request using a sender phone number.

@@ -11,6 +11,7 @@ load_dotenv()
 DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 DATE_FORMAT = '%Y-%m-%d'
 HTTP_TIMEOUT = (3.05, 5) if os.getenv('NOTIFY_ENVIRONMENT') in ('production', 'staging') else (30, 30)
+INTERNAL_PROCESSING_LIMIT = 4.0  # seconds
 
 # Notification types
 EMAIL_TYPE = 'email'

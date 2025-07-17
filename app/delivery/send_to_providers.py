@@ -13,6 +13,7 @@ from app.celery.research_mode_tasks import send_sms_response, send_email_respons
 from app.clients import Client
 from app.constants import (
     EMAIL_TYPE,
+    INTERNAL_PROCESSING_LIMIT,
     KEY_TYPE_TEST,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     NOTIFICATION_SENDING,
@@ -156,11 +157,20 @@ def send_email_to_provider(notification: Notification):
         email_reply_to = notification.reply_to_text
 
         # Log how long it spent in our system before we sent it
-        current_app.logger.info(
-            'Total time spent to send %s notification: %s seconds',
-            EMAIL_TYPE,
-            (datetime.utcnow() - notification.created_at).total_seconds(),
-        )
+        total_time = (datetime.utcnow() - notification.created_at).total_seconds()
+        if total_time >= INTERNAL_PROCESSING_LIMIT:
+            current_app.logger.warning(
+                'Exceeded maximum total time (%s) to send %s notification: %s seconds',
+                INTERNAL_PROCESSING_LIMIT,
+                EMAIL_TYPE,
+                total_time,
+            )
+        else:
+            current_app.logger.info(
+                'Total time spent to send %s notification: %s seconds',
+                EMAIL_TYPE,
+                total_time,
+            )
         reference = client.send_email(
             source=compute_source_email_address(service, client),
             to_addresses=validate_and_format_email_address(notification.to),

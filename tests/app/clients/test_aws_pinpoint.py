@@ -66,11 +66,11 @@ def test_send_sms_successful_returns_aws_pinpoint_response_messageid(
 
 
 @pytest.mark.parametrize(
-    'store_value, logger_calls',
-    [(False, 1), ('anything', 1), (1, 1), (0, 1), (None, 2)],
+    'store_value, info_calls, warn_calls',
+    [(False, 1, 0), ('anything', 1, 0), (1, 1, 0), (0, 1, 0), (None, 1, 1)],
     ids=['boolean_check', 'found_in_redis', 'value_is_1', 'value_is_zero', 'not_in_redis'],
 )
-def test_send_sms_does_not_log_if_sms_replay(mocker, aws_pinpoint_client, store_value, logger_calls):
+def test_send_sms_does_not_log_if_sms_replay(mocker, aws_pinpoint_client, store_value, info_calls, warn_calls):
     """We use this log for tracking accurate metrics, it is critical"""
     client_mock = mocker.patch.object(aws_pinpoint_client, '_pinpoint_client', create=True)
     mocker.patch('app.redis_store.get', return_value=store_value)
@@ -89,7 +89,8 @@ def test_send_sms_does_not_log_if_sms_replay(mocker, aws_pinpoint_client, store_
         }
     }
     aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
-    assert aws_pinpoint_client.logger.info.call_count == logger_calls
+    assert aws_pinpoint_client.logger.info.call_count == info_calls
+    assert aws_pinpoint_client.logger.warning.call_count == warn_calls
 
 
 @pytest.mark.parametrize('PINPOINT_SMS_VOICE_V2', ('False', 'True'))
