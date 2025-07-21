@@ -2613,7 +2613,7 @@ class Fido2Key(BaseModel):
         index=True,
         nullable=False,
     )
-    user = db.relationship(User, backref=db.backref("fido2_keys"))
+    user = db.relationship(User, backref=db.backref("fido2_keys"), foreign_keys=[user_id])
     name = db.Column(db.String, nullable=False, index=False, unique=False)
     key = db.Column(db.Text, nullable=False, index=False, unique=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)

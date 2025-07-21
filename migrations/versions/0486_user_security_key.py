@@ -15,6 +15,10 @@ down_revision = '0485_security_key_auth'
 
 def upgrade():
     op.add_column('users', sa.Column('fido2_key_id', postgresql.UUID(as_uuid=True), nullable=True))
+    sa.ForeignKeyConstraint(
+        ['fido2_key_id'],
+        ['fido2_keys.id']
+    )
 
 def downgrade():
     op.drop_column('users', 'fido2_key_id')
