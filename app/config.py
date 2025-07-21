@@ -157,6 +157,7 @@ class Config(object):
     ASSET_DOMAIN = os.getenv('ASSET_DOMAIN', 's3.amazonaws.com')
     INVITATION_EXPIRATION_DAYS = 2
     NOTIFY_APP_NAME = 'api'
+    SQLALCHEMY_ENGINE_OPTIONS = {'hide_parameters': os.getenv('SQLALCHEMY_HIDE_PARAMETERS', 'True') == 'True'}
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_POOL_SIZE = int(os.getenv('SQLALCHEMY_POOL_SIZE', 30))
