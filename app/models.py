@@ -166,7 +166,7 @@ class User(BaseModel):
         nullable=False,
         default=EMAIL_AUTH_TYPE,
     )
-    fido2_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("fido2_keys.id"), nullable=True)
+    fido2_key_id = db.Column(UUID(as_uuid=True), nullable=True)
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
     password_expired = db.Column(db.Boolean, nullable=False, default=False)
@@ -228,6 +228,7 @@ class User(BaseModel):
             "additional_information": self.additional_information,
             "password_expired": self.password_expired,
             "verified_phonenumber": self.verified_phonenumber,
+            "fido2_key_id": self.fido2_key_id,
         }
 
     def serialize_for_users_list(self) -> dict:
@@ -2613,7 +2614,7 @@ class Fido2Key(BaseModel):
         index=True,
         nullable=False,
     )
-    user = db.relationship(User, backref=db.backref("fido2_keys"), foreign_keys=[user_id])
+    user = db.relationship(User, backref=db.backref("fido2_keys"))
     name = db.Column(db.String, nullable=False, index=False, unique=False)
     key = db.Column(db.Text, nullable=False, index=False, unique=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
