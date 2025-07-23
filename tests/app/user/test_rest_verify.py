@@ -507,7 +507,7 @@ def test_verify_user_code_accepts_any_code_for_test_user(client, env, host, emai
             auth_header,
         ]
         resp = client.post(
-            url_for("user.verify_user_code", user_id=cypress_user.id),
+            url_for("user.verify_2fa_code", user_id=cypress_user.id),
             data=json.dumps(data),
             headers=headers,
         )
