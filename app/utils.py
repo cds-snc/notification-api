@@ -178,9 +178,9 @@ def update_dct_to_str(update_dct, lang):
         "FR": {
             "password": "Mot de passe modifié",
             "name": "Nom complet modifié",
-            "email_address": "Adresse courriel modifié",
+            "email_address": "Adresse courriel modifiée",
             "mobile_number": "Numéro de téléphone modifié",
-            "auth_type": "Deuxième méthode de vérification modifié",
+            "auth_type": "Deuxième méthode de vérification modifiée",
             "security_key_created": "Clé de sécurité ajoutée",
             "security_key_deleted": "Clé de sécurité supprimée",
         },
