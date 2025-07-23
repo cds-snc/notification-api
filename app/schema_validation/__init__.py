@@ -102,10 +102,35 @@ def build_error_message(errors):
         field = (
             "{} {}".format(e.path[0], e.schema["validationMessage"]) if "validationMessage" in e.schema else __format_message(e)
         )
-        fields.append({"error": "ValidationError", "message": field})
-    message = {"status_code": 400, "errors": unique_errors(fields)}
+        # Store error info with validator type for sorting
+        error_info = {"error": "ValidationError", "message": field, "validator": e.validator}
+        fields.append(error_info)
+
+    # Sort errors by priority
+    fields = _sort_errors_by_priority(fields)
+
+    # Remove sorting metadata before returning
+    clean_fields = [{"error": f["error"], "message": f["message"]} for f in fields]
+    message = {"status_code": 400, "errors": unique_errors(clean_fields)}
 
     return json.dumps(message)
+
+
+def _sort_errors_by_priority(errors):
+    """Sort errors by priority - most important first"""
+    priority_order = {
+        "required": 1,  # Missing required fields first
+        "format": 2,  # Format errors (like invalid UUID/email) second
+        "type": 3,  # Type errors third
+        "enum": 4,  # Enum violations fourth
+        "pattern": 5,  # Pattern mismatches fifth
+    }
+
+    def get_priority(error):
+        validator = error.get("validator", "unknown")
+        return priority_order.get(validator, 999)  # Unknown validators get lowest priority
+
+    return sorted(errors, key=get_priority)
 
 
 def unique_errors(dups):
