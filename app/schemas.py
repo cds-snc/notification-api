@@ -222,6 +222,12 @@ class UserUpdateAttributeSchema(BaseSchema):
         except InvalidPhoneError as error:
             raise ValidationError("Invalid phone number: {}".format(error))
 
+    @validates("verified_phonenumber")
+    def validate_verified_phonenumber(self, value):
+        if value is not None:
+            if not isinstance(value, bool):
+                raise ValidationError("verified_phonenumber must be a boolean")
+
     @validates_schema(pass_original=True)
     def check_unknown_fields(self, data, original_data, **kwargs):
         for key in original_data:
