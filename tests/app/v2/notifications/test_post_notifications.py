@@ -2872,3 +2872,58 @@ def test_post_bulk_returns_429_if_over_rate_limit(
         headers=[("Content-Type", "application/json"), auth_header],
     )
     assert response.status_code == 429
+
+
+def test_post_email_with_invalid_fields_returns_validation_errors_in_order(client, notify_db_session):
+    """Test that valid JSON with multiple validation errors returns errors in consistent order"""
+    # Create a service for testing
+    service = create_service(service_name="Test Service")
+    # Note: We don't need to create a template since validation will fail first
+
+    # Valid JSON but with validation errors:
+    # 1. Wrong field names (EmailAddress instead of email_address)
+    # 2. Missing required fields
+    # 3. Additional properties not allowed
+    invalid_data = {
+        "EmailAddress": "test@example.com",  # Should be "email_address"
+        "TemplateId": "not-a-valid-uuid",  # Should be "template_id" and valid UUID
+        "Reference": "",
+        "Personalisation": {
+            "Email_Address": "test@example.com",
+            "EmailAddress": "test@example.com",
+            "FirstName": "TestUser123",
+            "LastName": "TestLast",
+        },
+        "ApiKey": "test-key",  # Additional property not allowed
+    }
+
+    auth_header = create_authorization_header(service_id=service.id)
+
+    response = client.post(
+        path="/v2/notifications/email",
+        data=json.dumps(invalid_data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    # Should return 400 Bad Request due to validation errors
+    assert response.status_code == 400
+    assert response.headers["Content-type"] == "application/json"
+
+    error_response = json.loads(response.get_data(as_text=True))
+
+    # Check the error structure
+    assert error_response["status_code"] == 400
+    assert "errors" in error_response
+    assert len(error_response["errors"]) > 1  # Should have multiple validation errors
+
+    # Collect all error messages to check order
+    error_messages = [error["message"] for error in error_response["errors"]]
+
+    # All errors should be ValidationErrors
+    for error in error_response["errors"]:
+        assert error["error"] == "ValidationError"
+
+    # Check that specific expected errors are present and in the correct order
+    assert "email_address is a required property" in error_messages[0]
+    assert "template_id is a required property" in error_messages[1]
+    assert "Additional properties are not allowed" in error_messages[2]
