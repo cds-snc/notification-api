@@ -129,7 +129,7 @@ def revoke_api_keys():
             if api_key_data.get("token")
             else "Revoke api key: no token provided"
         )
-        return jsonify(result="ok"), 201
+        return jsonify(result="ok"), 200
 
     # Step 2
     expire_api_key(api_key.service_id, api_key.id)

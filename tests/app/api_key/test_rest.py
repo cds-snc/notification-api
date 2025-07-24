@@ -162,7 +162,7 @@ class TestApiKeyRevocation:
             ),
             (
                 {"token": "token", "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},
-                201,
+                200,
             ),  # invalid token
         ),
     )
