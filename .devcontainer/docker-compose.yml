@@ -40,7 +40,7 @@ services:
       - notify-network
 
   redis:
-    image: redis:6.2@sha256:7919fdd5300e7abf7ae95919e6f144b37c55df16553302dbbcc7495a5aa0c079
+    image: redis:6.2@sha256:37440b1f783e3dcabb49eaaaa1bb52a619275072eadf9dadbaa271e5b69bfe2c
     restart: always
     command: redis-server --port 6380
     ports:
