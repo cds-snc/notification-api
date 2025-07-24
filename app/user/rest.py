@@ -295,19 +295,28 @@ def verify_2fa_code(user_id):
     validate(data, post_verify_code_schema)
 
     user_to_verify = get_user_by_id(user_id=user_id)
+    code = None
 
-    code = get_user_code(user_to_verify, data["code"], data["code_type"])
+    email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
+    if not (
+        current_app.config["NOTIFY_ENVIRONMENT"] == "development"
+        and "notification.canada.ca" not in request.host
+        and user_to_verify.email_address.startswith(email_prefix)
+        and user_to_verify.email_address.endswith("@cds-snc.ca")
+    ):
+        code = get_user_code(user_to_verify, data["code"], data["code_type"])
 
-    if verify_within_time(user_to_verify) >= 2:
-        raise InvalidRequest("Code already sent", status_code=400)
-    if not code:
-        raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime:
-        raise InvalidRequest("Code has expired", status_code=400)
-    if code.code_used:
-        raise InvalidRequest("Code has already been used", status_code=400)
+        if verify_within_time(user_to_verify) >= 2:
+            raise InvalidRequest("Code already sent", status_code=400)
+        if not code:
+            raise InvalidRequest("Code not found", status_code=404)
+        if datetime.utcnow() > code.expiry_datetime:
+            raise InvalidRequest("Code has expired", status_code=400)
+        if code.code_used:
+            raise InvalidRequest("Code has already been used", status_code=400)
 
-    use_user_code(code.id)
+    if code:
+        use_user_code(code.id)
     return jsonify({}), 204
 
 

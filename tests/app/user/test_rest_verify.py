@@ -480,6 +480,48 @@ def test_user_verify_email_code_fails_if_code_already_used(admin_request, sample
     assert sample_user.current_session_id is None
 
 
+@pytest.mark.parametrize(
+    "env,host,email,should_accept",
+    [
+        ("development", "localhost:3000", "cypress-service-user@cds-snc.ca", True),
+        ("development", "dev.local", "cypress-service-user@cds-snc.ca", True),
+        ("production", "localhost:3000", "cypress-service-user@cds-snc.ca", False),
+        ("development", "notification.canada.ca", "cypress-service-user@cds-snc.ca", False),
+        ("development", "localhost:3000", "otheruser@cds-snc.ca", False),
+        ("development", "localhost:3000", "cypress_test@otherdomain.com", False),
+    ],
+)
+def test_verify_user_code_accepts_any_code_for_test_user(client, env, host, email, should_accept, mocker, cypress_user):
+    # Set the user email for this test case
+    cypress_user.email_address = email
+    # Patch get_user_by_id to return cypress_user
+    mocker.patch("app.service.rest.get_user_by_id", return_value=cypress_user)
+    # Patch save_model_user to avoid SQLAlchemy errors
+    mocker.patch("app.dao.users_dao.save_model_user", autospec=True)
+    with set_config_values(current_app, {"CYPRESS_EMAIL_PREFIX": "cypress-", "NOTIFY_ENVIRONMENT": env}):
+        data = {"code_type": "email", "code": "any-code"}
+        auth_header = create_authorization_header()
+        headers = [
+            ("Content-Type", "application/json"),
+            ("Host", host),
+            auth_header,
+        ]
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=cypress_user.id),
+            data=json.dumps(data),
+            headers=headers,
+        )
+
+        if should_accept:
+            assert resp.status_code == 204
+        else:
+            assert resp.status_code == 404
+
+
+class TestE2EUserVerification:
+    pass
+
+
 class TestVerify2FACode:
     @freeze_time("2016-01-01T12:00:00")
     def test_verify_2fa_code_success(self, client, sample_sms_code):
