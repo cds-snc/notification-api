@@ -16,6 +16,8 @@ from app.dao.users_dao import save_model_user
 from app.errors import register_errors
 from app.models import (
     AnnualBilling,
+    Fido2Key,
+    Fido2Session,
     LoginEvent,
     Permission,
     Service,
@@ -194,6 +196,8 @@ def _destroy_test_user(email_name):
         LoginEvent.query.filter_by(user=user).delete()
         ServiceUser.query.filter_by(user_id=user.id).delete()
         VerifyCode.query.filter_by(user=user).delete()
+        Fido2Key.query.filter_by(user=user).delete()
+        Fido2Session.query.filter_by(user=user).delete()
         User.query.filter_by(email_address=f"{EMAIL_PREFIX}{email_name}@cds-snc.ca").delete()
 
     except Exception as e:
