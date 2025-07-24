@@ -5,6 +5,7 @@ from uuid import UUID
 from flask import current_app
 from iso8601 import ParseError, iso8601
 from jsonschema import Draft7Validator, FormatChecker, ValidationError
+from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 from notifications_utils.recipients import (
     InvalidEmailError,
     InvalidPhoneError,
@@ -83,7 +84,7 @@ def validate_schema_date_for_job(instance):
 
 def validate(json_to_validate, schema):
     validator = Draft7Validator(schema, format_checker=format_checker)
-    errors = list(validator.iter_errors(json_to_validate))
+    errors: list[JsonSchemaValidationError] = list(validator.iter_errors(json_to_validate))
     if errors.__len__() > 0:
         raise ValidationError(build_error_message(errors))
     if json_to_validate.get("personalisation", None):
@@ -96,7 +97,7 @@ def validate(json_to_validate, schema):
     return json_to_validate
 
 
-def build_error_message(errors):
+def build_error_message(errors: list[JsonSchemaValidationError]) -> str:
     fields = []
     for e in errors:
         field = (
