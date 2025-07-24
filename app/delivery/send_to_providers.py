@@ -266,6 +266,9 @@ def send_email_to_provider(notification: Notification):
             filename = personalisation_data[key]["document"].get("filename")
             mime_type = personalisation_data[key]["document"].get("mime_type")
             document_id = personalisation_data[key]["document"]["id"]
+            current_app.logger.info(
+                f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
+            )
             scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
             check_for_malware_errors(scan_verdict_response.status_code, notification)
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
