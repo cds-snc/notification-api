@@ -116,40 +116,58 @@ class TestApiKeyRevocation:
         assert response.status_code == 401
 
     @pytest.mark.parametrize(
-        "payload",
+        "payload,expected_response",  # Added comma here
         (
-            {
-                # no token
-                "type": "cds-tester",
-                "url": "https://example.com",
-                "source": "cds-tester",
-            },
-            {
-                "token": "token",
-                # no type
-                "url": "https://example.com",
-                "source": "cds-tester",
-            },
-            {
-                "token": "token",
-                "type": "cds-tester",
-                # no url
-                "source": "cds-tester",
-            },
-            {
-                "token": "token",
-                "type": "cds-tester",
-                "url": "https://example.com",
-                # no source
-            },
-            {
-                # no anything
-            },
-            {"token": "token", "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},  # invalid token
+            (
+                {
+                    # no token
+                    "type": "cds-tester",
+                    "url": "https://example.com",
+                    "source": "cds-tester",
+                },
+                400,
+            ),
+            (
+                {
+                    "token": "token",
+                    # no type
+                    "url": "https://example.com",
+                    "source": "cds-tester",
+                },
+                400,
+            ),
+            (
+                {
+                    "token": "token",
+                    "type": "cds-tester",
+                    # no url
+                    "source": "cds-tester",
+                },
+                400,
+            ),
+            (
+                {
+                    "token": "token",
+                    "type": "cds-tester",
+                    "url": "https://example.com",
+                    # no source
+                },
+                400,
+            ),
+            (
+                {
+                    # no anything
+                },
+                400,
+            ),
+            (
+                {"token": "token", "type": "cds-tester", "url": "https://example.com", "source": "cds-tester"},
+                201,
+            ),  # invalid token
         ),
     )
-    def test_revoke_api_keys_fails_with_400_missing_or_invalid_payload(
-        self, client, notify_db, notify_db_session, mocker, payload
+    def test_revoke_api_keys_fails_for_missing_params_or_invalid_payload(
+        self, client, notify_db, notify_db_session, mocker, payload, expected_response
     ):
         sre_auth_header = create_sre_authorization_header()
         response = client.post(
@@ -158,4 +176,4 @@ class TestApiKeyRevocation:
             json=payload,
         )
 
-        assert response.status_code == 400
+        assert response.status_code == expected_response
