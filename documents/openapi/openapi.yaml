@@ -2,24 +2,22 @@ openapi: 3.0.3
 info:
   title: VA Notify API Documentation
   version: 1.2.2
-  description: |
-    <p>This documents the API schemas for consumption by internal VA developers.</p>
-    <h1>Authorization header</h1>
-    <p>You must include an authorization header that is encoded using JSON Web Tokens.  JSON Web Tokens have a standard header and a payload. The header consists of:</p>
-    <pre><code>{
-        &quot;type&quot;: &quot;JWT&quot;,
-        &quot;alg&quot;: &quot;HS256&quot;
-    }</code></pre>
-    <p>The payload consists of `iss` and `iat`. `iss` is the `service_id` that is sending the notification, and `iat` is the 'Issued At' timestamp in seconds since Unix epoch. Here is an example payload:</p>
-    <pre><code>{
-        &quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,
-        &quot;iat&quot;: 1568818578
-    }</code></pre>
-    <p>Refer to the <a href='https://jwt.io/' target='_blank'>JSON Web Tokens website</a> for more information on encoding your authorization header.</p>
+  description:
+    "<p>This documents the API schemas for consumption by internal VA developers.</p>\n\
+    <h1>Authorization header</h1>\n<p>You must include an authorization header that\
+    \ is encoded using JSON Web Tokens.  JSON Web Tokens have a standard header and\
+    \ a payload. The header consists of:</p>\n<pre><code>{\n    &quot;type&quot;:\
+    \ &quot;JWT&quot;,\n    &quot;alg&quot;: &quot;HS256&quot;\n}</code></pre>\n<p>The\
+    \ payload consists of `iss` and `iat`. `iss` is the `service_id` that is sending\
+    \ the notification, and `iat` is the 'Issued At' timestamp in seconds since Unix\
+    \ epoch. Here is an example payload:</p>\n<pre><code>{\n    &quot;iss&quot;: &quot;26785a09-ab16-4eb0-8407-a37497a57506&quot;,\n\
+    \    &quot;iat&quot;: 1568818578\n}</code></pre>\n<p>Refer to the <a href='https://jwt.io/'\
+    \ target='_blank'>JSON Web Tokens website</a> for more information on encoding\
+    \ your authorization header.</p>\n"
   contact:
     name: VA Notify team
 servers:
-  - url: "https://{environment}.notifications.va.gov"
+  - url: https://{environment}.notifications.va.gov
     description: PRIVATE, used inside the VA Network
     variables:
       environment:
@@ -29,7 +27,7 @@ servers:
           - perf.api
           - dev.api
         default: api
-  - url: "https://{environment}.va.gov/vanotify"
+  - url: https://{environment}.va.gov/vanotify
     description: PUBLIC, used outside of the VA Network
     variables:
       environment:
@@ -40,157 +38,7 @@ servers:
           - dev-api
         default: api
 paths:
-  /organisations:
-    get:
-      summary: Get list of all organisations
-      tags:
-        - organisation
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/OrganisationSummary"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-    post:
-      summary: Create an organisation
-      tags:
-        - organisation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                active:
-                  nullable: true
-                  type: boolean
-                crown:
-                  type: boolean
-                name:
-                  type: string
-                organisation_type:
-                  type: string
-                  enum:
-                    - other
-              required:
-                - crown
-                - name
-                - organisation_type
-              type: object
-      responses:
-        "201":
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrganisationDetails"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  /organisations/{organisation_id}/:
-    get:
-      summary: Find organisation by id
-      tags:
-        - organisation
-      parameters:
-        - $ref: "#/components/parameters/OrganisationId"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OrganisationDetails"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-    post:
-      summary: Update an organization
-      tags:
-        - organisation
-      parameters:
-        - $ref: "#/components/parameters/OrganisationId"
-      requestBody:
-        description: Include values in the request body to update them
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                active:
-                  nullable: true
-                  type: boolean
-                crown:
-                  nullable: true
-                  type: boolean
-                name:
-                  nullable: true
-                  type: string
-                organisation_type:
-                  type: string
-                  enum:
-                    - other
-      responses:
-        "204":
-          description: OK
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /user:
-    post:
-      summary: Create a user
-      tags:
-        - user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateUserRequest"
-      responses:
-        "201":
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
     get:
       summary: Get a list of all users
       tags:
@@ -233,80 +81,7 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
-    post:
-      summary: Update a user
-      tags:
-        - user
-      parameters:
-        - $ref: "#/components/parameters/UserId"
-      requestBody:
-        description: Include values in the request body to update them
-        required: true
-        content:
-          application/json:
-            schema:
-              properties:
-                name:
-                  type: string
-                email_address:
-                  type: string
-                mobile_number:
-                  type: string
-                  example: "+12025551212"
-                auth_type:
-                  type: string
-                  enum:
-                    - sms_auth
-                    - email_auth
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /service:
-    post:
-      summary: Create a service
-      tags:
-        - service
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateServiceRequest"
-      responses:
-        "201":
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/Service"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
     get:
       summary: Get all services
       tags:
@@ -411,7 +186,9 @@ paths:
           $ref: "#/components/responses/InternalServerError"
     post:
       summary: Add sms sender for a service
-      description: Note that setting is_default to True will have the side-effect of setting the current default to False.
+      description:
+        Note that setting is_default to True will have the side-effect
+        of setting the current default to False.
       tags:
         - sms sender
       requestBody:
@@ -440,7 +217,9 @@ paths:
                   type: string
                   example: "+12025551212"
                 sms_sender_specifics:
-                  description: Arbitrary JSON relevant to a specific messaging service provider
+                  description:
+                    Arbitrary JSON relevant to a specific messaging service
+                    provider
                   type: object
                   example: '{"messaging_service_sid": "MG0000000000000000000000"}'
               required:
@@ -488,7 +267,9 @@ paths:
           $ref: "#/components/responses/InternalServerError"
     post:
       summary: Update sms sender for a service
-      description: Note that updating is_default to True will have the side-effect of setting the current default to False.
+      description:
+        Note that updating is_default to True will have the side-effect
+        of setting the current default to False.
       tags:
         - sms sender
       requestBody:
@@ -516,7 +297,9 @@ paths:
                 sms_sender:
                   type: string
                 sms_sender_specifics:
-                  description: Arbitrary JSON relevant to a specific messaging service provider
+                  description:
+                    Arbitrary JSON relevant to a specific messaging service
+                    provider
                   type: object
                   example: '{"messaging_service_sid": "MG0000000000000000000000"}'
               minProperties: 1
@@ -527,32 +310,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ServiceSmsSender"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-  /service/{service_id}/sms-sender/{sms-sender-id}/archive:
-    parameters:
-      - $ref: "#/components/parameters/ServiceId"
-      - $ref: "#/components/parameters/ServiceSmsSenderId"
-    post:
-      summary: Delete aka archive an sms sender
-      tags:
-        - sms sender
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    $ref: "#/components/schemas/ServiceSmsSender"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -807,36 +564,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  /service/{service_id}/template/preview:
-    parameters:
-      - $ref: "#/components/parameters/ServiceId"
-    post:
-      summary: Cretate template html preview
-      tags:
-        - template
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateHTMLPreviewRequest"
-      responses:
-        "200":
-          description: OK
-          content:
-            text/html:
-              schema:
-                type: string
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /service/{service_id}/template/{template_id}/stats:
     get:
       summary: Get usage statistics for a particular template on a service
@@ -874,7 +601,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /communication-item:
     get:
       summary: Retrieve a list of all communication items
@@ -971,7 +697,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
-
   /service/{service_id}/api-key:
     parameters:
       - $ref: "#/components/parameters/ServiceId"
@@ -1041,55 +766,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  /service/{service_id}/api-key/{api_key_id}:
-    parameters:
-      - $ref: "#/components/parameters/ServiceId"
-      - $ref: "#/components/parameters/ApiKeyId"
-    post:
-      tags:
-        - api key
-      summary: Update API key expiry date
-      requestBody:
-        content:
-          application/json:
-            schema:
-              properties:
-                expiry_date:
-                  type: string
-                  format: date
-              required:
-                - expiry_date
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  apiKeys:
-                    type: object
-                    $ref: "#/components/schemas/APIKey"
-        "400":
-          description: Error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  result:
-                    type: string
-                    example: "error"
-                  message:
-                    type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/AdminAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /service/{service_id}/api-keys:
     parameters:
       - $ref: "#/components/parameters/ServiceId"
@@ -1148,201 +824,6 @@ paths:
           $ref: "#/components/responses/InternalServerError"
         "501":
           $ref: "#/components/responses/NotImplemented"
-  /v2/notifications/email:
-    post:
-      summary: Send an email notification
-      description: |
-        ### Required properties
-
-        * `template_id` - The UUID of the template
-        * `email_address` - The email address of the recipient
-        * _or_ `recipient_identifier` - a VAPROFILEID, ICN, EDIPI, PID, or BIRLSID (see examples)
-
-        ### Optional properties
-
-        * `billing_code` - A string to indicate your billing code
-        * `callback_url` - An https URL; note that this overrides any service level callback
-        * `personalisation` - A JSON object containing the fields needed to populate the notification template. See **Advanced Usage** section and **dynamic bullet list** example for details.
-        * `reference` - A string to indicate any reference
-        * `scheduled_for` - A datetime indicated when to send the notification (not available at this time)
-
-        ### Advanced usage
-
-          The `personalisation` JSON object allows for dynamic customization of the notification template by passing variables:
-
-          - **Keys**: Represent variable names defined in the notification template.
-          - **Values**: Specify the data to replace the variables. Values can be:
-            - **Strings**: Used for simple text replacement.
-            - **Lists**: Rendered as bulleted lists in the email notification.
-            ```
-
-      security:
-        - serviceAuth: []
-      tags:
-        - notification
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/EmailNotificationRequest"
-            examples:
-              email:
-                value:
-                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email_address: test@notification.com
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: "123456"
-                  billing_code: string
-                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
-                  reference: string
-                  scheduled_for: string
-              recipient_identifier:
-                value:
-                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  recipient_identifier:
-                    id_type: ICN
-                    id_value: 1000000000V000000
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: "123456"
-                  billing_code: string
-                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
-                  reference: string
-                  scheduled_for: string
-              dynamic bulleted list:
-                value:
-                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  email_address: test@notification.com
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: "123456"
-                    tasks:
-                      - "Task 1"
-                      - "Task 2"
-                      - "Task 3"
-                  billing_code: string
-                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
-                  reference: string
-                  scheduled_for: string
-      responses:
-        "201":
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/Notification"
-                  - type: object
-                    properties:
-                      content:
-                        type: object
-                        properties:
-                          body:
-                            type: string
-                          subject:
-                            type: string
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/ServiceAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/RateLimitError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
-        "501":
-          $ref: "#/components/responses/NotImplemented"
-  /v2/notifications/sms:
-    post:
-      summary: Send an sms notification
-      description: |
-        ### Required properties
-
-        * `template_id` - The UUID of the template
-        * `phone_number` - The mobile phone number of the recipient
-        * _or_ `recipient_identifier` - a VAPROFILEID, ICN, EDIPI, PID, or BIRLSID (see examples)
-
-        ### Optional properties
-
-        * `billing_code` - A string to indicate your billing code
-        * `callback_url` - An https URL; note that this overrides any service level callback
-        * `personalisation` - If the template includes personalisation, the fields to populate (see examples)
-        * `reference` - A string to indicate any reference
-        * `scheduled_for` - A datetime indicated when to send the notification (not available at this time)
-        * `sms_sender_id` - A UUID; note that this overrides any service level sms sender
-
-      security:
-        - serviceAuth: []
-      tags:
-        - notification
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SMSNotificationRequest"
-            examples:
-              phone_number:
-                value:
-                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  phone_number: "+12125551212"
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: "123456"
-                  billing_code: string
-                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
-                  reference: string
-                  scheduled_for: string
-                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-              recipient_identifier:
-                value:
-                  template_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-                  recipient_identifier:
-                    id_type: ICN
-                    id_value: 1000000000V000000
-                  personalisation:
-                    full_name: John Smith
-                    claim_id: "123456"
-                  billing_code: string
-                  callback_url: https://staging-api.va.gov/vanotify/internal/swagger
-                  reference: string
-                  scheduled_for: string
-                  sms_sender_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-      responses:
-        "201":
-          description: CREATED
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/Notification"
-                  - type: object
-                    properties:
-                      content:
-                        type: object
-                        properties:
-                          body:
-                            type: string
-                          from_number:
-                            type: string
-                            example: "+12025551212"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/ServiceAuthError"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "429":
-          $ref: "#/components/responses/RateLimitError"
-        "500":
-          $ref: "#/components/responses/InternalServerError"
   /v2/notifications/push:
     post:
       summary: Send a push notification to a mobile app
@@ -1399,6 +880,66 @@ paths:
           $ref: "#/components/responses/BadGateway"
         "503":
           $ref: "#/components/responses/ServiceUnavailable"
+  /v2/notifications/email:
+    post:
+      summary: Send an e-mail notification
+      security:
+        - serviceAuth: []
+      tags:
+        - notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailNotificationRequest"
+      responses:
+        "201":
+          description: CREATED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ServiceAuthError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /v2/notifications/sms:
+    post:
+      summary: Send a SMS notification
+      security:
+        - serviceAuth: []
+      tags:
+        - notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SMSNotificationRequest"
+      responses:
+        "201":
+          description: CREATED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ServiceAuthError"
+        "429":
+          $ref: "#/components/responses/RateLimitError"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /v2/notifications/{notification_id}:
     get:
       summary: Get notification status and details
@@ -1451,7 +992,6 @@ paths:
                       uri: string
                       version: 0
                     type: sms
-
                 email:
                   value:
                     billing_code: string
@@ -1515,7 +1055,7 @@ paths:
                     claim_id: "123456"
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
-                  email_address: "test@notification.com"
+                  email_address: test@notification.com
               recipient_identifier:
                 value:
                   reference: string
@@ -1539,7 +1079,7 @@ paths:
                     claim_id: "123456"
                   scheduled_for: "2023-09-06T19:55:23.592973+00:00"
                   billing_code: string
-                  email_address: "test@notification.com"
+                  email_address: test@notification.com
                   recipient_identifier:
                     id_type: ICN
                     id_value: 1000000000V000000
@@ -1648,19 +1188,19 @@ paths:
               selfManagedFalse url optional:
                 value:
                   active: true
-                  auth_parameter: "auth-param-name"
+                  auth_parameter: auth-param-name
                   number: "+10123456789"
-                  provider: "ExampleProvider"
+                  provider: ExampleProvider
                   self_managed: false
-                  url_endpoint: "http://example.com/api"
+                  url_endpoint: http://example.com/api
               selfManagedTrue url *required:
                 value:
                   active: true
-                  auth_parameter: "auth-param-name"
+                  auth_parameter: auth-param-name
                   number: "+12025551212"
-                  provider: "ExampleProvider"
+                  provider: ExampleProvider
                   self_managed: true
-                  url_endpoint: "http://example.com/api"
+                  url_endpoint: http://example.com/api
         required: true
       responses:
         "201":
@@ -1844,7 +1384,9 @@ components:
       schema:
         type: boolean
       required: false
-      description: Setting this parameter to true will include revoked keys in the response
+      description:
+        Setting this parameter to true will include revoked keys in the
+        response
   responses:
     PushCreated:
       description: CREATED
@@ -1855,7 +1397,7 @@ components:
             properties:
               result:
                 type: string
-                example: "success"
+                example: success
     AcceptedV3:
       description: Accepted
       content:
@@ -1872,9 +1414,10 @@ components:
             $ref: "#/components/schemas/V2ErrorMessage"
           example:
             errors:
-              - error: "BadRequestError"
-                message: "sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not exist in database
-                  for service id 9ffb5212-e621-45df-820d-97ee65d392ab"
+              - error: BadRequestError
+                message:
+                  sms_sender_id e925b547-8195-4ed2-83c5-0633a74d780a does not
+                  exist in database for service id 9ffb5212-e621-45df-820d-97ee65d392ab
             status_code: 400
     BadRequestV3:
       description: Bad Request
@@ -1885,7 +1428,7 @@ components:
           example:
             errors:
               - error: ValidationError
-                message: "template_id is not a valid uuid"
+                message: template_id is not a valid uuid
     Unauthorized:
       description: No Bearer authentication provided
       content:
@@ -1893,10 +1436,10 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
+            result: error
             message:
               token:
-                - "Unauthorized, authentication token must be provided"
+                - Unauthorized, authentication token must be provided
     Unauthorized_401_V3:
       description: Not authenticated
       content:
@@ -1906,7 +1449,7 @@ components:
           example:
             errors:
               - error: AuthError
-                message: "Unauthorized, authentication token must be provided"
+                message: Unauthorized, authentication token must be provided
     Unauthorized_403_V3:
       description: Not authorized
       content:
@@ -1924,7 +1467,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
+            result: error
             message:
               token:
                 - "Invalid token: signature, api token is not valid"
@@ -1936,7 +1479,7 @@ components:
             $ref: "#/components/schemas/V2ErrorMessage"
           example:
             errors:
-              - error: "AuthError"
+              - error: AuthError
                 message: "Invalid token: service id is not the right data type"
             status_code: 403
     InternalServerError:
@@ -1946,8 +1489,8 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
-            message: "Internal server error"
+            result: error
+            message: Internal server error
     BadGateway:
       description: Bad gateway
       content:
@@ -1955,8 +1498,8 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
-            message: "Mobile app is not initialized"
+            result: error
+            message: Mobile app is not initialized
     ServiceUnavailable:
       description: Service Unavailable
       content:
@@ -1964,18 +1507,19 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
-            message: "Invalid response from downstream service"
-
+            result: error
+            message: Invalid response from downstream service
     NotImplemented:
-      description: The use of recipient identifiers is not implemented (feature toggle off)
+      description:
+        The use of recipient identifiers is not implemented (feature toggle
+        off)
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
-            message: "Not Implemented"
+            result: error
+            message: Not Implemented
     NotFound:
       description: Not Found
       content:
@@ -1983,9 +1527,10 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorMessage"
           example:
-            result: "error"
-            message: "The requested URL was not found on the server. If you entered the URL manually please check
-              your spelling and try again."
+            result: error
+            message:
+              The requested URL was not found on the server. If you entered
+              the URL manually please check your spelling and try again.
     RateLimitError:
       description: Exceeded rate or send limits
       content:
@@ -1994,8 +1539,10 @@ components:
             $ref: "#/components/schemas/V2ErrorMessage"
           example:
             errors:
-              - error: "RateLimitError"
-                message: "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
+              - error: RateLimitError
+                message:
+                  Exceeded rate limit for key type TYPE of LIMIT requests per
+                  INTERVAL seconds
             status_code: 429
   schemas:
     Id:
@@ -2006,8 +1553,9 @@ components:
       nullable: true
       enum:
         - VA_FLAGSHIP_APP
-      description: >-
-        Optional mobile application identifier. By default, VA Flagship mobile app will be used.
+      description:
+        Optional mobile application identifier. By default, VA Flagship
+        mobile app will be used.
     V2ErrorMessage:
       description: Generic error message format for V2
       type: object
@@ -2038,7 +1586,7 @@ components:
                 type: string
             example:
               error: ValidationError
-              message: "Explanation of the validation error"
+              message: Explanation of the validation error
             required:
               - error
               - message
@@ -2071,91 +1619,6 @@ components:
         result:
           type: string
           example: error
-    OrganisationSummary:
-      type: object
-      properties:
-        active:
-          nullable: true
-          type: boolean
-        count_of_live_services:
-          type: integer
-        domains:
-          items:
-            type: string
-          nullable: true
-          type: array
-        id:
-          $ref: "#/components/schemas/Id"
-        name:
-          type: string
-        organisation_type:
-          enum:
-            - other
-          type: string
-    OrganisationDetails:
-      type: object
-      allOf:
-        - $ref: "#/components/schemas/OrganisationSummary"
-      properties:
-        agreement_signed:
-          type: string
-          format: date-time
-          nullable: true
-        agreement_signed_at:
-          type: string
-          format: date-time
-          nullable: true
-        agreement_signed_by_id:
-          type: string
-          format: uuid
-          nullable: true
-        agreement_signed_on_behalf_of_email_address:
-          nullable: true
-          type: string
-        agreement_signed_on_behalf_of_name:
-          nullable: true
-          type: string
-        agreement_signed_version:
-          type: number
-        crown:
-          type: boolean
-        email_branding_id:
-          type: string
-          format: uuid
-          nullable: true
-        request_to_go_live_notes:
-          nullable: true
-          type: string
-    CreateUserRequest:
-      type: object
-      properties:
-        name:
-          type: string
-        password:
-          type: string
-        email_address:
-          type: string
-        mobile_number:
-          type: string
-          description: Required if auth_type is sms_auth
-          example: "+12025551212"
-        state:
-          type: string
-        user_permissions:
-          type: array
-          items:
-            type: string
-        auth_type:
-          type: string
-          description: The auth type determines whether email address or mobile number are required.
-          enum:
-            - sms_auth
-            - email_auth
-      required:
-        - name
-        - password
-        - email_address
-        - user_permissions
     ServiceCallback:
       type: object
       properties:
@@ -2240,11 +1703,23 @@ components:
         - webhook
         - queue
     NotificationStatus:
-      description: |
-        <p> This field is optional. If not provided, the service will receive updates on all notification statuses by default. If included, the service will only receive updates for the specific statuses listed in this field.
-        <p>These statuses do not warrant additional action: cancelled, created, delivered, pending, sending, and sent.</p>
-        <p>These statuses indicate a client-side error, such as specifying a nonexistent template ID, or other condition that will result in VA Notify <b>not</b> retrying to send the notification: failed, permanent-failure, and validation-failed.  See the associated status_reason for amplifying information.</p>
+      description:
+        '<p> This field is optional. If not provided, the service will
+        receive updates on all notification statuses by default. If included, the
+        service will only receive updates for the specific statuses listed in this
+        field.
+
+        <p>These statuses do not warrant additional action: cancelled, created, delivered,
+        pending, sending, and sent.</p>
+
+        <p>These statuses indicate a client-side error, such as specifying a nonexistent
+        template ID, or other condition that will result in VA Notify <b>not</b> retrying
+        to send the notification: failed, permanent-failure, and validation-failed.  See
+        the associated status_reason for amplifying information.</p>
+
         <p>"temporary-failure" indicates that VA Notify will retry sending the notification.</p>
+
+        '
       type: string
       enum:
         - cancelled
@@ -2471,6 +1946,73 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Id"
+    Template:
+      type: object
+      properties:
+        content:
+          type: string
+        created_by:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        postage:
+          type: string
+        process_type:
+          type: string
+          enum:
+            - normal
+            - priority
+        provider_id:
+          type: string
+          nullable: true
+        communication_item_id:
+          type: string
+          nullable: true
+        service:
+          $ref: "#/components/schemas/Id"
+        subject:
+          type: string
+        template_type:
+          type: string
+          enum:
+            - sms
+            - email
+        archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        folder:
+          $ref: "#/components/schemas/Id"
+        hidden:
+          type: boolean
+        id:
+          $ref: "#/components/schemas/Id"
+        redact_personalisation:
+          type: boolean
+        reply_to:
+          $ref: "#/components/schemas/Id"
+        service_letter_contact:
+          $ref: "#/components/schemas/Id"
+        template_redacted:
+          $ref: "#/components/schemas/Id"
+        updated_at:
+          type: string
+          format: date-time
+        version:
+          type: number
+        content_as_html:
+          type: string
+          nullable: true
+        content_as_plain_text:
+          type: string
+          nullable: true
+      required:
+        - name
+        - template_type
+        - content
+        - service
+        - created_by
     CreateTemplateRequest:
       type: object
       properties:
@@ -2520,7 +2062,7 @@ components:
     CreateTemplateRequestEmail:
       type: object
       allOf:
-        - $ref: "#/components/schemas/CreateTemplateRequestSms"
+        - $ref: "#/components/schemas/CreateTemplateRequest"
       properties:
         template_type:
           type: string
@@ -2528,44 +2070,6 @@ components:
             - email
       required:
         - subject
-    Template:
-      type: object
-      allOf:
-        - $ref: "#/components/schemas/CreateTemplateRequest"
-      properties:
-        archived:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        folder:
-          $ref: "#/components/schemas/Id"
-        hidden:
-          type: boolean
-        id:
-          $ref: "#/components/schemas/Id"
-        provider_id:
-          type: string
-          nullable: true
-        redact_personalisation:
-          type: boolean
-        reply_to:
-          $ref: "#/components/schemas/Id"
-        service_letter_contact:
-          $ref: "#/components/schemas/Id"
-        template_redacted:
-          $ref: "#/components/schemas/Id"
-        updated_at:
-          type: string
-          format: date-time
-        version:
-          type: number
-        content_as_html:
-          type: string
-          nullable: true
-        content_as_plain_text:
-          type: string
-          nullable: true
     CreateHTMLPreviewRequest:
       type: object
       properties:
@@ -2619,7 +2123,9 @@ components:
           minimum: 1
           nullable: false
       additionalProperties: false
-      required: [name, va_profile_item_id]
+      required:
+        - name
+        - va_profile_item_id
     NotificationRequest:
       type: object
       properties:
@@ -2649,17 +2155,18 @@ components:
           properties:
             sms_sender_id:
               $ref: "#/components/schemas/Id"
-
           anyOf:
             - properties:
                 phone_number:
                   type: string
                   example: "+12025551212"
-              required: [phone_number]
+              required:
+                - phone_number
             - properties:
                 recipient_identifier:
                   $ref: "#/components/schemas/RecipientIdentifier"
-              required: [recipient_identifier]
+              required:
+                - recipient_identifier
     EmailNotificationRequest:
       allOf:
         - $ref: "#/components/schemas/NotificationRequest"
@@ -2669,11 +2176,13 @@ components:
                 email_address:
                   type: string
                   format: email
-              required: [email_address]
+              required:
+                - email_address
             - properties:
                 recipient_identifier:
                   $ref: "#/components/schemas/RecipientIdentifier"
-              required: [recipient_identifier]
+              required:
+                - recipient_identifier
     PushNotificationRequest:
       type: object
       properties:
@@ -2744,11 +2253,13 @@ components:
             email_address:
               type: string
               format: email
-          required: [email_address]
+          required:
+            - email_address
         - properties:
             recipient_identifier:
               $ref: "#/components/schemas/RecipientIdentifier"
-          required: [recipient_identifier]
+          required:
+            - recipient_identifier
     V3NotificationsSMSRequest:
       type: object
       properties:
@@ -2776,30 +2287,36 @@ components:
         - properties:
             phone_number:
               type: string
-          required: [phone_number]
+          required:
+            - phone_number
         - properties:
             recipient_identifier:
               $ref: "#/components/schemas/RecipientIdentifier"
-          required: [recipient_identifier]
+          required:
+            - recipient_identifier
     Personalisation:
       type: object
-      description: The personalisation values created in the template must be defined here.
+      description:
+        The personalisation values created in the template must be defined
+        here.
       additionalProperties:
         oneOf:
           - type: string
           - $ref: "#/components/schemas/Attachment"
       example:
-        "full_name": "John Smith"
-        "claim_id": "123456"
+        full_name: John Smith
+        claim_id: "123456"
     PushBroadcastPersonalisation:
       type: object
-      description: The personalisation values created in the template must be defined here.
+      description:
+        The personalisation values created in the template must be defined
+        here.
       additionalProperties:
         oneOf:
           - type: string
           - $ref: "#/components/schemas/Attachment"
       example:
-        "message": "New update for the Mobile App..."
+        message: New update for the Mobile App...
     InboundNumberResponseData:
       type: object
       properties:
@@ -2840,10 +2357,10 @@ components:
           type: string
         self_managed:
           type: boolean
-          description: "If this is true, 'url_endpoint' must be populated."
+          description: If this is true, 'url_endpoint' must be populated.
         url_endpoint:
           type: string
-          description: "Required to be populated when 'self_managed' is true."
+          description: Required to be populated when 'self_managed' is true.
       additionalProperties: false
       minProperties: 1
     InboundNumberCreateRequest:
@@ -2859,10 +2376,10 @@ components:
           type: string
         self_managed:
           type: boolean
-          description: "If this is true, 'url_endpoint' is required."
+          description: If this is true, 'url_endpoint' is required.
         url_endpoint:
           type: string
-          description: "Required when 'self_managed' is true."
+          description: Required when 'self_managed' is true.
       required:
         - number
         - provider
@@ -3100,17 +2617,19 @@ components:
           type: string
   securitySchemes:
     adminAuth:
-      description: "The admin user and secret are used to generate this authentication.  They are both defined as
-        configuration parameters"
+      description:
+        The admin user and secret are used to generate this authentication.  They
+        are both defined as configuration parameters
       type: http
       scheme: bearer
       bearerFormat: JWT
     serviceAuth:
-      description: "The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When you
-        create API key you get the secret key in the response. This secret key should be used
-        to generate a bearer token to send notifications and enquire notification status. You can find
-        more at <a href='https://docs.notifications.service.gov.uk/rest-api.html#headers'>Authentication
-        headers</a>."
+      description:
+        The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When
+        you create API key you get the secret key in the response. This secret key
+        should be used to generate a bearer token to send notifications and enquire
+        notification status. You can find more at <a href='https://docs.notifications.service.gov.uk/rest-api.html#headers'>Authentication
+        headers</a>.
       type: http
       scheme: bearer
       bearerFormat: JWT
