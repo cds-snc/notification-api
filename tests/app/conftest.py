@@ -358,6 +358,7 @@ def create_service_model(
     crown=True,
     organisation=None,
     smtp_user=None,
+    allow_fallback=False,
 ) -> Service:
     service = Service(
         name=service_name,
@@ -371,6 +372,7 @@ def create_service_model(
         go_live_at=go_live_at,
         crown=crown,
         smtp_user=smtp_user,
+        allow_fallback=allow_fallback,
         organisation=organisation if organisation else Organisation(id=uuid4(), name='sample organization'),
     )
     service.active = active
@@ -508,6 +510,7 @@ def sample_service(
         smtp_user=None,
         user=None,
         sms_provider_id=None,
+        allow_fallback=False,
     ):
         # Handle where they are checking if it exists by name
         if check_if_service_exists and service_name is not None:
@@ -537,6 +540,7 @@ def sample_service(
             service_name=service_name,
             smtp_user=smtp_user,
             sms_provider_id=sms_provider_id,
+            allow_fallback=allow_fallback,
         )
         service.users.append(user)
 
@@ -573,6 +577,7 @@ def sample_service_helper(
     service_name=None,
     smtp_user=None,
     sms_provider_id=None,
+    allow_fallback=False,
 ):
     service_name = service_name or f'sample service {uuid4()}'
     kwargs = locals()

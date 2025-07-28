@@ -347,6 +347,7 @@ class Service(db.Model, Versioned):
     organisation = db.relationship('Organisation', backref='services')
 
     p2p_enabled = db.Column(db.Boolean, nullable=True, default=False)
+    allow_fallback = db.Column(db.Boolean, nullable=False, default=False)
 
     email_branding = db.relationship(
         'EmailBranding', secondary=service_email_branding, uselist=False, backref=db.backref('services', lazy='dynamic')
