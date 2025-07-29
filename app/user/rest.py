@@ -246,31 +246,39 @@ def verify_user_code(user_id):
     validate(data, post_verify_code_schema)
 
     user_to_verify = get_user_by_id(user_id=user_id)
+    code = None
 
-    code = get_user_code(user_to_verify, data["code"], data["code_type"])
+    email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
+    if not (
+        current_app.config["NOTIFY_ENVIRONMENT"] == "development"
+        and "notification.canada.ca" not in request.host
+        and user_to_verify.email_address.startswith(email_prefix)
+        and user_to_verify.email_address.endswith("@cds-snc.ca")
+    ):
+        code = get_user_code(user_to_verify, data["code"], data["code_type"])
 
-    if verify_within_time(user_to_verify) >= 2:
-        raise InvalidRequest("Code already sent", status_code=400)
+        if verify_within_time(user_to_verify) >= 2:
+            raise InvalidRequest("Code already sent", status_code=400)
 
-    if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
-        raise InvalidRequest("Code not found", status_code=404)
-    if not code:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime:
-        # sms and email
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has expired", status_code=400)
-    if code.code_used:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has already been used", status_code=400)
+        if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
+            raise InvalidRequest("Code not found", status_code=404)
+        if not code:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code not found", status_code=404)
+        if datetime.utcnow() > code.expiry_datetime:
+            # sms and email
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has expired", status_code=400)
+        if code.code_used:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has already been used", status_code=400)
 
-    user_to_verify.current_session_id = str(uuid.uuid4())
-    user_to_verify.logged_in_at = datetime.utcnow()
-    user_to_verify.failed_login_count = 0
-    save_model_user(user_to_verify)
-
-    use_user_code(code.id)
+    if code:
+        user_to_verify.current_session_id = str(uuid.uuid4())
+        user_to_verify.logged_in_at = datetime.utcnow()
+        user_to_verify.failed_login_count = 0
+        save_model_user(user_to_verify)
+        use_user_code(code.id)
     return jsonify({}), 204
 
 
