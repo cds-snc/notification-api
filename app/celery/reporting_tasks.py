@@ -14,7 +14,6 @@ from app.dao.fact_notification_status_dao import (
     update_fact_notification_status,
     fetch_notification_statuses_per_service_and_template_for_date,
 )
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from celery import chain
 from datetime import datetime, timedelta
 from flask import current_app
@@ -37,17 +36,12 @@ def create_nightly_billing(day_start=None):
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
 
-        if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
-            tasks = [
-                create_nightly_billing_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
-                generate_nightly_billing_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
-            ]
+        tasks = [
+            create_nightly_billing_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+            generate_nightly_billing_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+        ]
 
-            chain(*tasks).apply_async()
-        else:
-            create_nightly_billing_for_day.apply_async(
-                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.NOTIFY
-            )
+        chain(*tasks).apply_async()
 
 
 @notify_celery.task(name='create-nightly-billing-for-day')
@@ -121,17 +115,11 @@ def create_nightly_notification_status(day_start=None):
     for i in range(0, 4):
         process_day = day_start - timedelta(days=i)
 
-        if is_feature_enabled(FeatureFlag.NIGHTLY_NOTIF_CSV_ENABLED):
-            tasks = [
-                create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
-                generate_daily_notification_status_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
-            ]
-            chain(*tasks).apply_async()
-
-        else:
-            create_nightly_notification_status_for_day.apply_async(
-                kwargs={'process_day': process_day.isoformat()}, queue=QueueNames.NOTIFY
-            )
+        tasks = [
+            create_nightly_notification_status_for_day.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+            generate_daily_notification_status_csv_report.si(process_day.isoformat()).set(queue=QueueNames.NOTIFY),
+        ]
+        chain(*tasks).apply_async()
 
 
 @notify_celery.task(name='create-nightly-notification-status-for-day')

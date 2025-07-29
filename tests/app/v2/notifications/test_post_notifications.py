@@ -961,10 +961,6 @@ class TestPostNotificationWithAttachment:
             'app.v2.notifications.post_notifications.extract_and_validate_mimetype', return_value='fake/mimetype'
         )
 
-    @pytest.fixture(autouse=True)
-    def feature_toggle_enabled(self, mocker):
-        mock_feature_flag(mocker, feature_flag=FeatureFlag.EMAIL_ATTACHMENTS_ENABLED, enabled='True')
-
     def test_returns_not_implemented_if_sending_method_is_link(
         self,
         client,

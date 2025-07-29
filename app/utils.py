@@ -18,7 +18,6 @@ from app.constants import (
     SMS_TYPE,
     UPLOAD_DOCUMENT,
 )
-from app.feature_flags import is_gapixel_enabled
 from app.googleanalytics.pixels import build_dynamic_ga4_pixel_tracking_url
 
 local_timezone = pytz.timezone(os.getenv('TIMEZONE', 'America/New_York'))
@@ -179,8 +178,7 @@ def get_html_email_options(notification_id: str = 'xx_notification_id_xx') -> Di
             - ga4_open_email_event_url: Google Analytics tracking URL (if enabled)
     """
     options_dict = {}
-    if is_gapixel_enabled(current_app):
-        options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification_id)
+    options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification_id)
     options_dict.update({'default_banner': True, 'brand_banner': False})
     return options_dict
 

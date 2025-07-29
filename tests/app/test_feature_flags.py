@@ -3,14 +3,7 @@ import pytest
 from app.feature_flags import (
     FeatureFlag,
     is_feature_enabled,
-    is_gapixel_enabled,
 )
-
-
-@pytest.mark.parametrize('gapixel_enabled', ['True', 'False'])
-def test_accept_gapixel_enabled_flag(mocker, gapixel_enabled):
-    current_app = mocker.Mock(config={'GOOGLE_ANALYTICS_ENABLED': gapixel_enabled})
-    assert str(is_gapixel_enabled(current_app)) == gapixel_enabled
 
 
 @pytest.mark.parametrize(

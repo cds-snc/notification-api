@@ -38,10 +38,6 @@
                 {
                     "name": "TWILIO_AUTH_TOKEN",
                     "value": "fake"
-                },
-                {
-                    "name": "GITHUB_LOGIN_ENABLED",
-                    "value": "True"
                 }
             ],
             "secrets": [

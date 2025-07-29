@@ -428,9 +428,6 @@ class Config(object):
     SESSION_COOKIE_SAMESITE = 'Lax'
 
     # Google Analytics
-    GOOGLE_ANALYTICS_ENABLED = str(True) == (os.getenv('GOOGLE_ANALYTICS_ENABLED', 'False'))
-    GOOGLE_ANALYTICS_URL = os.getenv('GOOGLE_ANALYTICS_URL', 'https://www.google-analytics.com/collect')
-    GOOGLE_ANALYTICS_TID = os.getenv('GOOGLE_ANALYTICS_TID', 'UA-50123418-17')
     GA4_URL = os.getenv('GA4_URL', 'https://www.google-analytics.com/mp/collect')
     GA4_MEASUREMENT_ID = os.getenv('GA4_MEASUREMENT_ID', '')
     GA4_API_SECRET = os.getenv('GA4_API_SECRET', '')
@@ -527,8 +524,6 @@ class Test(Development):
 
     TWILIO_INBOUND_SMS_USERNAMES = '["username"]'
     TWILIO_INBOUND_SMS_PASSWORDS = '["password"]'
-
-    GOOGLE_ANALYTICS_ENABLED = True
 
     AWS_REGION = 'us-gov-west-1'
     AWS_SES_EMAIL_FROM_DOMAIN = 'test domain'

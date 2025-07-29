@@ -5,16 +5,8 @@ from celery.exceptions import CeleryError
 from kombu.exceptions import OperationalError
 
 from app.constants import PUSH_TYPE
-from app.feature_flags import FeatureFlag
-
-from tests.app.factories.feature_flag import mock_feature_flag
 
 from . import post_send_push_broadcast_notification
-
-
-@pytest.fixture(autouse=True)
-def feature_toggle_enabled(mocker):
-    mock_feature_flag(mocker, feature_flag=FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, enabled='True')
 
 
 PUSH_BROADCAST_REQUEST = {

@@ -34,8 +34,6 @@ from tests.app.db import (
 # all of these tests should have redis enabled (except where we specifically disable it)
 @pytest.fixture(scope='function', autouse=True)
 def enable_redis(notify_api, mocker):
-    # current_app.config['API_MESSAGE_LIMIT_ENABLED'] = True
-    # current_app.config['REDIS_ENABLED'] = True
     with set_config(notify_api, 'REDIS_ENABLED', True):
         with set_config(notify_api, 'API_MESSAGE_LIMIT_ENABLED', True):
             mocker.patch('app.notifications.validators.redis_store.get', return_value=1)
@@ -61,8 +59,8 @@ class TestCheckServiceDailyLimit:
 
         check_service_over_daily_message_limit(key_type, service)
 
-        # message limit is only enforced when the key type is not 'test'
-        # and API_MESSAGE_LIMIT_ENABLED and REDIS_ENABLED are True
+        # The message limit is only enforced when the key type is not 'test' and
+        # API_MESSAGE_LIMIT_ENABLED and REDIS_ENABLED are True.
         if key_type == 'test':
             mock_set.assert_not_called()
             mock_incr.assert_not_called()
@@ -97,9 +95,7 @@ class TestCheckServiceDailyLimit:
         with set_config(notify_api, 'REDIS_ENABLED', redis_enabled):
             with set_config(notify_api, 'API_MESSAGE_LIMIT_ENABLED', api_limit_enabled):
                 mock_get = mocker.patch('app.notifications.validators.redis_store.get')
-
                 check_service_over_daily_message_limit('normal', sample_service())
-
                 assert mock_get.not_called()
 
     @staticmethod

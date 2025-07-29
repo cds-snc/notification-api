@@ -18,7 +18,6 @@ from app.constants import (
     UPLOAD_DOCUMENT,
 )
 from app.dao.service_sms_sender_dao import dao_get_default_service_sms_sender_by_service_id
-from app.feature_flags import is_feature_enabled, FeatureFlag
 from app.notifications.process_notifications import (
     persist_notification,
     persist_scheduled_notification,
@@ -259,9 +258,6 @@ def process_document_uploads(
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and 'file' in v]
     if not file_keys:
         return personalisation_data
-
-    if not is_feature_enabled(FeatureFlag.EMAIL_ATTACHMENTS_ENABLED):
-        raise NotImplementedError()
 
     personalisation_data = personalisation_data.copy()
 

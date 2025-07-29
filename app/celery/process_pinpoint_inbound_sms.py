@@ -8,7 +8,6 @@ from typing_extensions import TypedDict
 from app import notify_celery, statsd_client
 from app.celery.service_callback_tasks import send_inbound_sms_to_service
 from app.config import QueueNames
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.notifications.receive_notifications import fetch_potential_service, create_inbound_sms_object
 
 
@@ -30,10 +29,6 @@ def process_pinpoint_inbound_sms(
     event: CeleryEvent,
 ):
     provider_name = 'pinpoint'
-
-    if not is_feature_enabled(FeatureFlag.PINPOINT_INBOUND_SMS_ENABLED):
-        current_app.logger.info('Pinpoint inbound SMS toggle is disabled, skipping task')
-        return True
 
     pinpoint_message: PinpointInboundSmsMessage = json.loads(event['Message'])
 

@@ -8,15 +8,8 @@ from jsonschema import ValidationError
 from kombu.exceptions import OperationalError
 
 from app.constants import PUSH_TYPE
-from app.feature_flags import FeatureFlag
 from app.mobile_app.mobile_app_types import DEFAULT_MOBILE_APP_TYPE
-from tests.app.factories.feature_flag import mock_feature_flag
 from tests import create_authorization_header
-
-
-@pytest.fixture
-def push_notification_toggle_enabled(mocker):
-    mock_feature_flag(mocker, FeatureFlag.PUSH_NOTIFICATIONS_ENABLED, 'True')
 
 
 def test_mobile_app_push_notification_delivered(
