@@ -278,7 +278,8 @@ def verify_user_code(user_id):
         user_to_verify.logged_in_at = datetime.utcnow()
         user_to_verify.failed_login_count = 0
         save_model_user(user_to_verify)
-        use_user_code(code.id)
+        if code:  # Ensure code is not None before calling use_user_code
+            use_user_code(code.id)
     return jsonify({}), 204
 
 
