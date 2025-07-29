@@ -279,8 +279,7 @@ def verify_user_code(user_id):
     save_model_user(user_to_verify)
 
     if code:
-        if code:  # Ensure code is not None before calling use_user_code
-            use_user_code(code.id)
+        use_user_code(code.id)
     return jsonify({}), 204
 
 
