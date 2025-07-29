@@ -273,11 +273,12 @@ def verify_user_code(user_id):
             increment_failed_login_count(user_to_verify)
             raise InvalidRequest("Code has already been used", status_code=400)
 
+    user_to_verify.current_session_id = str(uuid.uuid4())
+    user_to_verify.logged_in_at = datetime.utcnow()
+    user_to_verify.failed_login_count = 0
+    save_model_user(user_to_verify)
+
     if code:
-        user_to_verify.current_session_id = str(uuid.uuid4())
-        user_to_verify.logged_in_at = datetime.utcnow()
-        user_to_verify.failed_login_count = 0
-        save_model_user(user_to_verify)
         if code:  # Ensure code is not None before calling use_user_code
             use_user_code(code.id)
     return jsonify({}), 204
