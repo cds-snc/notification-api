@@ -341,7 +341,7 @@ To update the images, change the `FROM` directive at the top of Dockerfiles and 
 
 Updating dependencies for the `notification_api` is done by ensuring [Poetry](https://python-poetry.org/) is installed, then running a simple command while within the root of `notification_api`. The `pyroject.toml` file contains all top-level dependencies, and Poetry manages everything else. The full process to upgrade is as follows:
 
-1. From the root directory, and with Poetry 1.8 installed, run `poetry update`
+1. From the root directory, and with Poetry 2.1.3 installed, run `poetry update`
 2. Run all unit tests with `docker compose -f ci/docker-compose-test.yml up`
 4. Deploy the code and ensure all regressions pass
 
