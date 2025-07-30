@@ -214,10 +214,10 @@ def test_ses_callback_should_give_up_after_max_tries(notify_db, mocker):
         "app.celery.process_ses_receipts_tasks.process_ses_results.retry",
         side_effect=MaxRetriesExceededError,
     )
-    mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.error")
+    mock_logger = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.info")
 
     assert process_ses_results(generate_ses_notification_callbacks(references=["ref"])) is None
-    mock_logger.assert_called_with("notifications not found for SES references: ref. Giving up.")
+    mock_logger.assert_called_with("notifications not found for SES references: ref. Giving up. Env: test")
 
 
 def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
