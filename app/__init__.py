@@ -242,6 +242,7 @@ def register_blueprint(application):
     from app.billing.rest import billing_blueprint
     from app.platform_stats.rest import platform_stats_blueprint
     from app.communication_item.rest import communication_item_blueprint
+    from app.delivery_status.rest import pinpoint_v2_blueprint
 
     application.register_blueprint(ga4_blueprint)
     application.register_blueprint(internal_blueprint)
@@ -278,6 +279,8 @@ def register_blueprint(application):
 
     communication_item_blueprint.before_request(validate_admin_auth)
     application.register_blueprint(communication_item_blueprint)
+
+    application.register_blueprint(pinpoint_v2_blueprint)
 
 
 def register_v2_blueprints(application):
