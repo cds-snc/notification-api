@@ -275,7 +275,9 @@ def handle_retries(self, receipts_with_no_notification: List[SESReceipt]) -> Non
         )
         self.retry(queue=QueueNames.RETRY, args=[{"Messages": receipts_with_no_notification}])
     except self.MaxRetriesExceededError:
-        current_app.logger.error(f"notifications not found for SES references: {retry_ids}. Giving up.")
+        config_env = current_app.config["NOTIFY_ENVIRONMENT"]
+        if config_env != "development":
+            current_app.logger.error(f"notifications not found for SES references: {retry_ids}. Giving up. Env: {config_env}")
 
 
 @notify_celery.task(
