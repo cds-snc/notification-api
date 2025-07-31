@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: VA Notify API Documentation
-  version: 1.2.2
+  version: 1.2.3
   description:
     "<p>This documents the API schemas for consumption by internal VA developers.</p>\n\
     <h1>Authorization header</h1>\n<p>You must include an authorization header that\
@@ -2625,11 +2625,10 @@ components:
       bearerFormat: JWT
     serviceAuth:
       description:
-        The format of this token is {key_name}-{iss-uuid}-{secret-key-uuid}.  When
-        you create API key you get the secret key in the response. This secret key
-        should be used to generate a bearer token to send notifications and enquire
-        notification status. You can find more at <a href='https://docs.notifications.service.gov.uk/rest-api.html#headers'>Authentication
-        headers</a>.
+        The format of this token is \"Bearer \<value\>\".  When you create an API key, you get the secret key in the
+        response. This secret key should be used to generate a bearer token to send notifications and to request
+        notification status. You can find more information at Wikipedia's
+        <a href='https://en.wikipedia.org/wiki/JSON_Web_Token'>JSON Web Token</a> page.
       type: http
       scheme: bearer
       bearerFormat: JWT
