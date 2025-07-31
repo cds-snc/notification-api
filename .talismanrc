@@ -6,13 +6,13 @@ fileignoreconfig:
 - filename: app/schema_validation/__init__.py
   checksum: 2ed516f6558f85367a8bd377a0bf32ba39e10cc6c2db38744e8549cb83997519
 - filename: cd/application-deployment/dev/dev.env
-  checksum: d6c913a8866ad6069e77a15fac762f708ccd5e6ffd4e0255a43d5400d039f52c
+  checksum: 82d9169e79c3f7677dda803ae3ed52caba7c88ff184f2e5caffb30ba985a0365
 - filename: cd/application-deployment/perf/perf.env
-  checksum: 71ffa1989d9adcf77b1450c1138066da2d6693fe28c2c7bff24497338dca92a0
-- filename: cd/application-deployment/staging/staging.env
-  checksum: e9c5429c1bf000aa36507d7d95eadc7f72e42cd854542577417c9014e10145de
+  checksum: 79ee53401842950ad5074bc9f45abe9e16a07bedb3f2e6e61a89674b24f4c47f
 - filename: cd/application-deployment/prod/prod.env
-  checksum: 8d9d04039fc1a69294a7e47cf8975c340d6b01a28f0a3760b9c426dfee4bdea6
+  checksum: 44363d13187fc824b70ce13ce327431505ebb39043be801c5a214d7bd6d1f9e3
+- filename: cd/application-deployment/staging/staging.env
+  checksum: f116032d46f936dd1d66026000dc83f6b15213339f631064bc1d37e1d9da6b7a
 - filename: documents/openapi/openapi.yaml.backup
   checksum: cf2737abec32148fab04ec10ceba181ceeb8010642669ece3c4a97f0d6edf1ba
 - filename: documents/postman/internal_api_developers/development.postman_environment.json
@@ -53,4 +53,6 @@ fileignoreconfig:
   checksum: 259a7a5f2b60597be36e34676bc35a9cc9f83a6efcfa038fc6de7d5ec769b78a
 - filename: tests/app/notifications/test_validators.py
   checksum: aee86b735d3ad99a75c7b51da6fae7d4c460cadb7b30f07a8252a0c810cebbd5
+- filename: .github/workflows/deployment.yml
+  checksum: 3968c30477e26a632f8f24bcee18fd80dc10d6d3de2a3fc7205bd7cc4f860d7c
 version: "1.0"
