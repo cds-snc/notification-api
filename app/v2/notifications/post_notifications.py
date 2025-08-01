@@ -7,6 +7,9 @@ from flask import request, jsonify, current_app, abort
 from notifications_utils.recipients import try_validate_and_format_phone_number
 
 from app import api_user, authenticated_service, attachment_store
+from app.va.identifier import IdentifierType
+from app.feature_flags import is_feature_enabled, FeatureFlag
+from app.pii import PiiIcn, PiiEdipi, PiiBirlsid, PiiPid, PiiVaProfileID
 from app.attachments.mimetype import extract_and_validate_mimetype
 from app.attachments.store import AttachmentStoreError
 from app.attachments.types import UploadedAttachmentMetadata
@@ -47,6 +50,71 @@ from app.v2.notifications.notification_schemas import (
 from app.utils import get_public_notify_type_text
 
 
+def wrap_recipient_identifier_in_pii(form: dict) -> dict:
+    """Wrap the recipient identifier id_value in the appropriate PII class.
+
+    This function takes a form containing recipient identifier data and wraps
+    the id_value in the appropriate PII class based on the id_type. This provides
+    encryption and controlled access to personally identifiable information.
+
+    Args:
+        form (dict): The validated form data containing recipient_identifier.
+                    This dictionary may be modified in-place if a valid
+                    recipient_identifier with id_type and id_value is present.
+
+    Returns:
+        dict: The same form dictionary, potentially with the
+              recipient_identifier['id_value'] wrapped in an appropriate
+              PII class (PiiIcn, PiiEdipi, PiiBirlsid, PiiPid, or PiiVaProfileID).
+              If wrapping fails or required fields are missing, the form
+              is returned unchanged.
+
+    Note:
+        - The form parameter is modified in-place when PII wrapping occurs
+        - Unknown id_types are logged as warnings but don't raise exceptions
+        - PII instantiation errors are logged but don't prevent function completion
+        - Only processes forms that contain recipient_identifier with both id_type and id_value
+    """
+    recipient_identifier = form.get('recipient_identifier')
+    if recipient_identifier is None:
+        return form
+
+    if not isinstance(recipient_identifier, dict):
+        return form
+
+    # Get values with .get() to avoid KeyError
+    id_type: str = recipient_identifier['id_type']
+    id_value: str = recipient_identifier['id_value']
+
+    # Map id_type to appropriate PII class
+    pii_class_mapping: dict[str, type] = {
+        IdentifierType.ICN.value: PiiIcn,
+        IdentifierType.EDIPI.value: PiiEdipi,
+        IdentifierType.BIRLSID.value: PiiBirlsid,
+        IdentifierType.PID.value: PiiPid,
+        IdentifierType.VA_PROFILE_ID.value: PiiVaProfileID,
+    }
+
+    pii_class: type | None = pii_class_mapping.get(id_type)
+    if pii_class is not None:
+        try:
+            # Wrap the id_value in the appropriate PII class
+            # Use False for is_encrypted since this is raw input data
+            form['recipient_identifier']['id_value'] = pii_class(id_value, False)
+            current_app.logger.debug(
+                'Wrapped recipient identifier id_value in %s for id_type %s', pii_class.__name__, id_type
+            )
+        except Exception as e:
+            current_app.logger.error(
+                'Failed to wrap recipient identifier in PII class %s: %s', pii_class.__name__, str(e)
+            )
+            # Continue without wrapping if PII instantiation fails
+    else:
+        current_app.logger.warning('Unknown id_type %s - cannot wrap in PII class', id_type)
+
+    return form
+
+
 @v2_notification_blueprint.route('/<notification_type>', methods=['POST'])
 def post_notification(notification_type):  # noqa: C901
     created_at = datetime.now(timezone.utc)
@@ -81,6 +149,10 @@ def post_notification(notification_type):  # noqa: C901
                 get_public_notify_type_text(notification_type, plural=True)
             )
         )
+
+    # Wrap PII in recipient_identifier if feature flag is enabled
+    if is_feature_enabled(FeatureFlag.PII_ENABLED):
+        form = wrap_recipient_identifier_in_pii(form)
 
     scheduled_for = form.get('scheduled_for')
 

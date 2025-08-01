@@ -4,6 +4,7 @@ import os
 from random import randint, randrange
 from typing import List, Union
 from uuid import UUID, uuid4
+from unittest.mock import patch
 
 import boto3
 import pytest
@@ -83,6 +84,7 @@ from app.models import (
     user_to_organisation,
     UserServiceRoles,
 )
+from app.pii import PiiEncryption
 from app.va.va_profile import VAProfileClient
 
 from flask import current_app, url_for
@@ -104,6 +106,28 @@ from tests.app.db import (
 # Tests only run against email/sms. API also considers letters
 RESTRICTED_TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE]
 MOCK_VA_PROFILE_URL = 'http://mock.vaprofile.va.gov'
+
+# PII encryption test setup
+# Constant test key for consistent encryption/decryption during tests
+# Using a fixed test key - this is only for testing and not a real secret
+# The value is the base64 encoding of "This is an 32 byte key for tests"
+TEST_KEY = b'VGhpcyBpcyBhbiAzMiBieXRlIGtleSBmb3IgdGVzdHM='
+
+
+@pytest.fixture(scope='session', autouse=True)
+def setup_encryption():
+    """Setup encryption with a consistent key for tests.
+
+    This fixture resets the PiiEncryption singleton to use a test key
+    for consistent encryption/decryption during tests.
+    """
+
+    with (
+        patch.object(PiiEncryption, '_key', None),
+        patch.object(PiiEncryption, '_fernet', None),
+        patch.dict(os.environ, {'PII_ENCRYPTION_KEY': TEST_KEY.decode()}),
+    ):
+        yield
 
 
 def json_compare(a, b) -> bool:

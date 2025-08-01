@@ -1,18 +1,24 @@
 fileignoreconfig:
+- filename: .github/workflows/deployment.yml
+  checksum: 3968c30477e26a632f8f24bcee18fd80dc10d6d3de2a3fc7205bd7cc4f860d7c
 - filename: app/authentication/auth.py
   checksum: 0d31a30774f44280e8cc5268d6219bbb95e3010cf23ec42a0a5bf61e66387512
 - filename: app/dao/api_key_dao.py
   checksum: 41f293bd2fec0848acbf931cdb67d0a04e8aa6d0a898b15c1caed7d7d36d33db
+- filename: app/delivery_status/rest.py
+  checksum: 259a7a5f2b60597be36e34676bc35a9cc9f83a6efcfa038fc6de7d5ec769b78a
+- filename: app/notifications/validators.py
+  checksum: 88a4c4bc599d56b05dba3217ac8810b7c5d050ed2117b23b295f8eb180fcad2f
 - filename: app/schema_validation/__init__.py
   checksum: 2ed516f6558f85367a8bd377a0bf32ba39e10cc6c2db38744e8549cb83997519
 - filename: cd/application-deployment/dev/dev.env
-  checksum: 82d9169e79c3f7677dda803ae3ed52caba7c88ff184f2e5caffb30ba985a0365
+  checksum: a860082ee1a33825f366938fadc825b90dff487f7e64c8fbc0d6e40fc15bd13c
 - filename: cd/application-deployment/perf/perf.env
-  checksum: 79ee53401842950ad5074bc9f45abe9e16a07bedb3f2e6e61a89674b24f4c47f
+  checksum: 4ba964987a838c30d29b4bf99f60673305d0f8e092a8f97d10038494f9cb3c64
 - filename: cd/application-deployment/prod/prod.env
-  checksum: 44363d13187fc824b70ce13ce327431505ebb39043be801c5a214d7bd6d1f9e3
+  checksum: 378292f5977a4f724447a5184c5b0ff2b1de3982cfc82d80c741c88162adae63
 - filename: cd/application-deployment/staging/staging.env
-  checksum: f116032d46f936dd1d66026000dc83f6b15213339f631064bc1d37e1d9da6b7a
+  checksum: aafb571f7e1fd7d58c56e41260c013f71a9c8fe537596f8ba4ebaafbb6e84bce
 - filename: documents/openapi/openapi.yaml.backup
   checksum: cf2737abec32148fab04ec10ceba181ceeb8010642669ece3c4a97f0d6edf1ba
 - filename: documents/postman/internal_api_developers/development.postman_environment.json
@@ -34,25 +40,21 @@ fileignoreconfig:
 - filename: tests/app/authentication/test_authentication.py
   checksum: 75ce4ecbb6ef86dd06db54dcf66329b7749ff9024c7d88c218f43033d03deb73
 - filename: tests/app/conftest.py
-  checksum: 2a7e0177e4db4954cfe6711cf9a38722ab4e6b0d434522453f6c12a9f5a02809
+  checksum: 2703a8d6533ad7fc55650dfd22e72d483df1cdd7226b8368776faaabdb0885f4
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 85adfc0462c0354d7078fbc21feeeba1b49a0fefd3463f7a830a9e7812b6caf8
 - filename: tests/app/db.py
   checksum: 01cc48ec42c0665091dd0ef8b8ee6430552344f0caa0c1c2b387b6adfdf5d62a
+- filename: tests/app/delivery_status/test_pinpointv2_delivery_status.py
+  checksum: 5de36ef9083207a8386decef757ed4610a00dfef623cfa48e042674001f820fa
+- filename: tests/app/notifications/test_validators.py
+  checksum: aee86b735d3ad99a75c7b51da6fae7d4c460cadb7b30f07a8252a0c810cebbd5
 - filename: tests/app/pii/test_pii.py
   checksum: 179577f6d786debcf081f7c3f3f36a28776abdb6598d04c5fc97bb8391559880
 - filename: tests/app/service/test_api_key_endpoints.py
   checksum: e46cc0b0e7b9afb0a1d30a1142f024091334d15b2292c43b76b7dcb35e64c5ad
-- filename: app/notifications/validators.py
-  checksum: 88a4c4bc599d56b05dba3217ac8810b7c5d050ed2117b23b295f8eb180fcad2f
 - filename: tests/app/test_validate.py
   checksum: 38948b94d8fdcdf64d3da02ffb50d170838ce783f3a1e3350b7b7bcdcb7cb1ca
-- filename: tests/app/delivery_status/test_pinpointv2_delivery_status.py
-  checksum: 5de36ef9083207a8386decef757ed4610a00dfef623cfa48e042674001f820fa
-- filename: app/delivery_status/rest.py
-  checksum: 259a7a5f2b60597be36e34676bc35a9cc9f83a6efcfa038fc6de7d5ec769b78a
-- filename: tests/app/notifications/test_validators.py
-  checksum: aee86b735d3ad99a75c7b51da6fae7d4c460cadb7b30f07a8252a0c810cebbd5
-- filename: .github/workflows/deployment.yml
-  checksum: 3968c30477e26a632f8f24bcee18fd80dc10d6d3de2a3fc7205bd7cc4f860d7c
+- filename: tests/app/v2/notifications/test_pii_wrapping_at_entrypoint.py
+  checksum: 4dcd257865daa286c737d6a76e141e8b9aee66c0642524447c394554643b7712
 version: "1.0"

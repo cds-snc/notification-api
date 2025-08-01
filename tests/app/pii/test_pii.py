@@ -4,12 +4,7 @@ from unittest.mock import patch
 
 from app.pii import PiiEncryption, PiiLevel, Pii
 from app.va.identifier import IdentifierType
-
-
-# Constant test key for consistent encryption/decryption during tests
-# Using a fixed test key - this is only for testing and not a real secret
-# The value is the base64 encoding of "This is an 32 byte key for tests"
-TEST_KEY = b'VGhpcyBpcyBhbiAzMiBieXRlIGtleSBmb3IgdGVzdHM='
+from tests.app.conftest import TEST_KEY
 
 
 class PiiHigh(Pii):
@@ -41,21 +36,6 @@ class PiiIcn(Pii):
         return IdentifierType.ICN
 
 
-@pytest.fixture(autouse=True)
-def setup_encryption():
-    """Setup encryption with a consistent key for tests.
-
-    This fixture resets the PiiEncryption singleton to use a test key
-    for consistent encryption/decryption during tests.
-    """
-    with (
-        patch.object(PiiEncryption, '_key', None),
-        patch.object(PiiEncryption, '_fernet', None),
-        patch.dict(os.environ, {'PII_ENCRYPTION_KEY': TEST_KEY.decode()}),
-    ):
-        yield
-
-
 class TestPiiEncryption:
     """Tests for the PiiEncryption class."""
 
@@ -75,7 +55,7 @@ class TestPiiEncryption:
 
     def test_get_encryption_uses_environment_variable(self):
         """Test that get_encryption uses the environment variable if available."""
-        # The setup_encryption fixture already sets up the environment variable
+        # The shared setup_encryption fixture already sets up the environment variable
         # and resets the singleton state, so we can directly test
         pii_encryption = PiiEncryption.get_encryption()
         assert pii_encryption is not None
