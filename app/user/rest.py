@@ -250,7 +250,7 @@ def verify_user_code(user_id):
 
     email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
     if not (
-        current_app.config["NOTIFY_ENVIRONMENT"] == "development"
+        current_app.config["NOTIFY_ENVIRONMENT"] in ("development", "staging")
         and "notification.canada.ca" not in request.host
         and user_to_verify.email_address.startswith(email_prefix)
         and user_to_verify.email_address.endswith("@cds-snc.ca")
@@ -308,7 +308,7 @@ def verify_2fa_code(user_id):
 
     email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
     if not (
-        current_app.config["NOTIFY_ENVIRONMENT"] == "development"
+        current_app.config["NOTIFY_ENVIRONMENT"] in ("development", "staging")
         and "notification.canada.ca" not in request.host
         and user_to_verify.email_address.startswith(email_prefix)
         and user_to_verify.email_address.endswith("@cds-snc.ca")
