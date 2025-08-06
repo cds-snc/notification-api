@@ -1,5 +1,6 @@
 import functools
 from datetime import datetime
+import hmac
 from typing import Callable
 from uuid import uuid4
 
@@ -242,3 +243,12 @@ def handle_admin_key(
     except TokenError:
         # TokenError is the base class for token decoding exceptions.
         raise AuthError('Invalid token: signature, api token is not valid', 403)
+
+
+def validate_pinpoint_firehose_api_key():
+    api_key = request.headers.get('X-Amz-Firehose-Access-Key', None)
+    if not api_key:
+        raise AuthError('Unauthorized, api key must be provided', 401)
+
+    if not hmac.compare_digest(api_key, current_app.config.get('AWS_PINPOINT_FIREHOSE_API_KEY')):
+        raise AuthError('Invalid, api key is not valid', 403)

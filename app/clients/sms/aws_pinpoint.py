@@ -1,6 +1,5 @@
 from datetime import datetime
 from logging import Logger
-import os
 from time import monotonic
 from typing import Tuple
 
@@ -33,8 +32,6 @@ from app.constants import (
 )
 from app.exceptions import InvalidProviderException
 from app.feature_flags import FeatureFlag, is_feature_enabled
-
-PINPOINT_SMS_VOICE_V2_CONFIGURATION_SET_NAME = os.getenv('PINPOINT_SMS_VOICE_V2_CONFIGURATION_SET_NAME')
 
 
 class AwsPinpointException(SmsClientResponseException):
@@ -75,6 +72,7 @@ class AwsPinpointClient(SmsClient):
     def init_app(
         self,
         aws_pinpoint_app_id,
+        aws_pinpoint_v2_configset,
         aws_region,
         logger,
         origination_number,
@@ -83,6 +81,7 @@ class AwsPinpointClient(SmsClient):
         self._pinpoint_client = boto3.client('pinpoint', region_name=aws_region)
         self._pinpoint_sms_voice_v2_client = boto3.client('pinpoint-sms-voice-v2', region_name=aws_region)
         self.aws_pinpoint_app_id = aws_pinpoint_app_id
+        self.aws_pinpoint_v2_configset = aws_pinpoint_v2_configset
         self.aws_region = aws_region
         self.origination_number = origination_number
         self.statsd_client = statsd_client
@@ -173,7 +172,7 @@ class AwsPinpointClient(SmsClient):
                 DestinationPhoneNumber=recipient_number,
                 OriginationIdentity=aws_phone_number,
                 MessageBody=content,
-                ConfigurationSetName=PINPOINT_SMS_VOICE_V2_CONFIGURATION_SET_NAME,
+                ConfigurationSetName=self.aws_pinpoint_v2_configset,
             )
         else:
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint/client/send_messages.html#send-messages  # noqa

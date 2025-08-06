@@ -40,6 +40,10 @@
       ],
       "secrets": [
         {
+          "name": "PINPOINT_FIREHOSE_API_KEY",
+          "valueFrom": "arn:aws-us-gov:secretsmanager:us-gov-west-1:171875617347:secret:dev-pinpoint-firehose-api-key-20250708144854737900000001-Pg0llP"
+        },
+        {
           "name": "ADMIN_CLIENT_USER_NAME",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/dev/notification-api/admin-client-user"
         },

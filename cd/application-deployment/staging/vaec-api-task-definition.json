@@ -40,6 +40,10 @@
       ],
       "secrets": [
         {
+          "name": "PINPOINT_FIREHOSE_API_KEY",
+          "valueFrom": "arn:aws-us-gov:secretsmanager:us-gov-west-1:171875617347:secret:staging-pinpoint-firehose-api-key-20250708165601790400000002-qaKB9J"
+        },
+        {
           "name": "TWILIO_ACCOUNT_SID",
           "valueFrom": "arn:aws-us-gov:ssm:us-gov-west-1:171875617347:parameter/staging/notification-api/twilio/account-sid"
         },

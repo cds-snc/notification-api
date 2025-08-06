@@ -2,8 +2,11 @@ from contextlib import suppress
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.exceptions import UnsupportedMediaType
 
+from app.errors import register_errors
+
 
 pinpoint_v2_blueprint = Blueprint('pinpoint_v2', __name__)
+register_errors(pinpoint_v2_blueprint)
 
 
 @pinpoint_v2_blueprint.route('/delivery-status/sms/pinpointv2', methods=['POST'])

@@ -31,7 +31,6 @@ def test_all_routes_have_authentication(client, mocker):
         '/',
         '/_status',
         '/_status/live-service-and-organisation-counts',
-        '/delivery-status/sms/pinpointv2',
         '/ga4/open-email-tracking/<notification_id>',
         '/internal/<generic>',
         '/internal/sleep',

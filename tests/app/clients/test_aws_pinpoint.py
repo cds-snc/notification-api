@@ -20,6 +20,7 @@ def aws_pinpoint_client(notify_api, mocker):
         logger = mocker.Mock()
         aws_pinpoint_client.init_app(
             aws_pinpoint_app_id=TEST_ID,
+            aws_pinpoint_v2_configset='dev',
             aws_region='some-aws-region',
             logger=logger,
             origination_number='+10000000000',
