@@ -4,11 +4,11 @@ fileignoreconfig:
 - filename: app/authentication/auth.py
   checksum: 90488ef0e7b4dd68c948adcc0cfddf4675618a826295bb0932137936cc0705e8
 - filename: app/config.py
-  checksum: 8d8d9787f28c2dd476cc20276d6f3407f8050dc89e593239e7ad7fa0f5ab06b9
+  checksum: 9fdb58779702b0c101705671b34f6c337dc05afaff154b8fe878c98c2333d859
 - filename: app/dao/api_key_dao.py
   checksum: 41f293bd2fec0848acbf931cdb67d0a04e8aa6d0a898b15c1caed7d7d36d33db
 - filename: app/delivery_status/rest.py
-  checksum: 259a7a5f2b60597be36e34676bc35a9cc9f83a6efcfa038fc6de7d5ec769b78a
+  checksum: c41c997f21122c0290e69e03e7a43b968c85d2778088cdb87af027b18d4ecf93
 - filename: app/notifications/validators.py
   checksum: 88a4c4bc599d56b05dba3217ac8810b7c5d050ed2117b23b295f8eb180fcad2f
 - filename: app/schema_validation/__init__.py
@@ -51,12 +51,14 @@ fileignoreconfig:
   checksum: 75ce4ecbb6ef86dd06db54dcf66329b7749ff9024c7d88c218f43033d03deb73
 - filename: tests/app/conftest.py
   checksum: 2703a8d6533ad7fc55650dfd22e72d483df1cdd7226b8368776faaabdb0885f4
+- filename: tests/app/clients/test_aws_pinpoint.py
+  checksum: df5d55fa1f3c06c82dc2a21f5174cb2273815708250ace045fab0069599966cd
 - filename: tests/app/dao/test_api_key_dao.py
   checksum: 85adfc0462c0354d7078fbc21feeeba1b49a0fefd3463f7a830a9e7812b6caf8
 - filename: tests/app/db.py
   checksum: 01cc48ec42c0665091dd0ef8b8ee6430552344f0caa0c1c2b387b6adfdf5d62a
 - filename: tests/app/delivery_status/test_pinpointv2_delivery_status.py
-  checksum: b046fd0bbc1252eac713d92b8bdfd7c0bb95df9f7a4556521c0e6aed0aa49f17
+  checksum: a38445d5d7a10838c3e8ff193fd8e9ff8f66d849f01b411cac4ca8542d55a1d9
 - filename: tests/app/notifications/test_validators.py
   checksum: aee86b735d3ad99a75c7b51da6fae7d4c460cadb7b30f07a8252a0c810cebbd5
 - filename: tests/app/pii/test_pii.py

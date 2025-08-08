@@ -275,27 +275,64 @@ class AwsPinpointClient(SmsClient):
             SmsStatusRecord: Object representing an sms status
         """
         if not isinstance(delivery_status_message, dict):
-            self.logger.error('Did not receive pinpoint delivery status as a string')
+            self.logger.error('Did not receive pinpoint delivery status as a dict')
             raise NonRetryableException(f'Incorrect datatype sent to pinpoint, {UNABLE_TO_TRANSLATE}')
 
-        if delivery_status_message.get('attributes', {}).get('destination_phone_number'):
-            # Replace the last 4 charactes with X. Works with empty strings
-            delivery_status_message['attributes']['destination_phone_number'] = (
-                f'{delivery_status_message["attributes"]["destination_phone_number"][:-4]}XXXX'
-            )
-        self.logger.info('Translate raw delivery status pinpoint: %s', delivery_status_message)
+        if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2):
+            # PinpointSMSVoiceV2 format
+            # Handle phone number masking for PinpointSMSVoiceV2 format
+            # https://docs.aws.amazon.com/sms-voice/latest/userguide/configuration-sets-event-types.html
+            if delivery_status_message.get('destinationPhoneNumber'):
+                delivery_status_message['destinationPhoneNumber'] = (
+                    f'{delivery_status_message["destinationPhoneNumber"][:-4]}XXXX'
+                )
 
-        pinpoint_attributes = delivery_status_message['attributes']
-        event_type = delivery_status_message['event_type']
-        record_status = pinpoint_attributes['record_status']
-        status, status_reason = self._get_aws_status(event_type, record_status)
+            self.logger.info('Translate raw delivery status PinpointSMSVoiceV2: %s', delivery_status_message)
+
+            if 'eventType' not in delivery_status_message or 'messageId' not in delivery_status_message:
+                self.logger.error('Missing required V2 fields in message: %s', delivery_status_message)
+                raise NonRetryableException(f'Invalid PinpointSMSVoiceV2 message format, {UNABLE_TO_TRANSLATE}')
+
+            event_type = delivery_status_message['eventType']
+            message_status = delivery_status_message['messageStatus']
+            status, status_reason = self._get_aws_status(event_type, message_status)
+
+            # Convert price from dollars to millicents for consistency
+            price_in_millicents = int(delivery_status_message.get('totalMessagePrice', 0) * 1000)
+            message_id = delivery_status_message['messageId']
+            total_message_parts = delivery_status_message.get('totalMessageParts', 1)
+            timestamp = datetime.fromtimestamp(delivery_status_message['eventTimestamp'] / 1000)
+        else:
+            # Pinpoint V1 format (legacy)
+            # Handle phone number masking for V1 format
+            if delivery_status_message.get('attributes', {}).get('destination_phone_number'):
+                delivery_status_message['attributes']['destination_phone_number'] = (
+                    f'{delivery_status_message["attributes"]["destination_phone_number"][:-4]}XXXX'
+                )
+
+            self.logger.info('Translate raw delivery status Pinpoint V1: %s', delivery_status_message)
+
+            if 'attributes' not in delivery_status_message or 'event_type' not in delivery_status_message:
+                self.logger.error('Missing required V1 fields in message: %s', delivery_status_message)
+                raise NonRetryableException(f'Invalid Pinpoint V1 message format, {UNABLE_TO_TRANSLATE}')
+
+            pinpoint_attributes = delivery_status_message['attributes']
+            event_type = delivery_status_message['event_type']
+            record_status = pinpoint_attributes['record_status']
+            status, status_reason = self._get_aws_status(event_type, record_status)
+
+            price_in_millicents = delivery_status_message['metrics']['price_in_millicents_usd']
+            message_id = pinpoint_attributes['message_id']
+            total_message_parts = int(pinpoint_attributes.get('number_of_message_parts', 1))
+            timestamp = datetime.fromtimestamp(delivery_status_message['event_timestamp'] / 1000)
+
         return SmsStatusRecord(
             None,
-            pinpoint_attributes['message_id'],
+            message_id,
             status,
             status_reason,
             PINPOINT_PROVIDER,
-            pinpoint_attributes['number_of_message_parts'],
-            delivery_status_message['metrics']['price_in_millicents_usd'],
-            datetime.fromtimestamp(delivery_status_message['event_timestamp'] / 1000),
+            total_message_parts,
+            price_in_millicents,
+            timestamp,
         )
