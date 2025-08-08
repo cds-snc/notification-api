@@ -17,6 +17,7 @@ from app.clients.sms import SmsClient, SmsStatusRecord, UNABLE_TO_TRANSLATE
 from app.constants import (
     CARRIER_SMS_MAX_RETRIES,
     CARRIER_SMS_MAX_RETRY_WINDOW,
+    CELERY_RETRY_BACKOFF_MAX,
     DELIVERY_STATUS_CALLBACK_TYPE,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -41,7 +42,7 @@ from app.utils import get_redis_retry_key
     autoretry_for=(AutoRetryException,),
     max_retries=585,
     retry_backoff=True,
-    retry_backoff_max=300,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def process_delivery_status(

@@ -4,7 +4,7 @@ from flask import current_app
 
 from app import notify_celery, va_profile_client
 from app.celery.exceptions import AutoRetryException
-from app.constants import DATETIME_FORMAT, EMAIL_TYPE
+from app.constants import CELERY_RETRY_BACKOFF_MAX, DATETIME_FORMAT, EMAIL_TYPE
 from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import Notification
 
@@ -55,7 +55,7 @@ def check_and_queue_va_profile_notification_status_callback(notification: Notifi
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 def send_notification_status_to_va_profile(notification_data: dict) -> None:
     """

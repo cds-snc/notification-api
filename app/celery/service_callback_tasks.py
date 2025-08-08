@@ -13,7 +13,13 @@ from app.callback.queue_callback_strategy import QueueCallbackStrategy
 from app.callback.webhook_callback_strategy import generate_callback_signature, WebhookCallbackStrategy
 from app.celery.exceptions import AutoRetryException, NonRetryableException, RetryableException
 from app.config import QueueNames
-from app.constants import DATETIME_FORMAT, HTTP_TIMEOUT, QUEUE_CHANNEL_TYPE, WEBHOOK_CHANNEL_TYPE
+from app.constants import (
+    CELERY_RETRY_BACKOFF_MAX,
+    DATETIME_FORMAT,
+    HTTP_TIMEOUT,
+    QUEUE_CHANNEL_TYPE,
+    WEBHOOK_CHANNEL_TYPE,
+)
 from app.dao.complaint_dao import fetch_complaint_by_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.service_callback_api_dao import (
@@ -54,11 +60,11 @@ def service_callback_send(
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def send_delivery_status_to_service(
-    self,
+    self: Task,
     service_callback_id,
     notification_id,
     encrypted_status_update,
@@ -93,7 +99,12 @@ def send_delivery_status_to_service(
     except RetryableException:
         try:
             current_app.logger.warning(
-                'Retrying: %s failed for %s, url %s.', self.name, logging_tags, service_callback.url
+                'Retrying: %s failed for %s, url %s. Retries: %s / %s',
+                self.name,
+                logging_tags,
+                service_callback.url,
+                self.request.retries,
+                self.max_retries,
             )
             raise AutoRetryException('Found RetryableException, autoretrying...')
         except self.MaxRetriesExceededError:
@@ -106,7 +117,7 @@ def send_delivery_status_to_service(
             raise
     except NonRetryableException:
         current_app.logger.critical(
-            'Not retrying: %s failed for %s, url: %s. ', self.name, logging_tags, service_callback.url
+            'Not retrying: %s failed for %s, url: %s.', self.name, logging_tags, service_callback.url
         )
         raise
 
@@ -118,7 +129,7 @@ def send_delivery_status_to_service(
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def send_complaint_to_service(
@@ -176,7 +187,7 @@ def send_complaint_to_service(
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def send_complaint_to_vanotify(
@@ -216,7 +227,7 @@ def send_complaint_to_vanotify(
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def send_inbound_sms_to_service(
@@ -389,7 +400,7 @@ def check_and_queue_service_callback_task(notification: Notification, payload=No
     autoretry_for=(AutoRetryException,),
     max_retries=60,
     retry_backoff=True,
-    retry_backoff_max=3600,
+    retry_backoff_max=CELERY_RETRY_BACKOFF_MAX,
 )
 @statsd(namespace='tasks')
 def send_delivery_status_from_notification(
