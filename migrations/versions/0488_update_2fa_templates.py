@@ -192,11 +192,15 @@ def upgrade():
     """
 
     for template in templates:
+        # Escape single quotes in content and subject for SQL
+        escaped_content = template["content"].replace("'", "''")
+        escaped_subject = template["subject"].replace("'", "''") if template["subject"] is not None else None
+        
         if template["subject"] is not None:
             op.execute(
                 template_update.format(
-                    template["content"],
-                    template["subject"],
+                    escaped_content,
+                    escaped_subject,
                     template["version"],
                     datetime.utcnow(),
                     template["id"],
@@ -205,7 +209,7 @@ def upgrade():
         else:
             op.execute(
                 template_update_no_subject.format(
-                    template["content"],
+                    escaped_content,
                     template["version"],
                     datetime.utcnow(),
                     template["id"],
@@ -218,9 +222,9 @@ def upgrade():
                 template["name"],
                 template["template_type"],
                 datetime.utcnow(),
-                template["content"],
+                escaped_content,
                 current_app.config["NOTIFY_SERVICE_ID"],
-                template["subject"] if template["subject"] is not None else "",
+                escaped_subject if escaped_subject is not None else "",
                 current_app.config["NOTIFY_USER_ID"],
                 template["version"],
                 template["process_type"],
