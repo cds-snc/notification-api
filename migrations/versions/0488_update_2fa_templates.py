@@ -16,7 +16,7 @@ down_revision = "0487_update_user_auth_constraint"
 
 templates = [
     {
-        "id": "5b39e16a-9ff8-487c-9bfb-9e06bdb70f36",
+        "id": current_app.config["ACCOUNT_CHANGE_TEMPLATE_ID"],
         "template_type": "email",
         "subject": "Account information changed | Renseignements de compte modifiés",
         "content": """[[fr]]
@@ -40,10 +40,9 @@ Vous avez effectué une ou plusieurs modifications dans votre profil [Notificati
 
 **Si vous n'avez pas effectué ces modifications**, veuillez [nous joindre](https://notification.canada.ca/contact?lang=fr) immédiatement.
 [[/fr]]""",
-        "process_type": "priority",
     },
     {
-        "id": "6e97fd09-6da0-4cc8-829d-33cf5b818103",
+        "id": current_app.config["EMAIL_MAGIC_LINK_TEMPLATE_ID"],
         "template_type": "email",
         "subject": "Sign in | Connectez-vous",
         "content": """[[fr]]
@@ -69,10 +68,9 @@ Connectez-vous à Notification GC à l'aide du lien magique :
 
 L'équipe Notification GC
 [[/fr]]""",
-        "process_type": "priority",
     },
     {
-        "id": "ece42649-22a8-4d06-b87f-d52d5d3f0a27",
+        "id": current_app.config["NEW_USER_EMAIL_VERIFICATION_TEMPLATE_ID"],
         "template_type": "email",
         "subject": "Confirm your registration | Confirmer votre inscription",
         "content": """[[fr]]
@@ -98,10 +96,9 @@ Pour terminer votre inscription à Notification GC, utilisez le lien suivant :
 
 L'équipe Notification GC
 [[/fr]]""",
-        "process_type": "priority",
     },
     {
-        "id": "299726d2-dba6-42b8-8209-30e1d66ea164",
+        "id": current_app.config["EMAIL_2FA_TEMPLATE_ID"],
         "template_type": "email",
         "subject": "Sign in | Connectez-vous",
         "content": """[[fr]]
@@ -129,17 +126,15 @@ Terminez votre connexion à Notification GC en saisissant le code de sécurité 
 
 L'équipe Notification GC
 [[/fr]]""",
-        "process_type": "priority",
     },
     {
-        "id": "36fb0730-6259-4da1-8a80-c8de22ad4246",
+        "id": current_app.config["SMS_CODE_TEMPLATE_ID"],
         "template_type": "sms",
         "subject": None,
         "content": "((verify_code)) is your GC Notify authentication code | ((verify_code)) est votre code d'authentification de Notification GC",
-        "process_type": "priority",
     },
     {
-        "id": "eb4d9930-87ab-4aef-9bce-786762687884",
+        "id": current_app.config["CHANGE_EMAIL_CONFIRMATION_TEMPLATE_ID"],
         "template_type": "email",
         "subject": "Confirm new email address | Confirmer votre nouvelle adresse courriel",
         "content": """[[fr]]
@@ -167,7 +162,6 @@ Confirmez votre nouvelle adresse courriel pour Notification GC à l'aide du lien
 
 L'équipe Notification GC
 [[/fr]]""",
-        "process_type": "priority",
     },
 ]
 
@@ -178,8 +172,10 @@ def upgrade():
     for template in templates:
         current_version = conn.execute("select version from templates where id='{}'".format(template["id"])).fetchone()
         name = conn.execute("select name from templates where id='{}'".format(template["id"])).fetchone()
+        process_type = conn.execute("select process_type from templates where id='{}'".format(template["id"])).fetchone()
         template["version"] = current_version[0] + 1
         template["name"] = name[0]
+        template["process_type"] = process_type[0]
 
     template_update = """
         UPDATE templates SET content = '{}', subject = '{}', version = '{}', updated_at = '{}'
