@@ -293,7 +293,7 @@ def verify_2fa_code(user_id):
 
     Raises:
         InvalidRequest: Code already sent
-        InvalidRequest: Try again. Something’s wrong with this password
+        InvalidRequest: Try again. Something’s wrong with this code
         InvalidRequest: Code has expired
         InvalidRequest: Code has already been used
 
@@ -318,7 +318,7 @@ def verify_2fa_code(user_id):
         if verify_within_time(user_to_verify) >= 2:
             raise InvalidRequest("Code already sent", status_code=400)
         if not code:
-            raise InvalidRequest("Try again. Something’s wrong with this password", status_code=404)
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
         if datetime.utcnow() > code.expiry_datetime:
             raise InvalidRequest("Code has expired", status_code=400)
         if code.code_used:
