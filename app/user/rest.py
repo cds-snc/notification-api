@@ -261,10 +261,10 @@ def verify_user_code(user_id):
             raise InvalidRequest("Code already sent", status_code=400)
 
         if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
-            raise InvalidRequest("Code not found", status_code=404)
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
         if not code:
             increment_failed_login_count(user_to_verify)
-            raise InvalidRequest("Code not found", status_code=404)
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
         if datetime.utcnow() > code.expiry_datetime:
             # sms and email
             increment_failed_login_count(user_to_verify)
@@ -293,7 +293,7 @@ def verify_2fa_code(user_id):
 
     Raises:
         InvalidRequest: Code already sent
-        InvalidRequest: Code not found
+        InvalidRequest: Try again. Something’s wrong with this password
         InvalidRequest: Code has expired
         InvalidRequest: Code has already been used
 
@@ -318,7 +318,7 @@ def verify_2fa_code(user_id):
         if verify_within_time(user_to_verify) >= 2:
             raise InvalidRequest("Code already sent", status_code=400)
         if not code:
-            raise InvalidRequest("Code not found", status_code=404)
+            raise InvalidRequest("Try again. Something’s wrong with this password", status_code=404)
         if datetime.utcnow() > code.expiry_datetime:
             raise InvalidRequest("Code has expired", status_code=400)
         if code.code_used:
