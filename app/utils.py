@@ -174,6 +174,7 @@ def update_dct_to_str(update_dct, lang):
             "auth_type": "second verification method changed",
             "security_key_created": "security key added",
             "security_key_deleted": "security key removed",
+            "verified_phonenumber": "phone number verification",
         },
         "FR": {
             "password": "Mot de passe modifié",
@@ -183,6 +184,7 @@ def update_dct_to_str(update_dct, lang):
             "auth_type": "Deuxième méthode de vérification modifiée",
             "security_key_created": "Clé de sécurité ajoutée",
             "security_key_deleted": "Clé de sécurité supprimée",
+            "verified_phonenumber": "Vérification du numéro de téléphone",
         },
     }
 
