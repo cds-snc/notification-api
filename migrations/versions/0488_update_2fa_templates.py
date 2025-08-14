@@ -219,7 +219,7 @@ def upgrade():
                     escaped_content,
                     template["version"],
                     datetime.utcnow(),
-                    auth_template_category_id,
+                    template["category_id"],
                     template["id"],
                 )
             )
@@ -235,7 +235,7 @@ def upgrade():
                 escaped_subject if escaped_subject is not None else "",
                 current_app.config["NOTIFY_USER_ID"],
                 template["version"],
-                auth_template_category_id,
+                template["category_id"],
             )
         )
 
