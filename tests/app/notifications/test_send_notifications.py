@@ -185,7 +185,6 @@ def test_send_notification_bypass_route_sms_with_recipient_item(
     send_to_queue_for_recipient_info_based_on_recipient_identifier_mock.assert_called_with(
         notification=notification,
         id_type=recipient_item['id_type'],
-        id_value=recipient_item['id_value'],
         communication_item_id=template.communication_item_id,
     )
 
@@ -284,6 +283,5 @@ def test_send_notification_bypass_route_email_with_recipient_item(
     send_to_queue_for_recipient_info_based_on_recipient_identifier_mock.assert_called_with(
         notification=notification,
         id_type=recipient_item['id_type'],
-        id_value=recipient_item['id_value'],
         communication_item_id=template.communication_item_id,
     )

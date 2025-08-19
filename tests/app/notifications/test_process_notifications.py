@@ -850,9 +850,7 @@ def test_send_notification_to_correct_queue_to_lookup_contact_info(
     notification = Notification(id=notification_id, notification_type=notification_type, template=template)
     mock_template_id = uuid.uuid4()
 
-    send_to_queue_for_recipient_info_based_on_recipient_identifier(
-        notification, id_type, 'some_id_value', mock_template_id
-    )
+    send_to_queue_for_recipient_info_based_on_recipient_identifier(notification, id_type, mock_template_id)
 
     args, _ = mocked_chain.call_args
     for called_task, expected_task in zip(args, expected_tasks):

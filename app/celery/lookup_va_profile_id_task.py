@@ -2,14 +2,17 @@ from celery import Task
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 
-from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND
-from app.exceptions import NotificationTechnicalFailureException
-from app.models import RecipientIdentifier
+from app import mpi_client
 from app import notify_celery
+from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND
 from app.celery.common import can_retry, handle_max_retries_exceeded
 from app.celery.exceptions import AutoRetryException
+from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao import notifications_dao
-from app import mpi_client
+from app.exceptions import NotificationTechnicalFailureException
+from app.feature_flags import FeatureFlag, is_feature_enabled
+from app.models import RecipientIdentifier
+from app.pii.pii_low import PiiVaProfileID
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
     MpiRetryableException,
@@ -19,7 +22,6 @@ from app.va.mpi import (
     IncorrectNumberOfIdentifiersException,
     NoSuchIdentifierException,
 )
-from app.celery.service_callback_tasks import check_and_queue_callback_task
 
 
 @notify_celery.task(
@@ -39,8 +41,18 @@ def lookup_va_profile_id(
     current_app.logger.info(f'Retrieving VA Profile ID from MPI for notification {notification_id}')
     notification = notifications_dao.get_notification_by_id(notification_id)
 
+    if notification.recipient_identifiers.get(IdentifierType.VA_PROFILE_ID.value):
+        current_app.logger.warning('The VA Profile ID is already known.  This is an unnecessary lookup.')
+
     try:
         va_profile_id = mpi_client.get_va_profile_id(notification)
+
+        # TODO #2340 - This code block causes regression failures with,
+        # "ValueError: Fernet key must be 32 url-safe base64-encoded bytes."
+        # if is_feature_enabled(FeatureFlag.PII_ENABLED):
+        #     # Encrypt the value before storage.
+        #     va_profile_id = PiiVaProfileID(va_profile_id).get_encrypted_value()
+
         notification.recipient_identifiers.set(
             RecipientIdentifier(
                 notification_id=notification.id, id_type=IdentifierType.VA_PROFILE_ID.value, id_value=va_profile_id
@@ -48,11 +60,10 @@ def lookup_va_profile_id(
         )
         notifications_dao.dao_update_notification(notification)
         current_app.logger.info(
-            f'Successfully updated notification {notification_id} with VA PROFILE ID {va_profile_id}'
+            'Successfully updated notification %s with VA PROFILE ID %s', notification_id, va_profile_id
         )
 
         return va_profile_id
-
     except MpiRetryableException as e:
         if can_retry(self.request.retries, self.max_retries, notification_id):
             current_app.logger.warning(

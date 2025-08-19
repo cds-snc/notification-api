@@ -14,9 +14,9 @@ fileignoreconfig:
 - filename: app/schema_validation/__init__.py
   checksum: 2ed516f6558f85367a8bd377a0bf32ba39e10cc6c2db38744e8549cb83997519
 - filename: cd/application-deployment/dev/dev.env
-  checksum: f5d3edbf8b025bc8c8970f99529c5aac93796373d7bf007ad51e936ac94761ec
+  checksum: 3097974d6afaef1f6cd962fafec314f5e338b6294b78241d2580ed914836b5f3
 - filename: cd/application-deployment/perf/perf.env
-  checksum: 55de50add501719c521520192a27f9c2e3ddd82aa0e562f1df535adb128214eb
+  checksum: 38a0e9d958e03f1338883d220d36a39e9a64638fef8b65d9c721b68f3eef4586
 - filename: cd/application-deployment/prod/prod.env
   checksum: a56e937eada19f973d76da7696b772dce662169a3a9554e7648b99b9a5eb2b4c
 - filename: cd/application-deployment/staging/staging.env
@@ -69,4 +69,6 @@ fileignoreconfig:
   checksum: 38948b94d8fdcdf64d3da02ffb50d170838ce783f3a1e3350b7b7bcdcb7cb1ca
 - filename: tests/app/v2/notifications/test_pii_wrapping_at_entrypoint.py
   checksum: 4dcd257865daa286c737d6a76e141e8b9aee66c0642524447c394554643b7712
+- filename: tests/app/v2/notifications/test_post_notifications.py
+  checksum: a12eb5a735321d8eaa8e2ff6af4e2dbd570a11f861213fd448b11cc2ee4cd8f9
 version: "1.0"

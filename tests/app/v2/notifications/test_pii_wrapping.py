@@ -25,13 +25,13 @@ class TestPiiWrappingAtEntrypoint:
         with notify_api.app_context():
             form = {'recipient_identifier': {'id_type': id_type, 'id_value': id_value}}
 
-            result = wrap_recipient_identifier_in_pii(form)
+            wrap_recipient_identifier_in_pii(form)
 
             # id_type should remain unchanged
-            assert result['recipient_identifier']['id_type'] == id_type
+            assert form['recipient_identifier']['id_type'] == id_type
             # id_value should be wrapped in the expected PII class
-            assert isinstance(result['recipient_identifier']['id_value'], expected_pii_class)
-            assert result['recipient_identifier']['id_value'].get_pii() == id_value
+            assert isinstance(form['recipient_identifier']['id_value'], expected_pii_class)
+            assert form['recipient_identifier']['id_value'].get_pii() == id_value
 
     @pytest.mark.parametrize(
         'form',
@@ -49,10 +49,10 @@ class TestPiiWrappingAtEntrypoint:
         with notify_api.app_context():
             # Make a shallow copy since wrap_recipient_identifier_in_pii may modify the form in-place.
             original_form = form.copy()
-            result = wrap_recipient_identifier_in_pii(form)
+            wrap_recipient_identifier_in_pii(form)
 
             # Form should be unchanged for all edge cases
-            assert result == original_form
+            assert form == original_form
 
     def test_wrap_recipient_identifier_pii_instantiation_error(self, notify_api):
         """Test that PII instantiation errors are handled gracefully."""
@@ -63,11 +63,11 @@ class TestPiiWrappingAtEntrypoint:
                 'app.v2.notifications.post_notifications.PiiIcn', side_effect=Exception('PII error')
             ) as mock_pii_icn:
                 mock_pii_icn.__name__ = 'PiiIcn'
-                result = wrap_recipient_identifier_in_pii(form)
+                wrap_recipient_identifier_in_pii(form)
 
             # Form should be unchanged if PII instantiation fails
-            assert result['recipient_identifier']['id_type'] == IdentifierType.ICN.value
-            assert result['recipient_identifier']['id_value'] == 'bad_value'
+            assert form['recipient_identifier']['id_type'] == IdentifierType.ICN.value
+            assert form['recipient_identifier']['id_value'] == 'bad_value'
 
 
 class TestPiiWrappingFeatureFlag:

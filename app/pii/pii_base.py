@@ -115,7 +115,8 @@ class Pii(str):
 
         # Encrypt the value
         if is_encrypted and len(value) > 50:
-            # Workaround until all existing notification tasks and retries have been drained, then remove the len check
+            # Workaround until all existing notification tasks and retries have been drained.
+            # Then remove the length check.
             encrypted = value
         else:
             encrypted = pii_encryption.encrypt(value.encode()).decode()

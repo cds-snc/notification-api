@@ -87,6 +87,8 @@ We are concerned about the POST v2/notifications/<notification-type> endpoint. W
 
 ## Environment Configuration
 
+19 August 2025: All feature flags are False while multiple tickets are in flight fully to implement the desired behaviors.  Enabling PII in the current state causes regression failures.
+
 The `PII_ENABLED` feature flag is configured per environment:
 
 - **Dev**: `PII_ENABLED=True` ✅ (PII wrapping enabled for testing)

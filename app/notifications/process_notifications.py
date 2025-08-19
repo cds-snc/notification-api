@@ -26,17 +26,19 @@ from app.constants import (
     NOTIFICATION_CREATED,
 )
 
-from app.dao.service_sms_sender_dao import (
-    dao_get_service_sms_sender_by_id,
-    dao_get_service_sms_sender_by_service_id_and_number,
-)
-from app.dao.templates_dao import TemplateHistoryData, dao_get_template_history_by_id
-from app.models import Notification, ScheduledNotification, RecipientIdentifier, Template
 from app.dao.notifications_dao import (
     dao_create_notification,
     dao_delete_notification_by_id,
     dao_created_scheduled_notification,
 )
+from app.dao.service_sms_sender_dao import (
+    dao_get_service_sms_sender_by_id,
+    dao_get_service_sms_sender_by_service_id_and_number,
+)
+from app.dao.templates_dao import TemplateHistoryData, dao_get_template_history_by_id
+from app.feature_flags import is_feature_enabled, FeatureFlag
+from app.models import Notification, ScheduledNotification, RecipientIdentifier, Template
+from app.pii.pii_base import Pii
 from app.v2.errors import BadRequestError
 from app.utils import get_template_instance
 from app.va.identifier import IdentifierType
@@ -86,7 +88,7 @@ def persist_notification(
     billable_units=None,
     postage=None,
     template_postage=None,
-    recipient_identifier=None,
+    recipient_identifier: str | Pii = None,
     billing_code=None,
     sms_sender_id=None,
     callback_url=None,
@@ -123,10 +125,15 @@ def persist_notification(
     )
 
     if recipient_identifier:
+        # id_value is a string or Pii subclass instance.
+        recipient_identifier_value = recipient_identifier['id_value']
+        if is_feature_enabled(FeatureFlag.PII_ENABLED) and isinstance(recipient_identifier_value, Pii):
+            recipient_identifier_value = recipient_identifier_value.get_encrypted_value()
+
         _recipient_identifier = RecipientIdentifier(
             notification_id=notification_id,
             id_type=recipient_identifier['id_type'],
-            id_value=recipient_identifier['id_value'],
+            id_value=recipient_identifier_value,
         )
 
         notification.recipient_identifiers.set(_recipient_identifier)
@@ -321,7 +328,7 @@ def _get_delivery_task(
 
 
 def send_to_queue_for_recipient_info_based_on_recipient_identifier(
-    notification: Notification, id_type: str, id_value: str, communication_item_id: uuid
+    notification: Notification, id_type: str, communication_item_id: uuid
 ) -> None:
     """
     Create, enqueue, and asynchronously execute a Celery task to send a notification.

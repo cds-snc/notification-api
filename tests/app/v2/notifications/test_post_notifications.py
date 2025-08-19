@@ -26,6 +26,7 @@ from app.models import (
     RecipientIdentifier,
     ScheduledNotification,
 )
+from app.pii.pii_low import PiiVaProfileID
 from app.schema_validation import validate
 from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_email_response, post_sms_response
@@ -1464,3 +1465,54 @@ def test_post_notification_returns_400_when_billing_code_length_exceeds_max(
 
     assert response.status_code == 400
     assert 'too long' in response.json['errors'][0]['message']
+
+
+@pytest.mark.parametrize('notification_type', [EMAIL_TYPE, SMS_TYPE])
+def test_post_notification_encrypts_recipient_identifiers(
+    client,
+    mocker,
+    notify_db_session,
+    sample_template,
+    sample_api_key,
+    notification_type,
+):
+    """
+    Note that the celery tasks that actually send a notification are mocked.  This is just a test
+    that new notification POST requests encrypt recipient identifiers in the database.
+    """
+
+    mocker.patch('app.celery.lookup_va_profile_id_task.lookup_va_profile_id.apply_async')
+    mocker.patch('app.celery.contact_information_tasks.lookup_contact_info.apply_async')
+    mocker.patch.dict('os.environ', {'PII_ENABLED': 'True'})
+
+    template = sample_template(template_type=notification_type)
+    api_key = sample_api_key(service=template.service)
+
+    data = {
+        'template_id': template.id,
+        'recipient_identifier': {
+            'id_type': IdentifierType.VA_PROFILE_ID.value,
+            'id_value': 'some va profile id',
+        },
+    }
+    auth_header = create_authorization_header(api_key)
+
+    response = client.post(
+        path=f'v2/notifications/{notification_type}',
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    assert response.status_code == 201
+
+    notification_id = response.get_json()['id']
+    notification = notify_db_session.session.get(Notification, notification_id)
+    va_profile_id = notification.recipient_identifiers['VAPROFILEID'].id_value
+    pii_va_Profile_id = PiiVaProfileID(va_profile_id, True)
+
+    try:
+        assert va_profile_id != 'some va profile id', 'This value should be encrypted.'
+        assert pii_va_Profile_id.get_pii() == 'some va profile id'
+    finally:
+        notify_db_session.session.delete(notification)
+        notify_db_session.session.commit()

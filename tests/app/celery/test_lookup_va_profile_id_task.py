@@ -4,6 +4,7 @@ from app.celery.exceptions import AutoRetryException
 from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND, STATUS_REASON_UNDELIVERABLE
 from app.exceptions import NotificationTechnicalFailureException
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
+from app.pii.pii_low import PiiVaProfileID
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
     IdentifierNotFound,
@@ -16,29 +17,21 @@ from app.va.mpi import (
 )
 
 
-def test_should_call_mpi_client_and_save_va_profile_id(notify_api, mocker, sample_notification):
+@pytest.mark.parametrize('pii_enabled', [True, False])
+def test_should_call_mpi_client_and_save_va_profile_id(notify_db_session, mocker, sample_notification, pii_enabled):
     notification = sample_notification()
-    vaprofile_id = '1234'
+    assert notification.recipient_identifiers.get(IdentifierType.VA_PROFILE_ID.value) is None
 
-    mocker.patch(
-        'app.celery.lookup_va_profile_id_task.notifications_dao.get_notification_by_id', return_value=notification
-    )
-
-    mocked_dao_update_notification = mocker.patch(
-        'app.celery.lookup_va_profile_id_task.notifications_dao.dao_update_notification'
-    )
     mocked_mpi_client = mocker.Mock()
-    mocked_mpi_client.get_va_profile_id = mocker.Mock(return_value=vaprofile_id)
+    mocked_mpi_client.get_va_profile_id = mocker.Mock(return_value='1234')
     mocker.patch('app.celery.lookup_va_profile_id_task.mpi_client', new=mocked_mpi_client)
+    mocker.patch.dict('os.environ', {'PII_ENABLED': str(pii_enabled)})
 
-    lookup_va_profile_id(notification.id)
+    expected_id_value = lookup_va_profile_id(notification.id)
 
-    mocked_mpi_client.get_va_profile_id.assert_called_with(notification)
-    mocked_dao_update_notification.assert_called_once()
-    # Call args is an array of calls. Each call has tuples for args.
-    saved_notification = mocked_dao_update_notification.call_args[0][0]
-
-    assert saved_notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == vaprofile_id
+    mocked_mpi_client.get_va_profile_id.assert_called_once()
+    notify_db_session.session.refresh(notification)
+    assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == expected_id_value
 
 
 @pytest.mark.parametrize(
