@@ -1,10 +1,11 @@
+import os
+import uuid
 from datetime import datetime
 from unittest.mock import ANY
-import uuid
 
+import pytest
 from flask import current_app
 from notifications_utils.recipients import ValidatedPhoneNumber
-import pytest
 from requests import HTTPError
 from sqlalchemy import select
 
@@ -119,6 +120,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     sample_notification,
     sample_template,
     mock_email_client,
+    mocker,
     notify_api,
     mock_source_email_address,
     name_value,
@@ -134,6 +136,8 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         personalisation={'name': name_value},
         api_key=sample_api_key(service=template.service),
     )
+
+    mocker.patch.dict(os.environ, {'REVISED_TEMPLATE_RENDERING': 'False'})
 
     with set_config_values(notify_api, {'NOTIFY_EMAIL_FROM_NAME': 'Default Name'}):
         send_to_providers.send_email_to_provider(db_notification)
@@ -1010,11 +1014,6 @@ def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
     Test that emails sent through send_email_to_provider include a GA4 pixel tracking image in the HTML content
     when the feature flag is enabled.
     """
-    # Set up mocks
-    pixel_url = 'https://test-api.va.gov/vanotify/ga4/open-email-tracking/xx_notification_id_xx'
-
-    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_template_content_ff)
-    mocker.patch('app.googleanalytics.pixels.build_dynamic_ga4_pixel_tracking_url', return_value=pixel_url)
 
     # Create test data
     template = sample_template(
@@ -1029,14 +1028,18 @@ def test_send_email_to_provider_includes_ga4_pixel_tracking_in_html_content(
         api_key=sample_api_key(service=template.service),
     )
 
+    # Set up mocks
+    pixel_url = f'https://test-api.va.gov/vanotify/ga4/open-email-tracking/{db_notification.id}'
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_template_content_ff)
+    mocker.patch('app.googleanalytics.pixels.build_dynamic_ga4_pixel_tracking_url', return_value=pixel_url)
+
     send_to_providers.send_email_to_provider(db_notification)
 
     mock_email_client.send_email.assert_called_once()
     html_body = mock_email_client.send_email.call_args[1]['html_body']
 
     # Check for the GA4 pixel tracking image in the HTML content, regardless of the STORE_TEMPLATE_CONTENT feature flag
-    expected_pixel_url = pixel_url.replace('xx_notification_id_xx', str(db_notification.id))
-    expected_pixel_img = f'<img id="ga4_open_email_event_url" src="{expected_pixel_url}"'
+    expected_pixel_img = f'<img id="ga4_open_email_event_url" src="{pixel_url}"'
     assert expected_pixel_img in html_body, (
         f'GA4 pixel tracking image not found in HTML when feature enabled: {html_body}'
     )
@@ -1052,13 +1055,10 @@ def test_send_email_to_provider_html_body_is_always_string_type(
     store_content_flag,
 ):
     """
-    Test that ensures the html_body parameter passed to send_email is always a string,
-    regardless of the template content or feature flags.
+    Ensure the html_body parameter passed to send_email is always a string regardless of the template content
+    or feature flags.
     """
-    # Set up feature flag
-    mocker.patch('app.delivery.send_to_providers.is_feature_enabled', return_value=store_content_flag)
-    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_content_flag)
-    mocker.patch('app.models.is_feature_enabled', return_value=store_content_flag)
+
     template = sample_template(
         template_type=EMAIL_TYPE,
         subject='Test Subject',
@@ -1072,6 +1072,11 @@ def test_send_email_to_provider_html_body_is_always_string_type(
         personalisation={'placeholder': 'value with special chars: <>&"\''},
         api_key=sample_api_key(service=template.service),
     )
+
+    # Set up feature flag
+    mocker.patch('app.delivery.send_to_providers.is_feature_enabled', return_value=store_content_flag)
+    mocker.patch('app.dao.templates_dao.is_feature_enabled', return_value=store_content_flag)
+    mocker.patch('app.models.is_feature_enabled', return_value=store_content_flag)
 
     # Call the function under test
     send_to_providers.send_email_to_provider(db_notification)

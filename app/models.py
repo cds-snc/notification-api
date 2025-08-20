@@ -992,6 +992,11 @@ class TemplateBase(db.Model):
 
         return content
 
+    @property
+    def plain_text(self) -> str:
+        # Not implemented
+        return None
+
     def _as_utils_template(self):
         if self.template_type == EMAIL_TYPE:
             return PlainTextEmailTemplate({'content': self.content, 'subject': self.subject})

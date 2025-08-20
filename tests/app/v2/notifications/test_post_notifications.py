@@ -1516,3 +1516,41 @@ def test_post_notification_encrypts_recipient_identifiers(
     finally:
         notify_db_session.session.delete(notification)
         notify_db_session.session.commit()
+
+
+def test_post_notification_missing_email_personalization(
+    client,
+    sample_api_key,
+    sample_template,
+):
+    """
+    Missing values for personalization in the e-mail body or subject should elicit a 400 response.
+    """
+
+    template = sample_template(
+        template_type=EMAIL_TYPE,
+        subject='Hello, ((name))!',
+        content='My favorite dessert is ((dessert)).',
+    )
+    api_key = sample_api_key(service=template.service)
+    auth_header = create_authorization_header(api_key)
+
+    data = {
+        'email_address': 'Beavis@va.gov',
+        'template_id': str(template.id),
+    }
+
+    response = client.post(
+        path='/v2/notifications/email',
+        data=json.dumps(data),
+        headers=[('Content-Type', 'application/json'), auth_header],
+    )
+
+    assert response.status_code == 400
+    response_json = response.get_json()['errors'][0]
+    assert response_json['error'] == 'BadRequestError'
+
+    # The error message lists the missing placeholder names, but the order varies.
+    assert response_json['message'].startswith('Missing personalisation: ')
+    assert 'name' in response_json['message']
+    assert 'dessert' in response_json['message']

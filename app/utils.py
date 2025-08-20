@@ -158,7 +158,7 @@ def get_logo_url(base_url, logo_file):
     return f'https://{bucket}.{domain}/{logo_file}'
 
 
-def get_html_email_options(notification_id: str = 'xx_notification_id_xx') -> Dict[str, Union[str, bool]]:
+def get_html_email_options(notification_id: str = '') -> Dict[str, Union[str, bool]]:
     """
     Generate HTML email options dictionary for email rendering.
 
@@ -177,6 +177,7 @@ def get_html_email_options(notification_id: str = 'xx_notification_id_xx') -> Di
             - brand_banner: Whether to use the custom brand banner
             - ga4_open_email_event_url: Google Analytics tracking URL (if enabled)
     """
+
     options_dict = {}
     options_dict['ga4_open_email_event_url'] = build_dynamic_ga4_pixel_tracking_url(notification_id)
     options_dict.update({'default_banner': True, 'brand_banner': False})
