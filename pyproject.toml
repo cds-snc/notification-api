@@ -23,13 +23,13 @@ aws-xray-sdk = "2.14.0"
 awscli-cwlogs = "1.4.6"
 boto = "2.49.0"
 
-cachelib = "0.12.0"
+cachelib = "0.13.0"
 celery = {extras = ["sqs"], version = "5.4.0"}
 
 # Pinned dependencies
 certifi = "^2024.0.0" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
 cffi = "1.17.0"
-click-datetime = "0.2"
+click-datetime = "0.4"
 docopt = "0.6.2"
 environs = "9.5.0"       # pyup: <9.3.3 # marshmallow v3 throws errors"
 fido2 = "0.9.3"
@@ -60,8 +60,8 @@ notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", t
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.9"
 pwnedpasswords = "2.0.0"
-PyJWT = "2.9.0"
-python-dotenv = "1.0.1"
+PyJWT = "2.10.1"
+python-dotenv = "1.1.1"
 python-magic = "0.4.27"
 pytz = "2021.3"
 PyYAML = "6.0.2"
@@ -70,8 +70,8 @@ SQLAlchemy = "1.4.52"
 tldextract = "3.5.0"
 types-psycopg2 = "^2.9.21.20250516"
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
-typing-extensions = "4.12.2"
-unidecode = "1.3.8"
+typing-extensions = "4.14.1"
+unidecode = "1.4.0"
 # Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug = "3.0.4"
 
@@ -93,7 +93,7 @@ pytest-mock-resources = { extras = ["redis"], version = "2.12.0" }
 pytest-xdist = "2.5.0"
 requests-mock = "1.12.1"
 rfc3987 = "1.3.8"
-ruff = "^0.8.2"
+ruff = "^0.12.0"
 snakeviz = "2.2.0"
 sqlalchemy-stubs = "0.4"
 sqlalchemy2-stubs = "0.0.2a38"                                     # not directly required, pinned by Snyk to avoid a vulnerability
