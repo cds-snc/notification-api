@@ -24,7 +24,7 @@ COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric newrelic-lambda wheel
+    && poetry add awslambdaric wheel
 
 COPY . ${TASK_ROOT}/
 
