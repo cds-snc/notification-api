@@ -47,11 +47,9 @@ def lookup_va_profile_id(
     try:
         va_profile_id = mpi_client.get_va_profile_id(notification)
 
-        # TODO #2340 - This code block causes regression failures with,
-        # "ValueError: Fernet key must be 32 url-safe base64-encoded bytes."
-        # if is_feature_enabled(FeatureFlag.PII_ENABLED):
-        #     # Encrypt the value before storage.
-        #     va_profile_id = PiiVaProfileID(va_profile_id).get_encrypted_value()
+        if is_feature_enabled(FeatureFlag.PII_ENABLED):
+            # Encrypt the value before storage.
+            va_profile_id = PiiVaProfileID(va_profile_id).get_encrypted_value()
 
         notification.recipient_identifiers.set(
             RecipientIdentifier(

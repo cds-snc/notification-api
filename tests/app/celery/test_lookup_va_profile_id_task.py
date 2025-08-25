@@ -33,6 +33,11 @@ def test_should_call_mpi_client_and_save_va_profile_id(notify_db_session, mocker
     notify_db_session.session.refresh(notification)
     assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == expected_id_value
 
+    if pii_enabled:
+        assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value != '1234'
+    else:
+        assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == '1234'
+
 
 @pytest.mark.parametrize(
     'exception, reason, failure',

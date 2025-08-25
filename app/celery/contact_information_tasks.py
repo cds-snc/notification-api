@@ -65,6 +65,7 @@ def lookup_contact_info(
     Returns:
         None
     """
+
     current_app.logger.info('Looking up contact information for notification_id: %s.', notification_id)
 
     notification = get_notification_by_id(notification_id)
@@ -91,10 +92,12 @@ def get_profile_result(
     Args:
         notification (Notification): The Notification object to get contact info and permissions for.
         recipient_identifier (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+            If the PII_ENABLED flag is true, this value is encrypted.
 
     Returns:
         VAProfileResult: The contact info result from VA Profile.
     """
+
     if notification.notification_type == EMAIL_TYPE:
         return va_profile_client.get_email(recipient_identifier, notification)
     elif notification.notification_type == SMS_TYPE:

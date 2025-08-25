@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from enum import Enum
 from http.client import responses
 from logging import Logger
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import iso8601
 import requests
 
+from app.feature_flags import FeatureFlag, is_feature_enabled
+from app.pii.pii_low import PiiVaProfileID
 from app.utils import statsd_http
 from app.va.identifier import OIDS, IdentifierType, transform_to_fhir_format
 from app.va.va_profile import (
@@ -98,11 +100,21 @@ class VAProfileClient:
         Retrieve the profile information for a given VA profile ID using the v3 API endpoint.
 
         Args:
-            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the profile for.
+            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the profile for.  If the PII_ENABLED
+                flag is true, this value is encrypted.
 
         Returns:
-            Profile: The profile information retrieved from the VA Profile service.
+            Profile: The profile information retrieved from the VA Profile service.  Note that the
+                     identifiers are not encrypted.
         """
+
+        # This value might be encrypted.  Unencrypted values should not be logged if PII_ENABLED is True.
+        initial_id = va_profile_id.id_value
+
+        if is_feature_enabled(FeatureFlag.PII_ENABLED):
+            # Decrypt the value.
+            va_profile_id.id_value = PiiVaProfileID(initial_id, True).get_pii()
+
         recipient_id = transform_to_fhir_format(va_profile_id)
         oid = OIDS.get(IdentifierType.VA_PROFILE_ID)
         url = f'{self.va_profile_url}/profile-service/profile/v3/{oid}/{recipient_id}'
@@ -115,21 +127,27 @@ class VAProfileClient:
                 )
             response.raise_for_status()
         except (requests.HTTPError, requests.RequestException, requests.Timeout) as e:
-            self._handle_exceptions(va_profile_id.id_value, e)
+            self._handle_exceptions(initial_id, e)
 
         response_json: dict = response.json()
         return response_json.get('profile', {})
 
-    def get_mobile_telephone_from_contact_info(self, contact_info: ContactInformation) -> Optional[str]:
+    def get_mobile_telephone_from_contact_info(self, contact_info: ContactInformation) -> str | None:
         """
         Find the most recently created mobile phone number from a veteran's Vet360 contact information
 
         Args:
-            contact_info (ContactInformation):  Contact Information object retrieved from Vet360 API endpoint
+            contact_info (ContactInformation):  Unencrypted contact information retrieved from Vet360 API endpoint
 
         Returns:
             string representation of the most recently created mobile phone number, or None
         """
+
+        va_profile_id: int | None = contact_info.get('vaProfileId')
+        if va_profile_id is not None and is_feature_enabled(FeatureFlag.PII_ENABLED):
+            # Encrypt the value, which might be logged.  If this is logged, it will use the __str__ value.
+            va_profile_id = PiiVaProfileID(va_profile_id)
+
         telephones: list[Telephone] = contact_info.get(self.PHONE_BIO_TYPE, [])
 
         sorted_telephones = sorted(
@@ -141,7 +159,7 @@ class VAProfileClient:
             self.statsd_client.incr('clients.va-profile.get-telephone.failure')
             self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
             raise NoContactInfoException(
-                f'No {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
+                f'No {self.PHONE_BIO_TYPE} in response for VA Profile ID {va_profile_id} '
                 f'with AuditId {contact_info.get(self.TX_AUDIT_ID)}'
             )
 
@@ -152,25 +170,26 @@ class VAProfileClient:
             self.logger.debug(
                 'V3 Profile -- Phone classification code of %s is not a valid SMS recipient (VA Profile ID: %s)',
                 classification_code,
-                telephone['vaProfileId'],
+                va_profile_id,
             )
             self.statsd_client.incr(f'clients.va-profile.get-{self.PHONE_BIO_TYPE}.no-{self.PHONE_BIO_TYPE}')
             raise InvalidPhoneNumberException(
-                f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {contact_info.get("vaProfileId")} '
+                f'No valid {self.PHONE_BIO_TYPE} in response for VA Profile ID {va_profile_id} '
                 f'with AuditId {contact_info.get("txAuditId")}'
             )
 
         if telephone.get('countryCode') and telephone.get('areaCode') and telephone.get('phoneNumber'):
             self.statsd_client.incr('clients.va-profile.get-telephone.success')
             return f'+{telephone["countryCode"]}{telephone["areaCode"]}{telephone["phoneNumber"]}'
-        else:
-            self.statsd_client.incr('clients.va-profile.get-telephone.failure')
-            self.logger.warning(
-                'Expected country code: %s | area code: %s | phone number (str length): %s',
-                telephone.get('countryCode'),
-                telephone.get('areaCode'),
-                len(str(telephone.get('phoneNumber', ''))),  # Do not log phone numbers. Cast to str to prevent errors.
-            )
+
+        self.statsd_client.incr('clients.va-profile.get-telephone.failure')
+        self.logger.warning(
+            'Expected country code: %s | area code: %s | phone number (str length): %s',
+            telephone.get('countryCode'),
+            telephone.get('areaCode'),
+            len(str(telephone.get('phoneNumber', ''))),  # Do not log phone numbers. Cast to str to prevent errors.
+        )
+        return None
 
     def get_telephone(
         self,
@@ -181,7 +200,8 @@ class VAProfileClient:
         Retrieve the telephone number from the profile information for a given VA profile ID.
 
         Args:
-            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the telephone number for.
+            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the telephone number for.  If the PII_ENABLED
+                flag is true, this value is encrypted.
             notification (Notification): Notification object which contains needed default_send and communication_item details
 
         Returns:
@@ -190,7 +210,10 @@ class VAProfileClient:
             Property communication_allowed is true when VA Profile service indicates that the recipient has allowed communication.
             Property permission_message may contain an error message if the permission check encountered an exception.
         """
+
+        # The identifiers in the Profile instance are not encrypted.
         profile: Profile = self.get_profile(va_profile_id)
+
         communication_allowed = notification.default_send
         permission_message = None
         try:
@@ -215,7 +238,8 @@ class VAProfileClient:
         Retrieve the email address from the profile information for a given VA profile ID.
 
         Args:
-            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the email address for.
+            va_profile_id (RecipientIdentifier): The VA profile ID to retrieve the email address for.  If the PII_ENABLED
+                flag is true, this value is encrypted.
             notification (Notification): Notification object which contains needed default_send and communication_item details
 
         Returns:
@@ -224,7 +248,8 @@ class VAProfileClient:
             Property communication_allowed is true when VA Profile service indicates that the recipient has allowed communication.
             Property permission_message may contain an error message if the permission check encountered an exception.
         """
-        profile = self.get_profile(va_profile_id)
+
+        profile: Profile = self.get_profile(va_profile_id)
         communication_allowed = notification.default_send
         permission_message = None
 
@@ -245,8 +270,13 @@ class VAProfileClient:
         if not sorted_emails:
             self.statsd_client.incr('clients.va-profile.get-email.failure')
             self.statsd_client.incr(f'clients.va-profile.get-{self.EMAIL_BIO_TYPE}.no-{self.EMAIL_BIO_TYPE}')
+
+            va_profile_id_redacted = va_profile_id
+            if is_feature_enabled(FeatureFlag.PII_ENABLED):
+                va_profile_id_redacted = PiiVaProfileID(va_profile_id.id_value).get_encrypted_value()
+
             raise NoContactInfoException(
-                f'No {self.EMAIL_BIO_TYPE} in response for VA Profile ID {va_profile_id} '
+                f'No {self.EMAIL_BIO_TYPE} in response for VA Profile ID {va_profile_id_redacted} '
                 f'with AuditId {contact_info.get(self.TX_AUDIT_ID)}'
             )
 
@@ -263,7 +293,7 @@ class VAProfileClient:
         Determine if communication is allowed for a given recipient, communication item, and notification type.
 
         Argsj
-            profile (Profile): The recipient's profile.
+            profile (Profile): The recipient's profile.  Note that recipient identifiers are unencrypted.
             notification (Notification): Notification object
             communication_channel (CommunicationChannel): Communication channel to send the notification
 
@@ -305,7 +335,8 @@ class VAProfileClient:
         Handle exceptions that occur during requests to the VA Profile service.
 
         Args:
-            va_profile_id_value (str): The VA profile ID value associated with the request.
+            va_profile_id_value (str): The VA profile ID value associated with the request.  If PII_ENABLED is True,
+                this value is encrypted.
             error (Exception): The exception that was raised during the request.
 
         Raises:
