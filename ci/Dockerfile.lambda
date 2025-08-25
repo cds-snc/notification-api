@@ -52,4 +52,4 @@ ENTRYPOINT [ "/entry.sh" ]
 #CMD [ "newrelic_lambda_wrapper.handler" ]
 
 # Temporary: Disable New Relic completely and get directly to GCNotify lambda's handler.
-CMD [ "applicaton.handler" ]
+CMD [ "application.handler" ]
