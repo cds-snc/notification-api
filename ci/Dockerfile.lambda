@@ -24,7 +24,7 @@ COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric wheel
+    && poetry add awslambdaric newrelic-lambda wheel
 
 COPY . ${TASK_ROOT}/
 
@@ -43,13 +43,10 @@ COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 # New Relic lambda layer
-#RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
 # Launch the New Relic lambda wrapper which will then launch the app
 # handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
-#CMD [ "newrelic_lambda_wrapper.handler" ]
-
-# Temporary: Disable New Relic completely and get directly to GCNotify lambda's handler.
-CMD [ "application.handler" ]
+CMD [ "newrelic_lambda_wrapper.handler" ]
