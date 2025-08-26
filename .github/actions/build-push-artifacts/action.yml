@@ -4,12 +4,6 @@ inputs:
   ref:
     description: 'Git reference (commit SHA, branch, or tag) to build'
     required: true
-  aws-access-key-id:
-    description: 'AWS Access Key ID'
-    required: true
-  aws-secret-access-key:
-    description: 'AWS Secret Access Key'
-    required: true
   role-to-assume:
     description: 'AWS role to assume'
     required: true
@@ -25,8 +19,6 @@ runs:
     - name: Configure VAEC AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ inputs.aws-access-key-id }}
-        aws-secret-access-key: ${{ inputs.aws-secret-access-key }}
         aws-region: us-gov-west-1
         role-to-assume: ${{ inputs.role-to-assume }}
         role-skip-session-tagging: true

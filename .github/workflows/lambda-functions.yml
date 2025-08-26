@@ -5,6 +5,7 @@ name: Build and Deploy Lambda Functions
 
 permissions:
   contents: read
+  id-token: write
 
 on:
   workflow_call:
@@ -25,10 +26,6 @@ on:
         default: "All"
         type: string
 
-env:
-  AWS_ACCESS_KEY_ID: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-
 jobs:
   # All of the lambda functions use layers for dependencies, if any.  Bundling dependencies should not be necessary.
   build-and-deploy-lambda-functions:
@@ -44,10 +41,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-to-assume: ${{ secrets.OIDC_DEPLOY_ROLE_PREFIX }}-${{ inputs.environment }}
           role-skip-session-tagging: true
           role-duration-seconds: 1800
 

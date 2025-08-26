@@ -2,6 +2,7 @@ name: DB Downgrade
 
 permissions:
   contents: read
+  id-token: write
 
 on:
   workflow_dispatch:
@@ -23,12 +24,10 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.VAEC_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.VAEC_AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-gov-west-1
-          role-to-assume: ${{ secrets.VAEC_DEPLOY_ROLE }}
+          role-to-assume: ${{ secrets.OIDC_DEPLOY_ROLE_PREFIX }}-${{ inputs.environment }}
           role-skip-session-tagging: true
-          role-duration-seconds: 1800
+          role-duration-seconds: 900
+          role-session-name: github-actions-oidc-${{ github.sha }}
 
       - name: Login to VAEC ECR
         id: login-ecr-vaec
