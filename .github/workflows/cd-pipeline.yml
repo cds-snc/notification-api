@@ -58,7 +58,7 @@ jobs:
         uses: ./.github/actions/build-push-artifacts
         with:
           ref: ${{ github.sha }}
-          role-to-assume: ${{ secrets.OIDC_DEPLOY_ROLE_PREFIX }}-${{ inputs.environment }}
+          role-to-assume: ${{ secrets.OIDC_DEPLOY_ROLE_PREFIX }}-perf
 
   deploy-to-perf:
     needs: build-push-artifacts
