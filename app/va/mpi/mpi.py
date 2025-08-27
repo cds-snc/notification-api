@@ -8,6 +8,7 @@ from http.client import responses
 from functools import reduce
 
 from app.constants import HTTP_TIMEOUT
+from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.utils import statsd_http
 from app.va.identifier import (
     IdentifierType,
@@ -97,15 +98,15 @@ class MpiClient:
     def get_va_profile_id(
         self,
         notification,
-    ):
-        recipient_identifiers = notification.recipient_identifiers.values()
-        if len(recipient_identifiers) != 1:
+    ) -> str:
+        if len(notification.recipient_identifiers) != 1:
             error_message = (
                 f'Unexpected number of recipient_identifiers in: {notification.recipient_identifiers.keys()}'
             )
             self.statsd_client.incr('clients.mpi.get_va_profile_id.error.incorrect_number_of_recipient_identifiers')
             raise IncorrectNumberOfIdentifiersException(error_message)
 
+        recipient_identifiers = notification.recipient_identifiers.values()
         recipient_identifier = next(iter(recipient_identifiers))
 
         if is_fhir_format(recipient_identifier.id_value):
@@ -187,7 +188,7 @@ class MpiClient:
         self,
         identifiers,
         fhir_identifier,
-    ):
+    ) -> str:
         active_va_profile_suffix = FHIR_FORMAT_SUFFIXES[IdentifierType.VA_PROFILE_ID] + '^A'
         va_profile_ids = [
             transform_from_fhir_format(identifier['value'])
@@ -202,6 +203,11 @@ class MpiClient:
             raise MultipleActiveVaProfileIdsException(
                 f'Multiple active VA Profile Identifiers found for: {fhir_identifier}'
             )
+
+        if is_feature_enabled(FeatureFlag.PII_ENABLED):
+            # Encrypt the value.
+            va_profile_ids[0] = PiiVaProfileID(va_profile_ids[0]).get_encrypted_value()
+
         return va_profile_ids[0]
 
     def _validate_response(

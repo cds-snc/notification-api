@@ -17,26 +17,20 @@ from app.va.mpi import (
 )
 
 
-@pytest.mark.parametrize('pii_enabled', [True, False])
-def test_should_call_mpi_client_and_save_va_profile_id(notify_db_session, mocker, sample_notification, pii_enabled):
+def test_should_call_mpi_client_and_save_va_profile_id(notify_db_session, mocker, sample_notification):
     notification = sample_notification()
     assert notification.recipient_identifiers.get(IdentifierType.VA_PROFILE_ID.value) is None
 
     mocked_mpi_client = mocker.Mock()
     mocked_mpi_client.get_va_profile_id = mocker.Mock(return_value='1234')
     mocker.patch('app.celery.lookup_va_profile_id_task.mpi_client', new=mocked_mpi_client)
-    mocker.patch.dict('os.environ', {'PII_ENABLED': str(pii_enabled)})
 
     expected_id_value = lookup_va_profile_id(notification.id)
 
     mocked_mpi_client.get_va_profile_id.assert_called_once()
     notify_db_session.session.refresh(notification)
     assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == expected_id_value
-
-    if pii_enabled:
-        assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value != '1234'
-    else:
-        assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == '1234'
+    assert notification.recipient_identifiers[IdentifierType.VA_PROFILE_ID.value].id_value == '1234'
 
 
 @pytest.mark.parametrize(

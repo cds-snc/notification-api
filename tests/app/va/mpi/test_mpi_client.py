@@ -103,7 +103,7 @@ class TestGetVaProfileId:
         assert 'Unexpected number of recipient_identifiers' in str(e.value)
 
     def test_should_make_request_to_mpi_using_non_transformed_identifier_and_return_va_profile_id(
-        self, mpi_client, rmock, mocker, sample_notification_model_with_organization
+        self, notify_api, mpi_client, rmock, mocker, sample_notification_model_with_organization
     ):
         notification = sample_notification_model_with_organization
         recipient_identifier = sample_recipient_identifier()

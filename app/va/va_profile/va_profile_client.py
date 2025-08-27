@@ -152,7 +152,7 @@ class VAProfileClient:
 
         sorted_telephones = sorted(
             [phone for phone in telephones if phone['phoneType'].lower() == PhoneNumberType.MOBILE.value.lower()],
-            key=lambda phone: iso8601.parse_date(phone['createDate']),
+            key=lambda phone: iso8601.parse_date(phone.get('createDate', '1990-01-25T12:00:00Z')),
             reverse=True,
         )
         if not sorted_telephones:
@@ -264,7 +264,7 @@ class VAProfileClient:
         contact_info: ContactInformation = profile.get('contactInformation', {})
         sorted_emails = sorted(
             contact_info.get(self.EMAIL_BIO_TYPE, []),
-            key=lambda email: iso8601.parse_date(email['createDate']),
+            key=lambda email: iso8601.parse_date(email.get('createDate', '1990-01-25T12:00:00Z')),
             reverse=True,
         )
         if not sorted_emails:

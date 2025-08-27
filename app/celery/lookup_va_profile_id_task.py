@@ -10,7 +10,6 @@ from app.celery.exceptions import AutoRetryException
 from app.celery.service_callback_tasks import check_and_queue_callback_task
 from app.dao import notifications_dao
 from app.exceptions import NotificationTechnicalFailureException
-from app.feature_flags import FeatureFlag, is_feature_enabled
 from app.models import RecipientIdentifier
 from app.pii.pii_low import PiiVaProfileID
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
@@ -45,11 +44,8 @@ def lookup_va_profile_id(
         current_app.logger.warning('The VA Profile ID is already known.  This is an unnecessary lookup.')
 
     try:
+        # If the PII_ENABLED flag is True, this is an encrypted value.
         va_profile_id = mpi_client.get_va_profile_id(notification)
-
-        if is_feature_enabled(FeatureFlag.PII_ENABLED):
-            # Encrypt the value before storage.
-            va_profile_id = PiiVaProfileID(va_profile_id).get_encrypted_value()
 
         notification.recipient_identifiers.set(
             RecipientIdentifier(
