@@ -7,7 +7,6 @@ import json
 import logging
 import os
 import sys
-from typing import Optional
 from functools import lru_cache
 from urllib.parse import parse_qsl, parse_qs
 
@@ -42,9 +41,9 @@ def get_ssm_params(params):
     """Collects parameter(s) depending on params passed in
 
     Args:
-        params (Union[list[str], str]): parameter names
+        params (list[str] | str): parameter names
     Returns:
-        Union[list[str], str]: The value(s) of the given parameter(s)
+        list[str] | str: The value(s) of the given parameter(s)
     """
     try:
         ssm_client = boto3.client('ssm')
@@ -325,7 +324,7 @@ def make_vetext_request(request_body):  # noqa: C901 (too complex 13 > 10)
         return
 
     # Authorization is basic token authentication that is stored in environment.
-    auth_token: Optional[str] = read_from_ssm(ssm_path)
+    auth_token: str | None = read_from_ssm(ssm_path)
 
     if not auth_token:
         logger.error('Unable to retrieve auth token from SSM')

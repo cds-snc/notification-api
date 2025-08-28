@@ -6,7 +6,6 @@ import os
 import sys
 import uuid
 import base64
-from typing import Optional
 import boto3
 from twilio.request_validator import RequestValidator
 from urllib.parse import parse_qs
@@ -171,7 +170,7 @@ def valid_event(event: dict) -> bool:
     return False
 
 
-def event_to_celery_body_mapping(event: dict) -> Optional[dict]:
+def event_to_celery_body_mapping(event: dict) -> dict | None:
     """
     Determines which SQS queue to send the message to based on the message type
     """

@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 import json
 import os
 from random import randint, randrange
-from typing import List, Union
 from uuid import UUID, uuid4
 from unittest.mock import patch
 
@@ -208,7 +207,7 @@ def sample_user(notify_db_session, set_user_as_admin):
     user_cleanup(created_user_ids, notify_db_session.session)
 
 
-def user_cleanup(user_ids: List[int], session: scoped_session, commit: bool = True):
+def user_cleanup(user_ids: list[int], session: scoped_session, commit: bool = True):
     # Clear user_folder_permissions
     session.execute(delete(user_folder_permissions).where(user_folder_permissions.c.user_id.in_(user_ids)))
 
@@ -890,7 +889,7 @@ def sample_template(
 
 def template_cleanup(
     session: scoped_session,
-    template_ids: Union[UUID, List[UUID]],
+    template_ids: UUID | list[UUID],
     commit: bool = True,
 ):
     """
@@ -957,7 +956,7 @@ def sample_template_folder(notify_db_session, sample_service):
 
 
 def template_folder_cleanup(
-    template_folder_ids: List[str],
+    template_folder_ids: list[str],
     session: scoped_session,
     commit: bool = True,
 ) -> None:
@@ -1659,7 +1658,7 @@ def sample_provider(notify_db_session, worker_id):
         get: bool = False,
         display_name: str = '',
         priority: int = 10,
-        notification_type: Union[EMAIL_TYPE, SMS_TYPE] = SMS_TYPE,
+        notification_type: str = SMS_TYPE,
         active: bool = True,
         supports_international: bool = False,
         created_by: User = None,
@@ -1904,7 +1903,7 @@ def sample_organisation(
 ):
     org_ids = []
 
-    def _sample_organisation(name: str = None, domains: Union[list, None] = None, active: bool = True):
+    def _sample_organisation(name: str | None = None, domains: list | None = None, active: bool = True):
         org = Organisation(name=name or f'sample organisation {uuid4()}', active=active)
         # commits the org
         dao_create_organisation(org)

@@ -42,12 +42,13 @@ from app.dao.services_dao import (
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import delete_model_user, delete_user_verify_codes
 from app.models import (
-    PROVIDERS,
+    DeliveryStatusCallbackApiData,
+    Domain,
+    EmailBranding,
     Notification,
     Organisation,
-    Domain,
+    PROVIDERS,
     Service,
-    EmailBranding,
 )
 from app.model import User
 from app.performance_platform.processing_time import send_processing_time_for_start_and_end

@@ -28,12 +28,11 @@ from notifications_utils.recipients import validate_and_format_email_address
 # from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate
 from sqlalchemy import select
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
-from typing import Tuple, Optional
 
 logger = get_task_logger(__name__)
 
 
-def get_default_sms_sender_id(service_id: str) -> Tuple[Optional[str], Optional[str]]:
+def get_default_sms_sender_id(service_id: str) -> tuple[str | None, str | None]:
     """
     Retrieves the default SMS sender ID for a given service.
 
@@ -43,7 +42,7 @@ def get_default_sms_sender_id(service_id: str) -> Tuple[Optional[str], Optional[
     service_id (str): The unique identifier for the service whose default SMS sender ID is to be retrieved.
 
     Returns:
-    Tuple[Optional[str], Optional[str]]:
+    tuple[str | None, str | None]:
         - First element is an error message or None if no error occurs.
         - Second element is the SMS sender ID (if found) or None (if not found or an error occurs).
     """

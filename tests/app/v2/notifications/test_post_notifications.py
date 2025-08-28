@@ -20,7 +20,6 @@ from app.constants import (
     UPLOAD_DOCUMENT,
 )
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
-from app.feature_flags import FeatureFlag
 from app.models import (
     Notification,
     RecipientIdentifier,
@@ -32,7 +31,6 @@ from app.v2.errors import RateLimitError
 from app.v2.notifications.notification_schemas import post_email_response, post_sms_response
 from app.va.identifier import IdentifierType
 from tests import create_authorization_header
-from tests.app.factories.feature_flag import mock_feature_flag
 
 from . import post_send_notification
 

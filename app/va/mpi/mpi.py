@@ -9,6 +9,7 @@ from functools import reduce
 
 from app.constants import HTTP_TIMEOUT
 from app.feature_flags import FeatureFlag, is_feature_enabled
+from app.pii import PiiVaProfileID
 from app.utils import statsd_http
 from app.va.identifier import (
     IdentifierType,

@@ -1,5 +1,4 @@
 from random import randint
-from typing import Optional
 
 import pytest
 from sqlalchemy import delete
@@ -14,7 +13,7 @@ def sample_va_profile_local_cache(notify_db_session):
     def _sample_va_profile_local_cache(
         source_datetime: str,
         allowed: bool = True,
-        va_profile_id: Optional[int] = None,
+        va_profile_id: int | None = None,
         communication_item_id: int = 5,
         communication_channel_id: int = 1,
     ):

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import datetime
 import html
@@ -947,7 +947,7 @@ class TemplateBase(db.Model):
         else:
             raise ValueError('Unable to set sender for {} template'.format(self.template_type))
 
-    def get_reply_to_text(self) -> Optional[str]:
+    def get_reply_to_text(self) -> str | None:
         if self.template_type == SMS_TYPE:
             return try_validate_and_format_phone_number(self.service.get_default_sms_sender())
 
@@ -1306,7 +1306,7 @@ class Notification(db.Model):
     )
 
     @property
-    def communication_item(self) -> Optional['CommunicationItem']:
+    def communication_item(self) -> 'CommunicationItem' | None:
         if self.template and self.template.communication_item_id:
             communication_item = db.session.scalar(
                 select(CommunicationItem).where(CommunicationItem.id == self.template.communication_item_id)
@@ -2114,5 +2114,5 @@ class NotificationFailures(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     body = db.Column(JSONB, nullable=False)
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         return self.body

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any
 from uuid import UUID
 
 from app.constants import MANAGE_SETTINGS, QUEUE_CHANNEL_TYPE
@@ -37,7 +37,7 @@ register_errors(service_callback_blueprint)
 
 
 @service_callback_blueprint.route('', methods=['GET'])
-def fetch_service_callbacks(service_id: UUID) -> Tuple[Response, int]:
+def fetch_service_callbacks(service_id: UUID) -> tuple[Response, int]:
     service_callbacks = get_service_callbacks(service_id)
     return jsonify(data=service_callback_api_schema.dump(service_callbacks, many=True)), 200
 
@@ -46,7 +46,7 @@ def fetch_service_callbacks(service_id: UUID) -> Tuple[Response, int]:
 def fetch_service_callback(
     service_id: UUID,
     callback_id: UUID,
-) -> Tuple[Response, int]:
+) -> tuple[Response, int]:
     service_callback = query_service_callback(service_id, callback_id)
     return jsonify(data=service_callback_api_schema.dump(service_callback)), 200
 
@@ -62,7 +62,7 @@ def check_existing_callback(service_id: UUID, callback_channel: str, callback_ty
 
 
 @service_callback_blueprint.route('', methods=['POST'])
-def create_service_callback(service_id: UUID) -> Tuple[Response, int]:
+def create_service_callback(service_id: UUID) -> tuple[Response, int]:
     data = request.get_json()
     data['service_id'] = service_id
     data['updated_by_id'] = current_user.id
@@ -86,7 +86,7 @@ def create_service_callback(service_id: UUID) -> Tuple[Response, int]:
 def update_service_callback(
     service_id: UUID,
     callback_id: UUID,
-) -> Tuple[Response, int]:
+) -> tuple[Response, int]:
     data = request.get_json()
     data['service_id'] = service_id
     data['updated_by_id'] = current_user.id
@@ -108,7 +108,7 @@ def update_service_callback(
 def remove_service_callback(
     service_id: UUID,
     callback_id: UUID,
-) -> Tuple[Response, int]:
+) -> tuple[Response, int]:
     callback = query_service_callback(service_id, callback_id)
     delete_service_callback_api(callback)
     return '', 204
@@ -117,7 +117,7 @@ def remove_service_callback(
 def handle_sql_error(
     e: SQLAlchemyError,
     table_name: str,
-) -> Tuple[Response, int]:
+) -> tuple[Response, int]:
     if (
         hasattr(e, 'orig')
         and hasattr(e.orig, 'pgerror')
@@ -143,7 +143,7 @@ def handle_sql_error(
         raise e
 
 
-def require_admin_for_queue_callback(data: Dict[str, Any]) -> None:
+def require_admin_for_queue_callback(data: dict[str, Any]) -> None:
     if (
         'callback_channel' in data
         and data['callback_channel'] == QUEUE_CHANNEL_TYPE

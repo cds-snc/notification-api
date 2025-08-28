@@ -1,6 +1,3 @@
-from typing import Optional
-
-
 class ClientException(Exception):
     """
     Base Exceptions for sending notifications that fail.
@@ -55,7 +52,7 @@ class Clients:
         self,
         name,
         notification_type,
-    ) -> Optional[Client]:
+    ) -> Client | None:
         if notification_type == 'email':
             return self.get_email_client(name)
         elif notification_type == 'sms':

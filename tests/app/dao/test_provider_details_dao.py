@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 from uuid import uuid4
 
 import pytest
@@ -23,7 +22,7 @@ from app.notifications.notification_type import NotificationType
 
 
 @pytest.fixture
-def setup_provider_details(sample_provider) -> List[ProviderDetails]:
+def setup_provider_details(sample_provider) -> list[ProviderDetails]:
     prioritised_email_provider = sample_provider(
         identifier=uuid4(),
         display_name='foo',

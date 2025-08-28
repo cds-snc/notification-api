@@ -1,6 +1,5 @@
 import datetime
 import random
-from typing import Tuple
 
 from app.celery.process_ses_receipts_tasks import check_and_queue_va_profile_notification_status_callback
 from celery import Task
@@ -129,7 +128,7 @@ def _get_sqs_message(event: CeleryEvent) -> dict:
     return sqs_message
 
 
-def _get_provider_info(sqs_message: dict) -> Tuple[str, any]:
+def _get_provider_info(sqs_message: dict) -> tuple[str, any]:
     """Gets the provider_name and provider object"""
     provider_name = sqs_message.get('provider')
     provider = clients.get_sms_client(provider_name)

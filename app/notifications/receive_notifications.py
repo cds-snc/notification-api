@@ -8,7 +8,6 @@ from app.models import InboundSms, Service
 from datetime import datetime
 from flask import current_app
 from notifications_utils.recipients import try_validate_and_format_phone_number
-from typing import Union
 
 
 def create_inbound_sms_object(
@@ -16,7 +15,7 @@ def create_inbound_sms_object(
     content: str,
     notify_number: str,
     from_number: str,
-    provider_ref: Union[str, None],
+    provider_ref: str | None,
     date_received: datetime,
     provider_name: str,
 ) -> InboundSms:

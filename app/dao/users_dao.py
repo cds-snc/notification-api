@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import Optional
 
 from random import SystemRandom
 from sqlalchemy import delete, func, select
@@ -17,7 +16,7 @@ def get_user_code(
     user,
     code,
     code_type,
-) -> Optional[VerifyCode]:
+) -> VerifyCode | None:
     """
     Get the most recent codes to try and reduce the time searching for the correct code.
     """

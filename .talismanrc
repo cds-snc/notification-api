@@ -6,7 +6,7 @@ fileignoreconfig:
 - filename: app/config.py
   checksum: 9fdb58779702b0c101705671b34f6c337dc05afaff154b8fe878c98c2333d859
 - filename: app/dao/api_key_dao.py
-  checksum: 41f293bd2fec0848acbf931cdb67d0a04e8aa6d0a898b15c1caed7d7d36d33db
+  checksum: 7c0c0397a3856a8315913b75352f80c2a8af85ee0c6f4c10a6f619f5d0276f30
 - filename: app/delivery_status/rest.py
   checksum: c41c997f21122c0290e69e03e7a43b968c85d2778088cdb87af027b18d4ecf93
 - filename: app/notifications/validators.py

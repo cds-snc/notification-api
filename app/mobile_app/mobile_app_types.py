@@ -1,12 +1,11 @@
 from enum import Enum
-from typing import List
 
 
 class MobileAppType(str, Enum):
     VA_FLAGSHIP_APP: str = 'VA_FLAGSHIP_APP'
 
     @staticmethod
-    def values() -> List['MobileAppType']:
+    def values() -> list['MobileAppType']:
         return list(x.value for x in MobileAppType)
 
 

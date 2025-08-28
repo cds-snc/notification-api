@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Tuple
 from celery import Task
 import iso8601
 
@@ -149,7 +148,7 @@ def _get_notification(reference) -> Notification | NotificationHistory:
 
 def _handle_response(
     ses_response: SesResponse, notification: Notification | NotificationHistory
-) -> Tuple[EmailStatusRecord, Update]:
+) -> tuple[EmailStatusRecord, Update]:
     # https://docs.aws.amazon.com/ses/latest/dg/event-publishing-retrieving-sns-examples.html#event-publishing-retrieving-sns-open
     # All should use one DAO update function with a WHERE clause similar to sms_conditions
     # The WHERE clause is made in each event handler and passes it to the update function

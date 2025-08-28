@@ -4,7 +4,6 @@ from app.celery.exceptions import AutoRetryException
 from app.constants import NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_NO_ID_FOUND, STATUS_REASON_UNDELIVERABLE
 from app.exceptions import NotificationTechnicalFailureException
 from app.celery.lookup_va_profile_id_task import lookup_va_profile_id
-from app.pii.pii_low import PiiVaProfileID
 from app.va.identifier import IdentifierType, UnsupportedIdentifierException
 from app.va.mpi import (
     IdentifierNotFound,

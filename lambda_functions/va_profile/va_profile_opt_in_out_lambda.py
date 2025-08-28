@@ -29,7 +29,6 @@ import sys
 from datetime import datetime, timezone
 from http.client import HTTPSConnection, HTTPResponse
 from tempfile import NamedTemporaryFile
-from typing import Optional
 
 import boto3
 import jwt
@@ -521,7 +520,7 @@ def make_PUT_request(
         https_connection.close()
 
 
-def send_comp_and_pen_opt_in_confirmation(va_profile_id: int) -> Optional[HTTPResponse]:
+def send_comp_and_pen_opt_in_confirmation(va_profile_id: int) -> HTTPResponse | None:
     """
     Send an opt-in confirmation SMS notification based on user's VAProfile ID.
 

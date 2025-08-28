@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 
-from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from typing_extensions import TypedDict
 

@@ -1,5 +1,3 @@
-from typing import List
-
 from sqlalchemy import delete, select
 
 from app import db
@@ -69,7 +67,7 @@ class PermissionDAO(DAOClass):
     def get_permissions_by_user_id(
         self,
         user_id,
-    ) -> List[Permission]:
+    ) -> list[Permission]:
         stmt = (
             select(self.Meta.model)
             .join(self.Meta.model.service)
@@ -82,7 +80,7 @@ class PermissionDAO(DAOClass):
         self,
         user_id,
         service_id,
-    ) -> List[Permission]:
+    ) -> list[Permission]:
         stmt = (
             select(self.Meta.model)
             .join(self.Meta.model.service)

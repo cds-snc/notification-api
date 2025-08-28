@@ -1,5 +1,3 @@
-from typing import List
-
 from .mobile_app import MobileApp
 from .mobile_app_types import MobileAppType
 
@@ -28,5 +26,5 @@ class MobileAppRegistry:
             self.logger.exception('Attempted to use an app that is not initialized: %s', app_type)
             raise
 
-    def get_registered_apps(self) -> List[MobileAppType]:
+    def get_registered_apps(self) -> list[MobileAppType]:
         return list(self._registry.keys())

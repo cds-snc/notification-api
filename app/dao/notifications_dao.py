@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import functools
 import string
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from botocore.exceptions import ClientError
@@ -446,7 +446,7 @@ def update_notification_status_by_reference(reference: UUID, status: str, status
 def dao_update_notification_by_id(
     notification_id: str,
     **kwargs,
-) -> Optional[Notification]:
+) -> Notification | None:
     """
     Update the notification by ID, ensure kwargs paramaters are named appropriately according to the notification model.
 

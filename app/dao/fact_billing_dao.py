@@ -26,7 +26,6 @@ from flask import current_app
 from notifications_utils.timezones import convert_local_timezone_to_utc, convert_utc_to_local_timezone
 from sqlalchemy import func, case, delete, desc, Date, Integer, and_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
-from typing import Optional, Union
 from uuid import UUID
 
 
@@ -248,7 +247,7 @@ def delete_billing_data_for_service_for_day(
 
 def fetch_billing_data_for_day(
     process_day,
-    service_id: Optional[Union[str, Iterable[str], UUID, Iterable[UUID]]] = None,
+    service_id: str | Iterable[str] | UUID | Iterable[UUID] | None = None,
 ):
     """
     service_id can be a single ID or an iterable of IDs.

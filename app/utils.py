@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import os
 from datetime import datetime, timedelta
 from monotonic import monotonic
-from typing import Dict, Generator, Optional, Union
+from typing import Generator
 from uuid import UUID, uuid4
 
 from flask import current_app, url_for
@@ -158,7 +158,7 @@ def get_logo_url(base_url, logo_file):
     return f'https://{bucket}.{domain}/{logo_file}'
 
 
-def get_html_email_options(notification_id: str = '') -> Dict[str, Union[str, bool]]:
+def get_html_email_options(notification_id: str = '') -> dict[str, str | bool]:
     """
     Generate HTML email options dictionary for email rendering.
 
@@ -172,7 +172,7 @@ def get_html_email_options(notification_id: str = '') -> Dict[str, Union[str, bo
         notification_id: The ID of the notification (default is a placeholder)
 
     Returns:
-        Dict[str, Union[str, bool]]: A dictionary containing HTML email options including:
+        dict[str, str | bool]: A dictionary containing HTML email options including:
             - default_banner: Whether to use the default banner
             - brand_banner: Whether to use the custom brand banner
             - ga4_open_email_event_url: Google Analytics tracking URL (if enabled)
@@ -184,7 +184,7 @@ def get_html_email_options(notification_id: str = '') -> Dict[str, Union[str, bo
     return options_dict
 
 
-def generate_html_email_content(template) -> Optional[str]:
+def generate_html_email_content(template) -> str | None:
     """
     Generate HTML content for an email template if applicable.
 

@@ -3,20 +3,19 @@ from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
 from sqlalchemy import select, update
-from typing import Optional, List
 
 
-def dao_get_inbound_numbers() -> List[InboundNumber]:
+def dao_get_inbound_numbers() -> list[InboundNumber]:
     stmt = select(InboundNumber).order_by(InboundNumber.updated_at)
     return db.session.scalars(stmt).all()
 
 
-def dao_get_available_inbound_numbers() -> List[InboundNumber]:
+def dao_get_available_inbound_numbers() -> list[InboundNumber]:
     stmt = select(InboundNumber).where(InboundNumber.active, InboundNumber.service_id.is_(None))
     return db.session.scalars(stmt).all()
 
 
-def dao_get_inbound_numbers_for_service(service_id: str) -> List[InboundNumber]:
+def dao_get_inbound_numbers_for_service(service_id: str) -> list[InboundNumber]:
     return db.session.scalars(select(InboundNumber).where(InboundNumber.service_id == service_id)).all()
 
 
@@ -42,7 +41,7 @@ def dao_create_inbound_number(inbound_number: InboundNumber):
 def dao_update_inbound_number(
     inbound_number_id: str,
     **kwargs,
-) -> Optional[InboundNumber]:
+) -> InboundNumber | None:
     stmt = update(InboundNumber).where(InboundNumber.id == inbound_number_id).values(**kwargs)
 
     db.session.execute(stmt)

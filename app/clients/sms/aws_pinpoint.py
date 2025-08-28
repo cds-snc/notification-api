@@ -1,7 +1,6 @@
 from datetime import datetime
 from logging import Logger
 from time import monotonic
-from typing import Tuple
 
 import boto3
 import botocore
@@ -222,7 +221,7 @@ class AwsPinpointClient(SmsClient):
                 else:
                     raise RetryableException(error_message)
 
-    def _get_status_mapping(self, record_status) -> Tuple[str, str]:
+    def _get_status_mapping(self, record_status) -> tuple[str, str]:
         if record_status not in self._sms_record_status_mapping:
             # This is a programming error, or Pinpoint's response format has changed.
             self.logger.critical('Unanticipated Pinpoint record status: %s', record_status)
@@ -235,7 +234,7 @@ class AwsPinpointClient(SmsClient):
         self,
         event_type,
         record_status,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Get the status.
 
         Checks for opt out or buffered and then maps status and status reason.
@@ -245,7 +244,7 @@ class AwsPinpointClient(SmsClient):
             record_status (str): Mapping of record status to notification status
 
         Returns:
-            Tuple[str, str]: status and status_reason
+            tuple[str, str]: status and status_reason
         """
         if event_type == '_SMS.OPTOUT':
             status = NOTIFICATION_PERMANENT_FAILURE

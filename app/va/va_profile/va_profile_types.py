@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional
+from typing import TypedDict
 
 
 class Country(TypedDict):
@@ -65,7 +65,7 @@ class Telephone(TypedDict):
     countryCode: str
     areaCode: str
     phoneNumber: str
-    classification: Optional[Classification]
+    classification: Classification | None
 
 
 class Email(TypedDict):
@@ -90,9 +90,9 @@ class ContactInformation(TypedDict):
     sourceDate: str
     sourceSystemUser: str
     vaProfileId: int
-    addresses: List[Address]
-    telephones: List[Telephone]
-    emails: List[Email]
+    addresses: list[Address]
+    telephones: list[Telephone]
+    emails: list[Email]
 
 
 class CommunicationPermissions(TypedDict):
@@ -108,9 +108,9 @@ class CommunicationPermissions(TypedDict):
     communicationChannelName: str
     communicationItemCommonName: str
     allowed: bool
-    confirmationDate: List[str]
+    confirmationDate: list[str]
 
 
 class Profile(TypedDict):
     contactInformation: ContactInformation
-    communicationPermissions: List[CommunicationPermissions]
+    communicationPermissions: list[CommunicationPermissions]

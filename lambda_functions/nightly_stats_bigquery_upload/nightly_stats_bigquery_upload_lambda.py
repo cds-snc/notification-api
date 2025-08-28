@@ -3,7 +3,6 @@ import logging
 import os
 import six
 import urllib
-from typing import Dict
 
 import boto3
 from google.api_core.exceptions import TooManyRequests
@@ -21,7 +20,7 @@ logger = logging.getLogger('NightlyBigQueryLambda')
 logger.setLevel(LOG_LEVEL)
 
 
-def read_service_account_info_from_ssm() -> Dict:
+def read_service_account_info_from_ssm() -> dict:
     ssm_client = boto3.client('ssm')
 
     key = '/bigquery/credentials'

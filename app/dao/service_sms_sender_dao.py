@@ -1,6 +1,5 @@
 from cachetools import TTLCache, cached
 from datetime import datetime, timedelta
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import desc, select, update
@@ -103,7 +102,7 @@ def dao_get_sms_senders_by_service_id(service_id: str) -> list[ServiceSmsSender]
 def dao_get_service_sms_sender_by_service_id_and_number(
     service_id: str,
     number: str,
-) -> Optional[ServiceSmsSenderData]:
+) -> ServiceSmsSenderData | None:
     """Return an instance of ServiceSmsSenderData, if available."""
     stmt = select(ServiceSmsSender).where(
         ServiceSmsSender.service_id == service_id,
@@ -304,7 +303,7 @@ def _validate_rate_limit(
             raise SmsSenderRateLimitIntegrityException('Provide both rate_limit and rate_limit_interval, or neither.')
 
 
-def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender]:
+def _get_default_sms_sender_for_service(service_id) -> ServiceSmsSender | None:
     sms_senders = dao_get_sms_senders_by_service_id(service_id=service_id)
     if sms_senders:
         old_default = [x for x in sms_senders if x.is_default]
@@ -318,7 +317,7 @@ def _get_default_sms_sender_for_service(service_id) -> Optional[ServiceSmsSender
     return None
 
 
-def _set_default_sms_sender_to_not_default(existing_default_sms_sender: Optional[ServiceSmsSender]) -> None:
+def _set_default_sms_sender_to_not_default(existing_default_sms_sender: ServiceSmsSender | None) -> None:
     if existing_default_sms_sender:
         existing_default_sms_sender.is_default = False
         db.session.add(existing_default_sms_sender)
@@ -345,7 +344,7 @@ def _allocate_inbound_number_for_service(
 
 
 @cached(sms_sender_data_cache)
-def dao_get_default_service_sms_sender_by_service_id(service_id: str) -> Optional[ServiceSmsSenderData]:
+def dao_get_default_service_sms_sender_by_service_id(service_id: str) -> ServiceSmsSenderData | None:
     """Return the default ServiceSmsSenderData for a given service_id, or None if not found."""
     stmt = select(ServiceSmsSender).where(
         ServiceSmsSender.service_id == service_id,
