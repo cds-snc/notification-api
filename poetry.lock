@@ -2608,8 +2608,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.5"
-resolved_reference = "0a8ac9e3a2af5ad332cd3255ea445e74f7d06998"
+reference = "fix/nested-list-padding-2"
+resolved_reference = "e89a7dcc11f67bac0fb80668e21d7ab623300d5b"
 
 [[package]]
 name = "ordered-set"
@@ -4563,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "31166dc28f322031ea08a841fc4ac6c6cbbea0891977a725b9cfebe9f1f6810b"
+content-hash = "d51260376d7a5309f2316101973fc9208f143befb52bf108578ba5ad80931d5b"
