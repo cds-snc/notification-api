@@ -2572,7 +2572,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.5"
+version = "53.2.6"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2608,8 +2608,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "fix/nested-list-padding-2"
-resolved_reference = "e89a7dcc11f67bac0fb80668e21d7ab623300d5b"
+reference = "53.2.6"
+resolved_reference = "0af9d1d98bbbb557a1154f5d344136d5b778805f"
 
 [[package]]
 name = "ordered-set"
@@ -4563,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "d51260376d7a5309f2316101973fc9208f143befb52bf108578ba5ad80931d5b"
+content-hash = "a9f7b2f479926c5f3d3a6c048d553f24b5b3db50f83778ec10dbfe9709044422"
