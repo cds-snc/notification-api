@@ -2,7 +2,7 @@ name: Continuous Deployment Pipeline
 # Note:
 # This workflow is designed to be triggered by a merge to the default branch.
 # Therefore, ${{ github.sha }} will always be in reference to the SHA that originally triggered this workflow.
-# $GITHUB_SHA, on the other hand, is created whenever actions/checkout@v4 is run.
+# $GITHUB_SHA, on the other hand, is created whenever actions/checkout@v5 is run.
 
 # note:
 # environment:
@@ -28,7 +28,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
   pr-label-summary:
     needs: prepare-deployment
@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
       - name: Build and Push Artifacts
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
     
       - name: Post to VA Slack
         env:

@@ -21,7 +21,7 @@ jobs:
   run-migrations:
     runs-on: ${{ vars.RUNS_ON }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 
@@ -73,7 +73,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     needs: [run-smoke-tests]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 
@@ -115,7 +115,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     needs: [run-smoke-tests]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 
@@ -157,7 +157,7 @@ jobs:
     runs-on: ${{ vars.RUNS_ON }}
     needs: [run-smoke-tests]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref }}
 

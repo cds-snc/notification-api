@@ -22,7 +22,7 @@ jobs:
       IMAGE_REPOSITORY: "datadog/agent"
       IMAGE_TAG: ${{ github.event.inputs.version_tag }}  # Use the provided version tag for the image
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
