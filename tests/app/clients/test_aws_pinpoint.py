@@ -309,6 +309,57 @@ def test_send_sms_post_message_request_raises_aws_exception(mocker, aws_pinpoint
         aws_pinpoint_client.send_sms(TEST_RECIPIENT_NUMBER, TEST_CONTENT, TEST_REFERENCE)
 
 
+@pytest.mark.parametrize('pinpoint_v2_enabled', (False, True))
+def test_translate_delivery_status_pinpoint_sms_v1_successful(aws_pinpoint_client, mocker, pinpoint_v2_enabled):
+    """Test translate_delivery_status for PinpointSMSV1 delivery status with and without PinpointSMSVoiceV2 feature enabled"""
+
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': str(pinpoint_v2_enabled)})
+
+    # Sample V1 delivery status message
+    v1_delivery_message = {
+        'event_type': '_SMS.SUCCESS',
+        'event_timestamp': 1722427200000,
+        'arrival_timestamp': 1722427200000,
+        'event_version': '3.1',
+        'application': {'app_id': '123', 'sdk': {}},
+        'client': {'client_id': '123456789012'},
+        'device': {'platform': {}},
+        'session': {},
+        'attributes': {
+            'sender_request_id': 'e669df09-642b-4168-8563-3e5a4f9dcfbf',
+            'campaign_activity_id': '1234',
+            'origination_phone_number': '+15555555555',
+            'destination_phone_number': '+15555555555',
+            'record_status': 'DELIVERED',
+            'iso_country_code': 'US',
+            'treatment_id': '0',
+            'number_of_message_parts': 1,
+            'message_id': 'test-message-id-123',
+            'message_type': 'Transactional',
+            'campaign_id': '12345',
+        },
+        'metrics': {
+            'price_in_millicents_usd': 645.0,
+        },
+        'awsAccountId': '123456789012',
+    }
+
+    result = aws_pinpoint_client.translate_delivery_status(v1_delivery_message)
+
+    expected = SmsStatusRecord(
+        payload=None,
+        reference='test-message-id-123',
+        status=NOTIFICATION_DELIVERED,
+        status_reason=None,
+        provider=PINPOINT_PROVIDER,
+        message_parts=1,
+        price_millicents=645,
+        provider_updated_at=datetime(2024, 7, 31, 12, 0),
+    )
+
+    assert result == expected
+
+
 def test_translate_delivery_status_pinpoint_sms_voice_v2_successful(aws_pinpoint_client, mocker):
     """Test translate_delivery_status for PinpointSMSVoiceV2 format with successful delivery"""
 
@@ -319,6 +370,7 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_successful(aws_pinpoint
     # Sample V2 delivery status message
     v2_delivery_message = {
         'eventType': 'TEXT_SUCCESSFUL',
+        'eventVersion': '1.0',
         'messageId': 'test-message-id-123',
         'messageStatus': 'DELIVERED',
         'destinationPhoneNumber': '+1234567890',
@@ -352,6 +404,7 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_missing_required_fields
 
     # V2 delivery status message with data but missing required fields (eventType and messageId)
     v2_delivery_message = {
+        'eventVersion': '1.0',
         'messageStatus': 'TEXT_DELIVERED',
         'destinationPhoneNumber': '+1234567890',
         'totalMessagePrice': 0.075,
@@ -397,6 +450,7 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_additional_events(
     # Sample V2 delivery status message with various event types
     v2_delivery_message = {
         'eventType': event_type,
+        'eventVersion': '1.0',
         'messageId': 'test-message-id-456',
         'messageStatus': message_status,
         'destinationPhoneNumber': '+1234567890',

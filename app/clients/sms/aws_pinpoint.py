@@ -277,7 +277,9 @@ class AwsPinpointClient(SmsClient):
             self.logger.error('Did not receive pinpoint delivery status as a dict')
             raise NonRetryableException(f'Incorrect datatype sent to pinpoint, {UNABLE_TO_TRANSLATE}')
 
-        if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2):
+        # check for feature flag and camelCase eventVersion (V2 specific)
+        # The eventVersion attribute check is to allow continued V1 processing and can be removed with the feature flag
+        if is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2) and 'eventVersion' in delivery_status_message:
             # PinpointSMSVoiceV2 format
             # Handle phone number masking for PinpointSMSVoiceV2 format
             # https://docs.aws.amazon.com/sms-voice/latest/userguide/configuration-sets-event-types.html
