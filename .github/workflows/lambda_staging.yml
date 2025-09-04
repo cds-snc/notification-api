@@ -69,8 +69,8 @@ jobs:
           JQ_FILTER='.'
           while IFS= read -r line; do
             [ -z "$line" ] && continue
-            key=$(echo "$line" | cut -d '=' -f 1)
-            value=$(echo "$line" | cut -d '=' -f 2-)
+            key="${line%%=*}"
+            value="${line#*=}"
             JQ_FILTER="$JQ_FILTER + {\"$key\": \"$value\"}"
           done <<< "$NEW_RELIC_VARS"
 
