@@ -47,4 +47,4 @@ RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
-CMD [ "sh", "-c", "if [ \"$ENABLE_NEW_RELIC\" = \"true\" ]; then exec newrelic_lambda_wrapper.handler; else exec application.handler; fi" ]
+CMD [ "sh", "-c", "if [ \"$NEW_RELIC_ENABLED\" = \"true\" ]; then exec newrelic_lambda_wrapper.handler; else exec application.handler; fi" ]

@@ -54,6 +54,37 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
+      - name: Sync NEW_RELIC_* variables from ENVIRONMENT_VARIABLES SSM to Lambda environment
+        run: |
+          PARAMS=$(aws ssm get-parameter \
+            --name ENVIRONMENT_VARIABLES \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)
+
+          # Extract all NEW_RELIC_* variables from the parameter store content
+          NEW_RELIC_VARS=$(echo "$PARAMS" | grep '^NEW_RELIC_' || true)
+
+          # Build a jq filter to add all NEW_RELIC_* vars
+          JQ_FILTER='.'
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            key=$(echo "$line" | cut -d '=' -f 1)
+            value=$(echo "$line" | cut -d '=' -f 2-)
+            JQ_FILTER="$JQ_FILTER + {\"$key\": \"$value\"}"
+          done <<< "$NEW_RELIC_VARS"
+
+          EXISTING_VARS=$(aws lambda get-function-configuration \
+            --function-name ${{ matrix.image }} \
+            --query 'Environment.Variables' \
+            --output json)
+
+          echo "$EXISTING_VARS" | jq "$JQ_FILTER" > merged_env.json
+
+          aws lambda update-function-configuration \
+            --function-name ${{ matrix.image }} \
+            --environment "Variables=$(cat merged_env.json)"
+
       - name: Publish lambda version and update alias
         run: |
           aws lambda wait function-updated --function-name ${{ matrix.image }}
