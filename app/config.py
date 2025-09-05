@@ -3,7 +3,6 @@ import os
 from datetime import timedelta
 from typing import Any, List
 
-from dotenv import load_dotenv
 from environs import Env
 from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
@@ -12,9 +11,16 @@ from notifications_utils import logging
 
 from celery.schedules import crontab
 
+from . import config_loader  # SSM aggregated config (NOTIFY_SSM_PARAMETER)
+
+# Load aggregated SSM config first (no .env files used in Lambda runtime)
+try:  # Defensive
+    config_loader.preload_config()
+except Exception as _e:  # pragma: no cover
+    logging.getLogger("notify.config_loader").warning("config_loader preload failed: %s", _e)
+
+# Env helper only for typed access; we intentionally do NOT call read_env() / load_dotenv()
 env = Env()
-env.read_env()
-load_dotenv()
 
 
 class Priorities(object):
