@@ -60,7 +60,8 @@ TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY, BULK]
 
 SMS_AUTH_TYPE = "sms_auth"
 EMAIL_AUTH_TYPE = "email_auth"
-USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
+SECURITY_KEY_AUTH_TYPE = "security_key_auth"
+USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE, SECURITY_KEY_AUTH_TYPE]
 
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
@@ -168,6 +169,7 @@ class User(BaseModel):
     blocked = db.Column(db.Boolean, nullable=False, default=False)
     additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
     password_expired = db.Column(db.Boolean, nullable=False, default=False)
+    verified_phonenumber = db.Column(db.Boolean, nullable=True, default=False)
 
     # either email auth or a mobile number must be provided
     CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
@@ -224,6 +226,7 @@ class User(BaseModel):
             "blocked": self.blocked,
             "additional_information": self.additional_information,
             "password_expired": self.password_expired,
+            "verified_phonenumber": self.verified_phonenumber,
         }
 
     def serialize_for_users_list(self) -> dict:
@@ -1517,7 +1520,7 @@ class Job(BaseModel):
     template_version = db.Column(db.Integer, nullable=False)
     created_at = db.Column(
         db.DateTime,
-        index=False,
+        index=True,
         unique=False,
         nullable=False,
         default=datetime.datetime.utcnow,
@@ -1534,7 +1537,7 @@ class Job(BaseModel):
     notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
     notifications_failed = db.Column(db.Integer, nullable=False, default=0)
 
-    processing_started = db.Column(db.DateTime, index=False, unique=False, nullable=True)
+    processing_started = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)

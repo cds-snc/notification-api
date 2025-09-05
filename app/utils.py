@@ -167,22 +167,24 @@ def update_dct_to_str(update_dct, lang):
 
     values = {
         "EN": {
-            "password": "password",
-            "name": "name",
-            "email_address": "email address",
-            "mobile_number": "mobile number",
-            "auth_type": "auth type",
+            "password": "password changed",
+            "name": "full name changed",
+            "email_address": "email address changed",
+            "mobile_number": "phone number changed",
+            "auth_type": "second verification method changed",
             "security_key_created": "security key added",
             "security_key_deleted": "security key removed",
+            "verified_phonenumber": "phone number verification",
         },
         "FR": {
-            "password": "mot de passe",
-            "name": "nom complet",
-            "email_address": "adresse courriel",
-            "mobile_number": "téléphone cellulaire",
-            "auth_type": "méthode d'authentification",
-            "security_key_created": "clé de sécurité ajoutée",
-            "security_key_deleted": "clé de sécurité retirée",
+            "password": "Mot de passe modifié",
+            "name": "Nom complet modifié",
+            "email_address": "Adresse courriel modifiée",
+            "mobile_number": "Numéro de téléphone modifié",
+            "auth_type": "Deuxième méthode de vérification modifiée",
+            "security_key_created": "Clé de sécurité ajoutée",
+            "security_key_deleted": "Clé de sécurité supprimée",
+            "verified_phonenumber": "Vérification du numéro de téléphone",
         },
     }
 

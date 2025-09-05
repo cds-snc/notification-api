@@ -1,0 +1,1427 @@
+openapi: 3.0.3
+
+info:
+  version: 1.0.0
+  title: Notifications API v2
+  description: API for managing notifications and templates
+  termsOfService: https://notification.canada.ca/terms
+  contact:
+    name: GC Notify Support
+    url: https://notification.canada.ca/contact
+
+externalDocs:
+    description: Find out more about using the GC Notify API
+    url: https://documentation.notification.canada.ca/en/
+
+servers:
+  - url: https://api.notification.canada.ca/
+    description: GC Notify API server
+
+paths:
+  /v2/notifications:
+    get:
+      summary: Get list of notifications
+      description: Retrieve a paginated list of notifications with optional filtering
+      operationId: getNotifications
+      tags:
+        - Notifications
+      parameters:
+        - name: template_type
+          in: query
+          description: Filter by template type
+          required: false
+          schema:
+            type: string
+            enum: [sms, email]
+        - name: status
+          in: query
+          description: Filter by notification status
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [created, in-transit, pending, sent, delivered, failed]
+        - name: reference
+          in: query
+          description: Reference identifier for the notification
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: older_than
+          in: query
+          description: Filter notifications older than this notification ID (UUID)
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: include_jobs
+          in: query
+          description: Whether to include jobs in the response
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successfully retrieved notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  links:
+                    $ref: '#/components/schemas/Links'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                notification_not_found:
+                  summary: Notification not found
+                  value:
+                    result: "error"
+                    message: "Notification not found in database"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+
+  /v2/notifications/{notification-id}:
+    get:
+      summary: Get notification by ID
+      description: Retrieve a specific notification by its ID
+      operationId: getNotificationById
+      tags:
+        - Notifications
+      parameters:
+        - name: notification-id
+          in: path
+          description: Unique identifier for the notification
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          description: Bad request - invalid notification ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "notification_id is not a valid UUID"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                notification_not_found:
+                  summary: Notification not found
+                  value:
+                    result: "error"
+                    message: "Notification not found in database"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/notifications/email:
+    post:
+      summary: Send an email notification
+      description: Create and send an email notification
+      operationId: sendEmailNotification
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEmailNotificationRequest'
+            examples:
+              basic_email:
+                summary: Basic email notification
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+              with_personalisation:
+                summary: Email with personalisation placeholder
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    first_name: "John"
+                    last_name: "Doe"
+              with_file_attachment:
+                summary: Email with file attachments
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    application_file:
+                      file: "file as base64 encoded string"
+                      filename: "your_custom_filename.txt"
+                      sending_method: "attach"
+                    other_file:
+                      file: "other file as base64 encoded string"
+                      filename: "file2.txt"
+                      sending_method: "attach"
+              with_file_link:
+                summary: Email with file link
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    link_to_file:
+                      file: "file as base64 encoded string"
+                      filename: "your_custom_filename.pdf"
+                      sending_method: "link"
+              scheduled_email:
+                summary: Scheduled email notification
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  scheduled_for: "2025-06-25T15:15:00"
+      responses:
+        '201':
+          description: Email notification created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Bad request - various validation and business rule errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                team_api_key_error:
+                  summary: Team API key restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Can't send to this recipient using a team-only API key"
+                trial_mode_error:
+                  summary: Service in trial mode
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Can't send to this recipient when service is in trial mode"
+                unsupported_file_type:
+                  summary: Unsupported file type
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Unsupported file type 'exe'. Supported types are: 'pdf, csv, txt, jpeg, png, doc, docx, xls, xlsx, rtf, odt'"
+                virus_scan_failed:
+                  summary: File failed virus scan
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "File did not pass the virus scan"
+                missing_sending_method:
+                  summary: Missing sending method
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "sending_method is a required property"
+                missing_filename:
+                  summary: Missing filename
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "filename is a required property"
+                invalid_sending_method:
+                  summary: Invalid sending method
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "personalisation application_file sending_method is not one of [attach, link]"
+                base64_decode_error:
+                  summary: Base64 decoding error
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "application_file : Incorrect padding : Error decoding base64 field"
+                filename_too_short:
+                  summary: Filename too short
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "filename is too short"
+                filename_too_long:
+                  summary: Filename too long
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "filename is too long"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Unauthorized"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '429':
+          description: Too many requests - rate limiting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                rate_limit_exceeded:
+                  summary: Rate limit exceeded
+                  value:
+                    status_code: 429
+                    errors:
+                      - error: "RateLimitError"
+                        message: "Exceeded rate limit for key type LIVE of 1000 requests per 60 seconds"
+                send_limit_exceeded:
+                  summary: Daily send limit exceeded
+                  value:
+                    status_code: 429
+                    errors:
+                      - error: "TooManyRequestsError"
+                        message: "Exceeded send limits (250000) for today"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+
+  /v2/notifications/sms:
+    post:
+      summary: Send an SMS notification
+      description: Create and send an SMS notification
+      operationId: sendSmsNotification
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSmsNotificationRequest'
+            examples:
+              basic_sms:
+                summary: Basic SMS notification
+                value:
+                  phone_number: "+1234567890"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+
+              sms_with_personalisation:
+                summary: SMS with personalisation placeholder
+                value:
+                  phone_number: "+1234567890"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    first_name: "John"
+                    last_name: "Doe"
+
+              scheduled_sms:
+                summary: Scheduled SMS notification
+                value:
+                  phone_number: "+1234567890"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  scheduled_for: "2025-06-25T15:15:00"
+      responses:
+        '201':
+          description: SMS notification created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Bad request - various validation and business rule errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                team_api_key_error:
+                  summary: Team API key restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Can't send to this recipient using a team-only API key"
+                trial_mode_error:
+                  summary: Service in trial mode
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Can't send to this recipient when service is in trial mode"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '429':
+          description: Too many requests - rate limiting
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                rate_limit_exceeded:
+                  summary: Rate limit exceeded
+                  value:
+                    status_code: 429
+                    errors:
+                      - error: "RateLimitError"
+                        message: "Exceeded rate limit for key type TEAM/TEST/LIVE of 1000 requests per 60 seconds"
+                send_limit_exceeded:
+                  summary: Daily send limit exceeded
+                  value:
+                    status_code: 429
+                    errors:
+                      - error: "TooManyRequestsError"
+                        message: "Exceeded send limits (LIMIT NUMBER) for today"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+
+  /v2/templates:
+    get:
+      summary: Get list of templates
+      description: Retrieve a list of templates. Filterable by template type
+      operationId: getTemplates
+      tags:
+        - Templates
+      parameters:
+        - name: type
+          in: query
+          description: Filter by template type
+          required: false
+          schema:
+            type: string
+            enum: [sms, email]
+      responses:
+        '200':
+          description: Successfully retrieved templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                bad_request:
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "Unauthorized, authentication token must be provided"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+
+  /v2/template/{template-id}:
+    get:
+      summary: Get template by ID
+      description: Retrieve a specific template by its ID
+      operationId: getTemplate
+      tags:
+        - Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Unique identifier for the template
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          description: Bad request - invalid template ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "template_id is not a valid UUID"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    result: "error"
+                    message: "Template not found in database"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+
+  /v2/notifications/bulk:
+    post:
+      summary: Send a batch of notifications
+      description: |
+        Send notifications in bulk, up to 50,000 recipients at a time, for a single template.
+
+        You can schedule to send notifications up to 4 days in advance.
+      operationId: sendBulkNotifications
+      tags:
+        - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBulkRequest'
+            examples:
+              basic_bulk_email_rows:
+                summary: Basic bulk email notification using rows
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  rows:
+                    - ["email address", "name"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
+              basic_bulk_email_csv:
+                summary: Basic bulk notification using csv
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  csv: "email address,name\nalice@example.com,Alice\nbob@example.com,Bob"
+              basic_bulk_sms_rows:
+                summary: Basic bulk email notification using rows
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  rows:
+                    - ["phone number", "name"]
+                    - ["123-456-7890", "Alice"]
+                    - ["+112345678901", "Bob"]
+              basic_bulk_sms_csv:
+                summary: Basic bulk notification using csv
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  csv: "phone number,name\n123-456-7890,Alice\n+112345678901,Bob"
+              scheduled_bulk_with_ref:
+                summary: Scheduled bulk notifications with a ref for tracking and reply to address
+                value:
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  name: "January Appointment Reminders"
+                  scheduled_for: "2025-06-25T15:15:00"
+                  reference: "january-reminders"
+                  reply_to_id: "12345678-1234-1234-1234-123456789012"
+                  rows:
+                    - ["email address", "name"]
+                    - ["alice@example.com", "Alice"]
+                    - ["bob@example.com", "Bob"]
+      responses:
+        '201':
+          description: Bulk job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_rows_or_csv:
+                  summary: Must specify rows or csv
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You should specify either rows or csv"
+                missing_name:
+                  summary: Name is required
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "name is a required property"
+                scheduled_for_wrong_type:
+                  summary: scheduled_for wrong type
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for 42 is not of type string, null"
+                scheduled_for_past:
+                  summary: scheduled_for in the past
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime cannot be in the past"
+                scheduled_for_too_far:
+                  summary: scheduled_for too far in future
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime can only be up to 96 hours in the future"
+                scheduled_for_invalid_format:
+                  summary: scheduled_for invalid format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "scheduled_for datetime format is invalid. It must be a valid ISO8601 date time format, https://en.wikipedia.org/wiki/ISO_8601"
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template not found"
+                template_deleted:
+                  summary: Template deleted
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template has been deleted"
+                service_not_allowed:
+                  summary: Service not allowed to send emails
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Service is not allowed to send emails"
+                missing_column_headers:
+                  summary: Missing column headers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Missing column headers: name"
+                duplicate_column_headers:
+                  summary: Duplicate column headers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Duplicate column headers: name, NAME"
+                too_many_rows:
+                  summary: Too many rows
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Too many rows. Maximum number of rows allowed is 50000"
+                team_safelist_api_key:
+                  summary: Team and safelist API key restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot send to these recipients because you used a team and safelist API key."
+                trial_mode_restriction:
+                  summary: Trial mode restriction
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist."
+                daily_limit_exceeded:
+                  summary: Daily limit exceeded
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You only have 50 remaining messages before you reach your daily limit. You've tried to send 75 messages."
+                row_errors:
+                  summary: Row errors
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Some rows have errors. Row 1 - name: Missing. Row 2 - email address: invalid recipient. Row 3 - name: Missing. Row 4 - name: Missing."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: "error"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      example: "123e4567-e89b-12d3-a456-426614174000"
+
+    Notification:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        line_1:
+          type: string
+          nullable: true
+        line_2:
+          type: string
+          nullable: true
+        line_3:
+          type: string
+          nullable: true
+        line_4:
+          type: string
+          nullable: true
+        line_5:
+          type: string
+          nullable: true
+        line_6:
+          type: string
+          nullable: true
+        postcode:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [sms, email]
+        status:
+          type: string
+          enum: [created, sending, pending, delivered, permanent-failure, temporary-failure, technical-failure, pending-virus-check, virus-scan-failed]
+        status_description:
+          type: string
+          enum: [In transit, In transit, In transit, Delivered, Blocked,  No such number, No such address, Content or inbox issue, Carrier issue, Tech issue, In transit, Attachment has virus]
+        provider_response:
+          type: string
+          nullable: true
+        template:
+          $ref: '#/components/schemas/NotificationTemplate'
+        body:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        created_by_name:
+          type: string
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        postage:
+          type: string
+          nullable: true
+
+    NotificationTemplate:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        version:
+          type: integer
+        uri:
+          type: string
+          format: uri
+      required:
+        - id
+        - version
+        - uri
+
+    CreateEmailNotificationRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+          description: Optional reference identifier
+        email_address:
+          type: string
+          format: email
+          description: Email address of the recipient
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the template to use
+        personalisation:
+          type: object
+          description: Variables to substitute in the template and optional file attachments
+          additionalProperties:
+            oneOf:
+              - type: string
+                description: Template variable value
+              - $ref: '#/components/schemas/FileAttachment'
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule notification for future delivery
+        email_reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the reply-to address to use
+      required:
+        - email_address
+        - template_id
+
+    CreateSmsNotificationRequest:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          description: Phone number of the recipient
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the template to use
+        personalisation:
+          type: object
+          description: Variables to substitute in the template
+          additionalProperties:
+            oneOf:
+              - type: string
+                description: Template variable value
+        reference:
+          type: string
+          description: Optional reference identifier
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule notification for future delivery
+        sms_sender_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the SMS sender to use
+      required:
+        - phone_number
+        - template_id
+
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: Unique identifier for the notification
+        reference:
+          type: string
+          nullable: true
+          description: Reference identifier provided when creating the notification
+        content:
+          oneOf:
+            - $ref: '#/components/schemas/EmailContent'
+            - $ref: '#/components/schemas/SmsContent'
+          description: Content of the notification
+        uri:
+          type: string
+          format: uri
+          description: URI to retrieve the notification
+        template:
+          $ref: '#/components/schemas/NotificationTemplate'
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the notification is scheduled to be sent
+      required:
+        - id
+        - content
+        - uri
+        - template
+
+    EmailContent:
+      type: object
+      properties:
+        from_email:
+          type: string
+          format: email
+          description: From email address
+        body:
+          type: string
+          description: Email body content
+        subject:
+          type: string
+          description: Email subject line
+      required:
+        - from_email
+        - body
+        - subject
+
+    SmsContent:
+      type: object
+      properties:
+        body:
+          type: string
+          description: SMS message body
+        from_number:
+          type: string
+          description: From phone number
+      required:
+        - body
+        - from_number
+
+    FileAttachment:
+      type: object
+      properties:
+        file:
+          type: string
+          description: File content as base64 encoded string
+        filename:
+          type: string
+          description: Custom filename for the attachment
+        sending_method:
+          type: string
+          enum: [attach, link]
+          description: How the file should be sent - as attachment or as a link
+      required:
+        - file
+        - filename
+        - sending_method
+      example:
+        file: "base64encodedfilecontenthere"
+        filename: "document.pdf"
+        sending_method: "attach"
+
+    Template:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: Unique identifier for the template
+        name:
+          type: string
+          description: Template name
+        description:
+          type: string
+          description: Template description
+        type:
+          type: string
+          enum: [sms, email]
+          description: Type of notification this template is for
+        subject:
+          type: string
+          description: Subject template (for email)
+        body:
+          type: string
+          description: Message body template
+        personalisation:
+          type: object
+          description: Variables to substitute in the template and optional file attachments
+          additionalProperties:
+            oneOf:
+              - type: string
+                description: Template variable value
+        active:
+          type: boolean
+          description: Whether the template is active
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when template was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when template was last updated
+        created_by:
+          type: string
+          description: User who created the template
+      required:
+        - id
+        - name
+        - type
+        - body
+        - active
+        - created_at
+
+
+    Links:
+      type: object
+      properties:
+        current:
+          type: string
+          description: The link to the current page
+        next:
+          type: string
+          description: The link to the next page
+      required:
+        - current
+
+    Error:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Response result
+        message:
+          type: string
+          description: Description of the error
+      required:
+        - result
+        - message
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that failed validation
+              message:
+                type: string
+                description: Validation error message
+            required:
+              - field
+              - message
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when error occurred
+      required:
+        - error
+        - code
+        - details
+        - timestamp
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+          description: HTTP status code
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Error type
+              message:
+                type: string
+                description: Error message
+            required:
+              - error
+              - message
+      required:
+        - status_code
+        - errors
+
+    PostBulkRequest:
+      type: object
+      required:
+        - template_id
+        - name
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          description: The name of your bulk sending job. Used to identify this bulk of notifications later on.
+          example: "January Appointment Reminders"
+        reference:
+          type: string
+          description: A reference for this batch
+          example: "batch-reference-123"
+        csv:
+          type: string
+          format: binary
+          description: If you prefer to pass the content of CSV files instead of rows in the rows argument, you can do so. Pass the full content of your CSV file in a key named csv. Do not include the rows argument.
+          example: "email address,name\nalice@example.com,Alice"
+        rows:
+          type: array
+          description: An array of arrays. The first line is the header and should include at least email address if you're sending an email template or phone number if you're sending a text message template. The other column headers should match the placeholder fields (personalised variables) of your template. The following lines should be your recipients' details and should match the order of column headers. You can have between 1 and 50,000 recipients.
+          items:
+            type: array
+            items:
+              type: string
+          example:
+            - ["email address", "name"]
+            - ["alice@example.com", "Alice"]
+            - ["bob@example.com", "Bob"]
+        scheduled_for:
+          type: string
+          format: date-time
+          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          example: "2023-01-01T12:00:00"
+          nullable: true
+        reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the reply-to address or phone number to use
+          nullable: true
+
+    PostBulkResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required:
+            - id
+            - template
+            - job_status
+            - notification_count
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the bulk notification job
+            original_file_name:
+              type: string
+              description: The name of the original CSV file if one was provided
+            notification_count:
+              type: integer
+              description: The number of notifications in the bulk job
+            template:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the template used for this notification job
+            template_version:
+              type: integer
+              description: The version of the template used for this notification job
+            service:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the service that created the job
+            created_by:
+              type: object
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the user who created the job
+                name:
+                  type: string
+                  description: The name of the user who created the job
+            created_at:
+              type: string
+              format: date-time
+              description: When the job was created
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job was last updated
+            job_status:
+              type: string
+              enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
+              description: The status of the bulk notification job
+            scheduled_for:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job is scheduled to be processed, null if immediate
+            processing_started:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job started
+            processing_finished:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job finished
+            service_name:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: The name of the service that created the job
+            template_type:
+              type: string
+              enum: ['email', 'sms']
+              description: The type of template used for this job (email or sms)
+            api_key:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the API key used to create the job
+                name:
+                  type: string
+                  description: The name of the API key
+                key_type:
+                  type: string
+                  enum: ['normal', 'team', 'test']
+                  description: The type of API key
+            archived:
+              type: boolean
+              description: Whether the job has been archived
+            sender_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: The ID of the sender used for this job, if applicable
+
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API Key with format 'ApiKey-v1 {api_key}'
+
+tags:
+  - name: Notifications
+    description: Operations related to notifications
+  - name: Templates
+    description: Operations related to notification templates

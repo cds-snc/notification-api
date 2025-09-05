@@ -58,7 +58,7 @@ signer_inbound_sms = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
-flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
+flask_cache_ops = FlaskRedis(config_prefix="CACHE_OPS")
 redis_store = RedisClient()
 bounce_rate_client = RedisBounceRate(redis_store)
 annual_limit_client = RedisAnnualLimit(redis_store)
@@ -131,23 +131,23 @@ def create_app(application, config=None):
         salesforce_client.init_app(application)
 
     flask_redis.init_app(application)
-    flask_redis_publish.init_app(application)
+    flask_cache_ops.init_app(application)
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
 
-    sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
-    sms_normal_publish.init_app(flask_redis_publish, metrics_logger)
-    sms_priority_publish.init_app(flask_redis_publish, metrics_logger)
-    email_bulk_publish.init_app(flask_redis_publish, metrics_logger)
-    email_normal_publish.init_app(flask_redis_publish, metrics_logger)
-    email_priority_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
+    sms_normal_publish.init_app(flask_cache_ops, metrics_logger)
+    sms_priority_publish.init_app(flask_cache_ops, metrics_logger)
+    email_bulk_publish.init_app(flask_cache_ops, metrics_logger)
+    email_normal_publish.init_app(flask_cache_ops, metrics_logger)
+    email_priority_publish.init_app(flask_cache_ops, metrics_logger)
 
-    sms_bulk.init_app(flask_redis, metrics_logger)
-    sms_normal.init_app(flask_redis, metrics_logger)
-    sms_priority.init_app(flask_redis, metrics_logger)
-    email_bulk.init_app(flask_redis, metrics_logger)
-    email_normal.init_app(flask_redis, metrics_logger)
-    email_priority.init_app(flask_redis, metrics_logger)
+    sms_bulk.init_app(flask_cache_ops, metrics_logger)
+    sms_normal.init_app(flask_cache_ops, metrics_logger)
+    sms_priority.init_app(flask_cache_ops, metrics_logger)
+    email_bulk.init_app(flask_cache_ops, metrics_logger)
+    email_normal.init_app(flask_cache_ops, metrics_logger)
+    email_priority.init_app(flask_cache_ops, metrics_logger)
 
     register_blueprint(application)
     register_v2_blueprints(application)
@@ -286,7 +286,8 @@ def register_blueprint(application):
 
 
 def register_v2_blueprints(application):
-    from app.authentication.auth import requires_auth
+    from app.authentication.auth import requires_auth, requires_no_auth
+    from app.v2.api_spec.get_api_spec import v2_api_spec_blueprint
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
@@ -310,6 +311,8 @@ def register_v2_blueprints(application):
 
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
+    register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
+
 
 def init_app(app):
     @app.before_request
@@ -323,7 +326,15 @@ def init_app(app):
 
     @app.after_request
     def after_request(response):
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        ALLOWED_ORIGINS = {
+            "https://documentation.notification.canada.ca",
+            "https://documentation.staging.notification.cdssandbox.xyz",
+            "https://documentation.dev.notification.cdssandbox.xyz",
+            "https://cds-snc.github.io",
+        }
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
         response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
         return response

@@ -196,7 +196,7 @@ class Config(object):
 
     # URL of redis instance
     REDIS_URL = os.getenv("REDIS_URL")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
+    CACHE_OPS_URL = os.getenv("CACHE_OPS_URL", REDIS_URL)
     REDIS_ENABLED = env.bool("REDIS_ENABLED", False)
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
@@ -636,6 +636,7 @@ class Config(object):
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
     CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
+    CYPRESS_EMAIL_PREFIX = "notify-ui-tests"
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -696,7 +697,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
+    CACHE_OPS_URL = os.getenv("CACHE_OPS_URL", REDIS_URL)
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 

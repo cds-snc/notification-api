@@ -16,6 +16,8 @@ from app.dao.users_dao import save_model_user
 from app.errors import register_errors
 from app.models import (
     AnnualBilling,
+    Fido2Key,
+    Fido2Session,
     LoginEvent,
     Permission,
     Service,
@@ -139,13 +141,35 @@ def _destroy_test_user(email_name):
         # and is a bug
         cypress_service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
         cypress_service.created_by_id = current_app.config["CYPRESS_TEST_USER_ID"]
+        # update the smoktest templates' created_by to be the main cypress user
+        Template.query.filter(
+            Template.id.in_(
+                [
+                    current_app.config["CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID"],
+                    current_app.config["CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID"],
+                ]
+            )
+        ).update({"created_by_id": current_app.config["CYPRESS_TEST_USER_ID"]})
+        db.session.commit()
 
         # cycle through all the services created by this user, remove associated entities
         services = Service.query.filter_by(created_by=user).filter(Service.id != current_app.config["CYPRESS_SERVICE_ID"])
         for service in services.all():
-            TemplateHistory.query.filter_by(service_id=service.id).delete()
+            # Delete template history except for smoke test templates
+            TemplateHistory.query.filter(
+                TemplateHistory.service_id == service.id,
+            ).delete()
 
-            Template.query.filter_by(service_id=service.id).delete()
+            # Delete templates except for smoke test templates
+            Template.query.filter(
+                Template.service_id == service.id,
+                ~Template.id.in_(
+                    [
+                        current_app.config["CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID"],
+                        current_app.config["CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID"],
+                    ]
+                ),
+            ).delete()
             AnnualBilling.query.filter_by(service_id=service.id).delete()
             ServicePermission.query.filter_by(service_id=service.id).delete()
             Permission.query.filter_by(service_id=service.id).delete()
@@ -154,15 +178,27 @@ def _destroy_test_user(email_name):
 
         # remove all entities related to the user itself
         TemplateRedacted.query.filter_by(updated_by=user).delete()
-        TemplateHistory.query.filter_by(created_by=user).delete()
-        Template.query.filter_by(created_by=user).delete()
+        # Delete template history except for smoke test templates
+        TemplateHistory.query.filter(
+            TemplateHistory.created_by == user,
+        ).delete()
+        # Delete templates except for smoke test templates
+        Template.query.filter(
+            Template.created_by == user,
+            ~Template.id.in_(
+                [
+                    current_app.config["CYPRESS_SMOKE_TEST_EMAIL_TEMPLATE_ID"],
+                    current_app.config["CYPRESS_SMOKE_TEST_SMS_TEMPLATE_ID"],
+                ]
+            ),
+        ).delete()
         Permission.query.filter_by(user=user).delete()
         LoginEvent.query.filter_by(user=user).delete()
         ServiceUser.query.filter_by(user_id=user.id).delete()
         VerifyCode.query.filter_by(user=user).delete()
+        Fido2Key.query.filter_by(user=user).delete()
+        Fido2Session.query.filter_by(user=user).delete()
         User.query.filter_by(email_address=f"{EMAIL_PREFIX}{email_name}@cds-snc.ca").delete()
-
-        db.session.commit()
 
     except Exception as e:
         current_app.logger.error(f"Error destroying test user {user.email_address}: {str(e)}")
@@ -197,8 +233,8 @@ def cleanup_stale_users():
             _destroy_test_user(user_email)
 
         db.session.commit()
-    except Exception:
-        current_app.logger.error("[cleanup_stale_users]: error cleaning up test users")
+    except Exception as e:
+        current_app.logger.error(f"[cleanup_stale_users]: error cleaning up test users: {str(e)} ")
         return jsonify(message="Error cleaning up"), 500
 
     current_app.logger.info("[cleanup_stale_users]: Cleaned up stale test users")
