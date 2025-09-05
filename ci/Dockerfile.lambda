@@ -39,8 +39,7 @@ ENV GIT_SHA ${GIT_SHA}
 # (Optional) Add Lambda Runtime Interface Emulator and use a script in the ENTRYPOINT for simpler local runs
 ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
 COPY bin/entry.sh /
-COPY bin/sync_lambda_envs.sh /
-RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
+RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh
 
 # New Relic lambda layer
 RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
