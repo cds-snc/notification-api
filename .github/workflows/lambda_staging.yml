@@ -54,32 +54,48 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
-      - name: Sync NEW_RELIC_* variables from ENVIRONMENT_VARIABLES SSM to Lambda environment
+      - name: Set Lambda env pointers (NOTIFY_SSM_PARAMETER, CONFIG_KEYS, NEW_RELIC_ENABLED)
         run: |
-          PARAMS=$(aws ssm get-parameter \
+          # Fetch the aggregated SSM parameter containing all env-style lines
+          PARAM_VALUE=$(aws ssm get-parameter \
             --name ENVIRONMENT_VARIABLES \
             --with-decryption \
             --query 'Parameter.Value' \
             --output text)
 
-          # Extract all NEW_RELIC_* variables from the parameter store content
-          NEW_RELIC_VARS=$(echo "$PARAMS" | grep '^NEW_RELIC_' || true)
+          # Derive list of key names (handle both KEY=VALUE lines and possible JSON {"K":"V"})
+          if echo "$PARAM_VALUE" | grep -q '^{'; then
+            # JSON mode
+            KEY_NAMES=$(printf '%s' "$PARAM_VALUE" | jq -r 'keys[]')
+          else
+            # .env mode
+            KEY_NAMES=$(printf '%s' "$PARAM_VALUE" | grep -E '^[A-Za-z0-9_]+=' | cut -d '=' -f1 | sort -u)
+          fi
 
-          # Build a jq filter to add all NEW_RELIC_* vars
-          JQ_FILTER='.'
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            key="${line%%=*}"
-            value="${line#*=}"
-            JQ_FILTER="$JQ_FILTER + {\"$key\": \"$value\"}"
-          done <<< "$NEW_RELIC_VARS"
+          # Build comma-separated list
+            CONFIG_KEYS=$(printf '%s\n' "$KEY_NAMES" | paste -sd, -)
 
+          # Extract NEW_RELIC_ENABLED value (prefer SSM blob, fallback existing env)
+          NEW_RELIC_ENABLED_VALUE=""
+          if echo "$PARAM_VALUE" | grep -q '^NEW_RELIC_ENABLED='; then
+            NEW_RELIC_ENABLED_VALUE=$(echo "$PARAM_VALUE" | grep '^NEW_RELIC_ENABLED=' | tail -n1 | cut -d '=' -f2-)
+          fi
+          # Fallback to existing function value if not in param
           EXISTING_VARS=$(aws lambda get-function-configuration \
             --function-name ${{ matrix.image }} \
             --query 'Environment.Variables' \
             --output json)
+          if [ -z "$NEW_RELIC_ENABLED_VALUE" ]; then
+            NEW_RELIC_ENABLED_VALUE=$(echo "$EXISTING_VARS" | jq -r '."NEW_RELIC_ENABLED" // empty')
+          fi
 
-          echo "$EXISTING_VARS" | jq "$JQ_FILTER" > merged_env.json
+          # Build merged environment: preserve everything, then overwrite/add the three keys
+          jq \
+            --arg ssm_param "ENVIRONMENT_VARIABLES" \
+            --arg config_keys "$CONFIG_KEYS" \
+            --arg new_relic_enabled "$NEW_RELIC_ENABLED_VALUE" \
+            '. + {NOTIFY_SSM_PARAMETER:$ssm_param, CONFIG_KEYS:$config_keys} + (if $new_relic_enabled != "" then {NEW_RELIC_ENABLED:$new_relic_enabled} else {} end)' \
+            <<< "$EXISTING_VARS" > merged_env.json
 
           aws lambda update-function-configuration \
             --function-name ${{ matrix.image }} \

@@ -1,26 +1,22 @@
-"""Minimal SSM-only aggregated config loader.
+"""Config loader: SSM by default, optional local .env when NOTIFY_CONFIG_LOCAL=1.
 
-Goal: shrink the configured Lambda environment (circumvent 4KB limit) by
-placing the bulk of key/value pairs inside a single SSM SecureString parameter
-and loading it at cold start. Only missing keys are injected so any explicitly
-configured Lambda variables override the SSM blob.
+Assumes the SecureString parameter value is a newline-delimited set of lines:
+    KEY1=VALUE1\n
+    KEY2=VALUE2\n
+Comments (# ...) and blank lines are ignored. No JSON support.
 
-Usage:
-    1. Store a SecureString parameter (default name: ENVIRONMENT_VARIABLES)
-         whose value is either JSON ( {"KEY": "VALUE"} ) or classic .env lines.
-    2. Set (optionally) NOTIFY_SSM_PARAMETER to override the default name.
-    3. Import app.config as usual; this loader runs before config values are read.
+Order of precedence (highest wins):
+    1. Existing process/Lambda env vars
+    2. Injected SSM KEY=VALUE entries (missing keys only)
 
-Environment variables:
-    NOTIFY_SSM_PARAMETER   Name of the SSM parameter (default ENVIRONMENT_VARIABLES)
-    NOTIFY_CONFIG_DISABLE  If set to '1', skip loading (fallback / debugging)
-
-Safety: Does not overwrite existing os.environ keys.
+Env vars:
+    NOTIFY_SSM_PARAMETER   (default: ENVIRONMENT_VARIABLES) name of SSM parameter
+    NOTIFY_CONFIG_LOCAL    If 1: load from local .env-style file instead of SSM
+    NOTIFY_LOCAL_ENV_FILE  Path to local file (default: .env) when local mode active
 """
 
 from __future__ import annotations
 
-import json
 import os
 import logging
 from typing import Dict
@@ -41,20 +37,8 @@ def _fetch_ssm(parameter_name: str) -> str | None:
 
 
 def _parse(raw: str) -> Dict[str, str]:
-    raw = raw or ""
     data: Dict[str, str] = {}
-    # Try JSON first
-    try:
-        obj = json.loads(raw)
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if isinstance(v, (str, int, float, bool)) or v is None:
-                    data[str(k)] = "" if v is None else str(v)
-            return data
-    except Exception:
-        pass
-    # Fallback: parse .env style
-    for line in raw.splitlines():
+    for line in (raw or "").splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -69,9 +53,31 @@ def _parse(raw: str) -> Dict[str, str]:
 
 
 def preload_config() -> None:
-    if os.getenv("NOTIFY_CONFIG_DISABLE") == "1":
-        _LOG.info("config_loader disabled via NOTIFY_CONFIG_DISABLE=1")
+    # Local mode: read KEY=VALUE lines from a file, inject missing
+    try:
+        local_flag = int(os.getenv("NOTIFY_CONFIG_LOCAL", "0"))
+    except ValueError:
+        local_flag = 0
+    if local_flag == 1:
+        local_file = os.getenv("NOTIFY_LOCAL_ENV_FILE", ".env")
+        try:
+            with open(local_file, "r", encoding="utf-8") as f:
+                raw = f.read()
+        except FileNotFoundError:
+            _LOG.warning("config_loader local file %s not found (NOTIFY_CONFIG_LOCAL=1)", local_file)
+            return
+        kv = _parse(raw)
+        injected = 0
+        for k, v in kv.items():
+            if k in os.environ:
+                continue
+            os.environ[k] = v
+            injected += 1
+        if injected:
+            _LOG.info("config_loader injected %s variables from local file:%s", injected, local_file)
         return
+
+    # SSM mode (default)
     param = os.getenv("NOTIFY_SSM_PARAMETER", "ENVIRONMENT_VARIABLES")
     raw = _fetch_ssm(param)
     if not raw:

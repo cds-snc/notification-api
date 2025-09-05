@@ -19,7 +19,7 @@ try:  # Defensive
 except Exception as _e:  # pragma: no cover
     logging.getLogger("notify.config_loader").warning("config_loader preload failed: %s", _e)
 
-# Env helper only for typed access; we intentionally do NOT call read_env() / load_dotenv()
+# Env helper only for typed access
 env = Env()
 
 
