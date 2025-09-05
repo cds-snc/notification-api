@@ -5,6 +5,7 @@ if [ -z "${AWS_LAMBDA_RUNTIME_API}" ]; then
 else
     echo "ENTRY.SH: Running in AWS Lambda"
     . /sync_lambda_envs.sh
-    env  # Optional: dump all environment variables
+    echo "All environment variable names:"
+    env | cut -d '=' -f 1
     exec $(which python) -m awslambdaric $1
 fi
