@@ -22,11 +22,20 @@ set -euo pipefail
 
     for cert in VA-*.cer
     do
+        # Check if the certificate is already in PEM format
         if file "${cert}" | grep 'PEM'
         then
             cp "${cert}" "${cert}.crt"
         else
-            openssl x509 -in "${cert}" -inform der -outform pem -out "${cert}.crt"
+            # attempt to convert DER to PEM format
+            if ! openssl x509 -in "${cert}" -inform der -outform pem -out "${cert}.crt";
+            then
+                # if that fails, try base64 decode first, then convert
+                if ! base64 -d "${cert}" | openssl x509 -inform der -outform pem -out "${cert}.crt"; then
+                    echo "Error: Failed to convert ${cert} to .crt file using base64 decode and openssl. Please check the file format. Exiting."
+                    exit 1
+                fi
+            fi
         fi
         rm "${cert}"
     done
