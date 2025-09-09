@@ -54,32 +54,43 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
-      - name: Sync NEW_RELIC_* variables from ENVIRONMENT_VARIABLES SSM to Lambda environment
+      - name: Inject New Relic Toggle and Env Var Names (no SSM param pointer)
         run: |
-          PARAMS=$(aws ssm get-parameter \
-            --name ENVIRONMENT_VARIABLES \
+          set -euo pipefail
+
+          PARAM_NAME="ENVIRONMENT_VARIABLES"
+          RAW=$(aws ssm get-parameter \
+            --name "$PARAM_NAME" \
             --with-decryption \
             --query 'Parameter.Value' \
             --output text)
 
-          # Extract all NEW_RELIC_* variables from the parameter store content
-          NEW_RELIC_VARS=$(echo "$PARAMS" | grep '^NEW_RELIC_' || true)
+          # Extract NEW_RELIC_ENABLED (default to false if absent)
+          NEW_RELIC_ENABLED=$(printf '%s\n' "$RAW" | grep '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+          if [ -z "${NEW_RELIC_ENABLED}" ]; then
+            NEW_RELIC_ENABLED=false
+          fi
 
-          # Build a jq filter to add all NEW_RELIC_* vars
-          JQ_FILTER='.'
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            key="${line%%=*}"
-            value="${line#*=}"
-            JQ_FILTER="$JQ_FILTER + {\"$key\": \"$value\"}"
-          done <<< "$NEW_RELIC_VARS"
+          # Build CONFIG_KEYS: list of all keys (names only)
+          CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f 1 | paste -sd ',' -)
 
-          EXISTING_VARS=$(aws lambda get-function-configuration \
-            --function-name ${{ matrix.image }} \
-            --query 'Environment.Variables' \
-            --output json)
+          # Truncate CONFIG_KEYS if extremely long to avoid hitting limits
+          MAX_LEN=3500
+          if [ ${#CONFIG_KEYS} -gt $MAX_LEN ]; then
+            CONFIG_KEYS_TRUNCATED="${CONFIG_KEYS:0:$MAX_LEN}"
+            echo "CONFIG_KEYS truncated from ${#CONFIG_KEYS} to ${#CONFIG_KEYS_TRUNCATED} characters" >&2
+            CONFIG_KEYS="$CONFIG_KEYS_TRUNCATED"
+          fi
 
-          echo "$EXISTING_VARS" | jq "$JQ_FILTER" > merged_env.json
+          # Overwrite entire static environment: only keep these two keys
+          jq -n \
+            --arg nr "$NEW_RELIC_ENABLED" \
+            --arg keys "$CONFIG_KEYS" \
+            '{NEW_RELIC_ENABLED:$nr, CONFIG_KEYS:$keys}' > merged_env.json
+
+          echo "Static injection summary (environment fully replaced):" >&2
+          echo "  NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED" >&2
+          echo "  CONFIG_KEYS (count)=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')" >&2
 
           aws lambda update-function-configuration \
             --function-name ${{ matrix.image }} \
