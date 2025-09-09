@@ -54,7 +54,7 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
-      - name: Inject New Relic Toggle and Env Var Names (no SSM param pointer)
+      - name: Set Lambda New Relic Toggle and Env Var Names
         run: |
           set -euo pipefail
 
