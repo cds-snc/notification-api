@@ -10,6 +10,8 @@ ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 ARG NEW_RELIC_ENABLED=false
 ENV NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED}
+ENV _NEW_RELIC_CONDITION="[ \"${NEW_RELIC_ENABLED}\" = \"true\" ] || [ \"${NEW_RELIC_ENABLED}\" = \"TRUE\" ]"
+ENV _LAMBDA_HANDLER_CONDITION="if ${_NEW_RELIC_CONDITION}; then echo newrelic_lambda_wrapper.handler; else echo application.handler; fi"
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
@@ -46,7 +48,7 @@ COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 # New Relic lambda layer (only extract if enabled at build time)
-RUN if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then \
+RUN if ${_NEW_RELIC_CONDITION}; then \
             echo "New Relic enabled: extracting layer"; \
             unzip newrelic-layer.zip -d /opt; \
         else \
@@ -55,5 +57,5 @@ RUN if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" 
 
 ENTRYPOINT [ "/entry.sh" ]
 
-# New Relic handler otherwise application handler
-CMD [ "sh", "-c", "if [ \"${NEW_RELIC_ENABLED:-}\" = \"true\" ]; then exec newrelic_lambda_wrapper.handler; else exec application.handler; fi" ]
+# Set handler to either New Relic or the GCNotify application.
+CMD [ "sh", "-c", "exec $(${_LAMBDA_HANDLER_CONDITION})" ]
