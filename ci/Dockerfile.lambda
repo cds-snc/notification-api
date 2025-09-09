@@ -8,9 +8,12 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
+ARG NEW_RELIC_ENABLED=false
+ENV NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED}
 
-RUN apt-get update
-RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip
+RUN apt-get update \
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
@@ -42,9 +45,15 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# New Relic lambda layer
-RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+# New Relic lambda layer (only extract if enabled at build time)
+RUN if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then \
+            echo "New Relic enabled: extracting layer"; \
+            unzip newrelic-layer.zip -d /opt; \
+        else \
+            echo "New Relic disabled: skipping layer extraction"; \
+        fi && rm -f newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
+# New Relic handler otherwise application handler
 CMD [ "sh", "-c", "if [ \"${NEW_RELIC_ENABLED:-}\" = \"true\" ]; then exec newrelic_lambda_wrapper.handler; else exec application.handler; fi" ]

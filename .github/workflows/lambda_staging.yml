@@ -31,11 +31,24 @@ jobs:
 
       - name: Build container
         run: |
+          set -euo pipefail
+          PARAM_NAME="ENVIRONMENT_VARIABLES"
+          RAW=$(aws ssm get-parameter \
+            --name "$PARAM_NAME" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)
+          NEW_RELIC_ENABLED=$(printf '%s\n' "$RAW" | grep '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+          if [ -z "${NEW_RELIC_ENABLED}" ]; then
+            NEW_RELIC_ENABLED=false
+          fi
+          echo "Building image (toggle captured)" >&2
           docker build \
-          --build-arg GIT_SHA=${GITHUB_SHA::7} \
-          -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
-          . \
-          -f ci/Dockerfile.lambda
+            --build-arg GIT_SHA=${GITHUB_SHA::7} \
+            --build-arg NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} \
+            -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
+            -f ci/Dockerfile.lambda \
+            .
 
       - name: Login to ECR
         id: login-ecr
@@ -54,7 +67,7 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
-      - name: Set Lambda New Relic Toggle and Env Var Names
+      - name: Set Lambda Env Var Names
         run: |
           set -euo pipefail
 
@@ -64,12 +77,6 @@ jobs:
             --with-decryption \
             --query 'Parameter.Value' \
             --output text)
-
-          # Extract NEW_RELIC_ENABLED (default to false if absent)
-          NEW_RELIC_ENABLED=$(printf '%s\n' "$RAW" | grep '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
-          if [ -z "${NEW_RELIC_ENABLED}" ]; then
-            NEW_RELIC_ENABLED=false
-          fi
 
           # Build CONFIG_KEYS: list of all keys (names only)
           CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f 1 | paste -sd ',' -)
@@ -82,14 +89,12 @@ jobs:
             CONFIG_KEYS="$CONFIG_KEYS_TRUNCATED"
           fi
 
-          # Overwrite entire static environment: only keep these two keys
+          # Overwrite entire static environment: only CONFIG_KEYS
           jq -n \
-            --arg nr "$NEW_RELIC_ENABLED" \
             --arg keys "$CONFIG_KEYS" \
-            '{NEW_RELIC_ENABLED:$nr, CONFIG_KEYS:$keys}' > merged_env.json
+            '{CONFIG_KEYS:$keys}' > merged_env.json
 
-          echo "Static injection summary (environment fully replaced):" >&2
-          echo "  NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED" >&2
+          echo "Static injection summary:" >&2
           echo "  CONFIG_KEYS (count)=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')" >&2
 
           aws lambda update-function-configuration \
@@ -100,7 +105,6 @@ jobs:
         run: |
           aws lambda wait function-updated --function-name ${{ matrix.image }}
           VERSION="$(aws lambda publish-version --function-name ${{ matrix.image }} | jq -r '.Version')"
-   
           aws lambda update-alias \
             --function-name ${{ matrix.image }} \
             --name latest \
