@@ -18,47 +18,42 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # Harden shell environment
-        IFS=$'\n\t'
-
-        # Ensure region env vars (covers cases where credentials step omitted region export)
-        AWS_REGION="${AWS_REGION:-${{ inputs.aws-region }}}"
-        AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
-        export AWS_REGION AWS_DEFAULT_REGION
+        REGION='${{ inputs.aws-region }}'
+        export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION"
 
         PARAM_NAME='${{ inputs.parameter-name }}'
-        # Fetch parameter securely (do not echo RAW)
-        if ! RAW=$(aws ssm get-parameter \
-              --name "$PARAM_NAME" \
-              --with-decryption \
-              --query 'Parameter.Value' \
-              --output text 2>/dev/null); then
-          echo "Failed to retrieve SSM parameter: $PARAM_NAME" >&2
+        RAW=$(aws ssm get-parameter \
+          --name "$PARAM_NAME" \
+          --with-decryption \
+          --query 'Parameter.Value' \
+          --output text) || {
+          echo "ERROR: Failed to retrieve SSM parameter $PARAM_NAME. Please check that the parameter exists and you have sufficient permissions." >&2
+          exit 1
+        }
+
+        if [ $? -ne 0 ] || [ -z "$RAW" ]; then
+          echo "ERROR: SSM parameter $PARAM_NAME returned empty value." >&2
           exit 1
         fi
 
-        if [ -z "$RAW" ]; then
-          echo "SSM parameter $PARAM_NAME returned empty value; aborting to avoid wiping static env." >&2
-          exit 1
-        fi
-
-        # Derive comma-separated key list (exclude blank & comment lines only)
-        CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f 1 | paste -sd ',' -)
-
+        CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f1 | paste -sd ',' -)
         if [ -z "$CONFIG_KEYS" ]; then
-          echo "Derived CONFIG_KEYS list is empty; aborting." >&2
+          echo "ERROR: Derived CONFIG_KEYS list is empty." >&2
           exit 1
         fi
-
         KEY_COUNT=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')
 
         README_MSG='Important! Lambda variables are injected from AWS Parameter Store (ENVIRONMENT_VARIABLES). Names are listed in CONFIG_KEYS.'
-        jq -n --arg keys "$CONFIG_KEYS" --arg readme "$README_MSG" '{CONFIG_KEYS:$keys, README:$readme}' > merged_env.json
+
+        # Build environment JSON file with required top-level "Variables" object
+        jq -n \
+          --arg keys "$CONFIG_KEYS" \
+          --arg readme "$README_MSG" \
+          '{Variables:{CONFIG_KEYS:$keys, README:$readme}}' > lambda_env.json
 
         echo "Static injection summary:" >&2
         echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
-        echo "  First 5 keys: $(echo "$CONFIG_KEYS" | tr ',' '\n' | head -5 | paste -sd ',')" >&2
 
         aws lambda update-function-configuration \
           --function-name '${{ inputs.function-name }}' \
-          --environment "Variables=$(cat merged_env.json)"
+          --environment file://lambda_env.json
