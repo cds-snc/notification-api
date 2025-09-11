@@ -50,7 +50,6 @@ runs:
 
         echo "Static injection summary:" >&2
         echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
-        echo "  First 5 keys: $(echo "$CONFIG_KEYS" | tr ',' '\n' | head -5 | paste -sd ',')" >&2
 
         aws lambda update-function-configuration \
           --function-name '${{ inputs.function-name }}' \
