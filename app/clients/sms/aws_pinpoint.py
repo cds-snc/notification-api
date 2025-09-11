@@ -48,6 +48,7 @@ class AwsPinpointClient(SmsClient):
         'SUCCESSFUL': (NOTIFICATION_DELIVERED, None),
         'DELIVERED': (NOTIFICATION_DELIVERED, None),
         'PENDING': (NOTIFICATION_SENDING, None),
+        'QUEUED': (NOTIFICATION_SENDING, None),
         'INVALID': (NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_INVALID_NUMBER),
         'UNREACHABLE': (NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
         'UNKNOWN': (NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
@@ -234,14 +235,16 @@ class AwsPinpointClient(SmsClient):
         self,
         event_type,
         record_status,
+        is_final=True,
     ) -> tuple[str, str]:
         """Get the status.
 
-        Checks for opt out or buffered and then maps status and status reason.
+        Checks for opt out, buffered, or non-final and then maps status and status reason.
 
         Args:
             event_type (str): AWS event type
             record_status (str): Mapping of record status to notification status
+            is_final (bool): Pinpoint V2 isFinal attribute, default to True for V1 compatability
 
         Returns:
             tuple[str, str]: status and status_reason
@@ -250,6 +253,10 @@ class AwsPinpointClient(SmsClient):
             status = NOTIFICATION_PERMANENT_FAILURE
             status_reason = STATUS_REASON_BLOCKED
         elif event_type == '_SMS.BUFFERED':
+            status = NOTIFICATION_SENDING
+            status_reason = None
+        elif is_feature_enabled(FeatureFlag.PINPOINT_SMS_VOICE_V2) and not is_final:
+            # Treat Pinpoint V2 EUM non-final as sending to avoid premature status updates
             status = NOTIFICATION_SENDING
             status_reason = None
         else:
@@ -296,7 +303,8 @@ class AwsPinpointClient(SmsClient):
 
             event_type = delivery_status_message['eventType']
             message_status = delivery_status_message['messageStatus']
-            status, status_reason = self._get_aws_status(event_type, message_status)
+            is_final = delivery_status_message.get('isFinal', True)
+            status, status_reason = self._get_aws_status(event_type, message_status, is_final)
 
             # Convert price from dollars to millicents for consistency
             price_in_millicents = int(delivery_status_message.get('totalMessagePrice', 0) * 1000)

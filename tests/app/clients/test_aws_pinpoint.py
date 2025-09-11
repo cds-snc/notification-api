@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import botocore
-from app.feature_flags import FeatureFlag
 import pytest
 
 from app.celery.exceptions import NonRetryableException, RetryableException
@@ -10,6 +9,7 @@ from app.clients.sms.aws_pinpoint import AwsPinpointClient, AwsPinpointException
 from app.constants import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
+    NOTIFICATION_SENDING,
     NOTIFICATION_TEMPORARY_FAILURE,
     PINPOINT_PROVIDER,
     STATUS_REASON_BLOCKED,
@@ -363,9 +363,7 @@ def test_translate_delivery_status_pinpoint_sms_v1_successful(aws_pinpoint_clien
 def test_translate_delivery_status_pinpoint_sms_voice_v2_successful(aws_pinpoint_client, mocker):
     """Test translate_delivery_status for PinpointSMSVoiceV2 format with successful delivery"""
 
-    mock_feature_flag = mocker.Mock(FeatureFlag)
-    mock_feature_flag.value = 'PINPOINT_SMS_VOICE_V2'
-    mocker.patch('app.feature_flags.os.getenv', return_value='True')
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': 'True'})
 
     # Sample V2 delivery status message
     v2_delivery_message = {
@@ -374,6 +372,7 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_successful(aws_pinpoint
         'messageId': 'test-message-id-123',
         'messageStatus': 'DELIVERED',
         'destinationPhoneNumber': '+1234567890',
+        'isFinal': True,
         'totalMessagePrice': 0.075,
         'totalMessageParts': 1,
         'eventTimestamp': 1722427200000,
@@ -398,9 +397,7 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_successful(aws_pinpoint
 def test_translate_delivery_status_pinpoint_sms_voice_v2_missing_required_fields(aws_pinpoint_client, mocker):
     """Test translate_delivery_status raises NonRetryableException when required V2 fields are missing"""
 
-    mock_feature_flag = mocker.Mock(FeatureFlag)
-    mock_feature_flag.value = 'PINPOINT_SMS_VOICE_V2'
-    mocker.patch('app.feature_flags.os.getenv', return_value='True')
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': 'True'})
 
     # V2 delivery status message with data but missing required fields (eventType and messageId)
     v2_delivery_message = {
@@ -419,35 +416,155 @@ def test_translate_delivery_status_pinpoint_sms_voice_v2_missing_required_fields
         aws_pinpoint_client.translate_delivery_status(v2_delivery_message)
 
 
-# Test for PointpointSMSVoiceV2 event type and current status mapping
-# Tests pass, but we need to ensure that the event type and status mapping is correct.
-# This does not include all possible event types, but covers the main ones.
-# https://docs.aws.amazon.com/sms-voice/latest/userguide/configuration-sets-event-types.html
-@pytest.mark.skip(reason='#1829 - Skipping until we can confirm the event type and status mapping is correct')
 @pytest.mark.parametrize(
-    'event_type,message_status,expected_status,expected_status_reason',
+    'event_type, message_status, expected_status, expected_status_reason',
     [
         ('TEXT_DELIVERED', 'DELIVERED', NOTIFICATION_DELIVERED, None),
         ('TEXT_SUCCESSFUL', 'SUCCESSFUL', NOTIFICATION_DELIVERED, None),
+        ('TEXT_PENDING', 'PENDING', NOTIFICATION_SENDING, None),
+        ('TEXT_QUEUED', 'QUEUED', NOTIFICATION_SENDING, None),
         ('TEXT_BLOCKED', 'BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
         ('TEXT_INVALID', 'INVALID', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_INVALID_NUMBER),
         ('TEXT_CARRIER_BLOCKED', 'CARRIER_BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
         ('TEXT_SPAM', 'SPAM', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
         ('TEXT_UNREACHABLE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_CARRIER_UNREACHABLE', 'CARRIER_UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
         ('TEXT_UNKNOWN', 'UNKNOWN', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_TTL_EXPIRED', 'TTL_EXPIRED', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
         ('TEXT_INVALID_MESSAGE', 'INVALID_MESSAGE', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
     ],
 )
-def test_translate_delivery_status_pinpoint_sms_voice_v2_additional_events(
+def test_translate_delivery_status_pinpoint_sms_voice_v2_final_events(
     aws_pinpoint_client, mocker, event_type, message_status, expected_status, expected_status_reason
 ):
-    """Test translate_delivery_status for additional PinpointSMSVoiceV2 event types"""
+    """Test translate_delivery_status for PinpointSMSVoiceV2 event types for status events marked final
 
-    mock_feature_flag = mocker.Mock(FeatureFlag)
-    mock_feature_flag.value = 'PINPOINT_SMS_VOICE_V2'
-    mocker.patch('app.feature_flags.os.getenv', return_value='True')
+    PinpointSMSVoiceV2 adds an isFinal attribute to status update events.
+    isFinal: True if this is the final status for the message.
+    There are intermediate message statuses and it can take up to 72 hours for the final message status to be received.
+    """
 
-    # Sample V2 delivery status message with various event types
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': 'True'})
+
+    # Sample V2 delivery status message with various event types and isFinal True
+    v2_delivery_message = {
+        'eventType': event_type,
+        'eventVersion': '1.0',
+        'messageId': 'test-message-id-456',
+        'messageStatus': message_status,
+        'isFinal': True,
+        'destinationPhoneNumber': '+1234567890',
+        'totalMessagePrice': 0.05,
+        'totalMessageParts': 1,
+        'eventTimestamp': 1722427200000,
+    }
+
+    result = aws_pinpoint_client.translate_delivery_status(v2_delivery_message)
+
+    expected = SmsStatusRecord(
+        payload=None,
+        reference='test-message-id-456',
+        status=expected_status,
+        status_reason=expected_status_reason,
+        provider=PINPOINT_PROVIDER,
+        message_parts=1,
+        price_millicents=50,
+        provider_updated_at=datetime(2024, 7, 31, 12, 0),
+    )
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    'event_type, message_status',
+    [
+        ('TEXT_DELIVERED', 'DELIVERED'),
+        ('TEXT_SUCCESSFUL', 'SUCCESSFUL'),
+        ('TEXT_PENDING', 'PENDING'),
+        ('TEXT_QUEUED', 'QUEUED'),
+        ('TEXT_BLOCKED', 'BLOCKED'),
+        ('TEXT_INVALID', 'INVALID'),
+        ('TEXT_CARRIER_BLOCKED', 'CARRIER_BLOCKED'),
+        ('TEXT_SPAM', 'SPAM'),
+        ('TEXT_UNREACHABLE', 'UNREACHABLE'),
+        ('TEXT_CARRIER_UNREACHABLE', 'CARRIER_UNREACHABLE'),
+        ('TEXT_UNKNOWN', 'UNKNOWN'),
+        ('TEXT_TTL_EXPIRED', 'TTL_EXPIRED'),
+        ('TEXT_INVALID_MESSAGE', 'INVALID_MESSAGE'),
+    ],
+)
+def test_translate_delivery_status_pinpoint_sms_voice_v2_non_final_events(
+    aws_pinpoint_client, mocker, event_type, message_status
+):
+    """Test translate_delivery_status for PinpointSMSVoiceV2 event types for status events marked non-final.
+
+    PinpointSMSVoiceV2 adds an isFinal attribute to status update events.
+    isFinal: True if this is the final status for the message.
+    There are intermediate message statuses and it can take up to 72 hours for the final message status to be received.
+
+    All non-final event messages should be interpreted as NOTIFICATION_SENDING to avoid premature notification status updates and callbacks
+    """
+
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': 'True'})
+
+    # Sample V2 delivery status message with various event types and isFinal False
+    v2_delivery_message = {
+        'eventType': event_type,
+        'eventVersion': '1.0',
+        'messageId': 'test-message-id-456',
+        'messageStatus': message_status,
+        'isFinal': False,
+        'destinationPhoneNumber': '+1234567890',
+        'totalMessagePrice': 0.05,
+        'totalMessageParts': 1,
+        'eventTimestamp': 1722427200000,
+    }
+
+    result = aws_pinpoint_client.translate_delivery_status(v2_delivery_message)
+
+    expected = SmsStatusRecord(
+        payload=None,
+        reference='test-message-id-456',
+        status=NOTIFICATION_SENDING,
+        status_reason=None,
+        provider=PINPOINT_PROVIDER,
+        message_parts=1,
+        price_millicents=50,
+        provider_updated_at=datetime(2024, 7, 31, 12, 0),
+    )
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    'event_type, message_status, expected_status, expected_status_reason',
+    [
+        ('TEXT_DELIVERED', 'DELIVERED', NOTIFICATION_DELIVERED, None),
+        ('TEXT_SUCCESSFUL', 'SUCCESSFUL', NOTIFICATION_DELIVERED, None),
+        ('TEXT_PENDING', 'PENDING', NOTIFICATION_SENDING, None),
+        ('TEXT_QUEUED', 'QUEUED', NOTIFICATION_SENDING, None),
+        ('TEXT_BLOCKED', 'BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('TEXT_INVALID', 'INVALID', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_INVALID_NUMBER),
+        ('TEXT_CARRIER_BLOCKED', 'CARRIER_BLOCKED', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('TEXT_SPAM', 'SPAM', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_BLOCKED),
+        ('TEXT_UNREACHABLE', 'UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_CARRIER_UNREACHABLE', 'CARRIER_UNREACHABLE', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_UNKNOWN', 'UNKNOWN', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_TTL_EXPIRED', 'TTL_EXPIRED', NOTIFICATION_TEMPORARY_FAILURE, STATUS_REASON_RETRYABLE),
+        ('TEXT_INVALID_MESSAGE', 'INVALID_MESSAGE', NOTIFICATION_PERMANENT_FAILURE, STATUS_REASON_UNDELIVERABLE),
+    ],
+)
+def test_translate_delivery_status_pinpoint_sms_voice_v2_default_final_events(
+    aws_pinpoint_client, mocker, event_type, message_status, expected_status, expected_status_reason
+):
+    """Test translate_delivery_status for PinpointSMSVoiceV2 event types for status events missing isFinal.
+
+    Event missing the isFinal attribute are assumed to be final to avoid marking notification SENDING/PENDING in error
+    """
+
+    mocker.patch.dict('os.environ', {'PINPOINT_SMS_VOICE_V2': 'True'})
+
+    # Sample V2 delivery status message with various event types and isFinal True
     v2_delivery_message = {
         'eventType': event_type,
         'eventVersion': '1.0',
