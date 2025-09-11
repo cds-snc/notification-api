@@ -74,38 +74,11 @@ jobs:
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
       - name: Set Lambda Env Var Names
-        run: |
-          set -euo pipefail
-
-          PARAM_NAME="ENVIRONMENT_VARIABLES"
-          RAW=$(aws ssm get-parameter \
-            --name "$PARAM_NAME" \
-            --with-decryption \
-            --query 'Parameter.Value' \
-            --output text)
-
-          # Build CONFIG_KEYS: list of all keys (names only)
-          CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f 1 | paste -sd ',' -)
-
-          # Truncate CONFIG_KEYS if extremely long to avoid hitting limits
-          MAX_LEN=3500
-          if [ ${#CONFIG_KEYS} -gt $MAX_LEN ]; then
-            CONFIG_KEYS_TRUNCATED="${CONFIG_KEYS:0:$MAX_LEN}"
-            echo "CONFIG_KEYS truncated from ${#CONFIG_KEYS} to ${#CONFIG_KEYS_TRUNCATED} characters" >&2
-            CONFIG_KEYS="$CONFIG_KEYS_TRUNCATED"
-          fi
-
-          # Overwrite entire static environment: only CONFIG_KEYS
-          jq -n \
-            --arg keys "$CONFIG_KEYS" \
-            '{CONFIG_KEYS:$keys}' > merged_env.json
-
-          echo "Static injection summary:" >&2
-          echo "  CONFIG_KEYS (count)=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')" >&2
-
-          aws lambda update-function-configuration \
-            --function-name ${{ matrix.image }} \
-            --environment "Variables=$(cat merged_env.json)"
+        uses: ./.github/actions/set-lambda-config
+        with:
+          function-name: ${{ matrix.image }}
+          parameter-name: ENVIRONMENT_VARIABLES
+          aws-region: ca-central-1
 
       - name: Publish lambda version and update alias
         run: |
