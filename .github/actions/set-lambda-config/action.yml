@@ -54,6 +54,32 @@ runs:
         echo "Static injection summary:" >&2
         echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
 
-        aws lambda update-function-configuration \
-          --function-name '${{ inputs.function-name }}' \
-          --environment file://lambda_env.json
+        attempt=0
+        max_attempts=6
+        sleep_seconds=5
+        while true; do
+          set +e
+          OUTPUT=$(aws lambda update-function-configuration \
+            --function-name '${{ inputs.function-name }}' \
+            --environment file://lambda_env.json 2>&1)
+          rc=$?
+          set -e
+          if [ $rc -eq 0 ]; then
+            echo "Environment update succeeded." >&2
+            break
+          fi
+          if echo "$OUTPUT" | grep -q 'ResourceConflictException'; then
+            attempt=$((attempt+1))
+            if [ $attempt -ge $max_attempts ]; then
+              echo "ERROR: Gave up after $attempt attempts due to ongoing Lambda update conflict." >&2
+              echo "$OUTPUT" >&2
+              exit 1
+            fi
+            echo "Conflict detected (function still updating). Retry $attempt/$max_attempts in ${sleep_seconds}s..." >&2
+            sleep $sleep_seconds
+          else
+            echo "ERROR: Failed to update Lambda environment (non-conflict error)." >&2
+            echo "$OUTPUT" >&2
+            exit 1
+          fi
+        done
