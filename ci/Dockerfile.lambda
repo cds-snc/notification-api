@@ -8,8 +8,8 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
-ARG HANDLER=application.handler
-ENV HANDLER ${HANDLER}
+ARG APP_HANDLER=application.handler
+ENV APP_HANDLER ${APP_HANDLER}
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
@@ -45,15 +45,15 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# New Relic lambda layer (only when HANDLER explicitly set to New Relic wrapper)
-RUN if [ "${HANDLER}" = "newrelic_lambda_wrapper.handler" ]; then \
-        echo "HANDLER=${HANDLER} -> extracting New Relic layer"; \
+# New Relic lambda layer (only when APP_HANDLER explicitly set to New Relic wrapper)
+RUN if [ "${APP_HANDLER}" = "newrelic_lambda_wrapper.handler" ]; then \
+        echo "APP_HANDLER=${APP_HANDLER} -> extracting New Relic layer"; \
         unzip newrelic-layer.zip -d /opt; \
     else \
-        echo "HANDLER=${HANDLER} -> skipping New Relic layer"; \
+        echo "APP_HANDLER=${APP_HANDLER} -> skipping New Relic layer"; \
     fi; \
     rm -f newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
-CMD [ "${HANDLER}" ]
+CMD [ "${APP_HANDLER}" ]
