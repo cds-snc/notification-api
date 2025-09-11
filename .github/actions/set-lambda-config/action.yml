@@ -26,7 +26,10 @@ runs:
           --name "$PARAM_NAME" \
           --with-decryption \
           --query 'Parameter.Value' \
-          --output text)
+          --output text) || {
+          echo "ERROR: Failed to retrieve SSM parameter $PARAM_NAME. Please check that the parameter exists and you have sufficient permissions." >&2
+          exit 1
+        }
 
         if [ -z "$RAW" ]; then
           echo "ERROR: SSM parameter $PARAM_NAME returned empty value." >&2
