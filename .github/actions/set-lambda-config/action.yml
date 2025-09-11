@@ -1,0 +1,64 @@
+name: 'Set Lambda Static Env'
+description: 'Derive CONFIG_KEYS and README and update a Lambda function static environment'
+inputs:
+  function-name:
+    description: 'Lambda function name'
+    required: true
+  parameter-name:
+    description: 'SSM parameter name containing key=value lines'
+    required: true
+    default: 'ENVIRONMENT_VARIABLES'
+  aws-region:
+    description: 'AWS region'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Build merged env and update Lambda
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Harden shell environment
+        IFS=$'\n\t'
+
+        # Ensure region env vars (covers cases where credentials step omitted region export)
+        AWS_REGION="${AWS_REGION:-${{ inputs.aws-region }}}"
+        AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}"
+        export AWS_REGION AWS_DEFAULT_REGION
+
+        PARAM_NAME='${{ inputs.parameter-name }}'
+        # Fetch parameter securely (do not echo RAW)
+        if ! RAW=$(aws ssm get-parameter \
+              --name "$PARAM_NAME" \
+              --with-decryption \
+              --query 'Parameter.Value' \
+              --output text 2>/dev/null); then
+          echo "Failed to retrieve SSM parameter: $PARAM_NAME" >&2
+          exit 1
+        fi
+
+        if [ -z "$RAW" ]; then
+          echo "SSM parameter $PARAM_NAME returned empty value; aborting to avoid wiping static env." >&2
+          exit 1
+        fi
+
+        # Derive comma-separated key list (exclude blank & comment lines only)
+        CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f 1 | paste -sd ',' -)
+
+        if [ -z "$CONFIG_KEYS" ]; then
+          echo "Derived CONFIG_KEYS list is empty; aborting." >&2
+          exit 1
+        fi
+
+        KEY_COUNT=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')
+
+        README_MSG='Important! Lambda variables are injected from AWS Parameter Store (ENVIRONMENT_VARIABLES). Names are listed in CONFIG_KEYS.'
+        jq -n --arg keys "$CONFIG_KEYS" --arg readme "$README_MSG" '{CONFIG_KEYS:$keys, README:$readme}' > merged_env.json
+
+        echo "Static injection summary:" >&2
+        echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
+        echo "  First 5 keys: $(echo "$CONFIG_KEYS" | tr ',' '\n' | head -5 | paste -sd ',')" >&2
+
+        aws lambda update-function-configuration \
+          --function-name '${{ inputs.function-name }}' \
+          --environment "Variables=$(cat merged_env.json)"

@@ -31,11 +31,30 @@ jobs:
 
       - name: Build container
         run: |
+          set -euo pipefail
+          PARAM_NAME="ENVIRONMENT_VARIABLES"
+          RAW=$(aws ssm get-parameter \
+            --name "$PARAM_NAME" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text)
+          NEW_RELIC_ENABLED=$(printf '%s\n' "$RAW" | grep '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+          if [ -z "${NEW_RELIC_ENABLED}" ]; then
+            NEW_RELIC_ENABLED=false
+          fi
+          # Derive APP_HANDLER from toggle (build-time selection)
+          if [ "$NEW_RELIC_ENABLED" = "true" ] || [ "$NEW_RELIC_ENABLED" = "TRUE" ]; then
+            APP_HANDLER=newrelic_lambda_wrapper.handler
+          else
+            APP_HANDLER=application.handler
+          fi
+          echo "Building image (app_handler=$APP_HANDLER new_relic_enabled=$NEW_RELIC_ENABLED)" >&2
           docker build \
-          --build-arg GIT_SHA=${GITHUB_SHA::7} \
-          -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
-          . \
-          -f ci/Dockerfile.lambda
+            --build-arg GIT_SHA=${GITHUB_SHA::7} \
+            --build-arg APP_HANDLER=$APP_HANDLER \
+            -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
+            -f ci/Dockerfile.lambda \
+            .
 
       - name: Login to ECR
         id: login-ecr
@@ -54,11 +73,17 @@ jobs:
             --function-name ${{ matrix.image }} \
             --image-uri $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} > /dev/null 2>&1
 
+      - name: Set Lambda Env Var Names
+        uses: ./.github/actions/set-lambda-config
+        with:
+          function-name: ${{ matrix.image }}
+          parameter-name: ENVIRONMENT_VARIABLES
+          aws-region: ca-central-1
+
       - name: Publish lambda version and update alias
         run: |
           aws lambda wait function-updated --function-name ${{ matrix.image }}
           VERSION="$(aws lambda publish-version --function-name ${{ matrix.image }} | jq -r '.Version')"
-   
           aws lambda update-alias \
             --function-name ${{ matrix.image }} \
             --name latest \

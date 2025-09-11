@@ -8,9 +8,12 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
+ARG APP_HANDLER=application.handler
+ENV APP_HANDLER ${APP_HANDLER}
 
-RUN apt-get update
-RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip
+RUN apt-get update \
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
@@ -42,14 +45,15 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# New Relic lambda layer
-#RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+# New Relic lambda layer (only when APP_HANDLER explicitly set to New Relic wrapper)
+RUN if [ "${APP_HANDLER}" = "newrelic_lambda_wrapper.handler" ]; then \
+        echo "APP_HANDLER=${APP_HANDLER} -> extracting New Relic layer"; \
+        unzip newrelic-layer.zip -d /opt; \
+    else \
+        echo "APP_HANDLER=${APP_HANDLER} -> skipping New Relic layer"; \
+    fi; \
+    rm -f newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
 
-# Launch the New Relic lambda wrapper which will then launch the app
-# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
-#CMD [ "newrelic_lambda_wrapper.handler" ]
-
-# Temporary: Disable New Relic completely and get directly to GCNotify lambda's handler.
-CMD [ "application.handler" ]
+CMD [ "${APP_HANDLER}" ]
