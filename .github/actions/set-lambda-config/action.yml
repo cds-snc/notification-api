@@ -54,25 +54,11 @@ runs:
         echo "Static injection summary:" >&2
         echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
 
-        # Concise retry loop for transient ResourceConflictException after code update
-        for attempt in 1 2 3 4 5 6; do
-          if OUTPUT=$(aws lambda update-function-configuration \
-              --function-name '${{ inputs.function-name }}' \
-              --environment file://lambda_env.json 2>&1); then
-            echo "Environment update succeeded." >&2
-            break
-          fi
-          if echo "$OUTPUT" | grep -q 'ResourceConflictException'; then
-            if [ "$attempt" -eq 6 ]; then
-              echo "ERROR: Conflict persisted after $attempt attempts." >&2
-              echo "$OUTPUT" >&2
-              exit 1
-            fi
-            echo "Conflict (function updating). Retry $attempt/6 in 5s..." >&2
-            sleep 5
-          else
-            echo "ERROR: Failed to update Lambda environment (non-conflict)." >&2
-            echo "$OUTPUT" >&2
-            exit 1
-          fi
-        done
+        # Single attempt relies on upstream workflow step using 'aws lambda wait function-updated'
+        if ! aws lambda update-function-configuration \
+            --function-name '${{ inputs.function-name }}' \
+            --environment file://lambda_env.json >/dev/null 2>&1; then
+          echo "ERROR: Failed to update Lambda environment." >&2
+          exit 1
+        fi
+        echo "Environment update succeeded." >&2
