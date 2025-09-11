@@ -54,11 +54,6 @@ runs:
         echo "Static injection summary:" >&2
         echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
 
-        # Single attempt relies on upstream workflow step using 'aws lambda wait function-updated'
-        if ! aws lambda update-function-configuration \
-            --function-name '${{ inputs.function-name }}' \
-            --environment file://lambda_env.json >/dev/null 2>&1; then
-          echo "ERROR: Failed to update Lambda environment." >&2
-          exit 1
-        fi
-        echo "Environment update succeeded." >&2
+        aws lambda update-function-configuration \
+          --function-name '${{ inputs.function-name }}' \
+          --environment file://lambda_env.json
