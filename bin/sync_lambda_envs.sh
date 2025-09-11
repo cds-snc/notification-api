@@ -1,10 +1,20 @@
 #!/bin/sh
 
 # This script will retrieve notification environment variables from AWS parameter store
+# Since lambda & k8s environments have some variance, this script will remove any environment
+# variable that is already set when run within the lambda runtime environment
 
 TMP_ENV_FILE="/tmp/.env"
 
-load_all_envs() {
+var_expand() {
+  if [ -z "${1-}" ] || [ $# -ne 1 ]; then
+    printf 'var_expand: expected one argument\n' >&2;
+    return 1;
+  fi
+  eval printf '%s' "\"\${$1?}\"" 2> /dev/null # Variable double substitution to be able to check for variable
+}
+
+load_non_existing_envs() {
   local envFile=${1:-.env}
   local isComment='^[[:space:]]*#'
   local isBlank='^[[:space:]]*$'
@@ -18,8 +28,9 @@ load_all_envs() {
     key=$(echo "$line" | cut -d '=' -f 1)
     value=$(echo "$line" | cut -d '=' -f 2-)
 
-    # Always export (override any existing static value)
-    export "${key}=${value}"
+    if [ -z $(var_expand $key) ]; then # Check if environment variable doesn't exist
+      export "${key}=${value}"
+    fi
     
   done < $TMP_ENV_FILE
 }
@@ -29,4 +40,4 @@ if [ ! -f "$TMP_ENV_FILE" ]; then # Only setup envs once per lambda lifecycle
   aws ssm get-parameters --region ca-central-1 --with-decryption --names ENVIRONMENT_VARIABLES --query 'Parameters[*].Value' --output text > "$TMP_ENV_FILE"
 fi
 
-load_all_envs
+load_non_existing_envs
