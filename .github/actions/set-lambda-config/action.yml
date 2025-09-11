@@ -31,7 +31,7 @@ runs:
           exit 1
         }
 
-        if [ -z "$RAW" ]; then
+        if [ $? -ne 0 ] || [ -z "$RAW" ]; then
           echo "ERROR: SSM parameter $PARAM_NAME returned empty value." >&2
           exit 1
         fi
