@@ -42,10 +42,16 @@ jobs:
           if [ -z "${NEW_RELIC_ENABLED}" ]; then
             NEW_RELIC_ENABLED=false
           fi
-          echo "Building image (toggle captured)" >&2
+          # Derive HANDLER from toggle (build-time selection)
+          if [ "$NEW_RELIC_ENABLED" = "true" ] || [ "$NEW_RELIC_ENABLED" = "TRUE" ]; then
+            HANDLER=newrelic_lambda_wrapper.handler
+          else
+            HANDLER=application.handler
+          fi
+          echo "Building image (handler=$HANDLER new_relic_enabled=$NEW_RELIC_ENABLED)" >&2
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
-            --build-arg NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} \
+            --build-arg HANDLER=$HANDLER \
             -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
             -f ci/Dockerfile.lambda \
             .
