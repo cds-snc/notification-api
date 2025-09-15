@@ -116,6 +116,7 @@ exclude = [
     "cache",
     "migrations",
     "build",
+    "site-packages"
 ]
 extend-include = ['(app|migrations|tests)/.*\.pyi?$']
 src = ["app", "migrations", "tests"]
