@@ -2572,7 +2572,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.6"
+version = "53.2.7"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2608,8 +2608,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "renovate/pypi-setuptools-vulnerability"
-resolved_reference = "3f0f0417b1d01b50c9471b6cccac6ef94e6b997f"
+reference = "53.2.7"
+resolved_reference = "09271bd578bb283e54748b1df11898b06331ae00"
 
 [[package]]
 name = "ordered-set"
@@ -4563,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "ac66ebecadeac15348aca88bbf9f3bdb9473d219347bfb44deb0183d3126082d"
+content-hash = "2213fea8f907028a729d5f8ddcd3b673b6ebf57088054ba781d265cae9215a53"

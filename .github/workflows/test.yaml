@@ -82,7 +82,7 @@ jobs:
         cp -f .env.example .env
 
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@renovate/pypi-setuptools-vulnerability
+      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.7
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'
