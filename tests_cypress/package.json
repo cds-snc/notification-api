@@ -17,7 +17,6 @@
   "devDependencies": {
     "axe-core": "^4.10.0",
     "cypress": "^12.16.0",
-    "html-validate": "^7.7.1",
-    "form-data": ">=2.5.4"
+    "html-validate": "^7.7.1"
   }
 }
