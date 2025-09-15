@@ -289,7 +289,6 @@ def test_it_ses_callback_should_send_email_status_to_va_profile_when_set_to_deli
     with freeze_time('2001-01-01T12:00:00'):
         mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
         mocker.patch('app.celery.process_ses_receipts_tasks.check_and_queue_callback_task')
-        mocker.patch('app.celery.send_va_profile_notification_status_tasks.is_feature_enabled', return_value=True)
         mock_send_email_status = mocker.patch(
             'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile.apply_async'
         )
@@ -326,7 +325,6 @@ def test_it_ses_callback_should_send_email_status_to_va_profile_with_notificatio
         mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao.dao_update_notification')
         mocker.patch('app.celery.process_ses_receipts_tasks.process_ses_results.retry')
         mocker.patch('app.celery.process_ses_receipts_tasks.check_and_queue_callback_task')
-        mocker.patch('app.celery.send_va_profile_notification_status_tasks.is_feature_enabled', return_value=True)
         mock_send_email_status = mocker.patch(
             'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile.apply_async'
         )
@@ -364,7 +362,6 @@ def test_it_ses_callback_should_send_email_status_to_va_profile_with_notificatio
         mock_log_total_time = mocker.patch('app.celery.common.log_notification_total_time')
         mocker.patch('app.celery.process_ses_receipts_tasks.notifications_dao.dao_update_notification')
         mock_callback = mocker.patch('app.celery.process_ses_receipts_tasks.check_and_queue_callback_task')
-        mocker.patch('app.celery.send_va_profile_notification_status_tasks.is_feature_enabled', return_value=True)
         mock_send_email_status = mocker.patch(
             'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile.apply_async'
         )

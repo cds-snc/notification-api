@@ -7,7 +7,6 @@ from app.celery.send_va_profile_notification_status_tasks import (
     send_notification_status_to_va_profile,
 )
 from app.constants import EMAIL_TYPE, SMS_TYPE
-from app.feature_flags import FeatureFlag
 
 
 class TestSendNotificationStatusToVAProfile:
@@ -63,26 +62,8 @@ class TestSendNotificationStatusToVAProfile:
 
 
 class TestCheckAndQueueVANotificationCallback:
-    def test_feature_flag_enabled(self, mocker, sample_notification):
-        mock_feature_enabled = mocker.patch(
-            'app.celery.send_va_profile_notification_status_tasks.is_feature_enabled', return_value=True
-        )
-        mock_send_notification_status_to_va_profile = mocker.patch(
-            'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile'
-        )
-
-        notification = sample_notification()
-
-        check_and_queue_va_profile_notification_status_callback(notification)
-
-        mock_feature_enabled.assert_called_once_with(FeatureFlag.VA_PROFILE_SMS_STATUS_ENABLED)
-        mock_send_notification_status_to_va_profile.delay.assert_called_once()
-
     @pytest.mark.parametrize('notification_type', [SMS_TYPE, EMAIL_TYPE])
-    def test_sms_feature_flag_disabled(self, mocker, sample_notification, notification_type):
-        mock_feature_enabled = mocker.patch(
-            'app.celery.send_va_profile_notification_status_tasks.is_feature_enabled', return_value=False
-        )
+    def test_can_send_notification_callback(self, mocker, sample_notification, notification_type):
         mock_send_notification_status_to_va_profile = mocker.patch(
             'app.celery.send_va_profile_notification_status_tasks.send_notification_status_to_va_profile'
         )
@@ -92,9 +73,4 @@ class TestCheckAndQueueVANotificationCallback:
 
         check_and_queue_va_profile_notification_status_callback(notification)
 
-        mock_feature_enabled.assert_called_once_with(FeatureFlag.VA_PROFILE_SMS_STATUS_ENABLED)
-
-        if notification.notification_type == SMS_TYPE:
-            mock_send_notification_status_to_va_profile.delay.assert_not_called()
-        else:
-            mock_send_notification_status_to_va_profile.delay.assert_called_once()
+        mock_send_notification_status_to_va_profile.delay.assert_called_once()
