@@ -2608,8 +2608,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.6"
-resolved_reference = "0af9d1d98bbbb557a1154f5d344136d5b778805f"
+reference = "renovate/pypi-setuptools-vulnerability"
+resolved_reference = "3f0f0417b1d01b50c9471b6cccac6ef94e6b997f"
 
 [[package]]
 name = "ordered-set"
@@ -4563,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "467dc9adcd9bb06100e21013c2fc8a341ed4a622ed79e7b90dc7d890ec96d4d8"
+content-hash = "ac66ebecadeac15348aca88bbf9f3bdb9473d219347bfb44deb0183d3126082d"
