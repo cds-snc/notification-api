@@ -55,7 +55,11 @@ RUN if [ "${APP_HANDLER}" = "newrelic_lambda_wrapper.handler" ]; then \
     rm -f newrelic-layer.zip
 
 # Generate a wrapper entrypoint that bakes the resolved APP_HANDLER at build time.
-RUN printf '#!/bin/sh\nexec /entry.sh %s\n' "${APP_HANDLER}" > /handler_entry.sh \
-    && chmod +x /handler_entry.sh
+RUN case "${APP_HANDLER}" in \
+        application.handler|newrelic_lambda_wrapper.handler) ;; \
+        *) echo "Invalid APP_HANDLER: ${APP_HANDLER}" >&2; exit 1 ;; \
+    esac && \
+    printf '#!/bin/sh\nexec /entry.sh %s\n' "${APP_HANDLER}" > /handler_entry.sh && \
+    chmod +x /handler_entry.sh
 
 ENTRYPOINT [ "/handler_entry.sh" ]
