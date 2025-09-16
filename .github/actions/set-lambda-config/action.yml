@@ -1,0 +1,64 @@
+name: 'Set Lambda Static Env'
+description: 'Derive CONFIG_KEYS and README and update a Lambda function static environment'
+inputs:
+  function-name:
+    description: 'Lambda function name'
+    required: true
+  parameter-name:
+    description: 'SSM parameter name containing key=value lines'
+    required: true
+    default: 'ENVIRONMENT_VARIABLES'
+  aws-region:
+    description: 'AWS region'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Build merged env and update Lambda
+      shell: bash
+      run: |
+        set -euo pipefail
+        REGION='${{ inputs.aws-region }}'
+        export AWS_REGION="$REGION" AWS_DEFAULT_REGION="$REGION"
+
+        PARAM_NAME='${{ inputs.parameter-name }}'
+        RAW=$(aws ssm get-parameter \
+          --name "$PARAM_NAME" \
+          --with-decryption \
+          --query 'Parameter.Value' \
+          --output text) || {
+          echo "ERROR: Failed to retrieve SSM parameter $PARAM_NAME. Please check that the parameter exists and you have sufficient permissions." >&2
+          exit 1
+        }
+
+        if [ $? -ne 0 ] || [ -z "$RAW" ]; then
+          echo "ERROR: SSM parameter $PARAM_NAME returned empty value." >&2
+          exit 1
+        fi
+
+        CONFIG_KEYS=$(printf '%s\n' "$RAW" | grep -v '^[[:space:]]*$' | grep -v '^#' | cut -d '=' -f1 | paste -sd ',' -)
+        if [ -z "$CONFIG_KEYS" ]; then
+          echo "ERROR: Derived CONFIG_KEYS list is empty." >&2
+          exit 1
+        fi
+        KEY_COUNT=$(echo "$CONFIG_KEYS" | awk -F',' '{print NF}')
+
+        README_MSG='Important! Lambda variables are injected from AWS Parameter Store (ENVIRONMENT_VARIABLES). Names are listed in CONFIG_KEYS.'
+
+        # Build environment JSON file with required top-level "Variables" object
+        jq -n \
+          --arg keys "$CONFIG_KEYS" \
+          --arg readme "$README_MSG" \
+          '{Variables:{CONFIG_KEYS:$keys, README:$readme}}' > lambda_env.json
+
+        echo "Static injection summary:" >&2
+        echo "  CONFIG_KEYS count=$KEY_COUNT" >&2
+
+        # Single attempt relies on upstream workflow step using 'aws lambda wait function-updated'
+        if ! aws lambda update-function-configuration \
+            --function-name '${{ inputs.function-name }}' \
+            --environment file://lambda_env.json >/dev/null 2>&1; then
+          echo "ERROR: Failed to update Lambda environment." >&2
+          exit 1
+        fi
+        echo "Environment update succeeded." >&2
