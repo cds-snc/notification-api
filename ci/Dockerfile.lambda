@@ -10,7 +10,8 @@ ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apt-get update
-RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip
+RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip jo
+RUN rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
