@@ -1,12 +1,9 @@
 #!/bin/sh
 
 RESOLVED_HANDLER="$1"
-if [ -z "$RESOLVED_HANDLER" ] || [ "$RESOLVED_HANDLER" = "\${APP_HANDLER}" ]; then
-  RESOLVED_HANDLER="${APP_HANDLER:-application.handler}"
-fi
 
 if [ -z "${AWS_LAMBDA_RUNTIME_API}" ]; then
-    echo "ENTRY.SH: Running locally (handler=${RESOLVED_HANDLER})"
+    echo "ENTRY.SH: Running locally (handler=${RESOLVED_HANDLER}"
     exec /usr/bin/aws-lambda-rie $(which python) -m awslambdaric "$RESOLVED_HANDLER"
 else
     . /sync_lambda_envs.sh
