@@ -2572,7 +2572,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.6"
+version = "53.2.7"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2608,8 +2608,8 @@ werkzeug = "3.0.4"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.6"
-resolved_reference = "0af9d1d98bbbb557a1154f5d344136d5b778805f"
+reference = "53.2.7"
+resolved_reference = "09271bd578bb283e54748b1df11898b06331ae00"
 
 [[package]]
 name = "ordered-set"
@@ -4563,4 +4563,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "467dc9adcd9bb06100e21013c2fc8a341ed4a622ed79e7b90dc7d890ec96d4d8"
+content-hash = "2213fea8f907028a729d5f8ddcd3b673b6ebf57088054ba781d265cae9215a53"
