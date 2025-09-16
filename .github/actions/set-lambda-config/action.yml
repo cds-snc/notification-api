@@ -14,7 +14,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Build merged env and update Lambda
+    - name: Build Param Name List and update Lambda
       shell: bash
       run: |
         set -euo pipefail
@@ -27,7 +27,7 @@ runs:
           --with-decryption \
           --query 'Parameter.Value' \
           --output text) || {
-          echo "ERROR: Failed to retrieve SSM parameter $PARAM_NAME. Please check that the parameter exists and you have sufficient permissions." >&2
+          echo "ERROR: Failed to retrieve SSM parameter $PARAM_NAME." >&2
           exit 1
         }
 
