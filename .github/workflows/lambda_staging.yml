@@ -33,13 +33,12 @@ jobs:
         run: |
           set -euo pipefail
           PARAM_NAME="ENVIRONMENT_VARIABLES"
-          RAW=$(aws ssm get-parameter \
+          # Get the parameter value as JSON and extract NEW_RELIC_ENABLED using jq
+          NEW_RELIC_ENABLED=$(aws ssm get-parameter \
             --name "$PARAM_NAME" \
             --with-decryption \
             --query 'Parameter.Value' \
-            --output text)
-
-          NEW_RELIC_ENABLED=$(printf '%s\n' "$RAW" | grep '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+            --output text | jq -r '.NEW_RELIC_ENABLED // empty' 2>/dev/null || true)
           if [ -z "${NEW_RELIC_ENABLED}" ]; then
             NEW_RELIC_ENABLED=false
           fi
