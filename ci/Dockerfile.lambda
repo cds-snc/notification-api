@@ -9,7 +9,7 @@ ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 ARG APP_HANDLER=application.handler
-ENV APP_HANDLER ${APP_HANDLER}
+ENV APP_HANDLER=${APP_HANDLER}
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
@@ -55,5 +55,4 @@ RUN if [ "${APP_HANDLER}" = "newrelic_lambda_wrapper.handler" ]; then \
     rm -f newrelic-layer.zip
 
 ENTRYPOINT [ "/entry.sh" ]
-
 CMD [ "${APP_HANDLER}" ]
