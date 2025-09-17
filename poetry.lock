@@ -2573,7 +2573,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.7"
+version = "53.2.8"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2604,13 +2604,13 @@ PyYAML = "6.0.2"
 requests = "2.32.3"
 smartypants = "2.0.1"
 statsd = "3.3.0"
-werkzeug = "3.0.4"
+werkzeug = "3.0.6"
 
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.7"
-resolved_reference = "09271bd578bb283e54748b1df11898b06331ae00"
+reference = "53.2.8"
+resolved_reference = "2879879c2582bdc89b538835573b5fe915a2955d"
 
 [[package]]
 name = "ordered-set"
@@ -4257,13 +4257,13 @@ files = [
 
 [[package]]
 name = "werkzeug"
-version = "3.0.4"
+version = "3.0.6"
 description = "The comprehensive WSGI web application library."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "werkzeug-3.0.4-py3-none-any.whl", hash = "sha256:02c9eb92b7d6c06f31a782811505d2157837cea66aaede3e217c7c27c039476c"},
-    {file = "werkzeug-3.0.4.tar.gz", hash = "sha256:34f2371506b250df4d4f84bfe7b0921e4762525762bbd936614909fe25cd7306"},
+    {file = "werkzeug-3.0.6-py3-none-any.whl", hash = "sha256:1bc0c2310d2fbb07b1dd1105eba2f7af72f322e1e455f2f93c993bee8c8a5f17"},
+    {file = "werkzeug-3.0.6.tar.gz", hash = "sha256:a8dd59d4de28ca70471a34cba79bed5f7ef2e036a76b3ab0835474246eb41f8d"},
 ]
 
 [package.dependencies]
@@ -4564,4 +4564,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "1a8195dddcdc400cccb384d6e1cf34b82b97d0a0508d76b8345f3dcf084fe77b"
+content-hash = "94157a4f07cd9b450ce734f91211160afbe74ff2bd4ed0cba5ed925918402eaf"
