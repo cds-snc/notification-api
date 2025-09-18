@@ -49,19 +49,19 @@ RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 # Decide handler based on NEW_RELIC_ENABLED and optionally extract New Relic layer
 RUN if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then \
         export APP_HANDLER=newrelic_lambda_wrapper.handler; \
-        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> handler=${APP_HANDLER} (extracting NR layer)"; \
+        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> app_handler=${APP_HANDLER} (extracting NR layer)"; \
         unzip newrelic-layer.zip -d /opt; \
     else \
         export APP_HANDLER=application.handler; \
-        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> handler=${APP_HANDLER} (skipping NR layer)"; \
+        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> app_handler=${APP_HANDLER} (skipping NR layer)"; \
     fi; \
     rm -f newrelic-layer.zip; \
     echo "FINAL_APP_HANDLER=${APP_HANDLER}" > /app/handler_meta
 
 # Generate a wrapper entrypoint that bakes the resolved APP_HANDLER at build time (validation not needed; derived from boolean NEW_RELIC_ENABLED)
 RUN APP_HANDLER=$(grep '^FINAL_APP_HANDLER=' /app/handler_meta | cut -d '=' -f2-) && \
-    printf '#!/bin/sh\nexec /entry.sh %s\n' "${APP_HANDLER}" > /handler_entry.sh && \
-    chmod +x /handler_entry.sh && \
+    printf '#!/bin/sh\nexec /entry.sh %s\n' "${APP_HANDLER}" > /app_handler_entry.sh && \
+    chmod +x /app_handler_entry.sh && \
     echo "Baked APP_HANDLER=${APP_HANDLER}"
 
-ENTRYPOINT [ "/handler_entry.sh" ]
+ENTRYPOINT [ "/app_handler_entry.sh" ]
