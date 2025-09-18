@@ -15,7 +15,7 @@ Contains:
 ## Setting Up
 
 For any issues during the following instructions, make sure to review the
-**Frequent problems** section toward the end of the document.
+**Frequent problems** section toward the end of the document. 
 
 ### Local installation instruction (Use Dev Containers)
 #### In a [VS Code devcontainer](https://code.visualstudio.com/docs/remote/containers-tutorial)
