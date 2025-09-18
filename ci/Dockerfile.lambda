@@ -8,10 +8,13 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
+ARG NEW_RELIC_ENABLED=false
+ENV NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED}
+ENV APP_HANDLER=application.handler
 
-RUN apt-get update
-RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip jo
-RUN rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
@@ -43,14 +46,22 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# New Relic lambda layer
-#RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+# Decide handler based on NEW_RELIC_ENABLED and optionally extract New Relic layer
+RUN if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then \
+        export APP_HANDLER=newrelic_lambda_wrapper.handler; \
+        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> app_handler=${APP_HANDLER} (extracting NR layer)"; \
+        unzip newrelic-layer.zip -d /opt; \
+    else \
+        export APP_HANDLER=application.handler; \
+        echo "NEW_RELIC_ENABLED=${NEW_RELIC_ENABLED} -> app_handler=${APP_HANDLER} (skipping NR layer)"; \
+    fi; \
+    rm -f newrelic-layer.zip; \
+    echo "FINAL_APP_HANDLER=${APP_HANDLER}" > /app/handler_meta
 
-ENTRYPOINT [ "/entry.sh" ]
+# Generate a wrapper entrypoint that bakes the resolved APP_HANDLER at build time (validation not needed; derived from boolean NEW_RELIC_ENABLED)
+RUN APP_HANDLER=$(grep '^FINAL_APP_HANDLER=' /app/handler_meta | cut -d '=' -f2-) && \
+    printf '#!/bin/sh\nexec /entry.sh %s\n' "${APP_HANDLER}" > /app_handler_entry.sh && \
+    chmod +x /app_handler_entry.sh && \
+    echo "Baked APP_HANDLER=${APP_HANDLER}"
 
-# Launch the New Relic lambda wrapper which will then launch the app
-# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
-#CMD [ "newrelic_lambda_wrapper.handler" ]
-
-# Temporary: Disable New Relic completely and get directly to GCNotify lambda's handler.
-CMD [ "application.handler" ]
+ENTRYPOINT [ "/app_handler_entry.sh" ]
