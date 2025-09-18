@@ -35,11 +35,22 @@ jobs:
 
       - name: Build container
         run: |
+          set -euo pipefail
+          PARAM_NAME="ENVIRONMENT_VARIABLES"
+          RAW=$(aws ssm get-parameter \
+            --name "$PARAM_NAME" \
+            --with-decryption \
+            --query 'Parameter.Value' \
+            --output text || true)
+          NEW_RELIC_ENABLED=$(printf '%s' "$RAW" | grep -E '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+          if [ -z "${NEW_RELIC_ENABLED}" ]; then NEW_RELIC_ENABLED=false; fi
+          echo "Building image (tag=$IMAGE_TAG new_relic_enabled=$NEW_RELIC_ENABLED)" >&2
           docker build \
-          --build-arg GIT_SHA=$IMAGE_TAG \
-          -t $REGISTRY/${{ matrix.image }}:$IMAGE_TAG \
-          . \
-          -f ci/Dockerfile.lambda
+            --build-arg GIT_SHA=$IMAGE_TAG \
+            --build-arg NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED \
+            -t $REGISTRY/${{ matrix.image }}:$IMAGE_TAG \
+            -f ci/Dockerfile.lambda \
+            .
 
       - name: Login to ECR
         id: login-ecr
@@ -53,8 +64,9 @@ jobs:
         uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
         env:
           TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         with:
-          docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG }}"
+          docker_image: "${{ env.REGISTRY }}/${{ matrix.image }}:${{ env.IMAGE_TAG || github.sha }}"
           dockerfile_path: "ci/Dockerfile.lambda"
           sbom_name: "notification-api-lambda"
           token: "${{ secrets.GITHUB_TOKEN }}"
