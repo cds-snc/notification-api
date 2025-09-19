@@ -2,7 +2,7 @@
 
 # This script will retrieve notification environment variables from AWS parameter store
 # Since lambda & k8s environments have some variance, this script will remove any environment
-# variable that is already set when run within the lambda runtime environment
+# variable that is already set when run within the lambda runtime environment.
 
 TMP_ENV_FILE="/tmp/.env"
 
