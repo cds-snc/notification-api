@@ -11,8 +11,7 @@ ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 ENV NEW_RELIC_LAMBDA_HANDLER=application.handler
 
 RUN apt-get update \
- && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
- && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
@@ -26,7 +25,7 @@ COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric wheel
+    && poetry add awslambdaric newrelic-lambda wheel
 
 COPY . ${TASK_ROOT}/
 
