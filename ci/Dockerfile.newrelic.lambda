@@ -11,7 +11,8 @@ ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 ENV NEW_RELIC_LAMBDA_HANDLER=application.handler
 
 RUN apt-get update \
- && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
+ && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
