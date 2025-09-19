@@ -44,11 +44,8 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# Extract New Relic layer (wrapper + libs); remove extension binary so we rely on wrapper only.
-# Expect a file newrelic-layer.zip in build context.
-RUN unzip newrelic-layer.zip -d /opt \
- && rm -f /opt/extensions/newrelic* || true \
- && rm -f newrelic-layer.zip
+# Extract New Relic layer (wrapper + libs)
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
 
 # Use wrapper handler directly; wrapper will delegate to NEW_RELIC_LAMBDA_HANDLER.
 ENTRYPOINT [ "/entry.sh" ]
