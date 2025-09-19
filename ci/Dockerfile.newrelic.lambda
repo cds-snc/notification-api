@@ -8,7 +8,7 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
-ENV APP_HANDLER=application.handler
+ENV NEW_RELIC_LAMBDA_HANDLER=application.handler
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
@@ -17,7 +17,7 @@ RUN apt-get update \
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
 
-# Install poetry and isolate it in it's own venv
+# Install poetry and isolate it in its own venv
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
@@ -38,11 +38,18 @@ ENV PORT=6011
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
-# (Optional) Add Lambda Runtime Interface Emulator and use a script in the ENTRYPOINT for simpler local runs
+# (Optional) Add Lambda Runtime Interface Emulator
 ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
 COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
+# Extract New Relic layer (wrapper + libs); remove extension binary so we rely on wrapper only.
+# Expect a file newrelic-layer.zip in build context.
+RUN unzip newrelic-layer.zip -d /opt \
+ && rm -f /opt/extensions/newrelic* || true \
+ && rm -f newrelic-layer.zip
+
+# Use wrapper handler directly; wrapper will delegate to NEW_RELIC_LAMBDA_HANDLER.
 ENTRYPOINT [ "/entry.sh" ]
-CMD [ "application.handler" ]
+CMD [ "newrelic_lambda_wrapper.handler" ]
