@@ -3213,13 +3213,13 @@ dev = ["pre-commit", "pytest-asyncio", "tox"]
 
 [[package]]
 name = "pytest-mock-resources"
-version = "2.12.2"
+version = "2.12.3"
 description = "A pytest plugin for easily instantiating reproducible mock resources."
 optional = false
 python-versions = "<4,>=3.7"
 files = [
-    {file = "pytest_mock_resources-2.12.2-py3-none-any.whl", hash = "sha256:2077c0ee799b13438722cf86f64dd0c45b63ff924908be30d29e031c373111e1"},
-    {file = "pytest_mock_resources-2.12.2.tar.gz", hash = "sha256:523cce5d3621d42d1e90b5cc91c5f70c699798bf148410fe7edc0dde8f25115f"},
+    {file = "pytest_mock_resources-2.12.3-py3-none-any.whl", hash = "sha256:228a67daa10c0e4442106c87b632754f296e56fd7508ab0abce9709280b4577b"},
+    {file = "pytest_mock_resources-2.12.3.tar.gz", hash = "sha256:8623ce41b43c16d4e4646af4f86e741c777895083221d1cb655f97cb17ee2c23"},
 ]
 
 [package.dependencies]
@@ -4130,13 +4130,13 @@ types-pyOpenSSL = "*"
 
 [[package]]
 name = "types-requests"
-version = "2.32.4.20250809"
+version = "2.32.4.20250913"
 description = "Typing stubs for requests"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "types_requests-2.32.4.20250809-py3-none-any.whl", hash = "sha256:f73d1832fb519ece02c85b1f09d5f0dd3108938e7d47e7f94bbfa18a6782b163"},
-    {file = "types_requests-2.32.4.20250809.tar.gz", hash = "sha256:d8060de1c8ee599311f56ff58010fb4902f462a1470802cf9f6ed27bc46c4df3"},
+    {file = "types_requests-2.32.4.20250913-py3-none-any.whl", hash = "sha256:78c9c1fffebbe0fa487a418e0fa5252017e9c60d1a2da394077f1780f655d7e1"},
+    {file = "types_requests-2.32.4.20250913.tar.gz", hash = "sha256:abd6d4f9ce3a9383f269775a9835a4c24e5cd6b9f647d64f88aa4613c33def5d"},
 ]
 
 [package.dependencies]
@@ -4565,4 +4565,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "ada58530ba08a6cafdb2146289dbef37a43911fc13052da71547c4407bf1f95d"
+content-hash = "dc28bc453b49c509d959d99f8c096878780510d2018a2903bd8c04a760636c64"
