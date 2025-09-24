@@ -10,8 +10,34 @@ environment = os.environ.get("NOTIFY_ENVIRONMENT")
 newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 workers = 4
-worker_class = "gevent"
-worker_connections = 256
+
+# Detect OpenTelemetry and use sync workers when present to avoid conflicts
+# OpenTelemetry auto-instrumentation + gevent monkey patching can cause SSL recursion issues
+def _detect_opentelemetry():
+    """Check if OpenTelemetry is present and configured for auto-instrumentation."""
+    try:
+        # Check for OTEL environment variables that indicate auto-instrumentation
+        otel_vars = [
+            "OTEL_PYTHON_CONFIGURATOR",
+            "OTEL_PYTHON_DISTRO",
+            "OTEL_SERVICE_NAME",
+            "OTEL_RESOURCE_ATTRIBUTES"
+        ]
+        return any(os.environ.get(var) for var in otel_vars)
+    except Exception:
+        return False
+
+# Use sync workers when OpenTelemetry is detected, gevent otherwise
+if _detect_opentelemetry():
+    worker_class = "sync"
+    # Increase worker count for sync workers as they handle one request at a time
+    workers = int(os.environ.get("GUNICORN_WORKERS", "8"))
+    print("OpenTelemetry detected - using sync workers for compatibility")
+else:
+    worker_class = "gevent"
+    worker_connections = 256
+    workers = int(os.environ.get("GUNICORN_WORKERS", "4"))
+    print("Using gevent workers")
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
