@@ -144,6 +144,7 @@ class UserSchema(BaseSchema):
     logged_in_at = FlexibleDateTime()
     auth_type = field_for(models.User, "auth_type")
     password = fields.String(required=True, load_only=True)
+    platform_admin = fields.String()
 
     def user_permissions(self, usr):
         retval = {}
@@ -196,7 +197,6 @@ class UserUpdateAttributeSchema(BaseSchema):
             "id",
             "logged_in_at",
             "password_changed_at",
-            "platform_admin",
             "state",
             "updated_at",
             "verify_codes",
