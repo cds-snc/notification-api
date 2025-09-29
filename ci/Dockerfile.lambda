@@ -45,4 +45,4 @@ COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 ENTRYPOINT [ "/entry.sh" ]
-CMD [ "application.handler" ]
+CMD [ "newrelic_lambda_wrapper.handler" ]
