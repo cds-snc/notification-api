@@ -45,7 +45,7 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 def handler(event, context):
     # Initialize New Relic for Lambda
-    newrelic.agent.initialize()  # Will use environment variables or newrelic.ini
+    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
     
     return apig_wsgi_handler(event, context)
