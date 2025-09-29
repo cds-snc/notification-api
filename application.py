@@ -47,5 +47,5 @@ def handler(event, context):
     # Initialize New Relic for Lambda
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
-    
+
     return apig_wsgi_handler(event, context)
