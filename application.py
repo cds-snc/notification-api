@@ -45,9 +45,7 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 def handler(event, context):
     # Initialize New Relic for Lambda
-    if not hasattr(handler, '_newrelic_initialized'):
-        newrelic.agent.initialize()  # Will use environment variables or newrelic.ini
-        newrelic.agent.register_application(timeout=20.0)
-        handler._newrelic_initialized = True
+    newrelic.agent.initialize()  # Will use environment variables or newrelic.ini
+    newrelic.agent.register_application(timeout=20.0)
     
     return apig_wsgi_handler(event, context)
