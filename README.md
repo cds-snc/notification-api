@@ -3,7 +3,7 @@
 Contains:
 - the public-facing REST API for Notification built on the GOV.UK Notify platform, which teams can integrate with using [their clients](https://www.notifications.service.gov.uk/documentation)
 - an internal-only REST API built using Flask to manage services, users, templates, etc (this is what the [admin app](http://github.com/cds-snc/notification-admin) talks to)
-- asynchronous workers built using Celery to put things on queues and read them off to be processed, sent to providers, updated, etc
+- asynchronous workers built using Celery to put things into queues and read them off to be processed, sent to providers, updated, etc
 
 
 ## Functional constraints
