@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 
 import newrelic.agent  # See https://bit.ly/2xBVKBH
+from newrelic_lambda.lambda_handler import lambda_handler
 from apig_wsgi import make_lambda_handler
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
@@ -43,6 +44,7 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
 
 
+@lambda_handler()
 def handler(event, context):
     # Initialize New Relic for Lambda
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
