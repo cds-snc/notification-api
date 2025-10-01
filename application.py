@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 
+import newrelic.agent
 from apig_wsgi import make_lambda_handler
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
@@ -19,10 +20,21 @@ patch_all()
 
 load_dotenv()
 
+# Initialize New Relic with custom environment parameter for K8s/ECS deployments
+# Note: In Lambda, the wrapper already calls newrelic.agent.initialize() during cold start,
+# but calling it again with the environment parameter is safe and ensures proper configuration.
+# The agent will only initialize once and subsequent calls are no-ops.
+if os.environ.get("NOTIFY_ENVIRONMENT"):
+    newrelic.agent.initialize(environment=os.environ["NOTIFY_ENVIRONMENT"])
+
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
+
+# Register this application instance with New Relic
+# This ensures the agent can properly track this application in both Lambda and K8s/ECS
+newrelic.agent.register_application(timeout=20.0)
 
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
