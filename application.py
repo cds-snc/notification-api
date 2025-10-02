@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import os
 
-import newrelic.agent  # See https://bit.ly/2xBVKBH
+import newrelic.agent
 from apig_wsgi import make_lambda_handler
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
@@ -20,10 +20,20 @@ patch_all()
 
 load_dotenv()
 
+# Initialize New Relic with custom environment parameter
+# In Lambda: wrapper calls initialize() first, this adds environment config
+# In K8s/ECS: reads from newrelic.ini via gunicorn_config.py
+if os.environ.get("NOTIFY_ENVIRONMENT"):
+    newrelic.agent.initialize(environment=os.environ["NOTIFY_ENVIRONMENT"])
+
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
+
+# Register this application instance with New Relic
+# This ensures the agent can properly track this application in both Lambda and K8s/ECS
+newrelic.agent.register_application(timeout=20.0)
 
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
@@ -44,8 +54,4 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 
 def handler(event, context):
-    # Initialize New Relic for Lambda
-    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
-    newrelic.agent.register_application(timeout=20.0)
-
     return apig_wsgi_handler(event, context)
