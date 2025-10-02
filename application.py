@@ -39,7 +39,7 @@ apig_wsgi_handler = make_lambda_handler(
 # Setting app_name for APM visibility (uses NEW_RELIC_APP_NAME env var)
 newrelic.agent.initialize(
     environment=app.config["NOTIFY_ENVIRONMENT"],
-    app_name=os.environ.get("NEW_RELIC_APP_NAME")
+    app_name=os.environ.get("NEW_RELIC_APP_NAME", "Notify-API-Default-Name")
 )  # noqa: E402
 newrelic.agent.register_application(timeout=20.0)
 
