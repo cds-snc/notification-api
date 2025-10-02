@@ -32,6 +32,17 @@ apig_wsgi_handler = make_lambda_handler(
     app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
 )
 
+# Initialize New Relic at module load (cold start), not per invocation
+# This works for both Lambda (with wrapper) and K8s/ECS (via gunicorn_config.py)
+# For Lambda: wrapper handles instrumentation, this adds environment context
+# For K8s/ECS: gunicorn_config.py reinitializes with proper settings
+# Setting app_name for APM visibility (uses NEW_RELIC_APP_NAME env var)
+newrelic.agent.initialize(
+    environment=app.config["NOTIFY_ENVIRONMENT"],
+    app_name=os.environ.get("NEW_RELIC_APP_NAME")
+)  # noqa: E402
+newrelic.agent.register_application(timeout=20.0)
+
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
     print("========================================================")
@@ -44,8 +55,5 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 
 def handler(event, context):
-    # Initialize New Relic for Lambda
-    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
-    newrelic.agent.register_application(timeout=20.0)
-
+    # Simple handler - New Relic already initialized at module level
     return apig_wsgi_handler(event, context)
