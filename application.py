@@ -20,10 +20,9 @@ patch_all()
 
 load_dotenv()
 
-# Initialize New Relic with custom environment parameter for K8s/ECS deployments
-# Note: In Lambda, the wrapper already calls newrelic.agent.initialize() during cold start,
-# but calling it again with the environment parameter is safe and ensures proper configuration.
-# The agent will only initialize once and subsequent calls are no-ops.
+# Initialize New Relic with custom environment parameter
+# In Lambda: wrapper calls initialize() first, this adds environment config
+# In K8s/ECS: reads from newrelic.ini via gunicorn_config.py
 if os.environ.get("NOTIFY_ENVIRONMENT"):
     newrelic.agent.initialize(environment=os.environ["NOTIFY_ENVIRONMENT"])
 

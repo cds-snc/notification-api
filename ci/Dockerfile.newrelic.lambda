@@ -50,6 +50,7 @@ RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 ENTRYPOINT [ "/entry.sh" ]
 
-# Launch the New Relic lambda wrapper which will then launch the app
-# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
+# Use New Relic wrapper for Lambda monitoring
+# Lambda data will appear in New Relic Serverless section (not APM)
+# K8s/ECS deployments will appear in APM section
 CMD [ "newrelic_lambda_wrapper.handler" ]
