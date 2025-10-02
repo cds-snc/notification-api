@@ -1,9 +1,6 @@
-# Stage 1: Copy New Relic Lambda Layer for Python 3.12
-FROM public.ecr.aws/newrelic-lambda-layers-for-docker/newrelic-lambda-layers-python:312 AS layer
-
-# Stage 2: Build application
 FROM python:3.12-slim@sha256:31a416db24bd8ade7dac5fd5999ba6c234d7fa79d4add8781e95f41b187f4c9a
 
+ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV TASK_ROOT /app
 ENV APP_VENV="${TASK_ROOT}/.venv"
@@ -13,12 +10,12 @@ ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apt-get update
-RUN apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip
+RUN apt-get install -y bash git libtool  autoconf automake gcc  g++ make libffi-dev unzip
 
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
 
-# Install poetry and isolate it in its own venv
+# Install poetry and isolate it in it's own venv
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
@@ -27,15 +24,12 @@ COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric wheel
+    && poetry add awslambdaric newrelic-lambda wheel
 
 COPY . ${TASK_ROOT}/
 
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
-
-# Copy New Relic Layer (agent + extension) from the pre-built image
-COPY --from=layer /opt/ /opt/
 
 ENV PORT=6011
 
@@ -48,9 +42,11 @@ COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
+# New Relic lambda layer
+RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
+
 ENTRYPOINT [ "/entry.sh" ]
 
-# Use New Relic wrapper for Lambda monitoring
-# Lambda data will appear in New Relic Serverless section (not APM)
-# K8s/ECS deployments will appear in APM section
+# Launch the New Relic lambda wrapper which will then launch the app
+# handler defined in the NEW_RELIC_LAMBDA_HANDLER environment variable
 CMD [ "newrelic_lambda_wrapper.handler" ]
