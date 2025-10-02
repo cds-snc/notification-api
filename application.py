@@ -36,11 +36,8 @@ apig_wsgi_handler = make_lambda_handler(
 # This works for both Lambda (with wrapper) and K8s/ECS (via gunicorn_config.py)
 # For Lambda: wrapper handles instrumentation, this adds environment context
 # For K8s/ECS: gunicorn_config.py reinitializes with proper settings
-# Setting app_name for APM visibility (uses NEW_RELIC_APP_NAME env var)
-newrelic.agent.initialize(
-    environment=app.config["NOTIFY_ENVIRONMENT"],
-    app_name=os.environ.get("NEW_RELIC_APP_NAME", "Notify-API-Default-Name"),
-)  # noqa: E402
+# App name is set via NEW_RELIC_APP_NAME environment variable
+newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
 newrelic.agent.register_application(timeout=20.0)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
