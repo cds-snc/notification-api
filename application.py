@@ -34,9 +34,6 @@ apig_wsgi_handler = make_lambda_handler(
 
 # Initialize New Relic at module load (cold start), not per invocation
 # This works for both Lambda (with wrapper) and K8s/ECS (via gunicorn_config.py)
-# For Lambda: wrapper handles instrumentation, this adds environment context
-# For K8s/ECS: gunicorn_config.py reinitializes with proper settings
-# App name is set via NEW_RELIC_APP_NAME environment variable
 newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
 newrelic.agent.register_application(timeout=20.0)
 
