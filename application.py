@@ -34,6 +34,7 @@ apig_wsgi_handler = make_lambda_handler(
 # Initialize New Relic during Lambda cold starts. Kubernetes/ECS initialisation happens via gunicorn_config.py.
 if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
     import newrelic.agent  # See https://bit.ly/2xBVKBH
+
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
 
