@@ -8,7 +8,6 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
-ENV APP_HANDLER=application.handler
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
