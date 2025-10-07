@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 
 from apig_wsgi import make_lambda_handler
+from app.aws.xray.context import NotifyContext
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
@@ -11,7 +12,6 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
-from app.aws.xray.context import NotifyContext
 
 # Patch all supported libraries for X-Ray
 # Used to trace requests and responses through the stack
@@ -26,10 +26,6 @@ app = create_app(application)
 
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
-
-apig_wsgi_handler = make_lambda_handler(
-    app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
-)
 
 # New Relic APM for AWS Lambda Only
 if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
@@ -59,9 +55,13 @@ if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
             print(f"  {key}={value}")
 
     # https://docs.newrelic.com/docs/apm/agents/python-agent/python-agent-api/wsgiapplication-python-agent-api/
-    apig_wsgi_handler = newrelic.agent.WSGIApplicationWrapper(apig_wsgi_handler, name="Lambda API")
+    app.wsgi_app = newrelic.agent.WSGIApplicationWrapper(app.wsgi_app, name="Lambda API")
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     newrelic.agent.register_application(timeout=20.0)
+
+apig_wsgi_handler = make_lambda_handler(
+    app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
+)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
