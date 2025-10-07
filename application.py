@@ -27,16 +27,47 @@ app = create_app(application)
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
-apig_wsgi_handler = make_lambda_handler(
-    app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
-)
-
-# Initialize New Relic during Lambda cold starts. Kubernetes/ECS initialisation happens via gunicorn_config.py.
+# New Relic APM for AWS Lambda Only
 if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
     import newrelic.agent  # See https://bit.ly/2xBVKBH
 
+    monitored_newrelic_keys = [
+        "NEW_RELIC_APP_NAME",
+        "NEW_RELIC_ENABLED",
+        "NEW_RELIC_DISTRIBUTED_TRACING_ENABLED",
+        "NEW_RELIC_ENVIRONMENT",
+        "NEW_RELIC_EXTENSION_LOGS_ENABLED",
+        "NEW_RELIC_EXTENSION_SEND_FUNCTION_LOGS",
+        "NEW_RELIC_LAMBDA_EXTENSION_ENABLED",
+        "NEW_RELIC_LAMBDA_HANDLER",
+        "NEW_RELIC_SERVERLESS_MODE_ENABLED",
+        "NEW_RELIC_CONFIG_FILE",
+    ]
+
+    print("Enabling Lambda API New Relic APM Instrumentation")
+    print("New Relic environment variable summary:")
+
+    for key in monitored_newrelic_keys:
+        value = os.environ.get(key)
+        if value in (None, ""):
+            print(f"  {key}=<unset>")
+        else:
+            print(f"  {key}={value}")
+
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
+
+    # Adding the New Relic WSGI middleware to the Flask app
+    # We are doing this specifically as a workaround to enable APM metrics
+    # for the Lambda function, as the standard Lambda integration does not
+    # automatically instrument any metrics for APM.
+    # https://docs.newrelic.com/docs/apm/agents/python-agent/python-agent-api/wsgiapplication-python-agent-api/
+    app.wsgi_app = newrelic.agent.WSGIApplicationWrapper(app.wsgi_app, name="Lambda API")
     newrelic.agent.register_application(timeout=20.0)
+    apig_wsgi_handler = make_lambda_handler(
+        app,
+        binary_support=True,
+        non_binary_content_type_prefixes=["application/yaml", "application/json"],
+    )
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
