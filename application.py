@@ -58,10 +58,11 @@ if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
     newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
     app.wsgi_app = newrelic.agent.WSGIApplicationWrapper(app.wsgi_app, name="Lambda API")
     newrelic.agent.register_application(timeout=20.0)
-
-apig_wsgi_handler = make_lambda_handler(
-    app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
-)
+    apig_wsgi_handler = make_lambda_handler(
+        app,
+        binary_support=True,
+        non_binary_content_type_prefixes=["application/yaml", "application/json"],
+    )
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
