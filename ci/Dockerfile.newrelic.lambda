@@ -2,7 +2,7 @@
 FROM public.ecr.aws/newrelic-lambda-layers-for-docker/newrelic-lambda-layers-python:312 AS layer
 
 # Stage 2: Build application
-FROM python:3.12-slim@sha256:31a416db24bd8ade7dac5fd5999ba6c234d7fa79d4add8781e95f41b187f4c9a
+FROM python:3.12-slim@sha256:1aa78876248db92b67d93d039d3149e5fe01a979665bc0f33594ceb74c6720c1
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
 ENV PYTHONDONTWRITEBYTECODE 1
