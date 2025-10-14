@@ -20,7 +20,7 @@ patch_all()
 
 load_dotenv()
 
-newrelic.agent.initialize('newrelic.ini')
+newrelic.agent.initialize("newrelic.ini")
 
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
