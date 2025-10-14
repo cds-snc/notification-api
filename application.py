@@ -2,6 +2,7 @@
 from __future__ import print_function
 
 import os
+import newrelic.agent
 
 from apig_wsgi import make_lambda_handler
 from aws_xray_sdk.core import patch_all, xray_recorder
@@ -19,6 +20,8 @@ patch_all()
 
 load_dotenv()
 
+newrelic.agent.initialize('newrelic.ini')
+
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
@@ -30,13 +33,6 @@ XRayMiddleware(app, xray_recorder)
 apig_wsgi_handler = make_lambda_handler(
     app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
 )
-
-# Initialize New Relic during Lambda cold starts. Kubernetes/ECS initialisation happens via gunicorn_config.py.
-if os.environ.get("AWS_LAMBDA_RUNTIME_API"):
-    import newrelic.agent  # See https://bit.ly/2xBVKBH
-
-    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
-    newrelic.agent.register_application(timeout=20.0)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
@@ -50,5 +46,4 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
 
 
 def handler(event, context):
-    # Simple handler - New Relic already initialized at module level
     return apig_wsgi_handler(event, context)
