@@ -5,7 +5,6 @@ import os
 
 import newrelic.agent
 from apig_wsgi import make_lambda_handler
-from app.aws.xray.context import NotifyContext
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
@@ -13,6 +12,7 @@ from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
+from app.aws.xray.context import NotifyContext
 
 # Patch all supported libraries for X-Ray
 # Used to trace requests and responses through the stack
