@@ -20,6 +20,7 @@ patch_all()
 
 load_dotenv()
 
+# Initialize New Relic early, before creating the Flask app
 newrelic.agent.initialize("newrelic.ini")
 
 application = Flask("api")
@@ -27,8 +28,12 @@ application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
+# Configure X-Ray after app creation
 xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
+
+# Wrap the Flask app with New Relic's WSGI wrapper
+app = newrelic.agent.WSGIApplicationWrapper(app)
 
 apig_wsgi_handler = make_lambda_handler(
     app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
