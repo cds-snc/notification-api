@@ -64,7 +64,7 @@ def upgrade():
             "id": service_suspended_template_id,
             "name": "Service Suspend",
             "subject": "Account closed | Compte fermé",
-            "content": "You’ve deactivated your GC Notify account.",
+            "content": service_suspended_content,
             "template_type": "email",  # Ensure this matches the ENUM definition in the database
         },
     ]
