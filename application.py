@@ -21,9 +21,14 @@ patch_all()
 load_dotenv()
 
 is_lambda = os.environ.get("AWS_LAMBDA_RUNTIME_API") is not None
+enable_newrelic = os.getenv("ENABLE_NEW_RELIC", "False").lower() == "true"
 
-if is_lambda:
+print ("is_lambda =", is_lambda)
+print ("enable_newrelic =", enable_newrelic)
+
+if is_lambda and enable_newrelic:
     # Initialize New Relic early, before creating the Flask app
+    print("Lambda detected, and New Relic enabled - initializing New Relic agent")
     environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
     newrelic.agent.initialize("newrelic.ini", environment=environment)
 
@@ -37,7 +42,7 @@ xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
 # It's annoying that we have to do this here, but order matters - so we need to check if is lambda twice.
-if is_lambda:
+if is_lambda and enable_newrelic:
     # Wrap the Flask app with New Relic's WSGI wrapper
     app = newrelic.agent.WSGIApplicationWrapper(app)
 
