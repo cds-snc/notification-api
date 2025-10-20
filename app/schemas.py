@@ -799,6 +799,8 @@ class ServiceHistorySchema(Schema):
     created_by_id = fields.UUID()
     version = fields.Integer()
     sensitive_service = fields.Boolean()
+    suspended_by_id = fields.UUID()
+    suspended_at = FlexibleDateTime()
 
 
 class ApiKeyHistorySchema(Schema):
