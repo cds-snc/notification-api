@@ -23,8 +23,8 @@ load_dotenv()
 is_lambda = os.environ.get("AWS_LAMBDA_RUNTIME_API") is not None
 enable_newrelic = os.getenv("ENABLE_NEW_RELIC", "False").lower() == "true"
 
-print ("is_lambda =", is_lambda)
-print ("enable_newrelic =", enable_newrelic)
+print("is_lambda =", is_lambda)
+print("enable_newrelic =", enable_newrelic)
 
 if is_lambda and enable_newrelic:
     # Initialize New Relic early, before creating the Flask app
