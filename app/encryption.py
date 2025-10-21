@@ -9,8 +9,8 @@ SignedNotifications = NewType("SignedNotifications", List[SignedNotification])
 
 
 class NotificationDictToSign(TypedDict):
-    # todo: remove duplicate keys
-    # todo: remove all NotRequired and decide if key should be there or not
+    # TODO: remove duplicate keys
+    # TODO: remove all NotRequired and decide if key should be there or not
     id: NotRequired[str]
     template: str  # actually template_id
     service_id: NotRequired[str]
