@@ -35,6 +35,7 @@ from app.dao.users_dao import (
     create_secret_code,
     create_user_code,
     dao_archive_user,
+    dao_deactivate_user,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -981,3 +982,17 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/deactivate", methods=["POST"])
+def deactivate_user(user_id):
+    """
+    REST method to deactivate a user by calling the DAO method.
+    Includes error handling in case the deactivation fails.
+    """
+    try:
+        dao_deactivate_user(user_id)
+        return jsonify({"message": "User deactivated successfully"}), 200
+    except Exception as e:
+        current_app.logger.error(f"Failed to deactivate user {user_id}: {str(e)}")
+        return jsonify({"error": "Failed to deactivate user"}), 500

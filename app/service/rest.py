@@ -791,8 +791,8 @@ def archive_service(service_id):
     return "", 204
 
 
-@service_blueprint.route("/<uuid:service_id>/suspend", methods=["POST"])
-def suspend_service(service_id):
+@service_blueprint.route("/<uuid:service_id>/suspend/<uuid:user_id>", methods=["POST"])
+def suspend_service(service_id, user_id):
     """
     Suspending a service will mark the service as inactive and revoke API keys.
     :param service_id:
@@ -801,7 +801,7 @@ def suspend_service(service_id):
     service = dao_fetch_service_by_id(service_id)
 
     if service.active:
-        dao_suspend_service(service.id)
+        dao_suspend_service(service.id, user_id)
 
     return "", 204
 

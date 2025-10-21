@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from random import SystemRandom
 
+from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -9,6 +10,7 @@ from app import db
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
+from app.dao.services_dao import dao_suspend_service
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, Service, ServiceUser, User, VerifyCode
 from app.utils import escape_special_characters
@@ -222,3 +224,55 @@ def get_services_for_all_users():
     )
 
     return result
+
+
+@transactional
+def dao_deactivate_user(user_id):
+    """
+    Deactivates a user and handles associated services based on the use-cases.
+    """
+    from app.service.sender import send_notification_to_service_users
+
+    user = get_user_by_id(user_id)
+    service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
+
+    if user.state == "inactive":
+        raise InvalidRequest("User is already inactive", status_code=400)
+
+    # clean up services
+    services = user.services
+
+    for service in services:
+        members = [member for member in service.users if member.state == "active"]
+
+        serviceIsLive = not service.restricted
+
+        if service.active:
+            # suspend live services with 2 or fewer members or trial services with only 1 member
+            if serviceIsLive and (len(members) <= 2) or (not serviceIsLive and len(members) == 1):
+                dao_suspend_service(service.id, user.id)
+
+                # Notify remaining team members of the suspension
+                if len(members) == 2:
+                    send_notification_to_service_users(service.id, service_suspension_template_id)
+
+    # Deactivate the user
+    permission_dao.remove_user_service_permissions_for_all_services(user)
+
+    service_users = dao_get_service_users_by_user_id(user.id)
+    for service_user in service_users:
+        db.session.delete(service_user)
+
+    user.organisations = []
+
+    user.auth_type = EMAIL_AUTH_TYPE
+    user.mobile_number = None
+    user.password = str(uuid.uuid4())
+    # Changing the current_session_id signs the user out
+    user.current_session_id = "00000000-0000-0000-0000-000000000000"
+    user.state = "inactive"
+
+    db.session.add(user)
+    db.session.commit()
+
+    return user

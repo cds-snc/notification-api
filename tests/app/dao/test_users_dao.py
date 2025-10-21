@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import ANY, patch
 
 import pytest
 from freezegun import freeze_time
@@ -12,6 +13,7 @@ from app.dao.users_dao import (
     count_user_verify_codes,
     create_secret_code,
     dao_archive_user,
+    dao_deactivate_user,
     delete_codes_older_created_more_than_a_day_ago,
     delete_model_user,
     get_services_for_all_users,
@@ -351,3 +353,57 @@ class TestGetServicesAllUsers:
             if user_id == service_2_user.id:
                 assert email_address == service_2_user.email_address
                 assert services == [service_2.id]
+
+
+class TestUserDeactivation:
+    @pytest.mark.parametrize(
+        "is_live, other_members_count, expected_service_active, should_send_email",
+        [
+            (True, 0, False, False),  # Live service, no other members
+            (False, 0, False, False),  # Trial service, no other members
+            (True, 1, False, True),  # Live service, 1 other member
+            (False, 1, True, False),  # Trial service, 1 other member
+            (True, 2, True, False),  # Live service, 2 other members
+            (False, 2, True, False),  # Trial service, 2 other members
+            (True, 3, True, False),  # Live service, 3 other members
+            (False, 3, True, False),  # Trial service, 3 other members
+        ],
+        ids=[
+            "live_service_no_members",
+            "trial_service_no_members",
+            "live_service_one_member",
+            "trial_service_one_member",
+            "live_service_two_members",
+            "trial_service_two_members",
+            "live_service_three_members",
+            "trial_service_three_members",
+        ],
+    )
+    @freeze_time("2025-10-21 12:00:00")
+    def test_dao_deactivate_user(
+        self, notify_db_session, is_live, other_members_count, expected_service_active, should_send_email
+    ):
+        user = create_user()
+        user.state = "active"  # Ensure the user is active before deactivation
+        service = create_service(user=user, restricted=not is_live)
+
+        # Add other members to the service
+        other_users = [create_user(email=f"other{i}@test.com") for i in range(other_members_count)]
+        service.users.extend(other_users)
+
+        with patch("app.service.sender.send_notification_to_service_users") as mock_send_notification:
+            dao_deactivate_user(user.id)
+
+            # Assertions
+            assert user.state == "inactive"
+            assert service.active == expected_service_active
+
+            if should_send_email:
+                mock_send_notification.assert_called_once_with(service.id, ANY)
+            else:
+                mock_send_notification.assert_not_called()
+
+            # New assertions for suspended_at and suspended_by_id
+            if not service.active:
+                assert service.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert service.suspended_by_id == user.id
