@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import os
 
-import newrelic.agent
 from apig_wsgi import make_lambda_handler
 from aws_xray_sdk.core import patch_all, xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
@@ -27,6 +26,8 @@ print ("is_lambda =", is_lambda)
 print ("enable_newrelic =", enable_newrelic)
 
 if is_lambda and enable_newrelic:
+    import newrelic.agent
+    
     # Initialize New Relic early, before creating the Flask app
     print("Lambda detected, and New Relic enabled - initializing New Relic agent")
     environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
