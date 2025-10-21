@@ -280,8 +280,6 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     sensitive_service = field_for(models.Service, "sensitive_service")
     email_annual_limit = field_for(models.Service, "email_annual_limit")
     sms_annual_limit = field_for(models.Service, "sms_annual_limit")
-    suspended_by_id = field_for(models.Service, "suspended_by_id")
-    suspended_at = field_for(models.Service, "suspended_at", format="%Y-%m-%d %H:%M:%S.%f")
 
     def get_letter_logo_filename(self, service):
         return service.letter_branding and service.letter_branding.filename
@@ -799,8 +797,6 @@ class ServiceHistorySchema(Schema):
     created_by_id = fields.UUID()
     version = fields.Integer()
     sensitive_service = fields.Boolean()
-    suspended_by_id = fields.UUID()
-    suspended_at = FlexibleDateTime()
 
 
 class ApiKeyHistorySchema(Schema):
