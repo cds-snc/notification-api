@@ -576,6 +576,8 @@ def dao_suspend_service(service_id, user_id):
 def dao_resume_service(service_id):
     service = Service.query.get(service_id)
     service.active = True
+    service.suspended_at = None
+    service.suspended_by_id = None
 
 
 def dao_fetch_active_users_for_service(service_id):

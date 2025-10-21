@@ -9,6 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
+from app.dao.services_dao import dao_resume_service, dao_suspend_service
 from app.dao.users_dao import (
     count_user_verify_codes,
     create_secret_code,
@@ -407,3 +408,22 @@ class TestUserDeactivation:
             if not service.active:
                 assert service.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
                 assert service.suspended_by_id == user.id
+
+    @freeze_time("2025-10-21 12:00:00")
+    def test_dao_resume_service(self, notify_db_session):
+        user = create_user()
+        service = create_service(user=user)
+
+        # Suspend the service
+        dao_suspend_service(service.id, user.id)
+        assert service.active is False
+        assert service.suspended_at is not None
+        assert service.suspended_by_id == user.id
+
+        # Resume the service
+        dao_resume_service(service.id)
+
+        # Assertions
+        assert service.active is True
+        assert service.suspended_at is None
+        assert service.suspended_by_id is None
