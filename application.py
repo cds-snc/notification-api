@@ -27,7 +27,7 @@ print("enable_newrelic =", enable_newrelic)
 
 if is_lambda and enable_newrelic:
     import newrelic.agent
-    
+
     # Initialize New Relic early, before creating the Flask app
     print("Lambda detected, and New Relic enabled - initializing New Relic agent")
     environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
