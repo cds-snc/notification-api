@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 
-import newrelic.agent
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
@@ -16,7 +15,7 @@ from app import create_app, notify_celery  # noqa
 
 load_dotenv()
 
-newrelic.agent.initialize("newrelic.ini")
+environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
 
 application = Flask("celery")
 create_app(application)

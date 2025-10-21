@@ -3,9 +3,11 @@ import sys
 import time
 import traceback
 
-import gunicorn  # type: ignore
+import gunicorn
+import newrelic.agent
 
-environment = os.environ.get("NOTIFY_ENVIRONMENT")
+environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
+newrelic.agent.initialize("newrelic.ini", environment=environment)
 
 workers = 4
 worker_class = "gevent"
