@@ -4,10 +4,8 @@ import time
 import traceback
 
 import gunicorn  # type: ignore
-import newrelic.agent  # See https://bit.ly/2xBVKBH
 
-environment = os.environ.get("NOTIFY_ENVIRONMENT")
-newrelic.agent.initialize(environment=environment)  # noqa: E402
+environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
 
 workers = 4
 worker_class = "gevent"
@@ -41,7 +39,7 @@ if on_aws:
     # will not be able to finish processing the request. This can lead to
     # 502 errors being returned to the client.
     #
-    # Also, some libraries such as NewRelic might need some time to finish
+    # Also, some libraries might need some time to finish
     # initialization before the worker can start processing requests. The
     # timeout values should consider these factors.
     #
