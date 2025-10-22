@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import os
 
-import newrelic.agent  # See https://bit.ly/2xBVKBH
 from aws_xray_sdk.core import xray_recorder
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
@@ -9,8 +8,7 @@ from flask import Flask
 
 from app.aws.xray.context import NotifyContext
 
-environment = os.environ.get("NOTIFY_ENVIRONMENT")
-newrelic.agent.initialize(environment=environment)  # noqa: E402
+environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
 
 # notify_celery is referenced from manifest_delivery_base.yml, and cannot be removed
 from app import create_app, notify_celery  # noqa
