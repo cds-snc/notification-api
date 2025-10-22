@@ -25,22 +25,16 @@ enable_newrelic = os.getenv("ENABLE_NEW_RELIC", "False").lower() == "true"
 print("is_lambda =", is_lambda)
 print("enable_newrelic =", enable_newrelic)
 
-if is_lambda and enable_newrelic:
+if enable_newrelic:
+    # We import newrelic.agent here to avoid importing it unnecessarily
+    # as we've experienced hiccups with the minor initializations of just 
+    # importing it.
     import newrelic.agent # type: ignore
 
     # Initialize New Relic early, before creating the Flask app
-    print("Lambda detected, and New Relic enabled - initializing New Relic agent")
-    environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
+    print("New Relic enabled - initializing New Relic agent")
+    environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
     newrelic.agent.initialize("newrelic.ini", environment=environment)
-else:
-    import newrelic.agent # type: ignore
-
-    # This code doesn't make sense, but we're doing it to test before we add the
-    # proper keys to manifests
-    print("K8s Detected, and New Relic enabled by default - initializing New Relic agent")
-    environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
-    newrelic.agent.initialize("newrelic.ini", environment=environment)
-
 
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
@@ -52,7 +46,7 @@ xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
 # It's annoying that we have to do this here, but order matters - so we need to check if is lambda twice.
-if is_lambda and enable_newrelic:
+if enable_newrelic:
     # Wrap the Flask app with New Relic's WSGI wrapper
     app = newrelic.agent.WSGIApplicationWrapper(app)
 
