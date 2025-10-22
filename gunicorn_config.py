@@ -3,7 +3,7 @@ import sys
 import time
 import traceback
 
-import gunicorn
+import gunicorn  # type: ignore
 
 environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
 
