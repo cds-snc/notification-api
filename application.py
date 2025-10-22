@@ -27,7 +27,7 @@ print("enable_newrelic =", enable_newrelic)
 
 if enable_newrelic:
     # We import newrelic.agent here to avoid importing it unnecessarily
-    # as we've experienced hiccups with the minor initializations of just 
+    # as we've experienced hiccups with the minor initializations of just
     # importing it.
     import newrelic.agent  # type: ignore
 
