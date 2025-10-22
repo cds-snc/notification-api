@@ -28,6 +28,7 @@ var/
 .installed.cfg
 *.egg
 /cache
+newrelic-layer.zip
 smoketest*.sh
 
 # PyInstaller
