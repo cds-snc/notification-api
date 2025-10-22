@@ -38,7 +38,16 @@ jobs:
             --with-decryption \
             --query 'Parameter.Value' \
             --output text || true)
+          # Fallback to false if not present
+          NEW_RELIC_ENABLED=$(printf '%s' "$RAW" | grep -E '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
+          if [ -z "${NEW_RELIC_ENABLED}" ]; then NEW_RELIC_ENABLED=false; fi
           DOCKERFILE="ci/Dockerfile.lambda"
+          if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then
+            DOCKERFILE="ci/Dockerfile.newrelic.lambda"
+            echo "NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED -> using ${DOCKERFILE}" >&2
+          else
+            echo "NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED -> using plain ${DOCKERFILE}" >&2
+          fi
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
             -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \

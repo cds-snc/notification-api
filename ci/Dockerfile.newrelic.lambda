@@ -1,3 +1,7 @@
+# Stage 1: Copy New Relic Lambda Layer for Python 3.12
+FROM public.ecr.aws/newrelic-lambda-layers-for-docker/newrelic-lambda-layers-python:312 AS layer
+
+# Stage 2: Build application
 FROM python:3.12-slim@sha256:31a416db24bd8ade7dac5fd5999ba6c234d7fa79d4add8781e95f41b187f4c9a
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
@@ -16,7 +20,7 @@ RUN apt-get update \
 RUN mkdir -p ${TASK_ROOT}
 WORKDIR ${TASK_ROOT}
 
-# Install poetry and isolate it in it's own venv
+# Install poetry and isolate it in its own venv
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
@@ -32,6 +36,9 @@ COPY . ${TASK_ROOT}/
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
 
+# Copy New Relic Layer (agent + extension) from the pre-built image
+COPY --from=layer /opt/ /opt/
+
 ENV PORT=6011
 
 ARG GIT_SHA
@@ -44,4 +51,6 @@ COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
 ENTRYPOINT [ "/entry.sh" ]
+
+# Run the Flask application handler directly so the classic New Relic Python agent can report to APM
 CMD [ "application.handler" ]
