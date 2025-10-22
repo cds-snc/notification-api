@@ -38,7 +38,8 @@ else:
     print("K8s Detected, and New Relic enabled by default - initializing New Relic agent")
     environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
     newrelic.agent.initialize("newrelic.ini", environment=environment)
-    
+
+
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
