@@ -4,7 +4,7 @@ import time
 import traceback
 
 import gunicorn
-import newrelic.agent
+import newrelic.agent # type: ignore
 
 environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
 newrelic.agent.initialize("newrelic.ini", environment=environment)
