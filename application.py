@@ -26,13 +26,15 @@ print("is_lambda =", is_lambda)
 print("enable_newrelic =", enable_newrelic)
 
 if is_lambda and enable_newrelic:
-    import newrelic.agent
+    import newrelic.agent # type: ignore
 
     # Initialize New Relic early, before creating the Flask app
     print("Lambda detected, and New Relic enabled - initializing New Relic agent")
     environment = os.getenv("NOTIFY_ENVIRONMENT", "development")
     newrelic.agent.initialize("newrelic.ini", environment=environment)
 else:
+    import newrelic.agent # type: ignore
+
     # This code doesn't make sense, but we're doing it to test before we add the
     # proper keys to manifests
     print("K8s Detected, and New Relic enabled by default - initializing New Relic agent")
