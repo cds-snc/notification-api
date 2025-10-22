@@ -29,7 +29,7 @@ if enable_newrelic:
     # We import newrelic.agent here to avoid importing it unnecessarily
     # as we've experienced hiccups with the minor initializations of just 
     # importing it.
-    import newrelic.agent # type: ignore
+    import newrelic.agent  # type: ignore
 
     # Initialize New Relic early, before creating the Flask app
     print("New Relic enabled - initializing New Relic agent")
