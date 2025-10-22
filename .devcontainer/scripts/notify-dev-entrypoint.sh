@@ -61,7 +61,7 @@ fi
 
 # Poetry autocomplete
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
-echo -e "autoload -Uz compinit && compinit"
+echo -e "autoload -Uz compinit && compinit" >> ~/.zshrc
 
 pip install poetry=="${POETRY_VERSION}" poetry-plugin-sort
 export PATH=$PATH:/home/vscode/.local/bin/
