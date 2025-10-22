@@ -46,7 +46,7 @@ xray_recorder.configure(service="Notify-API", context=NotifyContext())
 XRayMiddleware(app, xray_recorder)
 
 # It's annoying that we have to do this here, but order matters - so we need to check if is lambda twice.
-if is_lambda and enable_newrelic:
+if enable_newrelic:
     # Wrap the Flask app with New Relic's WSGI wrapper
     app = newrelic.agent.WSGIApplicationWrapper(app)
 
