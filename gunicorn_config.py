@@ -12,6 +12,7 @@ print("enable_newrelic =", enable_newrelic)
 
 if enable_newrelic:
     import newrelic.agent
+
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 workers = 4

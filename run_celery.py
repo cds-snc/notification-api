@@ -15,6 +15,7 @@ print("enable_newrelic =", enable_newrelic)
 
 if enable_newrelic:
     import newrelic.agent
+
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 # notify_celery is referenced from manifest_delivery_base.yml, and cannot be removed
