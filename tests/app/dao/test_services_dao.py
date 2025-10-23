@@ -1254,7 +1254,7 @@ def test_dao_suspend_service_with_no_api_keys(notify_db_session):
 
 
 @freeze_time("2001-01-01T23:59:00")
-def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(
+def test_dao_suspend_service_marks_service_as_inactive_and_does_not_expire_api_keys(
     notify_db_session,
 ):
     service = create_service()
@@ -1265,7 +1265,7 @@ def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(
     assert service.name == service.name
 
     api_key = ApiKey.query.get(api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
+    assert api_key.expiry_date is None
 
 
 @freeze_time("2001-01-01T23:59:00")
