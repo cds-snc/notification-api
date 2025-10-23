@@ -792,7 +792,8 @@ def archive_service(service_id):
 
 
 @service_blueprint.route("/<uuid:service_id>/suspend/<uuid:user_id>", methods=["POST"])
-def suspend_service(service_id, user_id):
+@service_blueprint.route("/<uuid:service_id>/suspend", methods=["POST"])
+def suspend_service(service_id, user_id=None):
     """
     Suspending a service will mark the service as inactive and revoke API keys.
     :param service_id:
