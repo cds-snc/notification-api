@@ -1763,3 +1763,22 @@ class TestUserDeactivation:
         assert svc.active is True
         assert svc.suspended_at is None
         assert svc.suspended_by_id is None
+
+    @freeze_time("2025-10-21 12:00:00")
+    def test_suspend_service_without_user_id_leaves_suspended_by_none(self, client, notify_db_session):
+        """Suspending a service via REST without supplying user_id should not set suspended_by_id."""
+        user = create_user()
+        service = create_service(user=user)
+
+        # Suspend without user_id
+        resp = client.post(
+            url_for("service.suspend_service", service_id=service.id),
+            headers=[create_authorization_header()],
+        )
+        assert resp.status_code == 204
+
+        svc = Service.query.get(service.id)
+        assert svc.active is False
+        assert svc.suspended_at is not None
+        # suspended_by_id should remain unset when no user_id provided
+        assert svc.suspended_by_id is None
