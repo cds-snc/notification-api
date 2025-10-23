@@ -1269,7 +1269,7 @@ def test_dao_suspend_service_marks_service_as_inactive_and_does_not_expire_api_k
 
 
 @freeze_time("2001-01-01T23:59:00")
-def test_dao_resume_service_marks_service_as_active_and_api_keys_are_still_revoked(
+def test_dao_resume_service_marks_service_as_active_and_api_keys_are_not_revoked(
     notify_db_session,
 ):
     service = create_service()
@@ -1282,7 +1282,7 @@ def test_dao_resume_service_marks_service_as_active_and_api_keys_are_still_revok
     assert Service.query.get(service.id).active
 
     api_key = ApiKey.query.get(api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
+    assert api_key.expiry_date is None
 
 
 def test_dao_fetch_active_users_for_service_returns_active_only(notify_db_session):
