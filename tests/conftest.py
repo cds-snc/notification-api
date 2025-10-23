@@ -127,9 +127,33 @@ def notify_db(notify_api, worker_id):
 @pytest.fixture(scope="function")
 def notify_db_session(notify_db):
     yield notify_db
-
+    print([tbl.name for tbl in notify_db.metadata.sorted_tables])
     notify_db.session.remove()
-    for tbl in reversed(notify_db.metadata.sorted_tables):
+    # Some history tables copy FK columns (eg. suspended_by_id) which can
+    # reference rows in `users`. Postgres will refuse to delete users while
+    # history rows still reference them, so ensure those history tables are
+    # cleared first. This avoids intermittent FK errors in CI where Postgres
+    # enforces constraints strictly.
+    try:
+        notify_db.engine.execute(sqlalchemy.sql.text("DELETE FROM services_history")).close()
+    except Exception:
+        # If the table doesn't exist or the delete fails for any reason,
+        # continue with the normal teardown so tests still clean up as much
+        # as possible.
+        pass
+    # Build a deletion order that removes history tables first. SQLAlchemy's
+    # metadata.sorted_tables attempts to order tables for create/drop based on
+    # foreign-key relationships, but in some environments the order can still
+    # lead to referencing tables being deleted before the history tables
+    # that reference them. Deleting *_history tables first avoids FK errors
+    # during teardown (they typically hold copies of FK columns like
+    # suspended_by_id).
+    tables_in_reverse = list(reversed(notify_db.metadata.sorted_tables))
+    history_tables = [t for t in tables_in_reverse if t.name.endswith("_history")]
+    other_tables = [t for t in tables_in_reverse if not t.name.endswith("_history")]
+    ordered_tables = history_tables + other_tables
+
+    for tbl in ordered_tables:
         if tbl.name not in [
             "provider_details",
             "key_types",
