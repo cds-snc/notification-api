@@ -27,7 +27,7 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id, dao_suspend_service, dao_update_service
+from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -35,7 +35,7 @@ from app.dao.users_dao import (
     create_secret_code,
     create_user_code,
     dao_archive_user,
-    dao_deactivate_user,
+    dao_deactivate_user_and_suspend_services,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -997,35 +997,35 @@ def deactivate_user(user_id):
         if user.state == "inactive":
             raise InvalidRequest("User is already inactive", status_code=400)
 
-        # Suspend services if necessary
-        services = user.services
-        service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
+        # Do suspend + deactivate inside a single transactional DAO call so that
+        # if anything fails, DB changes are rolled back together.
+        # dao_deactivate_user_and_suspend_services returns (user, suspended_service_ids)
+        user, suspended_service_ids = dao_deactivate_user_and_suspend_services(user_id)
+
+        # template ids
         user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
+        service_suspension_template_id = current_app.config.get("SERVICE_SUSPENDED_TEMPLATE_ID")
 
-        for service in services:
-            members = [member for member in service.users if member.state == "active"]
-            service_is_live = not service.restricted
+        for svc_id in suspended_service_ids:
+            try:
+                # notify team members of the suspended service; failures to send
+                # these notifications should not roll back the DB transaction
+                send_notification_to_service_users(svc_id, service_suspension_template_id)
+            except Exception as notif_exc:
+                current_app.logger.exception(f"Failed to send suspension notification for service {svc_id}: {notif_exc}")
 
-            if service.active:
-                # Suspend live services with 2 or fewer members or trial services with only 1 member
-                if (service_is_live and len(members) <= 2) or (not service_is_live and len(members) == 1):
-                    dao_suspend_service(service.id, user.id)
-
-                    # Notify team members of the suspension
-                    send_notification_to_service_users(service.id, service_suspension_template_id)
-
-        # Deactivate the user
-        dao_deactivate_user(user_id)
-
-        # Notify the user of deactivation
-        send_notification_to_single_user(user, user_deactivated_template_id)
+        # Notify the user of deactivation; failures to send notifications should
+        # not roll back the DB transaction, so catch and log any notification errors.
+        try:
+            send_notification_to_single_user(user, user_deactivated_template_id)
+        except Exception as notif_exc:
+            current_app.logger.exception(f"Failed to send deactivation notification for user {user.id}: {notif_exc}")
 
         return jsonify({"message": "User deactivated successfully"}), 200
-
     except InvalidRequest as e:
         current_app.logger.error(f"Failed to deactivate user {user_id}: {str(e)}")
         return jsonify({"error": "Failed to deactivate user"}), e.status_code
 
     except Exception as e:
-        current_app.logger.error(f"Unexpected error while deactivating user {user_id}: {str(e)}")
+        current_app.logger.exception(f"Unexpected error while deactivating user {user_id}: {str(e)}")
         return jsonify({"error": "Failed to deactivate user"}), 500
