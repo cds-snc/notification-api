@@ -35,6 +35,7 @@ from app.dao.users_dao import (
     create_secret_code,
     create_user_code,
     dao_archive_user,
+    dao_deactivate_user_and_suspend_services,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -70,6 +71,7 @@ from app.schemas import (
     user_update_password_schema_load_json,
     user_update_schema_load_json,
 )
+from app.service.sender import send_notification_to_service_users, send_notification_to_single_user
 from app.user.contact_request import ContactRequest
 from app.user.users_schema import (
     fido2_key_schema,
@@ -981,3 +983,49 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/deactivate", methods=["POST"])
+def deactivate_user(user_id):
+    """
+    REST method to deactivate a user by calling the DAO method.
+    Includes business logic for service suspension and notifications.
+    """
+    try:
+        user = get_user_by_id(user_id)
+
+        if user.state == "inactive":
+            raise InvalidRequest("User is already inactive", status_code=400)
+
+        # Do suspend + deactivate inside a single transactional DAO call so that
+        # if anything fails, DB changes are rolled back together.
+        # dao_deactivate_user_and_suspend_services returns (user, suspended_service_ids)
+        user, suspended_service_ids = dao_deactivate_user_and_suspend_services(user_id)
+
+        # template ids
+        user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
+        service_suspension_template_id = current_app.config.get("SERVICE_SUSPENDED_TEMPLATE_ID")
+
+        for svc_id in suspended_service_ids:
+            try:
+                # notify team members of the suspended service; failures to send
+                # these notifications should not roll back the DB transaction
+                send_notification_to_service_users(svc_id, service_suspension_template_id)
+            except Exception as notif_exc:
+                current_app.logger.exception(f"Failed to send suspension notification for service {svc_id}: {notif_exc}")
+
+        # Notify the user of deactivation; failures to send notifications should
+        # not roll back the DB transaction, so catch and log any notification errors.
+        try:
+            send_notification_to_single_user(user, user_deactivated_template_id)
+        except Exception as notif_exc:
+            current_app.logger.exception(f"Failed to send deactivation notification for user {user.id}: {notif_exc}")
+
+        return jsonify({"message": "User deactivated successfully"}), 200
+    except InvalidRequest as e:
+        current_app.logger.error(f"Failed to deactivate user {user_id}: {str(e)}")
+        return jsonify({"error": "Failed to deactivate user"}), e.status_code
+
+    except Exception as e:
+        current_app.logger.exception(f"Unexpected error while deactivating user {user_id}: {str(e)}")
+        return jsonify({"error": "Failed to deactivate user"}), 500

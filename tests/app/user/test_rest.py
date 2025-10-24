@@ -1,13 +1,15 @@
 import base64
 import json
+from datetime import datetime
 from unittest import mock
 from uuid import UUID
 
 import pytest
 from fido2 import cbor
-from flask import url_for
+from flask import current_app, url_for
 from freezegun import freeze_time
 
+from app import db
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
 from app.dao.login_event_dao import save_login_event
@@ -22,6 +24,7 @@ from app.models import (
     LoginEvent,
     Notification,
     Permission,
+    Service,
     User,
 )
 from app.user.contact_request import ContactRequest
@@ -1657,3 +1660,106 @@ class TestFailedLogin:
         )
         assert resp.status_code == 400
         assert "Incorrect password for user_id" in resp.json["message"]["password"][0]
+
+
+class TestUserDeactivation:
+    @pytest.mark.parametrize(
+        "is_live, other_members_count, expected_service_active, should_send_suspension_email",
+        [
+            (True, 0, False, False),  # Live service, no other members
+            (False, 0, False, False),  # Trial service, no other members
+            (True, 1, False, True),  # Live service, 1 other member
+            (False, 1, True, False),  # Trial service, 1 other member
+            (True, 2, True, False),  # Live service, 2 other members
+            (False, 2, True, False),  # Trial service, 2 other members
+            (True, 3, True, False),  # Live service, 3 other members
+            (False, 3, True, False),  # Trial service, 3 other members
+        ],
+        ids=[
+            "live_service_no_other_members",
+            "trial_service_no_other_members",
+            "live_service_one_other_member",
+            "trial_service_one_other_member",
+            "live_service_two_other_members",
+            "trial_service_two_other_members",
+            "live_service_three_other_members",
+            "trial_service_three_other_members",
+        ],
+    )
+    @freeze_time("2025-10-21 12:00:00")
+    def test_deactivate_user(
+        self,
+        is_live,
+        other_members_count,
+        expected_service_active,
+        should_send_suspension_email,
+        client,
+        notify_db_session,
+    ):
+        service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
+        user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
+
+        user = create_user(name="Service Manago", email="notify_manago@digital.cabinet-office.gov.uk")
+        user.state = "active"  # Ensure the user is active before deactivation
+        service = create_service(user=user, restricted=not is_live)
+
+        # Add other members to the service and commit so relationships are persisted
+        other_users = [create_user(email=f"other{i}@test.com") for i in range(other_members_count)]
+        service.users.extend(other_users)
+        db.session.commit()
+
+        # Patch the functions as they are imported into the user REST module so the
+        # real notification sending code is not executed during the test.
+        with (
+            mock.patch("app.user.rest.send_notification_to_service_users") as mock_send_service,
+            mock.patch("app.user.rest.send_notification_to_single_user") as mock_send_single,
+        ):
+            auth_header = create_authorization_header()
+            headers = [("Content-Type", "application/json"), auth_header]
+            response = client.post(url_for("user.deactivate_user", user_id=user.id), headers=headers)
+
+            # Assertions
+            assert response.status_code == 200
+            assert user.state == "inactive"
+            assert service.active == expected_service_active
+
+            # Check that the suspension email was sent to team members when applicable
+            if should_send_suspension_email:
+                mock_send_service.assert_any_call(service.id, service_suspension_template_id)
+
+            # Check that the deactivation email was sent to the single user
+            mock_send_single.assert_any_call(user, user_deactivated_template_id)
+
+            # New assertions for suspended_at and suspended_by_id
+            if not service.active:
+                assert service.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert service.suspended_by_id == user.id
+
+    @freeze_time("2025-10-21 12:00:00")
+    def test_resume_service(self, client, notify_db_session):
+        user = create_user()
+        service = create_service(user=user)
+
+        # Suspend the service via REST endpoint
+        resp = client.post(
+            url_for("service.suspend_service", service_id=service.id, user_id=user.id),
+            headers=[create_authorization_header()],
+        )
+        assert resp.status_code == 204
+
+        svc = Service.query.get(service.id)
+        assert svc.active is False
+        assert svc.suspended_at is not None
+        assert svc.suspended_by_id == user.id
+
+        # Resume the service via REST endpoint
+        resp = client.post(
+            url_for("service.resume_service", service_id=service.id),
+            headers=[create_authorization_header()],
+        )
+        assert resp.status_code == 204
+
+        svc = Service.query.get(service.id)
+        assert svc.active is True
+        assert svc.suspended_at is None
+        assert svc.suspended_by_id is None
