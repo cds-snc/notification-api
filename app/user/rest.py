@@ -1039,7 +1039,7 @@ def deactivate_user(user_id):
 
     except InvalidRequest as e:
         current_app.logger.warning(f"Failed to deactivate user {user_id}: {e}")
-        return jsonify({"error": str(e)}), e.status_code
+        return jsonify({"error": "InvalidRequest: failed to deactivate user"})
     except Exception as e:
         current_app.logger.exception(f"Unexpected error while deactivating user {user_id}: {e}")
         return jsonify({"error": "Failed to deactivate user"}), 500
