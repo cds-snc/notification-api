@@ -2,7 +2,6 @@ import uuid
 from datetime import datetime, timedelta
 from random import SystemRandom
 
-import pytz
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -11,7 +10,6 @@ from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.errors import InvalidRequest
-from app.history_meta import create_history
 from app.models import EMAIL_AUTH_TYPE, Service, ServiceUser, User, VerifyCode
 from app.utils import escape_special_characters
 
@@ -226,7 +224,6 @@ def get_services_for_all_users():
     return result
 
 
-@transactional
 def dao_deactivate_user(user_id):
     """
     Deactivates a user by updating their state and removing associated permissions.
@@ -253,62 +250,5 @@ def dao_deactivate_user(user_id):
     user.state = "inactive"
 
     db.session.add(user)
-    db.session.commit()
 
     return user
-
-
-@transactional
-def dao_deactivate_user_and_suspend_services(user_id):
-    """
-    Suspends any services that should be suspended because of this user's deactivation
-    and then deactivates the user in a single transaction. This ensures that if
-    anything fails during the process, changes are rolled back together.
-
-    Returns (user, suspended_service_ids)
-    """
-    user = get_user_by_id(user_id)
-
-    if user.state == "inactive":
-        raise InvalidRequest("User is already inactive", status_code=400)
-
-    suspended_service_ids = []
-
-    # Determine services to suspend and update them in-session (no intermediate commit)
-    for service in list(user.services):
-        members = [member for member in service.users if member.state == "active"]
-        service_is_live = not service.restricted
-
-        if service.active:
-            # Suspend live services with 2 or fewer members or trial services with only 1 member
-            if (service_is_live and len(members) <= 2) or (not service_is_live and len(members) == 1):
-                service.active = False
-                service.suspended_at = datetime.utcnow().replace(tzinfo=pytz.UTC)
-                service.suspended_by_id = user.id
-                suspended_service_ids.append(service.id)
-                # create history for the suspended service immediately to avoid session flush issues
-                db.session.add(create_history(service))
-
-    # Now deactivate the user (same logic as dao_deactivate_user)
-    permission_dao.remove_user_service_permissions_for_all_services(user)
-
-    service_users = dao_get_service_users_by_user_id(user.id)
-    for service_user in service_users:
-        db.session.delete(service_user)
-
-    user.organisations = []
-
-    user.auth_type = EMAIL_AUTH_TYPE
-    user.mobile_number = None
-    user.password = str(uuid.uuid4())
-    # Changing the current_session_id signs the user out
-    user.current_session_id = "00000000-0000-0000-0000-000000000000"
-    user.state = "inactive"
-
-    db.session.add(user)
-    # Record history for the user as well, but only if the User model is versioned
-    # (not all models have history mapping - create_history requires __history_mapper__)
-    if hasattr(user, "__history_mapper__"):
-        db.session.add(create_history(user))
-
-    return user, suspended_service_ids

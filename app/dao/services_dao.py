@@ -551,11 +551,40 @@ def dao_fetch_todays_stats_for_all_services(include_from_test_key=True, only_act
 
 
 @transactional
+def dao_suspend_service(service_id, user_id=None):
+    """
+    Suspend a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    dao_suspend_service_no_transaction(service_id, user_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
 )
-def dao_suspend_service(service_id, user_id=None):
+def dao_suspend_service_no_transaction(service_id, user_id=None):
+    """
+    Core suspend implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_suspend_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_suspend_service(...)` instead.
+    """
+
     # have to eager load api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
