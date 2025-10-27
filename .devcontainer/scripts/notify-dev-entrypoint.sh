@@ -39,9 +39,29 @@ echo -e "source /usr/share/doc/fzf/examples/completion.zsh" >> ~/.zshrc
 
 cd /workspace
 
+ENV_FILE=".env"
+ENV_EXAMPLE_FILE=".env.example"
+
+# Check if .env exists
+if [ ! -f "$ENV_FILE" ]; then
+  echo "$ENV_FILE does not exist."
+
+  # Check if .env.example exists
+  if [ -f "$ENV_EXAMPLE_FILE" ]; then
+    echo -e "Creating $ENV_FILE from $ENV_EXAMPLE_FILE."
+    {
+      echo "# TODO: Populate this .env file with contents from \"[CDS Platform - Notify Local] api .env\" in 1Password"
+      cat "$ENV_EXAMPLE_FILE"
+    } > "$ENV_FILE"
+  else
+    echo "Warning: $ENV_EXAMPLE_FILE does not exist. Creating empty $ENV_FILE."
+    echo "# TODO: Populate this .env file with contents from \"[CDS Platform - Notify Local] api .env\" in 1Password" > "$ENV_FILE"
+  fi
+fi
+
 # Poetry autocomplete
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
-echo -e "autoload -Uz compinit && compinit"
+echo -e "autoload -Uz compinit && compinit" >> ~/.zshrc
 
 pip install poetry=="${POETRY_VERSION}" poetry-plugin-sort
 export PATH=$PATH:/home/vscode/.local/bin/

@@ -1,9 +1,9 @@
 # Notification
 
 Contains:
-- the public-facing REST API for Notification built on the GOV.UK Notify platform, which teams can integrate with using [their clients](https://www.notifications.service.gov.uk/documentation)
+- the public-facing REST API for Notification  built on the GOV.UK Notify platform, which teams can integrate with using [their clients](https://www.notifications.service.gov.uk/documentation)
 - an internal-only REST API built using Flask to manage services, users, templates, etc (this is what the [admin app](http://github.com/cds-snc/notification-admin) talks to)
-- asynchronous workers built using Celery to put things on queues and read them off to be processed, sent to providers, updated, etc
+- asynchronous workers built using Celery to put things into queues and read them off to be processed, sent to providers, updated, etc
 
 
 ## Functional constraints
@@ -32,7 +32,9 @@ For any issues during the following instructions, make sure to review the
 
 4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
 
-5. Run the service
+5. Find and update the .env file from the root of your workspace. Copy and paste the contents of the ***api .env*** item from the ***CDS Platform - Notify Local*** vault in 1password
+
+6. Run the service
 
 `make run`
 

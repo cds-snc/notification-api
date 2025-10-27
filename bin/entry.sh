@@ -1,28 +1,18 @@
 #!/bin/sh
-
-APP_HANDLER="${1:-application.handler}"
-
 if [ -z "${AWS_LAMBDA_RUNTIME_API}" ]; then
-    echo "ENTRY.SH: Running locally (app_handler=${APP_HANDLER})"
-    exec /usr/bin/aws-lambda-rie $(which python) -m awslambdaric "$APP_HANDLER"
+    RUNTIME_CMD="/usr/bin/aws-lambda-rie $(which python)"
 else
-    . /sync_lambda_envs.sh
-    # Collect environment variable names (sorted)
-    VAR_NAMES_NL=$(env | cut -d '=' -f 1 | sort)
-    ENV_VAR_COUNT=$(printf '%s\n' "$VAR_NAMES_NL" | grep -c '^')
-    # Build JSON array using jo (each line becomes a string element)
-    VAR_NAMES_JSON=$(printf '%s\n' "$VAR_NAMES_NL" | jo -a)
-    TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u)
-    # Construct final JSON object with jo
-    FINAL_JSON=$(jo \
-        timestamp="$TS" \
-        source="entry.sh" \
-        mode="lambda" \
-        loader="sync_lambda_envs.sh" \
-        app_handler="$APP_HANDLER" \
-        env_var_count="$ENV_VAR_COUNT" \
-        env_var_names="$(printf '%s' "$VAR_NAMES_JSON")" \
-    )
-    echo "$FINAL_JSON"
-    exec $(which python) -m awslambdaric "$APP_HANDLER"
+    . /sync_lambda_envs.sh # Retrieve .env from parameter store and remove currently set environement variables
+    RUNTIME_CMD="$(which python)"
 fi
+
+## IMPORTANT: NEW RELIC CONFIGURATION -- WE ALWAYS WANT TO USE APM MODE!
+# Force classic New Relic agent mode for Lambda so data flows to APM instead of the serverless extension
+unset NEW_RELIC_LAMBDA_EXTENSION_ENABLED
+unset NEW_RELIC_LAMBDA_HANDLER
+unset NEW_RELIC_EXTENSION_LOGS_ENABLED
+unset NEW_RELIC_EXTENSION_SEND_FUNCTION_LOGS
+export NEW_RELIC_SERVERLESS_MODE_ENABLED=false
+export NEW_RELIC_CONFIG_FILE=${NEW_RELIC_CONFIG_FILE:-/app/newrelic.ini}
+
+exec ${RUNTIME_CMD} -m awslambdaric $1

@@ -1,3 +1,7 @@
+# Stage 1: Copy New Relic Lambda Layer for Python 3.12
+FROM public.ecr.aws/newrelic-lambda-layers-for-docker/newrelic-lambda-layers-python:312 AS layer
+
+# Stage 2: Build application
 FROM python:3.12-slim@sha256:31a416db24bd8ade7dac5fd5999ba6c234d7fa79d4add8781e95f41b187f4c9a
 
 ENV PYTHONPATH "${PYTHONPATH}:/opt/python/lib/python3.12/site-packages"
@@ -8,7 +12,6 @@ ENV POETRY_HOME="/opt/poetry"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
-ENV NEW_RELIC_LAMBDA_HANDLER=application.handler
 
 RUN apt-get update \
  && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
@@ -26,27 +29,28 @@ COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric newrelic-lambda wheel
+    && poetry add awslambdaric wheel
 
 COPY . ${TASK_ROOT}/
 
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
 
+# Copy New Relic Layer (agent + extension) from the pre-built image
+COPY --from=layer /opt/ /opt/
+
 ENV PORT=6011
 
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
 
-# (Optional) Add Lambda Runtime Interface Emulator
+# (Optional) Add Lambda Runtime Interface Emulator and use a script in the ENTRYPOINT for simpler local runs
 ADD https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie /usr/bin/aws-lambda-rie
 COPY bin/entry.sh /
 COPY bin/sync_lambda_envs.sh /
 RUN chmod 755 /usr/bin/aws-lambda-rie /entry.sh /sync_lambda_envs.sh
 
-# Extract New Relic layer (wrapper + libs)
-RUN unzip newrelic-layer.zip -d /opt && rm newrelic-layer.zip
-
-# Use wrapper handler directly; wrapper will delegate to NEW_RELIC_LAMBDA_HANDLER.
 ENTRYPOINT [ "/entry.sh" ]
-CMD [ "newrelic_lambda_wrapper.handler" ]
+
+# Run the Flask application handler directly so the classic New Relic Python agent can report to APM
+CMD [ "application.handler" ]
