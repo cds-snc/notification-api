@@ -1710,30 +1710,100 @@ class TestUserDeactivation:
 
         # Patch the functions as they are imported into the user REST module so the
         # real notification sending code is not executed during the test.
+        # Ensure any test-side DB transaction is finished and the scoped session is
+        # detached so the view can start its own transaction with db.session.begin().
+        # Capture the user id before removing the session so we can use it in the
+        # request URL without accessing a detached instance.
+        user_id = user.id
+        service_id = service.id
+        notify_db_session.session.commit()
+        notify_db_session.session.remove()
         with (
             mock.patch("app.user.rest.send_notification_to_service_users") as mock_send_service,
             mock.patch("app.user.rest.send_notification_to_single_user") as mock_send_single,
         ):
             auth_header = create_authorization_header()
             headers = [("Content-Type", "application/json"), auth_header]
-            response = client.post(url_for("user.deactivate_user", user_id=user.id), headers=headers)
-
-            # Assertions
+            response = client.post(url_for("user.deactivate_user", user_id=user_id), headers=headers)
+            # Assertions: reload fresh instances from the DB because the test's
+            # scoped session was removed before making the request.
             assert response.status_code == 200
-            assert user.state == "inactive"
-            assert service.active == expected_service_active
+            user_db = User.query.get(user_id)
+            svc_db = Service.query.get(service_id)
+            assert user_db.state == "inactive"
+            assert svc_db.active == expected_service_active
 
             # Check that the suspension email was sent to team members when applicable
             if should_send_suspension_email:
-                mock_send_service.assert_any_call(service.id, service_suspension_template_id)
+                mock_send_service.assert_any_call(service_id, service_suspension_template_id)
 
-            # Check that the deactivation email was sent to the single user
-            mock_send_single.assert_any_call(user, user_deactivated_template_id)
+            # Check that the deactivation email was sent to the single user. We can't
+            # compare ORM instances across sessions, so inspect the actual call args
+            # and verify the user id and template id used.
+            assert mock_send_single.called
+            called_args = mock_send_single.call_args[0]
+            called_user = called_args[0]
+            called_template = called_args[1]
+            assert getattr(called_user, "id", None) == user_id
+            assert called_template == user_deactivated_template_id
 
             # New assertions for suspended_at and suspended_by_id
-            if not service.active:
-                assert service.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
-                assert service.suspended_by_id == user.id
+            if not svc_db.active:
+                assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert svc_db.suspended_by_id == user_id
+
+    def test_deactivate_user_commits_on_success(self, client, notify_db_session, mocker):
+        """Simple commit test: successful deactivate should persist changes."""
+        user = create_user(name="Commit Test", email="commit@test.com")
+        user.state = "active"
+        service = create_service(user=user)
+
+        # Patch notification functions so they don't execute during the test
+        mocker.patch("app.user.rest.send_notification_to_service_users")
+        mocker.patch("app.user.rest.send_notification_to_single_user")
+
+        # persist setup and detach the scoped session so the view can start
+        # its own transaction using db.session.begin()
+        user_id = user.id
+        service_id = service.id
+        notify_db_session.session.commit()
+        notify_db_session.session.remove()
+
+        response = client.post(url_for("user.deactivate_user", user_id=user_id), headers=[create_authorization_header()])
+
+        assert response.status_code == 200
+
+        # reload fresh instances from the DB because the test's scoped session was removed
+        user_db = User.query.get(user_id)
+        svc_db = Service.query.get(service_id)
+        assert user_db.state == "inactive"
+        assert svc_db.active is False
+
+    def test_deactivate_user_rolls_back_on_error(self, client, notify_db_session, mocker):
+        """If an exception occurs during the transaction, no DB changes should be committed."""
+        user = create_user(name="Rollback Test", email="rollback@test.com")
+        user.state = "active"
+        service = create_service(user=user)
+
+        # Patch notification functions so they don't execute during the test
+        mocker.patch("app.user.rest.send_notification_to_service_users")
+        mocker.patch("app.user.rest.send_notification_to_single_user")
+
+        # Cause the deactivation helper to raise inside the transaction
+        mocker.patch("app.user.rest.dao_deactivate_user", side_effect=Exception("boom"))
+
+        # ensure any setup changes are persisted so the app transaction runs cleanly
+        notify_db_session.session.flush()
+        response = client.post(url_for("user.deactivate_user", user_id=user.id), headers=[create_authorization_header()])
+
+        # Should return 500 due to the unexpected exception
+        assert response.status_code == 500
+
+        # Ensure DB changes were rolled back
+        user_db = User.query.get(user.id)
+        svc_db = Service.query.get(service.id)
+        assert user_db.state == "active"
+        assert svc_db.active is True
 
     @freeze_time("2025-10-21 12:00:00")
     def test_resume_service(self, client, notify_db_session):
