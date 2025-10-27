@@ -10,7 +10,7 @@ ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apt-get update \
- && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo \
+ && apt-get install -y bash git libtool autoconf automake gcc g++ make libffi-dev unzip jo wget \
  && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p ${TASK_ROOT}
@@ -22,10 +22,20 @@ RUN python -m venv ${POETRY_HOME} \
 
 COPY pyproject.toml poetry.lock ${TASK_ROOT}/
 
+# Install Poetry dependencies first (including setuptools and wheel)
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
     && poetry add awslambdaric wheel
+
+# Now install NewRelic manually using the setuptools from Poetry
+RUN . ${APP_VENV}/bin/activate \
+    && wget https://download.newrelic.com/python_agent/release/newrelic-11.0.1.tar.gz \
+    && tar -xzf newrelic-11.0.1.tar.gz \
+    && cd newrelic-11.0.1 \
+    && python setup.py install \
+    && cd .. \
+    && rm -rf newrelic-11.0.1 newrelic-11.0.1.tar.gz
 
 COPY . ${TASK_ROOT}/
 

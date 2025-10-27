@@ -32,7 +32,9 @@ For any issues during the following instructions, make sure to review the
 
 4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
 
-5. Run the service
+5. Find and update the .env file from the root of your workspace. Copy and paste the contents of the ***api .env*** item from the ***CDS Platform - Notify Local*** vault in 1password
+
+6. Run the service
 
 `make run`
 
