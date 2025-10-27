@@ -134,6 +134,7 @@ def notify_db_session(notify_db):
     try:
         notify_db.engine.execute(sqlalchemy.sql.text("DELETE FROM services_history")).close()
     except Exception:
+        # If we cant remove the services history, just ignore and continue
         pass
     for tbl in reversed(notify_db.metadata.sorted_tables):
         if tbl.name not in [
