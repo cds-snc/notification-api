@@ -1031,7 +1031,9 @@ def deactivate_user(user_id):
 
         # Outside the transaction: send notifications
         for sid in services_suspended:
-            send_notification_to_service_users(sid, service_suspension_template_id)
+            send_notification_to_service_users(
+                sid, service_suspension_template_id, personalisation={"service_name": service.name}
+            )
 
         send_notification_to_single_user(user, user_deactivated_template_id)
 
