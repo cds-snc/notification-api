@@ -37,13 +37,14 @@ def send_notification_to_service_users(service_id, template_id, personalisation=
         send_notification_to_queue(notification, False, queue=QueueNames.NOTIFY)
 
 
-def send_notification_to_single_user(user, template_id, personalisation=None):
+def send_notification_to_single_user(user, template_id, personalisation=None, include_user_fields=None):
     personalisation = personalisation or {}
+    include_user_fields = include_user_fields or []
     template = dao_get_template_by_id(template_id)
     notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
 
     # Add user-specific fields to personalisation if needed
-    personalisation = _add_user_fields(user, personalisation, fields=[])
+    personalisation = _add_user_fields(user, personalisation, include_user_fields)
 
     # Persist the notification
     notification = persist_notification(
