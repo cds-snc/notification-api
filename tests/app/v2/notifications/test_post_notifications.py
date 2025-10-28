@@ -2872,3 +2872,43 @@ def test_post_bulk_returns_429_if_over_rate_limit(
         headers=[("Content-Type", "application/json"), auth_header],
     )
     assert response.status_code == 429
+
+
+def test_post_notification_returns_403_if_service_suspended(client, notify_db_session, mocker):
+    """Assert a suspended service cannot send a single notification"""
+
+    # create a service and set it to inactive
+    service = create_service()
+    service.active = False
+
+    template = create_template(service=service, template_type=SMS_TYPE)
+    data = {"phone_number": "+16502532222", "template_id": str(template.id)}
+    auth_header = create_authorization_header(service_id=service.id)
+
+    response = client.post(
+        path="/v2/notifications/sms",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 403
+
+
+def test_post_bulk_returns_403_if_service_suspended(client, notify_db_session, mocker):
+    """Assert a suspended service cannot create a bulk job"""
+    mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=None)
+
+    service = create_service()
+    service.active = False
+
+    template = create_template(service=service, template_type=EMAIL_TYPE)
+    data = {"name": "job_name", "template_id": str(template.id), "rows": [["email address"], ["foo@example.com"]]}
+    auth_header = create_authorization_header(service_id=service.id)
+
+    response = client.post(
+        "/v2/notifications/bulk",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 403

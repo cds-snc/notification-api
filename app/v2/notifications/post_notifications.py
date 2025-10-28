@@ -167,6 +167,10 @@ def post_bulk():
             status_code=415,
         )
 
+    # Fail fast if the authenticated service is not active
+    if not getattr(authenticated_service, "active", True):
+        raise BadRequestError(message="Service is suspended", status_code=403)
+
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     if epoch_seeding_bounce:
@@ -290,6 +294,10 @@ def post_notification(notification_type: NotificationType):
         form = validate(request_json, post_letter_request)
     else:
         abort(404)
+
+    # Fail fast if the authenticated service is not active
+    if not getattr(authenticated_service, "active", True):
+        raise BadRequestError(message="Service is suspended", status_code=403)
 
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     if epoch_seeding_bounce:
