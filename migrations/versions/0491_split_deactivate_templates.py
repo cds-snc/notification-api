@@ -1,6 +1,6 @@
 """
 
-Revision ID: 0491_split_suspend_and_deactivated_templates
+Revision ID: 0491_split_deactivate_templates
 Revises: 0490_add_service_susp_template
 Create Date: 2025-10-28 00:00:00
 
@@ -10,7 +10,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0491_split_suspend_and_deactivated_templates"
+revision = "0491_split_deactivate_templates"
 down_revision = "0490_add_service_susp_template"
 
 # IDs from config
