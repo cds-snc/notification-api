@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 import pytest
+from flask import current_app
 from freezegun import freeze_time
 
 from app import db
@@ -23,6 +24,27 @@ def test_archive_service_errors_with_bad_service_id(client, notify_db_session):
     auth_header = create_authorization_header()
     response = client.post("/service/{}/archive".format(uuid.uuid4()), headers=[auth_header])
     assert response.status_code == 404
+
+
+def test_archiving_service_sends_deletion_email_to_all_users(client, sample_service, mocker):
+    """Test that archiving a service sends deletion email to all service users"""
+    # Mock the send_notification_to_service_users function
+    mock_send_notification = mocker.patch("app.service.rest.send_notification_to_service_users")
+    service_name = sample_service.name
+
+    auth_header = create_authorization_header()
+    response = client.post("/service/{}/archive".format(sample_service.id), headers=[auth_header])
+
+    assert response.status_code == 204
+
+    # Verify that send_notification_to_service_users was called with correct parameters
+    mock_send_notification.assert_called_once_with(
+        service_id=sample_service.id,
+        template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service_name,
+        },
+    )
 
 
 def test_deactivating_inactive_service_does_nothing(client, sample_service):
