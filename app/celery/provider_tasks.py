@@ -68,7 +68,7 @@ SCAN_RETRY_BACKOFF = 10
 SCAN_MAX_BACKOFF_RETRIES = 5
 
 
-@notify_celery.task(bind=True, name="deliver_email", max_retries=48, default_retry_delay=300)
+@notify_celery.task(bind=True, name="deliver_email", max_retries=10, default_retry_delay=300)
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     notification = None
