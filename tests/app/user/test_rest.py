@@ -1735,7 +1735,7 @@ class TestUserDeactivation:
 
             # Check that the suspension email was sent to team members when applicable
             if should_send_suspension_email:
-                mock_send_service.assert_any_call(service_id, service_suspension_template_id)
+                mock_send_service.assert_any_call(service_id, service_suspension_template_id, personalisation=mock.ANY)
 
             # Check that the deactivation email was sent to the single user. We can't
             # compare ORM instances across sessions, so inspect the actual call args
