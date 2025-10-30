@@ -101,7 +101,7 @@ def upgrade():
             "name": "Service suspended",
             "template_type": "email",
             "content": _new_service_suspended_content(),
-            "subject": "Service suspended | Service suspendu",
+            "subject": "((service_name)) suspended | ((service_name)) suspendu",
             "process_type": "normal",
         }
     ]
@@ -112,7 +112,7 @@ def upgrade():
             "name": "User deactivated",
             "template_type": "email",
             "content": _new_user_deactivated_content(),
-            "subject": "Account closed | Compte fermé",
+            "subject": "Account closed | Votre compte a été désactivé",
             "process_type": "normal",
         }
     ]
