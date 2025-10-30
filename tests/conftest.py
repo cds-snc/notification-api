@@ -127,8 +127,15 @@ def notify_db(notify_api, worker_id):
 @pytest.fixture(scope="function")
 def notify_db_session(notify_db):
     yield notify_db
-
+    print([tbl.name for tbl in notify_db.metadata.sorted_tables])
     notify_db.session.remove()
+    # Ensure any service history rows referencing users are removed first
+    # so Postgres doesn't block deleting users during teardown.
+    try:
+        notify_db.engine.execute(sqlalchemy.sql.text("DELETE FROM services_history")).close()
+    except Exception:
+        # If we cant remove the services history, just ignore and continue
+        pass
     for tbl in reversed(notify_db.metadata.sorted_tables):
         if tbl.name not in [
             "provider_details",
