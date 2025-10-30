@@ -1037,7 +1037,7 @@ def deactivate_user(user_id):
 
         send_notification_to_single_user(user, user_deactivated_template_id)
 
-        return jsonify({"message": "User deactivated successfully"}), 200
+        return jsonify({"message": "User deactivated successfully", "services_suspended": services_suspended}), 200
 
     except InvalidRequest as e:
         current_app.logger.warning(f"Failed to deactivate user {user_id}: {e}")
