@@ -33,7 +33,7 @@ def upgrade():
             "[[fr]](la version française suit)[[/fr]]",
             "",
             "[[en]]",
-            "You or one of your team members has deleted ((service_name)). ",
+            "You or one of your team members has deleted ((service_name)).",
             "",
             "You cannot:",
             "- Access, manage or make changes to ((service_name)).",
