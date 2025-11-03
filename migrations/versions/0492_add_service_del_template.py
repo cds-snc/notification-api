@@ -64,7 +64,7 @@ def upgrade():
         {
             "id": service_deactivated_template_id,
             "name": "Service deleted",
-            "subject": "((service_name)) deleted | ((service_name)) Compte fermé",
+            "subject": "((service_name)) deleted | ((service_name)) supprimé",
             "content": service_suspended_content,
             "template_type": "email",  
             "process_type": "normal",
