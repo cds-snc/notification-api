@@ -326,10 +326,8 @@ class Config(object):
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
     REPORT_DOWNLOAD_TEMPLATE_ID = "8b5c14e1-2c78-4b87-9797-5b8cc8d9a86c"
-    SERVICE_SUSPENDED_TEMPLATE_ID = (
-        "65bbee1b-9c2a-48a6-b95a-d7d70e8f6726"  # Sent when a service is deactivated due to a user being deactivated
-    )
-    USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
+    SERVICE_SUSPENDED_TEMPLATE_ID = "65bbee1b-9c2a-48a6-b95a-d7d70e8f6726"
+    USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
