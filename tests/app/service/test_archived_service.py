@@ -57,7 +57,8 @@ def test_deactivating_inactive_service_does_nothing(client, sample_service):
 
 @pytest.fixture
 @freeze_time("2018-04-21 14:00")
-def archived_service(client, notify_db, sample_service):
+def archived_service(client, notify_db, sample_service, mocker):
+    mocker.patch("app.service.rest.send_notification_to_service_users")
     create_template(sample_service, template_name="a")
     create_template(sample_service, template_name="b")
     create_api_key(sample_service)
@@ -100,7 +101,8 @@ def test_deactivating_service_creates_history(archived_service):
 
 
 @pytest.fixture
-def archived_service_with_deleted_stuff(client, sample_service):
+def archived_service_with_deleted_stuff(client, sample_service, mocker):
+    mocker.patch("app.service.rest.send_notification_to_service_users")
     with freeze_time("2001-01-01"):
         template = create_template(sample_service, template_name="a")
         api_key = create_api_key(sample_service)
