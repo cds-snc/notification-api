@@ -237,12 +237,41 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
+def dao_archive_service(service_id):
+    """
+    Archive a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    dao_archive_service_no_transaction(service_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
     VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
 )
-def dao_archive_service(service_id):
+def dao_archive_service_no_transaction(service_id):
+    """
+    Core archive implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_archive_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_archive_service(...)` instead.
+    """
+
     # have to eager load templates and api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
