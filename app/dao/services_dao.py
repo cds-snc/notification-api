@@ -237,11 +237,6 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
-@version_class(
-    VersionOptions(ApiKey, must_write_history=False),
-    VersionOptions(Service),
-    VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
-)
 def dao_archive_service(service_id):
     """
     Archive a service and commit the change.
