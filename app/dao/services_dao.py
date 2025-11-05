@@ -250,7 +250,7 @@ def dao_archive_service(service_id):
     atomicity.
     """
 
-    dao_archive_service_no_transaction(service_id)
+    return dao_archive_service_no_transaction(service_id)
 
 
 @version_class(
