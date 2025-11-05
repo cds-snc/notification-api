@@ -27,7 +27,12 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id, dao_suspend_service_no_transaction, dao_update_service
+from app.dao.services_dao import (
+    dao_archive_service_no_transaction,
+    dao_fetch_service_by_id,
+    dao_suspend_service_no_transaction,
+    dao_update_service,
+)
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -989,15 +994,22 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
 def deactivate_user(user_id):
     """
     Atomically:
-      1. Suspend eligible services (see business rules below)
-      2. Deactivate the user
+      1. Deactivate eligible services (see business rules below)
+      2. Suspend eligible services (see business rules below)
+      3. Deactivate the user
     If any DB step fails, everything is rolled back.
     Notifications are sent only AFTER a successful commit.
+
+    Business rules:
+      - If a service has 0 active members after this user is deactivated, it is DEACTIVATED.
+      - If a service is live and has 1 active member after deactivation, it is SUSPENDED.
+      - Otherwise, the service is not touched.
     """
     service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
     user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
 
     try:
+        services_deactivated = []
         services_suspended = []
         user = None
 
@@ -1012,14 +1024,15 @@ def deactivate_user(user_id):
                     continue
 
                 active_members = [m for m in service.users if m.state == "active"]
+                remaining_active_members = [m for m in active_members if m.id != user_id]
                 service_is_live = not service.restricted
 
-                should_suspend = (service_is_live and len(active_members) <= 2) or (
-                    not service_is_live and len(active_members) == 1
-                )
-
-                if should_suspend:
-                    # Use the new helper that DOES NOT commit by itself
+                # Deactivate if no active members would remain
+                if len(remaining_active_members) == 0:
+                    dao_archive_service_no_transaction(service.id)
+                    services_deactivated.append(service.id)
+                # Suspend if it's a live service and only 1 active member would remain
+                elif service_is_live and len(remaining_active_members) == 1:
                     dao_suspend_service_no_transaction(service.id, user.id)
                     services_suspended.append(service.id)
 
@@ -1029,7 +1042,7 @@ def deactivate_user(user_id):
             # Flush so any integrity issues surface before leaving context
             db.session.flush()
 
-        # Outside the transaction: send notifications
+        # Outside the transaction: send notifications for suspended services only
         for sid in services_suspended:
             send_notification_to_service_users(
                 sid, service_suspension_template_id, personalisation={"service_name": service.name}
@@ -1037,7 +1050,9 @@ def deactivate_user(user_id):
 
         send_notification_to_single_user(user, user_deactivated_template_id)
 
-        return jsonify({"message": "User deactivated successfully", "services_suspended": services_suspended}), 200
+        return jsonify(
+            {"message": "User deactivated successfully", "services_suspended": services_deactivated + services_suspended}
+        ), 200
 
     except InvalidRequest as e:
         current_app.logger.warning(f"Failed to deactivate user {user_id}: {e}")
