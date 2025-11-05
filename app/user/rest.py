@@ -1020,9 +1020,6 @@ def deactivate_user(user_id):
                 raise InvalidRequest("User is already inactive", status_code=400)
 
             for service in user.services:
-                if not service.active:
-                    continue
-
                 active_members = [m for m in service.users if m.state == "active"]
                 remaining_active_members = [m for m in active_members if m.id != user_id]
                 service_is_live = not service.restricted
