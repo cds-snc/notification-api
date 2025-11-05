@@ -6,7 +6,7 @@ from freezegun import freeze_time
 
 from app import db
 from app.dao.api_key_dao import expire_api_key
-from app.dao.services_dao import dao_archive_service
+from app.dao.services_dao import dao_archive_service_no_transaction
 from app.dao.templates_dao import dao_update_template
 from app.models import Service
 from tests import create_authorization_header, unwrap_function
@@ -113,7 +113,7 @@ def test_deactivating_service_doesnt_affect_existing_revoked_api_keys(
 
 
 def test_deactivating_service_rolls_back_everything_on_error(sample_service, sample_api_key, sample_template):
-    unwrapped_deactive_service = unwrap_function(dao_archive_service)
+    unwrapped_deactive_service = unwrap_function(dao_archive_service_no_transaction)
 
     unwrapped_deactive_service(sample_service.id)
 
