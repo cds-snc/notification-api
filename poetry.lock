@@ -1700,6 +1700,17 @@ files = [
 ]
 
 [[package]]
+name = "inflection"
+version = "0.5.1"
+description = "A port of Ruby on Rails inflector to Python"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "inflection-0.5.1-py2.py3-none-any.whl", hash = "sha256:f38b2b640938a4f35ade69ac3d053042959b62a0f1076a5bbaa1b9526605a8a2"},
+    {file = "inflection-0.5.1.tar.gz", hash = "sha256:1a29730d366e996aaacffb2f1f1cb9593dc38e2ddd30c91250c6dde09ea9b417"},
+]
+
+[[package]]
 name = "iniconfig"
 version = "2.0.0"
 description = "brain-dead simple config-ini parsing"
@@ -2846,6 +2857,27 @@ python-versions = "*"
 files = [
     {file = "py_w3c-0.3.1.tar.gz", hash = "sha256:b643360fb2bf8fe87d7dc566c426a3417bfc09616b79966092fa0ecfabe92e83"},
 ]
+
+[[package]]
+name = "pyairtable"
+version = "3.3.0"
+description = "Python Client for the Airtable API"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pyairtable-3.3.0-py2.py3-none-any.whl", hash = "sha256:38af09c18659918b96539ac4d9730c9656f6ce2088cdff692dd311fa16802acf"},
+    {file = "pyairtable-3.3.0.tar.gz", hash = "sha256:d6d3b77f6feb7a02a84779c2235d37a46605f36030cf20ed99b08bab73108a8c"},
+]
+
+[package.dependencies]
+inflection = "*"
+pydantic = ">=2,<3"
+requests = ">=2.22.0"
+typing_extensions = "*"
+urllib3 = ">=1.26"
+
+[package.extras]
+cli = ["click"]
 
 [[package]]
 name = "pyasn1"
@@ -4561,4 +4593,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "5a603e9d74279275cf0cb812f52365684546f73238960242e3247863ddb5e2d7"
+content-hash = "014b432a6a668f991980bbc423eb6414a327b47e9d6540fad1b002ec4e355a94"

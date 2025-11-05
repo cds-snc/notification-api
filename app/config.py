@@ -211,6 +211,11 @@ class Config(object):
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
+    # Airtable
+    AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+    AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+    AIRTABLE_MAILING_LIST_TABLE_NAME = os.getenv("AIRTABLE_TABLE_NAME", "Notify Newsletter Mailing List")
+
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
     SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
