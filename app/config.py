@@ -335,6 +335,7 @@ class Config(object):
         "65bbee1b-9c2a-48a6-b95a-d7d70e8f6726"  # Sent when a service is deactivated due to a user being deactivated
     )
     USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
+    SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"

@@ -1666,14 +1666,12 @@ class TestUserDeactivation:
     @pytest.mark.parametrize(
         "is_live, other_members_count, expected_service_active, should_send_suspension_email",
         [
-            (True, 0, False, False),  # Live service, no other members
-            (False, 0, False, False),  # Trial service, no other members
-            (True, 1, False, True),  # Live service, 1 other member
-            (False, 1, True, False),  # Trial service, 1 other member
-            (True, 2, True, False),  # Live service, 2 other members
-            (False, 2, True, False),  # Trial service, 2 other members
-            (True, 3, True, False),  # Live service, 3 other members
-            (False, 3, True, False),  # Trial service, 3 other members
+            (True, 0, False, False),  # Live service, 0 other members → deactivated
+            (False, 0, False, False),  # Trial service, 0 other members → deactivated
+            (True, 1, False, True),  # Live service, 1 other member → suspended
+            (False, 1, True, False),  # Trial service, 1 other member → no change
+            (True, 2, True, False),  # Live service, 2 other members → no change
+            (False, 2, True, False),  # Trial service, 2 other members → no change
         ],
         ids=[
             "live_service_no_other_members",
@@ -1682,8 +1680,6 @@ class TestUserDeactivation:
             "trial_service_one_other_member",
             "live_service_two_other_members",
             "trial_service_two_other_members",
-            "live_service_three_other_members",
-            "trial_service_three_other_members",
         ],
     )
     @freeze_time("2025-10-21 12:00:00")
@@ -1699,7 +1695,7 @@ class TestUserDeactivation:
         service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
         user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
 
-        user = create_user(name="Service Manago", email="notify_manago@digital.cabinet-office.gov.uk")
+        user = create_user(name="Service Manago", email="notify_manago@cds-snc.ca")
         user.state = "active"  # Ensure the user is active before deactivation
         service = create_service(user=user, restricted=not is_live)
 
@@ -1734,8 +1730,15 @@ class TestUserDeactivation:
             assert svc_db.active == expected_service_active
 
             # Check that the suspension email was sent to team members when applicable
+            # (only for live services with 1 other member remaining)
             if should_send_suspension_email:
                 mock_send_service.assert_any_call(service_id, service_suspension_template_id, personalisation=mock.ANY)
+            else:
+                # If no suspension email expected, verify it was not called for this service
+                if mock_send_service.called:
+                    calls = mock_send_service.call_args_list
+                    service_ids_in_calls = [call[0][0] for call in calls]
+                    assert service_id not in service_ids_in_calls
 
             # Check that the deactivation email was sent to the single user. We can't
             # compare ORM instances across sessions, so inspect the actual call args
@@ -1747,10 +1750,16 @@ class TestUserDeactivation:
             assert getattr(called_user, "id", None) == user_id
             assert called_template == user_deactivated_template_id
 
-            # New assertions for suspended_at and suspended_by_id
-            if not svc_db.active:
+            # Service should only have suspended_at/suspended_by_id if it was actually suspended
+            # (not deactivated). Deactivated services don't set these fields.
+            if should_send_suspension_email:
                 assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
                 assert svc_db.suspended_by_id == user_id
+            elif not expected_service_active:
+                # If service is inactive but not suspended (i.e., deactivated/archived),
+                # it should not have these timestamps set
+                assert svc_db.suspended_at is None
+                assert svc_db.suspended_by_id is None
 
     def test_deactivate_user_commits_on_success(self, client, notify_db_session, mocker):
         """Simple commit test: successful deactivate should persist changes."""
