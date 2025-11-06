@@ -250,7 +250,7 @@ def dao_archive_service(service_id):
     atomicity.
     """
 
-    dao_archive_service_no_transaction(service_id)
+    return dao_archive_service_no_transaction(service_id)
 
 
 @version_class(
@@ -283,6 +283,7 @@ def dao_archive_service_no_transaction(service_id):
         .filter(Service.id == service_id)
         .one()
     )
+    original_service_name = service.name
 
     time = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S")
     service.active = False
@@ -296,6 +297,8 @@ def dao_archive_service_no_transaction(service_id):
     for api_key in service.api_keys:
         if not api_key.expiry_date:
             api_key.expiry_date = datetime.utcnow()
+
+    return original_service_name
 
 
 def dao_fetch_service_by_id_and_user(service_id, user_id):
