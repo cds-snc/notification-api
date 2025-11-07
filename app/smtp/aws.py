@@ -1,10 +1,10 @@
+import base64  # required to encode the computed key
+import hashlib  # required to create a SHA256 hash
+import hmac  # required to compute the HMAC key
+import time
+
 import boto3
 from flask import current_app
-
-import hmac  # required to compute the HMAC key
-import hashlib  # required to create a SHA256 hash
-import base64  # required to encode the computed key
-import time
 
 
 def smtp_add(name):
@@ -42,8 +42,8 @@ def smtp_add(name):
     add_record(r53_client, name, "\"v=spf1 include:amazonses.com ~all\"", "TXT")
     add_record(
         r53_client,
-        "_dmarc." + name,i
-        "\"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca; ruf=malto:dmarc@cyber.gc.ca\"",
+        "_dmarc." + name,
+        "\"v=DMARC1; p=none; sp=none; rua=mailto:dmarc@cyber.gc.ca; ruf=mailto:dmarc@cyber.gc.ca\"",
         "TXT")
 
     credentials = add_user(iam_client, name)
