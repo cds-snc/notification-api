@@ -37,7 +37,7 @@ jobs:
 
 
   build-push-and-deploy:
-    if: ${{ needs.changes.outputs.images != '[]' }}
+    #if: ${{ needs.changes.outputs.images != '[]' }}
     runs-on: ubuntu-latest
     needs: changes
     strategy:
