@@ -783,15 +783,13 @@ def archive_service(service_id):
     if service.active:
         try:
             service_name = dao_archive_service(service.id)
-            # FF_USER_SERVICE_DEACTIVATION
-            if current_app.config["NOTIFY_ENVIRONMENT"].lower() != "production":
-                send_notification_to_service_users(
-                    service_id=service_id,
-                    template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
-                    personalisation={
-                        "service_name": service_name,
-                    },
-                )
+            send_notification_to_service_users(
+                service_id=service_id,
+                template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
+                personalisation={
+                    "service_name": service_name,
+                },
+            )
         except SQLAlchemyError as e:
             current_app.logger.exception(e)
             raise InvalidRequest(
