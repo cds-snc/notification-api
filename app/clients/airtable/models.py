@@ -1,28 +1,49 @@
-import os
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
-# from flask import current_app
 from pyairtable.orm import Model
 from pyairtable.orm import fields as F
 from pyairtable.orm.model import SaveResult
 
 
 class AirtableTableMixin:
-    """A mixin used in conjunction with the pyairtable.orm.Model class that provides table management
-    capabilities, notably the ability to check if a table exists and create it automatically based on
-    the current model's schema.
+    """A mixin enhancing the base pyairtable model functionality:
+    1. Provides models with access to the Flask app context for configuration.
+    2. Overrides the save method to ensure that the associated table exists before saving the model.
+    3. Utilities for checking table state and fetching the model's table schema.
     """
+
+    # Store the Flask app at the mixin level so all inheriting models can access it
+    _flask_app = None
+
+    @classmethod
+    def init_app(cls, app):
+        """Initialize the mixin with Flask application context."""
+        cls._flask_app = app
+
+    def save(self, *, force: bool = False) -> SaveResult:
+        """Override the save method to ensure the table exists before saving."""
+        cls = type(self)
+        if not cls.table_exists():
+            cls.create_table()
+        return super().save(force=force)  # type: ignore[misc]
+
+    @classmethod
+    def _app(cls):
+        """Get the Flask application context."""
+        if cls._flask_app is None:
+            raise RuntimeError("Flask app not initialized. Call init_app(app) first.")
+        return cls._flask_app
 
     @classmethod
     def table_exists(cls) -> bool:
         """Uses the table name defined by the implementing model to check if the table exists in the target Airtable base."""
-        if not hasattr(cls, "meta"):
-            raise AttributeError("Model must have a meta attribute")
+        if not hasattr(cls, "Meta"):
+            raise AttributeError("Model must have a Meta attribute")
 
-        table_name = cls.meta.table_name
-        tables = cls.meta.base.tables()
+        table_name = cls.Meta.table_name
+        tables = cls.Meta.base.tables()
 
         return any(table.name == table_name for table in tables)
 
@@ -42,34 +63,27 @@ class AirtableTableMixin:
         base.create_table(schema["name"], fields=schema["fields"])
 
 
-class NewsletterSubscriber(Model, AirtableTableMixin):
+class NewsletterSubscriber(AirtableTableMixin, Model):
     """
-    Model representing a newsletter subscriber in Airtable. Leverages pyairtable's ORM capabilities making the models, behave similarly to SQLAlchemy models.
+    Model representing a newsletter subscriber in Airtable. Leverages pyairtable's ORM capabilities, the models behave similarly to SQLAlchemy models.
     See the [pyairtable documentation](https://pyairtable.readthedocs.io/en/stable/orm.html) for more details.
-
-    Examples:
-    ```python
-        # Load an existing subscriber by their record ID
-        NewsletterSubscriber.from_id("recXXXXXXXX")
-        # Get all subscribers
-        NewsletterSubscriber.all()
-    ```
     """
 
-    def __init__(self, **kwargs):
-        self.email = kwargs.get("email", None)
-        self.language = kwargs("language", self.Languages.EN.value)
-        self.status = kwargs.get("status", self.Statuses.UNCONFIRMED.value)
-        self.created_at = kwargs.get("created_at", datetime.now())
+    def __init__(self, **fields):
+        """Initialize a newsletter subscriber, the email field is required.
+        language defaults to: 'en'
+        status defaults to: 'unconfirmed'
+        """
+        # Validate required fields
+        if "email" not in fields:
+            raise TypeError("NewsletterSubscriber requires 'email' field")
 
-        if not self.email:
-            raise ValueError("Email is required to create a NewsletterSubscriber")
+        # Set defaults for language and status if not provided
+        fields.setdefault("language", self.Languages.EN.value)
+        fields.setdefault("status", self.Statuses.UNCONFIRMED.value)
 
-        # Call the mixin to ensure the MailingList table exists before we operate on it.
-        if not self.table_exists():
-            self.create_table()
-
-        super().__init__(**kwargs)
+        # Call parent constructor
+        super().__init__(**fields)
 
     # Define the fields
     email = F.RequiredTextField("Email")
@@ -80,21 +94,33 @@ class NewsletterSubscriber(Model, AirtableTableMixin):
     unsubscribed_at = F.DatetimeField("Unsubscribed At")
     has_resubscribed = F.CheckboxField("HasResubscribed")
 
-    @classmethod
-    def get_by_email(cls, email: str):
-        """Find a subscriber by email address."""
-        try:
-            results = cls.all(formula=f"{{Email}} = '{email}'")
-            return results[0] if results else None
-        except Exception as e:
-            print(f"Error finding subscriber by email: {e}")
-            return None
+    class Languages(Enum):
+        EN = "en"
+        FR = "fr"
 
-    @classmethod
-    def get_id_by_email(cls, email: str):
-        """Get the record ID of a subscriber by email address."""
-        subscriber = cls.get_by_email(email)
-        return subscriber.id if subscriber else None
+    class Statuses(Enum):
+        UNCONFIRMED = "unconfirmed"
+        SUBSCRIBED = "subscribed"
+        UNSUBSCRIBED = "unsubscribed"
+
+    class Meta:
+        """Default meta data required by pyairtable's ORM to init an API client for the model."""
+
+        @staticmethod
+        def api_key():
+            return NewsletterSubscriber._app().config.get("AIRTABLE_API_KEY")
+
+        @staticmethod
+        def base_id():
+            return NewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_BASE_ID")
+
+        table_name = "Mailing List"
+
+    def save_unconfirmed_subscriber(self) -> SaveResult:
+        """Save a new unconfirmed subscriber to the mailing list."""
+        self.status = self.Statuses.UNCONFIRMED.value
+        self.created_at = datetime.now()
+        return self.save()
 
     def confirm_subscription(self) -> SaveResult:
         """Confirm this subscriber's subscription."""
@@ -105,14 +131,14 @@ class NewsletterSubscriber(Model, AirtableTableMixin):
     def unsubscribe_user(self) -> SaveResult:
         """Unsubscribe the current user."""
         self.status = self.Statuses.UNSUBSCRIBED.value
-        self.unsubscribed = datetime.now()
+        self.unsubscribed_at = datetime.now()
         self.confirmed_at = None
         return self.save()
 
     def update_language(self, new_language: str) -> SaveResult:
         """Update the subscriber's language preference."""
-        if not self.Languages.__contains__(self.status):
-            raise ValueError(f"Cannot change language for subscriber with status: {self.status}")
+        if new_language not in [lang.value for lang in self.Languages]:
+            raise ValueError(f"Invalid language: {new_language}")
 
         self.language = new_language
         return self.save()
@@ -125,9 +151,26 @@ class NewsletterSubscriber(Model, AirtableTableMixin):
         return self.save()
 
     @classmethod
+    def get_by_email(cls, email: str):
+        """Find a subscriber by email address."""
+        try:
+            results = cls.all(formula=f"{{Email}} = '{email}'")
+            return results[0] if results else None
+        except Exception as e:
+            cls._app().logger.error(f"Error finding subscriber by email: {e}")
+            return None
+
+    @classmethod
+    def get_id_by_email(cls, email: str):
+        """Get the record ID of a subscriber by email address."""
+        subscriber = cls.get_by_email(email)
+        return subscriber.id if subscriber else None
+
+    @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
+        table_name = cls.Meta.table_name
         return {
-            "name": cls.Meta.table_name,
+            "name": table_name,
             "fields": [
                 {"name": "Email", "type": "singleLineText"},
                 {
@@ -164,21 +207,3 @@ class NewsletterSubscriber(Model, AirtableTableMixin):
                 {"name": "Has Resubscribed", "type": "checkbox", "options": {"icon": "check", "color": "grayBright"}},
             ],
         }
-
-    class Languages(Enum):
-        EN = "en"
-        FR = "fr"
-
-    class Statuses(Enum):
-        UNCONFIRMED = "unconfirmed"
-        SUBSCRIBED = "subscribed"
-        UNSUBSCRIBED = "unsubscribed"
-
-    class Meta:
-        """Default meta data required by pyairtable's ORM to init an API client for the model."""
-
-        api_key = os.environ.get("AIRTABLE_API_KEY")
-        base_id = os.getenv(
-            "AIRTABLE_BASE_ID",
-        )
-        table_name = os.getenv("AIRTABLE_MAILING_LIST_TABLE_NAME", "Notify Newsletter Mailing List")
