@@ -60,8 +60,8 @@ jobs:
       - name: Configure credentials to Notify using OIDC
         uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
         with:
-          role-to-assume: arn:aws:iam::${{env.ACCOUNT_ID}}:role/notification-api-plan
-          role-session-name: NotifyApiPlan
+          role-to-assume: arn:aws:iam::${{env.ACCOUNT_ID}}:role/notification-api-apply
+          role-session-name: NotifyApiApply
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to ECR
