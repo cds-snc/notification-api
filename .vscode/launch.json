@@ -101,5 +101,12 @@
             "jinja": true,
             "justMyCode": false
         }
+    ],
+    "compounds": [
+        {
+            "name": "API/Celery",
+            "configurations": ["Python: Flask", "Python: Celery"],
+            "stopAll": true
+        }
     ]
 }

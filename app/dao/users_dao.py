@@ -222,3 +222,33 @@ def get_services_for_all_users():
     )
 
     return result
+
+
+def dao_deactivate_user(user_id):
+    """
+    Deactivates a user by updating their state and removing associated permissions.
+    """
+    user = get_user_by_id(user_id)
+
+    if user.state == "inactive":
+        raise InvalidRequest("User is already inactive", status_code=400)
+
+    # Remove user permissions and associations
+    permission_dao.remove_user_service_permissions_for_all_services(user)
+
+    service_users = dao_get_service_users_by_user_id(user.id)
+    for service_user in service_users:
+        db.session.delete(service_user)
+
+    user.organisations = []
+
+    user.auth_type = EMAIL_AUTH_TYPE
+    user.mobile_number = None
+    user.password = str(uuid.uuid4())
+    # Changing the current_session_id signs the user out
+    user.current_session_id = "00000000-0000-0000-0000-000000000000"
+    user.state = "inactive"
+
+    db.session.add(user)
+
+    return user

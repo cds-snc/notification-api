@@ -13,7 +13,7 @@ from notifications_utils.clients.redis import (
 )
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
@@ -778,10 +778,29 @@ def archive_service(service_id):
     :param service_id:
     :return:
     """
-    service = dao_fetch_service_by_id(service_id)
+    service: Service = dao_fetch_service_by_id(service_id)
 
     if service.active:
-        dao_archive_service(service.id)
+        try:
+            service_name = dao_archive_service(service.id)
+            # FF_USER_SERVICE_DEACTIVATION
+            if current_app.config["NOTIFY_ENVIRONMENT"].lower() != "production":
+                send_notification_to_service_users(
+                    service_id=service_id,
+                    template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
+                    personalisation={
+                        "service_name": service_name,
+                    },
+                )
+        except SQLAlchemyError as e:
+            current_app.logger.exception(e)
+            raise InvalidRequest(
+                f"A dao error occurred while archiving service {service_id}. Deactivation confirmation emails were not sent to service users",
+                status_code=500,
+            )
+        except Exception as e:
+            current_app.logger.exception(e)
+
         if current_app.config["FF_SALESFORCE_CONTACT"]:
             try:
                 salesforce_client.engagement_close(service)
@@ -791,8 +810,9 @@ def archive_service(service_id):
     return "", 204
 
 
+@service_blueprint.route("/<uuid:service_id>/suspend/<uuid:user_id>", methods=["POST"])
 @service_blueprint.route("/<uuid:service_id>/suspend", methods=["POST"])
-def suspend_service(service_id):
+def suspend_service(service_id, user_id=None):
     """
     Suspending a service will mark the service as inactive and revoke API keys.
     :param service_id:
@@ -801,7 +821,7 @@ def suspend_service(service_id):
     service = dao_fetch_service_by_id(service_id)
 
     if service.active:
-        dao_suspend_service(service.id)
+        dao_suspend_service(service.id, user_id)
 
     return "", 204
 

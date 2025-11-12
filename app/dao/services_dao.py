@@ -237,12 +237,41 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
+def dao_archive_service(service_id):
+    """
+    Archive a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    return dao_archive_service_no_transaction(service_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
     VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
 )
-def dao_archive_service(service_id):
+def dao_archive_service_no_transaction(service_id):
+    """
+    Core archive implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_archive_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_archive_service(...)` instead.
+    """
+
     # have to eager load templates and api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
@@ -254,6 +283,7 @@ def dao_archive_service(service_id):
         .filter(Service.id == service_id)
         .one()
     )
+    original_service_name = service.name
 
     time = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S")
     service.active = False
@@ -267,6 +297,8 @@ def dao_archive_service(service_id):
     for api_key in service.api_keys:
         if not api_key.expiry_date:
             api_key.expiry_date = datetime.utcnow()
+
+    return original_service_name
 
 
 def dao_fetch_service_by_id_and_user(service_id, user_id):
@@ -551,11 +583,40 @@ def dao_fetch_todays_stats_for_all_services(include_from_test_key=True, only_act
 
 
 @transactional
+def dao_suspend_service(service_id, user_id=None):
+    """
+    Suspend a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    dao_suspend_service_no_transaction(service_id, user_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
 )
-def dao_suspend_service(service_id):
+def dao_suspend_service_no_transaction(service_id, user_id=None):
+    """
+    Core suspend implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_suspend_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_suspend_service(...)` instead.
+    """
+
     # have to eager load api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
@@ -566,11 +627,11 @@ def dao_suspend_service(service_id):
         .one()
     )
 
-    for api_key in service.api_keys:
-        if not api_key.expiry_date:
-            api_key.expiry_date = datetime.utcnow()
-
     service.active = False
+    service.suspended_at = datetime.now(tz=pytz.UTC)
+    # only set suspended_by_id when a user_id is provided
+    if user_id is not None:
+        service.suspended_by_id = user_id
 
 
 @transactional
@@ -578,6 +639,8 @@ def dao_suspend_service(service_id):
 def dao_resume_service(service_id):
     service = Service.query.get(service_id)
     service.active = True
+    service.suspended_at = None
+    service.suspended_by_id = None
 
 
 def dao_fetch_active_users_for_service(service_id):
