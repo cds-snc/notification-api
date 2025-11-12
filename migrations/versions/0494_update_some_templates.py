@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0489_update_template_wording
-Revises: 0488_update_2fa_templates
+Revision ID: 0494_update_some_templates
+Revises: 0493_update_user_deact_tmpl
 Create Date: 2025-09-15 00:00:00
 
 """
@@ -10,8 +10,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0489_update_template_wording"
-down_revision = "0488_update_2fa_templates"
+revision = "0494_update_some_templates"
+down_revision = "0493_update_user_deact_tmpl"
 
 CAT_AUTH_ID = "b6c42a7e-2a26-4a07-802b-123a5c3198a9"
 
@@ -150,3 +150,6 @@ def upgrade():
                 template["category_id"],
             )
         )
+        
+def downgrade():
+    pass
