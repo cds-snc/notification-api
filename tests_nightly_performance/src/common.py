@@ -19,7 +19,6 @@ class Config:
     SMS_TEMPLATE_ID_ONE_VAR = os.environ.get("PERF_TEST_SMS_TEMPLATE_ID_ONE_VAR")
     API_KEY = os.environ.get("PERF_TEST_API_KEY")
     HOST = os.environ.get("PERF_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
-    TEST = "TEST123"
 
     @staticmethod
     def check():
