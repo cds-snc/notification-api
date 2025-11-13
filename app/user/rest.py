@@ -1,13 +1,12 @@
 import base64
 import json
-import pickle
 import uuid
 from datetime import datetime, timedelta
 
 import pwnedpasswords
 from fido2 import cbor
-from fido2.client import ClientData
-from fido2.ctap2 import AuthenticatorData
+from fido2.webauthn import AuthenticatorData
+from fido2.webauthn import CollectedClientData as ClientData
 from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -17,9 +16,11 @@ from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
+    _ensure_bytes,
     create_fido2_session,
     decode_and_register,
     delete_fido2_key,
+    deserialize_fido2_key,
     get_fido2_session,
     list_fido2_keys,
     save_fido2_key,
@@ -809,7 +810,7 @@ def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
     keys = list_fido2_keys(user_id)
 
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    credentials = [deserialize_fido2_key(k.key) for k in keys]
 
     registration_data, state = Config.FIDO2_SERVER.register_begin(
         {
@@ -822,51 +823,84 @@ def fido2_keys_user_register(user_id):
     )
     create_fido2_session(user_id, state)
 
-    # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode("utf8")})
+    # In fido2 1.x, register_begin returns a PublicKeyCredentialCreationOptions object
+    # We can encode it directly as CBOR - the object itself is CBOR-serializable
+    registration_payload = base64.b64encode(cbor.encode(registration_data)).decode("utf8")
+    return jsonify({"data": registration_payload})
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/authenticate", methods=["POST"])
 def fido2_keys_user_authenticate(user_id):
-    keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    try:
+        current_app.logger.info(f"Starting FIDO2 authentication for user {user_id}")
+        keys = list_fido2_keys(user_id)
+        current_app.logger.info(f"Found {len(keys)} FIDO2 keys for user {user_id}")
 
-    auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
-    create_fido2_session(user_id, state)
+        if not keys:
+            current_app.logger.warning(f"No FIDO2 keys found for user {user_id}")
+            return jsonify({"error": "No security keys registered"}), 400
 
-    # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode("utf8")})
+        credentials = [deserialize_fido2_key(k.key) for k in keys]
+        current_app.logger.info(f"Deserialized {len(credentials)} credentials")
+
+        request_options, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
+        create_fido2_session(user_id, state)
+        current_app.logger.info("FIDO2 session created successfully")
+
+        # In fido2 1.x, authenticate_begin returns a CredentialRequestOptions object
+        # We need to encode it directly as CBOR - the object itself is CBOR-serializable
+        current_app.logger.info(f"Authentication challenge type: {type(request_options)}")
+
+        # The request_options object can be CBOR encoded directly in fido2 1.x
+        cbor_encoded = cbor.encode(request_options)
+        current_app.logger.info(f"CBOR encoded length: {len(cbor_encoded)}")
+
+        # Base64 encode for transmission
+        auth_payload = base64.b64encode(cbor_encoded).decode("utf8")
+        current_app.logger.info(f"Final base64 payload length: {len(auth_payload)}")
+        current_app.logger.info(f"First 100 chars of payload: {auth_payload[:100]}")
+
+        return jsonify({"data": auth_payload})
+    except Exception as e:
+        current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/validate", methods=["POST"])
 def fido2_keys_user_validate(user_id):
-    keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    try:
+        current_app.logger.info(f"Starting FIDO2 validation for user {user_id}")
+        keys = list_fido2_keys(user_id)
+        credentials = [deserialize_fido2_key(k.key) for k in keys]
 
-    data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+        data = request.get_json()
+        cbor_data = cbor.decode(base64.b64decode(data["payload"]))
 
-    credential_id = cbor_data["credentialId"]
-    client_data = ClientData(cbor_data["clientDataJSON"])
-    auth_data = AuthenticatorData(cbor_data["authenticatorData"])
-    signature = cbor_data["signature"]
+        credential_id = _ensure_bytes(cbor_data["credentialId"])
+        client_data = ClientData(_ensure_bytes(cbor_data["clientDataJSON"]))
+        auth_data = AuthenticatorData(_ensure_bytes(cbor_data["authenticatorData"]))
+        signature = _ensure_bytes(cbor_data["signature"])
 
-    Config.FIDO2_SERVER.authenticate_complete(
-        get_fido2_session(user_id),
-        credentials,
-        credential_id,
-        client_data,
-        auth_data,
-        signature,
-    )
+        Config.FIDO2_SERVER.authenticate_complete(
+            get_fido2_session(user_id),
+            credentials,
+            credential_id,
+            client_data,
+            auth_data,
+            signature,
+        )
 
-    user_to_verify = get_user_by_id(user_id=user_id)
-    user_to_verify.current_session_id = str(uuid.uuid4())
-    user_to_verify.logged_in_at = datetime.utcnow()
-    user_to_verify.failed_login_count = 0
-    save_model_user(user_to_verify)
+        user_to_verify = get_user_by_id(user_id=user_id)
+        user_to_verify.current_session_id = str(uuid.uuid4())
+        user_to_verify.logged_in_at = datetime.utcnow()
+        user_to_verify.failed_login_count = 0
+        save_model_user(user_to_verify)
 
-    return jsonify({"status": "OK"})
+        current_app.logger.info(f"FIDO2 validation successful for user {user_id}")
+        return jsonify({"status": "OK"})
+    except Exception as e:
+        current_app.logger.exception(f"Error in FIDO2 validation for user {user_id}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/<uuid:key_id>", methods=["DELETE"])

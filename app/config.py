@@ -608,7 +608,7 @@ class Config(object):
     NOTIFY_LOG_PATH = ""
 
     FIDO2_SERVER = Fido2Server(
-        PublicKeyCredentialRpEntity(os.getenv("FIDO2_DOMAIN", "localhost"), "Notification"),
+        PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")),
         verify_origin=lambda x: True,
     )
 
