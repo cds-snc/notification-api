@@ -26,10 +26,10 @@ def create_unconfirmed_subscription():
         current_app.logger.error(f"Failed to create unconfirmed mailing list subscriber: {result.error}")
         return jsonify(result="error", message="Failed to create unconfirmed mailing list subscriber."), 500
 
-    return jsonify(result="success", subscriber_id=subscriber.id), 201
+    return jsonify(result="success", record_id=subscriber.id), 201
 
 
-@newsletter_blueprint.route("/confirm/<subscriber_id>", methods=["GET"])
+@newsletter_blueprint.route("/confirm/<subscriber_id>", methods=["POST"])
 def confirm_subscription(subscriber_id):
     """Endpoint to confirm newsletter subscription."""
     subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
@@ -46,7 +46,7 @@ def confirm_subscription(subscriber_id):
     return jsonify(result="success", message="Subscription confirmed", record_id=subscriber.id), 200
 
 
-@newsletter_blueprint.route("/unsubscribe/<subscriber_id>", methods=["GET"])
+@newsletter_blueprint.route("/unsubscribe/<subscriber_id>", methods=["POST"])
 def unsubscribe(subscriber_id):
     """Endpoint to unsubscribe from the newsletter."""
     subscriber = NewsletterSubscriber.from_id(subscriber_id)

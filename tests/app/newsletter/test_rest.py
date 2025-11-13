@@ -17,7 +17,6 @@ class MockSaveResult:
 
 @pytest.fixture
 def mock_subscriber():
-    """Create a mock NewsletterSubscriber."""
     subscriber = Mock(spec=NewsletterSubscriber)
     subscriber.id = "rec123456"
     subscriber.email = "test@example.com"
@@ -30,102 +29,55 @@ def mock_subscriber():
 
 
 class TestCreateUnconfirmedSubscription:
-    def test_create_unconfirmed_subscription_success(self, notify_api, mocker):
-        """Test successfully creating an unconfirmed newsletter subscriber."""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                # Mock the NewsletterSubscriber class
-                mock_subscriber_instance = Mock()
-                mock_subscriber_instance.id = "rec123456"
-                mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
+    def test_create_unconfirmed_subscription_success(self, admin_request, mocker):
+        mock_subscriber_instance = Mock()
+        mock_subscriber_instance.id = "rec123456"
+        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
 
-                mock_subscriber_class = mocker.patch(
-                    "app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance
-                )
+        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
 
-                data = {"email": "test@example.com", "language": "en"}
-                response = client.post(
-                    url_for("newsletter.create_unconfirmed_subscription"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        data = {"email": "test@example.com", "language": "en"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
 
-                assert response.status_code == 201
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["subscriber_id"] == "rec123456"
+        assert response["result"] == "success"
+        assert response["record_id"] == "rec123456"
+        mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
+        mock_subscriber_instance.save_unconfirmed_subscriber.assert_called_once()
 
-                # Verify the subscriber was created with correct parameters
-                mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
-                mock_subscriber_instance.save_unconfirmed_subscriber.assert_called_once()
+    def test_create_unconfirmed_subscription_defaults_to_english(self, admin_request, mocker):
+        mock_subscriber_instance = Mock()
+        mock_subscriber_instance.id = "rec123456"
+        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
 
-    def test_create_unconfirmed_subscription_defaults_to_english(self, notify_api, mocker):
-        """Test that language defaults to 'en' when not provided."""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber_instance = Mock()
-                mock_subscriber_instance.id = "rec123456"
-                mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
+        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
 
-                mock_subscriber_class = mocker.patch(
-                    "app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance
-                )
+        data = {"email": "test@example.com"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
 
-                data = {"email": "test@example.com"}
-                response = client.post(
-                    url_for("newsletter.create_unconfirmed_subscription"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        assert response["result"] == "success"
+        mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
 
-                assert response.status_code == 201
-                # Verify the default language was used
-                mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
+    def test_create_unconfirmed_subscription_missing_email(self, admin_request):
+        data = {"language": "fr"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=400)
+        assert response["result"] == "error"
+        assert response["message"] == "Email is required"
 
-    def test_create_unconfirmed_subscription_missing_email(self, notify_api):
-        """Test that missing email returns 400 error."""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                data = {"language": "fr"}
-                response = client.post(
-                    url_for("newsletter.create_unconfirmed_subscription"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+    def test_create_unconfirmed_subscription_save_fails(self, admin_request, mocker):
+        mock_subscriber_instance = Mock()
+        mock_subscriber_instance.id = "rec123456"
+        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=False, error="Database error")
 
-                assert response.status_code == 400
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Email is required"
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
 
-    def test_create_unconfirmed_subscription_save_fails(self, notify_api, mocker):
-        """Test handling of save failure."""
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber_instance = Mock()
-                mock_subscriber_instance.id = "rec123456"
-                mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(
-                    saved=False, error="Database error"
-                )
-
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
-
-                data = {"email": "test@example.com", "language": "en"}
-                response = client.post(
-                    url_for("newsletter.create_unconfirmed_subscription"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
-
-                assert response.status_code == 500
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Failed to create unconfirmed mailing list subscriber."
+        data = {"email": "test@example.com", "language": "en"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
+        assert response["result"] == "error"
+        assert response["message"] == "Failed to create unconfirmed mailing list subscriber."
 
 
 class TestConfirmSubscription:
     def test_confirm_subscription_success(self, notify_api, mocker):
-        """Test successfully confirming a newsletter subscription."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -145,7 +97,6 @@ class TestConfirmSubscription:
                 mock_subscriber.confirm_subscription.assert_called_once()
 
     def test_confirm_subscription_subscriber_not_found(self, notify_api, mocker):
-        """Test confirming subscription for non-existent subscriber."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
@@ -158,7 +109,6 @@ class TestConfirmSubscription:
                 assert json_resp["message"] == "Subscriber not found"
 
     def test_confirm_subscription_save_fails(self, notify_api, mocker):
-        """Test handling of confirmation save failure."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -178,7 +128,6 @@ class TestConfirmSubscription:
 
 class TestUnsubscribe:
     def test_unsubscribe_success(self, notify_api, mocker):
-        """Test successfully unsubscribing from newsletter."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -198,7 +147,6 @@ class TestUnsubscribe:
                 mock_subscriber.unsubscribe_user.assert_called_once()
 
     def test_unsubscribe_subscriber_not_found(self, notify_api, mocker):
-        """Test unsubscribing non-existent subscriber."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
@@ -211,7 +159,6 @@ class TestUnsubscribe:
                 assert json_resp["message"] == "Subscriber not found"
 
     def test_unsubscribe_save_fails(self, notify_api, mocker):
-        """Test handling of unsubscribe save failure."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -231,7 +178,6 @@ class TestUnsubscribe:
 
 class TestUpdateLanguagePreferences:
     def test_update_language_success(self, notify_api, mocker):
-        """Test successfully updating language preference."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -256,7 +202,6 @@ class TestUpdateLanguagePreferences:
                 mock_subscriber.update_language.assert_called_once_with("fr")
 
     def test_update_language_missing_language(self, notify_api):
-        """Test that missing language parameter returns 400 error."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 data = {}
@@ -272,7 +217,6 @@ class TestUpdateLanguagePreferences:
                 assert json_resp["message"] == "New language is required"
 
     def test_update_language_subscriber_not_found(self, notify_api, mocker):
-        """Test updating language for non-existent subscriber."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
@@ -290,7 +234,6 @@ class TestUpdateLanguagePreferences:
                 assert json_resp["message"] == "Subscriber not found"
 
     def test_update_language_save_fails(self, notify_api, mocker):
-        """Test handling of language update save failure."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mock_subscriber = Mock()
@@ -314,22 +257,17 @@ class TestUpdateLanguagePreferences:
 
 
 class TestGetSubscriber:
-    def test_get_subscriber_by_id_success(self, notify_api, mocker):
-        """Test successfully retrieving subscriber by ID."""
+    def test_get_subscriber_by_id_success(self, notify_api, mocker, mock_subscriber):
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.email = "test@example.com"
-                mock_subscriber.language = "en"
-                mock_subscriber.status = "subscribed"
-                mock_subscriber.created_at = "2024-01-01T00:00:00"
-                mock_subscriber.confirmed_at = "2024-01-02T00:00:00"
-                mock_subscriber.unsubscribed_at = None
-
                 mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                response = client.get(url_for("newsletter.get_subscriber", subscriber_id="rec123456"))
+                data = {"subscriber_id": "rec123456"}
+                response = client.get(
+                    url_for("newsletter.get_subscriber"),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json")],
+                )
 
                 assert response.status_code == 200
                 json_resp = json.loads(response.get_data(as_text=True))
@@ -337,38 +275,37 @@ class TestGetSubscriber:
                 assert json_resp["subscriber"]["id"] == "rec123456"
                 assert json_resp["subscriber"]["email"] == "test@example.com"
                 assert json_resp["subscriber"]["language"] == "en"
-                assert json_resp["subscriber"]["status"] == "subscribed"
+                assert json_resp["subscriber"]["status"] == "unconfirmed"
 
-    def test_get_subscriber_by_email_success(self, notify_api, mocker):
-        """Test successfully retrieving subscriber by email."""
+    def test_get_subscriber_by_email_success(self, notify_api, mocker, mock_subscriber):
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.email = "test@example.com"
-                mock_subscriber.language = "fr"
-                mock_subscriber.status = "subscribed"
-                mock_subscriber.created_at = "2024-01-01T00:00:00"
-                mock_subscriber.confirmed_at = "2024-01-02T00:00:00"
-                mock_subscriber.unsubscribed_at = None
+                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.get_by_email", return_value=mock_subscriber)
-
-                response = client.get(url_for("newsletter.get_subscriber", email="test@example.com"))
+                data = {"email": "test@example.com"}
+                response = client.get(
+                    url_for("newsletter.get_subscriber"),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json")],
+                )
 
                 assert response.status_code == 200
                 json_resp = json.loads(response.get_data(as_text=True))
                 assert json_resp["result"] == "success"
                 assert json_resp["subscriber"]["email"] == "test@example.com"
-                assert json_resp["subscriber"]["language"] == "fr"
+                assert json_resp["subscriber"]["language"] == "en"
 
     def test_get_subscriber_by_id_not_found(self, notify_api, mocker):
-        """Test retrieving non-existent subscriber by ID."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
                 mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-                response = client.get(url_for("newsletter.get_subscriber", subscriber_id="rec999999"))
+                data = {"subscriber_id": "rec999999"}
+                response = client.get(
+                    url_for("newsletter.get_subscriber"),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json")],
+                )
 
                 assert response.status_code == 404
                 json_resp = json.loads(response.get_data(as_text=True))
@@ -376,12 +313,16 @@ class TestGetSubscriber:
                 assert json_resp["message"] == "Subscriber not found"
 
     def test_get_subscriber_by_email_not_found(self, notify_api, mocker):
-        """Test retrieving non-existent subscriber by email."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.get_by_email", return_value=None)
+                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
 
-                response = client.get(url_for("newsletter.get_subscriber", email="notfound@example.com"))
+                data = {"email": "notfound@example.com"}
+                response = client.get(
+                    url_for("newsletter.get_subscriber"),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json")],
+                )
 
                 assert response.status_code == 404
                 json_resp = json.loads(response.get_data(as_text=True))
@@ -389,13 +330,16 @@ class TestGetSubscriber:
                 assert json_resp["message"] == "Subscriber not found"
 
     def test_get_subscriber_no_id_or_email(self, notify_api):
-        """Test that missing both ID and email returns 400 error."""
         with notify_api.test_request_context():
             with notify_api.test_client() as client:
-                # This will call the route without subscriber_id parameter
-                # Due to the route structure, we need to test the /email/ route with no email
-                response = client.get("/newsletter/")
+                data = {}
+                response = client.get(
+                    url_for("newsletter.get_subscriber"),
+                    data=json.dumps(data),
+                    headers=[("Content-Type", "application/json")],
+                )
 
-                # This should return 404 as the route doesn't match, but testing the logic
-                # Let's check what happens when we access the root newsletter endpoint
-                assert response.status_code == 404
+                assert response.status_code == 400
+                json_resp = json.loads(response.get_data(as_text=True))
+                assert json_resp["result"] == "error"
+                assert json_resp["message"] == "Subscriber ID or email is required"
