@@ -2,8 +2,7 @@ import base64
 import json
 import pickle
 
-from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject
+from fido2.webauthn import AttestationObject
 from sqlalchemy import and_
 
 from app import db
@@ -47,9 +46,10 @@ def get_fido2_session(user_id):
 
 
 def decode_and_register(data, state):
-    client_data = ClientData(data["clientDataJSON"])
-    att_obj = AttestationObject(data["attestationObject"])
+    # In fido2 1.2.0, ClientData is created differently
+    client_data_json = base64.urlsafe_b64decode(data["clientDataJSON"])
+    att_obj = AttestationObject(base64.urlsafe_b64decode(data["attestationObject"]))
 
-    auth_data = Config.FIDO2_SERVER.register_complete(state, client_data, att_obj)
+    auth_data = Config.FIDO2_SERVER.register_complete(state, client_data_json, att_obj)
 
     return base64.b64encode(pickle.dumps(auth_data.credential_data)).decode("utf8")

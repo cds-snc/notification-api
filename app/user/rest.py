@@ -6,8 +6,6 @@ from datetime import datetime, timedelta
 
 import pwnedpasswords
 from fido2 import cbor
-from fido2.client import ClientData
-from fido2.ctap2 import AuthenticatorData
 from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -847,15 +845,15 @@ def fido2_keys_user_validate(user_id):
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
 
     credential_id = cbor_data["credentialId"]
-    client_data = ClientData(cbor_data["clientDataJSON"])
-    auth_data = AuthenticatorData(cbor_data["authenticatorData"])
+    client_data_json = cbor_data["clientDataJSON"]
+    auth_data = cbor_data["authenticatorData"]
     signature = cbor_data["signature"]
 
     Config.FIDO2_SERVER.authenticate_complete(
         get_fido2_session(user_id),
         credentials,
         credential_id,
-        client_data,
+        client_data_json,
         auth_data,
         signature,
     )
