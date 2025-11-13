@@ -99,50 +99,50 @@ class TestNewsletterSubscriber:
         assert subscriber.language == NewsletterSubscriber.Languages.EN.value
         assert subscriber.status == NewsletterSubscriber.Statuses.UNCONFIRMED.value
 
-    def test_get_by_email_success(self, mocker):
-        """Test get_by_email returns subscriber when found."""
+    def test_from_email_success(self, mocker):
+        """Test from_email returns subscriber when found."""
         mock_subscriber = Mock()
         mock_all = mocker.patch.object(NewsletterSubscriber, "all", return_value=[mock_subscriber])
 
-        result = NewsletterSubscriber.get_by_email("test@example.com")
+        result = NewsletterSubscriber.from_email("test@example.com")
 
         assert result == mock_subscriber
         mock_all.assert_called_once_with(formula="{Email} = 'test@example.com'")
 
-    def test_get_by_email_not_found(self, mocker):
-        """Test get_by_email returns None when not found."""
+    def test_from_email_not_found(self, mocker):
+        """Test from_email returns None when not found."""
         mocker.patch.object(NewsletterSubscriber, "all", return_value=[])
 
-        result = NewsletterSubscriber.get_by_email("test@example.com")
+        result = NewsletterSubscriber.from_email("test@example.com")
 
         assert result is None
 
-    def test_get_by_email_exception_handling(self, mocker, notify_api):
-        """Test get_by_email handles exceptions gracefully."""
+    def test_from_email_exception_handling(self, mocker, notify_api):
+        """Test from_email handles exceptions gracefully."""
         mocker.patch.object(NewsletterSubscriber, "all", side_effect=Exception("Database error"))
         mock_logger = mocker.patch.object(notify_api.logger, "error")
 
-        result = NewsletterSubscriber.get_by_email("test@example.com")
+        result = NewsletterSubscriber.from_email("test@example.com")
 
         assert result is None
         mock_logger.assert_called_once_with("Error finding subscriber by email: Database error")
 
-    def test_get_id_by_email_with_subscriber(self, mocker):
-        """Test get_id_by_email returns ID when subscriber exists."""
+    def test_from_email_with_subscriber(self, mocker):
+        """Test from_email returns ID when subscriber exists."""
         mock_subscriber = Mock()
         mock_subscriber.id = "rec123456"
-        mock_get_by_email = mocker.patch.object(NewsletterSubscriber, "get_by_email", return_value=mock_subscriber)
+        mock_get_by_email = mocker.patch.object(NewsletterSubscriber, "from_email", return_value=mock_subscriber)
 
-        result = NewsletterSubscriber.get_id_by_email("test@example.com")
+        result = NewsletterSubscriber.from_email("test@example.com")
 
-        assert result == "rec123456"
+        assert result.id == "rec123456"
         mock_get_by_email.assert_called_once_with("test@example.com")
 
-    def test_get_id_by_email_no_subscriber(self, mocker):
+    def test_from_email_no_subscriber(self, mocker):
         """Test get_id_by_email returns None when subscriber doesn't exist."""
-        mocker.patch.object(NewsletterSubscriber, "get_by_email", return_value=None)
+        mocker.patch.object(NewsletterSubscriber, "from_email", return_value=None)
 
-        result = NewsletterSubscriber.get_id_by_email("test@example.com")
+        result = NewsletterSubscriber.from_email("test@example.com")
 
         assert result is None
 

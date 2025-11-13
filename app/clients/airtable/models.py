@@ -1,10 +1,10 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict
 
 from pyairtable.orm import Model
 from pyairtable.orm import fields as F
-from pyairtable.orm.model import SaveResult
+from pyairtable.orm.model import SaveResult, _Meta
 
 
 class AirtableTableMixin:
@@ -14,13 +14,12 @@ class AirtableTableMixin:
     3. Utilities for checking table state and fetching the model's table schema.
     """
 
+    # Type annotation for mypy: classes using this mixin will always have a meta attribute as they will inherit from pyairtable.orm.Model
+    if TYPE_CHECKING:
+        meta: _Meta
+
     # Store the Flask app at the mixin level so all inheriting models can access it
     _flask_app = None
-
-    @classmethod
-    def init_app(cls, app):
-        """Initialize the mixin with Flask application context."""
-        cls._flask_app = app
 
     def save(self, *, force: bool = False) -> SaveResult:
         """Override the save method to ensure the table exists before saving."""
@@ -28,6 +27,11 @@ class AirtableTableMixin:
         if not cls.table_exists():
             cls.create_table()
         return super().save(force=force)  # type: ignore[misc]
+
+    @classmethod
+    def init_app(cls, app):
+        """Initialize the mixin with Flask application context."""
+        cls._flask_app = app
 
     @classmethod
     def _app(cls):
@@ -116,8 +120,6 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         def table_name():
             return NewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
 
-        # table_name = "Mailing List"
-
     def save_unconfirmed_subscriber(self) -> SaveResult:
         """Save a new unconfirmed subscriber to the mailing list."""
         self.status = self.Statuses.UNCONFIRMED.value
@@ -153,7 +155,7 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         return self.save()
 
     @classmethod
-    def get_by_email(cls, email: str):
+    def from_email(cls, email: str):
         """Find a subscriber by email address."""
         try:
             results = cls.all(formula=f"{{Email}} = '{email}'")
@@ -161,12 +163,6 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         except Exception as e:
             cls._app().logger.error(f"Error finding subscriber by email: {e}")
             return None
-
-    @classmethod
-    def from_email(cls, email: str):
-        """Get the record ID of a subscriber by email address."""
-        subscriber = cls.get_by_email(email)
-        return subscriber if subscriber else None
 
     @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
