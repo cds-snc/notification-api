@@ -7,9 +7,25 @@ from app.clients.airtable.models import AirtableTableMixin, NewsletterSubscriber
 from tests.conftest import set_config_values
 
 
-class TestAirtableTableMixin:
-    """Test the AirtableTableMixin class methods."""
+@pytest.fixture
+def mock_test_airtable_model():
+    """Create a TestModel with mocked meta for AirtableTableMixin tests."""
+    mock_meta = Mock()
+    mock_meta.table_name = "Test Table"
+    mock_base = Mock()
+    mock_meta.base = mock_base
 
+    class TestModel(AirtableTableMixin):
+        meta = mock_meta
+
+        class Meta:
+            table_name = "Test Table"
+            base = mock_base
+
+    return TestModel
+
+
+class TestAirtableTableMixin:
     def test_table_exists_no_meta_attribute(self):
         """Test table_exists raises AttributeError when no Meta attribute."""
 
@@ -19,40 +35,28 @@ class TestAirtableTableMixin:
         with pytest.raises(AttributeError, match="Model must have a Meta attribute"):
             TestModel.table_exists()
 
-    def test_table_exists_table_found(self, mocker):
+    def test_table_exists_table_found(self, mock_test_airtable_model):
         """Test table_exists returns True when table is found."""
         mock_table = Mock()
         mock_table.name = "Test Table"
+        mock_test_airtable_model.Meta.base.tables.return_value = [mock_table]
 
-        class TestModel(AirtableTableMixin):
-            class Meta:
-                table_name = "Test Table"
-                base = Mock()
+        assert mock_test_airtable_model.table_exists() is True
 
-        TestModel.Meta.base.tables.return_value = [mock_table]
-
-        assert TestModel.table_exists() is True
-
-    def test_table_exists_table_not_found(self, mocker):
+    def test_table_exists_table_not_found(self, mock_test_airtable_model):
         """Test table_exists returns False when table is not found."""
         mock_table = Mock()
         mock_table.name = "Other Table"
+        mock_test_airtable_model.Meta.base.tables.return_value = [mock_table]
 
-        class TestModel(AirtableTableMixin):
-            class Meta:
-                table_name = "Test Table"
-                base = Mock()
-
-        TestModel.Meta.base.tables.return_value = [mock_table]
-
-        assert TestModel.table_exists() is False
+        assert mock_test_airtable_model.table_exists() is False
 
     def test_get_table_schema_not_implemented(self):
         """Test get_table_schema raises NotImplementedError."""
         with pytest.raises(NotImplementedError, match="Subclasses must implement get_table_schema"):
             AirtableTableMixin.get_table_schema()
 
-    def test_create_table_no_meta_attribute(self):
+    def test_create_table_n_meta_attribute(self):
         """Test create_table raises AttributeError when no meta attribute."""
 
         class TestModel(AirtableTableMixin):
@@ -78,11 +82,6 @@ class TestAirtableTableMixin:
 
 
 class TestNewsletterSubscriber:
-    def test_init_no_email_raises_exception(self, notify_api):
-        """Test initialization without email raises AirtableClientException."""
-        with pytest.raises(TypeError):
-            NewsletterSubscriber(language="en")
-
     def test_init_creates_table_if_not_exists(self, notify_api, mocker):
         """Test initialization creates table if it doesn't exist."""
         mocker.patch.object(NewsletterSubscriber, "table_exists", return_value=False)
@@ -118,15 +117,15 @@ class TestNewsletterSubscriber:
 
         assert result is None
 
-    def test_get_by_email_exception_handling(self, mocker):
+    def test_get_by_email_exception_handling(self, mocker, notify_api):
         """Test get_by_email handles exceptions gracefully."""
         mocker.patch.object(NewsletterSubscriber, "all", side_effect=Exception("Database error"))
-        mock_print = mocker.patch("builtins.print")
+        mock_logger = mocker.patch.object(notify_api.logger, "error")
 
         result = NewsletterSubscriber.get_by_email("test@example.com")
 
         assert result is None
-        mock_print.assert_called_once_with("Error finding subscriber by email: Database error")
+        mock_logger.assert_called_once_with("Error finding subscriber by email: Database error")
 
     def test_get_id_by_email_with_subscriber(self, mocker):
         """Test get_id_by_email returns ID when subscriber exists."""
@@ -217,11 +216,11 @@ class TestNewsletterSubscriber:
         assert result == "save_result"
         mock_save.assert_called_once()
 
-    def test_get_table_schema_structure(self):
+    def test_get_table_schema_structure(self, notify_api):
         """Test get_table_schema returns correct schema structure."""
         schema = NewsletterSubscriber.get_table_schema()
 
-        assert schema["name"] == NewsletterSubscriber.Meta.table_name
+        assert schema["name"] == NewsletterSubscriber.Meta.table_name()
         assert len(schema["fields"]) == 7
 
         field_names = [field["name"] for field in schema["fields"]]
@@ -270,9 +269,10 @@ class TestNewsletterSubscriber:
             {
                 "AIRTABLE_API_KEY": "test_key",
                 "AIRTABLE_NEWSLETTER_BASE_ID": "test_base",
+                "AIRTABLE_NEWSLETTER_TABLE_NAME": "test_name",
             },
         ):
             # Test that the environment variables would be read correctly
             assert NewsletterSubscriber.Meta.api_key() == "test_key"
             assert NewsletterSubscriber.Meta.base_id() == "test_base"
-            assert NewsletterSubscriber.Meta.table_name == "Mailing List"
+            assert NewsletterSubscriber.Meta.table_name() == "test_name"

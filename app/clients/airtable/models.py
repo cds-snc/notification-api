@@ -32,6 +32,8 @@ class AirtableTableMixin:
     @classmethod
     def _app(cls):
         """Get the Flask application context."""
+        # TODO: Come up with some kind of ModelFactory that we can initialize with the app context and propagate to models
+        # that it creates so we don't have to manually register every future model in app/__init__.py via init_app calls
         if cls._flask_app is None:
             raise RuntimeError("Flask app not initialized. Call init_app(app) first.")
         return cls._flask_app
@@ -42,8 +44,8 @@ class AirtableTableMixin:
         if not hasattr(cls, "Meta"):
             raise AttributeError("Model must have a Meta attribute")
 
-        table_name = cls.Meta.table_name
-        tables = cls.Meta.base.tables()
+        table_name = cls.meta.table_name
+        tables = cls.meta.base.tables()
 
         return any(table.name == table_name for table in tables)
 
@@ -70,19 +72,15 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
     """
 
     def __init__(self, **fields):
-        """Initialize a newsletter subscriber, the email field is required.
+        """Initialize a newsletter subscriber.
         language defaults to: 'en'
         status defaults to: 'unconfirmed'
         """
-        # Validate required fields
-        if "email" not in fields:
-            raise TypeError("NewsletterSubscriber requires 'email' field")
-
         # Set defaults for language and status if not provided
         fields.setdefault("language", self.Languages.EN.value)
         fields.setdefault("status", self.Statuses.UNCONFIRMED.value)
 
-        # Call parent constructor
+        # Call parent constructor with the fields (including defaults)
         super().__init__(**fields)
 
     # Define the fields
@@ -114,7 +112,11 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         def base_id():
             return NewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_BASE_ID")
 
-        table_name = "Mailing List"
+        @staticmethod
+        def table_name():
+            return NewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+
+        # table_name = "Mailing List"
 
     def save_unconfirmed_subscriber(self) -> SaveResult:
         """Save a new unconfirmed subscriber to the mailing list."""
@@ -161,14 +163,14 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
             return None
 
     @classmethod
-    def get_id_by_email(cls, email: str):
+    def from_email(cls, email: str):
         """Get the record ID of a subscriber by email address."""
         subscriber = cls.get_by_email(email)
-        return subscriber.id if subscriber else None
+        return subscriber if subscriber else None
 
     @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
-        table_name = cls.Meta.table_name
+        table_name = cls.meta.table_name
         return {
             "name": table_name,
             "fields": [

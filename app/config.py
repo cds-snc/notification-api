@@ -214,6 +214,7 @@ class Config(object):
     # Airtable
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -715,6 +716,8 @@ class Development(Config):
 
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
+
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
 
 
 class Test(Development):
