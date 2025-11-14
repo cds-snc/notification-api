@@ -30,6 +30,8 @@ class Config:
     AWS_REGION = "ca-central-1"
     CSV_UPLOAD_BUCKET_NAME = os.environ.get("SMOKE_CSV_UPLOAD_BUCKET_NAME", "notification-canada-ca-staging-csv-upload")
 
+    AWS_ACCESS_KEY_ID = os.environ.get("SMOKE_AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.environ.get("SMOKE_AWS_SECRET_ACCESS_KEY")
     SERVICE_ID = os.environ.get("SMOKE_SERVICE_ID", "")
     USER_ID = os.environ.get("SMOKE_USER_ID")
     EMAIL_TO = os.environ.get("SMOKE_EMAIL_TO", INTERNAL_TEST_EMAIL_ADDRESS)
@@ -40,7 +42,14 @@ class Config:
     JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
 
 
-boto_session = Session()
+# the workflows in notification-manifests have been changed to use OIDC to assume roles so SMOKE_AWS_ACCESS_KEY_ID and SMOKE_AWS_SECRET_ACCESS_KEY should no longer be set
+if Config.AWS_ACCESS_KEY_ID is None:
+    boto_session = Session()
+else:
+    boto_session = Session(
+        aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+    )
 
 
 class Notification_type(Enum):
