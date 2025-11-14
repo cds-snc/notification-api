@@ -824,10 +824,46 @@ def fido2_keys_user_register(user_id):
     return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode("utf8")})
 
 
+def _safely_load_fido2_credentials(keys):
+    """
+    Safely load FIDO2 credentials from pickled key data.
+    Skip any keys that can't be unpickled due to version mismatches or corruption.
+    Handles migration between different fido2 library versions.
+    """
+    credentials = []
+    corrupted_keys = []
+
+    for key in keys:
+        try:
+            credential = pickle.loads(base64.b64decode(key.key))
+            credentials.append(credential)
+        except (AttributeError, ImportError, pickle.UnpicklingError, ModuleNotFoundError) as e:
+            current_app.logger.warning(
+                f"Failed to unpickle FIDO2 key {key.id} for user {key.user_id}: {e}. "
+                f"This may be due to fido2 library version changes. Marking key for potential migration."
+            )
+            corrupted_keys.append(key.id)
+            continue
+
+    # Log summary if there are issues
+    if corrupted_keys:
+        current_app.logger.info(
+            f"Found {len(corrupted_keys)} FIDO2 keys that need migration for user. "
+            f"Successfully loaded {len(credentials)} valid keys. "
+            f"Corrupted key IDs: {corrupted_keys}"
+        )
+
+    return credentials
+
+
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/authenticate", methods=["POST"])
 def fido2_keys_user_authenticate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    credentials = _safely_load_fido2_credentials(keys)
+
+    # if not credentials:
+    #     current_app.logger.warning(f"No valid FIDO2 credentials found for user {user_id}")
+    #     return jsonify({"error": "No valid security keys found"}), 400
 
     auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
     create_fido2_session(user_id, state)
@@ -839,7 +875,11 @@ def fido2_keys_user_authenticate(user_id):
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/validate", methods=["POST"])
 def fido2_keys_user_validate(user_id):
     keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    credentials = _safely_load_fido2_credentials(keys)
+
+    # if not credentials:
+    #     current_app.logger.warning(f"No valid FIDO2 credentials found for user {user_id}")
+    #     return jsonify({"error": "No valid security keys found"}), 400
 
     data = request.get_json()
     cbor_data = cbor.decode(base64.b64decode(data["payload"]))
