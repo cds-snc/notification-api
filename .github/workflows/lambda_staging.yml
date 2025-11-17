@@ -8,6 +8,13 @@ on:
 
 env:
   REGISTRY: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+  AWS_DEFAULT_REGION: ca-central-1
+
+permissions:
+  id-token: write # This is required for requesting the OIDC JWT
+  contents: write # This is required for actions/checkout
+  pull-requests: write
 
 jobs:
   build-push-and-deploy:
@@ -21,13 +28,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
-      - name: Configure AWS credentials
-        id: aws-creds
-        uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
+      - name: Configure credentials to Notify using OIDC
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
         with:
-          aws-access-key-id: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
-          aws-region: ca-central-1
+          role-to-assume: arn:aws:iam::${{env.ACCOUNT_ID}}:role/notification-api-apply
+          role-session-name: NotifyApiApply
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Build container
         run: |
