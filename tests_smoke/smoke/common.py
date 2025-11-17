@@ -42,10 +42,14 @@ class Config:
     JOB_SIZE = int(os.environ.get("SMOKE_JOB_SIZE", 2))
 
 
-boto_session = Session(
-    aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
-)
+# the workflows in notification-manifests have been changed to use OIDC to assume roles so SMOKE_AWS_ACCESS_KEY_ID and SMOKE_AWS_SECRET_ACCESS_KEY should no longer be set
+if Config.AWS_ACCESS_KEY_ID is None:
+    boto_session = Session()
+else:
+    boto_session = Session(
+        aws_access_key_id=Config.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=Config.AWS_SECRET_ACCESS_KEY,
+    )
 
 
 class Notification_type(Enum):
