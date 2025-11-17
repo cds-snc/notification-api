@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request
 
 from app.clients.airtable.models import NewsletterSubscriber
-from app.errors import register_errors
+from app.errors import InvalidRequest, register_errors
 
 newsletter_blueprint = Blueprint("newsletter", __name__, url_prefix="/newsletter")
 register_errors(newsletter_blueprint)
@@ -15,7 +15,7 @@ def create_unconfirmed_subscription():
     language = data.get("language", "en")
 
     if not email:
-        return jsonify(result="error", message="Email is required"), 400
+        raise InvalidRequest("Email is required", status_code=400)
 
     # Create a new unconfirmed subscriber
     subscriber = NewsletterSubscriber(email=email, language=language)
@@ -24,7 +24,7 @@ def create_unconfirmed_subscription():
     # Check if the save operation succeeded
     if not result.saved:
         current_app.logger.error(f"Failed to create unconfirmed mailing list subscriber: {result.error}")
-        return jsonify(result="error", message="Failed to create unconfirmed mailing list subscriber."), 500
+        raise InvalidRequest("Failed to create unconfirmed mailing list subscriber.", status_code=500)
 
     return jsonify(result="success", record_id=subscriber.id), 201
 
@@ -35,13 +35,13 @@ def confirm_subscription(subscriber_id):
     subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
 
     if not subscriber:
-        return jsonify(result="error", message="Subscriber not found"), 404
+        raise InvalidRequest("Subscriber not found", status_code=404)
 
     result = subscriber.confirm_subscription()
 
     if not result.saved:
         current_app.logger.error("Error confirming newsletter subscription: ")
-        return jsonify(result="error", message="Subscription confirmation failed", record_id=subscriber.id), 500
+        raise InvalidRequest("Subscription confirmation failed", status_code=500)
 
     return jsonify(result="success", message="Subscription confirmed", record_id=subscriber.id), 200
 
@@ -52,13 +52,13 @@ def unsubscribe(subscriber_id):
     subscriber = NewsletterSubscriber.from_id(subscriber_id)
 
     if not subscriber:
-        return jsonify(result="error", message="Subscriber not found"), 404
+        raise InvalidRequest("Subscriber not found", status_code=404)
 
     result = subscriber.unsubscribe_user()
 
     if not result.saved:
         current_app.logger.error(f"Failed to unsubscribe newsletter subscriber: {subscriber.id}")
-        return jsonify(result="error", message="Unsubscription failed", record_id=subscriber.id), 500
+        raise InvalidRequest("Unsubscription failed", status_code=500)
 
     return jsonify(result="success", message="Unsubscribed successfully", record_id=subscriber.id), 200
 
@@ -70,20 +70,43 @@ def update_language_preferences(subscriber_id):
     new_language = data.get("language")
 
     if not new_language:
-        return jsonify(result="error", message="New language is required"), 400
+        raise InvalidRequest("New language is required", status_code=400)
 
     subscriber = NewsletterSubscriber.from_id(subscriber_id)
 
     if not subscriber:
-        return jsonify(result="error", message="Subscriber not found"), 404
+        raise InvalidRequest("Subscriber not found", status_code=404)
 
     result = subscriber.update_language(new_language)
 
     if not result.saved:
         current_app.logger.error(f"Failed to update language preferences for newsletter subscriber: {subscriber.id}")
-        return jsonify(result="error", message="Language update failed", record_id=subscriber.id), 500
+        raise InvalidRequest("Language update failed", status_code=500)
 
     return jsonify(result="success", message="Language updated successfully", record_id=subscriber.id), 200
+
+
+@newsletter_blueprint.route("/resubscribe/<subscriber_id>", methods=["POST"])
+def reactivate_subscription(subscriber_id):
+    """Endpoint to reactivate a newsletter subscription."""
+    data = request.get_json()
+    language = data.get("language")
+
+    if not language:
+        raise InvalidRequest("Language is required to resubscribe", status_code=400)
+
+    subscriber = NewsletterSubscriber.from_id(subscriber_id)
+
+    if not subscriber:
+        raise InvalidRequest("Subscriber not found", status_code=404)
+
+    result = subscriber.reactivate_subscription(language)
+
+    if not result.saved:
+        current_app.logger.error(f"Failed to reactivate newsletter subscription for subscriber: {subscriber.id}")
+        raise InvalidRequest("Resubscription failed", status_code=500)
+
+    return jsonify(result="success", message="Resubscribed successfully", record_id=subscriber.id), 200
 
 
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
@@ -93,15 +116,16 @@ def get_subscriber():
     subscriber_id = data.get("subscriber_id", None)
     email = data.get("email", None)
 
+    if not subscriber_id and not email:
+        raise InvalidRequest("Subscriber ID or email is required", status_code=400)
+
     if subscriber_id:
         subscriber = NewsletterSubscriber.from_id(subscriber_id)
     elif email:
         subscriber = NewsletterSubscriber.from_email(email)
-    else:
-        return jsonify(result="error", message="Subscriber ID or email is required"), 400
 
     if not subscriber:
-        return jsonify(result="error", message="Subscriber not found"), 404
+        raise InvalidRequest("Subscriber not found", status_code=404)
 
     subscriber_data = {
         "id": subscriber.id,

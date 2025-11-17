@@ -152,6 +152,7 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         self.status = self.Statuses.SUBSCRIBED.value
         self.language = language
         self.has_resubscribed = True
+        self.confirmed_at = datetime.now()
         return self.save()
 
     @classmethod

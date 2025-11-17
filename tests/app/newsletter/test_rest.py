@@ -123,7 +123,6 @@ class TestConfirmSubscription:
                 json_resp = json.loads(response.get_data(as_text=True))
                 assert json_resp["result"] == "error"
                 assert json_resp["message"] == "Subscription confirmation failed"
-                assert json_resp["record_id"] == "rec123456"
 
 
 class TestUnsubscribe:
@@ -173,7 +172,6 @@ class TestUnsubscribe:
                 json_resp = json.loads(response.get_data(as_text=True))
                 assert json_resp["result"] == "error"
                 assert json_resp["message"] == "Unsubscription failed"
-                assert json_resp["record_id"] == "rec123456"
 
 
 class TestUpdateLanguagePreferences:
@@ -253,7 +251,6 @@ class TestUpdateLanguagePreferences:
                 json_resp = json.loads(response.get_data(as_text=True))
                 assert json_resp["result"] == "error"
                 assert json_resp["message"] == "Language update failed"
-                assert json_resp["record_id"] == "rec123456"
 
 
 class TestGetSubscriber:
