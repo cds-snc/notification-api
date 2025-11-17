@@ -755,6 +755,7 @@ class Test(Development):
 
 
 class Production(Config):
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -775,6 +776,7 @@ class Production(Config):
 class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
 
 
 class Scratch(Production):

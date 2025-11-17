@@ -261,8 +261,11 @@ class TestNewsletterSubscriber:
         assert NewsletterSubscriber.Statuses.SUBSCRIBED.value == "subscribed"
         assert NewsletterSubscriber.Statuses.UNSUBSCRIBED.value == "unsubscribed"
 
-    def test_meta_class_environment_variables(self, notify_api):
+    def test_meta_class_environment_variables(self, notify_api, mocker):
         """Test Meta class reads environment variables correctly."""
+
+        # Ensure the Meta class uses the test app instance
+        mocker.patch.object(NewsletterSubscriber, "_flask_app", notify_api)
 
         with set_config_values(
             notify_api,
@@ -272,7 +275,6 @@ class TestNewsletterSubscriber:
                 "AIRTABLE_NEWSLETTER_TABLE_NAME": "test_name",
             },
         ):
-            # Test that the environment variables would be read correctly
             assert NewsletterSubscriber.Meta.api_key() == "test_key"
             assert NewsletterSubscriber.Meta.base_id() == "test_base"
             assert NewsletterSubscriber.Meta.table_name() == "test_name"
