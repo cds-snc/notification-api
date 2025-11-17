@@ -290,7 +290,7 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, report_blueprint, requires_admin_auth)
 
-    register_notify_blueprint(application, newsletter_blueprint, requires_no_auth)
+    register_notify_blueprint(application, newsletter_blueprint, requires_admin_auth)
 
 
 def register_v2_blueprints(application):

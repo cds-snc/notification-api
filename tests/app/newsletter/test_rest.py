@@ -1,8 +1,6 @@
-import json
 from unittest.mock import Mock
 
 import pytest
-from flask import url_for
 
 from app.clients.airtable.models import NewsletterSubscriber
 
@@ -40,7 +38,7 @@ class TestCreateUnconfirmedSubscription:
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
 
         assert response["result"] == "success"
-        assert response["record_id"] == "rec123456"
+        assert response["subscriber_id"] == "rec123456"
         mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
         mock_subscriber_instance.save_unconfirmed_subscriber.assert_called_once()
 
@@ -77,266 +75,173 @@ class TestCreateUnconfirmedSubscription:
 
 
 class TestConfirmSubscription:
-    def test_confirm_subscription_success(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
+    def test_confirm_subscription_success(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                response = client.post(url_for("newsletter.confirm_subscription", subscriber_id="rec123456"))
+        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=200)
 
-                assert response.status_code == 200
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["message"] == "Subscription confirmed"
-                assert json_resp["record_id"] == "rec123456"
+        assert response["result"] == "success"
+        assert response["message"] == "Subscription confirmed"
+        assert response["subscriber_id"] == "rec123456"
 
-                mock_subscriber.confirm_subscription.assert_called_once()
+        mock_subscriber.confirm_subscription.assert_called_once()
 
-    def test_confirm_subscription_subscriber_not_found(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+    def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-                response = client.post(url_for("newsletter.confirm_subscription", subscriber_id="rec999999"))
+        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec999999", _expected_status=404)
 
-                assert response.status_code == 404
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber not found"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
 
-    def test_confirm_subscription_save_fails(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=False, error="Database error")
+    def test_confirm_subscription_save_fails(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=False, error="Database error")
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                response = client.post(url_for("newsletter.confirm_subscription", subscriber_id="rec123456"))
+        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=500)
 
-                assert response.status_code == 500
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscription confirmation failed"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscription confirmation failed"
 
 
 class TestUnsubscribe:
-    def test_unsubscribe_success(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=True)
+    def test_unsubscribe_success(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=True)
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                response = client.post(url_for("newsletter.unsubscribe", subscriber_id="rec123456"))
+        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=200)
 
-                assert response.status_code == 200
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["message"] == "Unsubscribed successfully"
-                assert json_resp["record_id"] == "rec123456"
+        assert response["result"] == "success"
+        assert response["message"] == "Unsubscribed successfully"
+        assert response["subscriber_id"] == "rec123456"
 
-                mock_subscriber.unsubscribe_user.assert_called_once()
+        mock_subscriber.unsubscribe_user.assert_called_once()
 
-    def test_unsubscribe_subscriber_not_found(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+    def test_unsubscribe_subscriber_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-                response = client.post(url_for("newsletter.unsubscribe", subscriber_id="rec999999"))
+        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec999999", _expected_status=404)
 
-                assert response.status_code == 404
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber not found"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
 
-    def test_unsubscribe_save_fails(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=False, error="Database error")
+    def test_unsubscribe_save_fails(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=False, error="Database error")
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                response = client.post(url_for("newsletter.unsubscribe", subscriber_id="rec123456"))
+        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=500)
 
-                assert response.status_code == 500
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Unsubscription failed"
+        assert response["result"] == "error"
+        assert response["message"] == "Unsubscription failed"
 
 
 class TestUpdateLanguagePreferences:
-    def test_update_language_success(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.update_language.return_value = MockSaveResult(saved=True)
+    def test_update_language_success(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.update_language.return_value = MockSaveResult(saved=True)
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                data = {"language": "fr"}
-                response = client.post(
-                    url_for("newsletter.update_language_preferences", subscriber_id="rec123456"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.update_language_preferences", subscriber_id="rec123456", _data=data, _expected_status=200
+        )
 
-                assert response.status_code == 200
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["message"] == "Language updated successfully"
-                assert json_resp["record_id"] == "rec123456"
+        assert response["result"] == "success"
+        assert response["message"] == "Language updated successfully"
+        assert response["subscriber_id"] == "rec123456"
 
-                mock_subscriber.update_language.assert_called_once_with("fr")
+        mock_subscriber.update_language.assert_called_once_with("fr")
 
-    def test_update_language_missing_language(self, notify_api):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                data = {}
-                response = client.post(
-                    url_for("newsletter.update_language_preferences", subscriber_id="rec123456"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+    def test_update_language_missing_language(self, admin_request):
+        data = {}
+        response = admin_request.post(
+            "newsletter.update_language_preferences", subscriber_id="rec123456", _data=data, _expected_status=400
+        )
 
-                assert response.status_code == 400
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "New language is required"
+        assert response["result"] == "error"
+        assert response["message"] == "New language is required"
 
-    def test_update_language_subscriber_not_found(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+    def test_update_language_subscriber_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-                data = {"language": "fr"}
-                response = client.post(
-                    url_for("newsletter.update_language_preferences", subscriber_id="rec999999"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.update_language_preferences", subscriber_id="rec999999", _data=data, _expected_status=404
+        )
 
-                assert response.status_code == 404
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber not found"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
 
-    def test_update_language_save_fails(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mock_subscriber = Mock()
-                mock_subscriber.id = "rec123456"
-                mock_subscriber.update_language.return_value = MockSaveResult(saved=False, error="Database error")
+    def test_update_language_save_fails(self, admin_request, mocker):
+        mock_subscriber = Mock()
+        mock_subscriber.id = "rec123456"
+        mock_subscriber.update_language.return_value = MockSaveResult(saved=False, error="Database error")
 
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                data = {"language": "fr"}
-                response = client.post(
-                    url_for("newsletter.update_language_preferences", subscriber_id="rec123456"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.update_language_preferences", subscriber_id="rec123456", _data=data, _expected_status=500
+        )
 
-                assert response.status_code == 500
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Language update failed"
+        assert response["result"] == "error"
+        assert response["message"] == "Language update failed"
 
 
 class TestGetSubscriber:
-    def test_get_subscriber_by_id_success(self, notify_api, mocker, mock_subscriber):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+    def test_get_subscriber_by_id_success(self, admin_request, mocker, mock_subscriber):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-                data = {"subscriber_id": "rec123456"}
-                response = client.get(
-                    url_for("newsletter.get_subscriber"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        response = admin_request.get("newsletter.get_subscriber", subscriber_id="rec123456")
 
-                assert response.status_code == 200
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["subscriber"]["id"] == "rec123456"
-                assert json_resp["subscriber"]["email"] == "test@example.com"
-                assert json_resp["subscriber"]["language"] == "en"
-                assert json_resp["subscriber"]["status"] == "unconfirmed"
+        assert response["result"] == "success"
+        assert response["subscriber"]["id"] == "rec123456"
+        assert response["subscriber"]["email"] == "test@example.com"
+        assert response["subscriber"]["language"] == "en"
+        assert response["subscriber"]["status"] == "unconfirmed"
 
-    def test_get_subscriber_by_email_success(self, notify_api, mocker, mock_subscriber):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
+    def test_get_subscriber_by_email_success(self, admin_request, mocker, mock_subscriber):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
 
-                data = {"email": "test@example.com"}
-                response = client.get(
-                    url_for("newsletter.get_subscriber"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        response = admin_request.get("newsletter.get_subscriber", email="test@example.com")
 
-                assert response.status_code == 200
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "success"
-                assert json_resp["subscriber"]["email"] == "test@example.com"
-                assert json_resp["subscriber"]["language"] == "en"
+        assert response["result"] == "success"
+        assert response["subscriber"]["email"] == "test@example.com"
+        assert response["subscriber"]["language"] == "en"
 
-    def test_get_subscriber_by_id_not_found(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+    def test_get_subscriber_by_id_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-                data = {"subscriber_id": "rec999999"}
-                response = client.get(
-                    url_for("newsletter.get_subscriber"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        response = admin_request.get("newsletter.get_subscriber", subscriber_id="rec999999", _expected_status=404)
 
-                assert response.status_code == 404
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber not found"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
 
-    def test_get_subscriber_by_email_not_found(self, notify_api, mocker):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
+    def test_get_subscriber_by_email_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
 
-                data = {"email": "notfound@example.com"}
-                response = client.get(
-                    url_for("newsletter.get_subscriber"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+        response = admin_request.get("newsletter.get_subscriber", email="notfound@example.com", _expected_status=404)
 
-                assert response.status_code == 404
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber not found"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
 
-    def test_get_subscriber_no_id_or_email(self, notify_api):
-        with notify_api.test_request_context():
-            with notify_api.test_client() as client:
-                data = {}
-                response = client.get(
-                    url_for("newsletter.get_subscriber"),
-                    data=json.dumps(data),
-                    headers=[("Content-Type", "application/json")],
-                )
+    def test_get_subscriber_no_id_or_email(self, admin_request):
+        response = admin_request.get("newsletter.get_subscriber", _expected_status=400)
 
-                assert response.status_code == 400
-                json_resp = json.loads(response.get_data(as_text=True))
-                assert json_resp["result"] == "error"
-                assert json_resp["message"] == "Subscriber ID or email is required"
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber ID or email is required"

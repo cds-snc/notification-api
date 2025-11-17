@@ -23,10 +23,10 @@ def create_unconfirmed_subscription():
 
     # Check if the save operation succeeded
     if not result.saved:
-        current_app.logger.error(f"Failed to create unconfirmed mailing list subscriber: {result.error}")
+        current_app.logger.error("Failed to create unconfirmed mailing list subscriber. Record was not saved")
         raise InvalidRequest("Failed to create unconfirmed mailing list subscriber.", status_code=500)
 
-    return jsonify(result="success", record_id=subscriber.id), 201
+    return jsonify(result="success", subscriber_id=subscriber.id), 201
 
 
 @newsletter_blueprint.route("/confirm/<subscriber_id>", methods=["POST"])
@@ -40,10 +40,12 @@ def confirm_subscription(subscriber_id):
     result = subscriber.confirm_subscription()
 
     if not result.saved:
-        current_app.logger.error("Error confirming newsletter subscription: ")
+        current_app.logger.error(
+            f"Failed to confirm newsletter subscription for subscriber_id: {subscriber.id}. Record was not saved"
+        )
         raise InvalidRequest("Subscription confirmation failed", status_code=500)
 
-    return jsonify(result="success", message="Subscription confirmed", record_id=subscriber.id), 200
+    return jsonify(result="success", message="Subscription confirmed", subscriber_id=subscriber.id), 200
 
 
 @newsletter_blueprint.route("/unsubscribe/<subscriber_id>", methods=["POST"])
@@ -57,10 +59,10 @@ def unsubscribe(subscriber_id):
     result = subscriber.unsubscribe_user()
 
     if not result.saved:
-        current_app.logger.error(f"Failed to unsubscribe newsletter subscriber: {subscriber.id}")
+        current_app.logger.error(f"Failed to unsubscribe newsletter subscriber: {subscriber.id}. Record was not saved")
         raise InvalidRequest("Unsubscription failed", status_code=500)
 
-    return jsonify(result="success", message="Unsubscribed successfully", record_id=subscriber.id), 200
+    return jsonify(result="success", message="Unsubscribed successfully", subscriber_id=subscriber.id), 200
 
 
 @newsletter_blueprint.route("/update-language/<subscriber_id>", methods=["POST"])
@@ -80,10 +82,12 @@ def update_language_preferences(subscriber_id):
     result = subscriber.update_language(new_language)
 
     if not result.saved:
-        current_app.logger.error(f"Failed to update language preferences for newsletter subscriber: {subscriber.id}")
+        current_app.logger.error(
+            f"Failed to update language preferences for newsletter subscriber: {subscriber.id}. Record was not saved"
+        )
         raise InvalidRequest("Language update failed", status_code=500)
 
-    return jsonify(result="success", message="Language updated successfully", record_id=subscriber.id), 200
+    return jsonify(result="success", message="Language updated successfully", subscriber_id=subscriber.id), 200
 
 
 @newsletter_blueprint.route("/resubscribe/<subscriber_id>", methods=["POST"])
@@ -103,18 +107,19 @@ def reactivate_subscription(subscriber_id):
     result = subscriber.reactivate_subscription(language)
 
     if not result.saved:
-        current_app.logger.error(f"Failed to reactivate newsletter subscription for subscriber: {subscriber.id}")
+        current_app.logger.error(
+            f"Failed to reactivate newsletter subscription for subscriber: {subscriber.id}. Record was not saved"
+        )
         raise InvalidRequest("Resubscription failed", status_code=500)
 
-    return jsonify(result="success", message="Resubscribed successfully", record_id=subscriber.id), 200
+    return jsonify(result="success", message="Resubscribed successfully", subscriber_id=subscriber.id), 200
 
 
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
 def get_subscriber():
     """Endpoint to retrieve subscriber information by ID or email."""
-    data = request.get_json()
-    subscriber_id = data.get("subscriber_id", None)
-    email = data.get("email", None)
+    subscriber_id = request.args.get("subscriber_id")
+    email = request.args.get("email")
 
     if not subscriber_id and not email:
         raise InvalidRequest("Subscriber ID or email is required", status_code=400)
