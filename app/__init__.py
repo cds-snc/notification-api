@@ -23,6 +23,8 @@ from werkzeug.local import LocalProxy
 from app.aws.metrics_logger import MetricsLogger
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
+from app.clients.airtable.airtable_client import AirtableClient
+from app.clients.airtable.models import NewsletterSubscriber
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
@@ -69,6 +71,7 @@ sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 salesforce_client = SalesforceClient()
+airtable_client = AirtableClient()
 
 clients = Clients()
 
@@ -114,6 +117,7 @@ def create_app(application, config=None):
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
+    NewsletterSubscriber.init_app(application)
 
     signer_notification.init_app(application, secret_key=application.config["SECRET_KEY"], salt="notification")
     signer_personalisation.init_app(application, secret_key=application.config["SECRET_KEY"], salt="personalisation")
@@ -125,6 +129,7 @@ def create_app(application, config=None):
 
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
+    airtable_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
 
     if application.config["FF_SALESFORCE_CONTACT"]:
