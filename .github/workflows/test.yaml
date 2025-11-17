@@ -12,11 +12,9 @@ jobs:
         id: filter
         with:
           filters: |
-            python:
-              - 'app/**'
-              - 'tests/**'
-              - 'pyproject.toml'
-              - 'poetry.lock'
+            run-tests:
+              - '**'
+              - '!.github/**'
   test:
     needs: changes
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'python') }}
