@@ -1,7 +1,11 @@
 from flask import Blueprint, current_app, jsonify, request
 
 from app.clients.airtable.models import NewsletterSubscriber
+from app.config import QueueNames
+from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
+from app.models import EMAIL_TYPE, KEY_TYPE_NORMAL, Service
+from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 
 newsletter_blueprint = Blueprint("newsletter", __name__, url_prefix="/newsletter")
 register_errors(newsletter_blueprint)
@@ -9,7 +13,6 @@ register_errors(newsletter_blueprint)
 
 @newsletter_blueprint.route("/unconfirmed-subscriber", methods=["POST"])
 def create_unconfirmed_subscription():
-    """Endpoint to create an unconfirmed newsletter subscriber."""
     data = request.get_json()
     email = data.get("email")
     language = data.get("language", "en")
@@ -26,12 +29,13 @@ def create_unconfirmed_subscription():
         current_app.logger.error("Failed to create unconfirmed mailing list subscriber. Record was not saved")
         raise InvalidRequest("Failed to create unconfirmed mailing list subscriber.", status_code=500)
 
+    send_confirmation_email(subscriber.id, subscriber.email, subscriber.language)
+
     return jsonify(result="success", subscriber_id=subscriber.id), 201
 
 
 @newsletter_blueprint.route("/confirm/<subscriber_id>", methods=["POST"])
 def confirm_subscription(subscriber_id):
-    """Endpoint to confirm newsletter subscription."""
     subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
 
     if not subscriber:
@@ -50,7 +54,6 @@ def confirm_subscription(subscriber_id):
 
 @newsletter_blueprint.route("/unsubscribe/<subscriber_id>", methods=["POST"])
 def unsubscribe(subscriber_id):
-    """Endpoint to unsubscribe from the newsletter."""
     subscriber = NewsletterSubscriber.from_id(subscriber_id)
 
     if not subscriber:
@@ -67,7 +70,6 @@ def unsubscribe(subscriber_id):
 
 @newsletter_blueprint.route("/update-language/<subscriber_id>", methods=["POST"])
 def update_language_preferences(subscriber_id):
-    """Endpoint to update language preferences for a subscriber."""
     data = request.get_json()
     new_language = data.get("language")
 
@@ -92,7 +94,6 @@ def update_language_preferences(subscriber_id):
 
 @newsletter_blueprint.route("/resubscribe/<subscriber_id>", methods=["POST"])
 def reactivate_subscription(subscriber_id):
-    """Endpoint to reactivate a newsletter subscription."""
     data = request.get_json()
     language = data.get("language")
 
@@ -117,7 +118,6 @@ def reactivate_subscription(subscriber_id):
 
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
 def get_subscriber():
-    """Endpoint to retrieve subscriber information by ID or email."""
     subscriber_id = request.args.get("subscriber_id")
     email = request.args.get("email")
 
@@ -143,3 +143,32 @@ def get_subscriber():
     }
 
     return jsonify(result="success", subscriber=subscriber_data), 200
+
+
+def send_confirmation_email(subscriber_id, recipient_email, language):
+    template_id = (
+        current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN"]
+        if language == "en"
+        else current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR"]
+    )
+    template = dao_get_template_by_id(template_id)
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+    from notifications_utils.url_safe_token import generate_token
+
+    token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
+    # TODO: update this URL when we know for sure what the admin endpoint will be
+    url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter-subscription/confirm/{token}"
+
+    saved_notification = persist_notification(
+        template_id=template_id,
+        template_version=template.version,
+        recipient=recipient_email,
+        service=service,
+        personalisation={"confirmation_link": url},
+        notification_type=EMAIL_TYPE,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
