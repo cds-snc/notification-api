@@ -29,7 +29,7 @@ load_non_existing_envs() {
     value=$(echo "$line" | cut -d '=' -f 2-)
 
     if [ -z $(var_expand $key) ]; then # Check if environment variable doesn't exist
-      eval "export ${key}='${value}'"
+      export "${key}=${value}"
     fi
     
   done < $TMP_ENV_FILE
