@@ -332,6 +332,10 @@ class Config(object):
     USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
     SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
 
+    # Newsletter templates
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR = "109807d5-3a2d-49ca-9bd8-d6eae3ac1770"
+
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
     ANNUAL_LIMIT_UPDATED_TEMPLATE_ID = "8381fdc3-95ad-4219-b07c-93aa808b67fa"
