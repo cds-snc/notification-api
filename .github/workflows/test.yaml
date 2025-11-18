@@ -2,7 +2,23 @@ on:
   push:
 name: Python tests
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            run-tests:
+              - '**'
+              - '!.github/**'
+              - '.github/workflows/test.yaml'
   test:
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
       CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
     runs-on: ubuntu-latest
