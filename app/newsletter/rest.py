@@ -20,6 +20,13 @@ def create_unconfirmed_subscription():
     if not email:
         raise InvalidRequest("Email is required", status_code=400)
 
+    # Check if a subscriber with the given email already exists
+    existing_subscriber = NewsletterSubscriber.from_email(email)
+    if existing_subscriber:
+        current_app.logger.warning("A Subscriber by this email already exists, re-sending confirmation email.")
+        send_confirmation_email(existing_subscriber.id, existing_subscriber.email, existing_subscriber.language)
+        raise InvalidRequest("A subscriber with this email already exists", status_code=400)
+
     # Create a new unconfirmed subscriber
     subscriber = NewsletterSubscriber(email=email, language=language)
     result = subscriber.save_unconfirmed_subscriber()
@@ -41,6 +48,9 @@ def confirm_subscription(subscriber_id):
     if not subscriber:
         raise InvalidRequest("Subscriber not found", status_code=404)
 
+    if subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value:
+        return jsonify(result="success", message="Subscription already confirmed", subscriber_id=subscriber.id), 200
+
     result = subscriber.confirm_subscription()
 
     if not result.saved:
@@ -58,6 +68,9 @@ def unsubscribe(subscriber_id):
 
     if not subscriber:
         raise InvalidRequest("Subscriber not found", status_code=404)
+
+    if subscriber.status == NewsletterSubscriber.Statuses.UNSUBSCRIBED.value:
+        return jsonify(result="success", message="Subscriber has already unsubscribed", subscriber_id=subscriber.id), 200
 
     result = subscriber.unsubscribe_user()
 

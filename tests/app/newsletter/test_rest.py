@@ -27,15 +27,12 @@ def mock_subscriber():
 
 
 class TestCreateUnconfirmedSubscription:
-    def test_create_unconfirmed_subscription_success(self, admin_request, mocker):
-        mock_subscriber_instance = Mock()
-        mock_subscriber_instance.id = "rec123456"
-        mock_subscriber_instance.email = "test@example.com"
-        mock_subscriber_instance.language = "en"
-        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
+    def test_create_unconfirmed_subscription_success(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
 
-        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
+        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
 
         data = {"email": "test@example.com", "language": "en"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
@@ -43,18 +40,15 @@ class TestCreateUnconfirmedSubscription:
         assert response["result"] == "success"
         assert response["subscriber_id"] == "rec123456"
         mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
-        mock_subscriber_instance.save_unconfirmed_subscriber.assert_called_once()
+        mock_subscriber.save_unconfirmed_subscriber.assert_called_once()
         mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
 
-    def test_create_unconfirmed_subscription_defaults_to_english(self, admin_request, mocker):
-        mock_subscriber_instance = Mock()
-        mock_subscriber_instance.id = "rec123456"
-        mock_subscriber_instance.email = "test@example.com"
-        mock_subscriber_instance.language = "en"
-        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
+    def test_create_unconfirmed_subscription_defaults_to_english(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
 
-        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
+        mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
 
         data = {"email": "test@example.com"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
@@ -69,13 +63,12 @@ class TestCreateUnconfirmedSubscription:
         assert response["result"] == "error"
         assert response["message"] == "Email is required"
 
-    def test_create_unconfirmed_subscription_save_fails(self, admin_request, mocker):
-        mock_subscriber_instance = Mock()
-        mock_subscriber_instance.id = "rec123456"
-        mock_subscriber_instance.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=False, error="Database error")
+    def test_create_unconfirmed_subscription_save_fails(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=False, error="Database error")
 
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber_instance)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
 
         data = {"email": "test@example.com", "language": "en"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
@@ -83,6 +76,18 @@ class TestCreateUnconfirmedSubscription:
         assert response["message"] == "Failed to create unconfirmed mailing list subscriber."
         # Email should not be sent if save fails
         mock_send_email.assert_not_called()
+
+    def test_create_unconfirmed_subscription_already_exists(self, admin_request, mocker, mock_subscriber):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
+        mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+
+        data = {"email": "test@example.com", "language": "en"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=400)
+
+        assert response["result"] == "error"
+        assert response["message"] == "A subscriber with this email already exists"
+        # Confirmation email should be resent for existing subscriber
+        mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
 
 
 class TestConfirmSubscription:
@@ -100,6 +105,14 @@ class TestConfirmSubscription:
         assert response["subscriber_id"] == "rec123456"
 
         mock_subscriber.confirm_subscription.assert_called_once()
+
+    def test_confirm_subscription_already_confirmed(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=200)
+        assert response["result"] == "success"
+        assert response["message"] == "Subscription already confirmed"
+        assert response["subscriber_id"] == "rec123456"
 
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
@@ -137,6 +150,14 @@ class TestUnsubscribe:
         assert response["subscriber_id"] == "rec123456"
 
         mock_subscriber.unsubscribe_user.assert_called_once()
+
+    def test_unsubscribe_already_unsubscribed(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.UNSUBSCRIBED.value
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=200)
+        assert response["result"] == "success"
+        assert response["message"] == "Subscriber has already unsubscribed"
+        assert response["subscriber_id"] == "rec123456"
 
     def test_unsubscribe_subscriber_not_found(self, admin_request, mocker):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
@@ -256,3 +277,45 @@ class TestGetSubscriber:
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber ID or email is required"
+
+
+class TestReactivateSubscription:
+    def test_reactivate_subscription_success(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.reactivate_subscription.return_value = MockSaveResult(saved=True)
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=200
+        )
+        assert response["result"] == "success"
+        assert response["message"] == "Resubscribed successfully"
+        assert response["subscriber_id"] == "rec123456"
+        mock_subscriber.reactivate_subscription.assert_called_once_with("fr")
+
+    def test_reactivate_subscription_missing_language(self, admin_request, mock_subscriber, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        data = {}
+        response = admin_request.post(
+            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=400
+        )
+        assert response["result"] == "error"
+        assert response["message"] == "Language is required to resubscribe"
+
+    def test_reactivate_subscription_subscriber_not_found(self, admin_request, mocker):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.reactivate_subscription", subscriber_id="rec999999", _data=data, _expected_status=404
+        )
+        assert response["result"] == "error"
+        assert response["message"] == "Subscriber not found"
+
+    def test_reactivate_subscription_save_fails(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.reactivate_subscription.return_value = MockSaveResult(saved=False, error="Database error")
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=500
+        )
+        assert response["result"] == "error"
+        assert response["message"] == "Resubscription failed"
