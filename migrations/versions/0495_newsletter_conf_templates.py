@@ -1,7 +1,7 @@
 """
 
-Revision ID: 0493_newsletter_conf_templates
-Revises: 0492_add_service_del_template
+Revision ID: 0495_newsletter_conf_templates
+Revises: 0494_update_some_templates
 Create Date: 2025-10-21 00:00:00
 
 """
@@ -10,8 +10,8 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0493_newsletter_conf_templates"
-down_revision = "0492_add_service_del_template"
+revision = "0495_newsletter_conf_templates"
+down_revision = "0494_update_some_templates"
 
 newsletter_confirmation_template_en_id = current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN"]
 newsletter_confirmation_template_fr_id = current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR"]
