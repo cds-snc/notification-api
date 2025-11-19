@@ -211,6 +211,11 @@ class Config(object):
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
+    # Airtable
+    AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+    AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
     SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
@@ -716,6 +721,8 @@ class Development(Config):
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
 
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+
 
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
@@ -752,6 +759,7 @@ class Test(Development):
 
 
 class Production(Config):
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -772,6 +780,7 @@ class Production(Config):
 class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
 
 
 class Scratch(Production):
