@@ -206,6 +206,7 @@ def register_blueprint(application):
     from app.job.rest import job_blueprint
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.letters.rest import letter_job
+    from app.newsletter.rest import newsletter_blueprint
     from app.notifications.notifications_letter_callback import (
         letter_callback_blueprint,
     )
@@ -288,6 +289,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, cache_blueprint, requires_cache_clear_auth)
 
     register_notify_blueprint(application, report_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, newsletter_blueprint, requires_admin_auth)
 
 
 def register_v2_blueprints(application):
