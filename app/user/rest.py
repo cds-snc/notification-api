@@ -860,7 +860,7 @@ def fido2_keys_user_authenticate(user_id):
         return jsonify({"data": auth_payload})
     except Exception as e:
         current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error has occurred"}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/validate", methods=["POST"])
