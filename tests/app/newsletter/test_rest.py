@@ -13,8 +13,11 @@ class MockSaveResult:
         self.error = error
 
 
-@pytest.fixture
-def mock_subscriber():
+@pytest.fixture(scope="function")
+def mock_subscriber(
+    status="unconfirmed",
+    language="en",
+):
     subscriber = Mock(spec=NewsletterSubscriber)
     subscriber.id = "rec123456"
     subscriber.email = "test@example.com"
@@ -23,6 +26,21 @@ def mock_subscriber():
     subscriber.created_at = None
     subscriber.confirmed_at = None
     subscriber.unsubscribed_at = None
+    subscriber.has_resubscribed = False
+
+    def _to_dict():
+        return {
+            "id": subscriber.id,
+            "email": subscriber.email,
+            "language": subscriber.language,
+            "status": subscriber.status,
+            "created_at": subscriber.created_at,
+            "confirmed_at": subscriber.confirmed_at,
+            "unsubscribed_at": subscriber.unsubscribed_at,
+            "has_resubscribed": subscriber.has_resubscribed,
+        }
+
+    subscriber.to_dict = _to_dict()
     return subscriber
 
 
@@ -38,10 +56,14 @@ class TestCreateUnconfirmedSubscription:
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
 
         assert response["result"] == "success"
-        assert response["subscriber_id"] == "rec123456"
-        mock_subscriber_class.assert_called_once_with(email="test@example.com", language="en")
+        assert response["subscriber"] == mock_subscriber.to_dict
+        mock_subscriber_class.assert_called_once_with(
+            email=response["subscriber"]["email"], language=response["subscriber"]["language"]
+        )
         mock_subscriber.save_unconfirmed_subscriber.assert_called_once()
-        mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
+        mock_send_email.assert_called_once_with(
+            response["subscriber"]["id"], response["subscriber"]["email"], response["subscriber"]["language"]
+        )
 
     def test_create_unconfirmed_subscription_defaults_to_english(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.save_unconfirmed_subscriber.return_value = MockSaveResult(saved=True)
@@ -91,33 +113,31 @@ class TestCreateUnconfirmedSubscription:
 
 
 class TestConfirmSubscription:
-    def test_confirm_subscription_success(self, admin_request, mocker):
-        mock_subscriber = Mock()
-        mock_subscriber.id = "rec123456"
+    def test_confirm_subscription_success(self, admin_request, mock_subscriber, mocker):
         mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=200)
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
 
         assert response["result"] == "success"
         assert response["message"] == "Subscription confirmed"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.confirm_subscription.assert_called_once()
 
     def test_confirm_subscription_already_confirmed(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=200)
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
         assert response["result"] == "success"
         assert response["message"] == "Subscription already confirmed"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
 
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec999999", _expected_status=404)
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id="rec999999", _expected_status=404)
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber not found"
@@ -129,40 +149,38 @@ class TestConfirmSubscription:
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-        response = admin_request.post("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=500)
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=500)
 
         assert response["result"] == "error"
         assert response["message"] == "Subscription confirmation failed"
 
 
 class TestUnsubscribe:
-    def test_unsubscribe_success(self, admin_request, mocker):
-        mock_subscriber = Mock()
-        mock_subscriber.id = "rec123456"
+    def test_unsubscribe_success(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=True)
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=200)
+        response = admin_request.get("newsletter.unsubscribe", subscriber_id=mock_subscriber.id, _expected_status=200)
 
         assert response["result"] == "success"
         assert response["message"] == "Unsubscribed successfully"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.unsubscribe_user.assert_called_once()
 
     def test_unsubscribe_already_unsubscribed(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.status = NewsletterSubscriber.Statuses.UNSUBSCRIBED.value
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=200)
+        response = admin_request.get("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=200)
         assert response["result"] == "success"
         assert response["message"] == "Subscriber has already unsubscribed"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
 
     def test_unsubscribe_subscriber_not_found(self, admin_request, mocker):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
 
-        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec999999", _expected_status=404)
+        response = admin_request.get("newsletter.unsubscribe", subscriber_id="rec999999", _expected_status=404)
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber not found"
@@ -174,28 +192,29 @@ class TestUnsubscribe:
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
-        response = admin_request.post("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=500)
+        response = admin_request.get("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=500)
 
         assert response["result"] == "error"
         assert response["message"] == "Unsubscription failed"
 
 
 class TestUpdateLanguagePreferences:
-    def test_update_language_success(self, admin_request, mocker):
-        mock_subscriber = Mock()
-        mock_subscriber.id = "rec123456"
+    def test_update_language_success(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.update_language.return_value = MockSaveResult(saved=True)
-
+        mock_subscriber.language = "fr"
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
 
         data = {"language": "fr"}
         response = admin_request.post(
-            "newsletter.update_language_preferences", subscriber_id="rec123456", _data=data, _expected_status=200
+            "newsletter.update_language_preferences",
+            subscriber_id=mock_subscriber.id,
+            _data=data,
+            _expected_status=200,
         )
 
         assert response["result"] == "success"
         assert response["message"] == "Language updated successfully"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.update_language.assert_called_once_with("fr")
 
@@ -282,6 +301,9 @@ class TestGetSubscriber:
 class TestReactivateSubscription:
     def test_reactivate_subscription_success(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.reactivate_subscription.return_value = MockSaveResult(saved=True)
+        mock_subscriber.language = "fr"
+        mock_subscriber.status = "subscribed"
+        mock_subscriber.has_resubscribed = True
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
         data = {"language": "fr"}
         response = admin_request.post(
@@ -289,7 +311,7 @@ class TestReactivateSubscription:
         )
         assert response["result"] == "success"
         assert response["message"] == "Resubscribed successfully"
-        assert response["subscriber_id"] == "rec123456"
+        assert response["subscriber"] == mock_subscriber.to_dict
         mock_subscriber.reactivate_subscription.assert_called_once_with("fr")
 
     def test_reactivate_subscription_missing_language(self, admin_request, mock_subscriber, mocker):
