@@ -49,7 +49,7 @@ def upgrade():
             "",
             "((confirmation_link))",
             "",
-            "Nous employons un service tiers nommé Airtable pour collecter les adresses courriel. Pour plus de renseignements, consultez [l’avis de confidentialité de Airtable](https://www.airtable.com/company/privacy/fr)",
+            "Nous employons un service tiers nommé Airtable pour collecter les adresses courriel. Pour plus de renseignements, consultez [l’avis de confidentialité de Airtable](https://www.airtable.com/company/privacy/fr).",
             "",
             "Pour en savoir plus sur la façon dont Notification GC assure la confidentialité de vos données, consultez notre [avis de confidentialité](https://notification.canada.ca/confidentialite).",
             "",
