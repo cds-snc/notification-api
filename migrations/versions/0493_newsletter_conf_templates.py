@@ -51,7 +51,7 @@ def upgrade():
             "",
             "((confirmation_link))",
             "",
-            "**Vous devez vous inscrire en utilisant votre adresse courriel du gouvernement du Canada. Nous n’acceptons pas les adresses personelles ou des autres paliers de gouvernement.**",
+            "**Vous devez vous inscrire en utilisant votre adresse courriel du gouvernement du Canada. Nous n’acceptons pas les adresses personnelles ou des autres paliers de gouvernement.**",
             "",
             "Nous employons un service tiers nommé Airtable pour collecter les adresses courriel. Pour plus de renseignements, consultez [l’avis de confidentialité de Airtable](https://www.airtable.com/company/privacy/fr)",
             "",
