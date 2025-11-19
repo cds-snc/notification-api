@@ -213,7 +213,7 @@ class Config(object):
 
     # Airtable
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
-    AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID")
+    AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
 
     # Salesforce

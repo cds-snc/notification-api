@@ -94,7 +94,7 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
     created_at = F.DatetimeField("Created At")
     confirmed_at = F.DatetimeField("Confirmed At")
     unsubscribed_at = F.DatetimeField("Unsubscribed At")
-    has_resubscribed = F.CheckboxField("HasResubscribed")
+    has_resubscribed = F.CheckboxField("Has Resubscribed")
 
     class Languages(Enum):
         EN = "en"
@@ -152,6 +152,7 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         self.status = self.Statuses.SUBSCRIBED.value
         self.language = language
         self.has_resubscribed = True
+        self.confirmed_at = datetime.now()
         return self.save()
 
     @classmethod
