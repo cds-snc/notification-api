@@ -841,7 +841,6 @@ def fido2_keys_user_authenticate(user_id):
             return jsonify({"error": "No security keys registered"}), 400
 
         credentials = [deserialize_fido2_key(k.key) for k in keys]
-        current_app.logger.info(f"Deserialized {len(credentials)} credentials")
 
         request_options, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
         create_fido2_session(user_id, state)
@@ -857,8 +856,6 @@ def fido2_keys_user_authenticate(user_id):
 
         # Base64 encode for transmission
         auth_payload = base64.b64encode(cbor_encoded).decode("utf8")
-        current_app.logger.info(f"Final base64 payload length: {len(auth_payload)}")
-        current_app.logger.info(f"First 100 chars of payload: {auth_payload[:100]}")
 
         return jsonify({"data": auth_payload})
     except Exception as e:
