@@ -897,7 +897,7 @@ def fido2_keys_user_validate(user_id):
         return jsonify({"status": "OK"})
     except Exception as e:
         current_app.logger.exception(f"Error in FIDO2 validation for user {user_id}: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/<uuid:key_id>", methods=["DELETE"])
