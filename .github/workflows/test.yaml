@@ -13,6 +13,7 @@ jobs:
         with:
           filters: |
             run-tests:
+              - '**'
               - '!.github/**'
               - '.github/workflows/test.yaml'
   test:
