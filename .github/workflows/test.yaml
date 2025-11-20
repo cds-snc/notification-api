@@ -13,8 +13,8 @@ jobs:
         with:
           filters: |
             run-tests:
-              - '!.github/**'
-              - '.github/workflows/test.yaml'
+              - '**'
+              - '!.github/workflows/!(test).yaml'
   test:
     needs: changes
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
