@@ -156,3 +156,7 @@ def put_batch_saving_bulk_processed(
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.warning(message)
     return
+
+def test():
+    print("test")
+    return
