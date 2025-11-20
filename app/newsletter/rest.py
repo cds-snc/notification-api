@@ -25,7 +25,9 @@ def create_unconfirmed_subscription():
     if existing_subscriber:
         current_app.logger.warning("A Subscriber by this email already exists, re-sending confirmation email.")
         send_confirmation_email(existing_subscriber.id, existing_subscriber.email, existing_subscriber.language)
-        raise InvalidRequest("A subscriber with this email already exists", status_code=400)
+        return jsonify(
+            result="success", message="A subscriber with this email already exists", subscriber=existing_subscriber.to_dict
+        ), 200
 
     # Create a new unconfirmed subscriber
     subscriber = NewsletterSubscriber(email=email, language=language)
@@ -155,11 +157,14 @@ def send_confirmation_email(subscriber_id, recipient_email, language):
     template = dao_get_template_by_id(template_id)
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    from notifications_utils.url_safe_token import generate_token
+    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
+        from notifications_utils.url_safe_token import generate_token
 
-    token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
-    # TODO: update this URL when we know for sure what the admin endpoint will be
-    url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter-subscription/confirm/{token}"
+        token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
+        # TODO: update this URL when we know for sure what the admin endpoint will be
+        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter-subscription/confirm/{token}"
+    else:
+        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter/confirm/{subscriber_id}"
 
     saved_notification = persist_notification(
         template_id=template_id,

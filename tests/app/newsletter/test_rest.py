@@ -99,15 +99,16 @@ class TestCreateUnconfirmedSubscription:
         # Email should not be sent if save fails
         mock_send_email.assert_not_called()
 
-    def test_create_unconfirmed_subscription_already_exists(self, admin_request, mocker, mock_subscriber):
+    def test_create_unconfirmed_subscription_existing_subscriber(self, admin_request, mocker, mock_subscriber):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
 
         data = {"email": "test@example.com", "language": "en"}
-        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=400)
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=200)
 
-        assert response["result"] == "error"
+        assert response["result"] == "success"
         assert response["message"] == "A subscriber with this email already exists"
+        assert response["subscriber"] == mock_subscriber.to_dict
         # Confirmation email should be resent for existing subscriber
         mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
 
