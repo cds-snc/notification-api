@@ -106,6 +106,10 @@ jobs:
         flask-prop: 'application'
         base-url: 'https://api.staging.notification.cdssandbox.xyz'
 
+    - name: test
+      run: |
+        python -c "from app.aws.metrics import test; test()"
+
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |
