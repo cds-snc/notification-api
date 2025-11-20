@@ -155,6 +155,19 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         self.confirmed_at = datetime.now()
         return self.save()
 
+    @property
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "language": self.language,
+            "status": self.status,
+            "created_at": self.created_at,
+            "confirmed_at": self.confirmed_at,
+            "unsubscribed_at": self.unsubscribed_at,
+            "has_resubscribed": self.has_resubscribed,
+        }
+
     @classmethod
     def from_email(cls, email: str):
         """Find a subscriber by email address."""
