@@ -1,9 +1,10 @@
 import base64
+import io
 import json
 import pickle
 
-from fido2.client import ClientData
-from fido2.ctap2 import AttestationObject
+from fido2.webauthn import AttestationObject, AttestedCredentialData, AuthenticatorData
+from fido2.webauthn import CollectedClientData as ClientData
 from sqlalchemy import and_
 
 from app import db
@@ -46,10 +47,41 @@ def get_fido2_session(user_id):
     return json.loads(session.session)
 
 
+def _ensure_bytes(value):
+    """Convert various binary-like types to bytes for FIDO2 operations."""
+    if isinstance(value, bytes):
+        return value
+    if isinstance(value, bytearray):
+        return bytes(value)
+    if isinstance(value, memoryview):
+        return value.tobytes()
+    if isinstance(value, str):
+        return value.encode("utf-8")
+    raise TypeError(f"Unsupported binary payload: {type(value)!r}")
+
+
+class _Fido2CredentialUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        # Handle both old and new fido2 library module paths for backward compatibility
+        # In fido2 0.9.x, AttestedCredentialData was in fido2.ctap2
+        # In fido2 1.x, it's in fido2.webauthn (and internally in fido2.ctap2.base)
+        if name == "AttestedCredentialData":
+            if module in ("fido2.ctap2", "fido2.ctap2.base", "fido2.webauthn"):
+                return AttestedCredentialData
+        # Handle AuthenticatorData for completeness
+        if name == "AuthenticatorData":
+            if module in ("fido2.ctap2", "fido2.ctap2.base", "fido2.webauthn"):
+                return AuthenticatorData
+        return super().find_class(module, name)
+
+
+def deserialize_fido2_key(serialized_key):
+    raw = base64.b64decode(serialized_key if isinstance(serialized_key, (bytes, bytearray)) else serialized_key.encode("utf-8"))
+    return _Fido2CredentialUnpickler(io.BytesIO(raw)).load()
+
+
 def decode_and_register(data, state):
-    client_data = ClientData(data["clientDataJSON"])
-    att_obj = AttestationObject(data["attestationObject"])
-
+    client_data = ClientData(_ensure_bytes(data["clientDataJSON"]))
+    att_obj = AttestationObject(_ensure_bytes(data["attestationObject"]))
     auth_data = Config.FIDO2_SERVER.register_complete(state, client_data, att_obj)
-
     return base64.b64encode(pickle.dumps(auth_data.credential_data)).decode("utf8")
