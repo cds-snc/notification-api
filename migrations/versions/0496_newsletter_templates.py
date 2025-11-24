@@ -33,13 +33,13 @@ def upgrade():
         [
             "((newsletter_content))",
             "",
-            "[Unsubscibe](((unsubscribe_link))) / [Change language](((change_language_link)))"
+            "[Unsubscribe](((unsubscribe_link))) / [Change language](((change_language_link)))"
         ]
     )
     
     template_content_fr = "\n".join(
         [
-            "((newsletter_content)) "
+            "((newsletter_content))",
             "",
             "[Se désabonner](((unsubscribe_link))) / [Changer la langue](((change_language_link)))"
         ]
@@ -56,7 +56,7 @@ def upgrade():
         },
         {
             "id": newsletter_template_fr_id,
-            "name": "EN Notify Newsletter",
+            "name": "FR Notify Newsletter",
             "subject": "Infolettre ((newsletter_number))",
             "content": template_content_fr,
             "template_type": "email",  
