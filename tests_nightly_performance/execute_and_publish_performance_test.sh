@@ -39,13 +39,13 @@ fi
 sleep 1800
 
 # Test 3 - Max out sms send rate
-# This configuration should send 4K sms / minute for 10 minutes for 40K sms total.
+# This configuration should send 8K sms / minute for 10 minutes for 80K sms total.
 # We run this test on Tuesday through Friday (just after midnight UTC) only.
 
 if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
     locust --config locust.conf \
        --locustfile src/sms_send_rate.py \
-       --users 2 \
+       --users 4 \
        --csv "$perf_test_results_folder/sms_send_rate_test"
 fi
 
