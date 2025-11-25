@@ -1,14 +1,15 @@
 import time
 import uuid
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
 import dateutil
-from flask import Blueprint, current_app, jsonify, request, copy_current_request_context
+from flask import Blueprint, copy_current_request_context, current_app, jsonify, request
+from notifications_utils.clients.redis.annual_limit import TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
-from notifications_utils.clients.redis.annual_limit import TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
 
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
@@ -54,9 +55,8 @@ from app.schemas import (
     notifications_filter_schema,
     unarchived_template_schema,
 )
-from app.utils import midnight_n_days_ago, pagination_links
-from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
+from app.utils import midnight_n_days_ago, pagination_links
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -231,7 +231,9 @@ def create_job(service_id):
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
             t0 = time.time()
-            check_sms_annual_limit(service, len(recipient_csv), sms_sent_today=sms_sent_today, sms_sent_this_fiscal=sms_sent_this_fiscal)
+            check_sms_annual_limit(
+                service, len(recipient_csv), sms_sent_today=sms_sent_today, sms_sent_this_fiscal=sms_sent_this_fiscal
+            )
             t1 = time.time()
             current_app.logger.info("[create_job] check_sms_annual_limit took {:.3f}s".format(t1 - t0))
 
