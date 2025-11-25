@@ -44,7 +44,7 @@ greenlet = "3.1.1"
 
 gunicorn = "23.0.0"
 # Pinned dependencies
-idna = "2.10" # pinned to align with test moto dependency requirements (for <=2.9)
+idna = "3.7" # pinned to align with test moto dependency requirements (for <=2.9)
 iso8601 = "2.1.0"
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
