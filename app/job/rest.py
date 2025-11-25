@@ -1,11 +1,13 @@
 import time
 import uuid
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 import dateutil
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, copy_current_request_context
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
+from notifications_utils.clients.redis.annual_limit import TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
 
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
@@ -53,6 +55,8 @@ from app.schemas import (
     unarchived_template_schema,
 )
 from app.utils import midnight_n_days_ago, pagination_links
+from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -194,16 +198,32 @@ def create_job(service_id):
 
         # calculate the number of simulated recipients
         t0 = time.time()
-        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
-        t1 = time.time()
-        current_app.logger.info("[create_job] built requested_recipients list in {:.3f}s".format(t1 - t0))
 
-        t0 = time.time()
-        has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
-            requested_recipients, template.template_type
-        )
+        # Fetch limits in parallel
+        @copy_current_request_context
+        def get_sms_sent_today():
+            return fetch_todays_requested_sms_count(service.id)
+
+        @copy_current_request_context
+        def get_sms_sent_this_fiscal():
+            return get_annual_limit_notifications_v2(service.id)
+
+        with ThreadPoolExecutor() as executor:
+            future_sms_sent_today = executor.submit(get_sms_sent_today)
+            future_sms_sent_this_fiscal = executor.submit(get_sms_sent_this_fiscal)
+
+            # Use list comprehension but avoid intermediate list(recipient_csv.get_rows())
+            requested_recipients = [i["phone_number"].data for i in recipient_csv.get_rows()]
+
+            has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
+                requested_recipients, template.template_type
+            )
+
+            sms_sent_today = future_sms_sent_today.result()
+            sms_sent_this_fiscal = future_sms_sent_this_fiscal.result()[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
+
         t1 = time.time()
-        current_app.logger.info("[create_job] csv_has_simulated_and_non_simulated_recipients took {:.3f}s".format(t1 - t0))
+        current_app.logger.info("[create_job] built requested_recipients list and checked limits in {:.3f}s".format(t1 - t0))
 
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
@@ -211,12 +231,12 @@ def create_job(service_id):
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
             t0 = time.time()
-            check_sms_annual_limit(service, len(recipient_csv))
+            check_sms_annual_limit(service, len(recipient_csv), sms_sent_today=sms_sent_today, sms_sent_this_fiscal=sms_sent_this_fiscal)
             t1 = time.time()
             current_app.logger.info("[create_job] check_sms_annual_limit took {:.3f}s".format(t1 - t0))
 
             t0 = time.time()
-            check_sms_daily_limit(service, len(recipient_csv))
+            check_sms_daily_limit(service, len(recipient_csv), messages_sent=sms_sent_today)
             t1 = time.time()
             current_app.logger.info("[create_job] check_sms_daily_limit took {:.3f}s".format(t1 - t0))
 
