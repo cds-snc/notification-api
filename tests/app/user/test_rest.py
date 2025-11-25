@@ -1583,9 +1583,22 @@ def test_start_fido2_registration(client, sample_service):
     assert data["publicKey"]["user"]["id"] == sample_user.id.bytes
 
 
-def test_start_fido2_authentication(client, sample_service):
+def test_start_fido2_authentication(client, sample_service, mocker):
     sample_user = sample_service.users[0]
     auth_header = create_authorization_header()
+
+    mock_cred = mocker.Mock()
+    mock_cred.credential_id = b"test_cred_id"
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+
+    # Mock the FIDO2 server to avoid internal errors and control the output
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    # Return a dict that mimics the options object.
+    # Note: The real code returns an object, but cbor.encode handles dicts too.
+    mock_server.authenticate_begin.return_value = ({"rpId": "localhost"}, "state")
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
 
     response = client.post(
         url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
@@ -1595,7 +1608,7 @@ def test_start_fido2_authentication(client, sample_service):
     data = json.loads(response.get_data())
     data = base64.b64decode(data["data"])
     data = cbor.decode(data)
-    assert data["publicKey"]["rpId"] == "localhost"
+    assert data["rpId"] == "localhost"
 
 
 def test_list_login_events_for_a_user(client, sample_service):

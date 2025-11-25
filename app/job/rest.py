@@ -150,10 +150,14 @@ def create_job(service_id):
     data = request.get_json()
     data.update({"service": service_id})
 
+    # timing: get metadata from S3
+    t0 = time.time()
     try:
         data.update(**get_job_metadata_from_s3(service_id, data["id"]))
     except KeyError:
         raise InvalidRequest({"id": ["Missing data for required field."]}, status_code=400)
+    t1 = time.time()
+    current_app.logger.info("[create_job] get_job_metadata_from_s3 took {:.3f}s".format(t1 - t0))
 
     if data.get("valid") != "True":
         raise InvalidRequest("File is not valid, can't create job", 400)
@@ -166,13 +170,21 @@ def create_job(service_id):
     if template_errors:
         raise InvalidRequest(template_errors, status_code=400)
 
+    # timing: fetch job file from S3 and parse CSV
+    t0 = time.time()
     job = get_job_from_s3(service_id, data["id"])
+    t1 = time.time()
+    current_app.logger.info("[create_job] get_job_from_s3 took {:.3f}s".format(t1 - t0))
+
+    t0 = time.time()
     recipient_csv = RecipientCSV(
         job,
         template_type=template.template_type,
         placeholders=template._as_utils_template().placeholders,
         template=Template(template.__dict__),
     )
+    t1 = time.time()
+    current_app.logger.info("[create_job] RecipientCSV parsing took {:.3f}s".format(t1 - t0))
 
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
@@ -181,19 +193,37 @@ def create_job(service_id):
         data["sender_id"] = data.get("sender_id", default_sender_id)
 
         # calculate the number of simulated recipients
+        t0 = time.time()
         requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        t1 = time.time()
+        current_app.logger.info("[create_job] built requested_recipients list in {:.3f}s".format(t1 - t0))
+
+        t0 = time.time()
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
+        t1 = time.time()
+        current_app.logger.info("[create_job] csv_has_simulated_and_non_simulated_recipients took {:.3f}s".format(t1 - t0))
 
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
+            t0 = time.time()
             check_sms_annual_limit(service, len(recipient_csv))
+            t1 = time.time()
+            current_app.logger.info("[create_job] check_sms_annual_limit took {:.3f}s".format(t1 - t0))
+
+            t0 = time.time()
             check_sms_daily_limit(service, len(recipient_csv))
+            t1 = time.time()
+            current_app.logger.info("[create_job] check_sms_daily_limit took {:.3f}s".format(t1 - t0))
+
+            t0 = time.time()
             increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
+            t1 = time.time()
+            current_app.logger.info("[create_job] increment_sms_daily_count took {:.3f}s".format(t1 - t0))
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
@@ -204,8 +234,15 @@ def create_job(service_id):
             )
             notification_count = len(recipient_csv)
 
+        t0 = time.time()
         check_email_annual_limit(service, notification_count)
+        t1 = time.time()
+        current_app.logger.info("[create_job] check_email_annual_limit took {:.3f}s".format(t1 - t0))
+
+        t0 = time.time()
         check_email_daily_limit(service, notification_count)
+        t1 = time.time()
+        current_app.logger.info("[create_job] check_email_daily_limit took {:.3f}s".format(t1 - t0))
 
         scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
 
@@ -214,12 +251,18 @@ def create_job(service_id):
 
     data.update({"template_version": template.version})
 
+    t0 = time.time()
     job = job_schema.load(data)
+    t1 = time.time()
+    current_app.logger.info("[create_job] job_schema.load took {:.3f}s".format(t1 - t0))
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED
 
+    t0 = time.time()
     dao_create_job(job)
+    t1 = time.time()
+    current_app.logger.info("[create_job] dao_create_job took {:.3f}s".format(t1 - t0))
 
     if job.job_status == JOB_STATUS_PENDING:
         process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)

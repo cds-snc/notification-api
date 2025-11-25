@@ -211,6 +211,11 @@ class Config(object):
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
 
+    # Airtable
+    AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+    AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
     SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
@@ -331,6 +336,12 @@ class Config(object):
     )
     USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
     SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
+
+    # Newsletter templates
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR = "109807d5-3a2d-49ca-9bd8-d6eae3ac1770"
+    NEWSLETTER_EMAIL_TEMPLATE_ID_EN = "c3a0273c-ea55-4de4-a688-018ab909795d"
+    NEWSLETTER_EMAIL_TEMPLATE_ID_FR = "0422ee2d-0e13-4d6b-a52c-77e59e7dd89c"
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
@@ -603,7 +614,7 @@ class Config(object):
     NOTIFY_LOG_PATH = ""
 
     FIDO2_SERVER = Fido2Server(
-        PublicKeyCredentialRpEntity(os.getenv("FIDO2_DOMAIN", "localhost"), "Notification"),
+        PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")),
         verify_origin=lambda x: True,
     )
 
@@ -712,6 +723,8 @@ class Development(Config):
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
 
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+
 
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
@@ -748,6 +761,7 @@ class Test(Development):
 
 
 class Production(Config):
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -768,6 +782,7 @@ class Production(Config):
 class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
 
 
 class Scratch(Production):
