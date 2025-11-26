@@ -152,6 +152,7 @@ def send_latest_newsletter(subscriber_id):
     except HTTPError as e:
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
     _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)

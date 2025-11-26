@@ -305,7 +305,9 @@ class TestReactivateSubscription:
         assert response["message"] == "Language is required to resubscribe"
 
     def test_reactivate_subscription_subscriber_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
         data = {"language": "fr"}
         response = admin_request.post(
             "newsletter.reactivate_subscription", subscriber_id="rec999999", _data=data, _expected_status=404
@@ -388,19 +390,7 @@ class TestSendLatestNewsletter:
         mock_response.status_code = 404
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
-        response = admin_request.post("newsletter.send_latest_newsletter", subscriber_id="rec999999", _expected_status=404)
-
-    def test_reactivate_subscription_subscriber_not_found(self, admin_request, mocker):
-        mock_response = Response()
-        mock_response.status_code = 404
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
-        data = {"language": "fr"}
-        response = admin_request.post(
-            "newsletter.reactivate_subscription", subscriber_id="rec999999", _data=data, _expected_status=404
-        )
-
-        assert response["result"] == "error"
-        assert response["message"] == "Subscriber not found"
+        admin_request.post("newsletter.send_latest_newsletter", subscriber_id="rec999999", _expected_status=404)
 
     def test_send_latest_newsletter_calls_helper_with_correct_params(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.language = "fr"
