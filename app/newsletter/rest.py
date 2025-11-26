@@ -55,6 +55,7 @@ def confirm_subscription(subscriber_id):
     except HTTPError as e:
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     # If already subscribed then return success
     if subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value:
@@ -78,6 +79,7 @@ def unsubscribe(subscriber_id):
     except HTTPError as e:
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     # If already unsubscribed then return success
     if subscriber.status == NewsletterSubscriber.Statuses.UNSUBSCRIBED.value:
@@ -105,6 +107,7 @@ def update_language_preferences(subscriber_id):
     except HTTPError as e:
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     result = subscriber.update_language(new_language)
 
@@ -130,6 +133,7 @@ def reactivate_subscription(subscriber_id):
     except HTTPError as e:
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     result = subscriber.reactivate_subscription(language)
     if not result.saved:
