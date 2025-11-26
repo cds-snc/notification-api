@@ -130,8 +130,9 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_sms_daily_limit(service: Service, requested_sms=0):
-    messages_sent = fetch_todays_requested_sms_count(service.id)
+def check_sms_daily_limit(service: Service, requested_sms=0, messages_sent=None):
+    if messages_sent is None:
+        messages_sent = fetch_todays_requested_sms_count(service.id)
     over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
@@ -238,10 +239,12 @@ def check_email_annual_limit(service: Service, requested_emails=0):
     counter_name="rate_limit.live_service_annual_sms",
     exception=LiveServiceRequestExceedsSMSAnnualLimitError,
 )
-def check_sms_annual_limit(service: Service, requested_sms=0):
+def check_sms_annual_limit(service: Service, requested_sms=0, sms_sent_today=None, sms_sent_this_fiscal=None):
     current_fiscal_year = get_fiscal_year(datetime.utcnow())
-    sms_sent_today = fetch_todays_requested_sms_count(service.id)
-    sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
+    if sms_sent_today is None:
+        sms_sent_today = fetch_todays_requested_sms_count(service.id)
+    if sms_sent_this_fiscal is None:
+        sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
     send_exceeds_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) > service.sms_annual_limit
     send_reaches_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) == service.sms_annual_limit
     is_near_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) >= (
