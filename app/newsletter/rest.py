@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from requests import HTTPError
 
 from app.clients.airtable.models import NewsletterSubscriber
 from app.config import QueueNames
@@ -131,10 +132,11 @@ def reactivate_subscription(subscriber_id):
 
 @newsletter_blueprint.route("/send-latest/<subscriber_id>", methods=["POST"])
 def send_latest_newsletter(subscriber_id):
-    subscriber = NewsletterSubscriber.from_id(subscriber_id)
-
-    if not subscriber:
-        raise InvalidRequest("Subscriber not found", status_code=404)
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
 
     current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
     _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)

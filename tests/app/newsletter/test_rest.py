@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+from requests import HTTPError, Response
 
 from app.clients.airtable.models import NewsletterSubscriber
 
@@ -355,7 +356,9 @@ class TestSendLatestNewsletter:
         mock_send_latest.assert_called_once_with(mock_subscriber.id, mock_subscriber.email, mock_subscriber.language)
 
     def test_send_latest_newsletter_subscriber_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.post("newsletter.send_latest_newsletter", subscriber_id="rec999999", _expected_status=404)
 
