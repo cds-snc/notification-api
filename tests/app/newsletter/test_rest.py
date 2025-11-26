@@ -51,7 +51,9 @@ class TestCreateUnconfirmedSubscription:
 
         mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
 
         data = {"email": "test@example.com", "language": "en"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
@@ -71,7 +73,9 @@ class TestCreateUnconfirmedSubscription:
 
         mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
 
         data = {"email": "test@example.com"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=201)
@@ -91,7 +95,9 @@ class TestCreateUnconfirmedSubscription:
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
 
         data = {"email": "test@example.com", "language": "en"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
@@ -112,6 +118,18 @@ class TestCreateUnconfirmedSubscription:
         assert response["subscriber"] == mock_subscriber.to_dict
         # Confirmation email should be resent for existing subscriber
         mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
+
+    def test_create_unconfirmed_subscription_api_error(self, admin_request, mocker):
+        mock_response = Response()
+        mock_response.status_code = 500
+        mock_response._content = b"Internal Server Error"
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
+
+        data = {"email": "test@example.com", "language": "en"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
+
+        assert response["result"] == "error"
+        assert "Error fetching existing subscriber" in response["message"]
 
 
 class TestConfirmSubscription:
@@ -137,7 +155,9 @@ class TestConfirmSubscription:
         assert response["subscriber"] == mock_subscriber.to_dict
 
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.get("newsletter.confirm_subscription", subscriber_id="rec999999", _expected_status=404)
 
@@ -180,7 +200,9 @@ class TestUnsubscribe:
         assert response["subscriber"] == mock_subscriber.to_dict
 
     def test_unsubscribe_subscriber_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.get("newsletter.unsubscribe", subscriber_id="rec999999", _expected_status=404)
 
@@ -230,7 +252,9 @@ class TestUpdateLanguagePreferences:
         assert response["message"] == "New language is required"
 
     def test_update_language_subscriber_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         data = {"language": "fr"}
         response = admin_request.post(
@@ -322,7 +346,9 @@ class TestGetSubscriber:
         assert response["subscriber"]["language"] == "en"
 
     def test_get_subscriber_by_id_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.get("newsletter.get_subscriber", subscriber_id="rec999999", _expected_status=404)
 
@@ -330,7 +356,9 @@ class TestGetSubscriber:
         assert response["message"] == "Subscriber not found"
 
     def test_get_subscriber_by_email_not_found(self, admin_request, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=None)
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.get("newsletter.get_subscriber", email="notfound@example.com", _expected_status=404)
 
@@ -361,6 +389,15 @@ class TestSendLatestNewsletter:
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
 
         response = admin_request.post("newsletter.send_latest_newsletter", subscriber_id="rec999999", _expected_status=404)
+
+    def test_reactivate_subscription_subscriber_not_found(self, admin_request, mocker):
+        mock_response = Response()
+        mock_response.status_code = 404
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
+        data = {"language": "fr"}
+        response = admin_request.post(
+            "newsletter.reactivate_subscription", subscriber_id="rec999999", _data=data, _expected_status=404
+        )
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber not found"
