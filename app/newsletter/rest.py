@@ -1,4 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request
+from requests import HTTPError
 
 from app.clients.airtable.models import NewsletterSubscriber
 from app.config import QueueNames
@@ -21,13 +22,17 @@ def create_unconfirmed_subscription():
         raise InvalidRequest("Email is required", status_code=400)
 
     # Check if a subscriber with the given email already exists
-    existing_subscriber = NewsletterSubscriber.from_email(email)
-    if existing_subscriber:
+    try:
+        existing_subscriber = NewsletterSubscriber.from_email(email)
         current_app.logger.warning("A Subscriber by this email already exists, re-sending confirmation email.")
         send_confirmation_email(existing_subscriber.id, existing_subscriber.email, existing_subscriber.language)
         return jsonify(
             result="success", message="A subscriber with this email already exists", subscriber=existing_subscriber.to_dict
         ), 200
+    except HTTPError as e:
+        # If we didn't find a subscriber, we can proceed to create one
+        if e.response.status_code != 404:
+            raise InvalidRequest(f"Error fetching existing subscriber: {e.response.text}", status_code=e.response.status_code)
 
     # Create a new unconfirmed subscriber
     subscriber = NewsletterSubscriber(email=email, language=language)
@@ -45,11 +50,13 @@ def create_unconfirmed_subscription():
 
 @newsletter_blueprint.route("/confirm/<subscriber_id>", methods=["GET"])
 def confirm_subscription(subscriber_id):
-    subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
 
-    if not subscriber:
-        raise InvalidRequest("Subscriber not found", status_code=404)
-
+    # If already subscribed then return success
     if subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value:
         return jsonify(result="success", message="Subscription already confirmed", subscriber=subscriber.to_dict), 200
 
@@ -66,11 +73,13 @@ def confirm_subscription(subscriber_id):
 
 @newsletter_blueprint.route("/unsubscribe/<subscriber_id>", methods=["GET"])
 def unsubscribe(subscriber_id):
-    subscriber = NewsletterSubscriber.from_id(subscriber_id)
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
 
-    if not subscriber:
-        raise InvalidRequest("Subscriber not found", status_code=404)
-
+    # If already unsubscribed then return success
     if subscriber.status == NewsletterSubscriber.Statuses.UNSUBSCRIBED.value:
         return jsonify(result="success", message="Subscriber has already unsubscribed", subscriber=subscriber.to_dict), 200
 
@@ -91,10 +100,11 @@ def update_language_preferences(subscriber_id):
     if not new_language:
         raise InvalidRequest("New language is required", status_code=400)
 
-    subscriber = NewsletterSubscriber.from_id(subscriber_id)
-
-    if not subscriber:
-        raise InvalidRequest("Subscriber not found", status_code=404)
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
 
     result = subscriber.update_language(new_language)
 
@@ -115,9 +125,11 @@ def reactivate_subscription(subscriber_id):
     if not language:
         raise InvalidRequest("Language is required to resubscribe", status_code=400)
 
-    subscriber = NewsletterSubscriber.from_id(subscriber_id)
-    if not subscriber:
-        raise InvalidRequest("Subscriber not found", status_code=404)
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
 
     result = subscriber.reactivate_subscription(language)
     if not result.saved:
@@ -137,12 +149,14 @@ def get_subscriber():
     if not subscriber_id and not email:
         raise InvalidRequest("Subscriber ID or email is required", status_code=400)
 
-    if subscriber_id:
-        subscriber = NewsletterSubscriber.from_id(subscriber_id)
-    elif email:
-        subscriber = NewsletterSubscriber.from_email(email)
-
-    if not subscriber:
+    try:
+        if subscriber_id:
+            subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+        elif email:
+            subscriber = NewsletterSubscriber.from_email(email)
+    except HTTPError as e:
+        if e.response.status_code != 404:
+            raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
         raise InvalidRequest("Subscriber not found", status_code=404)
 
     return jsonify(result="success", subscriber=subscriber.to_dict), 200

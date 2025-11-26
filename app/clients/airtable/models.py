@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict
 from pyairtable.orm import Model
 from pyairtable.orm import fields as F
 from pyairtable.orm.model import SaveResult, _Meta
+from requests import HTTPError, Response
 
 
 class AirtableTableMixin:
@@ -170,13 +171,20 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
 
     @classmethod
     def from_email(cls, email: str):
-        """Find a subscriber by email address."""
-        try:
-            results = cls.all(formula=f"{{Email}} = '{email}'")
-            return results[0] if results else None
-        except Exception as e:
-            cls._app().logger.error(f"Error finding subscriber by email: {e}")
-            return None
+        """Find a subscriber by email address.
+
+        Returns:
+            NewsletterSubscriber: The subscriber with the given email.
+
+        Raises:
+            HTTPError: If the subscriber is not found (404) or other API errors occur.
+        """
+        results = cls.all(formula=f"{{Email}} = '{email}'")
+        if not results:
+            response = Response()
+            response.status_code = 404
+            raise HTTPError(response=response)
+        return results[0]
 
     @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
