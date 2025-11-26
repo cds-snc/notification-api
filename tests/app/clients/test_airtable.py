@@ -110,41 +110,22 @@ class TestNewsletterSubscriber:
         mock_all.assert_called_once_with(formula="{Email} = 'test@example.com'")
 
     def test_from_email_not_found(self, mocker):
-        """Test from_email returns None when not found."""
+        """Test from_email raises HTTPError when not found."""
+        from requests import HTTPError
+
         mocker.patch.object(NewsletterSubscriber, "all", return_value=[])
 
-        result = NewsletterSubscriber.from_email("test@example.com")
+        with pytest.raises(HTTPError) as exc_info:
+            NewsletterSubscriber.from_email("test@example.com")
 
-        assert result is None
+        assert exc_info.value.response.status_code == 404
 
     def test_from_email_exception_handling(self, mocker, notify_api):
-        """Test from_email handles exceptions gracefully."""
+        """Test from_email lets exceptions propagate."""
         mocker.patch.object(NewsletterSubscriber, "all", side_effect=Exception("Database error"))
-        mock_logger = mocker.patch.object(notify_api.logger, "error")
 
-        result = NewsletterSubscriber.from_email("test@example.com")
-
-        assert result is None
-        mock_logger.assert_called_once_with("Error finding subscriber by email: Database error")
-
-    def test_from_email_with_subscriber(self, mocker):
-        """Test from_email returns ID when subscriber exists."""
-        mock_subscriber = Mock()
-        mock_subscriber.id = "rec123456"
-        mock_get_by_email = mocker.patch.object(NewsletterSubscriber, "from_email", return_value=mock_subscriber)
-
-        result = NewsletterSubscriber.from_email("test@example.com")
-
-        assert result.id == "rec123456"
-        mock_get_by_email.assert_called_once_with("test@example.com")
-
-    def test_from_email_no_subscriber(self, mocker):
-        """Test get_id_by_email returns None when subscriber doesn't exist."""
-        mocker.patch.object(NewsletterSubscriber, "from_email", return_value=None)
-
-        result = NewsletterSubscriber.from_email("test@example.com")
-
-        assert result is None
+        with pytest.raises(Exception, match="Database error"):
+            NewsletterSubscriber.from_email("test@example.com")
 
     def test_save_unconfirmed_subscriber(self, mocker, notify_api):
         """Test save_unconfirmed_subscriber sets correct values and calls save."""
