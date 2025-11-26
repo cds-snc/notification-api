@@ -79,9 +79,9 @@ def upgrade():
     # TODO: Update links when admin endpoints are finalized
     sample_footers_content = "\n".join(
         [
-            f"[Unsubscribe]({admin_base_url}/newsletter-subscription/unsubscribe/((subscriber_id))) / [Change language]({admin_base_url}/newsletter-subscription/update-language/((subscriber_id)))",
+            f"[Unsubscribe]({admin_base_url}/newsletter/((subscriber_id))/unsubscribe) / [Change language]({admin_base_url}/newsletter/((subscriber_id))/change-language)",
             "",
-            f"[Se désabonner]({admin_base_url}/newsletter-subscription/unsubscribe/((subscriber_id))) / [Changer la langue]({admin_base_url}/newsletter-subscription/update-language/((subscriber_id)))"
+            f"[Se désabonner]({admin_base_url}/newsletter/((subscriber_id))/unsubscribe) / [Changer la langue]({admin_base_url}/newsletter/((subscriber_id))/change-language)"
         ]
     )
 
