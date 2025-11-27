@@ -13,8 +13,8 @@ from flask import current_app
 revision = "0496_newsletter_templates"
 down_revision = "0495_newsletter_conf_templates"
 
-newsletter_template_en_id = current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_EN"]
-newsletter_template_fr_id = current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_FR"]
+newsletter_template_en_id = "c3a0273c-ea55-4de4-a688-018ab909795d"
+newsletter_template_fr_id = "0422ee2d-0e13-4d6b-a52c-77e59e7dd89c"
 template_ids = [newsletter_template_en_id, newsletter_template_fr_id]
 
 def upgrade():
