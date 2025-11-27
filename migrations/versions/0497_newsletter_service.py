@@ -6,6 +6,7 @@ Create Date: 2025-11-24 00:00:00
 
 """
 from datetime import datetime
+import uuid
 
 from alembic import op
 from flask import current_app
@@ -70,6 +71,13 @@ def upgrade():
     service_permissions_insert = """INSERT INTO service_permissions (service_id, permission, created_at) VALUES ('{}', '{}', '{}')"""
     op.execute(service_permissions_insert.format(newsletter_service_id, 'email', datetime.utcnow()))
     op.execute(service_permissions_insert.format(newsletter_service_id, 'sms', datetime.utcnow()))
+
+    # SMS billing for free sms fragment limit
+    annual_billing_insert = """
+        INSERT INTO annual_billing (id, service_id, financial_year_start, free_sms_fragment_limit, created_at) 
+        VALUES ('{}', '{}', {}, {}, '{}')
+    """
+    op.execute(annual_billing_insert.format(uuid.uuid4(), newsletter_service_id, 2025, 25000, datetime.utcnow()))
 
     # Remove old base newsletter templates
     for template_id in old_base_templates:
@@ -288,6 +296,8 @@ def downgrade():
     op.execute(f"DELETE FROM template_redacted WHERE template_id = '{newsletter_template_id}'")
     op.execute(f"DELETE FROM templates_history WHERE id = '{newsletter_template_id}'")
     op.execute(f"DELETE FROM templates WHERE id = '{newsletter_template_id}'")
+
+    op.execute("DELETE FROM annual_billing WHERE service_id = '{}'".format(newsletter_service_id))
     
     # Remove service permissions
     op.execute(f"DELETE FROM service_permissions WHERE service_id = '{newsletter_service_id}'")
