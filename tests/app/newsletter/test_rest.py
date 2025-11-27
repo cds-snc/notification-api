@@ -154,6 +154,21 @@ class TestConfirmSubscription:
         assert response["message"] == "Subscription already confirmed"
         assert response["subscriber"] == mock_subscriber.to_dict
 
+    def test_confirm_subscription_resubscribe_success(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.UNSUBSCRIBED.value
+        mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
+
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
+
+        assert response["result"] == "success"
+        assert response["message"] == "Subscription confirmed"
+        assert response["subscriber"] == mock_subscriber.to_dict
+
+        # Verify that confirm_subscription was called with has_resubscribed=True
+        mock_subscriber.confirm_subscription.assert_called_once_with(has_resubscribed=True)
+
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
         mock_response = Response()
         mock_response.status_code = 404
