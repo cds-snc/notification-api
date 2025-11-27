@@ -143,6 +143,48 @@ def get_subscriber():
     return jsonify(result="success", subscriber=subscriber.to_dict), 200
 
 
+def _send_latest_newsletter(subscriber_id, recipient_email, language):
+    # Placeholder function to send the latest newsletter
+    # Implementation would be similar to send_confirmation_email
+    template_id = (
+        current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_EN"]
+        if language == "en"
+        else current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_FR"]
+    )
+
+    template = dao_get_template_by_id(template_id)
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
+        from notifications_utils.url_safe_token import generate_token
+
+        token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
+        # TODO: update these URLs when we know for sure what the admin endpoint will be
+        unsub_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/unsubscribe/{token}"
+        update_lang_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/update-language/{token}"
+    else:
+        unsub_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/unsubscribe/{subscriber_id}"
+        update_lang_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/update-language/{subscriber_id}"
+
+    saved_notification = persist_notification(
+        template_id=template_id,
+        template_version=template.version,
+        recipient=recipient_email,
+        service=service,
+        personalisation={
+            "newsletter_content": "TODO: Fetch this content from a datasource eventually",
+            "unsubscribe_link": unsub_url,
+            "change_language_link": update_lang_url,
+            "newsletter_number": "TODO: Fetch from datasource",
+        },
+        notification_type=EMAIL_TYPE,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+    )
+
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
 def send_confirmation_email(subscriber_id, recipient_email, language):
     template_id = (
         current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN"]
