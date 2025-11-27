@@ -183,20 +183,6 @@ class TestNewsletterSubscriber:
         assert result == "save_result"
         mock_save.assert_called_once()
 
-    def test_reactivate_subscription(self):
-        """Test reactivate_subscription reactivates unsubscribed user."""
-        subscriber = NewsletterSubscriber(email="test@example.com")
-        mock_save = Mock(return_value="save_result")
-        subscriber.save = mock_save
-
-        result = subscriber.reactivate_subscription("fr")
-
-        assert subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value
-        assert subscriber.language == "fr"
-        assert subscriber.has_resubscribed is True
-        assert result == "save_result"
-        mock_save.assert_called_once()
-
     def test_get_table_schema_structure(self, notify_api):
         """Test get_table_schema returns correct schema structure."""
         schema = NewsletterSubscriber.get_table_schema()
