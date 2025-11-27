@@ -52,13 +52,13 @@ def upgrade():
     # Set up newsletter service and user
     service_history_insert = f"""INSERT INTO services_history (id, name, created_at, active, message_limit, restricted, research_mode, email_from, created_by_id, organisation_id, sms_daily_limit, prefix_sms, organisation_type, version)
                     VALUES ('{newsletter_service_id}', 'Notify Newsletter', '{datetime.utcnow()}', True, 20000, False, False, 'newsletter',
-                    '{user_id}', (SELECT organisation_id FROM services WHERE id = '{notify_service_id}'), 0, False, 'central', 1)
+                    '{user_id}', (SELECT organisation_id FROM services WHERE id = '{notify_service_id}'), 1000, False, 'central', 1)
                 """
     op.execute(service_history_insert)
     
     service_insert = f"""INSERT INTO services (id, name, created_at, active, message_limit, restricted, research_mode, email_from, created_by_id, organisation_id, sms_daily_limit, prefix_sms, organisation_type, version)
                         VALUES ('{newsletter_service_id}', 'Notify Newsletter', '{datetime.utcnow()}', True, 20000, False, False, 'newsletter',
-                        '{user_id}', (SELECT organisation_id FROM services WHERE id = '{notify_service_id}'), 0, False, 'central', 1)
+                        '{user_id}', (SELECT organisation_id FROM services WHERE id = '{notify_service_id}'), 1000, False, 'central', 1)
                     """
     op.execute(service_insert)
 
@@ -67,8 +67,9 @@ def upgrade():
     op.execute(user_to_service_insert)
     
     # Service permissions
-    service_permissions_insert = f"""INSERT INTO service_permissions (service_id, permission, created_at) VALUES ('{newsletter_service_id}', 'email', '{datetime.utcnow()}')"""
-    op.execute(service_permissions_insert)
+    service_permissions_insert = """INSERT INTO service_permissions (service_id, permission, created_at) VALUES ('{}', '{}', '{}')"""
+    op.execute(service_permissions_insert.format(newsletter_service_id, 'email', datetime.utcnow()))
+    op.execute(service_permissions_insert.format(newsletter_service_id, 'sms', datetime.utcnow()))
 
     # Remove old base newsletter templates
     for template_id in old_base_templates:
