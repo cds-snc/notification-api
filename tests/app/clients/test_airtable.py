@@ -150,6 +150,21 @@ class TestNewsletterSubscriber:
 
         assert subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value
         assert isinstance(subscriber.confirmed_at, datetime)
+        assert subscriber.has_resubscribed is False
+        assert result == "save_result"
+        mock_save.assert_called_once()
+
+    def test_confirm_subscription_with_has_resubscribed(self):
+        """Test confirm_subscription sets has_resubscribed when flag is True."""
+        subscriber = NewsletterSubscriber(email="test@example.com")
+        mock_save = Mock(return_value="save_result")
+        subscriber.save = mock_save
+
+        result = subscriber.confirm_subscription(has_resubscribed=True)
+
+        assert subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value
+        assert isinstance(subscriber.confirmed_at, datetime)
+        assert subscriber.has_resubscribed is True
         assert result == "save_result"
         mock_save.assert_called_once()
 
@@ -180,20 +195,6 @@ class TestNewsletterSubscriber:
             result = subscriber.update_language("fr")
 
         assert subscriber.language == "fr"
-        assert result == "save_result"
-        mock_save.assert_called_once()
-
-    def test_reactivate_subscription(self):
-        """Test reactivate_subscription reactivates unsubscribed user."""
-        subscriber = NewsletterSubscriber(email="test@example.com")
-        mock_save = Mock(return_value="save_result")
-        subscriber.save = mock_save
-
-        result = subscriber.reactivate_subscription("fr")
-
-        assert subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value
-        assert subscriber.language == "fr"
-        assert subscriber.has_resubscribed is True
         assert result == "save_result"
         mock_save.assert_called_once()
 

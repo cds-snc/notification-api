@@ -154,6 +154,21 @@ class TestConfirmSubscription:
         assert response["message"] == "Subscription already confirmed"
         assert response["subscriber"] == mock_subscriber.to_dict
 
+    def test_confirm_subscription_resubscribe_success(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.UNSUBSCRIBED.value
+        mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
+
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+
+        response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
+
+        assert response["result"] == "success"
+        assert response["message"] == "Subscription confirmed"
+        assert response["subscriber"] == mock_subscriber.to_dict
+
+        # Verify that confirm_subscription was called with has_resubscribed=True
+        mock_subscriber.confirm_subscription.assert_called_once_with(has_resubscribed=True)
+
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
         mock_response = Response()
         mock_response.status_code = 404
@@ -372,32 +387,3 @@ class TestGetSubscriber:
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber ID or email is required"
-
-
-class TestSendLatestNewsletter:
-    def test_send_latest_newsletter_success(self, admin_request, mocker, mock_subscriber):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        mock_send_latest = mocker.patch("app.newsletter.rest._send_latest_newsletter")
-
-        response = admin_request.post("newsletter.send_latest_newsletter", subscriber_id=mock_subscriber.id, _expected_status=200)
-
-        assert response["result"] == "success"
-        assert response["subscriber"] == mock_subscriber.to_dict
-        mock_send_latest.assert_called_once_with(mock_subscriber.id, mock_subscriber.email, mock_subscriber.language)
-
-    def test_send_latest_newsletter_subscriber_not_found(self, admin_request, mocker):
-        mock_response = Response()
-        mock_response.status_code = 404
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
-
-        admin_request.post("newsletter.send_latest_newsletter", subscriber_id="rec999999", _expected_status=404)
-
-    def test_send_latest_newsletter_calls_helper_with_correct_params(self, admin_request, mocker, mock_subscriber):
-        mock_subscriber.language = "fr"
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        mock_send_latest = mocker.patch("app.newsletter.rest._send_latest_newsletter")
-
-        response = admin_request.post("newsletter.send_latest_newsletter", subscriber_id=mock_subscriber.id, _expected_status=200)
-
-        assert response["result"] == "success"
-        mock_send_latest.assert_called_once_with(mock_subscriber.id, mock_subscriber.email, mock_subscriber.language)
