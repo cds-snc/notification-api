@@ -127,10 +127,12 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         self.created_at = datetime.now()
         return self.save()
 
-    def confirm_subscription(self) -> SaveResult:
+    def confirm_subscription(self, has_resubscribed=False) -> SaveResult:
         """Confirm this subscriber's subscription."""
         self.status = self.Statuses.SUBSCRIBED.value
         self.confirmed_at = datetime.now()
+        if has_resubscribed:
+            self.has_resubscribed = True
         return self.save()
 
     def unsubscribe_user(self) -> SaveResult:
@@ -146,14 +148,6 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
             raise ValueError(f"Invalid language: {new_language}")
 
         self.language = new_language
-        return self.save()
-
-    def reactivate_subscription(self, language: str) -> SaveResult:
-        """Reactivate an unsubscribed user."""
-        self.status = self.Statuses.SUBSCRIBED.value
-        self.language = language
-        self.has_resubscribed = True
-        self.confirmed_at = datetime.now()
         return self.save()
 
     @property

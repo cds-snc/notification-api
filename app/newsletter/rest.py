@@ -60,8 +60,10 @@ def confirm_subscription(subscriber_id):
     # If already subscribed then return success
     if subscriber.status == NewsletterSubscriber.Statuses.SUBSCRIBED.value:
         return jsonify(result="success", message="Subscription already confirmed", subscriber=subscriber.to_dict), 200
-
-    result = subscriber.confirm_subscription()
+    elif subscriber.status == NewsletterSubscriber.Statuses.UNSUBSCRIBED.value:
+        result = subscriber.confirm_subscription(has_resubscribed=True)
+    else:
+        result = subscriber.confirm_subscription()
 
     if not result.saved:
         current_app.logger.error(
@@ -118,31 +120,6 @@ def update_language_preferences(subscriber_id):
         raise InvalidRequest("Language update failed", status_code=500)
 
     return jsonify(result="success", message="Language updated successfully", subscriber=subscriber.to_dict), 200
-
-
-@newsletter_blueprint.route("/resubscribe/<subscriber_id>", methods=["POST"])
-def reactivate_subscription(subscriber_id):
-    data = request.get_json()
-
-    language = data.get("language")
-    if not language:
-        raise InvalidRequest("Language is required to resubscribe", status_code=400)
-
-    try:
-        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
-    except HTTPError as e:
-        if e.response.status_code == 404:
-            raise InvalidRequest("Subscriber not found", status_code=404)
-        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
-
-    result = subscriber.reactivate_subscription(language)
-    if not result.saved:
-        current_app.logger.error(
-            f"Failed to reactivate newsletter subscription for subscriber: {subscriber.id}. Record was not saved"
-        )
-        raise InvalidRequest("Resubscription failed", status_code=500)
-
-    return jsonify(result="success", message="Resubscribed successfully", subscriber=subscriber.to_dict), 200
 
 
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
