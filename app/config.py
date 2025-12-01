@@ -214,9 +214,9 @@ class Config(object):
     # Airtable
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
-    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
-        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Current newsletter templates"
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
 
     # Salesforce

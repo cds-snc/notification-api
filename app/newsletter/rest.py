@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request
 from requests import HTTPError
 
-from app.clients.airtable.models import NewsletterSubscriber
+from app.clients.airtable.models import LatestNewsletterTemplate, NewsletterSubscriber
 from app.config import QueueNames
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
@@ -159,30 +159,35 @@ def get_subscriber():
 
 
 def _send_latest_newsletter(subscriber_id, recipient_email, language):
-    # Placeholder function to send the latest newsletter
-    # Implementation would be similar to send_confirmation_email
-    template_id = (
-        current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_EN"]
-        if language == "en"
-        else current_app.config["NEWSLETTER_EMAIL_TEMPLATE_ID_FR"]
-    )
+    # Get the current newsletter template IDs from Airtable
+    try:
+        latest_newsletter_templates = LatestNewsletterTemplate.get_latest_newsletter_templates()
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("No current newsletter templates found", status_code=404)
+        raise InvalidRequest(
+            f"Failed to fetch latest newsletter templates: {e.response.text}", status_code=e.response.status_code
+        )
 
-    template = dao_get_template_by_id(template_id)
+    # Fetch the template from the DB depending on the subscriber's language
+    template = (
+        dao_get_template_by_id(latest_newsletter_templates.template_id_en)
+        if language == NewsletterSubscriber.Languages.EN.value
+        else dao_get_template_by_id(latest_newsletter_templates.template_id_en)
+    )
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
+    # Save and send the notification
     saved_notification = persist_notification(
-        template_id=template_id,
+        template_id=template.id,
         template_version=template.version,
         recipient=recipient_email,
         service=service,
-        personalisation={
-            "subscriber_id": subscriber_id,
-        },
+        personalisation={"subscriber_id": subscriber_id},
         notification_type=EMAIL_TYPE,
         api_key_id=None,
         key_type=KEY_TYPE_NORMAL,
     )
-
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
 
