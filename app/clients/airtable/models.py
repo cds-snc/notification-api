@@ -221,3 +221,59 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
                 {"name": "Has Resubscribed", "type": "checkbox", "options": {"icon": "check", "color": "grayBright"}},
             ],
         }
+
+
+class LatestNewsletterTemplate(AirtableTableMixin, Model):
+    """
+    Model representing the latest newsletter templates in Airtable.
+    """
+
+    def __init__(self, **fields):
+        # Call parent constructor with the fields (including defaults)
+        super().__init__(**fields)
+
+    template_id_en = F.RequiredTextField("(EN) Template ID")
+    template_id_fr = F.RequiredTextField("(FR) Template ID")
+    created_at = F.CreatedTimeField("Created at")
+
+    class Meta:
+        """Meta data required by pyairtable's ORM to init an API client for the model."""
+
+        @staticmethod
+        def api_key():
+            return LatestNewsletterTemplate._app().config.get("AIRTABLE_API_KEY")
+
+        @staticmethod
+        def base_id():
+            return LatestNewsletterTemplate._app().config.get("AIRTABLE_NEWSLETTER_BASE_ID")
+
+        @staticmethod
+        def table_name():
+            return LatestNewsletterTemplate._app().config.get("AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME")
+
+    @classmethod
+    def get_latest_newsletter_templates(cls):
+        # Minus prefix tells pyairtable to return in descending order
+        if not cls.table_exists():
+            cls.create_table()
+
+        results = cls.all(sort=["-Created at"], max_records=1)
+        if not results:
+            response = Response()
+            response.status_code = 404
+            raise HTTPError(response=response)
+        return results[0]
+
+    @classmethod
+    def get_table_schema(cls) -> Dict[str, Any]:
+        table_name = cls.meta.table_name
+        # Note: "Created at" field must be added manually in Airtable UI as a formula field
+        # with the formula: CREATED_TIME()
+        # This cannot be created via API but will auto-populate when users add new rows
+        return {
+            "name": table_name,
+            "fields": [
+                {"name": "(EN) Template ID", "type": "singleLineText"},
+                {"name": "(FR) Template ID", "type": "singleLineText"},
+            ],
+        }

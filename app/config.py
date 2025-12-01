@@ -215,6 +215,9 @@ class Config(object):
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Current newsletter templates"
+    )
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -296,6 +299,7 @@ class Config(object):
     # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
     HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
+    NEWSLETTER_SERVICE_ID = "143806ca-3068-4f5d-9c6d-276b4151a395"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"
@@ -340,8 +344,7 @@ class Config(object):
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR = "109807d5-3a2d-49ca-9bd8-d6eae3ac1770"
-    NEWSLETTER_EMAIL_TEMPLATE_ID_EN = "c3a0273c-ea55-4de4-a688-018ab909795d"
-    NEWSLETTER_EMAIL_TEMPLATE_ID_FR = "0422ee2d-0e13-4d6b-a52c-77e59e7dd89c"
+    NEWSLETTER_SAMPLE_FOOTER_EMAIL_TEMPLATE_ID = "c3a0273c-ea55-4de4-a688-018ab909795d"
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
@@ -724,6 +727,9 @@ class Development(Config):
     API_RATE_LIMIT_ENABLED = True
 
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "DEV - Current newsletter templates"
+    )
 
 
 class Test(Development):
@@ -762,6 +768,9 @@ class Test(Development):
 
 class Production(Config):
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Current newsletter templates"
+    )
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -783,6 +792,9 @@ class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
+    )
 
 
 class Scratch(Production):
