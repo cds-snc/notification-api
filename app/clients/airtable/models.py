@@ -250,7 +250,7 @@ class LatestNewsletterTemplate(AirtableTableMixin, Model):
         @staticmethod
         def table_name():
             return LatestNewsletterTemplate._app().config.get(
-                "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Newsletter Templates"
+                "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME"
             )
 
     @classmethod
@@ -269,7 +269,7 @@ class LatestNewsletterTemplate(AirtableTableMixin, Model):
     @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
         table_name = cls.meta.table_name
-        # Note: "Created At" field must be added manually in Airtable UI as a formula field
+        # Note: "Created at" field must be added manually in Airtable UI as a formula field
         # with the formula: CREATED_TIME()
         # This cannot be created via API but will auto-populate when users add new rows
         return {
