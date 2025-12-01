@@ -249,9 +249,7 @@ class LatestNewsletterTemplate(AirtableTableMixin, Model):
 
         @staticmethod
         def table_name():
-            return LatestNewsletterTemplate._app().config.get(
-                "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME"
-            )
+            return LatestNewsletterTemplate._app().config.get("AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME")
 
     @classmethod
     def get_latest_newsletter_templates(cls):
