@@ -195,7 +195,7 @@ def check_for_malware_errors(document_download_response_code, notification):
     elif document_download_response_code == 422:
         current_app.logger.error(f"Malware scan failed for notification.id: {notification.id}, send anyway")
         return
-    # 408 "Request Timeout" response is sent if the scan does is not complete before it times out
+    # 408 "Request Timeout" response is sent if the scan is not complete before it times out
     elif document_download_response_code == 408:
         current_app.logger.info(f"Malware scan timed out for notification.id: {notification.id}, send anyway")
         return
