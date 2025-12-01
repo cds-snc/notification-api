@@ -173,7 +173,7 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
     template = (
         dao_get_template_by_id(latest_newsletter_templates.template_id_en)
         if language == NewsletterSubscriber.Languages.EN.value
-        else dao_get_template_by_id(latest_newsletter_templates.template_id_en)
+        else dao_get_template_by_id(latest_newsletter_templates.template_id_fr)
     )
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
