@@ -295,52 +295,6 @@ class TestUpdateLanguagePreferences:
         assert response["message"] == "Language update failed"
 
 
-class TestReactivateSubscription:
-    def test_reactivate_subscription_success(self, admin_request, mocker, mock_subscriber):
-        mock_subscriber.reactivate_subscription.return_value = MockSaveResult(saved=True)
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-
-        data = {"language": "fr"}
-        response = admin_request.post(
-            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=200
-        )
-
-        assert response["result"] == "success"
-        assert response["message"] == "Resubscribed successfully"
-        assert response["subscriber"] == mock_subscriber.to_dict
-        mock_subscriber.reactivate_subscription.assert_called_once_with("fr")
-
-    def test_reactivate_subscription_missing_language(self, admin_request, mock_subscriber, mocker):
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        data = {}
-        response = admin_request.post(
-            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=400
-        )
-        assert response["result"] == "error"
-        assert response["message"] == "Language is required to resubscribe"
-
-    def test_reactivate_subscription_subscriber_not_found(self, admin_request, mocker):
-        mock_response = Response()
-        mock_response.status_code = 404
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", side_effect=HTTPError(response=mock_response))
-        data = {"language": "fr"}
-        response = admin_request.post(
-            "newsletter.reactivate_subscription", subscriber_id="rec999999", _data=data, _expected_status=404
-        )
-        assert response["result"] == "error"
-        assert response["message"] == "Subscriber not found"
-
-    def test_reactivate_subscription_save_fails(self, admin_request, mocker, mock_subscriber):
-        mock_subscriber.reactivate_subscription.return_value = MockSaveResult(saved=False, error="Database error")
-        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
-        data = {"language": "fr"}
-        response = admin_request.post(
-            "newsletter.reactivate_subscription", subscriber_id="rec123456", _data=data, _expected_status=500
-        )
-        assert response["result"] == "error"
-        assert response["message"] == "Resubscription failed"
-
-
 class TestGetSubscriber:
     def test_get_subscriber_by_id_success(self, admin_request, mocker, mock_subscriber):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)

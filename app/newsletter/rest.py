@@ -122,6 +122,21 @@ def update_language_preferences(subscriber_id):
     return jsonify(result="success", message="Language updated successfully", subscriber=subscriber.to_dict), 200
 
 
+@newsletter_blueprint.route("/send-latest/<subscriber_id>", methods=["POST"])
+def send_latest_newsletter(subscriber_id):
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
+
+    current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
+    _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)
+
+    return jsonify(result="success", subscriber=subscriber.to_dict), 200
+
+
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
 def get_subscriber():
     subscriber_id = request.args.get("subscriber_id")
@@ -155,27 +170,13 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
     template = dao_get_template_by_id(template_id)
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
-        from notifications_utils.url_safe_token import generate_token
-
-        token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
-        # TODO: update these URLs when we know for sure what the admin endpoint will be
-        unsub_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/unsubscribe/{token}"
-        update_lang_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/update-language/{token}"
-    else:
-        unsub_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/unsubscribe/{subscriber_id}"
-        update_lang_url = f"{current_app.config['ADMIN_BASE_URL']}/newsletter-subscription/update-language/{subscriber_id}"
-
     saved_notification = persist_notification(
         template_id=template_id,
         template_version=template.version,
         recipient=recipient_email,
         service=service,
         personalisation={
-            "newsletter_content": "TODO: Fetch this content from a datasource eventually",
-            "unsubscribe_link": unsub_url,
-            "change_language_link": update_lang_url,
-            "newsletter_number": "TODO: Fetch from datasource",
+            "subscriber_id": subscriber_id,
         },
         notification_type=EMAIL_TYPE,
         api_key_id=None,
@@ -194,14 +195,7 @@ def send_confirmation_email(subscriber_id, recipient_email, language):
     template = dao_get_template_by_id(template_id)
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
-        from notifications_utils.url_safe_token import generate_token
-
-        token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
-        # TODO: update this URL when we know for sure what the admin endpoint will be
-        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter-subscription/confirm/{token}"
-    else:
-        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter/confirm/{subscriber_id}"
+    url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter/confirm/{subscriber_id}"
 
     saved_notification = persist_notification(
         template_id=template_id,
