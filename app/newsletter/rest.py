@@ -122,7 +122,7 @@ def update_language_preferences(subscriber_id):
     return jsonify(result="success", message="Language updated successfully", subscriber=subscriber.to_dict), 200
 
 
-@newsletter_blueprint.route("/send-latest/<subscriber_id>", methods=["POST"])
+@newsletter_blueprint.route("/send-latest/<subscriber_id>", methods=["GET"])
 def send_latest_newsletter(subscriber_id):
     try:
         subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
