@@ -20,6 +20,8 @@ jobs:
     name: Build and push (dev)
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      with:
+        ref: dev
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -82,23 +84,3 @@ jobs:
       with:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
-
-    - uses: cds-snc/notification-pr-bot@main
-      env:
-        TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
-
-    - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
-      env:
-        TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
-      with:
-        docker_image: "${{ env.DOCKER_SLUG }}:latest"
-        dockerfile_path: "ci/Dockerfile"
-        sbom_name: "notification-api-dev"
-        token: "${{ secrets.GITHUB_TOKEN }}"
-
-    - name: Notify Slack channel if this job failed
-      if: ${{ failure() }}
-      run: |
-        json='{"text":"<!here> Dev docker workflow is failing in <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|notification-api> !"}'
-        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}

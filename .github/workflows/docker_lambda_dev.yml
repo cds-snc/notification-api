@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: dev
 
       - name: Configure credentials to Notify dev using OIDC
         uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
@@ -36,28 +38,12 @@ jobs:
 
       - name: Build container
         run: |
-          set -euo pipefail
-          PARAM_NAME="ENVIRONMENT_VARIABLES_DEV"
-          RAW=$(aws ssm get-parameter \
-            --name "$PARAM_NAME" \
-            --with-decryption \
-            --query 'Parameter.Value' \
-            --output text || true)
-          NEW_RELIC_ENABLED=$(printf '%s' "$RAW" | grep -E '^NEW_RELIC_ENABLED=' | head -n1 | cut -d '=' -f2- || true)
-          if [ -z "${NEW_RELIC_ENABLED}" ]; then NEW_RELIC_ENABLED=false; fi
           DOCKERFILE="ci/Dockerfile.lambda"
-          if [ "${NEW_RELIC_ENABLED}" = "true" ] || [ "${NEW_RELIC_ENABLED}" = "TRUE" ]; then
-            DOCKERFILE="ci/Dockerfile.newrelic.lambda"
-            echo "NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED -> using ${DOCKERFILE}" >&2
-          else
-            echo "NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED -> using plain ${DOCKERFILE}" >&2
-          fi
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
             -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
             -f ${DOCKERFILE} \
             .
-
       - name: Login to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
