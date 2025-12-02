@@ -616,10 +616,7 @@ class Config(object):
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     NOTIFY_LOG_PATH = ""
 
-    FIDO2_SERVER = Fido2Server(
-        PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")),
-        verify_origin=lambda x: True,
-    )
+    FIDO2_SERVER = Fido2Server(PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")))
 
     HC_EN_SERVICE_ID = os.getenv("HC_EN_SERVICE_ID", "")
     HC_FR_SERVICE_ID = os.getenv("HC_FR_SERVICE_ID", "")
