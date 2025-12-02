@@ -2,8 +2,9 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
+from requests import HTTPError
 
-from app.clients.airtable.models import AirtableTableMixin, NewsletterSubscriber
+from app.clients.airtable.models import AirtableTableMixin, LatestNewsletterTemplate, NewsletterSubscriber
 from tests.conftest import set_config_values
 
 
@@ -260,3 +261,97 @@ class TestNewsletterSubscriber:
             assert NewsletterSubscriber.Meta.api_key() == "test_key"
             assert NewsletterSubscriber.Meta.base_id() == "test_base"
             assert NewsletterSubscriber.Meta.table_name() == "test_name"
+
+
+class TestLatestNewsletterTemplate:
+    def test_init_creates_table_if_not_exists(self, notify_api, mocker):
+        """Test initialization creates table if it doesn't exist."""
+        mocker.patch.object(LatestNewsletterTemplate, "table_exists", return_value=False)
+        mock_create_table = mocker.patch.object(LatestNewsletterTemplate, "create_table")
+        mocker.patch("pyairtable.orm.Model.save", return_value=Mock())
+
+        template = LatestNewsletterTemplate(template_id_en="test-en", template_id_fr="test-fr")
+        template.save()
+
+        mock_create_table.assert_called_once()
+
+    def test_get_latest_newsletter_templates_success(self, mocker):
+        """Test get_latest_newsletter_templates returns latest template."""
+        mock_template = Mock()
+        mock_template.template_id_en = "template-en-123"
+        mock_template.template_id_fr = "template-fr-456"
+
+        mocker.patch.object(LatestNewsletterTemplate, "table_exists", return_value=True)
+        mock_all = mocker.patch.object(LatestNewsletterTemplate, "all", return_value=[mock_template])
+
+        result = LatestNewsletterTemplate.get_latest_newsletter_templates()
+
+        assert result == mock_template
+        mock_all.assert_called_once_with(sort=["-Created at"], max_records=1)
+
+    def test_get_latest_newsletter_templates_creates_table_if_not_exists(self, mocker):
+        """Test get_latest_newsletter_templates creates table if it doesn't exist."""
+        mock_template = Mock()
+        mocker.patch.object(LatestNewsletterTemplate, "table_exists", return_value=False)
+        mock_create_table = mocker.patch.object(LatestNewsletterTemplate, "create_table")
+        mocker.patch.object(LatestNewsletterTemplate, "all", return_value=[mock_template])
+
+        result = LatestNewsletterTemplate.get_latest_newsletter_templates()
+
+        mock_create_table.assert_called_once()
+        assert result == mock_template
+
+    def test_get_latest_newsletter_templates_not_found(self, mocker):
+        """Test get_latest_newsletter_templates raises HTTPError when no templates found."""
+        mocker.patch.object(LatestNewsletterTemplate, "table_exists", return_value=True)
+        mocker.patch.object(LatestNewsletterTemplate, "all", return_value=[])
+
+        with pytest.raises(HTTPError) as exc_info:
+            LatestNewsletterTemplate.get_latest_newsletter_templates()
+
+        assert exc_info.value.response.status_code == 404
+
+    def test_get_table_schema_structure(self, notify_api):
+        """Test get_table_schema returns correct schema structure."""
+        schema = LatestNewsletterTemplate.get_table_schema()
+
+        assert schema["name"] == LatestNewsletterTemplate.Meta.table_name()
+        assert len(schema["fields"]) == 2
+
+        field_names = [field["name"] for field in schema["fields"]]
+        expected_fields = ["(EN) Template ID", "(FR) Template ID"]
+
+        for field_name in expected_fields:
+            assert field_name in field_names
+
+    def test_get_table_schema_field_types(self, notify_api):
+        """Test get_table_schema fields have correct types."""
+        schema = LatestNewsletterTemplate.get_table_schema()
+
+        for field in schema["fields"]:
+            assert field["type"] == "singleLineText"
+
+    def test_meta_class_environment_variables(self, notify_api, mocker):
+        """Test Meta class reads environment variables correctly."""
+        mocker.patch.object(LatestNewsletterTemplate, "_flask_app", notify_api)
+
+        with set_config_values(
+            notify_api,
+            {
+                "AIRTABLE_API_KEY": "test_key",
+                "AIRTABLE_NEWSLETTER_BASE_ID": "test_base",
+                "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME": "test_templates_name",
+            },
+        ):
+            assert LatestNewsletterTemplate.Meta.api_key() == "test_key"
+            assert LatestNewsletterTemplate.Meta.base_id() == "test_base"
+            assert LatestNewsletterTemplate.Meta.table_name() == "test_templates_name"
+
+    def test_meta_class_default_table_name(self, notify_api, mocker):
+        """Test Meta class uses default table name when config not set."""
+        mocker.patch.object(LatestNewsletterTemplate, "_flask_app", notify_api)
+
+        # Get the actual default from the config, not hardcoded
+        actual_default = notify_api.config.get("AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Newsletter Templates")
+
+        assert LatestNewsletterTemplate.Meta.table_name() == actual_default
