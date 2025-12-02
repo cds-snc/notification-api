@@ -52,6 +52,7 @@ jobs:
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
             -t $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
+            -t $REGISTRY/${{ steps.img.outputs.image }}:latest \
             -f ${{ steps.img.outputs.dockerfile }} \
             .
 
@@ -62,6 +63,7 @@ jobs:
       - name: Push image
         run: |
           docker push $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7}
+          docker push $REGISTRY/${{ steps.img.outputs.image }}:latest
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
