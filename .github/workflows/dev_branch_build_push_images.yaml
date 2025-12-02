@@ -1,0 +1,67 @@
+name: Build and Push dev Branch images to our Dev ECR
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+env:
+  REGISTRY: ${{ secrets.DEV_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
+  ACCOUNT_ID: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+  AWS_DEFAULT_REGION: ca-central-1
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ["lambda", "k8s"]
+
+    steps:
+      - name: Checkout dev branch
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: dev
+
+      - name: Configure credentials to Notify dev using OIDC
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/notification-api-apply-dev
+          role-session-name: NotifyApiApplyDev
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Set image parameters
+        id: img
+        run: |
+          if [ "${{ matrix.target }}" = "lambda" ]; then
+            echo "image=api-lambda-dev" >> "$GITHUB_OUTPUT"
+            echo "dockerfile=ci/Dockerfile.lambda" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=api-dev" >> "$GITHUB_OUTPUT"
+            echo "dockerfile=ci/Dockerfile" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg GIT_SHA=${GITHUB_SHA::7} \
+            -t $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
+            -f ${{ steps.img.outputs.dockerfile }} \
+            .
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+
+      - name: Push image
+        run: |
+          docker push $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7}
+
+      - name: Logout of Amazon ECR
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
