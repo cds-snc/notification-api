@@ -214,7 +214,10 @@ class Config(object):
     # Airtable
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
-    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
+    )
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -721,6 +724,9 @@ class Development(Config):
     API_RATE_LIMIT_ENABLED = True
 
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "DEV - Current newsletter templates"
+    )
 
 
 class Test(Development):
@@ -758,7 +764,10 @@ class Test(Development):
 
 
 class Production(Config):
-    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
+    )
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -780,6 +789,9 @@ class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
+    )
 
 
 class Scratch(Production):
