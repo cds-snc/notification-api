@@ -40,10 +40,10 @@ jobs:
         id: img
         run: |
           if [ "${{ matrix.target }}" = "lambda" ]; then
-            echo "image=api-lambda-dev" >> "$GITHUB_OUTPUT"
+            echo "image=api-lambda" >> "$GITHUB_OUTPUT"
             echo "dockerfile=ci/Dockerfile.lambda" >> "$GITHUB_OUTPUT"
           else
-            echo "image=api-dev" >> "$GITHUB_OUTPUT"
+            echo "image=api" >> "$GITHUB_OUTPUT"
             echo "dockerfile=ci/Dockerfile" >> "$GITHUB_OUTPUT"
           fi
 
