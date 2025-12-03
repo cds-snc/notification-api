@@ -191,7 +191,11 @@ def check_for_malware_errors(document_download_response_code, notification):
         current_app.logger.info(f"Malware scan in progress, could not download files for notification.id: {notification.id}")
         # Throw error so celery will retry
         raise MalwareScanInProgressException
-    # 408 "Request Timeout" response is sent if the scan does is not complete before it times out
+    # 422 "Scan failure" response is sent if the document cannot be scanned
+    elif document_download_response_code == 422:
+        current_app.logger.error(f"Malware scan failed for notification.id: {notification.id}, send anyway")
+        return
+    # 408 "Request Timeout" response is sent if the scan is not complete before it times out
     elif document_download_response_code == 408:
         current_app.logger.info(f"Malware scan timed out for notification.id: {notification.id}, send anyway")
         return
