@@ -38,6 +38,10 @@ jobs:
             role_arn: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
 
     steps:
+      - name: Set short SHA
+        id: sha
+        run: echo "short=${{ inputs.image-tag-sha }}" | cut -c1-7 >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
         with:
@@ -51,19 +55,23 @@ jobs:
 
       - name: Tag image for target registry
         run: |
-          SRC_IMAGE="${{ inputs.image-name }}:${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          SRC_IMAGE="${{ inputs.image-name }}:${SHORT_SHA}"
           SRC_LATEST="${{ inputs.image-name }}:latest"
           BRANCH_TAG="${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
           REGISTRY="${{ matrix.env.account_id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
 
-          docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${{ inputs.image-tag-sha }}"
+          docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
           docker tag "$SRC_LATEST" "$REGISTRY/${{ inputs.image-name }}:latest"
           docker tag "$SRC_IMAGE" "$REGISTRY/$BRANCH_TAG"
 
       - name: Push image to ${{ matrix.env.name }} ECR
         run: |
+          SHORT_SHA="${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
           REGISTRY="${{ matrix.env.account_id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
-          docker push "$REGISTRY/${{ inputs.image-name }}:${{ inputs.image-tag-sha }}"
+          docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
           docker push "$REGISTRY/${{ inputs.image-name }}:latest"
           docker push "$REGISTRY/${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
 
