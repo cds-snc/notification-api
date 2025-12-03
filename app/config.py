@@ -214,9 +214,9 @@ class Config(object):
     # Airtable
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
-    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
-        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Current newsletter templates"
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
 
     # Salesforce
@@ -616,10 +616,7 @@ class Config(object):
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     NOTIFY_LOG_PATH = ""
 
-    FIDO2_SERVER = Fido2Server(
-        PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")),
-        verify_origin=lambda x: True,
-    )
+    FIDO2_SERVER = Fido2Server(PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")))
 
     HC_EN_SERVICE_ID = os.getenv("HC_EN_SERVICE_ID", "")
     HC_FR_SERVICE_ID = os.getenv("HC_FR_SERVICE_ID", "")
@@ -767,9 +764,9 @@ class Test(Development):
 
 
 class Production(Config):
-    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "Mailing List")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
-        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Current newsletter templates"
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")

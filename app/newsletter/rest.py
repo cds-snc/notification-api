@@ -1,7 +1,7 @@
 from flask import Blueprint, current_app, jsonify, request
 from requests import HTTPError
 
-from app.clients.airtable.models import NewsletterSubscriber
+from app.clients.airtable.models import LatestNewsletterTemplate, NewsletterSubscriber
 from app.config import QueueNames
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
@@ -122,6 +122,21 @@ def update_language_preferences(subscriber_id):
     return jsonify(result="success", message="Language updated successfully", subscriber=subscriber.to_dict), 200
 
 
+@newsletter_blueprint.route("/send-latest/<subscriber_id>", methods=["GET"])
+def send_latest_newsletter(subscriber_id):
+    try:
+        subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("Subscriber not found", status_code=404)
+        raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
+
+    current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
+    _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)
+
+    return jsonify(result="success", subscriber=subscriber.to_dict), 200
+
+
 @newsletter_blueprint.route("/find-subscriber", methods=["GET"])
 def get_subscriber():
     subscriber_id = request.args.get("subscriber_id")
@@ -143,6 +158,39 @@ def get_subscriber():
     return jsonify(result="success", subscriber=subscriber.to_dict), 200
 
 
+def _send_latest_newsletter(subscriber_id, recipient_email, language):
+    # Get the current newsletter template IDs from Airtable
+    try:
+        latest_newsletter_templates = LatestNewsletterTemplate.get_latest_newsletter_templates()
+    except HTTPError as e:
+        if e.response.status_code == 404:
+            raise InvalidRequest("No current newsletter templates found", status_code=404)
+        raise InvalidRequest(
+            f"Failed to fetch latest newsletter templates: {e.response.text}", status_code=e.response.status_code
+        )
+
+    # Fetch the template from the DB depending on the subscriber's language
+    template = (
+        dao_get_template_by_id(latest_newsletter_templates.template_id_en)
+        if language == NewsletterSubscriber.Languages.EN.value
+        else dao_get_template_by_id(latest_newsletter_templates.template_id_fr)
+    )
+    service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
+
+    # Save and send the notification
+    saved_notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=recipient_email,
+        service=service,
+        personalisation={"subscriber_id": subscriber_id},
+        notification_type=EMAIL_TYPE,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+    )
+    send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
+
+
 def send_confirmation_email(subscriber_id, recipient_email, language):
     template_id = (
         current_app.config["NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN"]
@@ -152,14 +200,7 @@ def send_confirmation_email(subscriber_id, recipient_email, language):
     template = dao_get_template_by_id(template_id)
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
-    if current_app.config["NOTIFY_ENVIRONMENT"] == "production":
-        from notifications_utils.url_safe_token import generate_token
-
-        token = generate_token(subscriber_id, current_app.config["SECRET_KEY"])
-        # TODO: update this URL when we know for sure what the admin endpoint will be
-        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter-subscription/confirm/{token}"
-    else:
-        url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter/confirm/{subscriber_id}"
+    url = f"{current_app.config["ADMIN_BASE_URL"]}/newsletter/confirm/{subscriber_id}"
 
     saved_notification = persist_notification(
         template_id=template_id,
