@@ -1,4 +1,4 @@
-name: Build and Push dev Branch images to our Dev ECR
+name: Build and Push dev Branch images to Dev, Staging and Prod ECRs
 
 on:
   workflow_dispatch:
@@ -7,8 +7,6 @@ on:
       - dev
 
 env:
-  REGISTRY: ${{ secrets.DEV_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
-  ACCOUNT_ID: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
   AWS_DEFAULT_REGION: ca-central-1
 
 permissions:
@@ -29,13 +27,6 @@ jobs:
         with:
           ref: dev
 
-      - name: Configure credentials to Notify dev using OIDC
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
-        with:
-          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/notification-api-apply-dev
-          role-session-name: NotifyApiApplyDev
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
       - name: Set image parameters
         id: img
         run: |
@@ -51,22 +42,18 @@ jobs:
         run: |
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
-            -t $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
-            -t $REGISTRY/${{ steps.img.outputs.image }}:latest \
+            -t ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
+            -t ${{ steps.img.outputs.image }}:latest \
             -f ${{ steps.img.outputs.dockerfile }} \
             .
 
-      - name: Login to ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
-
-      - name: Push image
-        run: |
-          docker push $REGISTRY/${{ steps.img.outputs.image }}:${GITHUB_SHA::7}
-          docker push $REGISTRY/${{ steps.img.outputs.image }}:latest
-
-      - name: Logout of Amazon ECR
-        run: docker logout ${{ steps.login-ecr.outputs.registry }}
+      - name: Push image to all ECRs
+        uses: ./.github/workflows/reusable_push_ecr.yml
+        with:
+          image-name: ${{ steps.img.outputs.image }}
+          image-tag-sha: ${GITHUB_SHA::7}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+          branch-name: ${{ github.ref_name }}
 
       - name: Trigger manifests workflow for dev images
         if: ${{ success() && matrix.target == 'k8s' }}
