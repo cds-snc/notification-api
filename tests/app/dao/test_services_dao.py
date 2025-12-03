@@ -1379,6 +1379,58 @@ def test_dao_fetch_service_creator(notify_db_session):
     assert active_user_1 == dao_fetch_service_creator(service.id)
 
 
+def test_dao_fetch_service_creator_when_version_1_does_not_exist(notify_db_session):
+    active_user_1 = create_user(email="creator@foo.com", state="active")
+    active_user_2 = create_user(email="updater@foo.com", state="active")
+
+    service = Service(
+        name="service_name",
+        email_from="email_from",
+        message_limit=1000,
+        sms_daily_limit=1000,
+        restricted=False,
+        created_by=active_user_1,
+    )
+    dao_create_service(
+        service,
+        active_user_1,
+        service_permissions=[
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ],
+    )
+
+    # Make some updates to create multiple history entries
+    service.name = "Updated Name 1"
+    dao_update_service(service)
+
+    service.created_by_id = active_user_2.id
+    service.name = "Updated Name 2"
+    dao_update_service(service)
+
+    # Verify we have 3 history entries (versions 1, 2, 3)
+    history_model = Service.get_history_model()
+    entries = history_model.query.filter_by(id=service.id).order_by(history_model.version).all()
+    assert len(entries) == 3
+    assert entries[0].version == 1
+    assert entries[0].created_by_id == active_user_1.id
+
+    # Delete version 1 from history to simulate missing early versions
+    db.session.delete(entries[0])
+    db.session.commit()
+
+    # Verify version 1 is gone
+    remaining_entries = history_model.query.filter_by(id=service.id).order_by(history_model.version).all()
+    assert len(remaining_entries) == 2
+    assert remaining_entries[0].version == 2
+    assert remaining_entries[1].version == 3
+
+    # dao_fetch_service_creator should return the creator from version 2 (earliest available)
+    creator = dao_fetch_service_creator(service.id)
+    assert creator == active_user_1
+
+
 def test_dao_allocating_inbound_number_shows_on_service(notify_db_session):
     create_service_with_inbound_number()
     create_inbound_number(number="07700900003")
