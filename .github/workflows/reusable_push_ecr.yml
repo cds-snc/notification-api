@@ -29,6 +29,7 @@ permissions:
 jobs:
   push-to-ecr:
     runs-on: ubuntu-latest
+    name: Push to ${{ inputs.env-name }} ECR
 
     steps:
       - name: Download image artifact

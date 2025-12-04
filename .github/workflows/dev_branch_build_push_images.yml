@@ -1,4 +1,5 @@
-name: Build and Push dev Branch images to Dev, Staging and Prod ECRs
+name: Build and Push dev Branch images to Dev
+# , Staging and Prod ECRs
 
 on:
   workflow_dispatch:
@@ -16,6 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }} image
     strategy:
       fail-fast: false
       matrix:
@@ -59,6 +61,7 @@ jobs:
           retention-days: 1
 
   push-k8s-dev:
+    name: Push K8s image to Dev ECR
     needs: build
     uses: ./.github/workflows/reusable_push_ecr.yml
     with:
@@ -71,6 +74,7 @@ jobs:
       account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
 
   push-lambda-dev:
+    name: Push Lambda image to Dev ECR
     needs: build
     uses: ./.github/workflows/reusable_push_ecr.yml
     with:
@@ -82,29 +86,29 @@ jobs:
     secrets:
       account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
 
-  push-k8s-staging:
-    needs: build
-    uses: ./.github/workflows/reusable_push_ecr.yml
-    with:
-      image-name: api
-      image-tag-sha: ${{ github.sha }}
-      aws-region: ca-central-1
-      branch-name: ${{ github.ref_name }}
-      env-name: staging
-    secrets:
-      account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+  # push-k8s-staging:
+  #   needs: build
+  #   uses: ./.github/workflows/reusable_push_ecr.yml
+  #   with:
+  #     image-name: api
+  #     image-tag-sha: ${{ github.sha }}
+  #     aws-region: ca-central-1
+  #     branch-name: ${{ github.ref_name }}
+  #     env-name: staging
+  #   secrets:
+  #     account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
 
-  push-lambda-staging:
-    needs: build
-    uses: ./.github/workflows/reusable_push_ecr.yml
-    with:
-      image-name: api-lambda
-      image-tag-sha: ${{ github.sha }}
-      aws-region: ca-central-1
-      branch-name: ${{ github.ref_name }}
-      env-name: staging
-    secrets:
-      account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+  # push-lambda-staging:
+  #   needs: build
+  #   uses: ./.github/workflows/reusable_push_ecr.yml
+  #   with:
+  #     image-name: api-lambda
+  #     image-tag-sha: ${{ github.sha }}
+  #     aws-region: ca-central-1
+  #     branch-name: ${{ github.ref_name }}
+  #     env-name: staging
+  #   secrets:
+  #     account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
 
   # push-k8s-prod:
   #   uses: ./.github/workflows/reusable_push_ecr.yml
@@ -131,6 +135,7 @@ jobs:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   update-manifest:
+    name: Update Manifests Dev Image Tag
     needs: [push-k8s-dev, push-k8s-staging, push-lambda-dev, push-lambda-staging]
     runs-on: ubuntu-latest
     steps:
