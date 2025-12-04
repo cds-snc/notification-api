@@ -51,24 +51,21 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
-      - name: Tag image for target registry
+      - name: Check if SHA tag exists and push
         run: |
           SHORT_SHA="${{ inputs.image-tag-sha }}"
           SHORT_SHA="${SHORT_SHA:0:7}"
           SRC_IMAGE="${{ inputs.image-name }}:${SHORT_SHA}"
-          BRANCH_TAG="${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
           REGISTRY="${{ secrets.account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
-
-          docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
-          docker tag "$SRC_IMAGE" "$REGISTRY/$BRANCH_TAG"
-
-      - name: Push image to ${{ inputs.env-name }} ECR
-        run: |
-          SHORT_SHA="${{ inputs.image-tag-sha }}"
-          SHORT_SHA="${SHORT_SHA:0:7}"
-          REGISTRY="${{ secrets.account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
-          docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
-          docker push "$REGISTRY/${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
+          
+          # Check if SHA tag already exists in ECR
+          if aws ecr describe-images --repository-name notify/${{ inputs.image-name }} --image-ids imageTag=${SHORT_SHA} --region ${{ inputs.aws-region }} 2>/dev/null; then
+            echo "SHA tag ${SHORT_SHA} already exists in ECR, skipping push"
+          else
+            echo "SHA tag ${SHORT_SHA} does not exist, pushing to ECR"
+            docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+            docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+          fi
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
