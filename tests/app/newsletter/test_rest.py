@@ -297,6 +297,7 @@ class TestUpdateLanguagePreferences:
 
 class TestSendLatestNewsletter:
     def test_send_latest_newsletter_success(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
         mock_send_newsletter = mocker.patch("app.newsletter.rest._send_latest_newsletter")
 
