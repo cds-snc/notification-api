@@ -306,6 +306,17 @@ class TestSendLatestNewsletter:
         assert response["subscriber"] == mock_subscriber.to_dict
         mock_send_newsletter.assert_called_once_with("rec123456", "test@example.com", "en")
 
+    def test_send_latest_newsletter_subscriber_already_subscribed(self, admin_request, mocker, mock_subscriber):
+        mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_send_newsletter = mocker.patch("app.newsletter.rest._send_latest_newsletter")
+
+        response = admin_request.get("newsletter.send_latest_newsletter", subscriber_id="rec123456", _expected_status=400)
+
+        assert response["result"] == "error"
+        assert "cannot receive newsletters" in response["message"]
+        mock_send_newsletter.assert_not_called()
+
     def test_send_latest_newsletter_subscriber_not_found(self, admin_request, mocker):
         mock_response = Response()
         mock_response.status_code = 404
