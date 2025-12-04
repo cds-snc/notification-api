@@ -56,12 +56,10 @@ jobs:
           SHORT_SHA="${{ inputs.image-tag-sha }}"
           SHORT_SHA="${SHORT_SHA:0:7}"
           SRC_IMAGE="${{ inputs.image-name }}:${SHORT_SHA}"
-          SRC_LATEST="${{ inputs.image-name }}:latest"
           BRANCH_TAG="${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
           REGISTRY="${{ secrets.account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
 
           docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
-          docker tag "$SRC_LATEST" "$REGISTRY/${{ inputs.image-name }}:latest"
           docker tag "$SRC_IMAGE" "$REGISTRY/$BRANCH_TAG"
 
       - name: Push image to ${{ inputs.env-name }} ECR
@@ -70,7 +68,6 @@ jobs:
           SHORT_SHA="${SHORT_SHA:0:7}"
           REGISTRY="${{ secrets.account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
           docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
-          docker push "$REGISTRY/${{ inputs.image-name }}:latest"
           docker push "$REGISTRY/${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
 
       - name: Logout of Amazon ECR
