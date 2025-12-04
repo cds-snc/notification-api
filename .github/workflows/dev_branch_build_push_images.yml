@@ -130,17 +130,17 @@ jobs:
   #   secrets:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
-  # update-manifest:
-  #   needs: [push-k8s-dev, push-k8s-staging, push-lambda-dev, push-lambda-staging]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Update Dev Image Tag in Manifests Repo
-  #       run: |
-  #         curl -L \
-  #         -X POST \
-  #           -H "Accept: application/vnd.github+json" \
-  #           -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
-  #           -H "X-GitHub-Api-Version: 2022-11-28" \
-  #           https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
-  #           -d '{"event_type":"update-docker-image-dev","client_payload":{"component":"API","docker_tag":"${GITHUB_SHA::7}","env":"dev"}}'
-
+  update-manifest:
+    needs: [push-k8s-dev, push-k8s-staging, push-lambda-dev, push-lambda-staging]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Dev Image Tag in Manifests Repo
+        run: |
+          curl -L \
+          -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
+            -d "{\"event_type\":\"update-docker-image-dev\",\"client_payload\":{\"component\":\"API\",\"docker_tag\":\"${GITHUB_SHA::7}\",\"env\":\"dev\"}}"
+          echo "Triggered update-docker-image-dev workflow in notification-manifests repo"
