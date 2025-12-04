@@ -55,7 +55,10 @@ jobs:
       image-tag-sha: ${{ github.sha }}
       aws-region: ca-central-1
       branch-name: ${{ github.ref_name }}
-    secrets: inherit
+    secrets:
+      dev-account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+      staging-account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+      # prod-account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   push-lambda:
     needs: build
@@ -65,7 +68,10 @@ jobs:
       image-tag-sha: ${{ github.sha }}
       aws-region: ca-central-1
       branch-name: ${{ github.ref_name }}
-    secrets: inherit
+    secrets:
+      dev-account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+      staging-account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+      # prod-account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   update-manifest:
     needs: [push-api, push-lambda]
