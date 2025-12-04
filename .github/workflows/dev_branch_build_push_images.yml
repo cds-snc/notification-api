@@ -47,7 +47,7 @@ jobs:
             -f ${{ steps.img.outputs.dockerfile }} \
             .
 
-  push-api:
+  push-api-dev:
     needs: build
     uses: ./.github/workflows/reusable_push_ecr.yml
     with:
@@ -55,12 +55,21 @@ jobs:
       image-tag-sha: ${{ github.sha }}
       aws-region: ca-central-1
       branch-name: ${{ github.ref_name }}
-    secrets:
-      dev-account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
-      staging-account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
-      # prod-account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
+      env-name: dev
+      account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
 
-  push-lambda:
+  push-api-staging:
+    needs: build
+    uses: ./.github/workflows/reusable_push_ecr.yml
+    with:
+      image-name: api
+      image-tag-sha: ${{ github.sha }}
+      aws-region: ca-central-1
+      branch-name: ${{ github.ref_name }}
+      env-name: staging
+      account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+
+  push-lambda-dev:
     needs: build
     uses: ./.github/workflows/reusable_push_ecr.yml
     with:
@@ -68,13 +77,44 @@ jobs:
       image-tag-sha: ${{ github.sha }}
       aws-region: ca-central-1
       branch-name: ${{ github.ref_name }}
-    secrets:
-      dev-account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
-      staging-account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
-      # prod-account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
+      env-name: dev
+      account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+
+  push-lambda-staging:
+    needs: build
+    uses: ./.github/workflows/reusable_push_ecr.yml
+    with:
+      image-name: api-lambda
+      image-tag-sha: ${{ github.sha }}
+      aws-region: ca-central-1
+      branch-name: ${{ github.ref_name }}
+      env-name: staging
+      account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+
+  # push-api-prod:
+  #   needs: build
+  #   uses: ./.github/workflows/reusable_push_ecr.yml
+  #   with:
+  #     image-name: api
+  #     image-tag-sha: ${{ github.sha }}
+  #     aws-region: ca-central-1
+  #     branch-name: ${{ github.ref_name }}
+  #     env-name: prod
+  #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
+
+  # push-lambda-prod:
+  #   needs: build
+  #   uses: ./.github/workflows/reusable_push_ecr.yml
+  #   with:
+  #     image-name: api-lambda
+  #     image-tag-sha: ${{ github.sha }}
+  #     aws-region: ca-central-1
+  #     branch-name: ${{ github.ref_name }}
+  #     env-name: prod
+  #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   update-manifest:
-    needs: [push-api, push-lambda]
+    needs: [push-api-dev, push-api-staging, push-lambda-dev, push-lambda-staging]
     runs-on: ubuntu-latest
     steps:
       - name: Update Dev Image Tag in Manifests Repo
