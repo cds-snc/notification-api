@@ -110,14 +110,14 @@ class TestCreateUnconfirmedSubscription:
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
 
-        data = {"email": "test@example.com", "language": "en"}
+        data = {"email": "test@example.com", "language": "fr"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=200)
 
         assert response["result"] == "success"
         assert response["message"] == "A subscriber with this email already exists"
         assert response["subscriber"] == mock_subscriber.to_dict
-        # Confirmation email should be resent for existing subscriber
-        mock_send_email.assert_called_once_with("rec123456", "test@example.com", "en")
+        # Confirmation email should be resent for existing subscriber, and any updated language preference should be applied
+        mock_send_email.assert_called_once_with("rec123456", "test@example.com", "fr")
 
     def test_create_unconfirmed_subscription_api_error(self, admin_request, mocker):
         mock_response = Response()
