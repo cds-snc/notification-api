@@ -47,6 +47,18 @@ jobs:
             -f ${{ steps.img.outputs.dockerfile }} \
             .
 
+      - name: Save image as tarball
+        run: |
+          docker save ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} ${{ steps.img.outputs.image }}:latest \
+            -o /tmp/${{ steps.img.outputs.image }}.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.img.outputs.image }}-image
+          path: /tmp/${{ steps.img.outputs.image }}.tar
+          retention-days: 1
+
   push-api-dev:
     needs: build
     uses: ./.github/workflows/reusable_push_ecr.yml
@@ -96,7 +108,6 @@ jobs:
       account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
 
   # push-api-prod:
-  #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
   #     image-name: api
@@ -104,11 +115,11 @@ jobs:
   #     aws-region: ca-central-1
   #     branch-name: ${{ github.ref_name }}
   #     env-name: prod
+  #     dockerfile: ci/Dockerfile
   #   secrets:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   # push-lambda-prod:
-  #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
   #     image-name: api-lambda
@@ -116,20 +127,21 @@ jobs:
   #     aws-region: ca-central-1
   #     branch-name: ${{ github.ref_name }}
   #     env-name: prod
+  #     dockerfile: ci/Dockerfile.lambda
   #   secrets:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
-  update-manifest:
-    needs: [push-api-dev, push-api-staging, push-lambda-dev, push-lambda-staging]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Update Dev Image Tag in Manifests Repo
-        run: |
-          curl -L \
-          -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
-            -d '{"event_type":"update-docker-image-dev","client_payload":{"component":"API","docker_tag":"${GITHUB_SHA::7}","env":"dev"}}'
+  # update-manifest:
+  #   needs: [push-api-dev, push-api-staging, push-lambda-dev, push-lambda-staging]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Update Dev Image Tag in Manifests Repo
+  #       run: |
+  #         curl -L \
+  #         -X POST \
+  #           -H "Accept: application/vnd.github+json" \
+  #           -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
+  #           -H "X-GitHub-Api-Version: 2022-11-28" \
+  #           https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
+  #           -d '{"event_type":"update-docker-image-dev","client_payload":{"component":"API","docker_tag":"${GITHUB_SHA::7}","env":"dev"}}'
 

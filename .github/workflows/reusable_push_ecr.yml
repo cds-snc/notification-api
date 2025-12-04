@@ -31,9 +31,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set short SHA
-        id: sha
-        run: echo "short=${{ inputs.image-tag-sha }}" | cut -c1-7 >> "$GITHUB_OUTPUT"
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.image-name }}-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/${{ inputs.image-name }}.tar
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
