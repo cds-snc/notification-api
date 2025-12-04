@@ -136,7 +136,7 @@ jobs:
 
   update-manifest:
     name: Update Manifests Dev Image Tag
-    needs: [push-k8s-dev, push-k8s-staging, push-lambda-dev, push-lambda-staging]
+    needs: [push-k8s-dev, push-lambda-dev]
     runs-on: ubuntu-latest
     steps:
       - name: Update Dev Image Tag in Manifests Repo
