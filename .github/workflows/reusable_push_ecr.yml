@@ -33,9 +33,9 @@ jobs:
           - name: staging
             account_id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
             role_arn: arn:aws:iam::${{ secrets.STAGING_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
-          - name: prod
-            account_id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
-            role_arn: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
+          # - name: prod
+          #   account_id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
+          #   role_arn: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
 
     steps:
       - name: Set short SHA
