@@ -1,0 +1,72 @@
+name: Reusable push to ECRs
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      image-tag-sha:
+        required: true
+        type: string
+      aws-region:
+        required: true
+        type: string
+      branch-name:
+        required: true
+        type: string
+      env-name:
+        required: true
+        type: string
+    secrets:
+      account-id:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  push-to-ecr:
+    runs-on: ubuntu-latest
+    name: Push to ${{ inputs.env-name }} ECR
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.image-name }}-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load -i /tmp/${{ inputs.image-name }}.tar
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.account-id }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
+          role-session-name: NotifyApiBuildPush-${{ inputs.env-name }}-${{ inputs.branch-name }}-branch
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+
+      - name: Check if SHA tag exists and push
+        run: |
+          SHORT_SHA="${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          SRC_IMAGE="${{ inputs.image-name }}:${SHORT_SHA}"
+          REGISTRY="${{ secrets.account-id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
+          
+          # Check if SHA tag already exists in ECR
+          if aws ecr describe-images --repository-name notify/${{ inputs.image-name }} --image-ids imageTag=${SHORT_SHA} --region ${{ inputs.aws-region }} 2>/dev/null; then
+            echo "SHA tag ${SHORT_SHA} already exists in ECR, skipping push"
+          else
+            echo "SHA tag ${SHORT_SHA} does not exist, pushing to ECR"
+            docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+            docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+          fi
+
+      - name: Logout of Amazon ECR
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
