@@ -87,6 +87,7 @@ jobs:
       account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
 
   # push-k8s-staging:
+  #   name: Push K8s image to Staging ECR
   #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
@@ -99,6 +100,7 @@ jobs:
   #     account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
 
   # push-lambda-staging:
+  #   name: Push Lambda image to Staging ECR
   #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
@@ -111,6 +113,8 @@ jobs:
   #     account-id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
 
   # push-k8s-prod:
+  #   name: Push K8s image to Prod ECR
+  #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
   #     image-name: api
@@ -118,11 +122,12 @@ jobs:
   #     aws-region: ca-central-1
   #     branch-name: ${{ github.ref_name }}
   #     env-name: prod
-  #     dockerfile: ci/Dockerfile
   #   secrets:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
   # push-lambda-prod:
+  #   name: Push Lambda image to Prod ECR
+  #   needs: build
   #   uses: ./.github/workflows/reusable_push_ecr.yml
   #   with:
   #     image-name: api-lambda
@@ -130,7 +135,6 @@ jobs:
   #     aws-region: ca-central-1
   #     branch-name: ${{ github.ref_name }}
   #     env-name: prod
-  #     dockerfile: ci/Dockerfile.lambda
   #   secrets:
   #     account-id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
 
