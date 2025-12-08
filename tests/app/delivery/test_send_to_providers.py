@@ -1022,7 +1022,7 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1081,7 +1081,7 @@ def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1131,7 +1131,7 @@ def test_notification_document_with_pdf_attachment(
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1314,7 +1314,7 @@ class TestMalware:
             status_code = 423
 
             def json():
-                return {"av-status": "malicious"}
+                return {"GuardDutyMalwareScanStatus": "THREATS_FOUND"}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1335,7 +1335,7 @@ class TestMalware:
             status_code = 428
 
             def json():
-                return {"av-status": "in_progress"}
+                return {}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1354,6 +1354,8 @@ class TestMalware:
         [
             (200, "clean"),
             (408, "scan_timed_out"),
+            (422, "scan_unsupported"),
+            (422, "scan_failed"),
         ],
     )
     def test_send_to_providers_succeeds_if_malware_verdict_clean(
@@ -1366,7 +1368,7 @@ class TestMalware:
             status_code = status_code_returned
 
             def json():
-                return {"av-status": scan_verdict}
+                return {"GuardDutyMalwareScanStatus": scan_verdict}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1385,7 +1387,7 @@ class TestMalware:
             status_code = 404
 
             def json():
-                return {"av-status": "None"}
+                return {"GuardDutyMalwareScanStatus": "None"}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
