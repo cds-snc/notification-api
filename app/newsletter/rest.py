@@ -24,6 +24,11 @@ def create_unconfirmed_subscription():
     # Check if a subscriber with the given email already exists
     try:
         existing_subscriber = NewsletterSubscriber.from_email(email)
+
+        # Update language preference in case it has changed
+        existing_subscriber.language = language
+        existing_subscriber.save()
+
         current_app.logger.warning("A Subscriber by this email already exists, re-sending confirmation email.")
         send_confirmation_email(existing_subscriber.id, existing_subscriber.email, language)
         return jsonify(
