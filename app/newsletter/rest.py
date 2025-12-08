@@ -131,6 +131,9 @@ def send_latest_newsletter(subscriber_id):
             raise InvalidRequest("Subscriber not found", status_code=404)
         raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
+    if subscriber.status != NewsletterSubscriber.Statuses.SUBSCRIBED.value:
+        raise InvalidRequest(message=f"Cannot send to subscribers with status: {subscriber.status}", status_code=400)
+
     current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
     _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)
 
