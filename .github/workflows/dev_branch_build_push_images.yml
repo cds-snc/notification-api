@@ -172,4 +172,3 @@ jobs:
           fi
 
           echo "Triggered update-docker-image-dev workflow in notification-manifests repo"
-          
